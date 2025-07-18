@@ -22,9 +22,11 @@ class StoreCustomField extends CoreRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * Returns the validation rules for storing a custom field.
      *
-     * @return array
+     * Defines required fields and custom validation to ensure the label does not conflict with user table columns or existing custom field labels for the specified module. Enforces that the category exists in the custom field categories table and conditionally requires values for certain field types.
+     *
+     * @return array The array of validation rules.
      */
     public function rules()
     {

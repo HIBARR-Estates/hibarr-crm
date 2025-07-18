@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Creates the 'custom_field_categories' table with columns for ID, name, and model.
      */
     public function up(): void
     {
@@ -20,7 +20,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Drops the `custom_field_categories` table if it exists, reversing the migration.
      */
     public function down(): void
     {

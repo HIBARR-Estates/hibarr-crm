@@ -21,9 +21,9 @@ class UpdateCustomField extends CoreRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * Returns the validation rules for updating a custom field, including a custom rule to ensure the label does not conflict with user table columns or existing custom field labels in the same module.
      *
-     * @return array
+     * @return array The array of validation rules for the request.
      */
     public function rules()
     {

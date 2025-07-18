@@ -41,7 +41,9 @@ class CustomFieldController extends AccountBaseController
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Displays the form for creating a new custom field.
+     *
+     * Retrieves all custom field categories and groups, defines available field types, and returns the view for creating a custom field with this data.
      *
      * @return \Illuminate\Http\Response
      */
@@ -54,8 +56,12 @@ class CustomFieldController extends AccountBaseController
     }
 
     /**
-     * @param StoreCustomField $request
-     * @return array
+     * Stores a new custom field with the provided attributes and assigns it to the specified category and group.
+     *
+     * Generates a unique slug for the field name, collects input data, and creates the custom field record.
+     *
+     * @param StoreCustomField $request The validated request containing custom field data.
+     * @return array Success response indicating the record was saved.
      */
     public function store(StoreCustomField $request)
     {
@@ -86,9 +92,11 @@ class CustomFieldController extends AccountBaseController
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Displays the edit form for a specific custom field.
      *
-     * @param int $id
+     * Retrieves the custom field by its ID along with all available categories and groups, decodes its values, and returns the edit modal view.
+     *
+     * @param int $id The ID of the custom field to edit.
      * @return \Illuminate\Http\Response
      */
     public function edit($id)
@@ -101,9 +109,13 @@ class CustomFieldController extends AccountBaseController
     }
 
     /**
-     * Update the specified resource in storage.
+     * Updates an existing custom field with new attributes and category assignment.
      *
-     * @param UpdateCustomField $request
+     * Finds the custom field by ID, updates its category, label, name (with a unique slug), values, and display properties, then saves the changes.
+     *
+     * @param UpdateCustomField $request The validated request containing updated custom field data.
+     * @param int $id The ID of the custom field to update.
+     * @return \Illuminate\Http\JsonResponse Success response after updating the custom field.
      */
     public function update(UpdateCustomField $request, $id)
     {
@@ -143,6 +155,13 @@ class CustomFieldController extends AccountBaseController
         return Reply::successWithData(__('messages.deleteSuccess'), ['updatedCount' => $updatedCount]);
     }
 
+    /**
+     * Creates new custom fields for a given group using the provided field data.
+     *
+     * Each field in the group is inserted with its associated group ID, category ID, label, name, type, export, visibility, required status, and values (JSON-encoded if multiple).
+     *
+     * @param array $group An array containing a 'fields' key with field data to be added.
+     */
     private function addCustomField($group)
     {
         // Add Custom Fields for this group

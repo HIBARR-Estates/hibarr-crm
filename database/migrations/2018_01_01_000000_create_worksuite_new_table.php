@@ -7,8 +7,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
 
     /**
-     * Run the migrations.
-     * We have changed the file_name as 2018 for the purpose of modules
+     * Creates the full database schema for a new installation if core tables do not exist.
+     *
+     * This migration conditionally creates all necessary tables, columns, indexes, and foreign key constraints for the application, including the latest schema changes. It only runs if neither the 'companies' nor 'organisation_settings' tables exist, ensuring it does not affect existing installations. The migration covers all application domains such as users, projects, tasks, invoices, payments, leads, contracts, notifications, and more, establishing relationships and referential integrity across the schema.
      *
      * @return void
      */
