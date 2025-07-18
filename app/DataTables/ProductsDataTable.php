@@ -3,10 +3,12 @@
 namespace App\DataTables;
 
 use App\Models\Product;
+use App\Models\OrderCart;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class ProductsDataTable extends BaseDataTable
 {
@@ -44,9 +46,13 @@ class ProductsDataTable extends BaseDataTable
         $datatables->addColumn('action', function ($row) {
 
             if (in_array('client', user_roles())) {
-                return '<button type="button" class="btn-secondary rounded f-14 add-product" data-product-id="' . $row->id . '">
-                        <i class="fa fa-plus mr-1"></i>
-                    ' . __('app.addToCart') . '
+                $cartProductIds = OrderCart::where('client_id', user()->id)->pluck('product_id')->toArray();
+                $addToCart = '<i class="fa fa-plus mr-1"></i>' . __('app.addToCart');
+                if (in_array($row->id, $cartProductIds)) {
+                    $addToCart = __('app.addedToCart');
+                }
+                return '<button type="button" class="btn-secondary rounded f-14 add-product" data-product-id="' . $row->id . '" id="add-to-cart-btn-' . $row->id . '">
+                        ' . $addToCart . '
                     </button>';
             }
 
@@ -153,9 +159,10 @@ class ProductsDataTable extends BaseDataTable
         }
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('products.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('products.price', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('products.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('products.price', 'like', '%' . $safeTerm . '%');
             });
         }
 

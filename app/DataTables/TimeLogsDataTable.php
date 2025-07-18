@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use App\Models\ProjectMember;
 use App\Helper\UserService;
+use App\Models\LogTimeFor;
+use App\Helper\Common;
 
 class TimeLogsDataTable extends BaseDataTable
 {
@@ -41,11 +43,12 @@ class TimeLogsDataTable extends BaseDataTable
     public function dataTable($query)
     {
         $userId = UserService::getUserId();
+        $logTimeFor = LogTimeFor::where('company_id', company()->id)->first();
 
         $datatables = datatables()->eloquent($query);
         $datatables->addIndexColumn();
         $datatables->addColumn('check', fn($row) => $this->checkBox($row));
-        $datatables->addColumn('action', function ($row) use ($userId) {
+        $datatables->addColumn('action', function ($row) use ($userId, $logTimeFor) {
             $action = '<div class="task_view">
 
                     <div class="dropdown">
@@ -59,11 +62,21 @@ class TimeLogsDataTable extends BaseDataTable
 
             if (!is_null($row->end_time)) {
                 if ($this->approveTimelogPermission == 'all') {
-                    if (!$row->approved) {
+
+                    $reportingManager = false;
+                    if ($row->reporting_manager == $userId || in_array('admin', user_roles())) {
+                        $reportingManager = true;
+                    }
+
+                    if (!$row->approved && !$row->rejected && $reportingManager && $logTimeFor->approval_required == 1) {
                         $action .= '<a class="dropdown-item approve-timelog" href="javascript:;" data-time-id="' . $row->id . '">
                                 <i class="fa fa-check mr-2"></i>
                                 ' . trans('app.approve') . '
                             </a>';
+                        $action .= '<a class="dropdown-item reject-timelog" href="javascript:;" data-time-id="' . $row->id . '">
+                            <i class="fa fa-times mr-2"></i>
+                            ' . trans('app.reject') . '
+                        </a>';
                     }
                 }
 
@@ -76,15 +89,20 @@ class TimeLogsDataTable extends BaseDataTable
                     )
                     || ($this->editTimelogPermission == 'both' && (($row->project && $row->project->client_id == $userId) || $row->user_id == $userId || $row->added_by == $userId))
                 ) {
-                    if(is_null($row->project_id) || ($row->project && is_null($row->project->deleted_at))) {
-                        $action .= '<a class="dropdown-item openRightModal" href="' . route('timelogs.edit', [$row->id]) . '">
-                                <i class="fa fa-edit mr-2"></i>
-                                ' . trans('app.edit') . '
-                            </a>';
+                    if (is_null($row->project_id) || ($row->project && is_null($row->project->deleted_at))) {
+                        if (($logTimeFor->approval_required == 0 && $row->user_id !== $userId) ||
+                            (($logTimeFor->approval_required == 1 && !$row->approved) || ($logTimeFor->approval_required == 1 && in_array('admin', user_roles())))
+                        ) {
+                            $action .= '<a class="dropdown-item openRightModal" href="' . route('timelogs.edit', [$row->id]) . '">
+                                    <i class="fa fa-edit mr-2"></i>
+                                    ' . trans('app.edit') . '
+                                </a>';
+                        }
                     }
                 }
 
-                if ($this->deleteTimelogPermission == 'all'
+                if (
+                    $this->deleteTimelogPermission == 'all'
                     || ($this->deleteTimelogPermission == 'added' && $userId == $row->added_by)
                     || ($row->project_admin == $userId)
                 ) {
@@ -93,9 +111,9 @@ class TimeLogsDataTable extends BaseDataTable
                                 ' . trans('app.delete') . '
                             </a>';
                 }
-            }
-            else {
-                if ($this->editTimelogPermission == 'all'
+            } else {
+                if (
+                    $this->editTimelogPermission == 'all'
                     || ($this->editTimelogPermission == 'added' && $userId == $row->added_by)
                     || ($row->project_admin == $userId)
                 ) {
@@ -147,6 +165,8 @@ class TimeLogsDataTable extends BaseDataTable
                 $timeLog .= ' <i data-toggle="tooltip" data-original-title="' . __('app.active') . '" class="fa fa-hourglass-start"></i>';
             } elseif ($row->approved) {
                 $timeLog .= ' <i data-toggle="tooltip" data-original-title="' . __('app.approved') . '" class="fa fa-check-circle text-primary"></i>';
+            } elseif ($row->rejected) {
+                $timeLog .= ' <i data-toggle="tooltip" data-original-title="' . __('app.rejected') . '" class="fa fa-times-circle text-red"></i>';
             }
 
             return $timeLog;
@@ -160,7 +180,7 @@ class TimeLogsDataTable extends BaseDataTable
                 : $row->total_minutes - $row->breaks->sum('total_minutes');
 
             $userData = (!empty($memberHoursRate->hourly_rate) && $memberHoursRate->hourly_rate !== 0) ? $memberHoursRate->hourly_rate : $row->user_hour_rate;
-            $amount = ($userData/60) * $totalMinutes;
+            $amount = ($userData / 60) * $totalMinutes;
 
             return currency_format($amount, company()->currency_id);
         });
@@ -170,11 +190,9 @@ class TimeLogsDataTable extends BaseDataTable
 
             if (!is_null($row->project_id) && !is_null($row->task_id)) {
                 $name .= '<h5 class="f-13 text-darkest-grey"><a href="' . route('tasks.show', [$row->task_id]) . '" class="openRightModal">' . $row->task->heading . '</a></h5><div class="text-muted">' . $row->task->project->project_name . '</div>';
-            }
-            else if (!is_null($row->project_id)) {
+            } else if (!is_null($row->project_id)) {
                 $name .= '<a href="' . route('projects.show', [$row->project_id]) . '" class="text-darkest-grey ">' . $row->project->project_name . '</a>';
-            }
-            else if (!is_null($row->task_id)) {
+            } else if (!is_null($row->task_id)) {
                 $name .= '<a href="' . route('tasks.show', [$row->task_id]) . '" class="text-darkest-grey openRightModal">' . $row->task->heading . '</a>';
             }
 
@@ -208,18 +226,19 @@ class TimeLogsDataTable extends BaseDataTable
 
         $projectId = $request->projectId;
         $employee = $request->employee;
+        $department = $request->department;
         $taskId = $request->taskId;
         $approved = $request->approved;
         $invoice = $request->invoice;
         $userId = UserService::getUserId();
+        $logTimeFor = LogTimeFor::where('company_id', company()->id)->first();
 
         $model = $model->with('user', 'user.employeeDetail', 'user.employeeDetail.designation', 'user.session', 'task', 'task.project', 'breaks', 'activeBreak', 'project');
 
         if (!in_array('client', user_roles()) && $request->has('project_admin') && $request->project_admin == 1) {
             $model->leftJoin('users', 'users.id', '=', 'project_time_logs.user_id')
                 ->leftJoin('employee_details', 'users.id', '=', 'employee_details.user_id');
-        }
-        else {
+        } else {
             $model->join('users', 'users.id', '=', 'project_time_logs.user_id')
                 ->join('employee_details', 'users.id', '=', 'employee_details.user_id');
         }
@@ -228,11 +247,12 @@ class TimeLogsDataTable extends BaseDataTable
             ->leftJoin('tasks', 'tasks.id', '=', 'project_time_logs.task_id')
             ->leftJoin('projects', 'projects.id', '=', 'tasks.project_id');
 
-        $model = $model->select('project_time_logs.id', 'project_time_logs.start_time', 'project_time_logs.end_time', 'project_time_logs.total_hours', 'project_time_logs.total_minutes', 'project_time_logs.memo', 'project_time_logs.user_id', 'tasks.project_id', 'project_time_logs.task_id', 'users.name', 'users.image', 'project_time_logs.hourly_rate', 'project_time_logs.earnings', 'project_time_logs.approved', 'tasks.heading', 'projects.project_name', 'designations.name as designation_name', 'project_time_logs.added_by', 'projects.project_admin', 'employee_details.hourly_rate as user_hour_rate');
+        $model = $model->select('project_time_logs.id', 'project_time_logs.start_time', 'project_time_logs.end_time', 'project_time_logs.total_hours', 'project_time_logs.total_minutes', 'project_time_logs.memo', 'project_time_logs.user_id', 'tasks.project_id', 'project_time_logs.task_id', 'users.name', 'users.image', 'project_time_logs.hourly_rate', 'project_time_logs.earnings', 'project_time_logs.approved', 'tasks.heading', 'projects.project_name', 'designations.name as designation_name', 'project_time_logs.added_by', 'projects.project_admin', 'employee_details.hourly_rate as user_hour_rate', 'employee_details.reporting_to as reporting_manager', 'project_time_logs.rejected', 'employee_details.department_id');
 
-
-        if ($request->startDate !== null && $request->startDate != 'null' && $request->startDate != '' &&
-        $request->endDate !== null && $request->endDate != 'null' && $request->endDate != '') {
+        if (
+            $request->startDate !== null && $request->startDate != 'null' && $request->startDate != '' &&
+            $request->endDate !== null && $request->endDate != 'null' && $request->endDate != ''
+        ) {
 
             $startDate = Carbon::createFromFormat($this->company->date_format, $request->startDate)->startOfDay(); // Assuming $startDate is already in a specific timezone
             $endDate = Carbon::createFromFormat($this->company->date_format, $request->endDate)->endOfDay(); // Assuming $endDate is already in a specific timezone
@@ -241,7 +261,15 @@ class TimeLogsDataTable extends BaseDataTable
         }
 
         if (!is_null($employee) && $employee !== 'all') {
-            $model->where('project_time_logs.user_id', $employee);
+            $model->where(function ($q) use ($userId, $employee, $logTimeFor) {
+                $q->where('project_time_logs.user_id', $employee);
+
+                ($this->approveTimelogPermission == 'all' && $logTimeFor->approval_required == 1) ? $q->orWhere('employee_details.reporting_to', $userId) : '';
+            });
+        }
+
+        if (!is_null($department) && $department !== 'all') {
+            $model->where('employee_details.department_id', $department);
         }
 
         if (!is_null($projectId) && $projectId !== 'all') {
@@ -255,8 +283,7 @@ class TimeLogsDataTable extends BaseDataTable
         if (!is_null($approved) && $approved !== 'all') {
             if ($approved == 2) {
                 $model->whereNull('project_time_logs.end_time');
-            }
-            else {
+            } else {
                 $model->where('project_time_logs.approved', '=', $approved);
             }
         }
@@ -264,35 +291,41 @@ class TimeLogsDataTable extends BaseDataTable
         if (!is_null($invoice) && $invoice !== 'all') {
             if ($invoice == 0) {
                 $model->whereNull('project_time_logs.invoice_id');
-            }
-            else if ($invoice == 1) {
+            } else if ($invoice == 1) {
                 $model->whereNotNull('project_time_logs.invoice_id');
             }
         }
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('tasks.heading', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('project_time_logs.memo', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('projects.project_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('projects.project_short_code', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('tasks.task_short_code', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('tasks.heading', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('project_time_logs.memo', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('projects.project_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('projects.project_short_code', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('tasks.task_short_code', 'like', '%' . $safeTerm . '%');
             });
         };
 
         if (($request->has('project_admin') && $request->project_admin != 1) || !$request->has('project_admin')) {
 
             if ($this->viewTimelogPermission == 'added') {
-                $model->where('project_time_logs.added_by', $userId);
+                $model->where(function ($q) use ($userId, $logTimeFor) {
+                    $q->where('project_time_logs.added_by', $userId);
+
+                    ($this->approveTimelogPermission == 'all' && $logTimeFor->approval_required == 1) ? $q->orWhere('employee_details.reporting_to', $userId) : '';
+                });
             }
 
             if ($this->viewTimelogPermission == 'owned') {
-                $model->where(function ($q) use ($userId) {
+                $model->where(function ($q) use ($userId, $logTimeFor) {
                     $q->where('project_time_logs.user_id', '=', $userId);
 
                     if (in_array('client', user_roles())) {
                         $q->orWhere('projects.client_id', '=', $userId);
                     }
+
+                    ($this->approveTimelogPermission == 'all' && $logTimeFor->approval_required == 1) ? $q->orWhere('employee_details.reporting_to', $userId) : '';
                 });
 
                 if ($projectId != 0 && $projectId != null && $projectId != 'all' && !in_array('client', user_roles())) {
@@ -301,10 +334,12 @@ class TimeLogsDataTable extends BaseDataTable
             }
 
             if ($this->viewTimelogPermission == 'both') {
-                $model->where(function ($q) use ($userId) {
+                $model->where(function ($q) use ($userId, $logTimeFor) {
                     $q->where('project_time_logs.user_id', '=', $userId);
 
                     $q->orWhere('project_time_logs.added_by', '=', $userId);
+
+                    ($this->approveTimelogPermission == 'all' && $logTimeFor->approval_required == 1) ? $q->orWhere('employee_details.reporting_to', $userId) : '';
 
                     if (in_array('client', user_roles())) {
                         $q->orWhere('projects.client_id', '=', $userId);
@@ -392,5 +427,4 @@ class TimeLogsDataTable extends BaseDataTable
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new ProjectTimeLog()), $action);
     }
-
 }

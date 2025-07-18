@@ -11,6 +11,7 @@ use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Str;
 use App\Helper\UserService;
 use App\Models\ClientContact;
+use App\Helper\Common;
 
 class EstimateRequestDataTable extends BaseDataTable
 {
@@ -73,8 +74,7 @@ class EstimateRequestDataTable extends BaseDataTable
             ->editColumn('estimate_id', function ($row) {
                 if ($row->estimate) {
                     return '<a class="text-darkest-grey" href="' . route('estimates.show', [$row->estimate->id]) . '">' . $row->estimate->estimate_number . '</a>';
-                }
-                else {
+                } else {
                     return '--';
                 }
             })
@@ -89,9 +89,9 @@ class EstimateRequestDataTable extends BaseDataTable
                     </a>
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuLink-' . $row->id . '" tabindex="0">';
 
-                    $action .= '<a href="' . route('estimate-request.show', [$row->id]) . '" class="dropdown-item openRightModal"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
+                $action .= '<a href="' . route('estimate-request.show', [$row->id]) . '" class="dropdown-item openRightModal"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
 
-                if ($row->status == 'pending'){
+                if ($row->status == 'pending') {
                     if (
                         $this->editEstimateRequestPermission == 'all'
                         || (($this->editEstimateRequestPermission == 'added') && ($row->added_by == user()->id || $row->added_by == $userId || in_array($row->added_by, $clientIds)))
@@ -108,7 +108,7 @@ class EstimateRequestDataTable extends BaseDataTable
                     }
                 }
 
-                if ($row->status != 'accepted'){
+                if ($row->status != 'accepted') {
                     if ($this->addEstimatePermission == 'all' || $this->addEstimatePermission == 'added') {
                         $action .= '<a class="dropdown-item" href="' . route('estimates.create') . '?estimate-request=' . $row->id . '">
                             <i class="fa fa-plus mr-2"></i>
@@ -123,7 +123,7 @@ class EstimateRequestDataTable extends BaseDataTable
                     || (($this->deleteEstimateRequestPermission == 'owned') && $row->client_id == $userId)
                     || (($this->deleteEstimateRequestPermission == 'both') && ($row->added_by == user()->id || $row->client_id == $userId || $row->added_by == $userId || in_array($row->added_by, $clientIds)))
                 ) {
-                    if (!(in_array('client', user_roles()) && $row->status == 'accepted')){
+                    if (!(in_array('client', user_roles()) && $row->status == 'accepted')) {
                         $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-toggle="tooltip"  data-estimate-request-id="' . $row->id . '">
                                 <i class="fa fa-trash mr-2"></i>' . trans('app.delete') . '</a>';
                     }
@@ -141,11 +141,9 @@ class EstimateRequestDataTable extends BaseDataTable
 
                 if ($row->status == 'pending' || $row->status == 'in process') {
                     $select .= '<i class="fa fa-circle mr-1 text-yellow f-10"></i>' . __('app.pending') . '</label>';
-                }
-                elseif ($row->status == 'rejected') {
+                } elseif ($row->status == 'rejected') {
                     $select .= '<i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.' . $row->status) . '</label>';
-                }
-                else {
+                } else {
                     $select .= '<i class="fa fa-circle mr-1 text-dark-green f-10"></i>' . __('app.' . $row->status) . '</label>';
                 }
 
@@ -177,8 +175,9 @@ class EstimateRequestDataTable extends BaseDataTable
             ->leftJoin('client_details', 'client_details.user_id', '=', 'users.id')
             ->withoutGlobalScopes([ActiveScope::class, CompanyScope::class])
             ->where(function ($query) use ($searchText) {
-                $query->where('users.name', 'like', '%' . $searchText . '%')
-                    ->orWhere('users.email', 'like', '%' . $searchText . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('users.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('users.email', 'like', '%' . $safeTerm . '%');
             });
 
         if (request()->has('client') && request()->client != 'all') {
@@ -194,8 +193,7 @@ class EstimateRequestDataTable extends BaseDataTable
         if (request()->has('status') && request()->status != 'all') {
             if (request()->status == 'pending') {
                 $model = $model->whereIn('estimate_requests.status', ['pending', 'in process']);
-            }
-            else {
+            } else {
                 $model = $model->where('estimate_requests.status', request()->status);
             }
         }
@@ -216,7 +214,6 @@ class EstimateRequestDataTable extends BaseDataTable
         }
 
         return $model;
-
     }
 
     /**
@@ -261,7 +258,7 @@ class EstimateRequestDataTable extends BaseDataTable
             __('app.project') => ['data' => 'project', 'name' => 'projects.project_name', 'title' => __('app.project')],
             __('modules.estimateRequest.estimatedBudget') => ['data' => 'estimated_budget', 'name' => 'estimated_budget', 'title' => __('modules.estimateRequest.estimatedBudget')],
             __('app.estimate') => ['data' => 'estimate_id', 'name' => 'estimate_id', 'title' => __('app.estimate')],
-            __('app.status') => ['data' => 'status1', 'name' => 'status','width' => '10%', 'exportable' => false, 'visible' => true, 'title' => __('app.status')],
+            __('app.status') => ['data' => 'status1', 'name' => 'status', 'width' => '10%', 'exportable' => false, 'visible' => true, 'title' => __('app.status')],
             __('modules.estimateRequest.earlyRequirement') => ['data' => 'early_requirement', 'name' => 'early_requirement',  'visible' => false],
             __('modules.estimateRequest.estimateRequest') . ' ' . __('app.status') => ['data' => 'status_name', 'name' => 'status', 'visible' => false, 'exportable' => true, 'title' => __('modules.estimateRequest.estimateRequest') . ' ' . __('app.status')],
             Column::computed('action', __('app.action'))
@@ -273,5 +270,4 @@ class EstimateRequestDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

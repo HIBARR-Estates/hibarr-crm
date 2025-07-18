@@ -7,13 +7,12 @@
 
 @section('content')
     <!-- CONTENT WRAPPER START -->
-    <div class="px-4 py-0 py-lg-4  border-top-0 admin-dashboard">
+    <div class="px-4 py-0 py-lg-4 border-top-0 admin-dashboard">
         <div class="row">
             @if (in_array('projects', user_modules()))
                 <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
                     <a href="{{ route('projects.index') }}?status=all">
-                        <x-cards.widget :title="__('modules.dashboard.totalProjects')" :value="$counts->totalProjects"
-                                        icon="layer-group"/>
+                        <x-cards.widget :title="__('modules.dashboard.totalProjects')" :value="$counts->totalProjects" icon="layer-group" />
                     </a>
                 </div>
             @endif
@@ -21,8 +20,7 @@
             @if (in_array('tickets', user_modules()))
                 <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
                     <a href="{{ route('tickets.index') }}">
-                        <x-cards.widget :title="__('modules.dashboard.totalUnresolvedTickets')"
-                                        :value="floor($counts->totalUnResolvedTickets)" icon="ticket-alt"/>
+                        <x-cards.widget :title="__('modules.dashboard.totalUnresolvedTickets')" :value="floor($counts->totalUnResolvedTickets)" icon="ticket-alt" />
                     </a>
                 </div>
             @endif
@@ -30,9 +28,7 @@
             @if (in_array('contracts', user_modules()))
                 <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
                     <a href="{{ route('contracts.index') }}?signed=yes">
-                        <x-cards.widget :title="__('modules.dashboard.totalContractsSigned')"
-                                        :value="$totalContractsSigned"
-                                        icon="file-signature"/>
+                        <x-cards.widget :title="__('modules.dashboard.totalContractsSigned')" :value="$totalContractsSigned" icon="file-signature" />
                     </a>
                 </div>
             @endif
@@ -74,20 +70,20 @@
                 <div class="col-sm-12 col-lg-6 mt-4">
                     <x-cards.data :title="__('modules.dashboard.statusWiseProject')">
                         @if (array_sum($statusWiseProject['values']) > 0)
-                            <a href="javascript:;" class="text-darkest-grey f-w-500 piechart-full-screen" data-chart-id="status-wise-project" data-chart-data="{{ json_encode($statusWiseProject) }}"><i class="fas fa-expand float-right mr-3"></i></a>
+                            <a href="javascript:;" class="text-darkest-grey f-w-500 piechart-full-screen"
+                                data-chart-id="status-wise-project"
+                                data-chart-data="{{ json_encode($statusWiseProject) }}"><i
+                                    class="fas fa-expand float-right mr-3"></i></a>
                         @endif
-                        <x-pie-chart id="task-chart" :labels="$statusWiseProject['labels']"
-                                     :values="$statusWiseProject['values']" :colors="$statusWiseProject['colors']"
-                                     height="300"
-                                     width="300"/>
+                        <x-pie-chart id="task-chart" :labels="$statusWiseProject['labels']" :values="$statusWiseProject['values']" :colors="$statusWiseProject['colors']" height="300"
+                            width="300" />
                     </x-cards.data>
                 </div>
             @endif
 
             @if (in_array('projects', user_modules()) && $viewMilestonePermission != 'none')
                 <div class="col-sm-12 col-lg-6 mt-4">
-                    <x-cards.data :title="__('modules.dashboard.pendingMilestone')" padding="false"
-                                  otherClasses="h-200">
+                    <x-cards.data :title="__('modules.dashboard.pendingMilestone')" padding="false" otherClasses="h-200">
                         <div class="table-responsive">
                             <x-table class="border-0 pb-3 admin-dash-table table-hover">
 
@@ -103,7 +99,7 @@
                                         <td class="pl-20">{{ $key + 1 }}</td>
                                         <td>
                                             <a href="javascript:;" class="milestone-detail text-darkest-grey f-w-500"
-                                               data-milestone-id="{{ $item->id }}">{{ $item->milestone_title }}</a>
+                                                data-milestone-id="{{ $item->id }}">{{ $item->milestone_title }}</a>
                                         </td>
                                         <td>
                                             @if (!is_null($item->currency_id))
@@ -114,13 +110,13 @@
                                         </td>
                                         <td>
                                             <a href="{{ route('projects.show', [$item->project_id]) }}"
-                                               class="text-darkest-grey">{{ $item->project->project_name }}</a>
+                                                class="text-darkest-grey">{{ $item->project->project_name }}</a>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
                                         <td colspan="5">
-                                            <x-cards.no-record icon="list" :message="__('messages.noRecordFound')"/>
+                                            <x-cards.no-record icon="list" :message="__('messages.noRecordFound')" />
                                         </td>
                                     </tr>
                                 @endforelse
@@ -138,7 +134,7 @@
 
 @push('scripts')
     <script>
-        $('body').on('click', '.milestone-detail', function () {
+        $('body').on('click', '.milestone-detail', function() {
             const id = $(this).data('milestone-id');
             let url = "{{ route('milestones.show', ':id') }}";
             url = url.replace(':id', id);
@@ -146,5 +142,4 @@
             $.ajaxModal(MODAL_XL, url);
         });
     </script>
-
 @endpush

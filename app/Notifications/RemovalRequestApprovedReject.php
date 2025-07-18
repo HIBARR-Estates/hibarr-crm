@@ -49,10 +49,11 @@ class RemovalRequestApprovedReject extends BaseNotification
 
         if ($this->type == 'approved') {
 
-            $content = __('email.removalRequestApproved.text');
+            $content = __('email.removalRequestApprovedUser.text');
 
             $build
-                ->subject(__('email.removalRequestApproved.subject') . ' ' . config('app.name') . '.')
+                ->subject(__('email.removalRequestApprovedUser.subject') . ' ' . config('app.name') . '.')
+                ->greeting(__('email.hello') . ' ' . $notifiable->name . ',')
                 ->markdown('mail.email', [
                     'content' => $content,
                     'notifiableName' => $notifiable->client_name
@@ -63,10 +64,11 @@ class RemovalRequestApprovedReject extends BaseNotification
             return $build;
         }
 
-        $content = __('email.removalRequestReject.text');
+        $content = __('email.removalRequestRejectedUser.text');
 
         $build
-            ->subject(__('email.removalRequestReject.subject') . ' ' . config('app.name') . '.')
+            ->subject(__('email.removalRequestRejectedUser.subject') . ' ' . config('app.name') . '.')
+            ->greeting(__('email.hello') . ' ' . $notifiable->name . ',')
             ->markdown('mail.email', [
                 'content' => $content,
                 'notifiableName' => $notifiable->client_name

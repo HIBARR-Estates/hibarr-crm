@@ -32,15 +32,31 @@
                                     @endphp
                                     @if($progress['type'] === 'promotion' && isset($progress['data']->date))
                                         @if($date->isToday())
-                                            (@lang('modules.incrementPromotion.promotion') @lang('app.fromToday'))
+                                            @if($progress['data']->promotion == 1)
+                                                (@lang('modules.incrementPromotion.promotion') @lang('app.fromToday'))
+                                            @else
+                                                (@lang('modules.decrementPromotion.demotion') @lang('app.fromToday'))
+                                            @endif
                                         @else
-                                            (@lang('modules.incrementPromotion.promotion') {{ $date->diffForHumans() }})
+                                            @if($progress['data']->promotion == 1)
+                                                (@lang('modules.incrementPromotion.promotion') {{ $date->diffForHumans() }})
+                                            @else
+                                                (@lang('modules.decrementPromotion.demotion') {{ $date->diffForHumans() }})
+                                            @endif
                                         @endif
                                     @elseif($progress['type'] === 'increment' && isset($progress['data']->date) && module_enabled('Payroll') && in_array('payroll', user_modules()))
                                         @if($date->isToday())
-                                            (@lang('modules.incrementPromotion.increment') @lang('app.fromToday'))
+                                            @if($progress['data']->promotion == 1)
+                                                (@lang('modules.incrementPromotion.increment') @lang('app.fromToday'))
+                                            @else
+                                                (@lang('modules.decrementPromotion.decrement') @lang('app.fromToday'))
+                                            @endif
                                         @else
-                                            (@lang('modules.incrementPromotion.increment') {{ $date->diffForHumans() }})
+                                            @if($progress['data']->promotion == 1)
+                                                (@lang('modules.incrementPromotion.increment') {{ $date->diffForHumans() }})
+                                            @else
+                                                (@lang('modules.decrementPromotion.decrement') {{ $date->diffForHumans() }})
+                                            @endif
                                         @endif
                                     @endif
                                 </span>
@@ -79,7 +95,13 @@
                         @elseif($progress['type'] === 'promotion')
 
                             <div class="mb-2">
-                                <span class="badge badge-warning">@lang('modules.incrementPromotion.promotion')</span>
+                                <span class="badge badge-warning">
+                                    @if($progress['data']->promotion == 1)
+                                     @lang('modules.incrementPromotion.promotion')
+                                    @else
+                                        @lang('modules.incrementPromotion.demotion')
+                                    @endif
+                                </span>
                             </div>
 
                             <ul class="list-unstyled mb-0">

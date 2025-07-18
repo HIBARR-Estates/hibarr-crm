@@ -45,11 +45,23 @@
                                     :fieldValue="now(company()->timezone)->translatedFormat(company()->date_format)" fieldRequired />
                             </div>
 
-                            <div class="col-md-6 mt-5">
+                            <div class="col-md-3 mt-5">
                                 <x-forms.checkbox class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('app.sendNotification')"
                                     fieldName="send_notification" fieldId="send_notification" fieldValue="yes"
                                     fieldRequired="true" :checked='true'/>
                             </div>
+
+                            <div class="col-md-3 mt-5">
+                                <div class="form-group d-flex align-items-center">
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" name="promotion" @checked(1) class="custom-control-input"
+                                               id="promotion">
+                                        <label class="custom-control-label cursor-pointer f-14" for="promotion"></label>
+                                    </div>
+                                    <span class="f-14 text-dark-grey" id="promotion-text">{{ __('modules.incrementPromotion.promotion') }}</span>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -66,6 +78,39 @@
     datepicker('#date', {
         position: 'bl',
         ...datepickerConfig
+    });
+
+    function initPromotionToggle() {
+        const $toggle = $('#promotion');
+        const $promotionText = $('#promotion-text');
+
+        if ($toggle.length && $promotionText.length) {
+            function updateLabelText() {
+                const text = $toggle.is(':checked')
+                    ? '{{ __("modules.incrementPromotion.promotion") }}'
+                    : '{{ __("modules.incrementPromotion.demotion") }}';
+                $promotionText.text(text);
+            }
+
+            // Initial load
+            updateLabelText();
+
+            // Remove existing event listener to prevent duplicates
+            $toggle.off('change.promotionToggle');
+
+            // On toggle change
+            $toggle.on('change.promotionToggle', updateLabelText);
+        }
+    }
+
+    // Initialize when document is ready
+    $(document).ready(function() {
+        initPromotionToggle();
+    });
+
+    // Initialize when modal is shown (in case it's loaded via AJAX)
+    $(document).on('shown.bs.modal', function() {
+        initPromotionToggle();
     });
 
     $('.select-picker').selectpicker('refresh');

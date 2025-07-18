@@ -58,7 +58,8 @@ class ArchiveTasksDataTable extends BaseDataTable
 
                 $action .= '<a href="' . route('tasks.show', [$row->id]) . '" class="dropdown-item openRightModal"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
 
-                if ($this->editTaskPermission == 'all'
+                if (
+                    $this->editTaskPermission == 'all'
                     || ($this->editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
                     || ($this->editTaskPermission == 'added' && $row->added_by == user()->id)
                     || ($row->project_admin == user()->id)
@@ -72,7 +73,8 @@ class ArchiveTasksDataTable extends BaseDataTable
                     }
                 }
 
-                if ($this->deleteTaskPermission == 'all'
+                if (
+                    $this->deleteTaskPermission == 'all'
                     || ($this->deleteTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
                     || ($this->deleteTaskPermission == 'added' && $row->added_by == user()->id)
                     || ($row->project_admin == user()->id)
@@ -84,7 +86,8 @@ class ArchiveTasksDataTable extends BaseDataTable
                             </a>';
                 }
 
-                if ($this->editTaskPermission == 'all'
+                if (
+                    $this->editTaskPermission == 'all'
                     || ($this->editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
                     || ($this->editTaskPermission == 'added' && $row->added_by == user()->id)
                     || ($this->editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $row->added_by == user()->id))
@@ -140,9 +143,7 @@ class ArchiveTasksDataTable extends BaseDataTable
                 if ($row->boardColumn->slug != 'completed' && !is_null($row->is_task_user)) {
                     if (is_null($row->userActiveTimer)) {
                         return '<a href="javascript:;" class="text-primary btn border f-15 start-timer" data-task-id="' . $row->id . '" data-toggle="tooltip" data-original-title="' . __('modules.timeLogs.startTimer') . '"><i class="bi bi-play-circle-fill"></i></a>';
-
-                    }
-                    else {
+                    } else {
 
                         if (is_null($row->userActiveTimer->activeBreak)) {
                             $timerButtons = '<div class="btn-group" role="group">';
@@ -152,12 +153,9 @@ class ArchiveTasksDataTable extends BaseDataTable
                             $timerButtons .= '</div>';
 
                             return $timerButtons;
-
-                        }
-                        else {
+                        } else {
                             return '<a href="javascript:;" class="text-secondary btn border f-15 resume-timer" data-time-id="' . $row->userActiveTimer->activeBreak->id . '" data-toggle="tooltip" data-original-title="' . __('modules.timeLogs.resumeTimer') . '"><i class="bi bi-play-circle-fill"></i></a>';
                         }
-
                     }
                 }
             })
@@ -233,12 +231,11 @@ class ArchiveTasksDataTable extends BaseDataTable
                     $status .= '</select>';
 
                     return $status;
-
                 }
 
                 return '<i class="fa fa-circle mr-1 text-yellow" style="color: ' . $row->boardColumn->label_color . '"></i>' . $row->boardColumn->column_name;
             })
-            ->addColumn('status', fn ($row) => $row->boardColumn->column_name ?? '-')
+            ->addColumn('status', fn($row) => $row->boardColumn->column_name ?? '-')
 
             ->editColumn('project_name', function ($row) {
                 if (is_null($row->project_id)) {
@@ -288,9 +285,7 @@ class ArchiveTasksDataTable extends BaseDataTable
         ) {
             $model->leftJoin('task_users', 'task_users.task_id', '=', 'tasks.id')
                 ->leftJoin('users as member', 'task_users.user_id', '=', 'member.id');
-
-        }
-        else {
+        } else {
             $model->join('task_users', 'task_users.task_id', '=', 'tasks.id')
                 ->join('users as member', 'task_users.user_id', '=', 'member.id');
         }
@@ -323,9 +318,7 @@ class ArchiveTasksDataTable extends BaseDataTable
                         );
                     }
                 );
-
-            }
-            else {
+            } else {
                 $model->where(
                     function ($q) {
                         $q->where('tasks.is_private', 0);
@@ -353,16 +346,11 @@ class ArchiveTasksDataTable extends BaseDataTable
             $model->where(function ($q) use ($startDate, $endDate) {
                 if (request()->date_filter_on == 'due_date') {
                     $q->whereBetween(DB::raw('DATE(tasks.`due_date`)'), [$startDate, $endDate]);
-
-                }
-                elseif (request()->date_filter_on == 'start_date') {
+                } elseif (request()->date_filter_on == 'start_date') {
                     $q->whereBetween(DB::raw('DATE(tasks.`start_date`)'), [$startDate, $endDate]);
-
-                }
-                elseif (request()->date_filter_on == 'completed_on') {
+                } elseif (request()->date_filter_on == 'completed_on') {
                     $q->whereBetween(DB::raw('DATE(tasks.`completed_on`)'), [$startDate, $endDate]);
                 }
-
             });
         }
 
@@ -399,7 +387,6 @@ class ArchiveTasksDataTable extends BaseDataTable
                 if ($projectId != 0 && $projectId != null && $projectId != 'all') {
                     $model->where('projects.project_admin', '<>', user()->id);
                 }
-
             }
 
             if ($this->viewTaskPermission == 'added') {
@@ -419,9 +406,7 @@ class ArchiveTasksDataTable extends BaseDataTable
                     if ($this->viewUnassignedTasksPermission == 'all' && !in_array('client', user_roles()) && ($request->assignedTo == 'unassigned' || $request->assignedTo == 'all')) {
                         $q->orWhereDoesntHave('users');
                     }
-
                 });
-
             }
         }
 
@@ -432,8 +417,7 @@ class ArchiveTasksDataTable extends BaseDataTable
         if ($request->status != '' && $request->status != null && $request->status != 'all') {
             if ($request->status == 'not finished' || $request->status == 'pending_task') {
                 $model->where('tasks.board_column_id', '<>', $taskBoardColumn->id);
-            }
-            else {
+            } else {
                 $model->where('tasks.board_column_id', '=', $request->status);
             }
         }
@@ -456,17 +440,17 @@ class ArchiveTasksDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model->where(function ($query) {
-                $query->where('tasks.heading', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('member.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('tasks.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('projects.project_name', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('tasks.heading', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('member.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('tasks.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('projects.project_name', 'like', '%' . $safeTerm . '%');
             });
         }
 
         if ($request->trashedData == 'true') {
             $model->whereNotNull('projects.deleted_at');
-        }
-        else {
+        } else {
             $model->whereNull('projects.deleted_at');
         }
 
@@ -539,5 +523,4 @@ class ArchiveTasksDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

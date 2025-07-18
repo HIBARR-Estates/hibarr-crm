@@ -89,17 +89,29 @@ $addDealPermission = user()->permission('add_deals');
 
                 </div>
 
-                @if (in_array($addDealPermission, ['all', 'added']))
-                    <div class="col-md-12 py-20">
+                <div class="row p-20">
+                    @if (in_array($addDealPermission, ['all', 'added']))
+                        <div class="col-lg-2 col-md-6">
+                            <div class="form-group">
+                                <div class="mt-2 d-flex">
+                                    <x-forms.checkbox fieldId="create_deal"
+                                                    :fieldLabel="__('app.create') .' '. __('modules.deal.title')"
+                                                    fieldName="create_deal" :checked="true"/>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="col-lg-4 col-md-6">
                         <div class="form-group">
                             <div class="mt-2 d-flex">
-                                <x-forms.checkbox fieldId="create_deal"
-                                                :fieldLabel="__('app.create') .' '. __('modules.deal.title')"
-                                                fieldName="create_deal" :checked="true"/>
+                                <x-forms.checkbox fieldId="create_client"
+                                                :fieldLabel="__('modules.deal.createClient')"
+                                                fieldName="create_client" :checked="false"/>
                             </div>
                         </div>
                     </div>
-                @endif
+                </div>
 
                 <div class="row p-20" id="add_deal">
                     <div class="col-lg-4 col-md-6">

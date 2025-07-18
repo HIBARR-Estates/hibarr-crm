@@ -50,8 +50,6 @@ class PromotionUpdated extends BaseNotification
             $this->slackUserNameCheck($notifiable) ? array_push($via, 'slack') : null;
         }
 
-        array_push($via, 'slack');
-
         return $via;
     }
 
@@ -66,7 +64,11 @@ class PromotionUpdated extends BaseNotification
         $currentDepartment = $this->promotion->currentDepartment->team_name;
         $previousDepartment = $this->previousDepartment->team_name;
 
-        $subject = '🚀 ' . __('email.incrementPromotion.subject') . ' ' . $notifiable->name;
+        if($this->promotion->promotion == 1){
+            $subject = '🚀 ' . __('email.incrementPromotion.subject') . ' ' . $notifiable->name;
+        }else{
+            $subject = '🚀 ' . __('email.decrementPromotion.subject') . ' ' . $notifiable->name;
+        }
 
         if ($currentDesignation == $previousDesignation) {
             $designation = $currentDesignation;
@@ -76,15 +78,25 @@ class PromotionUpdated extends BaseNotification
         }
 
         if ($currentDepartment == $previousDepartment) {
-            $department = __('email.incrementPromotion.in') . ' ' . __('email.incrementPromotion.same');
+            if($this->promotion->promotion == 1){
+                $department = __('email.incrementPromotion.in') . ' ' . __('email.incrementPromotion.same');
+            }else{
+                $department = __('email.decrementPromotion.in') . ' ' . __('email.decrementPromotion.same');
+            }
         }
         else {
             $department = __('app.from') . ' <b>' .$previousDepartment . ' </b>' . __('app.to') . ' <b>' . $currentDepartment. ' </b>';
         }
 
-        $content = __('email.incrementPromotion.updateText') . ' ' . $designation . ' ' .
-            $department . ' ' . __('app.menu.teams') . '! 🎊 <br><br>' .
-            __('email.incrementPromotion.text2') . '<br><br>';
+        if($this->promotion->promotion == 1){
+            $content = __('email.incrementPromotion.updateText') . ' ' . $designation . ' ' .
+                $department . ' ' . __('app.menu.teams') . '! 🎊 <br><br>' .
+                __('email.incrementPromotion.text2') . '<br><br>';
+        }else{
+            $content = __('email.decrementPromotion.updateText') . ' ' . $designation . ' ' .
+                $department . ' ' . __('app.menu.teams') . '! <br><br>' .
+                __('email.decrementPromotion.text2') . '<br><br>';
+        }
 
         $build = parent::build($notifiable);
         $build->subject($subject)
@@ -119,19 +131,28 @@ class PromotionUpdated extends BaseNotification
         }
 
         if ($currentDepartment == $previousDepartment) {
-            $department = __('email.incrementPromotion.in') . ' ' . __('email.incrementPromotion.same');
+            if($this->promotion->promotion == 1){
+                $department = __('email.incrementPromotion.in') . ' ' . __('email.incrementPromotion.same');
+            }else{
+                $department = __('email.decrementPromotion.in') . ' ' . __('email.decrementPromotion.same');
+            }
         }
         else {
             $department = __('app.from') .' <b>' .$previousDepartment . ' </b>' . __('app.to') . ' <b>' . $currentDepartment. ' </b>';
         }
 
-        $content = __('email.incrementPromotion.updateText') . ' ' . $designation . ' ' .
-                $department . ' ' . __('app.menu.teams') . '! 🎊';
+        if($this->promotion->promotion == 1){
+            $subject = __('email.incrementPromotion.subject');
+            $content = __('email.incrementPromotion.updateText') . ' ' . $designation . ' ' . $department . ' ' . __('app.menu.teams') . '! 🎊';
+        }else{
+            $subject = __('email.decrementPromotion.subject');
+            $content = __('email.decrementPromotion.updateText') . ' ' . $designation . ' ' . $department . ' ' . __('app.menu.teams') . '!';
+        }
 
         return [
             'id' => $this->promotion->id,
             'created_at' => $this->promotion->created_at->format('Y-m-d H:i:s'),
-            'title' => __('email.incrementPromotion.subject') . ' ' . $notifiable->name,
+            'title' => $subject . ' ' . $notifiable->name,
             'heading' => $content,
         ];
     }
@@ -145,7 +166,11 @@ class PromotionUpdated extends BaseNotification
             $previousDepartment = $this->previousDepartment->team_name;
 
             $notifiableName = __('email.hello') . ' ' . $notifiable->name;
-            $subject = '🚀 ' . __('email.incrementPromotion.subject') . ' ' . $notifiable->name;
+            if($this->promotion->promotion == 1){
+                $subject = '🚀 ' . __('email.incrementPromotion.subject') . ' ' . $notifiable->name;
+            }else{
+                $subject = '🚀 ' . __('email.decrementPromotion.subject') . ' ' . $notifiable->name;
+            }
 
             if ($currentDesignation == $previousDesignation) {
                 $designation = $currentDesignation;
@@ -155,21 +180,33 @@ class PromotionUpdated extends BaseNotification
             }
 
             if ($currentDepartment == $previousDepartment) {
-                $department = __('email.incrementPromotion.in') . ' ' . __('email.incrementPromotion.same');
+                if($this->promotion->promotion == 1){
+                    $department = __('email.incrementPromotion.in') . ' ' . __('email.incrementPromotion.same');
+                }else{
+                    $department = __('email.decrementPromotion.in') . ' ' . __('email.decrementPromotion.same');
+                }
             }
             else {
                 $department = __('app.from') . ' *' .$previousDepartment . '* ' . __('app.to') . ' *' . $currentDepartment. '* ';
             }
 
-            $content = __('email.incrementPromotion.updateText') . ' ' . $designation . ' ' .
-                $department . ' ' . __('app.menu.teams') . '! 🎊 ' . "\n\n" .
-                __('email.incrementPromotion.text2') . "\n\n";
+            if($this->promotion->promotion == 1){
+                $content = __('email.incrementPromotion.updateText') . ' ' . $designation . ' ' . $department . ' ' . __('app.menu.teams') . '! 🎊 ' . "\n\n" .
+                    __('email.incrementPromotion.text2') . "\n\n";
+            }else{
+                $content = __('email.decrementPromotion.updateText') . ' ' . $designation . ' ' . $department . ' ' . __('app.menu.teams') . '!' . "\n\n" .
+                    __('email.decrementPromotion.text2') . "\n\n";
+            }
 
             return $this->slackBuild($notifiable)
                 ->content($subject . "\n\n" . $notifiableName . "\n\n" . $content);
 
         } catch (\Exception $e) {
-            return $this->slackRedirectMessage('email.incrementPromotion.subject', $notifiable);
+            if($this->promotion->promotion == 1){
+                return $this->slackRedirectMessage('email.incrementPromotion.subject', $notifiable);
+            }else{
+                return $this->slackRedirectMessage('email.decrementPromotion.subject', $notifiable);
+            }
         }
     }
 

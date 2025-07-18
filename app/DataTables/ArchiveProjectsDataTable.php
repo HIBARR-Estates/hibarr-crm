@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\ProjectStatusSetting;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class ArchiveProjectsDataTable extends BaseDataTable
 {
@@ -73,8 +74,7 @@ class ArchiveProjectsDataTable extends BaseDataTable
 
                         $members .= '<div class="taskEmployeeImg rounded-circle"><a href="' . route('employees.show', $member->user->id) . '">' . $img . '</a></div> ';
                     }
-                }
-                else {
+                } else {
                     $members .= __('messages.noMemberAddedToProject');
                 }
 
@@ -119,11 +119,9 @@ class ArchiveProjectsDataTable extends BaseDataTable
             ->editColumn('completion_percent', function ($row) {
                 if ($row->completion_percent < 50) {
                     $statusColor = 'danger';
-                }
-                elseif ($row->completion_percent < 75) {
+                } elseif ($row->completion_percent < 75) {
                     $statusColor = 'warning';
-                }
-                else {
+                } else {
                     $statusColor = 'success';
                 }
 
@@ -163,8 +161,7 @@ class ArchiveProjectsDataTable extends BaseDataTable
         if (!is_null($request->status) && $request->status != 'all') {
             if ($request->status == 'not finished') {
                 $model->where('projects.completion_percent', '!=', 100);
-            }
-            else {
+            } else {
                 $model->where('projects.status', $request->status);
             }
         }
@@ -211,8 +208,9 @@ class ArchiveProjectsDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model->where(function ($query) {
-                $query->where('projects.project_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('users.name', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('projects.project_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('users.name', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -275,5 +273,4 @@ class ArchiveProjectsDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

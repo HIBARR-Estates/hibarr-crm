@@ -32,7 +32,7 @@ class StoreRecurringInvoice extends CoreRequest
             'sub_total' => 'required',
             'total' => 'required',
             'currency_id' => 'required',
-            'billing_cycle' => 'required'
+            'billing_cycle' => 'required|integer|min:-1'
         ];
 
         if (!$this->has('immediate_invoice')) {

@@ -101,6 +101,50 @@
         });
     });
 
+    $('body').on('click', '.delete-table-row', function() {
+        var id = $(this).data('invoice-id');
+        Swal.fire({
+            title: "@lang('messages.sweetAlertTitle')",
+            text: "@lang('messages.recoverRecord')",
+            icon: 'warning',
+            showCancelButton: true,
+            focusConfirm: false,
+            confirmButtonText: "@lang('messages.confirmDelete')",
+            cancelButtonText: "@lang('app.cancel')",
+            customClass: {
+                confirmButton: 'btn btn-primary mr-3',
+                cancelButton: 'btn btn-secondary'
+            },
+            showClass: {
+                popup: 'swal2-noanimation',
+                backdrop: 'swal2-noanimation'
+            },
+            buttonsStyling: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                var url = "{{ route('recurring_invoice.delete_repeat_invoices', ':id') }}";
+                url = url.replace(':id', id);
+                console.log(url);
+
+                var token = "{{ csrf_token() }}";
+
+                $.easyAjax({
+                    type: 'POST',
+                    url: url,
+                    blockUI: true,
+                    data: {
+                        '_token': token,
+                        '_method': 'DELETE'
+                    },
+                    success: function(response) {
+                        if (response.status == "success") {
+                            showTable();
+                        }
+                    }
+                });
+            }
+        });
+    });
 
     $('body').on('click', '.sendButton', function() {
         var id = $(this).data('invoice-id');

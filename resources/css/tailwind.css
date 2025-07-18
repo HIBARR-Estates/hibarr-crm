@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --tw-prefix: tw-;
+  }
+}
+
+@layer utilities {
+  /* Custom prefix utilities */
+  .tw-container { @apply container; }
+  .tw-flex { @apply flex; }
+  .tw-grid { @apply grid; }
+  .tw-hidden { @apply hidden; }
+  .tw-block { @apply block; }
+  .tw-inline-block { @apply inline-block; }
+  .tw-inline { @apply inline; }
+  .tw-inline-flex { @apply inline-flex; }
+  .tw-absolute { @apply absolute; }
+  .tw-relative { @apply relative; }
+  .tw-fixed { @apply fixed; }
+  .tw-sticky { @apply sticky; }
+  .tw-static { @apply static; }
+  .tw-w-full { @apply w-full; }
+  .tw-h-full { @apply h-full; }
+  .tw-w-auto { @apply w-auto; }
+  .tw-h-auto { @apply h-auto; }
+  .tw-min-h-screen { @apply min-h-screen; }
+  .tw-flex-1 { @apply flex-1; }
+  .tw-flex-col { @apply flex-col; }
+  .tw-flex-row { @apply flex-row; }
+  .tw-items-center { @apply items-center; }
+  .tw-items-start { @apply items-start; }
+  .tw-items-stretch { @apply items-stretch; }
+  .tw-justify-center { @apply justify-center; }
+  .tw-justify-between { @apply justify-between; }
+  .tw-justify-end { @apply justify-end; }
+  .tw-text-center { @apply text-center; }
+  .tw-text-left { @apply text-left; }
+  .tw-text-right { @apply text-right; }
+  .tw-text-justify { @apply text-justify; }
+  .tw-uppercase { @apply uppercase; }
+  .tw-lowercase { @apply lowercase; }
+  .tw-capitalize { @apply capitalize; }
+  .tw-italic { @apply italic; }
+  .tw-underline { @apply underline; }
+  .tw-truncate { @apply truncate; }
+  .tw-overflow-hidden { @apply overflow-hidden; }
+  .tw-overflow-auto { @apply overflow-auto; }
+  .tw-rounded-full { @apply rounded-full; }
+  .tw-border { @apply border; }
+  .tw-border-0 { @apply border-0; }
+  .tw-border-2 { @apply border-2; }
+  .tw-border-t { @apply border-t; }
+  .tw-border-r { @apply border-r; }
+  .tw-border-b { @apply border-b; }
+  .tw-border-l { @apply border-l; }
+  .tw-border-none { @apply border-none; }
+  .tw-bg-transparent { @apply bg-transparent; }
+  .tw-shadow-none { @apply shadow-none; }
+  .tw-ring { @apply ring; }
+  .tw-ring-2 { @apply ring-2; }
+  .tw-ring-offset-1 { @apply ring-offset-1; }
+  .tw-outline { @apply outline; }
+  .tw-cursor-pointer { @apply cursor-pointer; }
+  .tw-cursor-text { @apply cursor-text; }
+  .tw-cursor-move { @apply cursor-move; }
+  .tw-select-all { @apply select-all; }
+  .tw-transition { @apply transition; }
+  .tw-transition-all { @apply transition-all; }
+  .tw-transition-colors { @apply transition-colors; }
+  .tw-transition-shadow { @apply transition-shadow; }
+  .tw-transition-transform { @apply transition-transform; }
+  .tw-duration-200 { @apply duration-200; }
+  .tw-duration-300 { @apply duration-300; }
+  .tw-hover\:scale-105 { @apply hover:scale-105; }
+  .tw-hover\:scale-110 { @apply hover:scale-110; }
+  .tw-hover\:ring-2 { @apply hover:ring-2; }
+  .tw-focus\:ring-1 { @apply focus:ring-1; }
+  .tw-focus\:ring-2 { @apply focus:ring-2; }
+  .tw-focus\:ring-offset-2 { @apply focus:ring-offset-2; }
+  .tw-focus\:outline-none { @apply focus:outline-none; }
+}

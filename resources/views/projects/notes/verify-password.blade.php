@@ -35,16 +35,17 @@
         let password = $('#password').val();
 
         let noteId = "{{ $note->id }}";
+        let formType = "{{ $formType }}";
 
         $.easyAjax({
             url: url,
             container: '#checkForpassword',
             type: "POST",
-            data: { note_id : noteId, '_token': token, password: password },
+            data: { note_id : noteId, '_token': token, password: password, form_type: formType },
             success: function(response) {
                 if (response.status == 'success') {
                     $(MODAL_LG).modal('hide');
-                    getNoteDetail(noteId);
+                    getNoteDetail(noteId, formType);
                 }
             }
         })

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use App\Helper\UserService;
-
+use App\Helper\Common;
 class CreditNotesDataTable extends BaseDataTable
 {
 
@@ -190,10 +190,11 @@ class CreditNotesDataTable extends BaseDataTable
         }
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('credit_notes.cn_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('credit_notes.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('credit_notes.total', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('credit_notes.cn_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('credit_notes.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('credit_notes.total', 'like', '%' . $safeTerm . '%');
             });
         }
 

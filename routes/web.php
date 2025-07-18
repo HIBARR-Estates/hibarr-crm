@@ -93,6 +93,8 @@ use App\Http\Controllers\ProjectCategoryController;
 use App\Http\Controllers\ProjectTemplateController;
 use App\Http\Controllers\TimelogCalendarController;
 use App\Http\Controllers\AttendanceReportController;
+use App\Http\Controllers\RecurringEventController;
+use App\Http\Controllers\RecurringTaskController;
 use App\Http\Controllers\ContractTemplateController;
 use App\Http\Controllers\EmergencyContactController;
 use App\Http\Controllers\EstimateTemplateController;
@@ -131,14 +133,13 @@ use App\Http\Controllers\WeeklyTimesheetController;
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('image/upload', [ImageController::class, 'store'])->name('image.store');
 
-
     Route::get('account-unverified', [DashboardController::class, 'accountUnverified'])->name('account_unverified');
     Route::get('checklist', [DashboardController::class, 'checklist'])->name('checklist');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard-advanced', [DashboardController::class, 'advancedDashboard'])->name('dashboard.advanced');
     Route::post('dashboard/widget/{dashboardType}', [DashboardController::class, 'widget'])->name('dashboard.widget');
     Route::post('dashboard/week-timelog', [DashboardController::class, 'weekTimelog'])->name('dashboard.week_timelog');
-    Route::get('dashboard/lead-data/{id}', [DashboardController  ::class, 'getLeadStage'])->name('dashboard.deal-stage-data');
+    Route::get('dashboard/lead-data/{id}', [DashboardController::class, 'getLeadStage'])->name('dashboard.deal-stage-data');
 
     Route::get('attendances/clock-in-modal', [DashboardController::class, 'clockInModal'])->name('attendances.clock_in_modal');
     Route::post('attendances/store-clock-in', [DashboardController::class, 'storeClockIn'])->name('attendances.store_clock_in');
@@ -166,6 +167,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::resource('clients', ClientController::class);
 
     Route::post('client-contacts/apply-quick-action', [ClientContactController::class, 'applyQuickAction'])->name('client-contacts.apply_quick_action');
+    Route::get('get-contacts', [ClientContactController::class, 'getContacts'])->name('get.contacts');
     Route::resource('client-contacts', ClientContactController::class);
 
     Route::get('client-notes/ask-for-password/{id}', [ClientNoteController::class, 'askForPassword'])->name('client_notes.ask_for_password');
@@ -232,10 +234,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     /* PROJECTS */
     Route::resource('projectCategory', ProjectCategoryController::class);
     Route::post('projects/change-status', [ProjectController::class, 'changeProjectStatus'])->name('projects.change_status');
-    
+
     Route::resource('ProjectSubCategory', ProjectSubCategoryController::class);
     Route::get('get_project_sub_category/{id}', [ProjectSubCategoryController::class, 'getSubCategories'])->name('project.get_project_sub_category');
-    
+
 
     Route::group(
         ['prefix' => 'projects'],
@@ -303,7 +305,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
             Route::resource('project-template-milestone', ProjectTemplateMilestoneController::class);
             Route::resource('project-template-sub-task', ProjectTemplateSubTaskController::class);
             Route::resource('project-calendar', ProjectCalendarController::class);
-
         }
     );
 
@@ -386,7 +387,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
             Route::get('awards/quick-create', [AwardController::class, 'quickCreate'])->name('awards.quick-create');
             Route::post('awards/quick-store', [AwardController::class, 'quickStore'])->name('awards.quick-store');
             Route::resource('awards', AwardController::class);
-        });
+        }
+    );
     Route::post('appreciations/apply-quick-action', [AppreciationController::class, 'applyQuickAction'])->name('appreciations.apply_quick_action');
     Route::resource('appreciations', AppreciationController::class);
 
@@ -402,8 +404,19 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     /* KnowledgeBase category */
     Route::resource('knowledgebasecategory', KnowledgeBaseCategoryController::class);
 
+
+    Route::group(['prefix' => 'events'], function () {
+        Route::post('recurring-event/event-monthly-on', [RecurringEventController::class, 'monthlyOn'])->name('recurring-event.monthly_on');
+        Route::post('recurring-event/apply-quick-action', [RecurringEventController::class, 'applyQuickAction'])->name('recurring-event.apply_quick_action');
+        Route::resource('recurring-event', RecurringEventController::class);
+        Route::post('recurring-event/updateStatus/{id}', [RecurringEventController::class, 'updateStatus'])->name('recurring-event.update_status');
+        Route::get('recurring-event/event-status-note/{id}', [RecurringEventController::class, 'eventStatusNote'])->name('recurring-event.event_status_note');
+    });
+
     /* EVENTS */
     Route::post('event-monthly-on', [EventCalendarController::class, 'monthlyOn'])->name('events.monthly_on');
+    Route::get('events/table-view', [EventCalendarController::class, 'tableView'])->name('events.table_view');
+    Route::post('events/apply-quick-action', [EventCalendarController::class, 'applyQuickAction'])->name('events.apply_quick_action');
     Route::resource('events', EventCalendarController::class);
     Route::post('updateStatus/{id}', [EventCalendarController::class, 'updateStatus'])->name('events.update_status');
     Route::get('events/event-status-note/{id}', [EventCalendarController::class, 'eventStatusNote'])->name('events.event_status_note');
@@ -436,6 +449,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('tasks/store-status-reason', [TaskController::class, 'storeStatusReason'])->name('tasks.store_comment_on_change_status');
 
     Route::group(['prefix' => 'tasks'], function () {
+
+        Route::post('recurring-task/apply-quick-action', [RecurringTaskController::class, 'applyQuickAction'])->name('recurring-task.apply_quick_action');
+        Route::resource('recurring-task', RecurringTaskController::class);
 
         Route::resource('task-label', TaskLabelController::class);
         Route::resource('taskCategory', TaskCategoryController::class);
@@ -606,6 +622,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('recurring-invoice/change-status', [RecurringInvoiceController::class, 'changeStatus'])->name('recurring_invoice.change_status');
         Route::get('recurring-invoice/export/{startDate}/{endDate}/{status}/{employee}', [RecurringInvoiceController::class, 'export'])->name('recurring_invoice.export');
         Route::get('recurring-invoice/recurring-invoice/{id}', [RecurringInvoiceController::class, 'recurringInvoices'])->name('recurring_invoice.recurring_invoice');
+        Route::delete('recurring-invoice/delete-repeat-invoices/{id}', [RecurringInvoiceController::class, 'deleteInvoices'])->name('recurring_invoice.delete_repeat_invoices');
         Route::resource('recurring-invoices', RecurringInvoiceController::class);
     });
     Route::resource('invoices', InvoiceController::class);
@@ -715,6 +732,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::resource('weekly-timesheets', WeeklyTimesheetController::class);
     });
     Route::resource('timelogs', TimelogController::class);
+    Route::post('timelogs/timelogAction', [TimelogController::class, 'timelogAction'])->name('timelogs.timelog_action');
+    Route::get('timelogs/show-reject-modal', [TimelogController::class, 'rejectTimelog'])->name('timelogs.show_reject_modal');
     Route::post('/calculate-time', [TimelogController::class, 'calculateTime'])->name('calculateTime');
 
     // Contracts
@@ -803,14 +822,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::resource('task-report', TaskReportController::class);
 
     Route::post('time-log-report-chart', [TimelogReportController::class, 'timelogChartData'])->name('time-log-report.chart');
-    Route::get('time-log-consolidated-report', [TimelogReportController::class,'consolidateIndex'])->name('time-log-consolidated.report');
-    Route::get('time-log-project-wise-report', [TimelogReportController::class,'projectWiseTimelog'])->name('project-wise-timelog.report');
-    Route::get('project-wise-timelog/report/export', [TimelogReportController::class,'exportProjectWiseTimeLog'])->name('project-wise-timelog.export');
+    Route::get('time-log-consolidated-report', [TimelogReportController::class, 'consolidateIndex'])->name('time-log-consolidated.report');
+    Route::get('time-log-project-wise-report', [TimelogReportController::class, 'projectWiseTimelog'])->name('project-wise-timelog.report');
+    Route::get('project-wise-timelog/report/export', [TimelogReportController::class, 'exportProjectWiseTimeLog'])->name('project-wise-timelog.export');
     Route::resource('time-log-report', TimelogReportController::class);
     Route::post('time-log-report-time', [TimelogReportController::class, 'totalTime'])->name('time-log-report.time');
-    
+
     Route::resource('time-log-weekly-report', TimelogWeeklyApprovalController::class);
-    Route::get('weekly-pending-time-log-report', [TimelogWeeklyApprovalController::class,'pendingTimelogReportIndex'])->name('weekly-pending-time-log-report.report');
+    Route::get('weekly-pending-time-log-report', [TimelogWeeklyApprovalController::class, 'pendingTimelogReportIndex'])->name('weekly-pending-time-log-report.report');
 
     Route::post('finance-report-chart', [FinanceReportController::class, 'financeChartData'])->name('finance-report.chart');
     Route::resource('finance-report', FinanceReportController::class);
@@ -863,6 +882,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::post('gdpr/update-client-consent', [GdprController::class, 'updateClientConsent'])->name('gdpr.update_client_consent');
     Route::get('gdpr/export-data', [GdprController::class, 'downloadJson'])->name('gdpr.export_data');
+    Route::post('gdpr/update-consent-block', [GdprController::class, 'updateConsentBlock'])->name('gdpr.update_consent_block');
     Route::resource('gdpr', GdprController::class);
 
     Route::get('all-notifications', [NotificationController::class, 'all'])->name('all-notifications');
@@ -893,5 +913,4 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);
-
 });

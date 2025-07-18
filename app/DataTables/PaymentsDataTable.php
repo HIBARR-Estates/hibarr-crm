@@ -6,6 +6,7 @@ use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class PaymentsDataTable extends BaseDataTable
 {
@@ -61,7 +62,7 @@ class PaymentsDataTable extends BaseDataTable
                         || ($this->deletePaymentPermission == 'owned' && isset($row->invoice) && user()->id == $row->invoice->client_id)
                         || ($this->deletePaymentPermission == 'both' && isset($row->invoice) && (user()->id == $row->invoice->client_id && isset($row->added_by) && user()->id == $row->added_by))
                     )
-                    && ($row->gateway == 'Offline' || $row->gateway == null || $row->status == 'failed' || is_null($row->transaction_id) )
+                    && ($row->gateway == 'Offline' || $row->gateway == null || $row->status == 'failed' || is_null($row->transaction_id))
                 ) {
                     $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-payment-id="' . $row->id . '">
                             <i class="fa fa-trash mr-2"></i>
@@ -81,7 +82,6 @@ class PaymentsDataTable extends BaseDataTable
                 }
 
                 return $row->project->project_short_code;
-
             })
             ->editColumn('project_id', function ($row) {
                 if (is_null($row->project)) {
@@ -102,11 +102,9 @@ class PaymentsDataTable extends BaseDataTable
 
                 if (!is_null($row->invoice_id) && isset($row->invoice->client)) {
                     $user = $row->invoice->client;
-                }
-                elseif (!is_null($row->project_id) && isset($row->project->client)) {
+                } elseif (!is_null($row->project_id) && isset($row->project->client)) {
                     $user = $row->project->client;
-                }
-                elseif (!is_null($row->order_id) && isset($row->order->client)) {
+                } elseif (!is_null($row->order_id) && isset($row->order->client)) {
                     $user = $row->order->client;
                 }
 
@@ -129,15 +127,18 @@ class PaymentsDataTable extends BaseDataTable
             })
             ->editColumn('client_email', function ($row) {
                 if (!is_null($row->invoice_id) && isset($row->invoice->client->email)) {
-                    return '<a class="text-darkest-grey" href="' . route('clients.show', $row->invoice->client->id) . '">' . ucfirst($row->invoice->client->email) . '</a>'; /** @phpstan-ignore-line */
+                    return '<a class="text-darkest-grey" href="' . route('clients.show', $row->invoice->client->id) . '">' . ucfirst($row->invoice->client->email) . '</a>';
+                    /** @phpstan-ignore-line */
                 }
 
                 if (!is_null($row->project_id) && isset($row->project->client->email)) {
-                    return '<a class="text-darkest-grey" href="' . route('clients.show', $row->project->client->id) . '">' . ucfirst($row->project->client->email) . '</a>'; /** @phpstan-ignore-line */
+                    return '<a class="text-darkest-grey" href="' . route('clients.show', $row->project->client->id) . '">' . ucfirst($row->project->client->email) . '</a>';
+                    /** @phpstan-ignore-line */
                 }
 
                 if (!is_null($row->order_id) && isset($row->order->client->email)) {
-                    return '<a class="text-darkest-grey" href="' . route('clients.show', $row->order->client->id) . '">' . ucfirst($row->order->client->email) . '</a>'; /** @phpstan-ignore-line */
+                    return '<a class="text-darkest-grey" href="' . route('clients.show', $row->order->client->id) . '">' . ucfirst($row->order->client->email) . '</a>';
+                    /** @phpstan-ignore-line */
                 }
 
                 return '--';
@@ -164,12 +165,14 @@ class PaymentsDataTable extends BaseDataTable
 
                 return currency_format($row->amount, $currencyId);
             })
-            ->editColumn('paid_on', function ($row) {
-                if (!is_null($row->paid_on)) {
-                    return $row->paid_on->translatedFormat($this->company->date_format);
-                }
+            ->editColumn(
+                'paid_on',
+                function ($row) {
+                    if (!is_null($row->paid_on)) {
+                        return $row->paid_on->translatedFormat($this->company->date_format);
+                    }
                     return '--';
-            }
+                }
             )
             ->addIndexColumn()
             ->smart(false)
@@ -242,10 +245,11 @@ class PaymentsDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model = $model->where(function ($query) {
-                $query->where('projects.project_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('payments.amount', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('invoices.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('projects.project_short_code', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('projects.project_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('payments.amount', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('invoices.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('projects.project_short_code', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -317,5 +321,4 @@ class PaymentsDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

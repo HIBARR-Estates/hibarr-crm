@@ -13,6 +13,7 @@ use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 use App\Scopes\ActiveScope;
+use App\Helper\Common;
 
 class DealsDataTable extends BaseDataTable
 {
@@ -114,7 +115,7 @@ class DealsDataTable extends BaseDataTable
         $datatables->addColumn('employee_name', fn($row) => $row->leadAgent->user->name ?? '--');
         $datatables->addColumn('mobile', fn($row) => !empty($row->mobile) ? '<a href="tel:' . $row->mobile . '" class="text-darkest-grey"><u>' . $row->mobile . '</u></a>' : '--');
         $datatables->addColumn('lead_email', fn($row) => !empty($row->client_email) ? '<a href="mailto:' . $row->client_email . '" class="text-darkest-grey"><u>' . str($row->client_email)->limit(25) . '</u></a>'
-            .'<p>'.$row->mobile.'</p>' : '--');
+            . '<p>' . $row->mobile . '</p>' : '--');
         $datatables->addColumn('export_mobile', fn($row) => $row->contact->mobile ?? '--');
         $datatables->addColumn('export_email', fn($row) => $row->client_email);
         $datatables->addColumn('lead_value', fn($row) => currency_format($row->value, $row->currency_id));
@@ -149,11 +150,10 @@ class DealsDataTable extends BaseDataTable
                 }
 
                 $action .= '</select>';
-            }
-            else {
+            } else {
                 foreach ($stages as $st) {
                     if ($row->pipeline_stage_id == $st->id) {
-                        $action = "<div class='media align-items-center mw-120'><i class='fa fa-circle mr-1' style='color: ". $st->label_color ." '></i> " . str($st->name)->limit(10) . '</div>';
+                        $action = "<div class='media align-items-center mw-120'><i class='fa fa-circle mr-1' style='color: " . $st->label_color . " '></i> " . str($st->name)->limit(10) . '</div>';
                     }
                 }
             }
@@ -230,12 +230,20 @@ class DealsDataTable extends BaseDataTable
      */
     public function query(Deal $model)
     {
-        $lead = $model->with(['leadAgent','products',
+        $lead = $model->with([
+            'leadAgent',
+            'products',
             'dealWatcher' => function ($query) {
-                    $query->withoutGlobalScope(ActiveScope::class);
-                }
-            , 'leadAgent.user', 'category', 'contact', 'pipeline', 'leadStage', 'leadAgent.user.employeeDetail.designation:id,name',
-            'leadAgent.user.employeeDetail.department:id,team_name'])
+                $query->withoutGlobalScope(ActiveScope::class);
+            },
+            'leadAgent.user',
+            'category',
+            'contact',
+            'pipeline',
+            'leadStage',
+            'leadAgent.user.employeeDetail.designation:id,name',
+            'leadAgent.user.employeeDetail.department:id,team_name'
+        ])
             ->select(
                 'deals.id',
                 'deals.name',
@@ -276,11 +284,9 @@ class DealsDataTable extends BaseDataTable
 
             if ($this->request()->followUp == 'yes') {
                 $lead = $lead->where('deals.next_follow_up', 'yes');
-            }
-            else {
+            } else {
                 $lead = $lead->where('deals.next_follow_up', 'no');
             }
-
         }
 
         if (!is_null($this->request()->min) || !is_null($this->request()->max)) {
@@ -297,8 +303,7 @@ class DealsDataTable extends BaseDataTable
 
             if ($this->request()->type == 'lead') {
                 $lead = $lead->whereNull('leads.client_id');
-            }
-            else {
+            } else {
                 $lead = $lead->whereNotNull('leads.client_id');
             }
         }
@@ -404,11 +409,12 @@ class DealsDataTable extends BaseDataTable
 
         if ($this->request()->searchText != '') {
             $lead = $lead->where(function ($query) {
-                $query->where('leads.client_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('leads.client_email', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('leads.company_name', 'like', '%' . request('searchText') . '%')
-                    ->orwhere('leads.mobile', 'like', '%' . request('searchText') . '%')
-                    ->orwhere('deals.name', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                    ->orwhere('leads.mobile', 'like', '%' . $safeTerm . '%')
+                    ->orwhere('deals.name', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -487,7 +493,5 @@ class DealsDataTable extends BaseDataTable
 
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new Deal()), $action);
-
     }
-
 }

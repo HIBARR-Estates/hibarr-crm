@@ -171,6 +171,11 @@ class Task extends BaseModel
         return $this->belongsTo(Project::class, 'project_id')->withTrashed();
     }
 
+    public function recurringTask(): BelongsTo
+    {
+        return $this->belongsTo(Task::class, 'recurring_task_id');
+    }
+
     public function activeProject(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
@@ -184,6 +189,11 @@ class Task extends BaseModel
     public function boardColumn(): BelongsTo
     {
         return $this->belongsTo(TaskboardColumn::class, 'board_column_id');
+    }
+
+    public function dependentTask()
+    {
+        return $this->belongsTo(Task::class, 'dependent_task_id');
     }
 
     public function users(): BelongsToMany

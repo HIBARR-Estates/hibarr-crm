@@ -5,6 +5,11 @@
     <link rel="stylesheet" href="{{ asset('vendor/css/tagify.css') }}">
 
     <style>
+
+        div#ticketMsg {
+            overflow: auto !important;
+        }
+
         .message-action {
             visibility: hidden;
         }
@@ -181,7 +186,7 @@ $canEditTicket = ($editTicketPermission == 'all' || ($editTicketPermission == 'o
                 </div>
                 <!-- END -->
                 <!-- TICKET MESSAGE START -->
-                <div class="ticket-msg border-right-grey" data-menu-vertical="1" data-menu-scroll="1"
+                <div class="ticket-msg border-right-grey" data-menu-vertical="1" data-menu-scroll="1" style="max-height: 400px; overflow-y: auto;"
                     data-menu-dropdown-timeout="500" id="ticketMsg">
                     @foreach ($ticket->reply as $reply)
                     @if (!in_array('client', user_roles()) || $reply->type != 'note')

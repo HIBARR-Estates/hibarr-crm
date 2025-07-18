@@ -30,6 +30,9 @@
 
     <!-- Template CSS -->
     <link type="text/css" rel="stylesheet" media="all" href="{{ asset('css/main.css') }}">
+    
+    <!-- Tailwind CSS -->
+    <link type="text/css" rel="stylesheet" media="all" href="{{ asset('css/tailwind.css') }}">
 
     <title>{{ is_array(__($pageTitle)) ? $pageTitle : __($pageTitle) }}</title>
     <meta name="msapplication-TileColor" content="#ffffff">

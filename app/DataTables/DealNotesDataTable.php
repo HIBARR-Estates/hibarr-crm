@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\DealNote;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class DealNotesDataTable extends BaseDataTable
 {
@@ -74,8 +75,7 @@ class DealNotesDataTable extends BaseDataTable
             ->editColumn('title', function ($row) {
                 if (!in_array('admin', user_roles()) && $row->ask_password == 1) {
                     return '<a href="javascript:;" style="color:black;" data-lead-note-id="' . $row->id . '">' . $row->title . '</a>';
-                }
-                else {
+                } else {
                     return '<a href="' . route('deal-notes.show', $row->id) . '" class="openRightModal" style="color:black;">' . $row->title . '</a>';
                 }
             })
@@ -99,7 +99,8 @@ class DealNotesDataTable extends BaseDataTable
         $notes = $model->select('deal_notes.*')->where('deal_id', $request->leadID);
 
         if (!is_null($request->searchText)) {
-            $notes->where('title', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $notes->where('title', 'like', '%' . $safeTerm . '%');
         }
 
         if ($this->viewLeadNotePermission == 'added') {
@@ -162,5 +163,4 @@ class DealNotesDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

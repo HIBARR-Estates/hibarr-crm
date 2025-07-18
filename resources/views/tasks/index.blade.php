@@ -9,8 +9,8 @@
 $addTaskPermission = user()->permission('add_tasks');
 $viewUnassignedTasksPermission = user()->permission('view_unassigned_tasks');
 $viewPermission = user()->permission('view_tasks');
+$recurringTaskPermission = user()->permission('manage_recurring_task');
 @endphp
-
 
 @section('filter-section')
 
@@ -253,6 +253,13 @@ $viewPermission = user()->permission('view_tasks');
                     <x-forms.button-secondary id="filter-my-task" class="mr-3 float-left" icon="user">
                         @lang('modules.tasks.myTask')
                     </x-forms.button-secondary>
+                @endif
+
+                @if ($recurringTaskPermission == 'all')
+                     <x-forms.link-secondary :link="route('recurring-task.index')" class="mr-3 float-left"
+                        icon="sync">
+                        @lang('app.menu.taskRecurring')
+                    </x-forms.link-secondary>
                 @endif
 
             </div>

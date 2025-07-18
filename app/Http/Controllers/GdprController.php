@@ -8,6 +8,7 @@ use App\Models\GdprSetting;
 use App\Models\PurposeConsent;
 use App\Models\PurposeConsentUser;
 use App\Models\User;
+use App\Models\RemovalRequest;
 use Illuminate\Http\Request;
 
 class GdprController extends AccountBaseController
@@ -18,6 +19,11 @@ class GdprController extends AccountBaseController
         parent::__construct();
         $this->pageTitle = 'app.menu.gdpr';
         $this->gdprSetting = GdprSetting::first();
+
+         $this->middleware(function ($request, $next) {
+            abort_403(!(user()->permission('manage_gdpr_setting') == 'all' || in_array('client', user_roles())));
+            return $next($request);
+        });
     }
 
     /**
@@ -35,6 +41,8 @@ class GdprController extends AccountBaseController
             $query->where('client_id', $this->user->id)
                 ->orderByDesc('created_at');
         }])->get();
+
+        $this->removalRequest = RemovalRequest::where('user_id', $this->user->id)->where('status', 'pending')->first();
 
         $tab = request('tab');
 
@@ -73,6 +81,21 @@ class GdprController extends AccountBaseController
         }
 
         return Reply::success(__('messages.gdprUpdated'));
+    }
+
+    public function updateConsentBlock(Request $request)
+    {
+        $removalRequest = RemovalRequest::where('company_id', company()->id)->where('user_id', $this->user->id)->where('status', 'pending')->first();
+
+        if (!$removalRequest) {
+            $removalRequest = new RemovalRequest;
+        }
+        $removalRequest->user_id = $this->user->id;
+        $removalRequest->name = $this->user->name;
+        $removalRequest->company_id = company()->id;
+        $removalRequest->description = $request->consent_block;
+        $removalRequest->save();
+        return Reply::success(__('messages.gdprRequestUpdated'));
     }
 
     public function downloadJson(Request $request)

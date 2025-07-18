@@ -5,7 +5,7 @@ namespace App\DataTables;
 use App\Models\ExpenseRecurring;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
-
+use App\Helper\Common;
 class RecurringExpensesDataTable extends BaseDataTable
 {
 
@@ -140,8 +140,9 @@ class RecurringExpensesDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model = $model->where(function ($query) {
-                $query->where('expenses_recurring.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('expenses_recurring.price', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('expenses_recurring.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('expenses_recurring.price', 'like', '%' . $safeTerm . '%');
             });
         }
 

@@ -17,6 +17,7 @@ use App\Models\GoogleCalendarModule;
 use Illuminate\Support\Facades\View;
 use App\Http\Requests\Holiday\CreateRequest;
 use App\Http\Requests\Holiday\UpdateRequest;
+use App\Helper\Common;
 
 class HolidayController extends AccountBaseController
 {
@@ -39,7 +40,8 @@ class HolidayController extends AccountBaseController
             $holidays = Holiday::orderBy('date', 'ASC');
 
             if (request()->searchText != '') {
-                $holidays->where('holidays.occassion', 'like', '%' . request()->searchText . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $holidays->where('holidays.occassion', 'like', '%' . $safeTerm . '%');
             }
 
             if (in_array($this->viewPermission, ['owned', 'both'])) {
@@ -107,8 +109,6 @@ class HolidayController extends AccountBaseController
         }
 
         return view('holiday.create', $this->data);
-
-
     }
 
     /**
@@ -154,8 +154,6 @@ class HolidayController extends AccountBaseController
                     $holiday->event_id = $this->googleCalendarEvent($holiday);
                     $holiday->save();
                 }
-
-
             }
         }
 
@@ -170,7 +168,6 @@ class HolidayController extends AccountBaseController
         }
 
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
-
     }
 
     /**
@@ -207,7 +204,6 @@ class HolidayController extends AccountBaseController
         }
 
         return view('holiday.create', $this->data);
-
     }
 
     /**
@@ -253,7 +249,6 @@ class HolidayController extends AccountBaseController
         }
 
         return view('holiday.create', $this->data);
-
     }
 
     /**
@@ -286,7 +281,6 @@ class HolidayController extends AccountBaseController
         }
 
         return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('holidays.index')]);
-
     }
 
     /**
@@ -301,7 +295,6 @@ class HolidayController extends AccountBaseController
         $holiday->delete();
 
         return Reply::successWithData(__('messages.deleteSuccess'), ['redirectUrl' => route('holidays.index')]);
-
     }
 
     public function tableView(HolidayDataTable $dataTable)
@@ -339,8 +332,6 @@ class HolidayController extends AccountBaseController
         }
 
         return Reply::error(__('messages.selectAction'));
-
-
     }
 
     protected function deleteRecords($request)
@@ -389,7 +380,6 @@ class HolidayController extends AccountBaseController
                 }
 
                 $this->googleCalendarEventMulti($day, $year);
-
             }
         }
 
@@ -463,8 +453,7 @@ class HolidayController extends AccountBaseController
                 try {
                     if ($event->event_id) {
                         $results = $google->service('Calendar')->events->patch('primary', $event->event_id, $eventData);
-                    }
-                    else {
+                    } else {
                         $results = $google->service('Calendar')->events->insert('primary', $eventData);
                     }
 
@@ -529,8 +518,7 @@ class HolidayController extends AccountBaseController
             try {
                 if ($holiday->event_id) {
                     $results = $google->service('Calendar')->events->patch('primary', $holiday->event_id, $eventData);
-                }
-                else {
+                } else {
                     $results = $google->service('Calendar')->events->insert('primary', $eventData);
                 }
 
@@ -552,8 +540,6 @@ class HolidayController extends AccountBaseController
                     $googleAccount->save();
                 }
             }
-
         }
     }
-
 }

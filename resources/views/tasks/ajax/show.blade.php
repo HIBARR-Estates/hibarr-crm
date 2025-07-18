@@ -126,11 +126,13 @@
                                             }
                                         @endphp
                                         @if (!$hideEditButton)
-                                            <a class="dropdown-item openRightModal"
-                                            href="{{ route('tasks.edit', $task->id) }}">@lang('app.edit')
-                                                @lang('app.task')</a>
+                                            @if (!$task->repeat)
+                                                <a class="dropdown-item openRightModal"
+                                                href="{{ route('tasks.edit', $task->id) }}">@lang('app.edit')
+                                                    @lang('app.task')</a>
 
-                                            <hr class="my-1">
+                                                <hr class="my-1">
+                                            @endif
                                         @endif
                                     @endif
 
@@ -188,7 +190,20 @@
                                     --
                                 @endif
                             </p>
+ 
+                        </div>
+                    @endif
 
+                    {{-- show the recurring_task_id task with a show label --}}
+                    @if ($task->recurring_task_id)
+                        <div class="col-12 px-0 pb-3 d-lg-flex d-md-flex d-block">
+                            <p class="mb-0 text-lightest f-14 w-30 ">{{ __('app.recurringParentTask') }}</p>
+                            <a href="{{ route('recurring-task.show', [$task->recurring_task_id]) }}">
+                                <p class="mb-0 text-dark-grey f-14 text-wrap text-darkest-grey">
+                                    {{ $task->recurringTask->heading }}
+                                    <i class='bi bi-link-45deg'></i>
+                                </p>
+                            </a>
                         </div>
                     @endif
 
@@ -312,6 +327,18 @@
                         <x-cards.data-row :label="__('app.description')"
                                           :value="!empty($task->description) ? $task->description : '--'"
                                           html="true"/>
+                    @endif
+
+                    @if ($task->dependent_task_id !== null)
+                        <div class="col-12 px-0 pb-3 d-lg-flex d-md-flex d-block">
+                            <p class="mb-0 text-lightest f-14 w-30 ">{{ __('app.dependentTask') }}</p>
+                            <a href="{{ route('tasks.show', [$task->dependentTask->id]) }}">
+                                <p class="mb-0 text-dark-grey f-14 text-wrap text-darkest-grey">
+                                    {!! !empty($task->dependentTask) ? $task->dependentTask->heading : '--' !!}
+                                    <i class='bi bi-link-45deg'></i>
+                                </p>
+                            </a>
+                        </div>
                     @endif
 
                     {{-- Custom fields data --}}

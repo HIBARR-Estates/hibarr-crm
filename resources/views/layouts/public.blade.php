@@ -16,6 +16,10 @@
 
     <!-- Template CSS -->
     <link type="text/css" rel="stylesheet" media="all" href="{{ asset('css/main.css') }}">
+    
+    <!-- Tailwind CSS -->
+    <link type="text/css" rel="stylesheet" media="all" href="{{ asset('css/tailwind.css') }}">
+    
     <link rel='stylesheet' href="{{ asset('vendor/css/dragula.css') }}" type='text/css' />
     <link rel='stylesheet' href="{{ asset('vendor/css/drag.css') }}" type='text/css' />
 

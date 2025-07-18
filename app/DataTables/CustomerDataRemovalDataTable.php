@@ -25,6 +25,13 @@ class CustomerDataRemovalDataTable extends BaseDataTable
             ->eloquent($query)
             ->addIndexColumn()
             ->addColumn('action', function ($row) {
+
+                if ($row->status == 'approved') {
+                    return __('messages.requestApproved');
+                } else if ($row->status == 'rejected') {
+                    return __('messages.requestRejected');
+                }
+
                 $action = '<div class="task_view mr-1">
                         <a href="javascript:;" data-consent-id="' . $row->id . '" data-type="approved"
                             class="table-action task_view_more d-flex align-items-center justify-content-center">

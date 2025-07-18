@@ -19,14 +19,14 @@
     $('body').on('click', '.table-action', function() {
         var id = $(this).data('consent-id');
         var type = $(this).data('type');
-
+        let actionText = (type === 'approved') ? "@lang('messages.confirmApprove')" : "@lang('messages.confirmReject')";
         Swal.fire({
             title: "@lang('messages.sweetAlertTitle')",
-            text: "@lang('messages.recoverRecord')",
+            text: actionText,
             icon: 'warning',
             showCancelButton: true,
             focusConfirm: false,
-            confirmButtonText: "@lang('messages.confirmDelete')",
+            confirmButtonText: (type === 'approved') ? "@lang('app.approve')" : "@lang('app.reject')",
             cancelButtonText: "@lang('app.cancel')",
             customClass: {
                 confirmButton: 'btn btn-primary mr-3',

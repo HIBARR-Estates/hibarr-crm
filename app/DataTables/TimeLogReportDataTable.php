@@ -6,6 +6,7 @@ use App\Models\ProjectTimeLog;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Html\Button;
+use App\Helper\Common;
 
 class TimeLogReportDataTable extends BaseDataTable
 {
@@ -49,15 +50,14 @@ class TimeLogReportDataTable extends BaseDataTable
             ->editColumn('end_time', function ($row) {
                 if (!is_null($row->end_time)) {
                     return $row->end_time->timezone($this->company->timezone)->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
-                }
-                else {
+                } else {
                     return "<span class='badge badge-primary'>" . __('app.active') . '</span>';
                 }
             })
             ->editColumn('total_hours', function ($row) {
                 if (is_null($row->end_time)) {
                     $totalMinutes = (($row->activeBreak) ? $row->activeBreak->start_time->diffInMinutes($row->start_time) : now()->diffInMinutes($row->start_time)) - $row->breaks->sum('total_minutes');
-           }else {
+                } else {
                     $totalMinutes = $row->total_minutes - $row->breaks->sum('total_minutes');
                 }
 
@@ -74,8 +74,7 @@ class TimeLogReportDataTable extends BaseDataTable
 
                 if (is_null($row->end_time)) {
                     $timeLog .= ' <i data-toggle="tooltip" data-original-title="' . __('app.active') . '" class="fa fa-hourglass-start" ></i>';
-                }
-                else {
+                } else {
                     if ($row->approved) {
                         $timeLog .= ' <i data-toggle="tooltip" data-original-title="' . __('app.approved') . '" class="fa fa-check-circle text-primary"></i>';
                     }
@@ -117,11 +116,9 @@ class TimeLogReportDataTable extends BaseDataTable
 
                 if (!is_null($row->project_id) && !is_null($row->task_id)) {
                     $name .= '<h5 class="f-13 text-darkest-grey"><a href="' . route('tasks.show', [$row->task_id]) . '" class="openRightModal">' . $row->task->heading . '</a></h5><div class="text-muted">' . $row->project->project_name . '</div>';
-                }
-                else if (!is_null($row->project_id)) {
+                } else if (!is_null($row->project_id)) {
                     $name .= '<a href="' . route('projects.show', [$row->project_id]) . '" class="text-darkest-grey ">' . $row->project->project_name . '</a>';
-                }
-                else if (!is_null($row->task_id)) {
+                } else if (!is_null($row->task_id)) {
                     $name .= '<a href="' . route('tasks.show', [$row->task_id]) . '" class="text-darkest-grey openRightModal">' . $row->task->heading . '</a>';
                 }
 
@@ -211,18 +208,18 @@ class TimeLogReportDataTable extends BaseDataTable
         if (!is_null($invoice) && $invoice !== 'all') {
             if ($invoice == 0) {
                 $model->where('project_time_logs.invoice_id', '=', null);
-            }
-            else if ($invoice == 1) {
+            } else if ($invoice == 1) {
                 $model->where('project_time_logs.invoice_id', '!=', null);
             }
         }
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('tasks.heading', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('project_time_logs.memo', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('projects.project_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('tasks.task_short_code', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('tasks.heading', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('project_time_logs.memo', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('projects.project_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('tasks.task_short_code', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -282,5 +279,4 @@ class TimeLogReportDataTable extends BaseDataTable
             __('app.earnings') => ['data' => 'earnings', 'name' => 'earnings', 'title' => __('app.earnings')]
         ];
     }
-
 }

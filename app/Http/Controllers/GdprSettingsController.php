@@ -24,7 +24,7 @@ class GdprSettingsController extends AccountBaseController
         $this->activeSettingMenu = 'gdpr_settings';
         $this->gdprSetting = GdprSetting::first();
         $this->middleware(function ($request, $next) {
-            abort_403(!(user()->permission('manage_gdpr_setting') == 'all' && in_array('client', user_roles())));
+            abort_403(!(user()->permission('manage_gdpr_setting') == 'all' || in_array('client', user_roles())));
             return $next($request);
         });
     }
@@ -198,7 +198,7 @@ class GdprSettingsController extends AccountBaseController
         }
         session()->forget('gdpr_setting');
         cache()->forget('global-setting');
-        return Reply::success('Approved successfully');
+        return Reply::success(__('messages.updateSuccess'));
     }
 
     public function approveRejectLead($id, $type)
