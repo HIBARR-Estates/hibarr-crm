@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\LeadNote;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class LeadNotesDataTable extends BaseDataTable
 {
@@ -120,7 +121,8 @@ class LeadNotesDataTable extends BaseDataTable
         }
 
         if (!is_null($request->searchText)) {
-            $notes->where('title', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $notes->where('title', 'like', '%' . $safeTerm . '%');
         }
 
         return $notes;

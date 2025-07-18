@@ -84,6 +84,17 @@ class ClientContactController extends AccountBaseController
 
     }
 
+    public function getContacts(Request $request)
+    {
+        $contacts = ClientContact::query()
+            ->when(($request->requesterType == 'client' && $request->clientId), function ($query) use ($request) {
+                $query->where('user_id', $request->clientId);
+            })
+            ->get();
+
+        return Reply::dataOnly(['contacts' => $contacts]);
+    }
+
     public function edit($id)
     {
         $this->pageTitle = __('app.editContact');
@@ -139,13 +150,13 @@ class ClientContactController extends AccountBaseController
 
                 $client = User::withoutGlobalScope(ActiveScope::class)->with('clientDetails')->findOrFail($this->contact->client_id);
                 $universalSearches = UniversalSearch::where('searchable_id', $client->id)->where('module_type', 'client')->get();
-                
+
                 if ($universalSearches) {
                     foreach ($universalSearches as $universalSearch) {
                         UniversalSearch::destroy($universalSearch->id);
                     }
                 }
-                
+
                 Notification::whereNull('read_at')
                 ->where(function ($q) use ($client) {
                     $q->where('data', 'like', '{"id":' . $client->id . ',%');
@@ -153,9 +164,9 @@ class ClientContactController extends AccountBaseController
                     $q->orWhere('data', 'like', '%,"user_one":' . $client->id . ',%');
                     $q->orWhere('data', 'like', '%,"client_id":' . $client->id . '%');
                 })->delete();
-                
+
                 $client->delete();
-                
+
                 Lead::where('client_id', $client->id)->update(['client_id' => null]);
             }
 

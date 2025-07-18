@@ -11,6 +11,7 @@ use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 use App\Helper\UserService;
+use App\Helper\Common;
 
 class OrdersDataTable extends BaseDataTable
 {
@@ -44,7 +45,7 @@ class OrdersDataTable extends BaseDataTable
         $datatables->addIndexColumn();
         $datatables->addColumn('action', function ($row) use ($id) {
 
-                $action = '<div class="task_view">
+            $action = '<div class="task_view">
 <a href="' . route('orders.show', [$row->id]) . '"
                         class="taskView  text-darkest-grey f-w-500">' . __('app.view') . '</a>
                 <div class="dropdown">
@@ -54,117 +55,117 @@ class OrdersDataTable extends BaseDataTable
                     </a>
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuLink-' . $row->id . '" tabindex="0">';
 
-                if (!in_array('client', user_roles()) && in_array($row->status, ['pending', 'on-hold', 'failed', 'processing']) && ($this->editOrderPermission == 'all' || (in_array($this->editOrderPermission, ['added', 'both']) && $row->added_by == $id))) {
-                    $action .= '<a class="dropdown-item orderStatusChange" href="javascript:;"  data-order-id="' . $row->id . '" data-status="completed"><i class="fa fa-check mr-2"></i>' . __('app.orderMarkAsComplete') . '</a>';
-                }
+            if (!in_array('client', user_roles()) && in_array($row->status, ['pending', 'on-hold', 'failed', 'processing']) && ($this->editOrderPermission == 'all' || (in_array($this->editOrderPermission, ['added', 'both']) && $row->added_by == $id))) {
+                $action .= '<a class="dropdown-item orderStatusChange" href="javascript:;"  data-order-id="' . $row->id . '" data-status="completed"><i class="fa fa-check mr-2"></i>' . __('app.orderMarkAsComplete') . '</a>';
+            }
 
 
-                if ($this->viewOrderPermission == 'all' || ($this->viewOrderPermission == 'both' && ($row->added_by == $id || $row->client_id == $id)) || ($this->viewOrderPermission == 'owned' && $row->client_id == $id) || ($this->viewOrderPermission == 'added' && $row->added_by == $id)) {
-                    $action .= '<a class="dropdown-item" href="' . route('orders.download', [$row->id]) . '">
+            if ($this->viewOrderPermission == 'all' || ($this->viewOrderPermission == 'both' && ($row->added_by == $id || $row->client_id == $id)) || ($this->viewOrderPermission == 'owned' && $row->client_id == $id) || ($this->viewOrderPermission == 'added' && $row->added_by == $id)) {
+                $action .= '<a class="dropdown-item" href="' . route('orders.download', [$row->id]) . '">
                                     <i class="fa fa-download mr-2"></i>
                                     ' . trans('app.download') . '
                                 </a>';
-                }
+            }
 
-                $showEditbtn = (!is_null($row->project) && is_null($row->project->deleted_at)) ? true : (is_null($row->project) ? true : false);
+            $showEditbtn = (!is_null($row->project) && is_null($row->project->deleted_at)) ? true : (is_null($row->project) ? true : false);
 
-                if ($showEditbtn && in_array('clients', user_modules()) && !in_array('client', user_roles()) && !in_array($row->status, ['completed', 'canceled', 'refunded']) && ($this->editOrderPermission == 'all' || ($this->editOrderPermission == 'both' && ($row->added_by == $id || $row->client_id == $id)) || ($this->editOrderPermission == 'added' && $row->added_by == $id) || ($this->editOrderPermission == 'owned' && $row->client_id == $id))) {
-                    $action .= '<a class="dropdown-item" href="' . route('orders.edit', $row->id) . '" >
+            if ($showEditbtn && in_array('clients', user_modules()) && !in_array('client', user_roles()) && !in_array($row->status, ['completed', 'canceled', 'refunded']) && ($this->editOrderPermission == 'all' || ($this->editOrderPermission == 'both' && ($row->added_by == $id || $row->client_id == $id)) || ($this->editOrderPermission == 'added' && $row->added_by == $id) || ($this->editOrderPermission == 'owned' && $row->client_id == $id))) {
+                $action .= '<a class="dropdown-item" href="' . route('orders.edit', $row->id) . '" >
                         <i class="fa fa-edit mr-2"></i>
                         ' . trans('app.edit') . '
                     </a>';
-                }
+            }
 
-                if (!in_array('client', user_roles()) && !in_array($row->status, ['completed', 'refunded']) &&
-                    ($this->deleteOrderPermission == 'all' || ($this->deleteOrderPermission == 'both' && ($row->added_by == $id || $row->client_id == $id)) || ($this->deleteOrderPermission == 'added' && $row->added_by == $id) || ($this->deleteOrderPermission == 'owned' && $row->client_id == $id)
-                    )) {
-                    $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-toggle="tooltip"  data-order-id="' . $row->id . '">
+            if (
+                !in_array('client', user_roles()) && !in_array($row->status, ['completed', 'refunded']) &&
+                ($this->deleteOrderPermission == 'all' || ($this->deleteOrderPermission == 'both' && ($row->added_by == $id || $row->client_id == $id)) || ($this->deleteOrderPermission == 'added' && $row->added_by == $id) || ($this->deleteOrderPermission == 'owned' && $row->client_id == $id)
+                )
+            ) {
+                $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-toggle="tooltip"  data-order-id="' . $row->id . '">
                         <i class="fa fa-trash mr-2"></i>
                         ' . trans('app.delete') . '
                     </a>';
-                }
+            }
 
-                $action .= '</div>
+            $action .= '</div>
                 </div>
             </div>';
 
-                return $action;
-            });
-            $datatables->editColumn('order_number', function ($row) {
+            return $action;
+        });
+        $datatables->editColumn('order_number', function ($row) {
 
-                return '<div class="media align-items-center">
+            return '<div class="media align-items-center">
                         <div class="media-body">
                     <h5 class="mb-0 f-13 text-darkest-grey"><a href="' . route('orders.show', [$row->id]) . '">' . $row->custom_order_number . '</a></h5>
                     </div>
                   </div>';
+        });
+        $datatables->addColumn('order', fn($row) => $row->custom_order_number);
+        $datatables->addColumn('order_number_export', fn($row) => $row->custom_order_number);
+        $datatables->addColumn('client_name', fn($row) => $row->client->name);
+        $datatables->editColumn('name', fn($row) => view('components.client', ['user' => $row->client]));
+        $datatables->editColumn('status', function ($row) use ($id) {
 
-            });
-            $datatables->addColumn('order', fn($row) => $row->custom_order_number);
-            $datatables->addColumn('order_number_export', fn($row) => $row->custom_order_number);
-            $datatables->addColumn('client_name', fn($row) => $row->client->name);
-            $datatables->editColumn('name', fn($row) => view('components.client', ['user' => $row->client]));
-            $datatables->editColumn('status', function ($row) use ($id) {
+            if ((in_array('admin', user_roles()) || in_array('employee', user_roles())) && ($this->editOrderPermission == 'all' || ($this->editOrderPermission == 'both' && ($row->added_by == $id || $row->client_id == $id)) || ($this->editOrderPermission == 'added' && $row->added_by == $id) || ($this->editOrderPermission == 'owned' && $row->client_id == $id))) {
+                $status = '<select class="form-control select-picker order-status" data-order-id="' . $row->id . '" ' . (in_array($row->status, ['refunded', 'canceled']) ? 'disabled' : '') . '>';
 
-                if ((in_array('admin', user_roles()) || in_array('employee', user_roles())) && ($this->editOrderPermission == 'all' || ($this->editOrderPermission == 'both' && ($row->added_by == $id || $row->client_id == $id)) || ($this->editOrderPermission == 'added' && $row->added_by == $id) || ($this->editOrderPermission == 'owned' && $row->client_id == $id))) {
-                    $status = '<select class="form-control select-picker order-status" data-order-id="' . $row->id . '" ' . (in_array($row->status, ['refunded', 'canceled']) ? 'disabled' : '') . '>';
-
-                    if (in_array($row->status, ['pending', 'failed', 'on-hold', 'processing'])) {
-                        $status .= '<option value="pending" ' . ($row->status == 'pending' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-warning\'></i> ' . __('app.pending') . '">' . __('app.pending') . '</option>';
-                    }
-
-                    if (in_array($row->status, ['on-hold', 'pending', 'processing', 'failed'])) {
-                        $status .= '<option value="on-hold" ' . ($row->status == 'on-hold' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-info\'></i> ' . __('app.on-hold') . '">' . __('app.on-hold') . '</option>';
-                    }
-
-                    if (in_array($row->status, ['failed', 'pending',])) {
-                        $status .= '<option value="failed" ' . ($row->status == 'failed' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-dark\'></i> ' . __('app.failed') . '">' . __('app.failed') . '</option>';
-                    }
-
-                    if (in_array($row->status, ['processing', 'pending', 'on-hold', 'failed'])) {
-                        $status .= '<option value="processing" ' . ($row->status == 'processing' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-primary\'></i> ' . __('app.processing') . '">' . __('app.processing') . '</option>';
-                    }
-
-                    if (in_array($row->status, ['completed', 'pending', 'on-hold', 'failed', 'processing'])) {
-                        $status .= '<option value="completed" ' . ($row->status == 'completed' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-success\'></i> ' . __('app.completed') . '">' . __('app.completed') . '</option>';
-                    }
-
-                    if (in_array($row->status, ['canceled', 'on-hold', 'pending', 'failed', 'processing'])) {
-                        $status .= '<option value="canceled" ' . ($row->status == 'canceled' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-red\'></i> ' . __('app.canceled') . '">' . __('app.canceled') . '</option>';
-                    }
-
-                    if (in_array($row->status, ['refunded', 'completed'])) {
-                        $status .= '<option value="refunded" ' . ($row->status == 'refunded' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 \'></i> ' . __('app.refunded') . '">' . __('app.refunded') . '</option>';
-                    }
-
-                    $status .= '</select>';
-                }
-                else {
-                    $status = match ($row->status) {
-                        'pending' => ' <i class="fa fa-circle mr-1 text-warning f-10"></i>' . __('app.' . $row->status),
-                        'on-hold' => ' <i class="fa fa-circle mr-1 text-info f-10"></i>' . __('app.' . $row->status),
-                        'failed' => ' <i class="fa fa-circle mr-1 text-dark f-10"></i>' . __('app.' . $row->status),
-                        'processing' => ' <i class="fa fa-circle mr-1 text-primary f-10"></i>' . __('app.' . $row->status),
-                        'completed' => ' <i class="fa fa-circle mr-1 text-success f-10"></i>' . __('app.' . $row->status),
-                        'canceled' => ' <i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.' . $row->status),
-                        default => ' <i class="fa fa-circle mr-1 f-10"></i>' . __('app.' . $row->status),
-                    };
+                if (in_array($row->status, ['pending', 'failed', 'on-hold', 'processing'])) {
+                    $status .= '<option value="pending" ' . ($row->status == 'pending' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-warning\'></i> ' . __('app.pending') . '">' . __('app.pending') . '</option>';
                 }
 
-                return $status;
-            });
-            $datatables->editColumn('total', fn($row) => currency_format($row->total, $row->currency->id));
-            $datatables->editColumn('order_date', fn($row) => Carbon::parse($row->order_date)->timezone($this->company->timezone)->translatedFormat($this->company->date_format));
-            $datatables->addColumn('order_status', fn($row) => $row->status);
-            $datatables->orderColumn('order_number', 'created_at $1');
-            $datatables->orderColumn('name', 'client_id $1');
-            $customFieldColumns = CustomField::customFieldData($datatables, Order::CUSTOM_FIELD_MODEL);
+                if (in_array($row->status, ['on-hold', 'pending', 'processing', 'failed'])) {
+                    $status .= '<option value="on-hold" ' . ($row->status == 'on-hold' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-info\'></i> ' . __('app.on-hold') . '">' . __('app.on-hold') . '</option>';
+                }
 
-            $datatables->rawColumns(array_merge(['action', 'status', 'total', 'name', 'order_number'], $customFieldColumns));
-            // $datatables->rawColumns(['action', 'status', 'total', 'name', 'order_number']);
-            $datatables->removeColumn('currency_symbol');
-            $datatables->removeColumn('currency_code');
+                if (in_array($row->status, ['failed', 'pending',])) {
+                    $status .= '<option value="failed" ' . ($row->status == 'failed' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-dark\'></i> ' . __('app.failed') . '">' . __('app.failed') . '</option>';
+                }
 
-            return $datatables;
+                if (in_array($row->status, ['processing', 'pending', 'on-hold', 'failed'])) {
+                    $status .= '<option value="processing" ' . ($row->status == 'processing' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-primary\'></i> ' . __('app.processing') . '">' . __('app.processing') . '</option>';
+                }
+
+                if (in_array($row->status, ['completed', 'pending', 'on-hold', 'failed', 'processing'])) {
+                    $status .= '<option value="completed" ' . ($row->status == 'completed' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-success\'></i> ' . __('app.completed') . '">' . __('app.completed') . '</option>';
+                }
+
+                if (in_array($row->status, ['canceled', 'on-hold', 'pending', 'failed', 'processing'])) {
+                    $status .= '<option value="canceled" ' . ($row->status == 'canceled' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 text-red\'></i> ' . __('app.canceled') . '">' . __('app.canceled') . '</option>';
+                }
+
+                if (in_array($row->status, ['refunded', 'completed'])) {
+                    $status .= '<option value="refunded" ' . ($row->status == 'refunded' ? 'selected' : '') . ' data-content="<i class=\'fa fa-circle mr-2 \'></i> ' . __('app.refunded') . '">' . __('app.refunded') . '</option>';
+                }
+
+                $status .= '</select>';
+            } else {
+                $status = match ($row->status) {
+                    'pending' => ' <i class="fa fa-circle mr-1 text-warning f-10"></i>' . __('app.' . $row->status),
+                    'on-hold' => ' <i class="fa fa-circle mr-1 text-info f-10"></i>' . __('app.' . $row->status),
+                    'failed' => ' <i class="fa fa-circle mr-1 text-dark f-10"></i>' . __('app.' . $row->status),
+                    'processing' => ' <i class="fa fa-circle mr-1 text-primary f-10"></i>' . __('app.' . $row->status),
+                    'completed' => ' <i class="fa fa-circle mr-1 text-success f-10"></i>' . __('app.' . $row->status),
+                    'canceled' => ' <i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.' . $row->status),
+                    default => ' <i class="fa fa-circle mr-1 f-10"></i>' . __('app.' . $row->status),
+                };
+            }
+
+            return $status;
+        });
+        $datatables->editColumn('total', fn($row) => currency_format($row->total, $row->currency->id));
+        $datatables->editColumn('order_date', fn($row) => Carbon::parse($row->order_date)->timezone($this->company->timezone)->translatedFormat($this->company->date_format));
+        $datatables->addColumn('order_status', fn($row) => $row->status);
+        $datatables->orderColumn('order_number', 'created_at $1');
+        $datatables->orderColumn('name', 'client_id $1');
+        $customFieldColumns = CustomField::customFieldData($datatables, Order::CUSTOM_FIELD_MODEL);
+
+        $datatables->rawColumns(array_merge(['action', 'status', 'total', 'name', 'order_number'], $customFieldColumns));
+        // $datatables->rawColumns(['action', 'status', 'total', 'name', 'order_number']);
+        $datatables->removeColumn('currency_symbol');
+        $datatables->removeColumn('currency_code');
+
+        return $datatables;
     }
 
     /**
@@ -177,7 +178,9 @@ class OrdersDataTable extends BaseDataTable
         $id = UserService::getUserId();
 
         $model = Order::with([
-            'currency:id,currency_symbol,currency_code', 'client', 'payment'
+            'currency:id,currency_symbol,currency_code',
+            'client',
+            'payment'
         ])
             ->with(
                 [
@@ -213,14 +216,15 @@ class OrdersDataTable extends BaseDataTable
         }
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('orders.order_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('orders.custom_order_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('orders.total', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('orders.status', 'like', '%' . request('searchText') . '%')
-                    ->orWhere(function ($query) {
-                        $query->whereHas('client', function ($q) {
-                            $q->where('name', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('orders.order_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('orders.custom_order_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('orders.total', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('orders.status', 'like', '%' . $safeTerm . '%')
+                    ->orWhere(function ($query) use ($safeTerm) {
+                        $query->whereHas('client', function ($q) use ($safeTerm) {
+                            $q->where('name', 'like', '%' . $safeTerm . '%');
                         });
                     });
             });
@@ -248,10 +252,9 @@ class OrdersDataTable extends BaseDataTable
         if (!$this->withTrashed) {
             $model = $model->where(function ($query) {
                 $query->whereHas('project', function ($q) {
-                        $q->whereNull('deleted_at');
+                    $q->whereNull('deleted_at');
                 })->orWhereNull('orders.project_id');
             });
-
         }
 
         return $model;
@@ -318,7 +321,5 @@ class OrdersDataTable extends BaseDataTable
         ];
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new Order()), $action);
-
     }
-
 }

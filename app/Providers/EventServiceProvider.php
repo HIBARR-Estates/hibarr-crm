@@ -73,6 +73,7 @@ use App\Events\MonthlyAttendanceEvent;
 use App\Events\NewMentionChatEvent;
 use App\Events\ProjectNoteEvent;
 use App\Events\ProjectNoteMentionEvent;
+use App\Events\ProjectNoteUpdateEvent;
 use App\Events\TaskNoteMentionEvent;
 use App\Events\TwoFactorCodeEvent;
 use App\Events\DailyScheduleEvent;
@@ -153,6 +154,7 @@ use App\Listeners\MonthlyAttendanceListener;
 use App\Listeners\NewMentionChatListener;
 use App\Listeners\ProjectNoteListener;
 use App\Listeners\ProjectNoteMentionListener;
+use App\Listeners\ProjectNoteUpdateListener;
 use App\Listeners\TaskNoteMentionListener;
 use App\Listeners\TwoFactorCodeListener;
 use App\Listeners\DailyScheduleListener;
@@ -511,6 +513,7 @@ class EventServiceProvider extends ServiceProvider
         NewProjectMemberEvent::class => [NewProjectMemberListener::class],
         ProjectNoteMentionEvent::class => [ProjectNoteMentionListener::class],
         ProjectNoteEvent::class => [ProjectNoteListener::class],
+        ProjectNoteUpdateEvent::class => [ProjectNoteUpdateListener::class],
         RemovalRequestAdminLeadEvent::class => [RemovalRequestAdminLeadListener::class],
         RemovalRequestAdminEvent::class => [RemovalRequestAdminListener::class],
         RemovalRequestApprovedRejectLeadEvent::class => [RemovalRequestApprovedRejectLeadListener::class],

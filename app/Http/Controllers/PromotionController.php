@@ -66,15 +66,16 @@ class PromotionController extends AccountBaseController
             'previous_department_id' => $request->previous_department_id,
             'current_department_id' => $request->current_department_id,
             'send_notification' => $request->send_notification == 'yes' ? $request->send_notification : 'no',
+            'promotion' => $request->promotion == 'on' ? 1 : 0,
             'created_at' => Carbon::now()->format('Y-m-d H:i:s'),
             'updated_at' => Carbon::now()->format('Y-m-d H:i:s')
         ];
-
+        $statusMessage = $request->promotion == 'on' ? __('messages.promotionUpdatedSuccess') : __('messages.demotionUpdatedSuccess');
         Promotion::create($data);
 
         DB::commit();
 
-        return Reply::success(__('messages.promotionAddedSuccess'));
+        return Reply::success($statusMessage);
     }
 
     /**
@@ -106,12 +107,14 @@ class PromotionController extends AccountBaseController
             'date' => $request->date ? companyToYmd($request->date) : Carbon::now()->format('Y-m-d'),
             'current_designation_id' => $request->current_designation_id,
             'current_department_id' => $request->current_department_id,
-            'send_notification' => $request->send_notification == 'yes' ? $request->send_notification : 'no'
+            'send_notification' => $request->send_notification == 'yes' ? $request->send_notification : 'no',
+            'promotion' => $request->promotion == 'on' ? 1 : 0,
         ]);
 
+        $statusMessage = $request->promotion == 'on' ? __('messages.promotionUpdatedSuccess') : __('messages.demotionUpdatedSuccess');
         DB::commit();
 
-        return Reply::success(__('messages.promotionUpdatedSuccess'));
+        return Reply::success($statusMessage);
     }
 
     /**

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use App\Helper\UserService;
+use App\Helper\Common;
 
 class InvoiceRecurringDataTable extends BaseDataTable
 {
@@ -202,8 +203,9 @@ class InvoiceRecurringDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model = $model->where(function ($query) {
-                $query->where('invoice_recurring.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('invoice_recurring.total', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('invoice_recurring.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('invoice_recurring.total', 'like', '%' . $safeTerm . '%');
             });
         }
 

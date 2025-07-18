@@ -6,6 +6,9 @@ use Maatwebsite\Excel\Concerns\ToArray;
 
 class ProjectImport implements ToArray
 {
+    use \Illuminate\Support\Traits\Macroable; // Optional
+
+    protected array $processedData = [];
 
     public static function fields(): array
     {
@@ -23,7 +26,42 @@ class ProjectImport implements ToArray
 
     public function array(array $array): array
     {
+        $header = $array[0];
+        $dataRows = array_slice($array, 1);
+
+        $startDateIndex = array_search('Start Date', $header);
+        $deadlineIndex = array_search('Deadline', $header);
+
+        foreach ($dataRows as &$row) {
+            if ($startDateIndex !== false && isset($row[$startDateIndex])) {
+                $row[$startDateIndex] = $this->convertExcelDateToString($row[$startDateIndex]);
+            }
+
+            if ($deadlineIndex !== false && isset($row[$deadlineIndex])) {
+                $row[$deadlineIndex] = $this->convertExcelDateToString($row[$deadlineIndex]);
+            }
+        }
+
+        $this->processedData = [$header, ...$dataRows];
         return $array;
+    }
+
+    public function getProcessedData(): array
+    {
+        return $this->processedData;
+    }
+
+    private function convertExcelDateToString($value)
+    {
+        if (is_numeric($value)) {
+            try {
+                return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
+            } catch (\Exception $e) {
+                return $value;
+            }
+        }
+
+        return $value;
     }
 
 }

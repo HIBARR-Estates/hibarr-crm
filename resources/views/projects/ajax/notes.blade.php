@@ -164,8 +164,9 @@
 
     $('body').on('click', '.ask-for-password', function() {
         let projectNoteId = $(this).data('project-note-id');
+        let formType = $(this).data('form-type');
 
-        var url = "{{ route('project_notes.ask_for_password', ':id') }}";
+        var url = "{{ route('project_notes.ask_for_password', ':id') }}?form_type=" + formType;
         url = url.replace(':id', projectNoteId);
 
         $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
@@ -174,10 +175,15 @@
     });
 
     // show note detail in right modal
-    var getNoteDetail = function(id) {
+    var getNoteDetail = function(id, formType) {
         openTaskDetail();
 
-        var url = "{{ route('project-notes.show', ':id') }}";
+        if(formType == 'view') {
+            var url = "{{ route('project-notes.show', ':id') }}";
+        } else {
+            var url = "{{ route('project-notes.edit', ':id') }}";
+        }
+
         url = url.replace(':id', id);
 
         $.easyAjax({

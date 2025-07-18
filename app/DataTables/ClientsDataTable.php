@@ -13,6 +13,7 @@ use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 
+
 class ClientsDataTable extends BaseDataTable
 {
 
@@ -86,6 +87,9 @@ class ClientsDataTable extends BaseDataTable
 
             return '--';
         });
+        $datatables->addColumn('category_name', function ($row) {
+            return !is_null($row->clientDetails->category_id) ? $row->cat_name : '--';
+        });
         $datatables->addColumn('added_by', fn($row) => optional($row->clientDetails)->addedBy ? $row->clientDetails->addedBy->name : '--');
         $datatables->editColumn('name', fn($row) => view('components.client', ['user' => $row]));
         $datatables->editColumn('id', fn($row) => $row->clientDetails?->id);
@@ -113,8 +117,9 @@ class ClientsDataTable extends BaseDataTable
             ->with('session:id', 'clientDetails.addedBy:id,name,image', 'clientDetails.company:id,logo,company_name')
             ->join('role_user', 'role_user.user_id', '=', 'users.id')
             ->leftJoin('client_details', 'users.id', '=', 'client_details.user_id')
+            ->leftJoin('client_categories', 'client_details.category_id', '=', 'client_categories.id')
             ->join('roles', 'roles.id', '=', 'role_user.role_id')
-            ->select('users.id', 'users.salutation','users.is_client_contact', 'users.name', 'client_details.company_name', 'users.email', 'users.mobile', 'users.country_phonecode', 'users.image', 'users.created_at', 'users.status', 'client_details.added_by', 'users.admin_approval')
+            ->select('client_categories.category_name as cat_name','users.id','users.salutation','users.is_client_contact', 'users.name', 'client_details.company_name', 'users.email', 'users.mobile', 'users.country_phonecode', 'users.image', 'users.created_at', 'users.status', 'client_details.added_by', 'users.admin_approval')
             ->where('roles.name', 'client')
             ->whereNull('users.is_client_contact');
 
@@ -177,9 +182,10 @@ class ClientsDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $users = $users->where(function ($query) {
-                $query->where('users.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('users.email', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('client_details.company_name', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('users.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('users.email', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('client_details.company_name', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -233,6 +239,7 @@ class ClientsDataTable extends BaseDataTable
             __('app.email') => ['data' => 'email', 'name' => 'email', 'title' => __('app.email')],
             __('app.addedBy') => ['data' => 'added_by', 'name' => 'added_by', 'visible' => false, 'title' => __('app.addedBy')],
             __('app.mobile') => ['data' => 'mobile', 'name' => 'mobile', 'title' => __('app.mobile')],
+            __('app.category') => ['data' => 'category_name', 'name' => 'category_name', 'title' => __('app.category')],
             __('app.status') => ['data' => 'status', 'name' => 'status', 'title' => __('app.status')],
             __('app.createdAt') => ['data' => 'created_at', 'name' => 'created_at', 'title' => __('app.createdAt')]
         ];

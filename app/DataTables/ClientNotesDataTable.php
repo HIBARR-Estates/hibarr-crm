@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\ClientNote;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class ClientNotesDataTable extends BaseDataTable
 {
@@ -46,8 +47,7 @@ class ClientNotesDataTable extends BaseDataTable
 
                 if ($row->ask_password == 1) {
                     $action .= '<a href="javascript:;" class="dropdown-item ask-for-password" data-client-note-id="' . $row->id . '"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
-                }
-                else {
+                } else {
                     $action .= '<a href="' . route('client-notes.show', $row->id) . '" class="openRightModal dropdown-item"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
                 }
 
@@ -78,7 +78,6 @@ class ClientNotesDataTable extends BaseDataTable
                 }
 
                 return '<a href="' . route('client-notes.show', $row->id) . '" class="openRightModal " style="color:black;">' . $row->title . '</a>';
-
             })
             ->editColumn('type', function ($row) {
                 if ($row->type == '0') {
@@ -113,37 +112,31 @@ class ClientNotesDataTable extends BaseDataTable
                 return $query->where('client_notes.type', 0)
                     ->orWhere('client_notes.is_client_show', 1);
             });
-
-        }
-        elseif (!in_array('admin', user_roles())) {
+        } elseif (!in_array('admin', user_roles())) {
 
             if ($this->viewClientNotePermission == 'added') {
                 $notes->where(function ($query) {
                     return $query->where('client_notes.added_by', user()->id)
                         ->orWhere('client_notes.type', 0);
                 });
-
-            }
-            elseif ($this->viewClientNotePermission == 'owned') {
+            } elseif ($this->viewClientNotePermission == 'owned') {
                 $notes->where(function ($query) {
                     return $query->where('client_user_notes.user_id', user()->id)
                         ->orWhere('client_notes.type', 0);
                 });
-
-            }
-            elseif ($this->viewClientNotePermission == 'both') {
+            } elseif ($this->viewClientNotePermission == 'both') {
                 $notes->where(function ($query) {
                     return $query->where('client_user_notes.user_id', user()->id)
                         ->orWhere('client_notes.type', 0)
                         ->orWhere('client_notes.added_by', user()->id);
                 });
-
             }
         }
 
 
         if (!is_null($request->searchText)) {
-            $notes->where('client_notes.title', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $notes->where('client_notes.title', 'like', '%' . $safeTerm . '%');
         }
 
         $notes->select('client_notes.*')->groupBy('client_notes.id');
@@ -203,5 +196,4 @@ class ClientNotesDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

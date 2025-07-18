@@ -14,6 +14,7 @@ use App\Models\TaskLabelList;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Helper\Common;
 
 class TaskReportController extends AccountBaseController
 {
@@ -95,8 +96,7 @@ class TaskReportController extends AccountBaseController
             if ($request->status != '' && $request->status != null && $request->status != 'all') {
                 if ($request->status == 'not finished') {
                     $model->where('tasks.board_column_id', '<>', $taskBoardColumn->id);
-                }
-                else {
+                } else {
                     $model->where('tasks.board_column_id', '=', $request->status);
                 }
             }
@@ -115,9 +115,10 @@ class TaskReportController extends AccountBaseController
 
             if ($request->searchText != '') {
                 $model->where(function ($query) {
-                    $query->where('tasks.heading', 'like', '%' . request('searchText') . '%')
-                        ->orWhere('member.name', 'like', '%' . request('searchText') . '%')
-                        ->orWhere('projects.project_name', 'like', '%' . request('searchText') . '%');
+                    $safeTerm = Common::safeString(request('searchText'));
+                    $query->where('tasks.heading', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('member.name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('projects.project_name', 'like', '%' . $safeTerm . '%');
                 });
             }
 
@@ -166,5 +167,4 @@ class TaskReportController extends AccountBaseController
 
         return $dataTable->render('reports.tasks.consolidated-task-report', $this->data);
     }
-
 }

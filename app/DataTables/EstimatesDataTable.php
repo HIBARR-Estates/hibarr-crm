@@ -11,6 +11,8 @@ use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 use App\Helper\UserService;
+use App\Helper\Common;
+
 class EstimatesDataTable extends BaseDataTable
 {
 
@@ -25,7 +27,7 @@ class EstimatesDataTable extends BaseDataTable
     private $projectID;
     private $clientID;
 
-    public function __construct($projectID = null,$clientID = null)
+    public function __construct($projectID = null, $clientID = null)
     {
         parent::__construct();
         $this->viewEstimatePermission = user()->permission('view_estimates');
@@ -140,17 +142,13 @@ class EstimatesDataTable extends BaseDataTable
 
             if ($row->status == 'waiting') {
                 $status .= '<i class="fa fa-circle mr-1 text-yellow f-10"></i>' . __('modules.estimates.' . $row->status) . '</label>';
-            }
-            elseif ($row->status == 'draft') {
+            } elseif ($row->status == 'draft') {
                 $status .= '<i class="fa fa-circle mr-1 text-blue f-10"></i>' . __('app.' . $row->status) . '</label>';
-            }
-            elseif ($row->status == 'canceled') {
+            } elseif ($row->status == 'canceled') {
                 $status .= '<i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.' . $row->status) . '</label>';
-            }
-            elseif ($row->status == 'declined') {
+            } elseif ($row->status == 'declined') {
                 $status .= '<i class="fa fa-circle mr-1 text-red f-10"></i>' . __('modules.estimates.' . $row->status) . '</label>';
-            }
-            else {
+            } else {
                 $status .= '<i class="fa fa-circle mr-1 text-dark-green f-10"></i>' . __('modules.estimates.' . $row->status) . '</label>';
             }
 
@@ -163,8 +161,7 @@ class EstimatesDataTable extends BaseDataTable
         $datatables->addColumn('estimate_request_number', function ($row) {
             if ($row->estimate_request_id) {
                 return '<a href="' . route('estimate-request.show', $row->estimate_request_id) . '" class="text-darkest-grey">' . $row->estimateRequest->estimate_request_number . '</a>';
-            }
-            else {
+            } else {
                 return '--';
             }
         });
@@ -192,12 +189,15 @@ class EstimatesDataTable extends BaseDataTable
         $userId = UserService::getUserId();
 
         $this->firstEstimate = Estimate::orderBy('id', 'desc')->first();
-        $model = Estimate::with(['client', 'client.session', 'company:id',
-                'project' => function ($q) {
-                    $q->withTrashed();
-                    $q->select('id', 'project_name', 'project_short_code', 'client_id', 'deleted_at');
-                }
-                ])
+        $model = Estimate::with([
+            'client',
+            'client.session',
+            'company:id',
+            'project' => function ($q) {
+                $q->withTrashed();
+                $q->select('id', 'project_name', 'project_short_code', 'client_id', 'deleted_at');
+            }
+        ])
             ->join('client_details', 'estimates.client_id', '=', 'client_details.user_id')
             ->join('currencies', 'currencies.id', '=', 'estimates.currency_id')
             ->join('users', 'users.id', '=', 'estimates.client_id')
@@ -254,24 +254,26 @@ class EstimatesDataTable extends BaseDataTable
             $model = $model->orWhere('estimates.send_status', 1);
         }
 
+        $safeTerm = Common::safeString(request('searchText'));
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('estimates.estimate_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('estimates.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('estimates.total', 'like', '%' . request('searchText') . '%')
-                    ->orWhere(function ($query) {
-                        $query->whereHas('client', function ($q) {
-                            $q->where('name', 'like', '%' . request('searchText') . '%');
+            $model->where(function ($query) use ($safeTerm) {
+
+                $query->where('estimates.estimate_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('estimates.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('estimates.total', 'like', '%' . $safeTerm . '%')
+                    ->orWhere(function ($query) use ($safeTerm) {
+                        $query->whereHas('client', function ($q) use ($safeTerm) {
+                            $q->where('name', 'like', '%' . $safeTerm . '%');
                         });
                     })
-                    ->orWhere(function ($query) {
-                        $query->whereHas('project', function ($q) {
-                            $q->where('project_name', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('project_short_code', 'like', '%' . request('searchText') . '%'); // project short code
+                    ->orWhere(function ($query) use ($safeTerm) {
+                        $query->whereHas('project', function ($q) use ($safeTerm) {
+                            $q->where('project_name', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('project_short_code', 'like', '%' . $safeTerm . '%'); // project short code
                         });
                     })
-                    ->orWhere(function ($query) {
-                        $query->where('estimates.status', 'like', '%' . request('searchText') . '%');
+                    ->orWhere(function ($query) use ($safeTerm) {
+                        $query->where('estimates.status', 'like', '%' . $safeTerm . '%');
                     });
             });
         }
@@ -345,7 +347,7 @@ class EstimatesDataTable extends BaseDataTable
             __('modules.invoices.total') => ['data' => 'total', 'name' => 'total', 'title' => __('modules.invoices.total')],
             __('modules.estimates.validTill') => ['data' => 'valid_till', 'name' => 'valid_till', 'title' => __('modules.estimates.validTill')],
             __('app.createdOn') => ['data' => 'created_at', 'name' => 'created_at', 'title' => __('app.createdOn')],
-            __('modules.estimateRequest.estimateRequest') . ' ' . __('app.number') => ['data' => 'estimate_request_number', 'name' => 'estimate_request_number', 'visible' => $this->showRequest , 'title' => __('modules.estimateRequest.estimateRequest') . ' ' . __('app.number')],
+            __('modules.estimateRequest.estimateRequest') . ' ' . __('app.number') => ['data' => 'estimate_request_number', 'name' => 'estimate_request_number', 'visible' => $this->showRequest, 'title' => __('modules.estimateRequest.estimateRequest') . ' ' . __('app.number')],
             __('app.status') => ['data' => 'status', 'name' => 'status', 'title' => __('app.status')]
         ];
 
@@ -359,7 +361,5 @@ class EstimatesDataTable extends BaseDataTable
         ];
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new Estimate()), $action);
-
     }
-
 }

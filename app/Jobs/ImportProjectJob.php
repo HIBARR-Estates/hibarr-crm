@@ -65,8 +65,8 @@ class ImportProjectJob implements ShouldQueue
 
                 $project->project_summary = $this->isColumnExists('project_summary') ? $this->getColumnValue('project_summary') : null;
 
-                $project->start_date = Carbon::createFromFormat('Y-m-d', $this->getColumnValue('start_date'))->format('Y-m-d');
-                $project->deadline = $this->isColumnExists('deadline') ? (!empty(trim($this->getColumnValue('deadline'))) ? Carbon::createFromFormat('Y-m-d', $this->getColumnValue('deadline'))->format('Y-m-d') : null) : null;
+                $project->start_date = Carbon::createFromFormat('Y-m-d', $this->getColumnValue('start_date'));
+                $project->deadline = $this->isColumnExists('deadline') ? (!empty(trim($this->getColumnValue('deadline'))) ? Carbon::createFromFormat('Y-m-d', $this->getColumnValue('deadline')) : null) : null;
 
                 if ($this->isColumnExists('notes')) {
                     $project->notes = $this->getColumnValue('notes');

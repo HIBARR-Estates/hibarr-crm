@@ -312,52 +312,6 @@
                         </div>
                     </div>
 
-                    <div class="col-md-6">
-                        <div class="form-group my-3">
-                            <div class="d-flex">
-                                <x-forms.checkbox :fieldLabel="__('modules.events.repeat')" fieldName="repeat"
-                                                  fieldId="repeat-task" :checked="$task ? $task->repeat : ''"/>
-                            </div>
-                        </div>
-
-                        <div class="form-group my-3 {{!is_null($task) && $task->repeat ? '' : 'd-none'}}"
-                             id="repeat-fields">
-                            <div class="row">
-                                <div class="col-md-6 mt-3">
-                                    <x-forms.label fieldId="repeatEvery" fieldRequired="true"
-                                                   :fieldLabel="__('modules.events.repeatEvery')"
-                                                    :popover="__('modules.tasks.repeatInfo')">
-                                    </x-forms.label>
-                                    <x-forms.input-group>
-                                        <input type="number" min="1" name="repeat_count"
-                                               class="form-control f-14" value="{{$task ? $task->repeat_count : '1'}}">
-
-                                        <x-slot name="append">
-                                            <select name="repeat_type" class="select-picker form-control">
-                                                <option value="day"
-                                                    @selected (!is_null($task) && $task->repeat_type == 'day')>@lang('app.day')</option>
-                                                <option value="week"
-                                                    @selected(!is_null($task) && $task->repeat_type == 'week')>@lang('app.week')</option>
-                                                <option value="month"
-                                                    @selected(!is_null($task) && $task->repeat_type == 'month')>@lang('app.month')</option>
-                                                <option value="year"
-                                                    @selected(!is_null($task) && $task->repeat_type == 'year')>@lang('app.year')</option>
-                                            </select>
-                                        </x-slot>
-                                    </x-forms.input-group>
-                                </div>
-                                <div class="col-md-6">
-                                    <x-forms.number :fieldLabel="__('modules.events.cycles')" fieldName="repeat_cycles"
-                                                    fieldRequired="true"
-                                                    :fieldValue="$task ? $task->repeat_cycles : '1'" minValue="1"
-                                                    fieldId="repeat_cycles"
-                                                    :fieldPlaceholder="__('modules.tasks.cyclesToolTip')"
-                                                    :popover="__('modules.tasks.cyclesToolTip')"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     @if(is_null($task))
                         <div class="col-md-6">
                             <div class="form-group my-3">
@@ -868,10 +822,6 @@
         @if (!is_null($task) && ($task->estimate_hours > 0 || $task->estimate_minutes > 0))
         $('#set-time-estimate-fields').toggleClass('d-none');
         @endif
-
-        $('#repeat-task').change(function () {
-            $('#repeat-fields').toggleClass('d-none');
-        });
 
         $('#dependent-task').change(function () {
             $('#dependent-fields').toggleClass('d-none');

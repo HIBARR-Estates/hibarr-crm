@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use App\Helper\UserService;
+use App\Helper\Common;
 
 class NoticeBoardDataTable extends BaseDataTable
 {
@@ -49,7 +50,8 @@ class NoticeBoardDataTable extends BaseDataTable
                         </a>
                         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuLink-' . $row->id . '" tabindex="0">';
 
-                if ($this->editNoticePermission == 'all' || ($this->editNoticePermission == 'added' && $userId == $row->added_by) || ($this->editNoticePermission == 'owned' && in_array($row->to, user_roles())) || ($this->editNoticePermission == 'both' && (in_array($row->to, user_roles()) || $row->added_by == $userId))
+                if (
+                    $this->editNoticePermission == 'all' || ($this->editNoticePermission == 'added' && $userId == $row->added_by) || ($this->editNoticePermission == 'owned' && in_array($row->to, user_roles())) || ($this->editNoticePermission == 'both' && (in_array($row->to, user_roles()) || $row->added_by == $userId))
                 ) {
                     $action .= '<a class="dropdown-item openRightModal" href="' . route('notices.edit', [$row->id]) . '">
                                 <i class="fa fa-edit mr-2"></i>
@@ -57,7 +59,8 @@ class NoticeBoardDataTable extends BaseDataTable
                             </a>';
                 }
 
-                if ($this->deleteNoticePermission == 'all' || ($this->deleteNoticePermission == 'added' && $userId == $row->added_by) || ($this->deleteNoticePermission == 'owned' && in_array($row->to, user_roles())) || ($this->deleteNoticePermission == 'both' && (in_array($row->to, user_roles()) || $row->added_by == $userId))
+                if (
+                    $this->deleteNoticePermission == 'all' || ($this->deleteNoticePermission == 'added' && $userId == $row->added_by) || ($this->deleteNoticePermission == 'owned' && in_array($row->to, user_roles())) || ($this->deleteNoticePermission == 'both' && (in_array($row->to, user_roles()) || $row->added_by == $userId))
                 ) {
 
                     $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-user-id="' . $row->id . '">
@@ -87,7 +90,7 @@ class NoticeBoardDataTable extends BaseDataTable
             ->editColumn(
                 'to',
                 function ($row) {
-                    return __('app.'. $row->to);
+                    return __('app.' . $row->to);
                 }
             )
             ->addIndexColumn()
@@ -117,7 +120,8 @@ class NoticeBoardDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model->where(function ($query) {
-                $query->where('notices.heading', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('notices.heading', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -132,15 +136,15 @@ class NoticeBoardDataTable extends BaseDataTable
                 }
             });
 
-            if($this->viewNoticePermission == 'owned'){
-                $model->whereHas('noticeEmployees', function($query){
+            if ($this->viewNoticePermission == 'owned') {
+                $model->whereHas('noticeEmployees', function ($query) {
                     $query->where('user_id', user()->id);
                 });
             }
         }
 
         if (in_array('client', user_roles())) {
-            $model->whereHas('noticeClients', function($query) use ($userId) {
+            $model->whereHas('noticeClients', function ($query) use ($userId) {
                 $query->where('user_id', $userId);
             });
         }
@@ -152,7 +156,7 @@ class NoticeBoardDataTable extends BaseDataTable
         if ($this->viewNoticePermission === 'both') {
             $model->where(function ($query) use ($userId) {
                 $query->where('notices.added_by', $userId)
-                      ->orWhereHas('member', fn($q) => $q->where('user_id', $userId));
+                    ->orWhereHas('member', fn($q) => $q->where('user_id', $userId));
             });
         }
 
@@ -213,5 +217,4 @@ class NoticeBoardDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

@@ -10,6 +10,7 @@ use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 use App\Helper\UserService;
+use App\Helper\Common;
 
 class InvoicesDataTable extends BaseDataTable
 {
@@ -84,7 +85,7 @@ class InvoicesDataTable extends BaseDataTable
             }
 
             if ($row->status != 'canceled' && !in_array('client', user_roles()) && $row->credit_note == 0) {
-                $action .= '<a class="dropdown-item sendButton" href="javascript:;" data-toggle="tooltip"  data-invoice-id="' . $row->id . '" data-amt="' .( ($row->total == 0 && $row->status != 'paid') ? 0 : 1) . '" >
+                $action .= '<a class="dropdown-item sendButton" href="javascript:;" data-toggle="tooltip"  data-invoice-id="' . $row->id . '" data-amt="' . (($row->total == 0 && $row->status != 'paid') ? 0 : 1) . '" >
                                 <i class="fa fa-paper-plane mr-2"></i>
                                 ' . trans('app.send') . '
                             </a>';
@@ -99,7 +100,7 @@ class InvoicesDataTable extends BaseDataTable
             }
 
             if ($row->status != 'canceled' && !in_array('client', user_roles()) && $row->credit_note == 0 && $row->send_status == 0) {
-                $action .= '<a class="dropdown-item sendButton d-flex justify-content-between align-items-center" data-type="mark_as_send" href="javascript:;"  data-invoice-id="' . $row->id . '" data-amt="' .( ($row->total == 0 && $row->status != 'paid') ? 0 : 1) . '" >
+                $action .= '<a class="dropdown-item sendButton d-flex justify-content-between align-items-center" data-type="mark_as_send" href="javascript:;"  data-invoice-id="' . $row->id . '" data-amt="' . (($row->total == 0 && $row->status != 'paid') ? 0 : 1) . '" >
                                 <div><i class="fa fa-check-double mr-2"></i>
                                 ' . trans('app.markSent') . '
                                 </div>
@@ -127,7 +128,7 @@ class InvoicesDataTable extends BaseDataTable
             }
 
             if ($row->status != 'paid' && $row->status != 'canceled') {
-                if (is_null($row->invoice_recurring_id) && $row->status != 'pending-confirmation') {
+                if ($row->status != 'pending-confirmation') {
                     if (
                         $this->editInvoicePermission == 'all'
                         || ($this->editInvoicePermission == 'added' && ($row->added_by == $userId || $row->added_by == user()->id))
@@ -163,16 +164,13 @@ class InvoicesDataTable extends BaseDataTable
                                 <i class="fa fa-eye mr-2"></i>
                                 ' . __('app.showShippingAddress') . '
                             </a>';
-
-                    }
-                    else {
+                    } else {
                         $action .= '<a class="dropdown-item add-shipping-address" href="javascript:;" data-toggle="tooltip"  data-invoice-id="' . $row->id . '">
                             <i class="fa fa-plus mr-2"></i>
                             ' . __('app.addShippingAddress') . '
                         </a>';
                     }
-                }
-                else {
+                } else {
                     if ($row->project && $row->project->clientdetails) {
                         if (!is_null($row->project->clientdetails->shipping_address)) {
                             $action .= ($row->show_shipping_address == 'yes') ? '<a class="dropdown-item toggle-shipping-address" href="javascript:;" data-toggle="tooltip"  data-invoice-id="' . $row->id . '">
@@ -182,8 +180,7 @@ class InvoicesDataTable extends BaseDataTable
                                     <i class="fa fa-eye mr-2"></i>
                                     ' . __('app.showShippingAddress') . '
                                 </a>';
-                        }
-                        else {
+                        } else {
                             $action .= '<a class="dropdown-item add-shipping-address" href="javascript:;" data-invoice-id="' . $row->id . '">
                                 <i class="fa fa-plus mr-2"></i>
                                 ' . __('app.addShippingAddress') . '
@@ -210,8 +207,7 @@ class InvoicesDataTable extends BaseDataTable
                 if ($row->amountPaid() > 0) {
                     if ($row->status == 'paid') {
                         $action .= '<a class="dropdown-item" href="' . route('creditnotes.create') . '?invoice=' . $row->id . '"><i class="fa fa-plus mr-2"></i>' . trans('modules.credit-notes.addCreditNote') . '</a>';
-                    }
-                    else {
+                    } else {
                         $action .= '<a class="dropdown-item unpaidAndPartialPaidCreditNote" data-toggle="tooltip"  data-invoice-id="' . $row->id . '" href="javascript:;"><i class="fa fa-plus mr-2"></i>' . trans('modules.credit-notes.addCreditNote') . '</a>';
                     }
                 }
@@ -227,7 +223,8 @@ class InvoicesDataTable extends BaseDataTable
                 || ($this->deleteInvoicePermission == 'owned' && $row->client_id == $userId)
                 || ($this->deleteInvoicePermission == 'both' && ($row->client_id == $userId || $row->added_by == $userId || $row->added_by == user()->id))
             ) {
-                if ($firstInvoice->id == $row->id && ($row->status != 'paid' && $row->status != 'partial')) {
+                // if ($firstInvoice->id == $row->id && ($row->status != 'paid' && $row->status != 'partial')) {
+                if ($row->status != 'paid' && $row->status != 'partial') {
                     $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-toggle="tooltip"  data-invoice-id="' . $row->id . '">
                         <i class="fa fa-trash mr-2"></i>
                         ' . trans('app.delete') . '
@@ -294,15 +291,11 @@ class InvoicesDataTable extends BaseDataTable
         $datatables->editColumn('name', function ($row) {
             if ($row->client) {
                 $client = $row->client;
-
-            }
-            else if ($row->project && $row->project->client) {
+            } else if ($row->project && $row->project->client) {
                 $client = $row->project->client;
-            }
-            else if ($row->estimate && $row->estimate->client) {
+            } else if ($row->estimate && $row->estimate->client) {
                 $client = $row->estimate->client;
-            }
-            else {
+            } else {
                 return '--';
             }
 
@@ -321,6 +314,10 @@ class InvoicesDataTable extends BaseDataTable
                 $recurring = '<span class="badge badge-primary"> ' . __('app.recurring') . ' </span>';
             }
 
+            if ($row->is_timelog_invoice) {
+                $recurring = '<span class="badge badge-primary"> ' . __('app.timelog') . ' </span>';
+            }
+
             return '<div class="media align-items-center">
                         <div class="media-body">
                     <h5 class="mb-0 f-13 text-darkest-grey"><a href="' . route('invoices.show', [$row->id]) . '">' . $row->invoice_number . '</a></h5><p class="mb-0">' . $recurring . '</p>
@@ -332,29 +329,23 @@ class InvoicesDataTable extends BaseDataTable
 
             if ($row->credit_note) {
                 $status .= ' <i class="fa fa-circle mr-1 text-yellow f-10"></i>' . __('app.credit-note');
-            }
-            else {
+            } else {
                 if ($row->status == 'unpaid') {
                     $status .= ' <i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.' . $row->status);
-                }
-                elseif ($row->status == 'paid') {
+                } elseif ($row->status == 'paid') {
                     $status .= ' <i class="fa fa-circle mr-1 text-dark-green f-10"></i>' . __('app.' . $row->status);
-                }
-                elseif ($row->status == 'draft') {
+                } elseif ($row->status == 'draft') {
                     $status .= ' <i class="fa fa-circle mr-1 text-blue f-10"></i>' . __('app.' . $row->status);
-                }
-                elseif ($row->status == 'canceled') {
+                } elseif ($row->status == 'canceled') {
                     $status .= ' <i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.' . $row->status);
-                }
-                elseif ($row->status == 'pending-confirmation') {
+                } elseif ($row->status == 'pending-confirmation') {
                     $status .= '<i class="fa fa-circle mr-1 text- f-10"></i>' . __('app.' . $row->status);
 
                     $status .= '<i data-toggle="tooltip" data-placement="top" data-html="true" data-trigger="hover"
                     data-original-title="This status occurs when an invoice is paid offline.
                     Upon successful approval, it changes to paid."
                     class="fa fa-question-circle ml-1"></i>';
-                }
-                else {
+                } else {
                     $status .= ' <i class="fa fa-circle mr-1 text-blue f-10"></i>' . __('modules.invoices.partial');
                 }
             }
@@ -363,7 +354,7 @@ class InvoicesDataTable extends BaseDataTable
                 $status .= '<br><br><span class="badge badge-secondary">' . __('modules.invoices.notSent') . '</span>';
             }
 
-            return '<div class="status-cell text-darkest-grey">' . $status .'</div>';
+            return '<div class="status-cell text-darkest-grey">' . $status . '</div>';
         });
         $datatables->editColumn('total', function ($row) {
             $currencyId = $row->currency->id;
@@ -431,13 +422,27 @@ class InvoicesDataTable extends BaseDataTable
                 'clientdetails',
             ]
         )
-        ->join('users', 'users.id', '=', 'invoices.client_id')
-        ->join('client_details', 'users.id', '=', 'client_details.user_id')
+            ->join('users', 'users.id', '=', 'invoices.client_id')
+            ->join('client_details', 'users.id', '=', 'client_details.user_id')
             ->select([
-                'invoices.id', 'invoices.due_amount', 'invoices.project_id', 'invoices.client_id', 'invoices.invoice_number',
-                'invoices.currency_id', 'invoices.total', 'invoices.status', 'invoices.issue_date', 'invoices.credit_note',
-                'invoices.show_shipping_address', 'invoices.send_status', 'invoices.invoice_recurring_id',
-                'invoices.added_by', 'invoices.hash', 'invoices.custom_invoice_number', 'invoices.file',
+                'invoices.id',
+                'invoices.due_amount',
+                'invoices.project_id',
+                'invoices.client_id',
+                'invoices.invoice_number',
+                'invoices.currency_id',
+                'invoices.total',
+                'invoices.status',
+                'invoices.issue_date',
+                'invoices.credit_note',
+                'invoices.show_shipping_address',
+                'invoices.send_status',
+                'invoices.invoice_recurring_id',
+                'invoices.added_by',
+                'invoices.hash',
+                'invoices.custom_invoice_number',
+                'invoices.file',
+                'invoices.is_timelog_invoice',
             ])
             ->addSelect('invoices.company_id'); // Company_id is fetched so the we have fetch company relation with it)
 
@@ -458,8 +463,7 @@ class InvoicesDataTable extends BaseDataTable
 
                     $q->orWhere('invoices.status', '=', 'partial');
                 });
-            }
-            else {
+            } else {
                 $model = $model->where('invoices.status', '=', $request->status);
             }
 
@@ -481,27 +485,28 @@ class InvoicesDataTable extends BaseDataTable
             $model = $model->where('invoices.client_id', '=', $request->clientID);
         }
 
+        $safeTerm = Common::safeString(request('searchText'));
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('invoices.invoice_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('invoices.custom_invoice_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('invoices.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('invoices.total', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('client_details.company_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('users.salutation', 'like', '%' . request('searchText') . '%')
-                    ->orWhere(function ($query) {
-                        $query->whereHas('client', function ($q) {
-                            $q->where('name', 'like', '%' . request('searchText') . '%');
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('invoices.invoice_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('invoices.custom_invoice_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('invoices.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('invoices.total', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('client_details.company_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('users.salutation', 'like', '%' . $safeTerm . '%')
+                    ->orWhere(function ($query) use ($safeTerm) {
+                        $query->whereHas('client', function ($q) use ($safeTerm) {
+                            $q->where('name', 'like', '%' . $safeTerm . '%');
                         });
                     })
-                    ->orWhere(function ($query) {
-                        $query->whereHas('project', function ($q) {
-                            $q->where('project_name', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('project_short_code', 'like', '%' . request('searchText') . '%'); // project short code
+                    ->orWhere(function ($query) use ($safeTerm) {
+                        $query->whereHas('project', function ($q) use ($safeTerm) {
+                            $q->where('project_name', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('project_short_code', 'like', '%' . $safeTerm . '%'); // project short code
                         });
                     })
-                    ->orWhere(function ($query) {
-                        $query->where('invoices.status', 'like', '%' . request('searchText') . '%');
+                    ->orWhere(function ($query) use ($safeTerm) {
+                        $query->where('invoices.status', 'like', '%' . $safeTerm . '%');
                     });
             });
         }
@@ -595,7 +600,5 @@ class InvoicesDataTable extends BaseDataTable
         ];
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new Invoice()), $action);
-
     }
-
 }

@@ -8,6 +8,7 @@ use App\Models\CustomFieldGroup;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
+use App\Helper\Common;
 
 class ExpensesDataTable extends BaseDataTable
 {
@@ -53,27 +54,25 @@ class ExpensesDataTable extends BaseDataTable
 
             $action .= '<a href="' . route('expenses.show', [$row->id]) . '" class="dropdown-item openRightModal"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
 
-            if (is_null($row->expenses_recurring_id)) {
-                if ($this->editExpensePermission == 'all' || ($this->editExpensePermission == 'added' && user()->id == $row->added_by)) {
-                    if (is_null($row->project_id)) {
-                        $action .= '<a class="dropdown-item openRightModal" href="' . route('expenses.edit', [$row->id]) . '">
-                                <i class="fa fa-edit mr-2"></i>
-                                ' . trans('app.edit') . '
-                                </a>';
-                    } else if (!is_null($row->project_id) && is_null($row->project_deleted_at)) {
-                        $action .= '<a class="dropdown-item openRightModal" href="' . route('expenses.edit', [$row->id]) . '">
+            if ($this->editExpensePermission == 'all' || ($this->editExpensePermission == 'added' && user()->id == $row->added_by)) {
+                if (is_null($row->project_id)) {
+                    $action .= '<a class="dropdown-item openRightModal" href="' . route('expenses.edit', [$row->id]) . '">
                             <i class="fa fa-edit mr-2"></i>
                             ' . trans('app.edit') . '
                             </a>';
-                    }
+                } else if (!is_null($row->project_id) && is_null($row->project_deleted_at)) {
+                    $action .= '<a class="dropdown-item openRightModal" href="' . route('expenses.edit', [$row->id]) . '">
+                        <i class="fa fa-edit mr-2"></i>
+                        ' . trans('app.edit') . '
+                        </a>';
                 }
+            }
 
-                if ($this->deleteExpensePermission == 'all' || ($this->deleteExpensePermission == 'added' && user()->id == $row->added_by)) {
-                    $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-expense-id="' . $row->id . '">
-                                <i class="fa fa-trash mr-2"></i>
-                                ' . trans('app.delete') . '
-                            </a>';
-                }
+            if ($this->deleteExpensePermission == 'all' || ($this->deleteExpensePermission == 'added' && user()->id == $row->added_by)) {
+                $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-expense-id="' . $row->id . '">
+                            <i class="fa fa-trash mr-2"></i>
+                            ' . trans('app.delete') . '
+                        </a>';
             }
 
             $action .= '</div>
@@ -225,10 +224,11 @@ class ExpensesDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model->where(function ($query) {
-                $query->where('expenses.item_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('users.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('expenses.price', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('expenses.purchase_from', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('expenses.item_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('users.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('expenses.price', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('expenses.purchase_from', 'like', '%' . $safeTerm . '%');
             });
         }
 

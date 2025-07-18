@@ -258,7 +258,7 @@
     @endif
 
 <!-- NAV ITEM - GDPR -->
-    @if (in_array('client', user_roles()) && $gdpr->enable_gdpr)
+    @if ((in_array('admin', user_roles()) || in_array('client', user_roles())) && $gdpr->enable_gdpr == 1)
         <x-menu-item icon="lock" :text="__('app.menu.gdpr')" :link="route('gdpr.index')">
             <x-slot name="iconPath">
                 <path

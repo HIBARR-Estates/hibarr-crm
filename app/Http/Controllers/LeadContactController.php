@@ -293,6 +293,7 @@ class LeadContactController extends AccountBaseController
     public function edit($id)
     {
         $this->leadContact = Lead::with('leadSource', 'category')->findOrFail($id)->withCustomFields();
+        $this->deal = Deal::where('lead_id', $id)->first();
 
         $this->editPermission = user()->permission('edit_lead');
 
@@ -380,6 +381,9 @@ class LeadContactController extends AccountBaseController
         $leadContact->mobile = $request->mobile;
         $leadContact->save();
 
+        $clientCreated = $request->create_client == "on" ? '1' : '0';
+        Deal::where('lead_id', $leadContact->id)->update(['create_client' => $clientCreated]);
+
         // To add custom fields data
         if ($request->custom_fields_data) {
             $leadContact->updateCustomFieldData($request->custom_fields_data);
@@ -444,7 +448,7 @@ class LeadContactController extends AccountBaseController
         if($rvalue == 'abort'){
             return Reply::error(__('messages.abortAction'));
         }
-        
+
         $view = view('leads.ajax.import_progress', $this->data)->render();
 
         return Reply::successWithData(__('messages.importUploadSuccess'), ['view' => $view]);
@@ -507,6 +511,7 @@ class LeadContactController extends AccountBaseController
         $deal->deal_watcher = $request->deal_watcher;
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
+        $deal->create_client = $request->create_client == "on" ? '1' : '0';
         $deal->agent_id = $agentId;
         $deal->close_date = companyToYmd($request->close_date);
         $deal->value = ($request->value) ?: 0;

@@ -4,7 +4,8 @@ namespace App\Observers;
 
 use App\Events\ProjectNoteEvent;
 use App\Events\ProjectNoteMentionEvent;
-use App\Models\MentionUser;
+use App\Events\ProjectNoteUpdateEvent;
+use App\Models\ProjectUserNote;
 use App\Models\ProjectNote;
 use App\Models\User;
 
@@ -62,7 +63,12 @@ class ProjectNoteObserver
         }
         else {
 
-            event(new ProjectNoteEvent($project, $projectNote->created_at, $projectNote->project->projectMembers));
+            if ($projectNote->type == 0) {
+                event(new ProjectNoteEvent($project, $projectNote->created_at, $projectNote->project->projectMembers));
+            } else {
+                $projectNoteUsers = User::whereIn('id', request()?->user_id)->get();
+                event(new ProjectNoteEvent($project, $projectNote->created_at, $projectNoteUsers));
+            }
 
         }
 
@@ -70,37 +76,47 @@ class ProjectNoteObserver
 
     public function updating(ProjectNote $projectNote)
     {
-
-        $mentionedUser = MentionUser::where('project_note_id', $projectNote->id)->pluck('user_id');
-
-        $requestMentionIds = explode(',', (request()->mention_user_id));
+        $mentionedUser = ProjectUserNote::where('project_note_id', $projectNote->id)->pluck('user_id')->map(fn($id) => (string) $id)->toArray();
+        $requestUserId = request()->user_id ?? [];
+        $newMention = array_diff($requestUserId, $mentionedUser);
         $project = $projectNote->project;
-        $newMention = [];
 
-        if (request()->mention_user_id != null) {
-            $projectNote->mentionUser()->sync($requestMentionIds);
+        if (!empty($newMention) && $projectNote->type == '1') {
+            event(new ProjectNoteMentionEvent($project, $projectNote->created_at, $newMention));
+        }
 
-            foreach ($requestMentionIds as $value) {
+        // Check for title or details changes
+        $changes = [];
 
-                if (($mentionedUser) != null) {
+        if ($projectNote->isDirty('title')) {
+            $changes['title'] = [
+                'old' => $projectNote->getOriginal('title'),
+                'new' => $projectNote->title
+            ];
+        }
 
-                    if (!in_array($value, json_decode($mentionedUser))) {
+        if ($projectNote->isDirty('details')) {
+            $changes['details'] = [
+                'old' => $projectNote->getOriginal('details'),
+                'new' => $projectNote->details
+            ];
+        }
 
-                        $newMention[] = $value;
-                    }
-                }
-                else {
-                    $newMention[] = $value;
-                }
+        // If there are changes in title or details, send notification
+        if (!empty($changes)) {
+            $notifyUsers = collect();
 
+            if ($projectNote->type == 0) {
+                // Public note - notify all project members
+                $notifyUsers = $project->projectMembers;
+            } else {
+                // Private note - notify only assigned users
+                $notifyUsers = User::whereIn('id', $requestUserId)->get();
             }
 
-            if ($newMention != null) {
-
-                event(new ProjectNoteMentionEvent($project, $projectNote->created_at, $newMention));
-
+            if ($notifyUsers->isNotEmpty()) {
+                event(new ProjectNoteUpdateEvent($project, $projectNote, $notifyUsers));
             }
-
         }
     }
 

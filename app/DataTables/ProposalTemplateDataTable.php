@@ -5,7 +5,7 @@ namespace App\DataTables;
 use App\Models\ProposalTemplate;
 use Carbon\Carbon;
 use Yajra\DataTables\Html\Column;
-
+use App\Helper\Common;
 class ProposalTemplateDataTable extends BaseDataTable
 {
 
@@ -108,7 +108,8 @@ class ProposalTemplateDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model->where(function ($query) {
-                $query->where('proposal_templates.name', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('proposal_templates.name', 'like', '%' . $safeTerm . '%');
             });
         }
 

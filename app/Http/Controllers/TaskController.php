@@ -282,15 +282,13 @@ class TaskController extends AccountBaseController
             )
         );
 
-        // If it is recurring and allowed by user to delete all its recurring tasks
-        if ($request->has('recurring') && $request->recurring == 'yes') {
-            Task::where('recurring_task_id', $id)->delete();
-        }
+        $this->taskBoardStatus = TaskboardColumn::all();
+        Task::where('recurring_task_id', $id)->delete();
 
         // Delete current task
         $task->delete();
 
-        return Reply::success(__('messages.deleteSuccess'));
+        return Reply::successWithData(__('messages.deleteSuccess'), ['redirectUrl' => route('tasks.index')]);
     }
 
     /**
@@ -473,12 +471,6 @@ class TaskController extends AccountBaseController
         // Add repeated task
         $task->repeat = $request->repeat ? 1 : 0;
 
-        if ($request->has('repeat')) {
-            $task->repeat_count = $request->repeat_count;
-            $task->repeat_type = $request->repeat_type;
-            $task->repeat_cycles = $request->repeat_cycles;
-        }
-
         if ($project) {
             $projectLastTaskCount = Task::projectTaskCount($project->id);
 
@@ -635,6 +627,7 @@ class TaskController extends AccountBaseController
         $editTaskPermission = user()->permission('edit_tasks');
         $this->task = Task::with('users', 'label', 'project',)->findOrFail($id)->withCustomFields();
         $this->taskUsers = $taskUsers = $this->task->users->pluck('id')->toArray();
+        $this->type = request()->type;
         abort_403(
             !($editTaskPermission == 'all'
                 || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
@@ -898,7 +891,7 @@ class TaskController extends AccountBaseController
             ['boardColumn', 'project', 'users', 'label', 'approvedTimeLogs', 'mentionTask',
                 'approvedTimeLogs.user', 'approvedTimeLogs.activeBreak', 'comments','activeUsers',
                 'comments.commentEmoji', 'comments.like', 'comments.dislike', 'comments.likeUsers',
-                'comments.dislikeUsers', 'comments.user', 'subtasks.files', 'userActiveTimer',
+                'comments.dislikeUsers', 'comments.user', 'subtasks.files', 'userActiveTimer', 'dependentTask',
                 'files' => function ($q) use ($viewTaskFilePermission) {
                     if ($viewTaskFilePermission == 'added') {
                         $q->where('added_by', $this->userId);

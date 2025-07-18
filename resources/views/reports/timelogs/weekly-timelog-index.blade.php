@@ -55,7 +55,7 @@
     <div class="content-wrapper">
         <!-- Add Task Export Buttons Start -->
         <div class="d-flex flex-column">
-           
+
             <div class="d-grid d-lg-flex d-md-flex action-bar align-items-center mt-4">
             <div id="table-actions" class="flex-grow-1 align-items-center">
             </div>
@@ -166,7 +166,7 @@
         });
         const showTable = () => {
             window.LaravelDataTables["timelogs-table"].draw(true);
-            
+
         }
 
         $('#project_id, #employee, #client, #status, #invoice_generate').on('change keyup',

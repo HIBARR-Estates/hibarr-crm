@@ -10,13 +10,24 @@ use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use App\Helper\UserService;
+use App\Helper\Common;
 
 class RecurringInvoicesDataTable extends BaseDataTable
 {
 
     protected $firstInvoice;
     protected $invoiceSettings;
+    private $editInvoicePermission;
+    private $deleteInvoicePermission;
     private $viewInvoicePermission;
+
+    public function __construct($ignoreInvoicesWithTrashed = false)
+    {
+        parent::__construct();
+        $this->viewInvoicePermission = user()->permission('view_invoices');
+        $this->editInvoicePermission = user()->permission('edit_invoices');
+        $this->deleteInvoicePermission = user()->permission('delete_invoices');
+    }
 
     public function dataTable($query)
     {
@@ -58,10 +69,35 @@ class RecurringInvoicesDataTable extends BaseDataTable
                                 </a>';
                 }
 
+                $edit = (!is_null($row->project) && is_null($row->project->deleted_at)) ? '<a class="dropdown-item" href="' . route('invoices.edit', $row->id) . '" >
+                        <i class="fa fa-edit mr-2"></i>
+                        ' . trans('app.edit') . '
+                    </a>' : ((is_null($row->project_id)) ? '<a class="dropdown-item" href="' . route('invoices.edit', $row->id) . '" >
+                        <i class="fa fa-edit mr-2"></i>
+                        ' . trans('app.edit') . '
+                    </a>' : '');
+
                 if ($row->status == 'paid' && $row->credit_note == 0 && !in_array('client', user_roles())) {
                     $action .= '<a class="dropdown-item invoice-upload" href="javascript:;" data-toggle="tooltip"  data-invoice-id="' . $row->id . '"><i class="fa fa-upload mr-2"></i>
                                     ' . trans('app.upload') . '
                                 </a>';
+
+                    if ($row->amountPaid() == 0 && $row->amountDue() > 0) {
+                        $action .= $edit;
+                    }
+                }
+
+                if ($row->status != 'paid' && $row->status != 'canceled') {
+                    if ($row->status != 'pending-confirmation') {
+                        if (
+                            $this->editInvoicePermission == 'all'
+                            || ($this->editInvoicePermission == 'added' && ($row->added_by == $userId || $row->added_by == user()->id))
+                            || ($this->editInvoicePermission == 'owned' && $row->client_id == $userId)
+                            || ($this->editInvoicePermission == 'both' && ($row->client_id == $userId || $row->added_by == $userId || $row->added_by == user()->id))
+                        ) {
+                            $action .= $edit;
+                        }
+                    }
                 }
 
                 if ($row->status != 'paid' && $row->status != 'canceled' && in_array('payments', $this->user->modules) && !in_array('client', user_roles()) && $row->credit_note == 0 && $row->status != 'draft') {
@@ -77,10 +113,23 @@ class RecurringInvoicesDataTable extends BaseDataTable
                     if (isset($row->show_shipping_address) && $row->show_shipping_address === 'yes') {
                         /** @phpstan-ignore-next-line */
                         $action .= '<a class="dropdown-item" href="javascript:toggleShippingAddress(' . $row->id . ');"><i class="fa fa-eye-slash"></i> ' . __('app.hideShippingAddress') . '</a>';
-                    }
-                    else {
+                    } else {
                         /** @phpstan-ignore-next-line */
                         $action .= '<a class="dropdown-item" href="javascript:toggleShippingAddress(' . $row->id . ');"><i class="fa fa-eye"></i> ' . __('app.showShippingAddress') . '</a>';
+                    }
+                }
+
+                if (
+                    $this->deleteInvoicePermission == 'all'
+                    || ($this->deleteInvoicePermission == 'added' && ($row->added_by == $userId || $row->added_by == user()->id))
+                    || ($this->deleteInvoicePermission == 'owned' && $row->client_id == $userId)
+                    || ($this->deleteInvoicePermission == 'both' && ($row->client_id == $userId || $row->added_by == $userId || $row->added_by == user()->id))
+                ) {
+                    if ($row->status != 'paid' && $row->status != 'partial') {
+                        $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-toggle="tooltip"  data-invoice-id="' . $row->id . '">
+                            <i class="fa fa-trash mr-2"></i>
+                            ' . trans('app.delete') . '
+                        </a>';
                     }
                 }
 
@@ -95,8 +144,7 @@ class RecurringInvoicesDataTable extends BaseDataTable
                     if (isset($row->show_shipping_address) && $row->show_shipping_address === 'yes') {
                         /** @phpstan-ignore-next-line */
                         $action .= '<a class="dropdown-item" href="javascript:toggleShippingAddress(' . $row->id . ');"><i class="fa fa-eye-slash"></i> ' . __('app.hideShippingAddress') . '</a>';
-                    }
-                    else {
+                    } else {
                         /** @phpstan-ignore-next-line */
                         $action .= '<a class="dropdown-item" href="javascript:toggleShippingAddress(' . $row->id . ');"><i class="fa fa-eye"></i> ' . __('app.showShippingAddress') . '</a>';
                     }
@@ -150,28 +198,22 @@ class RecurringInvoicesDataTable extends BaseDataTable
             ->addColumn('client_name', function ($row) {
                 if ($row->project && $row->project->client) {
                     return $row->project->client->name;
-                }
-                else if ($row->client_id != '') {
+                } else if ($row->client_id != '') {
                     return $row->client->name;
-                }
-                else if ($row->estimate && $row->estimate->client) {
+                } else if ($row->estimate && $row->estimate->client) {
                     return $row->estimate->client->name;
-                }
-                else {
+                } else {
                     return '--';
                 }
             })
             ->editColumn('name', function ($row) {
                 if ($row->project && $row->project->client) {
                     $client = $row->project->client;
-                }
-                else if ($row->client_id != '') {
+                } else if ($row->client_id != '') {
                     $client = $row->client;
-                }
-                else if ($row->estimate && $row->estimate->client) {
+                } else if ($row->estimate && $row->estimate->client) {
                     $client = $row->estimate->client;
-                }
-                else {
+                } else {
                     return '--';
                 }
 
@@ -202,21 +244,16 @@ class RecurringInvoicesDataTable extends BaseDataTable
 
                 if ($row->credit_note) {
                     $status .= ' <i class="fa fa-circle mr-1 text-yellow f-10"></i>' . __('app.credit-note');
-                }
-                else {
+                } else {
                     if ($row->status == 'unpaid') {
                         $status .= ' <i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.' . $row->status);
-                    }
-                    elseif ($row->status == 'paid') {
+                    } elseif ($row->status == 'paid') {
                         $status .= ' <i class="fa fa-circle mr-1 text-dark-green f-10"></i>' . __('app.' . $row->status);
-                    }
-                    elseif ($row->status == 'draft') {
+                    } elseif ($row->status == 'draft') {
                         $status .= ' <i class="fa fa-circle mr-1 text-blue f-10"></i>' . __('app.' . $row->status);
-                    }
-                    elseif ($row->status == 'canceled') {
+                    } elseif ($row->status == 'canceled') {
                         $status .= ' <i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.' . $row->status);
-                    }
-                    else {
+                    } else {
                         $status .= ' <i class="fa fa-circle mr-1 text-blue f-10"></i>' . __('modules.invoices.partial');
                     }
                 }
@@ -285,10 +322,11 @@ class RecurringInvoicesDataTable extends BaseDataTable
         }
 
         if ($request->searchText != '') {
-            $model = $model->where(function ($query) {
-                $query->where('invoices.invoice_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('invoices.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('invoices.total', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model = $model->where(function ($query) use ($safeTerm) {
+                $query->where('invoices.invoice_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('invoices.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('invoices.total', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -362,5 +400,4 @@ class RecurringInvoicesDataTable extends BaseDataTable
 
         return $dsData;
     }
-
 }

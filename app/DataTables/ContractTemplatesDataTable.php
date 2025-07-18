@@ -4,6 +4,7 @@ namespace App\DataTables;
 
 use App\Models\ContractTemplate;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class ContractTemplatesDataTable extends BaseDataTable
 {
@@ -110,7 +111,8 @@ class ContractTemplatesDataTable extends BaseDataTable
 
         if (request()->searchText != '') {
             $model->where(function ($query) {
-                $query->where('contract_templates.subject', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('contract_templates.subject', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -173,5 +175,4 @@ class ContractTemplatesDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

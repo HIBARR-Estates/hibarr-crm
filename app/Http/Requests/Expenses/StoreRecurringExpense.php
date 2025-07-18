@@ -31,7 +31,7 @@ class StoreRecurringExpense extends CoreRequest
         $rules = [
             'item_name' => 'required',
             'price' => 'required|numeric',
-            'billing_cycle' => 'required',
+            'billing_cycle' => 'required|integer|min:-1',
         ];
 
 

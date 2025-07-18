@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\BankAccount;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class BankAccountDataTable extends BaseDataTable
 {
@@ -73,9 +74,7 @@ class BankAccountDataTable extends BaseDataTable
 
                 if ($row->bank_logo) {
                     $bankLogo = '<img data-toggle="tooltip" src="' . $row->file_url . '" class="width-35 height-35 mr-2 img-fluid">';
-
-                }
-                else {
+                } else {
                     $bankLogo = $row->file_url;
                 }
 
@@ -85,10 +84,10 @@ class BankAccountDataTable extends BaseDataTable
                 return '<a class="text-darkest-grey" href="' . route('bankaccounts.show', $row->id) . '">' . $row->account_name . '</a>';
             })
             ->editColumn('account_type', function ($row) {
-                return $row->type == 'bank' ? __('modules.bankaccount.'.$row->account_type) : '--';
+                return $row->type == 'bank' ? __('modules.bankaccount.' . $row->account_type) : '--';
             })
             ->editColumn('type', function ($row) {
-                return $row->type ? __('modules.bankaccount.'.$row->type) : '--';
+                return $row->type ? __('modules.bankaccount.' . $row->type) : '--';
             })
             ->addColumn('currency', function ($row) {
                 return $row->currency->currency_code . ' (' . $row->currency->currency_symbol . ')';
@@ -115,16 +114,13 @@ class BankAccountDataTable extends BaseDataTable
                     $status .= '</select>';
 
                     return $status;
-                }
-                else {
+                } else {
                     if ($row->status == '1') {
                         return '<i class="fa fa-circle mr-1 text-dark-green f-10"></i>' . __('app.active');
-                    }
-                    else {
+                    } else {
                         return '<i class="fa fa-circle mr-1 text-red f-10"></i>' . __('app.inactive');
                     }
                 }
-
             })
             ->addColumn('account_status', function ($row) {
                 return $row->status == '1' ? __('app.active') : __('app.inactive');
@@ -158,12 +154,12 @@ class BankAccountDataTable extends BaseDataTable
 
         if (!is_null($request->searchText)) {
             $model = $model->where(function ($query) {
-                $query->where('bank_accounts.account_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('bank_accounts.account_type', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('bank_accounts.contact_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('bank_accounts.bank_name', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('bank_accounts.account_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('bank_accounts.account_type', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('bank_accounts.contact_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('bank_accounts.bank_name', 'like', '%' . $safeTerm . '%');
             });
-
         }
 
         if ($request->type != 'all' && !is_null($request->type)) {
@@ -253,7 +249,5 @@ class BankAccountDataTable extends BaseDataTable
         ];
 
         return $data;
-
     }
-
 }

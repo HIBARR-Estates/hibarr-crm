@@ -7,6 +7,9 @@ use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\UniversalSearch;
 use App\Models\User;
+use App\Models\Role;
+use App\Models\Lead;
+use App\Models\PipelineStage;
 use App\Notifications\LeadAgentAssigned;
 use App\Models\LeadSetting;
 use Illuminate\Support\Facades\Notification;
@@ -112,6 +115,9 @@ class DealObserver
     public function updated(Deal $deal)
     {
         if (!isRunningInConsoleOrSeeding()) {
+
+            $this->createClient($deal);
+
             if (user()) {
                 self::createEmployeeActivity(user()->id, 'deal-updated', $deal->id, 'deal');
             }
@@ -127,8 +133,6 @@ class DealObserver
             if ($deal->isDirty('agent_id')) {
                 event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
             }
-
-
 
             if ($deal->isDirty('pipeline_stage_id') || $deal->isDirty('lead_pipeline_id')) {
                 event(new DealEvent($deal, $deal->leadAgent, 'StageUpdated'));
@@ -170,6 +174,8 @@ class DealObserver
 
                 }
             }
+
+            $this->createClient($deal);
         }
     }
 
@@ -189,5 +195,42 @@ class DealObserver
         }
     }
 
+    private function createClient($deal){
+
+        $stage = PipelineStage::where('company_id', company()->id)->where('slug', 'win')->first();
+
+        if($deal->create_client == 1 && $deal->pipeline_stage_id == $stage?->id) {
+
+            $lead = Lead::where('id',$deal->lead_id)->first();
+            if ($lead->client_id) {
+                return;
+            }
+
+            $data = [
+                'salutation' => $lead->salutation,
+                'name' => $lead->client_name,
+                'email_notifications' => 1,
+                'login' => 'disable',
+                'email' => $lead->client_email,
+                'company_name' => $lead->company_name,
+                'website' => $lead->website,
+                'added_by' => user()->id,
+                'company_id' => company()->id,
+                'address' => $lead->address,
+            ];
+
+            $user = User::create($data);
+            $user->clientDetails()->create($data);
+            $client_id = $user->id;
+
+            $role = Role::where('name', 'client')->select('id')->first();
+            $user->attachRole($role->id);
+            $user->assignUserRolePermission($role->id);
+
+            $lead->client_id = $client_id;
+            $lead->save();
+
+        }
+    }
 }
 

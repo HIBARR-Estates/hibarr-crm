@@ -403,6 +403,10 @@ class HomeController extends Controller
         $this->pageTitle = $this->project->project_name;
         $this->hideCompleted = request('hide_completed') ?? 0;
         $this->ganttData = $this->ganttDataNew($this->project->id, $this->hideCompleted, $this->company);
+        $this->taskBoardStatus = TaskboardColumn::all();
+
+        $dateFormat = Company::DATE_FORMATS;
+        $this->dateformat = (isset($dateFormat[$this->company->date_format])) ? $dateFormat[$this->company->date_format] : 'DD-MM-YYYY';
 
         // Check if public taskboard is enabled for this project
         if ($this->project->public_gantt_chart != 'enable') {
@@ -414,6 +418,8 @@ class HomeController extends Controller
             'pageTitle' => $this->pageTitle,
             'hideCompleted' => $this->hideCompleted,
             'ganttData' => $this->ganttData,
+            'taskBoardStatus' => $this->taskBoardStatus,
+            'dateformat' => $this->dateformat,
             'project' => $this->project
         ]);
     }
@@ -1243,6 +1249,7 @@ class HomeController extends Controller
                 'duration' => $milestone->start_date->diffInDays($milestone->end_date) + 1,
                 'progress' => ($milestone->tasks->count()) ? ($milestone->completionPercent() / 100) : 0,
                 'parent' => 0,
+                'milestone_status' => $milestone->status,
                 'open' => ($milestone->status == 'incomplete'),
                 'color' => '#cccccc',
                 'textColor' => '#09203F',
@@ -1270,6 +1277,8 @@ class HomeController extends Controller
                     'start_date' => $task->start_date->format('d-m-Y H:i'),
                     'duration' => (($task->due_date) ? $task->start_date->diffInDays($task->due_date) + 1 : 1),
                     'parent' => $parentID,
+                    // 'milestone_status' => $milestone->milestone_id,
+                    'task_status' => $task->board_column_id,
                     'priority' => ($key2 + 1),
                     'color' => $task->boardColumn->label_color . '20',
                     'textColor' => '#09203F',
@@ -1291,6 +1300,8 @@ class HomeController extends Controller
                     'id' => 'milestone-' . $milestone->id,
                     'text' => $milestone->milestone_title,
                     'type' => 'milestone',
+                    'milestone_status' => $milestone->status,
+                    'task_status' => $task->board_column_id,
                     'start_date' => (($task->due_date) ? $task->due_date->format('d-m-Y H:i') : $task->start_date->format('d-m-Y H:i')),
                     'duration' => (($task->due_date) ? $task->start_date->diffInDays($task->due_date) + 1 : 1),
                     'parent' => $parentID,
@@ -1323,6 +1334,7 @@ class HomeController extends Controller
                 'start_date' => $task->start_date->format('d-m-Y H:i'),
                 'duration' => (($task->due_date) ? $task->start_date->diffInDays($task->due_date) : 1),
                 'priority' => ($key2 + 1),
+                'task_status' => $task->board_column_id,
                 'color' => $task->boardColumn->label_color . '20',
                 'textColor' => '#09203F',
                 'view' => view('components.cards.task-card', ['task' => $task, 'draggable' => false, 'company' => $company])->render()

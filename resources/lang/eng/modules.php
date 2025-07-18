@@ -487,6 +487,9 @@ return array(
         'markIncomplete' => 'Mark as incomplete',
         'reminder' => 'Send Reminder',
         'sectionVisibleClient' => 'Sections visible to client',
+        'repeatEvery' => 'Repeat every',
+        'completedTotalTask' => 'Completed/Total Task',
+        'cycles' => 'Cycles',
         'moveToBoard' => 'Move to Board',
         'deleteRecurringTasks' => 'Delete With Recurring Tasks',
         'dependent' => 'Task is dependent on another task',
@@ -1468,6 +1471,7 @@ return array(
         'cycles' => 'Cycles',
         'cyclesToolTip' => 'Recurring will be stopped after the number of cycles. Keep it blank for infinity.',
         'viewAttendees' => 'View Attendees',
+        'completedTotalEvent' => 'Completed/Total Event',
         'attendees' => 'Attendees',
         'remindBefore' => 'Remind before',
         'eventLink' => 'Event Link',
@@ -1901,6 +1905,7 @@ return array(
         'viewConsent' => 'View Consent',
         'agree' => 'I Agree',
         'disagree' => 'I Disagree',
+        'gdprDisabledMessage' => 'GDPR is disabled. Please enable it to use GDPR features.',
     ),
     'reports' => array(
         'totalExpense' => 'Total Expense',
@@ -2191,6 +2196,7 @@ return array(
     'incrementPromotion' => array(
         'increment' => 'Increment',
         'promotion' => 'Promotion',
+        'demotion' => 'Demotion',
         'salary' => 'Salary',
         'addPromotion' => 'Add Promotion',
         'editPromotion' => 'Update Promotion',
@@ -2201,6 +2207,11 @@ return array(
         'incrementPromotions' => 'Increment & Promotions',
         'addNewincrementPromotion' => 'Add New Increment & Promotion',
         'incrementAlert' => 'The increment will only be displayed if the payroll module is enabled.'
+    ),
+    'decrementPromotion' => array(
+        'decrement' => 'Decrement',
+        'demotion' => 'Demotion',
+        'decrementPromotions' => 'Decrement & Demotion',
     ),
     'invoiceExport' => 'Invoice',
     'taskShortCode' => 'Short Code',
@@ -2313,6 +2324,7 @@ return array(
         'closeDate' => 'Close Date',
         'dealDetails' => 'Deal Details',
         'addDeal' => 'Add Deal',
+        'createClient' => 'Auto convert lead to client when deal stage is set to \'Win\' ',
         'addStages' => 'Add Stage',
         'dealValue' => 'Deal Value',
         'leadStages' => 'Deal Stages',

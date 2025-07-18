@@ -581,6 +581,24 @@ class RecurringInvoiceController extends AccountBaseController
         return Reply::success(__('messages.deleteSuccess'));
     }
 
+    public function deleteInvoices($id) {
+
+        $invoice = Invoice::findOrFail($id);
+        $this->deletePermission = user()->permission('delete_invoices');
+        $userId = UserService::getUserId();
+
+        abort_403(!(
+            $this->deletePermission == 'all'
+            || ($this->deletePermission == 'added' && $invoice->added_by == $userId || $invoice->added_by == user()->id)
+            || ($this->deletePermission == 'owned' && $invoice->client_id == $userId)
+            || ($this->deletePermission == 'both' && ($invoice->client_id == $userId) || ($invoice->added_by == $userId || $invoice->added_by == user()->id))
+        ));
+
+        Invoice::destroy($id);
+
+        return Reply::success(__('messages.deleteSuccess'));
+    }
+
     /**
      * @param Request $request
      * @return array

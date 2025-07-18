@@ -5,6 +5,7 @@
     <div class="col-sm-12">
         <x-form id="save-event-data-form">
             <div class="add-client bg-white rounded">
+                <input type="hidden" name="redirect_url" value="{{ $redirectUrl }}">
                 <h4 class="mb-0 p-20 f-21 font-weight-normal  border-bottom-grey">
                     @lang('modules.events.addEvent')</h4>
                 <div class="row p-20">
@@ -156,35 +157,6 @@
                         </div>
                     </div>
 
-                    <div class="col-lg-2 my-3">
-                        <x-forms.checkbox :fieldLabel="__('modules.events.repeat')" fieldName="repeat"
-                            fieldId="repeat-event" fieldValue="yes" fieldRequired="true" />
-                    </div>
-
-                    <div class="col-lg-12 repeat-event-div d-none">
-                        <div class="row">
-                            <div class="col-lg-4">
-                                <x-forms.number class="mr-0 mr-lg-2 mr-md-2"
-                                    :fieldLabel="__('modules.events.repeatEvery')" fieldName="repeat_count"
-                                    fieldId="repeat_count" fieldValue="1" fieldRequired="true" />
-                            </div>
-                            <div class="col-md-4 mt-3">
-                                <x-forms.select fieldId="repeat_type" fieldLabel="" fieldName="repeat_type"
-                                    search="true">
-                                    <option value="day">@lang('app.day')</option>
-                                    <option value="week">@lang('app.week')</option>
-                                    <option value="month">@lang('app.month')</option>
-                                    <option id="monthlyOn" value="monthly-on-same-day">@lang('app.eventMonthlyOn', ['week' => __('app.eventDay.' . now()->weekOfMonth), 'day' => now()->translatedFormat('l')])</option>
-                                    <option value="year">@lang('app.year')</option>
-                                </x-forms.select>
-                            </div>
-                            <div class="col-lg-4 col-md-4">
-                                <x-forms.text :fieldLabel="__('modules.events.cycles')" fieldName="repeat_cycles"
-                                    fieldRequired="true" fieldId="repeat_cycles" fieldPlaceholder="" />
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="col-lg-3 my-3">
                         <x-forms.checkbox :fieldLabel="__('modules.tasks.reminder')" fieldName="send_reminder"
                             fieldId="send_reminder" fieldValue="yes" fieldRequired="true" />
@@ -211,7 +183,11 @@
                         <x-forms.text :fieldLabel="__('modules.events.eventLink')" fieldName="event_link"
                             fieldId="event_link" :fieldPlaceholder="__('placeholders.website')" />
                     </div>
+                </div>
 
+                <x-forms.custom-field :fields="$fields" ></x-forms.custom-field>
+
+                <div class="row p-20">
                     <div class="col-lg-12">
                         <x-forms.file-multiple class="mr-0" :fieldLabel="__('app.menu.addFile')"
                             fieldName="file" fieldId="file-upload-dropzone" />

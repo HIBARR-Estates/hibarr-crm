@@ -17,6 +17,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProjectMilestone;
 use App\Helper\UserService;
+use App\Helper\Common;
+
 class TaskBoardController extends AccountBaseController
 {
 
@@ -74,9 +76,7 @@ class TaskBoardController extends AccountBaseController
                     ) {
                         $q->leftJoin('task_users', 'task_users.task_id', '=', 'tasks.id')
                             ->leftJoin('users', 'task_users.user_id', '=', 'users.id');
-
-                    }
-                    else {
+                    } else {
                         $q->leftJoin('task_users', 'task_users.task_id', '=', 'tasks.id')
                             ->leftJoin('users', 'task_users.user_id', '=', 'users.id');
                     }
@@ -154,25 +154,21 @@ class TaskBoardController extends AccountBaseController
                             function ($q) use ($startDate, $endDate, $request) {
                                 if ($request->date_filter_on == 'due_date') {
                                     $q->whereBetween(DB::raw('DATE(tasks.`due_date`)'), [$startDate, $endDate]);
-
-                                }
-                                elseif ($request->date_filter_on == 'start_date') {
+                                } elseif ($request->date_filter_on == 'start_date') {
                                     $q->whereBetween(DB::raw('DATE(tasks.`start_date`)'), [$startDate, $endDate]);
-
-                                }
-                                elseif ($request->date_filter_on == 'completed_on') {
+                                } elseif ($request->date_filter_on == 'completed_on') {
                                     $q->whereBetween(DB::raw('DATE(tasks.`completed_on`)'), [$startDate, $endDate]);
                                 }
-
                             }
                         );
                     }
 
                     if ($request->searchText != '') {
                         $q->where(function ($query) {
-                            $query->where('tasks.heading', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('users.name', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('projects.project_name', 'like', '%' . request('searchText') . '%');
+                            $safeTerm = Common::safeString(request('searchText'));
+                            $query->where('tasks.heading', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('users.name', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('projects.project_name', 'like', '%' . $safeTerm . '%');
                         });
                     }
 
@@ -213,7 +209,8 @@ class TaskBoardController extends AccountBaseController
                     }
 
                     $q->select(DB::raw('count(distinct tasks.id)'));
-                }])
+                }
+            ])
                 ->with(['tasks' => function ($q) use ($startDate, $endDate, $request, $userId) {
                     $q->withCount(['subtasks', 'completedSubtasks', 'comments'])
                         ->leftJoin('projects', 'projects.id', '=', 'tasks.project_id')
@@ -225,9 +222,7 @@ class TaskBoardController extends AccountBaseController
                     ) {
                         $q->leftJoin('task_users', 'task_users.task_id', '=', 'tasks.id')
                             ->leftJoin('users', 'task_users.user_id', '=', 'users.id');
-
-                    }
-                    else {
+                    } else {
                         $q->leftJoin('task_users', 'task_users.task_id', '=', 'tasks.id')
                             ->leftJoin('users', 'task_users.user_id', '=', 'users.id');
                     }
@@ -306,16 +301,11 @@ class TaskBoardController extends AccountBaseController
                             function ($q) use ($startDate, $endDate, $request) {
                                 if ($request->date_filter_on == 'due_date') {
                                     $q->whereBetween(DB::raw('DATE(tasks.`due_date`)'), [$startDate, $endDate]);
-
-                                }
-                                elseif ($request->date_filter_on == 'start_date') {
+                                } elseif ($request->date_filter_on == 'start_date') {
                                     $q->whereBetween(DB::raw('DATE(tasks.`start_date`)'), [$startDate, $endDate]);
-
-                                }
-                                elseif ($request->date_filter_on == 'completed_on') {
+                                } elseif ($request->date_filter_on == 'completed_on') {
                                     $q->whereBetween(DB::raw('DATE(tasks.`completed_on`)'), [$startDate, $endDate]);
                                 }
-
                             }
                         );
                     }
@@ -358,9 +348,10 @@ class TaskBoardController extends AccountBaseController
 
                     if ($request->searchText != '') {
                         $q->where(function ($query) {
-                            $query->where('tasks.heading', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('users.name', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('projects.project_name', 'like', '%' . request('searchText') . '%');
+                            $safeTerm = Common::safeString(request('searchText'));
+                            $query->where('tasks.heading', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('users.name', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('projects.project_name', 'like', '%' . $safeTerm . '%');
                         });
                     }
                 }])->with('userSetting')->orderBy('priority', 'asc');
@@ -397,7 +388,7 @@ class TaskBoardController extends AccountBaseController
         if (!in_array('admin', user_roles()) && in_array('employee', user_roles())) {
             $user = User::findOrFail($userId);
             $this->waitingApprovalCount = $user->tasks()->where('board_column_id', $taskBoardColumn->id)->where('company_id', company()->id)->count();
-        }else{
+        } else {
             $this->waitingApprovalCount = Task::where('board_column_id', $taskBoardColumn->id)->where('company_id', company()->id)->count();
         }
         session()->forget('pusher_settings');
@@ -421,10 +412,10 @@ class TaskBoardController extends AccountBaseController
 
         $taskboard = TaskboardColumn::where('slug', $slug)->where('company_id', company()->id)->first();
 
-        if($taskboard){
-            $errormessage = "A status with this name already exists which you updated with " . $taskboard->column_name . ". If you want to use this name, please update the existing status (" . $taskboard->column_name . " to " . $request->column_name .").";
+        if ($taskboard) {
+            $errormessage = "A status with this name already exists which you updated with " . $taskboard->column_name . ". If you want to use this name, please update the existing status (" . $taskboard->column_name . " to " . $request->column_name . ").";
             return Reply::error($errormessage);
-        }else{
+        } else {
             $board->slug = $slug;
         }
 
@@ -434,8 +425,7 @@ class TaskBoardController extends AccountBaseController
                 ->increment('priority');
 
             $board->priority = $priority;
-        }
-        else {
+        } else {
             TaskboardColumn::where('priority', '>', $priority)
                 ->orderBy('priority', 'asc')
                 ->increment('priority');
@@ -472,9 +462,7 @@ class TaskBoardController extends AccountBaseController
         ) {
             $tasks->leftJoin('task_users', 'task_users.task_id', '=', 'tasks.id')
                 ->leftJoin('users', 'task_users.user_id', '=', 'users.id');
-
-        }
-        else {
+        } else {
             $tasks->leftJoin('task_users', 'task_users.task_id', '=', 'tasks.id')
                 ->leftJoin('users', 'task_users.user_id', '=', 'users.id');
         }
@@ -577,9 +565,10 @@ class TaskBoardController extends AccountBaseController
 
         if ($request->searchText != '') {
             $tasks->where(function ($query) {
-                $query->where('tasks.heading', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('users.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('projects.project_name', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('tasks.heading', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('users.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('projects.project_name', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -589,8 +578,7 @@ class TaskBoardController extends AccountBaseController
 
         if ($totalTasks <= ($skip + $this->taskBoardColumnLength)) {
             $loadStatus = 'hide';
-        }
-        else {
+        } else {
             $loadStatus = 'show';
         }
 
@@ -631,8 +619,7 @@ class TaskBoardController extends AccountBaseController
                                 'column_priority' => $priorities[$key]
                             ]
                         );
-                    }
-                    else {
+                    } else {
                         $task->update(
                             [
                                 'board_column_id' => $boardColumnId,
@@ -640,7 +627,6 @@ class TaskBoardController extends AccountBaseController
                             ]
                         );
                     }
-
                 }
             }
 
@@ -657,7 +643,6 @@ class TaskBoardController extends AccountBaseController
         $this->allBoardColumns = TaskBoardColumn::orderBy('priority', 'asc')->get();
 
         return view('taskboard.create', $this->data);
-
     }
 
     /**
@@ -706,16 +691,14 @@ class TaskBoardController extends AccountBaseController
                 ->increment('priority');
 
             $board->priority = $request->priority;
-        }
-        elseif ($oldPosition > $newPosition) {
+        } elseif ($oldPosition > $newPosition) {
             TaskboardColumn::where('priority', '<', $oldPosition)
                 ->where('priority', '>', $newPosition)
                 ->orderBy('priority', 'asc')
                 ->increment('priority');
 
             $board->priority = $request->priority + 1;
-        }
-        else {
+        } else {
             TaskboardColumn::where('priority', '>', $oldPosition)
                 ->where('priority', '<=', $newPosition)
                 ->orderBy('priority', 'asc')
@@ -797,8 +780,7 @@ class TaskBoardController extends AccountBaseController
                 $increment_sequence_numbers->priority = ((int)$increment_sequence_numbers->priority + 1);
                 $increment_sequence_numbers->save();
             }
-        }
-        else {
+        } else {
             /* check for Sequence numbers greater then current sequence: */
             $decrement_sequence_number = TaskboardColumn::where('priority', '>', $currentSequence->priority)->where('priority', '<=', $request->priority)->get();
 
@@ -811,5 +793,4 @@ class TaskBoardController extends AccountBaseController
         $currentSequence->priority = $request->priority;
         $currentSequence->save();
     }
-
 }

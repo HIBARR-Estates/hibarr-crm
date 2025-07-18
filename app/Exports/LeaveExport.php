@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use App\Helper\Common;
 
 class LeaveExport implements FromCollection, WithHeadings, WithEvents
 {
@@ -78,7 +79,7 @@ class LeaveExport implements FromCollection, WithHeadings, WithEvents
     {
         $arr = array();
 
-        $arr[] =[
+        $arr[] = [
             '#',
             __('app.id'),
             __('app.employee'),
@@ -95,14 +96,15 @@ class LeaveExport implements FromCollection, WithHeadings, WithEvents
     public function collection()
     {
         $leavesList = Leave::with('user', 'user.employeeDetail', 'user.employeeDetail.designation', 'user.session', 'type')
-            ->join('leave_types', 'leave_types.id','leaves.leave_type_id')
+            ->join('leave_types', 'leave_types.id', 'leaves.leave_type_id')
             ->join('users', 'leaves.user_id', 'users.id')
             ->join('employee_details', 'employee_details.user_id', 'users.id')
-            ->selectRaw('leaves.*, leave_types.color, leave_types.type_name, ( select count("lvs.id") from leaves as lvs where lvs.unique_id = leaves.unique_id and lvs.duration = \'multiple\') as count_multiple_leaves',
+            ->selectRaw(
+                'leaves.*, leave_types.color, leave_types.type_name, ( select count("lvs.id") from leaves as lvs where lvs.unique_id = leaves.unique_id and lvs.duration = \'multiple\') as count_multiple_leaves',
             )
             ->groupByRaw('ifnull(leaves.unique_id, leaves.id)');
 
-        if($this->exportAll == false){
+        if ($this->exportAll == false) {
             if (!is_null($this->startdate)) {
                 $leavesList->whereRaw('Date(leaves.leave_date) >= ?', [$this->startdate]);
             }
@@ -113,7 +115,8 @@ class LeaveExport implements FromCollection, WithHeadings, WithEvents
         }
 
         if (request()->searchText != '') {
-            $leavesList->where('users.name', 'like', '%' . request()->searchText . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $leavesList->where('users.name', 'like', '%' . $safeTerm . '%');
         }
 
         if ($this->viewLeavePermission == 'owned') {
@@ -154,28 +157,28 @@ class LeaveExport implements FromCollection, WithHeadings, WithEvents
             $leavedata[$employee_index]['employee_name'] = $leavesList->user->id;
             $leavedata[$employee_index]['id'] = $leavesList->user->name;
 
-            if($leavesList->duration == 'multiple'){
+            if ($leavesList->duration == 'multiple') {
 
                 $leaves = Leave::where('unique_id', $leavesList->unique_id)->get();
 
                 $leaveDatesComments = [];
                 $leaveStatusComments = [];
                 foreach ($leaves as $leave) {
-                    $leaveDatesComments[] = $leave->leave_date->format('d-m-Y') .' ('.Carbon::parse($leave->leave_date)->translatedFormat('l').')';
+                    $leaveDatesComments[] = $leave->leave_date->format('d-m-Y') . ' (' . Carbon::parse($leave->leave_date)->translatedFormat('l') . ')';
                     $leaveStatusComments[] = $leave->leave_date->format('d-m-Y') . ' : ' . ucfirst($leave->status);
                 }
                 $leaveDatesString = implode(', ', $leaveDatesComments);
                 $leaveStatusString = implode(', ', $leaveStatusComments);
 
                 $leavedata[$employee_index]['leave_date'] = [
-                    'data' => $leavesList->leave_date->format('d-m-Y') .' ('.Carbon::parse($leave->leave_date)->translatedFormat('l').')',
+                    'data' => $leavesList->leave_date->format('d-m-Y') . ' (' . Carbon::parse($leave->leave_date)->translatedFormat('l') . ')',
                     'comments' => [
                         $leaveDatesString
                     ]
                 ];
 
-                if($leavesList->count_multiple_leaves != 0){
-                    $data = ' ' . $leavesList->count_multiple_leaves .' '.__('app.leave');
+                if ($leavesList->count_multiple_leaves != 0) {
+                    $data = ' ' . $leavesList->count_multiple_leaves . ' ' . __('app.leave');
                     $leavedata[$employee_index]['duration'] = ucfirst($leavesList->duration) . $data;
                 }
                 $leavedata[$employee_index]['status'] = [
@@ -186,9 +189,9 @@ class LeaveExport implements FromCollection, WithHeadings, WithEvents
 
                 ];
                 $leavedata[$employee_index]['leave_type'] = $leavesList->type->type_name;
-            }else{
+            } else {
 
-                $leavedata[$employee_index]['leave_date'] = $leavesList->leave_date->format('d-m-Y') .' ('.Carbon::parse($leavesList->leave_date)->translatedFormat('l').')';
+                $leavedata[$employee_index]['leave_date'] = $leavesList->leave_date->format('d-m-Y') . ' (' . Carbon::parse($leavesList->leave_date)->translatedFormat('l') . ')';
                 $leavedata[$employee_index]['duration'] = ucfirst($leavesList->duration);
                 $leavedata[$employee_index]['leave_status'] = ucfirst($leavesList->status);
                 $leavedata[$employee_index]['leave_type'] = $leavesList->type->type_name;
@@ -204,7 +207,6 @@ class LeaveExport implements FromCollection, WithHeadings, WithEvents
         self::$sum = $leavedata;
 
         return $leavedata;
-
     }
 
     public function map($leavedata): array
