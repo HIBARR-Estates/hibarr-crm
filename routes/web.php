@@ -131,11 +131,6 @@ use App\Http\Controllers\WeeklyTimesheetController;
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('image/upload', [ImageController::class, 'store'])->name('image.store');
 
-    // Tailwind CSS Test Route
-    Route::get('tailwind-test', function () {
-        return view('tailwind-test');
-    })->name('tailwind.test');
-
     Route::get('account-unverified', [DashboardController::class, 'accountUnverified'])->name('account_unverified');
     Route::get('checklist', [DashboardController::class, 'checklist'])->name('checklist');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
