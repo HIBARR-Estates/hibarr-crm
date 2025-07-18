@@ -15,6 +15,7 @@ use App\Models\PipelineStage;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use App\Models\UserLeadboardSetting;
+use App\Helper\Common;
 
 class LeadBoardController extends AccountBaseController
 {
@@ -100,7 +101,7 @@ class LeadBoardController extends AccountBaseController
 
                 if ($request->product != 'all' && $request->product != '') {
                     $q->leftJoin('lead_products', 'lead_products.deal_id', '=', 'deals.id')
-                      ->where('lead_products.product_id', $request->product);
+                        ->where('lead_products.product_id', $request->product);
                 }
 
                 if ($request->pipeline != 'all' && $request->pipeline != '') {
@@ -122,11 +123,12 @@ class LeadBoardController extends AccountBaseController
                 if ($request->searchText != '') {
                     $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
                     $q->where(function ($query) {
-                        $query->where('leads.client_name', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('leads.client_name', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('leads.client_email', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('leads.company_name', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('leads.mobile', 'like', '%' . request('searchText') . '%');
+                        $safeTerm = Common::safeString(request('searchText'));
+                        $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('leads.client_name', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
                     });
                 }
 
@@ -166,7 +168,6 @@ class LeadBoardController extends AccountBaseController
                 }
 
                 $q->select(DB::raw('count(distinct deals.id)'));
-
             }])
                 ->with(['deals' => function ($q) use ($startDate, $endDate, $request) {
                     $q->with(['leadAgent', 'leadAgent.user', 'currency'])
@@ -216,7 +217,7 @@ class LeadBoardController extends AccountBaseController
 
                     if ($request->product != 'all' && $request->product != '') {
                         $q->leftJoin('lead_products', 'lead_products.deal_id', '=', 'deals.id')
-                          ->where('lead_products.product_id', $request->product);
+                            ->where('lead_products.product_id', $request->product);
                     }
 
                     if ($this->pipelineId != 'all' && $this->pipelineId != '' && $this->pipelineId != null) {
@@ -237,11 +238,12 @@ class LeadBoardController extends AccountBaseController
 
                     if ($request->searchText != '') {
                         $q->where(function ($query) {
-                            $query->where('leads.client_name', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('leads.client_name', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('leads.client_email', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('leads.company_name', 'like', '%' . request('searchText') . '%')
-                                ->orWhere('leads.mobile', 'like', '%' . request('searchText') . '%');
+                            $safeTerm = Common::safeString(request('searchText'));
+                            $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('leads.client_name', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                                ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
                         });
                     }
                 }])->where(function ($query) use ($request) {
@@ -287,8 +289,7 @@ class LeadBoardController extends AccountBaseController
 
                     if ($request->followUp == 'yes') {
                         $leads->where('deals.next_follow_up', 'yes');
-                    }
-                    else {
+                    } else {
                         $leads->where('deals.next_follow_up', 'no');
                     }
                 }
@@ -299,7 +300,7 @@ class LeadBoardController extends AccountBaseController
 
                 if ($request->product != 'all' && $request->product != '') {
                     $leads->leftJoin('lead_products', 'lead_products.deal_id', '=', 'deals.id')
-                      ->where('lead_products.product_id', $request->product);
+                        ->where('lead_products.product_id', $request->product);
                 }
 
 
@@ -318,11 +319,12 @@ class LeadBoardController extends AccountBaseController
                 if ($request->searchText != '') {
 
                     $leads->where(function ($query) {
-                        $query->where('leads.client_name', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('leads.client_name', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('leads.client_email', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('leads.company_name', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('leads.mobile', 'like', '%' . request('searchText') . '%');
+                        $safeTerm = Common::safeString(request('searchText'));
+                        $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('leads.client_name', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
                     });
                 }
 
@@ -396,11 +398,9 @@ class LeadBoardController extends AccountBaseController
             $query->where(function ($task) use ($startDate, $endDate, $request) {
                 if ($request->date_filter_on == 'created_at') {
                     $task->whereBetween(DB::raw('DATE(leads.`created_at`)'), [$startDate, $endDate]);
-                }
-                elseif ($request->date_filter_on == 'updated_at') {
+                } elseif ($request->date_filter_on == 'updated_at') {
                     $task->whereBetween(DB::raw('DATE(leads.`updated_at`)'), [$startDate, $endDate]);
-                }
-                elseif ($request->date_filter_on == 'next_follow_up_date') {
+                } elseif ($request->date_filter_on == 'next_follow_up_date') {
                     $task->whereHas('followup', function ($q) use ($startDate, $endDate) {
                         $q->whereBetween(DB::raw('DATE(lead_follow_up.`next_follow_up_date`)'), [$startDate, $endDate]);
                     });
@@ -439,8 +439,7 @@ class LeadBoardController extends AccountBaseController
 
             if ($request->followUp == 'yes') {
                 $leads->where('deals.next_follow_up', 'yes');
-            }
-            else {
+            } else {
                 $leads->where('deals.next_follow_up', 'no');
             }
         }
@@ -448,10 +447,11 @@ class LeadBoardController extends AccountBaseController
         if ($request->searchText != '') {
             $leads->leftJoin('leads', 'leads.id', 'deals.lead_id');
             $leads->where(function ($query) {
-                $query->where('leads.client_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('leads.client_email', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('leads.company_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('leads.mobile', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -461,8 +461,7 @@ class LeadBoardController extends AccountBaseController
 
         if ($totalTasks <= ($skip + $this->taskBoardColumnLength)) {
             $loadStatus = 'hide';
-        }
-        else {
+        } else {
             $loadStatus = 'show';
         }
 
@@ -496,7 +495,6 @@ class LeadBoardController extends AccountBaseController
                     );
                 }
             }
-
         }
 
         return Reply::dataOnly(['status' => 'success']);
@@ -519,5 +517,4 @@ class LeadBoardController extends AccountBaseController
         $stage = PipelineStage::find($request->statusID);
         return response()->json(['slug' => $stage->slug]);
     }
-
 }

@@ -23,7 +23,9 @@ class RemovalRequestObserver
         if (!isRunningInConsoleOrSeeding()) {
             try {
                 if ($removal->user) {
-                    event(new RemovalRequestApproveRejectEvent($removal));
+                    if ($removal->status != 'pending') {
+                        event(new RemovalRequestApproveRejectEvent($removal));
+                    }
                 }
             } catch (Exception $e) {
                 Log::info($e);

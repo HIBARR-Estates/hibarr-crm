@@ -366,6 +366,7 @@ $editMilestonePermission = user()->permission('edit_project_milestones');
                         </div>
                     </div>
 
+                    @if($task->recurring_task_id == null && $task->repeat == 1 && !$type)
                     <div class="col-md-6">
                         <div class="form-group my-3">
                             <div class="d-flex">
@@ -407,6 +408,7 @@ $editMilestonePermission = user()->permission('edit_project_milestones');
                             </div>
                         </div>
                     </div>
+                    @endif
 
                     <div class="col-md-6">
                         <div class="form-group my-3">
@@ -450,7 +452,7 @@ $editMilestonePermission = user()->permission('edit_project_milestones');
                 <x-form-actions>
                     <x-forms.button-primary id="save-task-form" class="mr-3" icon="check">@lang('app.save')
                     </x-forms.button-primary>
-                    <x-forms.button-cancel :link="route('tasks.index')" class="border-0">@lang('app.cancel')
+                    <x-forms.button-cancel :link="route('recurring-task.index')" class="border-0">@lang('app.cancel')
                     </x-forms.button-cancel>
                 </x-form-actions>
 
@@ -628,7 +630,7 @@ $editMilestonePermission = user()->permission('edit_project_milestones');
             });
             taskDropzone.on('queuecomplete', function() {
                 var msgs = "@lang('messages.recordSaved')";
-                window.location.href = "{{ route('tasks.index') }}"
+                window.location.href = "{{ route('recurring-task.index') }}"
             });
             taskDropzone.on('removedfile', function () {
                 var grp = $('div#file-upload-dropzone').closest(".form-group");
@@ -780,7 +782,7 @@ $editMilestonePermission = user()->permission('edit_project_milestones');
 
             var data = taskData+='&mention_user_id=' + mention_user_id;
 
-            const url = "{{ route('tasks.update', $task->id) }}";
+            const url = "{{ route('recurring-task.update', $task->id) }}";
 
             $.easyAjax({
                 url: url,

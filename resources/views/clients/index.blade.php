@@ -30,6 +30,29 @@
             </div>
         </div>
 
+        <div class="select-box d-flex py-2 px-lg-2 px-md-2 px-0 border-right-grey border-right-grey-sm-0">
+            <p class="mb-0 pr-2 f-14 text-dark-grey d-flex align-items-center">@lang('app.category')</p>
+            <div class="select-status">
+                <select class="form-control select-picker" id="filter_category_id" data-live-search="true"
+                            data-container="body" data-size="8">
+                    <option value="all">@lang('app.all')</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}">{{ $category->category_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        <div class="select-box d-flex py-2 px-lg-2 px-md-2 px-0 border-right-grey border-right-grey-sm-0">
+            <p class="mb-0 pr-2 f-14 text-dark-grey d-flex align-items-center">@lang('modules.productCategory.subCategory')</p>
+            <div class="select-status">
+                <select class="form-control select-picker" id="filter_sub_category_id" data-live-search="true"
+                            data-container="body" data-size="8">
+                    <option value="all">@lang('app.all')</option>
+                </select>
+            </div>
+        </div>
+
         <!-- CLIENT END -->
 
         <!-- SEARCH BY TASK START -->
@@ -67,37 +90,6 @@
                             <option value="all">@lang('app.all')</option>
                             <option value="active">@lang('app.active')</option>
                             <option value="deactive">@lang('app.inactive')</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="more-filter-items">
-                <label class="f-14 text-dark-grey mb-12 " for="usr">@lang('app.category')</label>
-                <div class="select-filter mb-4">
-                    <div class="select-others">
-                        <select class="form-control select-picker" id="filter_category_id" data-live-search="true"
-                            data-container="body" data-size="8">
-                            <option value="all">@lang('app.all')</option>
-                            @foreach ($categories as $category)
-                                <option value="{{ $category->id }}">{{ $category->category_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="more-filter-items">
-                <label class="f-14 text-dark-grey mb-12 "
-                    for="usr">@lang('modules.productCategory.subCategory')</label>
-                <div class="select-filter mb-4">
-                    <div class="select-others">
-                        <select class="form-control select-picker" id="filter_sub_category_id" data-live-search="true"
-                            data-container="body" data-size="8">
-                            <option value="all">@lang('app.all')</option>
-                            @foreach ($subcategories as $subcategory)
-                                <option value="{{ $subcategory->id }}">{{ $subcategory->category_name }}</option>
-                            @endforeach
                         </select>
                     </div>
                 </div>
@@ -298,6 +290,48 @@
                 showTable();
             });
 
+        $('#filter_category_id').change(function(e) {
+
+            let categoryId = $(this).val();
+
+            $('#filter_sub_category_id')
+                .html('<option value="all">@lang("app.all")</option>')
+                .val('all')
+                .selectpicker('refresh');
+
+            $('#filter_sub_category_id').trigger('change');
+
+            if (categoryId === 'all') {
+                return;
+            }
+
+            var url = "{{ route('get_client_sub_categories', ':id') }}";
+            url = url.replace(':id', categoryId);
+
+            $.easyAjax({
+                url: url,
+                type: "GET",
+                success: function(response) {
+                    if (response.status == 'success') {
+                        var options = [];
+                        var rData = [];
+                        rData = response.data;
+                        $.each(rData, function(index, value) {
+                            var selectData = '';
+                            selectData = '<option value="' + value.id + '">' + value
+                                .category_name + '</option>';
+                            options.push(selectData);
+                        });
+
+                        $('#filter_sub_category_id').html('<option value="">--</option>' +
+                            options);
+                        $('#filter_sub_category_id').selectpicker('refresh');
+                    }
+                }
+            })
+
+        });
+
         $('#search-text-field').on('keyup', function() {
             if ($('#search-text-field').val() != "") {
                 $('#reset-filters').removeClass('d-none');
@@ -308,6 +342,10 @@
         $('#reset-filters,#reset-filters-2').click(function() {
             $('#filter-form')[0].reset();
             $('.filter-box .select-picker').selectpicker("refresh");
+
+            $('#filter_sub_category_id').html('<option value="all">@lang("app.all")</option>');
+            $('#filter_sub_category_id').selectpicker("refresh");
+
             $('.show-unverified').removeClass("btn-active");
             $('.show-clients').addClass("btn-active");
             $('#reset-filters').addClass('d-none');

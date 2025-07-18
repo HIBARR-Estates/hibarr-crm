@@ -769,7 +769,7 @@ class EmployeeController extends AccountBaseController
             foreach ($this->employeeLeavesQuotas as $key => $leavesQuota) {
 
                 if (
-                    ($leavesQuota->leaveType->deleted_at == null || $leavesQuota->leaves_used > 0) &&
+                    ($leavesQuota && $leavesQuota->leaveType && $leavesQuota->leaveType->deleted_at == null || $leavesQuota->leaves_used > 0) &&
                     $leavesQuota->leaveType && ($leavesQuota->leaveType->leaveTypeCondition($leavesQuota->leaveType, $this->employee))) {
 
                     $hasLeaveQuotas = true;

@@ -30,7 +30,7 @@ trait CurrencyExchange
         if($setting->currency_key_version == 'dedicated'){
             $currencyApiKeyVersion = $setting->dedicated_subdomain;
         }else{
-            $currencyApiKeyVersion = $setting->currency_key_version;
+            $currencyApiKeyVersion = $setting->currency_key_version === 'premium' ? 'api' : $setting->currency_key_version;
         }
 
         $currencyApiKey = $setting->currency_converter_key ?: env('CURRENCY_CONVERTER_KEY');

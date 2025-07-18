@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\ProjectTemplateTask;
 use App\Models\TaskLabelList;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class ProjectTemplateTasksDataTable extends BaseDataTable
 {
@@ -45,7 +46,7 @@ class ProjectTemplateTasksDataTable extends BaseDataTable
                 $action .= ' <a href="' . route('project-template-task.show', [$row->id]) . '" class="dropdown-item openRightModal"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
 
                 if ($this->editTaskPermission == 'all' || ($this->editTaskPermission == 'added' && user()->id == $row->added_by) || ($this->editTaskPermission == 'both' && user()->id == $row->added_by)) {
-                    $action .= '<a class="dropdown-item openRightModal" href="' . route('project-template-task.edit', [$row->id]) . '?project_id='. $row->project_template_id . '">
+                    $action .= '<a class="dropdown-item openRightModal" href="' . route('project-template-task.edit', [$row->id]) . '?project_id=' . $row->project_template_id . '">
                                 <i class="fa fa-edit mr-2"></i>
                                 ' . trans('app.edit') . '
                             </a>';
@@ -71,11 +72,13 @@ class ProjectTemplateTasksDataTable extends BaseDataTable
                 $labels = '';
 
                 // Use foreach instead of forelse
-                foreach ($taskLabelList->filter(function ($label) use ($taskLabelIds) {
-                    return in_array($label->id, $taskLabelIds);
-                }) as $key => $label) {
-                    $labels .= '<span class="badge badge-secondary mr-1" style="background-color: ' . $label->label_color. '">'
-                            . $label->label_name . '</span>';
+                foreach (
+                    $taskLabelList->filter(function ($label) use ($taskLabelIds) {
+                        return in_array($label->id, $taskLabelIds);
+                    }) as $key => $label
+                ) {
+                    $labels .= '<span class="badge badge-secondary mr-1" style="background-color: ' . $label->label_color . '">'
+                        . $label->label_name . '</span>';
                 }
 
                 return '<div class="media align-items-center">
@@ -103,8 +106,9 @@ class ProjectTemplateTasksDataTable extends BaseDataTable
         $model = $model->where('project_template_id', $projectId);
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('heading', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('heading', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -151,5 +155,4 @@ class ProjectTemplateTasksDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

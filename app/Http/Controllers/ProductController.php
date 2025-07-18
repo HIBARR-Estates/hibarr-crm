@@ -54,7 +54,7 @@ class ProductController extends AccountBaseController
         $this->productDetails = $productDetails;
 
         $this->totalProducts = Product::count();
-        $this->cartProductCount = OrderCart::where('client_id', user()->id)->count();
+        $this->cartProductCount = OrderCart::where('client_id', user()->id)->sum('quantity');
 
         $this->categories = ProductCategory::all();
         $this->subCategories = ProductSubCategory::all();
@@ -380,7 +380,7 @@ class ProductController extends AccountBaseController
 
         }
 
-        $cartProduct = OrderCart::where('client_id', user()->id)->count();
+        $cartProduct = OrderCart::where('client_id', user()->id)->sum('quantity');
 
         if (!$request->has('cartType')) {
 
@@ -478,7 +478,7 @@ class ProductController extends AccountBaseController
         if($rvalue == 'abort'){
             return Reply::error(__('messages.abortAction'));
         }
-        
+
         $view = view('products.ajax.import_progress', $this->data)->render();
 
         return Reply::successWithData(__('messages.importUploadSuccess'), ['view' => $view]);

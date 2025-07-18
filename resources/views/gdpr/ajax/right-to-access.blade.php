@@ -48,7 +48,7 @@
                                 <div class="input-group" id="client_company_div">
                                     <input type="text" id="company_name" name="company_name"
                                         class="px-6 position-relative text-dark font-weight-normal form-control height-35 rounded p-0 text-left f-15"
-                                        placeholder="" value="{{ $user->clientDetails->company_name }}">
+                                        placeholder="" value="{{ $user?->clientDetails?->company_name }}">
                                 </div>
                             </div>
                         </div>
@@ -57,14 +57,14 @@
                         <div class="col-md-6">
                             <x-forms.text class="mb-3 mt-3 mt-lg-0 mt-md-0" fieldId="website"
                                 :fieldLabel="__('modules.client.website')" fieldName="website"
-                                :fieldPlaceholder="__('placeholders.website')" :fieldValue="$user->clientDetails->website">
+                                :fieldPlaceholder="__('placeholders.website')" :fieldValue="$user?->clientDetails?->website">
                             </x-forms.text>
                         </div>
 
                         <div class="col-lg-6">
                             <x-forms.text class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('app.gstNumber')"
                                 :fieldPlaceholder="__('placeholders.invoices.gstNumber')" fieldName="gst_number"
-                                fieldId="gst_number" :fieldValue="$user->clientDetails->gst_number" />
+                                fieldId="gst_number" :fieldValue="$user?->clientDetails?->gst_number" />
                         </div>
 
                         <div class="col-lg-4">
@@ -118,7 +118,7 @@
 <script>
     $(body).on('click', '#save-right-to-access-data', function() {
 
-        var url = "{{ route('profile.update', [ser()->id]) }}";
+        var url = "{{ route('profile.update', [user()->id]) }}";
 
         $.easyAjax({
             url: url,

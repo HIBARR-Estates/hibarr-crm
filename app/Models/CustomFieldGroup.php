@@ -42,6 +42,7 @@ class CustomFieldGroup extends BaseModel
         ['name' => 'Deal', 'model' => Deal::CUSTOM_FIELD_MODEL],
         ['name' => 'Product', 'model' => Product::CUSTOM_FIELD_MODEL],
         ['name' => 'Order', 'model' => Order::CUSTOM_FIELD_MODEL],
+        ['name' => 'Event', 'model' => Event::CUSTOM_FIELD_MODEL],
         ['name' => 'Ticket', 'model' => Ticket::CUSTOM_FIELD_MODEL],
         ['name' => 'Time Log', 'model' => ProjectTimeLog::CUSTOM_FIELD_MODEL],
         ['name' => 'Contract', 'model' => Contract::CUSTOM_FIELD_MODEL]

@@ -160,6 +160,16 @@ $attendeesIds = $event->attendee->pluck('user_id')->toArray();
                     @endif
                     <x-cards.data-row :label="__('modules.events.eventLink')"
                     html="true" :value="$link"/>
+
+                    @if (isset($fields) && count($fields) > 0)
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <h5 class="mb-3"> @lang('modules.projects.otherInfo')</h5>
+                                <x-forms.custom-field-show :fields="$fields" :model="$event"></x-forms.custom-field-show>
+                            </div>
+                        </div>
+                    @endif
+
                     @if ($event->files->count() > 0)
                         <x-cards.data-row :label="__('app.file')"
                         html="true" :value="''"/>
@@ -212,14 +222,6 @@ $('body').on('click', '.delete-event', function() {
             icon: 'warning',
             showCancelButton: true,
             focusConfirm: false,
-            @if ($event->parent_id)
-            input: 'radio',
-            inputValue: 'this',
-            inputOptions: {
-                'this': `@lang('app.thisEvent')`,
-                'all': `@lang('app.allEvent')`
-            },
-            @endif
             confirmButtonText: "@lang('messages.confirmDelete')",
             cancelButtonText: "@lang('app.cancel')",
             customClass: {

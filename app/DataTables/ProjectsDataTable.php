@@ -33,7 +33,6 @@ class ProjectsDataTable extends BaseDataTable
         $this->viewProjectPermission = user()->permission('view_projects');
         $this->viewGanttPermission = user()->permission('view_project_gantt_chart');
         $this->addProjectMemberPermission = user()->permission('add_project_members');
-
     }
 
     /**
@@ -52,10 +51,12 @@ class ProjectsDataTable extends BaseDataTable
         $datatables->addIndexColumn();
 
         $datatables->addColumn('check', fn($row) => $this->checkBox($row));
-        $datatables->addColumn('action', function ($row) use ($userId) {
-            $memberIds = $row->members->pluck('user_id')->toArray();
+        $datatables->addColumn(
+            'action',
+            function ($row) use ($userId) {
+                $memberIds = $row->members->pluck('user_id')->toArray();
 
-            $action = '<div class="task_view">
+                $action = '<div class="task_view">
 
                 <div class="dropdown">
                     <a class="task_view_more d-flex align-items-center justify-content-center dropdown-toggle" type="link"
@@ -64,118 +65,118 @@ class ProjectsDataTable extends BaseDataTable
                     </a>
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuLink-' . $row->id . '" tabindex="0">';
 
-            $action .= '<a href="' . route('projects.show', [$row->id]) . '" class="dropdown-item"><i class="mr-2 fa fa-eye"></i>' . __('app.view') . '</a>';
+                $action .= '<a href="' . route('projects.show', [$row->id]) . '" class="dropdown-item"><i class="mr-2 fa fa-eye"></i>' . __('app.view') . '</a>';
 
-            if ($this->editProjectsPermission == 'all'
-                || ($this->editProjectsPermission == 'added' && (user()->id == $row->added_by || $userId == $row->added_by))
-                || ($this->editProjectsPermission == 'owned' && $userId == $row->client_id && in_array('client', user_roles()))
-                || ($this->editProjectsPermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
-                || ($this->editProjectsPermission == 'both' && ($userId == $row->client_id || user()->id == $row->added_by || $userId == $row->added_by))
-                || ($this->editProjectsPermission == 'both' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
-            ) {
-                $action .= '<a class="dropdown-item openRightModal" href="' . route('projects.edit', [$row->id]) . '">
+                if (
+                    $this->editProjectsPermission == 'all'
+                    || ($this->editProjectsPermission == 'added' && (user()->id == $row->added_by || $userId == $row->added_by))
+                    || ($this->editProjectsPermission == 'owned' && $userId == $row->client_id && in_array('client', user_roles()))
+                    || ($this->editProjectsPermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
+                    || ($this->editProjectsPermission == 'both' && ($userId == $row->client_id || user()->id == $row->added_by || $userId == $row->added_by))
+                    || ($this->editProjectsPermission == 'both' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
+                ) {
+                    $action .= '<a class="dropdown-item openRightModal" href="' . route('projects.edit', [$row->id]) . '">
                             <i class="mr-2 fa fa-edit"></i>
                             ' . trans('app.edit') . '
                         </a>';
-            }
+                }
 
-            if ($this->addProjectPermission == 'all' || $this->addProjectPermission == 'added' || $this->addProjectPermission == 'both') {
-                $action .= '<a class="dropdown-item duplicateProject" href="javascript:;" data-project-id="' . $row->id . '">
+                if ($this->addProjectPermission == 'all' || $this->addProjectPermission == 'added' || $this->addProjectPermission == 'both') {
+                    $action .= '<a class="dropdown-item duplicateProject" href="javascript:;" data-project-id="' . $row->id . '">
                             <i class="mr-2 fa fa-clone"></i>
                             ' . trans('app.duplicate') . '
                         </a>';
-            }
+                }
 
-            if ($this->viewGanttPermission == 'all' || ($this->viewGanttPermission == 'added' && user()->id == $row->added_by) || ($this->viewGanttPermission == 'owned' && user()->id == $row->client_id)) {
-                $action .= '<a class="dropdown-item" href="' . route('projects.show', $row->id) . '?tab=gantt' . '">
+                if ($this->viewGanttPermission == 'all' || ($this->viewGanttPermission == 'added' && user()->id == $row->added_by) || ($this->viewGanttPermission == 'owned' && user()->id == $row->client_id)) {
+                    $action .= '<a class="dropdown-item" href="' . route('projects.show', $row->id) . '?tab=gantt' . '">
                             <i class="mr-2 fa fa-project-diagram"></i>
                             ' . trans('modules.projects.viewGanttChart') . '
                         </a>';
-            }
+                }
 
-            if($row->public_gantt_chart == 'enable'){
-                $action .= '<a class="dropdown-item" target="_blank" href="' . url()->temporarySignedRoute('front.gantt', now()->addDays(GlobalSetting::SIGNED_ROUTE_EXPIRY), $row->hash) . '">
+                if ($row->public_gantt_chart == 'enable') {
+                    $action .= '<a class="dropdown-item" target="_blank" href="' . url()->temporarySignedRoute('front.gantt', now()->addDays(GlobalSetting::SIGNED_ROUTE_EXPIRY), $row->hash) . '">
                         <i class="mr-2 fa fa-share-square"></i>
                         ' . trans('modules.projects.viewPublicGanttChart') . '
                     </a>';
-            }
+                }
 
-            if($row->public_taskboard == 'enable'){
-                $action .= '<a class="dropdown-item" target="_blank" href="' . url()->temporarySignedRoute('front.taskboard', now()->addDays(GlobalSetting::SIGNED_ROUTE_EXPIRY), $row->hash) . '">
+                if ($row->public_taskboard == 'enable') {
+                    $action .= '<a class="dropdown-item" target="_blank" href="' . url()->temporarySignedRoute('front.taskboard', now()->addDays(GlobalSetting::SIGNED_ROUTE_EXPIRY), $row->hash) . '">
                         <i class="mr-2 fa fa-share-square"></i>
                         ' . trans('app.public') . ' ' . __('modules.tasks.taskBoard') . '
                     </a>';
-            }
+                }
 
-            if($row->pinned_project == 1){
-                $action .= '<a class="dropdown-item" href="javascript:;" id="pinnedItem" data-project-id="' . $row->id . '"
+                if ($row->pinned_project == 1) {
+                    $action .= '<a class="dropdown-item" href="javascript:;" id="pinnedItem" data-project-id="' . $row->id . '"
                                     data-pinned="pinned"><i class="mr-2 fa fa-thumbtack"></i>' . trans('app.unpinProject') . '
                                     </a>';
-            }else{
-                $action .= '<a class="dropdown-item" href="javascript:;" id="pinnedItem" data-project-id="' . $row->id . '"
+                } else {
+                    $action .= '<a class="dropdown-item" href="javascript:;" id="pinnedItem" data-project-id="' . $row->id . '"
                                     data-pinned="unpinned"><i class="mr-2 fa fa-thumbtack"></i>' . trans('app.pinProject') . '
                                     </a>';
-            }
+                }
 
-            if ($this->deleteProjectPermission == 'all'
-                || ($this->deleteProjectPermission == 'added' && (user()->id == $row->added_by || $userId == $row->added_by))
-                || ($this->deleteProjectPermission == 'owned' && $userId == $row->client_id && in_array('client', user_roles()))
-                || ($this->deleteProjectPermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
-                || ($this->deleteProjectPermission == 'both' && ($userId == $row->client_id || user()->id == $row->added_by || $userId == $row->added_by))
-                || ($this->deleteProjectPermission == 'both' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
-            ) {
-                $action .= '<a class="dropdown-item archive" href="javascript:;" data-user-id="' . $row->id . '">
+                if (
+                    $this->deleteProjectPermission == 'all'
+                    || ($this->deleteProjectPermission == 'added' && (user()->id == $row->added_by || $userId == $row->added_by))
+                    || ($this->deleteProjectPermission == 'owned' && $userId == $row->client_id && in_array('client', user_roles()))
+                    || ($this->deleteProjectPermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
+                    || ($this->deleteProjectPermission == 'both' && ($userId == $row->client_id || user()->id == $row->added_by || $userId == $row->added_by))
+                    || ($this->deleteProjectPermission == 'both' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
+                ) {
+                    $action .= '<a class="dropdown-item archive" href="javascript:;" data-user-id="' . $row->id . '">
                             <i class="mr-2 fa fa-archive"></i>
                             ' . trans('app.archive') . '
                         </a>';
-                $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-user-id="' . $row->id . '">
+                    $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-user-id="' . $row->id . '">
                             <i class="mr-2 fa fa-trash"></i>
                             ' . trans('app.delete') . '
                         </a>';
-            }
+                }
 
-            $action .= '</div>
+                $action .= '</div>
                 </div>
             </div>';
 
-            return $action;
-        }
+                return $action;
+            }
         );
-        $datatables->addColumn('members', function ($row) {
-            if ($row->public) {
-                return '--';
-            }
-
-            $members = '<div class="position-relative">';
-
-            if (count($row->members) > 0) {
-                foreach ($row->members as $key => $member) {
-                    if ($key < 4) {
-                        $img = '<img data-toggle="tooltip" height="25" width="25" data-original-title="' . $member->user->name . '" src="' . $member->user->image_url . '">';
-
-                        $position = $key > 0 ? 'position-absolute' : '';
-                        $members .= '<div class="taskEmployeeImg rounded-circle ' . $position . '" style="left:  ' . ($key * 13) . 'px"><a href="' . route('employees.show', $member->user->id) . '">' . $img . '</a></div> ';
-                    }
-
+        $datatables->addColumn(
+            'members',
+            function ($row) {
+                if ($row->public) {
+                    return '--';
                 }
+
+                $members = '<div class="position-relative">';
+
+                if (count($row->members) > 0) {
+                    foreach ($row->members as $key => $member) {
+                        if ($key < 4) {
+                            $img = '<img data-toggle="tooltip" height="25" width="25" data-original-title="' . $member->user->name . '" src="' . $member->user->image_url . '">';
+
+                            $position = $key > 0 ? 'position-absolute' : '';
+                            $members .= '<div class="taskEmployeeImg rounded-circle ' . $position . '" style="left:  ' . ($key * 13) . 'px"><a href="' . route('employees.show', $member->user->id) . '">' . $img . '</a></div> ';
+                        }
+                    }
+                } else if ($this->addProjectMemberPermission == 'all') {
+                    $members .= '<a href="' . route('projects.show', $row->id) . '?tab=members" class="f-12 text-dark-grey"><i class="fa fa-plus" ></i> ' . __('modules.projects.addMemberTitle') . '</a>';
+                } else {
+
+                    $members .= '--';
+                }
+
+                if (count($row->members) > 4) {
+                    $members .= '<div class="text-center taskEmployeeImg more-user-count rounded-circle bg-amt-grey position-absolute" style="left:  52px"><a href="' . route('projects.show', $row->id) . '?tab=members" class="text-dark f-10">+' . (count($row->members) - 4) . '</a></div> ';
+                }
+
+                $members .= '</div>';
+
+                return $members;
             }
-            else if ($this->addProjectMemberPermission == 'all') {
-                $members .= '<a href="' . route('projects.show', $row->id) . '?tab=members" class="f-12 text-dark-grey"><i class="fa fa-plus" ></i> ' . __('modules.projects.addMemberTitle') . '</a>';
-
-            }
-            else {
-
-                $members .= '--';
-            }
-
-            if (count($row->members) > 4) {
-                $members .= '<div class="text-center taskEmployeeImg more-user-count rounded-circle bg-amt-grey position-absolute" style="left:  52px"><a href="' . route('projects.show', $row->id) . '?tab=members" class="text-dark f-10">+' . (count($row->members) - 4) . '</a></div> ';
-            }
-
-            $members .= '</div>';
-
-            return $members;
-        }
         );
         $datatables->addColumn('name', function ($row) {
             $members = [];
@@ -207,7 +208,6 @@ class ProjectsDataTable extends BaseDataTable
                 return implode(', ', $dept);
             }
             return '--';
-
         });
 
         $datatables->editColumn('project_name', function ($row) {
@@ -242,11 +242,9 @@ class ProjectsDataTable extends BaseDataTable
 
             if ($row->completion_percent < 50) {
                 $statusColor = 'danger';
-            }
-            elseif ($row->completion_percent < 75) {
+            } elseif ($row->completion_percent < 75) {
                 $statusColor = 'warning';
-            }
-            else {
+            } else {
                 $statusColor = 'success';
             }
 
@@ -254,7 +252,8 @@ class ProjectsDataTable extends BaseDataTable
                 <div class="progress-bar f-12 bg-' . $statusColor . '" role="progressbar" style="width: ' . $row->completion_percent . '%;" aria-valuenow="' . $row->completion_percent . '" aria-valuemin="0" aria-valuemax="100">' . $row->completion_percent . '%</div>
               </div></p>';
 
-            if ($this->editProjectsPermission == 'all'
+            if (
+                $this->editProjectsPermission == 'all'
                 || ($this->editProjectsPermission == 'added' && (user()->id == $row->added_by || $userId == $row->added_by || in_array($row->added_by, $clientIds)))
                 || ($this->editProjectsPermission == 'owned' && $userId == $row->client_id && in_array('client', user_roles()))
                 || ($this->editProjectsPermission == 'owned' && in_array(user()->id, $projectUsers) && in_array('employee', user_roles()))
@@ -276,8 +275,7 @@ class ProjectsDataTable extends BaseDataTable
                 $status .= '</select>';
 
                 return $status;
-            }
-            else {
+            } else {
                 foreach ($projectStatus as $item) {
                     if ($row->status == $item->status_name) {
                         // return '<i class="mr-1 fa fa-circle text-yellow"
@@ -288,7 +286,6 @@ class ProjectsDataTable extends BaseDataTable
                     }
                 }
             }
-
         });
         $datatables->editColumn('completion_percent', function ($row) {
             $completionPercent = $row->completion_percent;
@@ -360,7 +357,7 @@ class ProjectsDataTable extends BaseDataTable
                 if ($request->deadLineStartDate == '' && $request->deadLineEndDate == '') {
                     if ($request->startFilterDate == '' && $request->endFilterDate == '') {
                         $model->whereDate('projects.deadline', '<', $todayDate);
-                    }else{
+                    } else {
                         $startDate = companyToDateString($request->startFilterDate);
                         $endDate = companyToDateString($request->endFilterDate);
 
@@ -373,11 +370,11 @@ class ProjectsDataTable extends BaseDataTable
                                 ->whereRaw('Date(projects.deadline) <= ?', [$endDate]);
                         }
                     }
-                }else{
+                } else {
                     if ($request->startFilterDate == '' && $request->endFilterDate == '') {
                         $startDate = companyToDateString($request->deadLineStartDate);
                         $endDate = companyToDateString($request->deadLineEndDate);
-                    }else{
+                    } else {
                         $startDate = companyToDateString($request->startFilterDate);
                         $endDate = companyToDateString($request->endFilterDate);
                     }
@@ -391,11 +388,10 @@ class ProjectsDataTable extends BaseDataTable
                             ->whereRaw('Date(projects.deadline) <= ?', [$endDate]);
                     }
                 }
-            }
-            else {
+            } else {
                 $model->where('projects.status', $request->status);
             }
-        }else{
+        } else {
             if ($request->startFilterDate !== null && $request->startFilterDate != 'null' && $request->startFilterDate != '') {
                 $startFilterDate = companyToDateString($request->startFilterDate);
                 $model->where(DB::raw('DATE(projects.`start_date`)'), '>=', $startFilterDate);
@@ -442,7 +438,7 @@ class ProjectsDataTable extends BaseDataTable
             $model->where(
                 function ($query) {
                     return $query
-                    // ->where('projects.added_by', '=', user()->id)
+                        // ->where('projects.added_by', '=', user()->id)
                         ->where('project_members.user_id', request()->employee_id)
                         ->orWhere('mention_users.user_id', user()->id)
                         ->orWhere('projects.public', 1);
@@ -483,11 +479,12 @@ class ProjectsDataTable extends BaseDataTable
         }
 
         if ($request->searchText != '') {
+            $safeTerm = Common::safeString(request('searchText'));
             $model->where(
-                function ($query) {
-                    $query->where('projects.project_name', 'like', '%' . request('searchText') . '%')
-                        ->orWhere('users.name', 'like', '%' . request('searchText') . '%')
-                        ->orWhere('projects.project_short_code', 'like', '%' . request('searchText') . '%'); // project short code
+                function ($query) use ($safeTerm) {
+                    $query->where('projects.project_name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('users.name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('projects.project_short_code', 'like', '%' . $safeTerm . '%'); // project short code
                 }
             );
         }
@@ -579,11 +576,11 @@ class ProjectsDataTable extends BaseDataTable
             __('app.project') => ['data' => 'project', 'name' => 'project_name', 'visible' => false, 'title' => __('app.project')],
         ];
 
-        if (in_array('client', user_roles())){
-            if(user()->permission('view_project_members') == 'all') {
+        if (in_array('client', user_roles())) {
+            if (user()->permission('view_project_members') == 'all') {
                 $data[__('modules.projects.members')] = ['data' => 'members', 'orderable' => false, 'name' => 'members', 'exportable' => false, 'width' => '15%', 'title' => __('modules.projects.members')];
             }
-        }else{
+        } else {
             $data[__('modules.projects.members')] = ['data' => 'members', 'orderable' => false, 'name' => 'members', 'exportable' => false, 'width' => '15%', 'title' => __('modules.projects.members')];
         }
 
@@ -594,10 +591,10 @@ class ProjectsDataTable extends BaseDataTable
             __('app.client') => ['data' => 'client_id', 'name' => 'client_id', 'width' => '15%', 'exportable' => false, 'title' => __('app.client'), 'visible' => (!in_array('client', user_roles()) && in_array('clients', user_modules()))]
         ];
 
-        if (in_array('client', user_roles())){
+        if (in_array('client', user_roles())) {
             $data2[__('app.customers')] = ['data' => 'client_name', 'name' => 'client_id', 'visible' => false, 'title' => __('app.customers')];
             $data2[__('app.client') . ' ' . __('app.email')] = ['data' => 'client_email', 'name' => 'client_id', 'visible' => false, 'title' => __('app.client') . ' ' . __('app.email')];
-        }else{
+        } else {
             $data2[__('app.customers')] = ['data' => 'client_name', 'name' => 'client_id', 'exportable' => (in_array('clients', user_modules()) && user()->permission('view_clients') !== 'none'), 'visible' => false, 'title' => __('app.customers')];
             $data2[__('app.client') . ' ' . __('app.email')] = ['data' => 'client_email', 'name' => 'client_id', 'exportable' => (in_array('clients', user_modules()) && user()->permission('view_clients') !== 'none'), 'visible' => false, 'title' => __('app.client') . ' ' . __('app.email')];
         }
@@ -622,5 +619,4 @@ class ProjectsDataTable extends BaseDataTable
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new Project()), $action);
     }
-
 }

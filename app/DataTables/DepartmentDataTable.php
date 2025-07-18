@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\Team;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class DepartmentDataTable extends BaseDataTable
 {
@@ -98,7 +99,8 @@ class DepartmentDataTable extends BaseDataTable
         $model = $model->select('*');
 
         if (request()->searchText != '') {
-            $model->where('team_name', 'like', '%' . request()->searchText . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where('team_name', 'like', '%' . $safeTerm . '%');
         }
 
         if ($request->parentId != 'all' && $request->parentId != null) {

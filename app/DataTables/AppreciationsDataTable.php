@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class AppreciationsDataTable extends BaseDataTable
 {
@@ -48,7 +49,8 @@ class AppreciationsDataTable extends BaseDataTable
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuLink-' . $row->id . '" tabindex="0">';
                 }
 
-                if ($this->editAppreciationPermission == 'all' ||
+                if (
+                    $this->editAppreciationPermission == 'all' ||
                     ($this->editAppreciationPermission == 'added' && user()->id == $row->added_by) ||
                     ($this->editAppreciationPermission == 'owned' && user()->id == $row->award_to) ||
                     ($this->editAppreciationPermission == 'both' && ($row->added_by == user()->id || user()->id == $row->award_to))
@@ -128,7 +130,8 @@ class AppreciationsDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model->where(function ($query) {
-                $query->where('awards.title', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('awards.title', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -204,5 +207,4 @@ class AppreciationsDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

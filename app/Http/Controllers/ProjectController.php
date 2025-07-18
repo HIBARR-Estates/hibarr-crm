@@ -41,6 +41,7 @@ use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectNote;
 use App\Models\ProjectStatusSetting;
+use App\Models\Company;
 use App\Models\ProjectTemplate;
 use App\Models\ProjectTimeLog;
 use App\Models\ProjectTimeLogBreak;
@@ -434,7 +435,7 @@ class ProjectController extends AccountBaseController
                 $milestoneArray = [];
 
                 foreach ($template->milestones as $milestone) {
-                    
+
                     $projectMilestone = new ProjectMilestone();
                     $projectMilestone->project_id = $project->id;
                     $projectMilestone->milestone_title = $milestone->milestone_title;
@@ -448,7 +449,7 @@ class ProjectController extends AccountBaseController
                     $projectMilestone->save();
 
                     $milestoneArray[$milestone->id] = $projectMilestone->id;
-                    
+
                 }
 
 
@@ -530,7 +531,7 @@ class ProjectController extends AccountBaseController
         } catch (\Exception $e) {
             // Rollback Transaction
             DB::rollback();
-        
+
             return Reply::error('Some error occurred when inserting the data. Please try again or contact support ' . $e->getMessage());
         }
     }
@@ -837,8 +838,12 @@ class ProjectController extends AccountBaseController
             return (!$this->project->trashed()) ? $this->tasks($this->project->project_admin == $this->userId) : $this->archivedTasks($this->project->project_admin == $this->userId);
         case 'gantt':
             $this->hideCompleted = request('hide_completed') ?? 0;
-            // $this->taskBoardStatus = TaskboardColumn::all();
             $this->ganttData = $this->ganttDataNew($this->project->id, $this->hideCompleted, $this->project->company);
+            $this->taskBoardStatus = TaskboardColumn::all();
+
+            $dateFormat = Company::DATE_FORMATS;
+            $this->dateformat = (isset($dateFormat[$this->company->date_format])) ? $dateFormat[$this->company->date_format] : 'DD-MM-YYYY';
+
             $this->view = 'projects.ajax.gantt_dhtml';
             // $this->view = 'projects.ajax.gantt';
             break;
@@ -1160,7 +1165,7 @@ class ProjectController extends AccountBaseController
             $projectId,
             $clientId
         );
-        
+
         $viewPermission = user()->permission('view_project_estimates');
 
         abort_403(!in_array($viewPermission, ['all', 'added', 'owned']));
@@ -2007,6 +2012,7 @@ class ProjectController extends AccountBaseController
                 'duration' => $milestone->start_date->diffInDays($milestone->end_date) + 1,
                 'progress' => ($milestone->tasks->count()) ? ($milestone->completionPercent() / 100) : 0,
                 'parent' => 0,
+                'milestone_status' => $milestone->status,
                 'open' => ($milestone->status == 'incomplete'),
                 'color' => '#cccccc',
                 'textColor' => '#09203F',
@@ -2033,6 +2039,8 @@ class ProjectController extends AccountBaseController
                     'start_date' => $task->start_date->format('d-m-Y H:i'),
                     'duration' => (($task->due_date) ? $task->start_date->diffInDays($task->due_date) + 1 : 1),
                     'parent' => $parentID,
+                    // 'milestone_status' => $milestone->milestone_id,
+                    'task_status' => $task->board_column_id,
                     'priority' => ($key2 + 1),
                     'color' => $task->boardColumn->label_color.'20',
                     'textColor' => '#09203F',
@@ -2055,6 +2063,8 @@ class ProjectController extends AccountBaseController
                     'text' => $milestone->milestone_title,
                     'type' => 'milestone',
                     'start_date' => (($task->due_date) ? $task->due_date->format('d-m-Y H:i') : $task->start_date->format('d-m-Y H:i')),
+                    'milestone_status' => $milestone->status,
+                    'task_status' => $task->board_column_id,
                     'duration' => (($task->due_date) ? $task->start_date->diffInDays($task->due_date) + 1 : 1),
                     'parent' => $parentID,
                 ];
@@ -2086,6 +2096,7 @@ class ProjectController extends AccountBaseController
                 'start_date' => $task->start_date->format('d-m-Y H:i'),
                 'duration' => (($task->due_date) ? $task->start_date->diffInDays($task->due_date) : 1),
                 'priority' => ($key2 + 1),
+                'task_status' => $task->board_column_id,
                 'color' => $task->boardColumn->label_color.'20',
                 'textColor' => '#09203F',
                 'view' => view('components.cards.task-card', ['task' => $task, 'draggable' => false, 'company' => $company])->render()

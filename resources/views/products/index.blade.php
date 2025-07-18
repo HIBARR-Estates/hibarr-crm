@@ -380,6 +380,7 @@ $addOrderPermission = user()->permission('add_order');
                          $('#emptyCartBox').show();
                         cartItems = response.cartProduct;
                         $('.productCounter').html(cartItems);
+                        $('#add-to-cart-btn-' + productId).html("{{ __('app.addedToCart') }}");
 
                 }
             })
@@ -403,6 +404,7 @@ $addOrderPermission = user()->permission('add_order');
                 success: function(response) {
                     cartItems = response.productItems;
                     $('.productCounter').html(cartItems);
+                    $('.add-product').html(`<i class="fa fa-plus mr-1"></i> {{ __('app.addToCart') }}`);
                     $('#emptyCartBox').hide();
 
                 }

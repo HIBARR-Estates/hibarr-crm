@@ -10,6 +10,7 @@ use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 use App\Helper\UserService;
+use App\Helper\Common;
 
 class ContractsDataTable extends BaseDataTable
 {
@@ -75,11 +76,12 @@ class ContractsDataTable extends BaseDataTable
                         </a>';
                 }
 
-                if (in_array('clients', user_modules()) &&
+                if (
+                    in_array('clients', user_modules()) &&
                     ($this->editContractPermission == 'all'
-                    || ($this->editContractPermission == 'added' && $userId == $row->added_by)
-                    || ($this->editContractPermission == 'owned' && $userId == $row->client_id)
-                    || ($this->editContractPermission == 'both' && ($userId == $row->client_id || $userId == $row->added_by)))
+                        || ($this->editContractPermission == 'added' && $userId == $row->added_by)
+                        || ($this->editContractPermission == 'owned' && $userId == $row->client_id)
+                        || ($this->editContractPermission == 'both' && ($userId == $row->client_id || $userId == $row->added_by)))
                 ) {
                     $action .= '<a class="dropdown-item openRightModal" href="' . route('contracts.edit', [$row->id]) . '">
                             <i class="fa fa-edit mr-2"></i>
@@ -155,11 +157,9 @@ class ContractsDataTable extends BaseDataTable
                     return view('components.client', [
                         'user' => $client
                     ]);
-
                 }
 
                 return '--';
-
             })
             ->editColumn('client.name', function ($row) {
                 return '<div class="media align-items-center">
@@ -245,15 +245,18 @@ class ContractsDataTable extends BaseDataTable
         }
 
         if ($request->searchText != '') {
+
             $model = $model->where(function ($query) {
-                $query->where('contracts.subject', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('contracts.amount', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('client_details.company_name', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('contracts.subject', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('contracts.amount', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('client_details.company_name', 'like', '%' . $safeTerm . '%');
             })
                 ->orWhere(function ($query) {
                     $query->whereHas('project', function ($q) {
-                        $q->where('project_name', 'like', '%' . request('searchText') . '%')
-                            ->orWhere('project_short_code', 'like', '%' . request('searchText') . '%'); // project short code
+                        $safeTerm = Common::safeString(request('searchText'));
+                        $q->where('project_name', 'like', '%' . $safeTerm . '%')
+                            ->orWhere('project_short_code', 'like', '%' . $safeTerm . '%'); // project short code
                     });
                 });
         }
@@ -341,5 +344,4 @@ class ContractsDataTable extends BaseDataTable
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new Contract()), $action);
     }
-
 }

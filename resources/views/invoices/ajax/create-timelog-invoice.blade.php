@@ -10,6 +10,7 @@
     <!-- FORM START -->
     <x-form class="c-inv-form" id="storePayments">
 
+        <input type="hidden" name="invoice_type" id="invoice-type" value="Yes">
         <!-- INVOICE NUMBER, PROJECT, COMPANY NAME, INVOICE DATE, DUE DATE, CURRENCY, TIMELOG FROM AND TO START -->
         <div class="row px-lg-4 px-md-4 px-3 py-3">
             <!-- INVOICE NUMBER START -->

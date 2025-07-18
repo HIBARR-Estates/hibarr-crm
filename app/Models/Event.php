@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Scopes\ActiveScope;
 use App\Traits\HasCompany;
+use App\Traits\CustomFieldsTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -74,7 +75,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Event extends BaseModel
 {
 
-    use HasFactory, HasCompany;
+    use HasFactory, HasCompany, CustomFieldsTrait;
+
+    const CUSTOM_FIELD_MODEL = 'App\Models\Event';
 
     protected $casts = [
         'start_date_time' => 'datetime',
@@ -117,5 +120,4 @@ class Event extends BaseModel
     {
         return $this->belongsTo(User::class, 'host');
     }
-
 }

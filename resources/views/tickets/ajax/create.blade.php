@@ -109,6 +109,17 @@
                                 class="form-control height-35 f-15 readonly-background" readonly>
                         </div>
                     @endif
+
+                    <div class="col-md-4" id="client-contacts-wrapper">
+                        <x-forms.select fieldId="client_contact_id"
+                                        :fieldLabel="__('modules.contacts.contactName')"
+                                        fieldName="client_contact_id"
+                                        :popover="__('messages.clientContactMsg')"
+                                        search="true">
+                            <option value="">--</option>
+                        </x-forms.select>
+                    </div>
+
                     <div class="col-md-4 assign_group">
                         <x-forms.label class="mt-3" fieldId="ticket_group" fieldRequired="true"
                             :fieldLabel="__('modules.tickets.assignGroup')">
@@ -563,6 +574,7 @@
         $('body').on('change', "input[name=requester_type], #client_id, #user_id", function () {
             if (isProjectModuleEnabled) {
                 getProjects();
+                getContacts();
             }
         });
 
@@ -607,8 +619,48 @@
 
         }
 
+        function getContacts() {
+            let requester_type = $("input[name=requester_type]:checked").val();
+            if (!requester_type) {
+                requester_type = $("input[name=requester_type]").val();
+            }
+
+            let client_id = $("#client_id").val();
+
+            if ((requester_type == 'client' && client_id)) {
+                let url = "{{ route('get.contacts') }}";
+                $.easyAjax({
+                    url: url,
+                    type: "GET",
+                    data: {
+                        "requesterType": requester_type,
+                        "clientId": client_id
+                    },
+                    success: function(response) {
+                        let options = [];
+                        let rData = [];
+                        rData = response.contacts;
+                        $.each(rData, function(index, value) {
+                            let selectData = '';
+                            selectData = '<option value="' + value.client_id + '">' + value.contact_name + '</option>';
+                            options.push(selectData);
+                        });
+
+                        $('#client_contact_id').html('<option value="">--</option>' +
+                            options);
+                        $('#client_contact_id').selectpicker('refresh');
+                    }
+                })
+            } else {
+                $('#client_contact_id').html('<option value="">--</option>');
+                $('#client_contact_id').selectpicker('refresh');
+            }
+
+        }
+
         if (isProjectModuleEnabled) {
             getProjects();
+            getContacts();
         }
 
         init(RIGHT_MODAL);

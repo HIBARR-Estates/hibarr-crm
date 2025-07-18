@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class ProposalDataTable extends BaseDataTable
 {
@@ -220,13 +221,14 @@ class ProposalDataTable extends BaseDataTable
         }
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('leads.client_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('deals.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('proposals.id', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('total', 'like', '%' . request('searchText') . '%')
-                    ->orWhere(function ($query) {
-                        $query->where('proposals.status', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('deals.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('proposals.id', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('total', 'like', '%' . $safeTerm . '%')
+                    ->orWhere(function ($query) use ($safeTerm) {
+                        $query->where('proposals.status', 'like', '%' . $safeTerm . '%');
                     });
             });
         }
@@ -285,5 +287,4 @@ class ProposalDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

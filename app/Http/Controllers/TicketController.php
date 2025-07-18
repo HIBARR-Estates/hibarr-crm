@@ -159,7 +159,7 @@ class TicketController extends AccountBaseController
         if (user()->is_client_contact == 1) {
             $ticket->user_id = $id;
         } else {
-            $ticket->user_id = ($request->requester_type == 'employee') ? $request->user_id : $request->client_id;
+            $ticket->user_id = ($request->requester_type == 'employee') ? $request->user_id : ($request->client_contact_id ?: $request->client_id);
         }
 
         $ticket->agent_id = $request->agent_id;

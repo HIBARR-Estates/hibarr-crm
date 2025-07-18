@@ -119,7 +119,11 @@ class AutoCreateRecurringTasks extends Command
 
         if ($task->project) {
             $projectLastTaskCount = Task::projectTaskCount($task->project->id);
-            $newTask->task_short_code = $task->project->project_short_code . '-' . $projectLastTaskCount + 1;
+            if($task->project->project_short_code){
+                $newTask->task_short_code = $task->project->project_short_code . '-' . $projectLastTaskCount + 1;
+            }else{
+                $newTask->task_short_code = $projectLastTaskCount + 1;
+            }
         }
 
         $newTask->save();

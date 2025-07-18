@@ -49,7 +49,7 @@ class UpdateExchangeRates extends Command
         if($globalSetting->currency_key_version == 'dedicated'){
             $currencyApiKeyVersion = $globalSetting->dedicated_subdomain;
         }else{
-            $currencyApiKeyVersion = $globalSetting->currency_key_version;
+            $currencyApiKeyVersion = $globalSetting->currency_key_version === 'premium' ? 'api' : $globalSetting->currency_key_version;
         }
 
         if ($currencyApiKey && $currencyApiKeyVersion) {

@@ -10,7 +10,7 @@ class Common
      * @return string
      */
 
-    public static function dateColor($date, $past=true): string
+    public static function dateColor($date, $past = true): string
     {
         if (is_null($date)) {
             return '--';
@@ -23,7 +23,7 @@ class Common
             return '<span class="text-success">' . $todayText . '</span>';
         }
 
-        if ($date->endOfDay()->isPast() && $past ) {
+        if ($date->endOfDay()->isPast() && $past) {
             return '<span class="text-danger">' . $formattedDate . '</span>';
         }
 
@@ -62,7 +62,13 @@ class Common
         }
 
         throw new \Exception('No action provided for Common::encryptDecrypt');
-
     }
 
+    public static function safeString($string)
+    {
+        if (!is_string($string) || strlen($string) > 255) {
+            abort(400, 'Invalid search term.');
+        }
+        return $string;
+    }
 }

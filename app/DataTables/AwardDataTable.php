@@ -73,19 +73,18 @@ class AwardDataTable extends BaseDataTable
                         $status .= 'selected ';
                     }
 
-                    $status .= "value='active' data-content='".Common::active()."'>' . __('app.active') . ' </option>";
+                    $status .= "value='active' data-content='" . Common::active() . "'>' . __('app.active') . ' </option>";
                     $status .= '<option ';
 
                     if ($row->status == 'inactive') {
                         $status .= 'selected ';
                     }
 
-                    $status .= "value='inactive' data-content='".Common::inactive()."'>' . __('app.inactive') . ' </option>";
+                    $status .= "value='inactive' data-content='" . Common::inactive() . "'>' . __('app.inactive') . ' </option>";
 
                     $status .= '</select>';
 
                     return $status;
-
                 }
 
                 if ($row->status == 'active') {
@@ -93,7 +92,6 @@ class AwardDataTable extends BaseDataTable
                 }
 
                 return Common::inactive();
-
             })
             ->addColumn('appreciation_status', fn($row) => $row->status)
             ->editColumn('award_icon_id', fn($row) => view('components.award-icon', ['award' => $row]))
@@ -114,8 +112,9 @@ class AwardDataTable extends BaseDataTable
 
         if (request()->searchText != '') {
             $model->where(function ($query) {
-                $query->orWhere('title', 'like', '%' . request('searchText') . '%');
-                $query->orWhere('status', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->orWhere('title', 'like', '%' . $safeTerm . '%');
+                $query->orWhere('status', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -180,5 +179,4 @@ class AwardDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

@@ -19,8 +19,16 @@ use App\Http\Requests\TimeLogs\StartTimer;
 use App\Http\Requests\TimeLogs\StopTimer;
 use App\Http\Requests\TimeLogs\StoreTimeLog;
 use App\Http\Requests\TimeLogs\UpdateTimeLog;
+use App\Models\Team;
+use App\Http\Requests\TimeLogs\UpdateProjectTimeLog;
 use DateTime;
+use App\Models\LogTimeFor;
 use App\Helper\UserService;
+use App\Models\EmployeeDetails;
+use App\Notifications\ProjectTimelogNotification;
+use App\Notifications\ProjectTimelogApproveNotification;
+use App\Notifications\ProjectTimelogCreateNotification;
+use App\Notifications\ProjectTimelogCreatedNotification;
 
 class TimelogController extends AccountBaseController
 {
@@ -44,6 +52,7 @@ class TimelogController extends AccountBaseController
         if (!request()->ajax()) {
             $this->employees = User::allEmployees(null, true, ($viewPermission == 'all' ? 'all' : null));
             $this->projects = Project::allProjects();
+            $this->departments = Team::all();
         }
 
         $this->timelogMenuType = 'index';
@@ -180,7 +189,7 @@ class TimelogController extends AccountBaseController
 
     public function store(StoreTimeLog $request)
     {
-        
+
         $startDateTime = Carbon::createFromFormat($this->company->date_format, $request->start_date, $this->company->timezone)->format('Y-m-d') . ' ' . Carbon::createFromFormat($this->company->time_format, $request->start_time)->format('H:i:s');
         $startDateTime = Carbon::parse($startDateTime, $this->company->timezone)->setTimezone('UTC');
 
@@ -232,6 +241,22 @@ class TimelogController extends AccountBaseController
             $timeLog->memo = $request->memo;
             $timeLog->edited_by_user = user()->id;
             $timeLog->save();
+
+            $timeLogSetting = LogTimeFor::first();
+
+            if ($timeLogSetting->approval_required) {
+
+                if($timeLog->user_id == user()->id) {
+                    $managerId = user()->employeeDetail->reporting_to;
+                    if($managerId) {
+                        $reportingUser = User::findOrFail($managerId);
+                        $reportingUser?->notify(new ProjectTimelogCreateNotification($timeLog));
+                    }
+                }else{
+                    $timeLog->user->notify(new ProjectTimelogCreatedNotification($timeLog));
+                }
+
+            }
 
             if ($request->custom_fields_data) {
                 $timeLog->updateCustomFieldData($request->custom_fields_data);
@@ -318,7 +343,7 @@ class TimelogController extends AccountBaseController
         if(($endDateTime->diffInMinutes($startDateTime)) < 1){
             return Reply::error(__('messages.enterAtLeastOneHour'));
         }
-        
+
         if ($request->has('project_id')) {
             $timeLog->project_id = $request->project_id;
         }
@@ -348,7 +373,7 @@ class TimelogController extends AccountBaseController
                             $q1->whereNull('end_time');
                         }
                     );
-            }) 
+            })
             ->join('users', 'users.id', '=', 'project_time_logs.user_id')
             ->where('user_id', $userID)
             ->where('project_time_logs.id', '!=', $id)
@@ -364,6 +389,10 @@ class TimelogController extends AccountBaseController
             $timeLog->memo = $request->memo;
             $timeLog->user_id = $userID;
             $timeLog->edited_by_user = user()->id;
+
+            if($timeLog->approved == 0 && $timeLog->rejected == 1){
+                $timeLog->rejected = 0;
+            }
             $timeLog->save();
 
             // To add custom fields data
@@ -785,14 +814,42 @@ class TimelogController extends AccountBaseController
 
     public function approveTimelog(Request $request)
     {
-        ProjectTimeLog::where('id', $request->id)->update(
-            [
-                'approved' => 1,
-                'approved_by' => user()->id
-            ]
-        );
+        $timelog = ProjectTimeLog::findOrFail($request->id);
+        $timelog->approved = 1;
+        $timelog->approved_by = user()->id;
+        $timelog->save();
+
+        $timelog->user->notify(new ProjectTimelogApproveNotification($timelog));
 
         return Reply::dataOnly(['status' => 'success']);
+    }
+
+    public function rejectTimelog(Request $request)
+    {
+        $this->reportingTo = EmployeeDetails::where('reporting_to', user()->id)->first();
+        $this->logTimeFor = LogTimeFor::where('company_id', company()->id)->first();
+
+        abort_403(!($this->reportingTo) && !($this->logTimeFor->approval_required == 1) && (user()->permission('approve_timelogs') == 'none'));
+
+        $this->timelogID = $request->timelog_id;
+
+        return view('timelogs.reject.index', $this->data);
+    }
+
+    public function timelogAction(UpdateProjectTimeLog $request)
+    {
+        $this->reportingTo = EmployeeDetails::where('reporting_to', user()->id)->first();
+
+        $timelog = ProjectTimeLog::findOrFail($request->timelogId);
+        $timelog->rejected = 1;
+        $timelog->reject_reason = $request->reason;
+        $timelog->rejected_by = user()->id;
+        $timelog->rejected_at = now()->toDateTimeString();
+        $timelog->save();
+
+        $timelog->user->notify(new ProjectTimelogNotification($timelog));
+
+        return Reply::success(__('messages.updateSuccess'));
     }
 
     public function export()

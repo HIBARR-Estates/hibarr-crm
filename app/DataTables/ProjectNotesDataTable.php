@@ -46,18 +46,20 @@ class ProjectNotesDataTable extends BaseDataTable
                         </a>
                         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuLink-' . $row->id . '" tabindex="0">';
 
-                if ($row->ask_password == 1) {
-                    $action .= '<a href="javascript:;" class="dropdown-item ask-for-password" data-project-note-id="' . $row->id . '"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
+                if ($row->ask_password == 1 && $row->type == '1') {
+                    $action .= '<a href="javascript:;" class="dropdown-item ask-for-password" data-form-type="view" data-project-note-id="' . $row->id . '"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
                 }
                 else {
                     $action .= '<a href="' . route('project-notes.show', $row->id) . '" class="openRightModal dropdown-item"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
                 }
 
                 if ($this->editProjectNotePermission == 'all' || ($this->editProjectNotePermission == 'added' && user()->id == $row->added_by)) {
-                    $action .= '<a class="dropdown-item openRightModal" href="' . route('project-notes.edit', [$row->id]) . '">
-                                <i class="fa fa-edit mr-2"></i>
-                                ' . trans('app.edit') . '
-                            </a>';
+                    if ($row->ask_password == 1 && $row->type == '1') {
+                        $action .= '<a href="javascript:;" class="dropdown-item ask-for-password" data-form-type="edit" data-project-note-id="' . $row->id . '"><i class="fa fa-edit mr-2"></i>' . __('app.edit') . '</a>';
+                    }
+                    else {
+                        $action .= '<a href="' . route('project-notes.edit', $row->id) . '" class="openRightModal dropdown-item"><i class="fa fa-edit mr-2"></i>' . __('app.edit') . '</a>';
+                    }
                 }
 
                 if ($this->deleteProjectNotePermission == 'all' || ($this->deleteProjectNotePermission == 'added' && user()->id == $row->added_by)) {

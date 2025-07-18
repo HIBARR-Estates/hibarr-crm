@@ -39,7 +39,7 @@ class NewNotice extends BaseNotification
     {
         $via = ['database'];
 
-        if ($this->emailSetting->send_email == 'yes' && $notifiable->email != '') {
+        if ($this->emailSetting->send_email == 'yes' && $notifiable->email_notifications == 1 && $notifiable->email != '') {
             array_push($via, 'mail');
         }
 

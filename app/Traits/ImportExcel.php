@@ -20,25 +20,26 @@ trait ImportExcel
         $this->importClassName = (new ReflectionClass($importClass))->getShortName();
 
         $this->file = Files::upload($request->import_file, Files::IMPORT_FOLDER);
-        $excelData = Excel::toArray(new $importClass, public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $this->file))[0];
 
+        $importInstance = new $importClass;
+        Excel::import($importInstance, public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $this->file));
+        $excelData = $importInstance->getProcessedData();
         if ($request->has('heading')) {
             array_shift($excelData);
         }
-        
-        $isDataNull = true; 
-        
+
+        $isDataNull = true;
+
         foreach ($excelData as $rowitem) {
             if (array_filter($rowitem)) {
                 $isDataNull = false;
                 break;
             }
         }
-        
+
         if ($isDataNull) {
-            return 'abort'; 
+            return 'abort';
         }
-        
 
         $this->hasHeading = $request->has('heading');
         $this->heading = array();
@@ -83,7 +84,9 @@ trait ImportExcel
             return $value !== null;
         });
 
-        $excelData = Excel::toArray(new $importClass, public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $request->file))[0];
+        $importInstance = new $importClass;
+        Excel::import($importInstance, public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $request->file));
+        $excelData = $importInstance->getProcessedData();
 
         if ($request->has_heading) {
             array_shift($excelData);
