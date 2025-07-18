@@ -894,4 +894,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);
 
+    Route::resource('custom-field-categories', App\Http\Controllers\CustomFieldCategoryController::class);
+    Route::resource('custom-fields', App\Http\Controllers\CustomFieldController::class);
 });

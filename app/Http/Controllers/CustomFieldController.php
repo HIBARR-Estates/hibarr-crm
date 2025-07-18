@@ -47,9 +47,10 @@ class CustomFieldController extends AccountBaseController
      */
     public function create()
     {
-        $this->customFieldGroups = CustomFieldGroup::all();
-        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'file'];
-        return view('custom-fields.create-custom-field-modal', $this->data);
+        $customFieldCategories = \App\Models\CustomFieldCategory::all();
+            $customFieldGroups = \App\Models\CustomFieldGroup::all();
+            $types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'file'];
+            return view('custom-fields.create-custom-field-modal', compact('customFieldCategories', 'customFieldGroups', 'types'));
     }
 
     /**
@@ -60,11 +61,14 @@ class CustomFieldController extends AccountBaseController
     {
 
         $name = CustomField::generateUniqueSlug($request->get('label'), $request->module);
+        $categoryId = $request->get('category');
+
         $group = [
             'fields' => [
                 [
                     'name' => $name,
                     'custom_field_group_id' => $request->module,
+                    'custom_field_category_id' => $categoryId,
                     'label' => $request->get('label'),
                     'type' => $request->get('type'),
                     'required' => $request->get('required'),
@@ -89,10 +93,11 @@ class CustomFieldController extends AccountBaseController
      */
     public function edit($id)
     {
-        $this->field = CustomField::findOrFail($id);
-        $this->field->values = json_decode($this->field->values);
-
-        return view('custom-fields.edit-custom-field-modal', $this->data);
+        $customFieldCategories = \App\Models\CustomFieldCategory::all();
+        $customFieldGroups = \App\Models\CustomFieldGroup::all();
+        $field = CustomField::findOrFail($id);
+        $field->values = json_decode($field->values);
+        return view('custom-fields.edit-custom-field-modal', compact('field', 'customFieldCategories', 'customFieldGroups'));
     }
 
     /**
@@ -103,6 +108,7 @@ class CustomFieldController extends AccountBaseController
     public function update(UpdateCustomField $request, $id)
     {
         $field = CustomField::findOrFail($id);
+        $field->custom_field_category_id = $request->category;
 
         $name = CustomField::generateUniqueSlug($request->label, $field->custom_field_group_id);
         $field->label = $request->label;
@@ -143,6 +149,7 @@ class CustomFieldController extends AccountBaseController
         foreach ($group['fields'] as $field) {
             $insertData = [
                 'custom_field_group_id' => $field['custom_field_group_id'],
+                'custom_field_category_id' => $field['custom_field_category_id'],
                 'label' => $field['label'],
                 'name' => $field['name'],
                 'type' => $field['type'],

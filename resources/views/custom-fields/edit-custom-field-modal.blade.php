@@ -53,6 +53,15 @@
                         :checked="$field->export == 1"/>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label for="custom_field_category_id">Category</label>
+                    <select name="custom_field_category_id" id="custom_field_category_id" class="form-control" required>
+                        <option value="">Select Category</option>
+                        @foreach($customFieldCategories as $category)
+                            <option value="{{ $category->id }}" {{ (isset($field) && $field->custom_field_category_id == $category->id) ? 'selected' : '' }}>{{ $category->name }} ({{ $category->model }})</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
             <div class="form-group mt-repeater" @if($field->type != 'radio' && $field->type != 'select' && $field->type != 'checkbox') style="display: none;" @endif>
 

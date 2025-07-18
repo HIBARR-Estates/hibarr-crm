@@ -42,7 +42,8 @@ class StoreCustomField extends CoreRequest
         $rules = [
             'label'     => 'required|not_custom_fields',
             'required'  => 'required',
-            'type'      => 'required'
+            'type'      => 'required',
+            'category' => 'required|exists:custom_field_categories,id',
         ];
 
         if (in_array($this->type, ['select', 'radio', 'checkbox'])) {

@@ -40,6 +40,7 @@ class UpdateCustomField extends CoreRequest
         return [
             'label'     => 'required|not_custom_fields',
             'required'  => 'required',
+            'category' => 'required|exists:custom_field_categories,id',
         ];
     }
 

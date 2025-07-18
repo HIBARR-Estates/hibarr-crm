@@ -700,6 +700,8 @@ return new class extends Migration {
                 $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade')->onUpdate('cascade');
                 $table->unsignedInteger('custom_field_group_id')->nullable()->index('custom_fields_custom_field_group_id_foreign');
                 $table->foreign(['custom_field_group_id'])->references(['id'])->on('custom_field_groups')->onUpdate('CASCADE')->onDelete('SET NULL');
+                $table->unsignedBigInteger('custom_field_category_id')->nullable()->index('custom_fields_custom_field_category_id_foreign');
+                $table->foreign(['custom_field_category_id'])->references(['id'])->on('custom_field_categories')->onUpdate('CASCADE')->onDelete('SET NULL');
                 $table->string('label', 100);
                 $table->string('name', 100);
                 $table->string('type', 10);

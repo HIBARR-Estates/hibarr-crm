@@ -18,6 +18,15 @@
                 </div>
 
                 <div class="col-lg-6">
+                <x-forms.select fieldId="category" :fieldLabel="__('app.category')" fieldName="category" search="true">
+                    <option value="">Select Category</option>
+                        @foreach($customFieldCategories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        @endforeach
+                </x-forms.select>
+                </div>
+
+                <div class="col-lg-6">
                     <x-forms.text :fieldLabel="__('modules.customFields.label')" fieldName="label" fieldId="label"  fieldRequired="true"  />
                 </div>
 
