@@ -17,7 +17,12 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, xml, curl, zip, gd, bcmath, fileinfo  
+          extensions: mbstring, xml, curl, zip, gd, bcmath, fileinfo 
+
+      - name: Ensure bootstrap/cache exists
+        run: |
+          mkdir -p bootstrap/cache
+          chmod -R 775 bootstrap/cache 
 
       - name: Install Composer dependencies
         run: composer install 
