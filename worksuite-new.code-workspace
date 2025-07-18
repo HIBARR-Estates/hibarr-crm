@@ -1,10 +1,19 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"liveServer.settings.port": 5501
-	}
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "liveServer.settings.port": 5501,
+        "tailwindCSS.emmetCompletions": true,
+        "tailwindCSS.includeLanguages": {
+            "blade": "html",
+            "php": "html"
+        },
+        "tailwindCSS.experimental.classRegex": ["tw-([\\w-/:.]+)"],
+        "tailwindCSS.classAttributes": ["class", "className", "tw-class"],
+        "tailwindCSS.rootFontSize": 16,
+        "tailwindCSS.validate": true
+    }
 }
