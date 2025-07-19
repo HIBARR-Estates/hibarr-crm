@@ -35,8 +35,8 @@ jobs:
       - name: Install NPM dependencies
         run: npm install
 
-      - name: Build NPM Assets
-        run: npm run build
+      - name: Prod NPM Assets
+        run: npm run production
 
       - name: Sync files to production server
         uses: easingthemes/ssh-deploy@v2.1.5
