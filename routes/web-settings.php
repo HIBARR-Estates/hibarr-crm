@@ -8,6 +8,7 @@ use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\TicketTypeController;
 use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\CustomFieldCategoryController;
 use App\Http\Controllers\LeadSettingController;
 use App\Http\Controllers\SmtpSettingController;
 use App\Http\Controllers\TaskSettingController;
@@ -160,6 +161,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     // Custom Fields Settings
     Route::resource('custom-fields', CustomFieldController::class);
+    
+    // Custom Field Categories
+    Route::get('custom-field-categories/get-by-group', [CustomFieldCategoryController::class, 'getCategoriesByGroup'])->name('custom-field-categories.get-by-group');
+    Route::resource('custom-field-categories', CustomFieldCategoryController::class);
 
     // Tax Settings
     Route::resource('taxes', TaxSettingController::class);

@@ -1445,6 +1445,9 @@ return array(
         'required' => 'Required',
         'visible' => 'Visible',
         'viewFields' => 'View Fields',
+        'category' => 'Category',
+        'addCategory' => 'Add Category',
+        'editCategory' => 'Edit Category',
     ),
     'statusFields' => array(
         'defaultStatus' => 'Default Status',
