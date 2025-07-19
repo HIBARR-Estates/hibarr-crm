@@ -49,6 +49,11 @@ class CustomField extends BaseModel
 
     protected $guarded = ['id'];
 
+    public function customFieldCategory(): BelongsTo
+    {
+        return $this->belongsTo(CustomFieldCategory::class, 'custom_field_category_id');
+    }
+
     public function leadCustomForm(): HasOne
     {
         return $this->hasOne(LeadCustomForm::class, 'custom_fields_id');

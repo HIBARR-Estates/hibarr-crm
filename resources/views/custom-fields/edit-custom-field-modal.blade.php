@@ -28,6 +28,12 @@
                 </div>
 
                 <div class="col-md-4">
+                    <x-forms.select fieldId="category" :fieldLabel="__('modules.customFields.category')" fieldName="category" search="true">
+                        <option value="">@lang('app.select') @lang('modules.customFields.category')</option>
+                    </x-forms.select>
+                </div>
+
+                <div class="col-md-4">
                     <div class="form-group my-3">
                         <label class="f-14 text-dark-grey mb-12 w-100" for="usr">@lang('app.required')</label>
                         <div class="d-flex">
@@ -142,6 +148,59 @@
             }
         })
     });
+
+    // Function to load categories for a specific module
+    function loadCategoriesForModule(moduleId, selectedCategoryId = null) {
+        if (moduleId) {
+            // Show loading state
+            var categorySelect = $('#category');
+            categorySelect.empty();
+            categorySelect.append('<option value="">@lang('app.loading')...</option>');
+            categorySelect.selectpicker('refresh');
+            
+            $.easyAjax({
+                url: "{{ route('custom-field-categories.get-by-group') }}",
+                type: "GET",
+                data: { custom_field_group_id: moduleId },
+                success: function (response) {
+                    categorySelect.empty();
+                    categorySelect.append('<option value="">@lang('app.select') @lang('modules.customFields.category')</option>');
+                    
+                    if (response.categories && response.categories.length > 0) {
+                        $.each(response.categories, function(index, category) {
+                            var selected = (selectedCategoryId && category.id == selectedCategoryId) ? 'selected' : '';
+                            categorySelect.append('<option value="' + category.id + '" ' + selected + '>' + category.name + '</option>');
+                        });
+                    }
+                    
+                    // Refresh the select picker
+                    categorySelect.selectpicker('refresh');
+                },
+                error: function() {
+                    categorySelect.empty();
+                    categorySelect.append('<option value="">@lang('app.select') @lang('modules.customFields.category')</option>');
+                    categorySelect.selectpicker('refresh');
+                }
+            });
+        } else {
+            // Clear categories if no module is selected
+            var categorySelect = $('#category');
+            categorySelect.empty();
+            categorySelect.append('<option value="">@lang('app.select') @lang('modules.customFields.category')</option>');
+            categorySelect.selectpicker('refresh');
+        }
+    }
+
+    // Load categories when modal opens (with the current field's category selected)
+    $(document).ready(function() {
+        var selectedModule = '{{ $field->custom_field_group_id }}';
+        var selectedCategory = '{{ $field->custom_field_category_id }}';
+        if (selectedModule) {
+            loadCategoriesForModule(selectedModule, selectedCategory);
+        }
+    });
+
+    // Note: Module field is read-only in edit mode, so no change handler needed
 
 </script>
 

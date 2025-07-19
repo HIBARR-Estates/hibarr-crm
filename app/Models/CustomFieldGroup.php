@@ -55,6 +55,11 @@ class CustomFieldGroup extends BaseModel
         return $this->HasMany(CustomField::class);
     }
 
+    public function customFieldCategories(): HasMany
+    {
+        return $this->hasMany(CustomFieldCategory::class, 'custom_field_group_id');
+    }
+
     public static function customFieldsDataMerge($model)
     {
         $customFields = CustomField::exportCustomFields($model);
