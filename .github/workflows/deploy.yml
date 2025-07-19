@@ -58,3 +58,12 @@ jobs:
             cd /var/www/html
             php artisan migrate --force
             php artisan optimize
+
+
+    # 👇 This step uploads the log file as an artifact
+      - name: Upload NPM debug log artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-debug-log
+          path: /home/runner/.npm/_logs/
