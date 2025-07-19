@@ -29,7 +29,7 @@ class CustomFieldCategoryController extends AccountBaseController
             ->where('company_id', company()->id)
             ->get();
         $this->customFieldGroups = CustomFieldGroup::all();
-        
+
         return view('custom-fields.categories', $this->data);
     }
 
@@ -39,7 +39,7 @@ class CustomFieldCategoryController extends AccountBaseController
     public function getCategoriesByGroup(Request $request)
     {
         $groupId = $request->get('custom_field_group_id');
-        
+
         if (!$groupId) {
             return Reply::error('Custom field group ID is required');
         }
@@ -75,7 +75,7 @@ class CustomFieldCategoryController extends AccountBaseController
      */
     public function edit($id)
     {
-        $category = CustomFieldCategory::findOrFail($id);
+        $category = CustomFieldCategory::where('company_id', company()->id)->findOrFail($id);
         return Reply::dataOnly(['category' => $category]);
     }
 
@@ -85,12 +85,14 @@ class CustomFieldCategoryController extends AccountBaseController
     public function update(Request $request, $id)
     {
         $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
+            'custom_field_group_id' => 'required|exists:custom_field_groups,id'
         ]);
 
-        $category = CustomFieldCategory::findOrFail($id);
+        $category = CustomFieldCategory::where('company_id', company()->id)->findOrFail($id);
         $category->update([
-            'name' => $request->name
+            'name' => $request->name,
+            'custom_field_group_id' => $request->custom_field_group_id
         ]);
 
         return Reply::success('Category updated successfully');
@@ -101,8 +103,8 @@ class CustomFieldCategoryController extends AccountBaseController
      */
     public function destroy($id)
     {
-        $category = CustomFieldCategory::findOrFail($id);
-        
+        $category = CustomFieldCategory::where('company_id', company()->id)->findOrFail($id);
+
         // Check if category has custom fields
         if ($category->customFields()->count() > 0) {
             return Reply::error('Cannot delete category that has custom fields. Please reassign or delete the custom fields first.');
@@ -111,4 +113,4 @@ class CustomFieldCategoryController extends AccountBaseController
         $category->delete();
         return Reply::success('Category deleted successfully');
     }
-} 
+}
