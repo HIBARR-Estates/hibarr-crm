@@ -25,6 +25,8 @@ use App\Models\PipelineStage;
 use App\Models\LeadStatus;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\CustomFieldGroup;
+use App\Models\CustomFieldCategory;
 use App\Traits\ImportExcel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -187,6 +189,16 @@ class LeadContactController extends AccountBaseController
         $this->categories = LeadCategory::all();
         $this->countries = countries();
         $this->salutations = Salutation::cases();
+
+        // Get custom field categories for lead module
+        $leadCustomFieldGroup = CustomFieldGroup::where('model', Lead::CUSTOM_FIELD_MODEL)->first();
+        if ($leadCustomFieldGroup) {
+            $this->customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
+                ->where('company_id', company()->id)
+                ->get();
+        } else {
+            $this->customFieldCategories = collect();
+        }
 
         // To create deal from lead
 

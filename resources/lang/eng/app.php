@@ -347,7 +347,6 @@ return array(
         'mins' => 'mins',
         'receipt' => 'Receipt',
         'callback' => 'Callback',
-        'addSubTask' => 'Add Sub Task',
         'socialAuthSettings' => array(
             'google' => 'Google',
             'facebook' => 'Facebook',
@@ -737,6 +736,7 @@ return array(
     'mins' => 'mins',
     'receipt' => 'Receipt',
     'callback' => 'Callback',
+    'generalInformation' => 'General Information',
     'socialAuthSettings' => array(
         'google' => 'Google',
         'facebook' => 'Facebook',

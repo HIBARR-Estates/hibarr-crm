@@ -15,8 +15,27 @@ $addDealPermission = user()->permission('add_deals');
     <div class="col-sm-12">
         <x-form id="save-lead-data-form" >
             <div class="add-client bg-white rounded">
-                <h4 class="mb-0 p-20 f-21 font-weight-normal  border-bottom-grey">
-                    @lang('modules.leadContact.leadDetails')</h4>
+                <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                    <h4 class="mb-0 f-21 font-weight-normal">
+                        @lang('modules.leadContact.leadDetails')
+                    </h4>
+                    @if (isset($customFieldCategories) && count($customFieldCategories) > 0)
+                        <div class="flex space-x-1">
+                            <button type="button" 
+                                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 hover:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                                    data-category-id="general" data-active="true">
+                                @lang('app.generalInformation')
+                            </button>
+                            @foreach ($customFieldCategories as $category)
+                                <button type="button" 
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                                        data-category-id="{{ $category->id }}">
+                                    {{ $category->name }}
+                                </button>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
                 <div class="row p-20">
 
                     <div class="col-lg-4 col-md-6">
