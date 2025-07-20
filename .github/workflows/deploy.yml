@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -47,7 +48,6 @@ jobs:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
           TARGET: '/var/www/html/crm_update'
           
-
       - name: Run Remote/Artisan Commands
         uses: appleboy/ssh-action@v0.1.7
         with:
@@ -59,8 +59,6 @@ jobs:
             php artisan migrate --force
             php artisan optimize
 
-
-    # 👇 This step uploads the log file as an artifact
       - name: Upload NPM debug log artifact
         if: failure()
         uses: actions/upload-artifact@v4
