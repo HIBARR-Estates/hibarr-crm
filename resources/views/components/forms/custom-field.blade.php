@@ -3,9 +3,13 @@
         display: contents;
     }
 </style>
+@props(['fields', 'model' => null, 'categoryId' => null])
 @if (isset($fields) && count($fields) > 0)
     <div {{ $attributes->merge(['class' => 'row p-20']) }}>
         @foreach ($fields as $field)
+            @if (!is_null($categoryId) && $field->custom_field_category_id != $categoryId)
+                @continue
+            @endif
             <div class="col-md-4">
                 <div class="form-group">
                     @if ($field->type == 'text')
