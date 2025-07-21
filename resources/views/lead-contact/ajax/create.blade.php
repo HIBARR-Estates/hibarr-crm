@@ -265,7 +265,6 @@
                         </div>
                     @endforeach
                 @endif
-                {{-- <x-forms.custom-field :fields="$fields" /> --}}
 
                 <x-form-actions>
                     <x-forms.button-primary id="save-lead-form" class="mr-3" icon="check">@lang('app.save')
