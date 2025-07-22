@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
+use App\Models\CustomFieldCategory;
 use Yajra\DataTables\Facades\DataTables;
 use App\Http\Requests\CustomField\StoreCustomField;
 use App\Http\Requests\CustomField\UpdateCustomField;
@@ -65,6 +66,7 @@ class CustomFieldController extends AccountBaseController
                 [
                     'name' => $name,
                     'custom_field_group_id' => $request->module,
+                    'custom_field_category_id' => $request->get('category'),
                     'label' => $request->get('label'),
                     'type' => $request->get('type'),
                     'required' => $request->get('required'),
@@ -91,6 +93,8 @@ class CustomFieldController extends AccountBaseController
     {
         $this->field = CustomField::findOrFail($id);
         $this->field->values = json_decode($this->field->values);
+        $this->customFieldGroups = CustomFieldGroup::all();
+        // Categories will be loaded dynamically based on the selected module
 
         return view('custom-fields.edit-custom-field-modal', $this->data);
     }
@@ -107,6 +111,7 @@ class CustomFieldController extends AccountBaseController
         $name = CustomField::generateUniqueSlug($request->label, $field->custom_field_group_id);
         $field->label = $request->label;
         $field->name = $name;
+        $field->custom_field_category_id = $request->category;
         $field->values = json_encode($request->value);
         $field->required = $request->required;
         $field->export = $request->export;
@@ -143,6 +148,7 @@ class CustomFieldController extends AccountBaseController
         foreach ($group['fields'] as $field) {
             $insertData = [
                 'custom_field_group_id' => $field['custom_field_group_id'],
+                'custom_field_category_id' => $field['custom_field_category_id'] ?? null,
                 'label' => $field['label'],
                 'name' => $field['name'],
                 'type' => $field['type'],

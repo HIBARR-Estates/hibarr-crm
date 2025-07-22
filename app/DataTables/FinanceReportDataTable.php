@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Company;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Html\Button;
+use App\Helper\Common;
 
 class FinanceReportDataTable extends BaseDataTable
 {
@@ -117,9 +118,10 @@ class FinanceReportDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model = $model->where(function ($query) {
-                $query->where('projects.project_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('payments.amount', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('invoices.id', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('projects.project_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('payments.amount', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('invoices.id', 'like', '%' . $safeTerm . '%');
             });
         }
 

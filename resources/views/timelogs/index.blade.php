@@ -35,6 +35,21 @@
 
         <!-- CLIENT END -->
 
+        <div class="select-box d-flex  py-2 px-lg-2 px-md-2 px-0 border-right-grey border-right-grey-sm-0">
+            <p class="mb-0 pr-2 f-14 text-dark-grey d-flex align-items-center">@lang('app.department')</p>
+            <div class="select-status">
+                <select class="form-control select-picker" name="department" id="department" data-live-search="true"
+                        data-size="8">
+                    @if ($departments->count() > 1 || in_array('admin', user_roles()))
+                        <option value="all">@lang('app.all')</option>
+                    @endif
+                    @foreach ($departments as $department)
+                        <option value="{{ $department->id }}">{{ $department->team_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
 
         <!-- SEARCH BY TASK START -->
         <div class="task-search d-flex  py-1 px-lg-3 px-0 border-right-grey align-items-center">
@@ -190,6 +205,7 @@
 
             var projectID = $('#project_id').val();
             var employee = $('#employee').val();
+            var department = $('#department').val();
             var approved = $('#status').val();
             var invoice = $('#invoice_generate').val();
             var searchText = $('#search-text-field').val();
@@ -198,6 +214,7 @@
             data['endDate'] = endDate;
             data['projectId'] = projectID;
             data['employee'] = employee;
+            data['department'] = department;
             data['approved'] = approved;
             data['invoice'] = invoice;
             data['searchText'] = searchText;
@@ -206,11 +223,13 @@
             window.LaravelDataTables["timelogs-table"].draw(true);
         }
 
-        $('#project_id, #employee, #status, #invoice_generate').on('change keyup',
+        $('#project_id, #employee, #department, #status, #invoice_generate').on('change keyup',
             function () {
                 if ($('#status').val() !== "all") {
                     $('#reset-filters').removeClass('d-none');
                 } else if ($('#employee').val() !== "all") {
+                    $('#reset-filters').removeClass('d-none');
+                } else if ($('#department').val() !== "all") {
                     $('#reset-filters').removeClass('d-none');
                 } else if ($('#project_id').val() !== "all") {
                     $('#reset-filters').removeClass('d-none');
@@ -363,6 +382,15 @@
                 }
             })
 
+        });
+
+        $('body').on('click', '.reject-timelog', function () {
+            let timelogId = $(this).data('time-id');
+            let searchQuery = "?timelog_id=" + timelogId;
+            let url = "{{ route('timelogs.show_reject_modal') }}" + searchQuery;
+
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
         });
 
         const applyQuickAction = () => {

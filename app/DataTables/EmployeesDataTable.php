@@ -14,6 +14,7 @@ use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 
+
 class EmployeesDataTable extends BaseDataTable
 {
 
@@ -65,8 +66,7 @@ class EmployeesDataTable extends BaseDataTable
 
             if (in_array('admin', $userRole)) {
                 $uRole = $row->roles()->withoutGlobalScopes()->latest()->first()->display_name;
-            }
-            else {
+            } else {
                 $uRole = $row->current_role_name;
             }
 
@@ -96,7 +96,6 @@ class EmployeesDataTable extends BaseDataTable
                     }
 
                     $role .= ' value="' . $item->id . '">' . $item->display_name . '</option>';
-
                 }
             }
 
@@ -117,10 +116,12 @@ class EmployeesDataTable extends BaseDataTable
 
             $action .= '<a href="' . route('employees.show', [$row->id]) . '" class="dropdown-item"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
 
-            if ($this->editEmployeePermission == 'all'
+            if (
+                $this->editEmployeePermission == 'all'
                 || ($this->editEmployeePermission == 'added' && user()->id == $row->added_by)
                 || ($this->editEmployeePermission == 'owned' && user()->id == $row->id)
-                || ($this->editEmployeePermission == 'both' && (user()->id == $row->id || user()->id == $row->added_by))) {
+                || ($this->editEmployeePermission == 'both' && (user()->id == $row->id || user()->id == $row->added_by))
+            ) {
                 if (!in_array('admin', $userRole) || (in_array('admin', $userRole) && in_array('admin', user_roles()))) {
                     $action .= '<a class="dropdown-item openRightModal" href="' . route('employees.edit', [$row->id]) . '">
                                 <i class="fa fa-edit mr-2"></i>
@@ -152,7 +153,7 @@ class EmployeesDataTable extends BaseDataTable
             $employmentTypeBadge = '';
             $employeeDetail = $row->employeeDetail;
 
-            if($row->status == 'active'){
+            if ($row->status == 'active') {
                 if ($employeeDetail?->probation_end_date > now()->toDateString()) {
                     $employmentTypeBadge .= '<span class="badge badge-info">' . __('app.onProbation') . '</span> ';
                 }
@@ -168,7 +169,6 @@ class EmployeesDataTable extends BaseDataTable
                 if ($employeeDetail?->joining_date <= now()->subYears(2)->toDateString()) {
                     $employmentTypeBadge .= '<span class="badge badge-info">' . __('app.longStanding') . '</span> ';
                 }
-
             }
 
             $view = view('components.employee', ['user' => $row])->render();
@@ -253,12 +253,12 @@ class EmployeesDataTable extends BaseDataTable
             'roles:name,display_name',
             'roles.roleuser',
             'employeeDetail' => function ($query) {
-                $query->select('notice_period_end_date','internship_end_date','employment_type','probation_end_date','user_id', 'added_by', 'designation_id', 'employee_id', 'joining_date', 'reporting_to')
+                $query->select('notice_period_end_date', 'internship_end_date', 'employment_type', 'probation_end_date', 'user_id', 'added_by', 'designation_id', 'employee_id', 'joining_date', 'reporting_to')
                     ->with('reportingTo:id,name,image');
             },
             'session',
-        'employeeDetail.designation:id,name',
-        'employeeDetail.department:id,team_name',
+            'employeeDetail.designation:id,name',
+            'employeeDetail.department:id,team_name',
         ])
             ->withoutGlobalScope(ActiveScope::class)
             ->leftJoin('employee_details', 'employee_details.user_id', '=', 'users.id')
@@ -305,8 +305,7 @@ class EmployeesDataTable extends BaseDataTable
                     $query->orWhereNull('users.inactive_date') // Consider users with null inactive_date
                         ->orWhere('users.inactive_date', '>', $expireDate); // Or users with inactive_date in the future
                 });
-            }
-            elseif ($request->status == 'deactive') {
+            } elseif ($request->status == 'deactive') {
                 // Check if the inactive_date is in the past
                 $expireDate = now()->toDateString();
                 $users = $users->where('users.status', 'deactive')
@@ -314,7 +313,7 @@ class EmployeesDataTable extends BaseDataTable
             }
         }
 
-        if($request->EmployeeType === 'ex_employee'){
+        if ($request->EmployeeType === 'ex_employee') {
 
             $lastStartDate = null;
             $lastEndDate = null;
@@ -349,12 +348,10 @@ class EmployeesDataTable extends BaseDataTable
         if ($request->role != 'all' && $request->role != '' && $userRoles) {
             if ($userRoles->name == 'admin') {
                 $users = $users->where('roles.id', $request->role);
-            }
-            elseif ($userRoles->name == 'employee') {
+            } elseif ($userRoles->name == 'employee') {
                 $users = $users->where(DB::raw('(select user_roles.role_id from role_user as user_roles where user_roles.user_id = users.id ORDER BY user_roles.role_id DESC limit 1)'), $request->role)
                     ->having('roleName', '<>', 'admin');
-            }
-            else {
+            } else {
                 $users = $users->where(DB::raw('(select user_roles.role_id from role_user as user_roles where user_roles.user_id = users.id ORDER BY user_roles.role_id DESC limit 1)'), $request->role);
             }
         }
@@ -388,9 +385,10 @@ class EmployeesDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $users = $users->where(function ($query) {
-                $query->where('users.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('users.email', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('employee_details.employee_id', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('users.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('users.email', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('employee_details.employee_id', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -418,7 +416,6 @@ class EmployeesDataTable extends BaseDataTable
                 $twoYearsAgo = now()->subYears(2)->toDateString();
                 $users = $users->where('employee_details.joining_date', '<=', $twoYearsAgo);
             }
-
         }
 
 
@@ -492,7 +489,5 @@ class EmployeesDataTable extends BaseDataTable
         ];
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new EmployeeDetails()), $action);
-
     }
-
 }

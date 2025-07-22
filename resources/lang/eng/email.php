@@ -43,6 +43,27 @@ return array(
         'text' => 'New notice has been published. Login to view the notice.',
         'action' => 'View Notice',
     ),
+    'projectTimeLog' => array(
+        'subject' => 'Project Timesheet Rejected',
+        'text' => 'A time-log you submitted has been rejected by ',
+        'action' => 'View Timelog',
+        'text2' => 'Reason: :reason',
+    ),
+    'approveProjectTimeLog' => array(
+        'subject' => 'Project Timesheet Approved',
+        'text' => 'A time-log you submitted has been approved by ',
+        'action' => 'View Timelog',
+    ),
+    'createProjectTimeLog' => array(
+        'subject' => 'Project Timesheet Created',
+        'text' => 'A time-log is created by ',
+        'action' => 'View Timelog',
+    ),
+    'createdProjectTimeLog' => array(
+        'subject' => 'Project Timesheet Created',
+        'text' => 'A time-log is created for you by ',
+        'action' => 'View Timelog',
+    ),
     'newProjectMember' => array(
         'subject' => 'Project Update: You have been assigned a new project',
         'text' => 'Exciting news! You\'ve been assigned a new project.',
@@ -59,6 +80,8 @@ return array(
             'text' => 'New note added for',
             'action' => 'View Note',
             'subject' => 'New note added for Project',
+            'updateSubject' => 'Project Note Updated',
+            'updateContent' => 'A note in your project has been updated. Please take a moment to review the changes.',
     ),
     'newProject' => array(
         'subject' => 'New Project Added',
@@ -202,15 +225,15 @@ return array(
     ),
     'removalRequestAdmin' => array(
         'subject' => 'New Removal Request',
-        'text' => 'New removal request has been received',
+        'text' => 'New removal request has been received.',
     ),
     'removalRequestApprovedUser' => array(
         'subject' => 'Removal Request Approval',
-        'text' => 'Your removal request has been approved',
+        'text' => 'Your removal request has been approved.',
     ),
     'removalRequestRejectedUser' => array(
         'subject' => 'Removal Request Rejected',
-        'text' => 'Your removal request has been rejected',
+        'text' => 'Your removal request has been rejected.',
     ),
     'removalRequestApprovedLead' => array(
         'subject' => 'Removal Request Approval',
@@ -528,6 +551,14 @@ return array(
         'text2' => 'If you need any support during your transition, just let us know. Congratulations again!',
         'text3' => 'You have promoted to position',
         'updateText' => 'I am excited to announce changes to your recent promotion',
+    ),
+    'decrementPromotion' => array(
+        'in' => 'in',
+        'same' => 'same',
+        'subject' => 'Update Regarding Your Role',
+        'text2' => 'We understand this change may be challenging. We\'re here to support you as you continue contributing and growing with the team.<br/>Feel free to reach out if you need any assistance.',
+        'text3' => 'You have demoted to position',
+        'updateText' => 'We wanted to inform you about a recent update to your role. Your designation has been changed',
     ),
     'newTimesheetApproval' => array(
         'subject' => 'New Timesheet Submitted by :employeeName',

@@ -85,6 +85,7 @@
 
 @php
 $addEventsPermission = user()->permission('add_events');
+$recurringEventPermission = user()->permission('manage_recurring_event');
 @endphp
 
 @section('content')
@@ -97,6 +98,20 @@ $addEventsPermission = user()->permission('add_events');
                         @lang('modules.events.addEvent')
                     </x-forms.link-primary>
                 @endif
+
+                @if ($recurringEventPermission == 'all')
+                    <x-forms.link-secondary :link="route('recurring-event.index')" class="mr-3 float-left"
+                        icon="sync">
+                        @lang('app.menu.eventRecurring')
+                    </x-forms.link-secondary>
+                @endif
+            </div>
+
+            <div class="btn-group mt-2 mt-lg-0 mt-md-0 ml-0 ml-lg-3 ml-md-3" role="group" aria-label="Basic example">
+                <a href="{{ route('events.index') }}" class="btn btn-secondary f-14 btn-active" data-toggle="tooltip"
+                    data-original-title="@lang('app.menu.calendar')"><i class="side-icon bi bi-calendar"></i></a>
+                <a href="{{ route('events.table_view') }}" class="btn btn-secondary f-14" data-toggle="tooltip"
+                    data-original-title="@lang('modules.leaves.tableView')"><i class="side-icon bi bi-list-ul"></i></a>
             </div>
         </div>
 

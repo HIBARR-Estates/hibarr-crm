@@ -5,6 +5,7 @@
     <div class="col-sm-12">
         <x-form id="save-event-data-form" method="PUT">
             <div class="add-client bg-white rounded">
+                <input type="hidden" name="redirect_url" value="{{ $redirectUrl }}">
                 <h4 class="mb-0 p-20 f-21 font-weight-normal  border-bottom-grey">
                     {{ $event->event_name }}
                 </h4>
@@ -223,7 +224,41 @@
                         </div>
                     </div>
 
-                    <div class="col-lg-12 mb-2">
+                    @if($event->parent_id == null && $event->repeat == 'yes')
+                        <div class="col-lg-2 my-3">
+                            <x-forms.checkbox :fieldLabel="__('modules.events.repeat')" fieldName="repeat"
+                                :popover="$event->parent_id !== null ? __('messages.repeatEvent') : null"
+                                fieldId="repeat-event" fieldValue="yes" fieldRequired="true" :checked="$event->repeat == 'yes'"/>
+                        </div>
+
+                        <div class="col-lg-12 repeat-event-div @if ($event->repeat == 'no') d-none @endif">
+                            <div class="row">
+                                <div class="col-lg-4">
+                                    <x-forms.number class="mr-0 mr-lg-2 mr-md-2"
+                                        :fieldLabel="__('modules.events.repeatEvery')" fieldName="repeat_count"
+                                        fieldId="repeat_count" :fieldValue="$event->repeat_every" fieldRequired="true" />
+                                </div>
+                                <div class="col-md-4 mt-3">
+                                    <x-forms.select fieldId="repeat_type" fieldLabel="" fieldName="repeat_type"
+                                        search="true">
+                                        <option value="day" @if($event->repeat_type == 'day') selected @endif >@lang('app.day')</option>
+                                        <option value="week" @if($event->repeat_type == 'week') selected @endif >@lang('app.week')</option>
+                                        <option value="month" @if($event->repeat_type == 'month') selected @endif >@lang('app.month')</option>
+                                        <option id="monthlyOn" value="monthly-on-same-day" @if($event->repeat_type == '"monthly-on-same-day') selected @endif >@lang('app.eventMonthlyOn', ['week' => __('app.eventDay.' . now()->weekOfMonth), 'day' => now()->translatedFormat('l')])</option>
+                                        <option value="year" @if($event->repeat_type == 'year') selected @endif >@lang('app.year')</option>
+                                    </x-forms.select>
+                                </div>
+                                <div class="col-lg-4 col-md-4">
+                                    <x-forms.text :fieldLabel="__('modules.events.cycles')" fieldName="repeat_cycles"
+                                        fieldRequired="true" fieldId="repeat_cycles" fieldPlaceholder="" :fieldValue="$event->repeat_cycles"/>
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <input type="hidden" name="recurring_event" value="{{ $event->repeat }}">
+                    @endif
+
+                    <div class="col-lg-3 my-3">
                         <x-forms.checkbox :fieldLabel="__('modules.tasks.reminder')" fieldName="send_reminder"
                             fieldId="send_reminder" fieldValue="yes" fieldRequired="true"
                             :checked="$event->send_reminder == 'yes'" />
@@ -303,6 +338,8 @@
                     </div>
 
                 </div>
+
+                <x-forms.custom-field :fields="$fields" :model="$event"></x-forms.custom-field>
 
                 <x-form-actions>
                     <x-forms.button-primary id="save-event-form" class="mr-3" icon="check">@lang('app.save')
@@ -463,6 +500,11 @@
             @if (company()->time_format == 'H:i')
                 showMeridian: false,
             @endif
+        });
+
+        $('#repeat-event').change(function() {
+            $('.repeat-event-div').toggleClass('d-none');
+            monthlyOn();
         });
 
         $('#colorpicker').colorpicker({

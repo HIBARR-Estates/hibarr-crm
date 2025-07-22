@@ -12,6 +12,7 @@ use App\Models\TicketSettingForAgents;
 use App\Models\TicketGroup;
 use App\Models\TicketTagList;
 use App\Helper\UserService;
+use App\Helper\Common;
 
 class   TicketDataTable extends BaseDataTable
 {
@@ -42,7 +43,7 @@ class   TicketDataTable extends BaseDataTable
             $userid = UserService::getUserId();
             $isView = false;
             $ticketSetting = TicketSettingForAgents::first();
-            if($ticketSetting?->ticket_scope == 'group_tickets'){
+            if ($ticketSetting?->ticket_scope == 'group_tickets') {
 
                 $userGroupIds = TicketGroup::whereHas('enabledAgents', function ($query) use ($userid) {
                     $query->where('agent_id', $userid);
@@ -51,13 +52,12 @@ class   TicketDataTable extends BaseDataTable
                 $ticketSettingGroupIds = is_array($ticketSetting?->group_id) ? $ticketSetting?->group_id : explode(',', $ticketSetting?->group_id);
                 $commonGroupIds = array_intersect($userGroupIds, $ticketSettingGroupIds);
 
-                if($commonGroupIds && in_array($row->group_id, $commonGroupIds)){
+                if ($commonGroupIds && in_array($row->group_id, $commonGroupIds)) {
                     $isView = true;
                 }
-
-            }elseif($ticketSetting?->ticket_scope == 'assigned_tickets'){
+            } elseif ($ticketSetting?->ticket_scope == 'assigned_tickets') {
                 $isView = true;
-            }elseif($ticketSetting?->ticket_scope == 'all_tickets'){
+            } elseif ($ticketSetting?->ticket_scope == 'all_tickets') {
                 $isView = true;
             }
 
@@ -104,7 +104,7 @@ class   TicketDataTable extends BaseDataTable
             $userid = UserService::getUserId();
             $isEdit = false;
             $ticketSetting = TicketSettingForAgents::first();
-            if($ticketSetting?->ticket_scope == 'group_tickets'){
+            if ($ticketSetting?->ticket_scope == 'group_tickets') {
 
                 $userGroupIds = TicketGroup::whereHas('enabledAgents', function ($query) use ($userid) {
                     $query->where('agent_id', $userid);
@@ -113,13 +113,12 @@ class   TicketDataTable extends BaseDataTable
                 $ticketSettingGroupIds = is_array($ticketSetting?->group_id) ? $ticketSetting?->group_id : explode(',', $ticketSetting?->group_id);
                 $commonGroupIds = array_intersect($userGroupIds, $ticketSettingGroupIds);
 
-                if($commonGroupIds && in_array($row->group_id, $commonGroupIds)){
+                if ($commonGroupIds && in_array($row->group_id, $commonGroupIds)) {
                     $isEdit = true;
                 }
-
-            }elseif($ticketSetting?->ticket_scope == 'assigned_tickets'){
+            } elseif ($ticketSetting?->ticket_scope == 'assigned_tickets') {
                 $isEdit = true;
-            }elseif($ticketSetting?->ticket_scope == 'all_tickets'){
+            } elseif ($ticketSetting?->ticket_scope == 'all_tickets') {
                 $isEdit = true;
             }
 
@@ -170,7 +169,6 @@ class   TicketDataTable extends BaseDataTable
             $status = $statuses[$row->status] ?? $statuses['closed'];
 
             return '<i class="fa fa-circle mr-2 text-' . $status[0] . '"></i>' . $status[1];
-
         });
         $datatables->editColumn('ticket_status', fn($row) => $row->status);
         $datatables->editColumn('subject', fn($row) => '<a href="' . route('tickets.show', $row->ticket_number) . '" class="text-darkest-grey">' . $row->subject . '</a>' . $row->badge());
@@ -290,24 +288,24 @@ class   TicketDataTable extends BaseDataTable
 
         if (is_array($request->tagId) && $request->tagId[0] !== 'all') {
             $model->join('ticket_tags', 'ticket_tags.ticket_id', 'tickets.id')
-              ->whereIn('ticket_tags.tag_id', $tagIds)
-              ->groupBy('tickets.id');
-        } elseif(is_array($request->tagId) && $request->tagId[0] !== 'all' && $totaltags > 0){
+                ->whereIn('ticket_tags.tag_id', $tagIds)
+                ->groupBy('tickets.id');
+        } elseif (is_array($request->tagId) && $request->tagId[0] !== 'all' && $totaltags > 0) {
             $model->join('ticket_tags', 'ticket_tags.ticket_id', 'tickets.id')
                 ->whereIn('ticket_tags.tag_id', $tagIds)
                 ->groupBy('tickets.id');
-        } elseif(is_array($request->tagId) && $request->tagId[0] == 'all' && $totaltags > 0 && count($tagIds) !== 1){
+        } elseif (is_array($request->tagId) && $request->tagId[0] == 'all' && $totaltags > 0 && count($tagIds) !== 1) {
             $model->leftJoin('ticket_tags', 'ticket_tags.ticket_id', '=', 'tickets.id')
                 ->where(function ($query) use ($tagIds) {
                     $query->whereIn('ticket_tags.tag_id', $tagIds)
                         ->orWhereNull('ticket_tags.tag_id');
                 })->groupBy('tickets.id');
-        }elseif(is_array($request->tagId) && $request->tagId[0] == 'all' && count($tagIds) == 1){
+        } elseif (is_array($request->tagId) && $request->tagId[0] == 'all' && count($tagIds) == 1) {
             $model->whereNotExists(function ($query) {
-                    $query->select(DB::raw(1))
-                        ->from('ticket_tags')
-                        ->whereColumn('ticket_tags.ticket_id', 'tickets.id');
-                });
+                $query->select(DB::raw(1))
+                    ->from('ticket_tags')
+                    ->whereColumn('ticket_tags.ticket_id', 'tickets.id');
+            });
         }
 
         if (!is_null($request->projectID) && $request->projectID != 'all') {
@@ -317,13 +315,13 @@ class   TicketDataTable extends BaseDataTable
         }
 
         $userAssignedInGroup = false;
-        if(in_array('employee', user_roles()) && !in_array('admin', user_roles()) && !in_array('client', user_roles())){
+        if (in_array('employee', user_roles()) && !in_array('admin', user_roles()) && !in_array('client', user_roles())) {
             $userAssignedInGroup = TicketGroup::whereHas('enabledAgents', function ($query) use ($userid) {
                 $query->where('agent_id', $userid)->orWhereNull('agent_id');
             })->exists();
         }
 
-        if($userAssignedInGroup == false){
+        if ($userAssignedInGroup == false) {
 
             if ($this->viewTicketPermission == 'owned') {
                 $model->where(function ($query) use ($userid) {
@@ -343,11 +341,11 @@ class   TicketDataTable extends BaseDataTable
             if ($this->viewTicketPermission == 'added') {
                 $model->where('tickets.added_by', '=', $userid);
             }
-        }else{
+        } else {
 
             $ticketSetting = TicketSettingForAgents::first();
 
-            if($ticketSetting?->ticket_scope == 'group_tickets'){
+            if ($ticketSetting?->ticket_scope == 'group_tickets') {
 
                 $userGroupIds = TicketGroup::whereHas('enabledAgents', function ($query) use ($userid) {
                     $query->where('agent_id', $userid);
@@ -358,7 +356,7 @@ class   TicketDataTable extends BaseDataTable
                 // Find the common group IDs
                 $commonGroupIds = array_intersect($userGroupIds, $ticketSettingGroupIds);
 
-                if($commonGroupIds){
+                if ($commonGroupIds) {
                     $model->where(function ($query) use ($commonGroupIds, $userid) {
                         $query->where(function ($subQuery) use ($commonGroupIds, $userid) {
                             // Conditions related to user and agent
@@ -368,13 +366,13 @@ class   TicketDataTable extends BaseDataTable
                                 ->orWhere('tickets.agent_id', '!=', $userid)
                                 ->whereIn('tickets.group_id', $commonGroupIds);
                         })
-                        // Add orWhere for tickets where agent_id is null
-                        ->orWhere(function ($subQuery) use ($commonGroupIds) {
-                            $subQuery->whereNull('tickets.agent_id')
-                                ->whereIn('tickets.group_id', $commonGroupIds);
-                        });
+                            // Add orWhere for tickets where agent_id is null
+                            ->orWhere(function ($subQuery) use ($commonGroupIds) {
+                                $subQuery->whereNull('tickets.agent_id')
+                                    ->whereIn('tickets.group_id', $commonGroupIds);
+                            });
                     });
-                }else{
+                } else {
                     $model->where(function ($query) use ($userGroupIds, $userid) {
                         $query->where(function ($subQuery) use ($userGroupIds, $userid) {
                             // Conditions related to user and agent
@@ -384,31 +382,32 @@ class   TicketDataTable extends BaseDataTable
                                 ->orWhere('tickets.agent_id', '!=', $userid)
                                 ->whereIn('tickets.group_id', $userGroupIds);
                         })
-                        // Add orWhere for tickets where agent_id is null
-                        ->orWhere(function ($subQuery) use ($userGroupIds) {
-                            $subQuery->whereNull('tickets.agent_id')
-                                ->whereIn('tickets.group_id', $userGroupIds);
-                        });
+                            // Add orWhere for tickets where agent_id is null
+                            ->orWhere(function ($subQuery) use ($userGroupIds) {
+                                $subQuery->whereNull('tickets.agent_id')
+                                    ->whereIn('tickets.group_id', $userGroupIds);
+                            });
                     });
                 }
             }
 
-            if($ticketSetting?->ticket_scope == 'assigned_tickets'){
+            if ($ticketSetting?->ticket_scope == 'assigned_tickets') {
                 $model->where(function ($query) use ($userid) {
                     $query->where('agent_id', '=', $userid)
-                    ->orWhere('tickets.user_id', '=', $userid)
-                    ->orWhere('tickets.added_by', '=', $userid);
+                        ->orWhere('tickets.user_id', '=', $userid)
+                        ->orWhere('tickets.added_by', '=', $userid);
                 });
             }
         }
 
         if ($request->searchText != '') {
             $model->where(function ($query) {
-                $query->where('tickets.subject', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('tickets.ticket_number', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('tickets.status', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('users.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('tickets.priority', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('tickets.subject', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('tickets.ticket_number', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('tickets.status', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('users.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('tickets.priority', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -480,7 +479,5 @@ class   TicketDataTable extends BaseDataTable
         ];
 
         return array_merge($data, CustomFieldGroup::customFieldsDataMerge(new Ticket()), $action);
-
     }
-
 }

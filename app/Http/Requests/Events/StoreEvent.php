@@ -3,10 +3,12 @@
 namespace App\Http\Requests\Events;
 
 use App\Http\Requests\CoreRequest;
+use App\Traits\CustomFieldsRequestTrait;
 
 class StoreEvent extends CoreRequest
 {
 
+    use CustomFieldsRequestTrait;
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -39,7 +41,7 @@ class StoreEvent extends CoreRequest
         ];
 
         if ($this->repeat == 'yes') {
-            $rules['repeat_cycles'] = 'required';
+            $rules['repeat_cycles'] = 'required|integer|min:1';
             $rules['repeat_count'] = 'required';
         }
 
@@ -47,9 +49,19 @@ class StoreEvent extends CoreRequest
             $rules['end_time'] = 'required|after_or_equal:start_time';
         }
 
+        $rules = $this->customFieldRules($rules);
         return $rules;
     }
 
+    public function attributes()
+    {
+        $attributes = [];
+
+        $attributes = $this->customFieldsAttributes($attributes);
+
+        return $attributes;
+    }
+    
     public function messages()
     {
         return [

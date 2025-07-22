@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\LeadPipeline;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class LeadPipelineDataTable extends BaseDataTable
 {
@@ -120,7 +121,8 @@ class LeadPipelineDataTable extends BaseDataTable
         }
 
         if ($this->request()->searchText != '') {
-            $leadContact = $leadContact->where('lead_pipelines.name', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $leadContact = $leadContact->where('lead_pipelines.name', 'like', '%' . $safeTerm . '%');
 
         }
 

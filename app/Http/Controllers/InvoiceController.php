@@ -299,6 +299,7 @@ class InvoiceController extends AccountBaseController
         $invoice->default_currency_id = company()->currency_id;
         $invoice->exchange_rate = $request->exchange_rate;
         $invoice->recurring = 'no';
+        $invoice->is_timelog_invoice = $request->invoice_type ? '1' : '0';
         $invoice->billing_frequency = $request->recurring_payment == 'yes' ? $request->billing_frequency : null;
         $invoice->billing_interval = $request->recurring_payment == 'yes' ? $request->billing_interval : null;
         $invoice->billing_cycle = $request->recurring_payment == 'yes' ? $request->billing_cycle : null;
@@ -454,7 +455,7 @@ class InvoiceController extends AccountBaseController
             || ($this->deletePermission == 'both' && ($invoice->client_id == $userId) || ($invoice->added_by == $userId || $invoice->added_by == user()->id))
         ));
 
-        if ($firstInvoice->id == $id) {
+        // if ($firstInvoice->id == $id) {
             if (CreditNotes::where('invoice_id', $id)->exists()) {
                 CreditNotes::where('invoice_id', $id)->update(['invoice_id' => null]);
             }
@@ -462,9 +463,9 @@ class InvoiceController extends AccountBaseController
             Invoice::destroy($id);
 
             return Reply::success(__('messages.deleteSuccess'));
-        } else {
-            return Reply::error(__('messages.invoiceCanNotDeleted'));
-        }
+        // } else {
+        //     return Reply::error(__('messages.invoiceCanNotDeleted'));
+        // }
     }
 
     public function download($id)

@@ -719,6 +719,11 @@ class Module extends BaseModel
                     'is_custom' => 1,
                     'name' => 'create_unassigned_tasks',
                 ],
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'manage_recurring_task',
+                ],
             ]
         ],
         [
@@ -934,7 +939,12 @@ class Module extends BaseModel
                     'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
                     'is_custom' => 0,
                     'name' => 'delete_events',
-                ]
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'manage_recurring_event',
+                ],
             ]
 
         ],

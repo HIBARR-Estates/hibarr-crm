@@ -90,7 +90,7 @@
 
                             <!-- Content -->
                             <h3 class="text-sm font-bold text-amber-600 text-center mb-2 leading-tight">
-                                {{ ucwords(str_replace(['for worksuite', 'worksuite', 'crm','advanced reporting projects'], '', strtolower($module['product_name']))) }}
+                                {{ ucwords(str_replace(['for worksuite saas','for worksuite', 'worksuite', 'crm','advanced reporting projects'], '', strtolower($module['product_name']))) }}
 
                             </h3>
 

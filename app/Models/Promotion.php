@@ -38,8 +38,12 @@ class Promotion extends BaseModel
         return self::where('employee_id', $userId)
             ->whereNotNull('current_designation_id')
             ->whereNotNull('previous_designation_id')
-            ->whereColumn('current_designation_id', '!=', 'previous_designation_id')
+            ->where(function($query) {
+                $query->whereColumn('current_designation_id', '!=', 'previous_designation_id')
+                      ->orWhereColumn('current_department_id', '!=', 'previous_department_id');
+            })
             ->with(['employee', 'currentDesignation', 'previousDesignation'])
+            ->orderBy('created_at', 'desc')
             ->get();
     }
 

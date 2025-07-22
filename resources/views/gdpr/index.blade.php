@@ -27,6 +27,11 @@
                     :text="__('app.menu.rightToDataPortability')" class="right-to-data-portability" />
                 @endif
 
+                @if($gdpr->data_removal)
+                <x-tab :href="route('gdpr.index').'?tab=right-to-erasure'"
+                    :text="__('app.menu.rightToErasure')" class="right-to-erasure" />
+                @endif
+
                 @if($gdpr->consent_customer)
                 <x-tab :href="route('gdpr.index').'?tab=consent'"
                     :text="__('app.menu.consent')" class="consent" />

@@ -107,7 +107,7 @@ class StoreTask extends CoreRequest
         $rules['dependent_task_id'] = 'required_with:dependent';
 
         if ($this->has('repeat')) {
-            $rules['repeat_cycles'] = 'required|numeric';
+            $rules['repeat_cycles'] = 'required|integer|min:1';
             $rules['repeat_count'] = 'required|numeric';
         }
 

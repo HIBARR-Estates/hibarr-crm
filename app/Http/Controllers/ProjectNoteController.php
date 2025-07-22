@@ -238,6 +238,7 @@ class ProjectNoteController extends AccountBaseController
     public function askForPassword($id)
     {
         $this->note = ProjectNote::findOrFail($id);
+        $this->formType = request()->form_type;
         return view('projects.notes.verify-password', $this->data);
     }
 

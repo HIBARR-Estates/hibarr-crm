@@ -199,8 +199,11 @@ class AttemptToAuthenticate
         }
 
         // Getting Current Clock-in if exist
+        // Check for current day's clock-in
         $currentClockIn = Attendance::where(DB::raw('DATE(clock_in_time)'), now()->format('Y-m-d'))
-            ->where('user_id', $authUser->id)->first();
+            ->where('user_id', $authUser->id)
+            ->first();
+        
 
         $currentDate = now($globalSetting->timezone)->format('Y-m-d');
 
@@ -221,7 +224,7 @@ class AttemptToAuthenticate
             return true;
         }
 
-        if ($showClockInButton && $employeeClockInOut && $cannotLogin) {
+        if ($showClockInButton && $employeeClockInOut && $cannotLogin && $currentClockIn == null) {
             return true;
         }
 

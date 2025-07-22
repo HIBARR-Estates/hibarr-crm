@@ -75,6 +75,7 @@ class ProjectTimelogObserver
 
             if ($timeLogSetting->approval_required) {
                 $projectTimeLog->approved = 0;
+                $projectTimeLog->rejected = 0;
             }
         }
 

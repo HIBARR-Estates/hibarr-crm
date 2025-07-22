@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class HolidayDataTable extends BaseDataTable
 {
@@ -147,7 +148,8 @@ class HolidayDataTable extends BaseDataTable
         }
 
         if (request()->searchText != '') {
-            $holidays->where('holidays.occassion', 'like', '%' . request()->searchText . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $holidays->where('holidays.occassion', 'like', '%' . $safeTerm . '%');
         }
 
         if ($this->viewPermission == 'added') {

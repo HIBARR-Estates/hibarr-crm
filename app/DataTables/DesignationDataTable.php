@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\Designation;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class DesignationDataTable extends BaseDataTable
 {
@@ -46,7 +47,6 @@ class DesignationDataTable extends BaseDataTable
                 }
 
                 return '-';
-
             })
             ->addColumn('action', function ($row) {
 
@@ -96,7 +96,8 @@ class DesignationDataTable extends BaseDataTable
         $model = $model->select('*');
 
         if (request()->searchText != '') {
-            $model->where('name', 'like', '%' . request()->searchText . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where('name', 'like', '%' . $safeTerm . '%');
         }
 
         if ($request->parentId != 'all' && $request->parentId != null) {
@@ -179,5 +180,4 @@ class DesignationDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

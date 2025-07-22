@@ -51,7 +51,6 @@ class CurrencySettingController extends AccountBaseController
         }
 
         return view('currency-settings.index', $this->data);
-
     }
 
     /**
@@ -160,10 +159,10 @@ class CurrencySettingController extends AccountBaseController
     {
         $currencyApiKey = ($this->global->currency_converter_key) ?: config('app.currency_converter_key');
 
-        if($this->global->currency_key_version == 'dedicated'){
+        if ($this->global->currency_key_version == 'dedicated') {
             $currencyApiKeyVersion = $this->global->dedicated_subdomain;
-        }else{
-            $currencyApiKeyVersion = $this->global->currency_key_version;
+        } else {
+            $currencyApiKeyVersion = $this->global->currency_key_version === 'premium' ? 'api' : $this->global->currency_key_version;
         }
 
         try {
@@ -175,7 +174,6 @@ class CurrencySettingController extends AccountBaseController
             $rate = $conversionRate[mb_strtoupper($currency) . '_' . companyOrGlobalSetting()->currency->currency_code];
 
             return Reply::dataOnly(['status' => 'success', 'value' => $rate]);
-
         } catch (\Throwable $th) {
             return Reply::error($th->getMessage());
         }
@@ -212,11 +210,11 @@ class CurrencySettingController extends AccountBaseController
     public function currencyExchangeKeyStore(StoreCurrencyExchangeKey $request)
     {
         $this->global->currency_converter_key = $request->currency_converter_key;
-        $this->global->currency_key_version = $request->currency_key_version;
+        $this->global->currency_key_version = $request->currency_key_version === 'premium' ? 'api' : $request->currency_key_version;
 
-        if($request->currency_key_version == 'dedicated'){
+        if ($request->currency_key_version == 'dedicated') {
             $this->global->dedicated_subdomain = $request->dedicated_subdomain;
-        }else{
+        } else {
             $this->global->dedicated_subdomain = null;
         }
         $this->global->save();
@@ -227,5 +225,4 @@ class CurrencySettingController extends AccountBaseController
 
         return Reply::success(__('messages.updateSuccess'));
     }
-
 }

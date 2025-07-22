@@ -25,6 +25,8 @@ use App\Models\PipelineStage;
 use App\Models\LeadStatus;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\CustomFieldGroup;
+use App\Models\CustomFieldCategory;
 use App\Traits\ImportExcel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -50,7 +52,7 @@ class LeadContactController extends AccountBaseController
         $this->destroySession();
         $this->viewLeadPermission = $viewPermission = user()->permission('view_lead');
 
-        abort_403(!in_array($viewPermission, ['all','added','owned','both']));
+        abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
         if (!request()->ajax()) {
             $this->categories = LeadCategory::get();
@@ -59,7 +61,6 @@ class LeadContactController extends AccountBaseController
         }
 
         return $dataTable->render('lead-contact.index', $this->data);
-
     }
 
     public function show($id)
@@ -68,7 +69,7 @@ class LeadContactController extends AccountBaseController
 
         $this->viewPermission = user()->permission('view_lead');
 
-        abort_403(!in_array($this->viewPermission, ['all','added','owned','both']));
+        abort_403(!in_array($this->viewPermission, ['all', 'added', 'owned', 'both']));
 
         $this->pageTitle = $this->leadContact->client_name_salutation;
 
@@ -89,13 +90,13 @@ class LeadContactController extends AccountBaseController
         $tab = request('tab');
 
         switch ($tab) {
-        case 'deal':
-            return $this->deals();
-        case 'notes':
-            return $this->notes();
-        default:
-            $this->view = 'lead-contact.ajax.profile';
-            break;
+            case 'deal':
+                return $this->deals();
+            case 'notes':
+                return $this->notes();
+            default:
+                $this->view = 'lead-contact.ajax.profile';
+                break;
         }
 
         if (request()->ajax()) {
@@ -105,7 +106,6 @@ class LeadContactController extends AccountBaseController
         $this->activeTab = $tab ?: 'profile';
 
         return view('lead-contact.show', $this->data);
-
     }
 
     public function notes()
@@ -188,6 +188,16 @@ class LeadContactController extends AccountBaseController
         $this->countries = countries();
         $this->salutations = Salutation::cases();
 
+        // Get custom field categories for lead module
+        $leadCustomFieldGroup = CustomFieldGroup::where('model', Lead::CUSTOM_FIELD_MODEL)->first();
+        if ($leadCustomFieldGroup) {
+            $this->customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
+                ->where('company_id', company()->id)
+                ->get();
+        } else {
+            $this->customFieldCategories = collect();
+        }
+
         // To create deal from lead
 
         $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
@@ -203,7 +213,6 @@ class LeadContactController extends AccountBaseController
         }
 
         return view('lead-contact.create', $this->data);
-
     }
 
     /**
@@ -281,7 +290,6 @@ class LeadContactController extends AccountBaseController
         }
 
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
-
     }
 
     /**
@@ -293,13 +301,15 @@ class LeadContactController extends AccountBaseController
     public function edit($id)
     {
         $this->leadContact = Lead::with('leadSource', 'category')->findOrFail($id)->withCustomFields();
+        $this->deal = Deal::where('lead_id', $id)->first();
 
         $this->editPermission = user()->permission('edit_lead');
 
-        abort_403(!($this->editPermission == 'all'
-            || ($this->editPermission == 'added' && $this->leadContact->added_by == user()->id)
-            || ($this->editPermission == 'owned' && $this->leadContact->lead_owner == user()->id)
-            || ($this->editPermission == 'both' && $this->leadContact->added_by == user()->id) || user()->id == $this->leadContact->lead_owner)
+        abort_403(
+            !($this->editPermission == 'all'
+                || ($this->editPermission == 'added' && $this->leadContact->added_by == user()->id)
+                || ($this->editPermission == 'owned' && $this->leadContact->lead_owner == user()->id)
+                || ($this->editPermission == 'both' && $this->leadContact->added_by == user()->id) || user()->id == $this->leadContact->lead_owner)
         );
 
         $this->leadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
@@ -332,6 +342,17 @@ class LeadContactController extends AccountBaseController
         $this->pageTitle = __('modules.leadContact.updateTitle');
         $this->salutations = Salutation::cases();
 
+
+        // Get custom field categories for lead module
+        $leadCustomFieldGroup = CustomFieldGroup::where('model', Lead::CUSTOM_FIELD_MODEL)->first();
+        if ($leadCustomFieldGroup) {
+            $this->customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
+                ->where('company_id', company()->id)
+                ->get();
+        } else {
+            $this->customFieldCategories = collect();
+        }
+
         if (request()->ajax()) {
             $html = view('lead-contact.ajax.edit', $this->data)->render();
 
@@ -341,7 +362,6 @@ class LeadContactController extends AccountBaseController
         $this->view = 'lead-contact.ajax.edit';
 
         return view('lead-contact.create', $this->data);
-
     }
 
     /**
@@ -355,10 +375,11 @@ class LeadContactController extends AccountBaseController
         $leadContact = Lead::findOrFail($id);
         $this->editPermission = user()->permission('edit_lead');
 
-        abort_403(!($this->editPermission == 'all'
-            || ($this->editPermission == 'added' && $leadContact->added_by == user()->id)
-            || ($this->editPermission == 'owned' && $leadContact->lead_owner == user()->id)
-            || ($this->editPermission == 'both' && $leadContact->added_by == user()->id) || user()->id == $leadContact->lead_owner)
+        abort_403(
+            !($this->editPermission == 'all'
+                || ($this->editPermission == 'added' && $leadContact->added_by == user()->id)
+                || ($this->editPermission == 'owned' && $leadContact->lead_owner == user()->id)
+                || ($this->editPermission == 'both' && $leadContact->added_by == user()->id) || user()->id == $leadContact->lead_owner)
         );
 
         $leadContact->salutation = $request->salutation;
@@ -380,13 +401,15 @@ class LeadContactController extends AccountBaseController
         $leadContact->mobile = $request->mobile;
         $leadContact->save();
 
+        $clientCreated = $request->create_client == "on" ? '1' : '0';
+        Deal::where('lead_id', $leadContact->id)->update(['create_client' => $clientCreated]);
+
         // To add custom fields data
         if ($request->custom_fields_data) {
             $leadContact->updateCustomFieldData($request->custom_fields_data);
         }
 
         return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
-
     }
 
     /**
@@ -400,16 +423,16 @@ class LeadContactController extends AccountBaseController
         $leadContact = Lead::findOrFail($id);
         $this->deletePermission = user()->permission('delete_lead');
 
-        abort_403(!($this->deletePermission == 'all'
-            || ($this->deletePermission == 'added' && $leadContact->added_by == user()->id)
-            || ($this->deletePermission == 'owned' && $leadContact->lead_owner == user()->id)
-            || ($this->deletePermission == 'both' && $leadContact->added_by == user()->id) || user()->id == $leadContact->lead_owner)
+        abort_403(
+            !($this->deletePermission == 'all'
+                || ($this->deletePermission == 'added' && $leadContact->added_by == user()->id)
+                || ($this->deletePermission == 'owned' && $leadContact->lead_owner == user()->id)
+                || ($this->deletePermission == 'both' && $leadContact->added_by == user()->id) || user()->id == $leadContact->lead_owner)
         );
 
         Lead::destroy($id);
 
         return Reply::success(__('messages.deleteSuccess'));
-
     }
 
     public function applyQuickAction(Request $request)
@@ -441,10 +464,10 @@ class LeadContactController extends AccountBaseController
     {
         $rvalue = $this->importFileProcess($request, LeadImport::class);
 
-        if($rvalue == 'abort'){
+        if ($rvalue == 'abort') {
             return Reply::error(__('messages.abortAction'));
         }
-        
+
         $view = view('leads.ajax.import_progress', $this->data)->render();
 
         return Reply::successWithData(__('messages.importUploadSuccess'), ['view' => $view]);
@@ -457,7 +480,8 @@ class LeadContactController extends AccountBaseController
         return Reply::successWithData(__('messages.importProcessStart'), ['batch' => $batch]);
     }
 
-    public function destroySession(){
+    public function destroySession()
+    {
 
         if (session()->has('is_imported')) {
             session()->forget('is_imported');
@@ -471,19 +495,19 @@ class LeadContactController extends AccountBaseController
             session()->forget('leads_count');
         }
 
-        if(session()->has('total_leads')) {
+        if (session()->has('total_leads')) {
             session()->forget('total_leads');
         }
 
-        if(session()->has('create_deal_with_lead')) {
+        if (session()->has('create_deal_with_lead')) {
             session()->forget('create_deal_with_lead');
         }
 
-        if(session()->has('deal_name')) {
+        if (session()->has('deal_name')) {
             session()->forget('deal_name');
         }
 
-        if(session()->has('duplicate_leads')) {
+        if (session()->has('duplicate_leads')) {
             session()->forget('duplicate_leads');
         }
     }
@@ -507,6 +531,7 @@ class LeadContactController extends AccountBaseController
         $deal->deal_watcher = $request->deal_watcher;
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
+        $deal->create_client = $request->create_client == "on" ? '1' : '0';
         $deal->agent_id = $agentId;
         $deal->close_date = companyToYmd($request->close_date);
         $deal->value = ($request->value) ?: 0;
@@ -525,5 +550,4 @@ class LeadContactController extends AccountBaseController
             }
         }
     }
-
 }

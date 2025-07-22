@@ -7,6 +7,7 @@ use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Services\DataTable;
+use App\Helper\Common;
 
 class KnowledgeBaseDataTable extends BaseDataTable
 {
@@ -115,7 +116,8 @@ class KnowledgeBaseDataTable extends BaseDataTable
 
         if ($request->searchText != '') {
             $model->where(function ($query) {
-                $query->where('knowledge_bases.heading', 'like', '%' . request('searchText') . '%');
+                $safeTerm = Common::safeString(request('searchText'));
+                $query->where('knowledge_bases.heading', 'like', '%' . $safeTerm . '%');
             });
         }
 

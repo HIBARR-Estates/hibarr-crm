@@ -69,7 +69,7 @@ class ProjectNoteMention extends BaseNotification
      */
     public function toMail($notifiable)
     {
-        $url = route('projects.show', $this->project->id);
+        $url = route('projects.show', $this->project->id) . '?tab=notes';
         $url = getDomainSpecificUrl($url, $this->company);
 
         $content = __('email.projectNote.mentionText') . ' - ' . $this->project->project_name . '<br>';

@@ -4,6 +4,7 @@ namespace App\DataTables;
 
 use App\Models\ProjectTemplate;
 use Yajra\DataTables\Html\Column;
+use App\Helper\Common;
 
 class ProjectTemplatesDataTable extends BaseDataTable
 {
@@ -39,7 +40,7 @@ class ProjectTemplatesDataTable extends BaseDataTable
             ->addColumn('check', fn($row) => $this->checkBox($row))
             ->addColumn('action', function ($row) {
 
-                    $action = '<div class="task_view">
+                $action = '<div class="task_view">
                     <div class="dropdown">
                         <a class="task_view_more d-flex align-items-center justify-content-center dropdown-toggle" type="link"
                             id="dropdownMenuLink-' . $row->id . '" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -47,7 +48,7 @@ class ProjectTemplatesDataTable extends BaseDataTable
                         </a>
                         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuLink-' . $row->id . '" tabindex="0">';
 
-                    $action .= ' <a href="' . route('project-template.show', [$row->id]) . '" class="dropdown-item"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
+                $action .= ' <a href="' . route('project-template.show', [$row->id]) . '" class="dropdown-item"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
 
                 if ($this->addProjectPermission == 'all' || $this->addProjectPermission == 'added') {
                     $action .= '<a class="dropdown-item openRightModal" href="' . route('projects.create') . '?template=' . $row->id . '">
@@ -85,8 +86,7 @@ class ProjectTemplatesDataTable extends BaseDataTable
 
                         $members .= '<div class="taskEmployeeImg rounded-circle"><a href="' . route('employees.show', $member->user->id) . '">' . $img . '</a></div> ';
                     }
-                }
-                else {
+                } else {
                     $members .= __('messages.noMemberAddedToProject');
                 }
 
@@ -123,13 +123,14 @@ class ProjectTemplatesDataTable extends BaseDataTable
             ->select('id', 'project_name', 'category_id', 'sub_category_id', 'created_at');
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('project_templates.project_name', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('project_templates.project_name', 'like', '%' . $safeTerm . '%');
             });
         }
- 
+
         if ($request->project_category_id != '' && $request->project_category_id != 'all' && $request->project_category_id != 0) {
- 
+
             $model->where('project_templates.category_id', $request->project_category_id);
         }
 
@@ -193,5 +194,4 @@ class ProjectTemplatesDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

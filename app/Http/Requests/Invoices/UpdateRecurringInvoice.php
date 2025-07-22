@@ -31,6 +31,7 @@ class UpdateRecurringInvoice extends CoreRequest
         $rules = [
             'sub_total' => 'required',
             'total' => 'required',
+            'billing_cycle' => 'integer|min:-1',
         ];
 
         if ($this->invoice_count == 0) {

@@ -165,7 +165,7 @@
                                     :text="__('app.menu.customLinkSetting')"/>
             @endif
 
-            @if (user()->permission('manage_gdpr_setting') == 'all' && in_array('client', user_modules()))
+            @if (user()->permission('manage_gdpr_setting') == 'all' || in_array('client', user_modules()))
                 <x-setting-menu-item :active="$activeMenu" menu="gdpr_settings" :href="route('gdpr-settings.index')"
                                      :text="__('app.menu.gdprSettings')"/>
             @endif

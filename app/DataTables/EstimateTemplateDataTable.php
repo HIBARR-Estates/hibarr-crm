@@ -7,6 +7,8 @@ use Yajra\DataTables\Html\Column;
 use Yajra\DataTables\Services\DataTable;
 use Illuminate\Support\Carbon;
 use App\Helper\UserService;
+use App\Helper\Common;
+
 class EstimateTemplateDataTable extends BaseDataTable
 {
     private $editEstimatePermission;
@@ -43,34 +45,34 @@ class EstimateTemplateDataTable extends BaseDataTable
                 $action .= ' <a href="' . route('estimate-template.show', [$row->id]) . '" class="dropdown-item"><i class="fa fa-eye mr-2"></i>' . __('app.view') . '</a>';
 
 
-                    $action .= '<a class="dropdown-item" href="' . route('estimates.create') . '?template=' . $row->id . '">
+                $action .= '<a class="dropdown-item" href="' . route('estimates.create') . '?template=' . $row->id . '">
                         <i class="fa fa-plus mr-2"></i>
                         ' . trans('app.create') . ' ' . trans('app.menu.estimate') . '
                     </a>';
 
 
-                    if (
-                        $this->editEstimatePermission == 'all'
-                        || ($this->editEstimatePermission == 'added' && $row->added_by == $userId)
-                        || ($this->editEstimatePermission == 'owned' && $row->added_by != $userId) || $this->editEstimatePermission == 'both'
-                    ){
+                if (
+                    $this->editEstimatePermission == 'all'
+                    || ($this->editEstimatePermission == 'added' && $row->added_by == $userId)
+                    || ($this->editEstimatePermission == 'owned' && $row->added_by != $userId) || $this->editEstimatePermission == 'both'
+                ) {
 
-                        $action .= '<a class="dropdown-item" href="' . route('estimate-template.edit', [$row->id]) . '">
+                    $action .= '<a class="dropdown-item" href="' . route('estimate-template.edit', [$row->id]) . '">
                             <i class="fa fa-edit mr-2"></i>
                             ' . trans('app.edit') . '
                             </a>';
-                    }
+                }
 
-                    if (
-                        $this->deleteEstimatePermission == 'all'
-                        || ($this->deleteEstimatePermission == 'added' && $row->added_by == $userId)
-                        || ($this->deleteEstimatePermission == 'owned' && $row->added_by != $userId) || $this->deleteEstimatePermission == 'both'
-                    ) {
-                        $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-user-id="' . $row->id . '">
+                if (
+                    $this->deleteEstimatePermission == 'all'
+                    || ($this->deleteEstimatePermission == 'added' && $row->added_by == $userId)
+                    || ($this->deleteEstimatePermission == 'owned' && $row->added_by != $userId) || $this->deleteEstimatePermission == 'both'
+                ) {
+                    $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-user-id="' . $row->id . '">
                                 <i class="fa fa-trash mr-2"></i>
                                 ' . trans('app.delete') . '
                             </a>';
-                    }
+                }
 
 
                 $action .= '</div>
@@ -105,9 +107,10 @@ class EstimateTemplateDataTable extends BaseDataTable
             ->join('currencies', 'currencies.id', '=', 'estimate_templates.currency_id');
 
 
-            $model->where(function ($query) {
-                $query->where('estimate_templates.name', 'like', '%' . request('searchText') . '%');
-            });
+        $model->where(function ($query) {
+            $safeTerm = Common::safeString(request('searchText'));
+            $query->where('estimate_templates.name', 'like', '%' . $safeTerm . '%');
+        });
 
 
         return $model;
@@ -157,5 +160,4 @@ class EstimateTemplateDataTable extends BaseDataTable
                 ->addClass('text-right pr-20')
         ];
     }
-
 }

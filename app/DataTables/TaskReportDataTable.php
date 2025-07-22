@@ -142,9 +142,7 @@ class TaskReportDataTable extends BaseDataTable
         if ($this->viewUnassignedTasksPermission == 'all' && !in_array('client', user_roles()) && ($request->assignedTo == 'unassigned' || $request->assignedTo == 'all')) {
             $model->leftJoin('task_users', 'task_users.task_id', '=', 'tasks.id')
                 ->leftJoin('users as member', 'task_users.user_id', '=', 'member.id');
-
-        }
-        else {
+        } else {
             $model->join('task_users', 'task_users.task_id', '=', 'tasks.id')
                 ->join('users as member', 'task_users.user_id', '=', 'member.id');
         }
@@ -195,8 +193,7 @@ class TaskReportDataTable extends BaseDataTable
         if ($request->status != '' && $request->status != null && $request->status != 'all') {
             if ($request->status == 'not finished') {
                 $model->where('tasks.board_column_id', '<>', $taskBoardColumn->id);
-            }
-            else {
+            } else {
                 $model->where('tasks.board_column_id', '=', $request->status);
             }
         }
@@ -214,11 +211,12 @@ class TaskReportDataTable extends BaseDataTable
         }
 
         if ($request->searchText != '') {
-            $model->where(function ($query) {
-                $query->where('tasks.heading', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('member.name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('projects.project_name', 'like', '%' . request('searchText') . '%')
-                    ->orWhere('tasks.task_short_code', 'like', '%' . request('searchText') . '%');
+            $safeTerm = Common::safeString(request('searchText'));
+            $model->where(function ($query) use ($safeTerm) {
+                $query->where('tasks.heading', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('member.name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('projects.project_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('tasks.task_short_code', 'like', '%' . $safeTerm . '%');
             });
         }
 
@@ -271,5 +269,4 @@ class TaskReportDataTable extends BaseDataTable
             __('app.columnStatus') => ['data' => 'board_column', 'name' => 'board_column', 'exportable' => false, 'searchable' => false, 'title' => __('app.columnStatus')]
         ];
     }
-
 }
