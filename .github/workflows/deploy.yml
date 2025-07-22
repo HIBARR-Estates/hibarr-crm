@@ -1,4 +1,4 @@
-name: Deploy WorkSuite CRM to Production or Live Server
+name: Deploy WorkSuite CRM to Production
 
 on:
   push:
@@ -11,57 +11,19 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: mbstring, xml, curl, zip, gd, bcmath, fileinfo 
-
-      - name: Ensure bootstrap/cache exists
-        run: |
-          mkdir -p bootstrap/cache
-          chmod -R 775 bootstrap/cache 
-
-      - name: Install Composer dependencies
-        run: composer install 
-
-      - name: install Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - name: Install NPM dependencies
-        run: npm install
-
-      - name: Prod NPM Assets
-        run: npm run production
-
-      - name: Sync files to production server
-        uses: easingthemes/ssh-deploy@v2.1.5
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SOURCE: '.'
-          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.REMOTE_USER }}
-          TARGET: '/var/www/html/crm_update'
-          
-      - name: Run Remote/Artisan Commands
+      - name: Deploy on server via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            cd ~/hibarr-crm
+            git pull origin main
+            rsync -av --exclude 'public/user-uploads' --exclude 'storage/app/modules_statuses.json' --exclude 'Modules' --exclude '.env' ~/hibarr-crm/ /var/www/html
             cd /var/www/html
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+            npm install
+            npm run production
             php artisan migrate --force
             php artisan optimize
-
-      - name: Upload NPM debug log artifact
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-debug-log
-          path: /home/runner/.npm/_logs/
