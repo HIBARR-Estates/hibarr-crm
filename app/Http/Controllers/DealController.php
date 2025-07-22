@@ -43,6 +43,7 @@ use App\Models\User;
 use App\Traits\ImportExcel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
 
 class DealController extends AccountBaseController
 {
@@ -378,7 +379,7 @@ class DealController extends AccountBaseController
         if ($redirectUrl == '') {
             $redirectUrl = route('deals.index');
         }
-
+        $this->onCreateAutomationTrigger($request);
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
 
     }
@@ -505,7 +506,7 @@ class DealController extends AccountBaseController
         }
 
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
-
+        $this->onUpdateRequest($request, $deal);
         return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
 
     }
@@ -1035,6 +1036,39 @@ class DealController extends AccountBaseController
         };
 
         return Reply::success(__('messages.updateSuccess'));
+    }
+
+    public function onUpdateAutomationTrigger($request, $deal)
+    {
+        $client = new Client();
+        $url = 'https://automations.hibarr.net/webhook/d1e400a3-9270-4ea4-af22-cebe88a979ae';
+
+        $response = $client->post($url, [
+            'json' => [
+                'deal old information' => $deal->all(),
+                'deal updated information' => $request->all()
+            ]
+        ]);
+
+        // If you want the response as an array:
+        $result = json_decode($response->getBody(), true);
+
+        return $result;
+    }
+    public function onCreateAutomationTrigger($request)
+    {
+        $client = new Client();
+        $url = 'https://automations.hibarr.net/webhook/19402fa6-f307-4a17-a4c8-1370464d92fe';
+
+        $response = $client->post($url, [
+            'json' => [
+                'deal created information' => $request->all()
+            ]
+        ]);
+
+        $result = json_decode($response->getBody(), true);
+
+        return $result;
     }
 
 }
