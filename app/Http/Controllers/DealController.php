@@ -1040,35 +1040,47 @@ class DealController extends AccountBaseController
 
     public function onUpdateAutomationTrigger($request, $deal)
     {
-        $client = new Client();
-        $url = 'https://automations.hibarr.net/webhook/d1e400a3-9270-4ea4-af22-cebe88a979ae';
+        try {
+            $client = new Client();
+            $url = 'https://automations.hibarr.net/webhook/d1e400a3-9270-4ea4-af22-cebe88a979ae';
 
-        $response = $client->post($url, [
-            'json' => [
-                'deal old information' => $deal->all(),
-                'deal updated information' => $request->all()
-            ]
-        ]);
+            $response = $client->post($url, [
+                'json' => [
+                    'deal old information' => $deal->all(),
+                    'deal updated information' => $request->all()
+                ]
+            ]);
 
-        // If you want the response as an array:
-        $result = json_decode($response->getBody(), true);
-
-        return $result;
+            $result = json_decode($response->getBody(), true);
+            return $result;
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'error',
+                'message' => 'Automation trigger failed: ' . $e->getMessage(),
+            ];
+        }
     }
+
     public function onCreateAutomationTrigger($request)
     {
-        $client = new Client();
-        $url = 'https://automations.hibarr.net/webhook/19402fa6-f307-4a17-a4c8-1370464d92fe';
+        try {
+            $client = new Client();
+            $url = 'https://automations.hibarr.net/webhook/19402fa6-f307-4a17-a4c8-1370464d92fe';
 
-        $response = $client->post($url, [
-            'json' => [
-                'deal created information' => $request->all()
-            ]
-        ]);
+            $response = $client->post($url, [
+                'json' => [
+                    'deal created information' => $request->all()
+                ]
+            ]);
 
-        $result = json_decode($response->getBody(), true);
-
-        return $result;
+            $result = json_decode($response->getBody(), true);
+            return $result;
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'error',
+                'message' => 'Automation trigger failed: ' . $e->getMessage(),
+            ];
+        }
     }
 
 }
