@@ -20,7 +20,7 @@ jobs:
           script: |
             cd ~/hibarr-crm
             git pull origin main
-            rsync -av --exclude 'public/user-uploads' --exclude 'storage/app/modules_statuses.json' --exclude 'Modules' --exclude '.env' ~/hibarr-crm/ /var/www/html
+            rsync -av --exclude 'public/user-uploads' --exclude 'public/favicon.ico' --exclude 'storage/app/modules_statuses.json' --exclude 'Modules' --exclude '.env' ~/hibarr-crm/ /var/www/html
             cd /var/www/html
             composer install --no-interaction --prefer-dist --optimize-autoloader
             npm install
