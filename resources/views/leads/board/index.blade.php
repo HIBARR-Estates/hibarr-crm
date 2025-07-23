@@ -17,25 +17,20 @@
         .b-p-tasks {
             min-height: 90%;
         }
-
     </style>
-
 @endpush
 
 @php
-$addLeadPermission = user()->permission('add_deals');
-$viewLeadPermission = user()->permission('view_deals');
+    $addLeadPermission = user()->permission('add_deals');
+    $viewLeadPermission = user()->permission('view_deals');
 @endphp
 
 @section('filter-section')
-
     @include('leads.filters')
-
 @endsection
 
 
 @section('content')
-
     <!-- CONTENT WRAPPER START -->
     <div class="w-task-board-box px-4 py-2 bg-white">
         <!-- Add Task Export Buttons Start -->
@@ -50,18 +45,18 @@ $viewLeadPermission = user()->permission('view_deals');
                     </x-forms.link-primary>
                 @endif
 
-                    <x-forms.button-secondary icon="plus" id="add-column">
-                        @lang('modules.deal.addStages')
-                    </x-forms.button-secondary>
+                <x-forms.button-secondary icon="plus" id="add-column">
+                    @lang('modules.deal.addStages')
+                </x-forms.button-secondary>
 
             </div>
 
             <div class="btn-group mt-2 mt-lg-0 mt-md-0 ml-0 ml-lg-3 ml-md-3" role="group">
-                <a href="{{ route('deals.index') }}" class="btn btn-secondary f-14" data-toggle="tooltip"
-                    data-original-title="@lang('modules.leaves.tableView')"><i class="side-icon bi bi-list-ul"></i></a>
 
                 <a href="{{ route('leadboards.index') }}" class="btn btn-secondary f-14 btn-active" data-toggle="tooltip"
                     data-original-title="@lang('modules.lead.kanbanboard')"><i class="side-icon bi bi-kanban"></i></a>
+                <a href="{{ route('deals.index') }}" class="btn btn-secondary f-14" data-toggle="tooltip"
+                    data-original-title="@lang('modules.leaves.tableView')"><i class="side-icon bi bi-list-ul"></i></a>
 
             </div>
         </div>
@@ -71,7 +66,6 @@ $viewLeadPermission = user()->permission('view_deals');
         </div>
     </div>
     <!-- CONTENT WRAPPER END -->
-
 @endsection
 
 @push('scripts')
@@ -108,8 +102,10 @@ $viewLeadPermission = user()->permission('view_deals');
 
             var url = "{{ route('leadboards.index') }}?startDate=" + encodeURIComponent(startDate) + '&endDate=' +
                 encodeURIComponent(endDate) + '&type=' + type + '&followUp=' + followUp + '&agent=' +
-                agent + '&category_id=' + category_id + '&source_id=' + source_id +' &deal_watcher_id=' + deal_watcher_id + '&lead_agent_id=' + lead_agent_id +
-                '&searchText=' + searchText  + '&min=' + min + '&max=' + max + '&date_filter_on=' + date_filter_on + '&status_id=' + status_id + '&pipeline=' + pipeline+ '&product=' + product;
+                agent + '&category_id=' + category_id + '&source_id=' + source_id + ' &deal_watcher_id=' + deal_watcher_id +
+                '&lead_agent_id=' + lead_agent_id +
+                '&searchText=' + searchText + '&min=' + min + '&max=' + max + '&date_filter_on=' + date_filter_on +
+                '&status_id=' + status_id + '&pipeline=' + pipeline + '&product=' + product;
 
             $.easyAjax({
                 url: url,
@@ -155,7 +151,8 @@ $viewLeadPermission = user()->permission('view_deals');
                 encodeURIComponent(endDate) + '&type=' + type + '&followUp=' + followUp + '&agent=' +
                 agent + '&category_id=' + category_id + '&source_id=' + source_id +
                 '&searchText=' + searchText + '&columnId=' + columnId + '&currentTotalTasks=' + currentTotalTasks +
-                '&totalTasks=' + totalTasks + '&min=' + min + '&max=' + max + '&date_filter_on=' + date_filter_on + '&pipeline=' + pipeline+ '&product=' + product;
+                '&totalTasks=' + totalTasks + '&min=' + min + '&max=' + max + '&date_filter_on=' + date_filter_on +
+                '&pipeline=' + pipeline + '&product=' + product;
 
             $.easyAjax({
                 url: url,
@@ -313,7 +310,7 @@ $viewLeadPermission = user()->permission('view_deals');
                         },
                         success: function(response) {
                             if (response.status == "success") {
-                                window.location.href = "{{ route('leadboards.index')}}";
+                                window.location.href = "{{ route('leadboards.index') }}";
                             }
                         }
                     });
