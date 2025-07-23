@@ -73,7 +73,7 @@
                         {{ $slot }}
 
                         @if ($languages->count() > 1)
-                            <div class="mt-3 d-flex flex-column flex-grow-1">
+                            <div class="mt-4 d-flex flex-column flex-grow-1">
                                 <div class="flex flex-wrap items-center justify-center gap-2">
                                     @foreach ($languages->take(4) as $index => $language)
                                         <span class="inline-flex">
