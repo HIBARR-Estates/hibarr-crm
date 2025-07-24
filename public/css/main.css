@@ -8985,7 +8985,7 @@ input[type=button].btn-block {
 .card-body {
   flex: 1 1 auto;
   min-height: 1px;
-  padding: 1.25rem;
+  padding: 0.75rem;
 }
 .card-title {
   margin-bottom: 0.75rem;
@@ -19869,12 +19869,13 @@ button.disabled, button:disabled {
   height: 25px;
   border: solid 1px #707070;
   overflow: hidden;
+  object-position: center;
 }
 .avatar-img img {
   -o-object-fit: cover;
      object-fit: cover;
-  min-width: 25px;
-  height: 25px;
+  /* min-width: 25px;
+  height: 25px; */
 }
 .pagination .page-item.active .page-link {
   background-color: #1d82f5;

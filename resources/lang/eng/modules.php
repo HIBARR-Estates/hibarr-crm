@@ -1458,7 +1458,8 @@ return array(
         'addCategory' => 'Add Category',
         'editCategory' => 'Edit Category',
     ),
-    'events' => array('addEvent' => 'Add Event',
+    'events' => array(
+        'addEvent' => 'Add Event',
         'eventName' => 'Event Name',
         'startOnDate' => 'Starts On Date',
         'startOnTime' => 'Starts On Time',
@@ -2316,7 +2317,7 @@ return array(
         'leadStage' => 'Deal Stage',
         'contactName' => 'Contact Name',
         'leadName' => 'Lead Name',
-        'leadReport' =>'Deal Report',
+        'leadReport' => 'Deal Report',
     ),
     'deal' => array(
         'title' => 'Deal',
@@ -2363,7 +2364,7 @@ return array(
         'ticketSetting' => 'Ticket Setting',
         'ticketVisibilitySetting' => 'Ticket Visibility Setting',
         'information' => 'Information :',
-        'roundrobinNote' =>'<b>Round-Robin Method</b>',
+        'roundrobinNote' => '<b>Round-Robin Method</b>',
         'equalDistribution' => '<b> Equal Distribution:</b> Tasks are evenly distributed among team members.',
         'sequentialAssignment' => '<b> Sequential Assignment:</b> Each task is assigned to the next team member in order.',
         'fairRotation' => '<b> Fair Rotation:</b> Ensures balanced workloads and prevents overload.',
@@ -2385,6 +2386,7 @@ return array(
         'dealStageTooltip' => 'A New note will be create when stage changes to win or lost.',
         'category' => 'Category',
         'product' => 'Product',
+        'assignAgent' => 'Assign Agent',
     ),
     'estimateRequest' => array(
         'estimateRequest' => 'Estimate Request',
