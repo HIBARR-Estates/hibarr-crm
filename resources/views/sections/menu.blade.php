@@ -58,7 +58,7 @@
             @endif
             @if ($sidebarUserPermissions['view_deals'] != 5 && $sidebarUserPermissions['view_deals'] != 'none')
                 <div class="accordionItemContent ">
-                    <x-sub-menu-item :link="route('deals.index')" :text="__('app.deal')" />
+                    <x-sub-menu-item :link="route('leadboards.index')" :text="__('app.deal')" />
                 </div>
             @endif
         </x-menu-item>
