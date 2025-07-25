@@ -5,6 +5,10 @@
 
         <x-cards.data :title="__('modules.deal.dealInfo')">
 
+            <x-slot name="customFieldCategories">
+                <x-custom-field-category-tabs :customFieldCategories="$customFieldCategories" />
+            </x-slot>
+            
             <x-slot name="action">
                 <div class="dropdown">
                     <button class="btn f-14 px-0 py-0 text-dark-grey dropdown-toggle" type="button"
