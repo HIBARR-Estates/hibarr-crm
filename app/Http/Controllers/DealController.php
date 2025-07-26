@@ -43,6 +43,7 @@ use App\Models\User;
 use App\Traits\ImportExcel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
 
 class DealController extends AccountBaseController
 {
@@ -363,6 +364,7 @@ class DealController extends AccountBaseController
         if ($request->custom_fields_data) {
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
+        $this->onCreateAutomationTrigger($request);
 
         // Log search
         $this->logSearchEntry($deal->id, $deal->name, 'deals.show', 'deal');
@@ -378,7 +380,7 @@ class DealController extends AccountBaseController
         if ($redirectUrl == '') {
             $redirectUrl = route('deals.index');
         }
-
+       
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
 
     }
@@ -503,9 +505,8 @@ class DealController extends AccountBaseController
         if ($request->custom_fields_data) {
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
-
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
-
+        $this->onUpdateAutomationTrigger($request, $deal);
         return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
 
     }
@@ -1036,5 +1037,199 @@ class DealController extends AccountBaseController
 
         return Reply::success(__('messages.updateSuccess'));
     }
+
+    public function onUpdateAutomationTrigger($request, $deal)
+    {
+        try {
+            $client = new Client();
+            $url = config('app.automations.on_update_url');
+
+            $dealData = $deal->toArray();
+            $contactInfo = $this->getCustomerInfoOnUpdate($deal->id);
+      
+            $filteredRequest = collect($request->all())->except([
+                'f_email',
+                'f_slack_username',
+                'redirect_url',
+                '_token',
+                '_method',
+                'name',
+                'pipeline',
+                'stage_id',
+                'category_id',
+                'agent_id',
+                'value',
+                'close_date',
+                'deal_watcher',
+            ])->toArray();
+
+            $payload = [
+                'contactInformation' => $contactInfo,
+                'dealInformation' => $dealData,
+                'dealCustomFields' => $filteredRequest['custom_fields_data']
+            ];
+            
+            $response = $client->post($url, [
+                'json' => $payload
+            ]);
+
+            $result = json_decode($response->getBody(), true);
+            return $result;
+        } catch (\Throwable $e) {
+            \Log::error('On Update Automation trigger failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'On Update Automation trigger failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function onCreateAutomationTrigger($request)
+    {
+
+        try {
+            $client = new Client();
+            $url = config('app.automations.on_create_url');
+            
+            $contactInfo = $this->getCustomerInfoOnCreate($request->lead_contact);
+      
+           
+
+            $payload = [
+                'contactInformation' => $contactInfo,
+                'dealCustomFields' => $request->all(),
+               ];
+            
+            $response = $client->post($url, [
+                'json' => $payload
+            ]);
+
+            $result = json_decode($response->getBody(), true);
+            return $result;
+        } catch (\Throwable $e) {
+            \Log::error('On Create Automation trigger failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'On Create Automation trigger failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get customer information data array (private method for internal use)
+     *
+     * @param int $id
+     * @return array
+     */
+    private function getCustomerInfoOnUpdate($id)
+    {
+        $deal = Deal::with('leadAgent.user:id,name,image', 'category')->findOrFail($id);
+        
+        // Get the lead contact information
+        $leadContact = null;
+        if ($deal->lead_id) {
+            $leadContact = Lead::findOrFail($deal->lead_id)->withCustomFields();
+        }
+
+        // Get custom fields data for the lead contact
+        $customFieldsData = [];
+        if ($leadContact) {
+            $getCustomFieldGroupsWithFields = $leadContact->getCustomFieldGroupsWithFields();
+            if ($getCustomFieldGroupsWithFields && isset($getCustomFieldGroupsWithFields->fields)) {
+                foreach ($getCustomFieldGroupsWithFields->fields as $field) {
+                    if (isset($field['name'])) {
+                        $customFieldsData[$field['name']] = $field['value'] ?? null;
+                    }
+                }
+            }
+        }
+        
+        $customerInfo = [
+           
+            'leadContact' => $leadContact ? [
+                'id' => $leadContact->id,
+                'client_name' => $leadContact->client_name,
+                'client_name_salutation' => $leadContact->client_name_salutation,
+                'client_email' => $leadContact->client_email,
+                'mobile' => $leadContact->mobile,
+                'office_phone' => $leadContact->office_phone,
+                'website' => $leadContact->website,
+                'address' => $leadContact->address,
+                'state' => $leadContact->state,
+                'city' => $leadContact->city,
+                'postal_code' => $leadContact->postal_code,
+                'country' => $leadContact->country,
+                'company_name' => $leadContact->company_name,
+                'client_id' => $leadContact->client_id,
+                'status' => $leadContact->status,
+                'source' => $leadContact->source,
+                'note' => $leadContact->note,
+                'created_at' => $leadContact->created_at,
+                'updated_at' => $leadContact->updated_at,
+            ] : null,
+            'leadContactCustomFields' => $customFieldsData,
+           
+        ];
+
+        return $customerInfo;
+    }
+    private function getCustomerInfoOnCreate($id)
+    {
+        
+        // Get the lead contact information
+        $leadContact = null;
+        if ($id) {
+            $leadContact = Lead::findOrFail($id)->withCustomFields();
+        }
+
+        // Get custom fields data for the lead contact
+        $customFieldsData = [];
+        if ($leadContact) {
+            $getCustomFieldGroupsWithFields = $leadContact->getCustomFieldGroupsWithFields();
+            if ($getCustomFieldGroupsWithFields && isset($getCustomFieldGroupsWithFields->fields)) {
+                foreach ($getCustomFieldGroupsWithFields->fields as $field) {
+                    if (isset($field['name'])) {
+                        $customFieldsData[$field['name']] = $field['value'] ?? null;
+                    }
+                }
+            }
+        }
+        
+        $customerInfo = [
+           
+            'leadContact' => $leadContact ? [
+                'id' => $leadContact->id,
+                'client_name' => $leadContact->client_name,
+                'client_name_salutation' => $leadContact->client_name_salutation,
+                'client_email' => $leadContact->client_email,
+                'mobile' => $leadContact->mobile,
+                'office_phone' => $leadContact->office_phone,
+                'website' => $leadContact->website,
+                'address' => $leadContact->address,
+                'state' => $leadContact->state,
+                'city' => $leadContact->city,
+                'postal_code' => $leadContact->postal_code,
+                'country' => $leadContact->country,
+                'company_name' => $leadContact->company_name,
+                'client_id' => $leadContact->client_id,
+                'status' => $leadContact->status,
+                'source' => $leadContact->source,
+                'note' => $leadContact->note,
+                'created_at' => $leadContact->created_at,
+                'updated_at' => $leadContact->updated_at,
+            ] : null,
+            'leadContactCustomFields' => $customFieldsData,
+           
+        ];
+
+        return $customerInfo;
+    }
+
 
 }
