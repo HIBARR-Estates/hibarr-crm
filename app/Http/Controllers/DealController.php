@@ -1042,7 +1042,7 @@ class DealController extends AccountBaseController
     {
         try {
             $client = new Client();
-            $url = 'https://automations.hibarr.net/webhook/d1e400a3-9270-4ea4-af22-cebe88a979ae';
+            $url = config('app.automations.on_update_url');
 
             $dealData = $deal->toArray();
             $contactInfo = $this->getCustomerInfoOnUpdate($deal->id);
@@ -1092,7 +1092,7 @@ class DealController extends AccountBaseController
 
         try {
             $client = new Client();
-            $url = 'https://automations.hibarr.net/webhook/19402fa6-f307-4a17-a4c8-1370464d92fe';
+            $url = config('app.automations.on_create_url');
             
             $contactInfo = $this->getCustomerInfoOnCreate($request->lead_contact);
       

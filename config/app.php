@@ -202,6 +202,11 @@ return [
     |
     */
 
+    'automations' => [
+        'on_create_url' => env('AUTOMATIONS_ON_CREATE_URL'),
+        'on_update_url' => env('AUTOMATIONS_ON_UPDATE_URL'),
+    ],
+
 
     'providers' => [
 
