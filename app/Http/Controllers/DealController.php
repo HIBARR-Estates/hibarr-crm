@@ -41,14 +41,17 @@ use App\Models\PurposeConsent;
 use App\Models\PurposeConsentLead;
 use App\Models\User;
 use App\Traits\ImportExcel;
+use App\Traits\DealAutomationTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Log;
 
 class DealController extends AccountBaseController
 {
 
     use ImportExcel;
+    use DealAutomationTrait;
 
     public function __construct()
     {
@@ -76,7 +79,6 @@ class DealController extends AccountBaseController
         if (!request()->ajax()) {
             $this->loadDataForView();
             $this->products = Product::all();
-
         }
         return $dataTable->render('leads.index', $this->data);
     }
@@ -183,60 +185,59 @@ class DealController extends AccountBaseController
         $tab = request('tab');
 
         switch ($tab) {
-        case 'files':
-            $this->tab = 'leads.ajax.files';
-            break;
-        case 'follow-up':
-            $this->dealFollowUps = DealFollowUp::where('deal_id', $id)->get();
+            case 'files':
+                $this->tab = 'leads.ajax.files';
+                break;
+            case 'follow-up':
+                $this->dealFollowUps = DealFollowUp::where('deal_id', $id)->get();
 
-            if (user()->permission('view_lead_follow_up') == 'added') {
-                $this->dealFollowUps = $this->dealFollowUps->where('added_by', user()->id);
-            }
+                if (user()->permission('view_lead_follow_up') == 'added') {
+                    $this->dealFollowUps = $this->dealFollowUps->where('added_by', user()->id);
+                }
 
-            $this->tab = 'leads.ajax.follow-up';
-            break;
-        case 'proposals':
-            abort_403(!in_array(user()->permission('view_lead_proposals'), ['all', 'added']));
+                $this->tab = 'leads.ajax.follow-up';
+                break;
+            case 'proposals':
+                abort_403(!in_array(user()->permission('view_lead_proposals'), ['all', 'added']));
 
-            $this->proposals = Proposal::where('deal_id', $id)->get();
+                $this->proposals = Proposal::where('deal_id', $id)->get();
 
-            if (user()->permission('view_lead_proposals') == 'added') {
-                $this->proposals = $this->proposals->where('added_by', user()->id);
-            }
+                if (user()->permission('view_lead_proposals') == 'added') {
+                    $this->proposals = $this->proposals->where('added_by', user()->id);
+                }
 
-            $this->tab = 'leads.ajax.proposal';
-            break;
-        case 'notes':
-            $this->notes = DealNote::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
-            $viewNotesPermission = user()->permission('view_deal_note');
-            abort_403(!($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
+                $this->tab = 'leads.ajax.proposal';
+                break;
+            case 'notes':
+                $this->notes = DealNote::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
+                $viewNotesPermission = user()->permission('view_deal_note');
+                abort_403(!($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
 
-            if (user()->permission('view_deal_note') == 'added') {
-                $this->notes->where('added_by', user()->id);
-            }
-            elseif (user()->permission('view_deal_note') == 'owned') {
-                $this->notes->where('added_by', '!=', user()->id);
-            }
+                if (user()->permission('view_deal_note') == 'added') {
+                    $this->notes->where('added_by', user()->id);
+                } elseif (user()->permission('view_deal_note') == 'owned') {
+                    $this->notes->where('added_by', '!=', user()->id);
+                }
 
-            $this->tab = 'leads.ajax.notes';
-            break;
-        case 'gdpr':
+                $this->tab = 'leads.ajax.notes';
+                break;
+            case 'gdpr':
 
-            $this->consents = PurposeConsent::with(['lead' => function ($query) use ($id) {
-                $query->where('lead_id', $id)
-                    ->orderByDesc('created_at');
-            }])->get();
+                $this->consents = PurposeConsent::with(['lead' => function ($query) use ($id) {
+                    $query->where('lead_id', $id)
+                        ->orderByDesc('created_at');
+                }])->get();
 
-            $this->gdpr = GdprSetting::first();
+                $this->gdpr = GdprSetting::first();
 
-            return $this->gdpr();
-        case 'history':
-            $this->histories = DealHistory::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
-            $this->tab = 'leads.ajax.history';
-            break;
-        default:
-            $this->tab = 'leads.ajax.files';
-            break;
+                return $this->gdpr();
+            case 'history':
+                $this->histories = DealHistory::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
+                $this->tab = 'leads.ajax.history';
+                break;
+            default:
+                $this->tab = 'leads.ajax.files';
+                break;
         }
 
         if (request()->ajax()) {
@@ -248,7 +249,6 @@ class DealController extends AccountBaseController
         $this->view = 'leads.ajax.show';
 
         return view('leads.create', $this->data);
-
     }
 
     /**
@@ -317,7 +317,6 @@ class DealController extends AccountBaseController
         }
 
         return view('leads.create', $this->data);
-
     }
 
     /**
@@ -364,7 +363,8 @@ class DealController extends AccountBaseController
         if ($request->custom_fields_data) {
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
-        $this->onCreateAutomationTrigger($request);
+        
+        $this->triggerDealCreationAutomation($request);
 
         // Log search
         $this->logSearchEntry($deal->id, $deal->name, 'deals.show', 'deal');
@@ -380,9 +380,8 @@ class DealController extends AccountBaseController
         if ($redirectUrl == '') {
             $redirectUrl = route('deals.index');
         }
-       
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
 
+        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
     }
 
     /**
@@ -408,7 +407,7 @@ class DealController extends AccountBaseController
         ));
 
         $this->tab = (!is_null(request('tab'))) ? request('tab') : null;
-         // Filter out active employees
+        // Filter out active employees
         $activeEmployees = $this->employees->filter(function ($employee) {
             return $employee->status !== 'deactive';
         });
@@ -461,7 +460,6 @@ class DealController extends AccountBaseController
         }
 
         return view('leads.create', $this->data);
-
     }
 
     /**
@@ -484,7 +482,7 @@ class DealController extends AccountBaseController
         if (!is_null($request->agent_id)) {
             $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
             $deal->agent_id = $leadAgent->id;
-        }else{
+        } else {
             $deal->agent_id = $request->agent_id;
         }
 
@@ -506,9 +504,10 @@ class DealController extends AccountBaseController
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
-        $this->onUpdateAutomationTrigger($request, $deal);
+        
+        $this->triggerDealUpdateAutomation($request, $deal);
+        
         return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
-
     }
 
     /**
@@ -538,7 +537,6 @@ class DealController extends AccountBaseController
         Deal::destroy($id);
 
         return Reply::success(__('messages.deleteSuccess'));
-
     }
 
     /**
@@ -556,28 +554,30 @@ class DealController extends AccountBaseController
         $deal->status_id = $request->statusID;
         $deal->save();
 
+        $this->triggerDealUpdateAutomation($request, $deal);
+
         return Reply::success(__('messages.recordSaved'));
     }
 
     public function applyQuickAction(Request $request)
     {
         switch ($request->action_type) {
-        case 'delete':
-            $this->deleteRecords($request);
+            case 'delete':
+                $this->deleteRecords($request);
 
-            return Reply::success(__('messages.deleteSuccess'));
-        case 'change-status':
-            $this->changeBulkStatus($request);
+                return Reply::success(__('messages.deleteSuccess'));
+            case 'change-status':
+                $this->changeBulkStatus($request);
 
-            return Reply::success(__('messages.updateSuccess'));
+                return Reply::success(__('messages.updateSuccess'));
 
-        case 'change-deal-agents':
-            $this->changeAgentStatus($request);
+            case 'change-deal-agents':
+                $this->changeAgentStatus($request);
 
-            return Reply::success(__('messages.updateSuccess'));
+                return Reply::success(__('messages.updateSuccess'));
 
-        default:
-            return Reply::error(__('messages.selectAction'));
+            default:
+                return Reply::error(__('messages.selectAction'));
         }
     }
 
@@ -607,8 +607,8 @@ class DealController extends AccountBaseController
 
         $stage = PipelineStage::find($newStatus);
 
-        if($stage->slug === 'win' || $stage->slug === 'lost'){
-           Deal::whereIn('id', $rowIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
+        if ($stage->slug === 'win' || $stage->slug === 'lost') {
+            Deal::whereIn('id', $rowIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
         }
 
         Deal::whereIn('id', $rowIds)->update(['pipeline_stage_id' => $newStatus]);
@@ -624,8 +624,8 @@ class DealController extends AccountBaseController
         $leads = Deal::with('leadAgent', 'category')->whereIn('id', $rowIds)->get();
 
         foreach ($leads as $deal) {
-              // Find an agent from the list with matching category
-        $matchingAgent = $agentsWithSameUser->firstWhere('lead_category_id', $deal->category_id);
+            // Find an agent from the list with matching category
+            $matchingAgent = $agentsWithSameUser->firstWhere('lead_category_id', $deal->category_id);
 
             if ($matchingAgent) {
                 // Assign the matching agent to the deal
@@ -633,7 +633,6 @@ class DealController extends AccountBaseController
                 $deal->save();
             }
         }
-
     }
 
     /**
@@ -651,7 +650,6 @@ class DealController extends AccountBaseController
         $this->deal = Deal::findOrFail($dealID);
 
         return view('leads.followup.create', $this->data);
-
     }
 
     public function leadFollowup()
@@ -699,10 +697,9 @@ class DealController extends AccountBaseController
 
         $followUp->save();
 
-        event(new AutoFollowUpReminderEvent($followUp,true));
+        event(new AutoFollowUpReminderEvent($followUp, true));
 
         return Reply::success(__('messages.recordSaved'));
-
     }
 
     public function editFollow($id)
@@ -740,7 +737,6 @@ class DealController extends AccountBaseController
         $followUp->save();
 
         return Reply::success(__('messages.updateSuccess'));
-
     }
 
     public function deleteFollow($id)
@@ -837,7 +833,7 @@ class DealController extends AccountBaseController
     {
         $rvalue = $this->importFileProcess($request, DealImport::class);
 
-        if($rvalue == 'abort'){
+        if ($rvalue == 'abort') {
             return Reply::error(__('messages.abortAction'));
         }
         $view = view('deals.ajax.import_progress', $this->data)->render();
@@ -852,7 +848,8 @@ class DealController extends AccountBaseController
         return Reply::successWithData(__('messages.importProcessStart'), ['batch' => $batch]);
     }
 
-    public function destroySession(){
+    public function destroySession()
+    {
 
         if (session()->has('is_imported')) {
             session()->forget('is_imported');
@@ -866,11 +863,11 @@ class DealController extends AccountBaseController
             session()->forget('leads_count');
         }
 
-        if(session()->has('total_leads')) {
+        if (session()->has('total_leads')) {
             session()->forget('total_leads');
         }
 
-        if(session()->has('is_deal')) {
+        if (session()->has('is_deal')) {
             session()->forget('is_deal');
         }
     }
@@ -901,8 +898,9 @@ class DealController extends AccountBaseController
             $leadFollowUp->save();
         }
 
-        return Reply::success(__('messages.leadStatusChangeSuccess'));
+        $this->triggerDealUpdateAutomation($request, $leadFollowUp->deal);
 
+        return Reply::success(__('messages.leadStatusChangeSuccess'));
     }
 
     // Get Satges
@@ -943,6 +941,8 @@ class DealController extends AccountBaseController
         $deal->pipeline_stage_id = $request->statusID;
         $deal->save();
 
+        $this->triggerDealUpdateAutomation($request, $deal);
+
         return Reply::successWithData(__('messages.updateSuccess'), ['status' => 'success']);
     }
 
@@ -961,7 +961,6 @@ class DealController extends AccountBaseController
                         ->orWhere('user_id', $currentUser);
                 });
             }
-
         }])->where('id', $id)->first();
 
         $deal = Deal::where('id', request()->dealId)->first();
@@ -997,14 +996,11 @@ class DealController extends AccountBaseController
             }
 
             $groupData = $userData;
-        }
-        else {
+        } else {
             $data = '<option value="">--</option>';
         }
 
         return Reply::dataOnly(['data' => $data, 'groupData' => $groupData]);
-
-
     }
 
     public function stageChange(Request $request)
@@ -1035,201 +1031,8 @@ class DealController extends AccountBaseController
             $dealNote->save();
         };
 
+        $this->triggerDealUpdateAutomation($request, $deal);
+
         return Reply::success(__('messages.updateSuccess'));
     }
-
-    public function onUpdateAutomationTrigger($request, $deal)
-    {
-        try {
-            $client = new Client();
-            $url = config('app.automations.on_update_url');
-
-            $dealData = $deal->toArray();
-            $contactInfo = $this->getCustomerInfoOnUpdate($deal->id);
-      
-            $filteredRequest = collect($request->all())->except([
-                'f_email',
-                'f_slack_username',
-                'redirect_url',
-                '_token',
-                '_method',
-                'name',
-                'pipeline',
-                'stage_id',
-                'category_id',
-                'agent_id',
-                'value',
-                'close_date',
-                'deal_watcher',
-            ])->toArray();
-
-            $payload = [
-                'contactInformation' => $contactInfo,
-                'dealInformation' => $dealData,
-                'dealCustomFields' => $filteredRequest['custom_fields_data']
-            ];
-            
-            $response = $client->post($url, [
-                'json' => $payload
-            ]);
-
-            $result = json_decode($response->getBody(), true);
-            return $result;
-        } catch (\Throwable $e) {
-            \Log::error('On Update Automation trigger failed: ' . $e->getMessage(), [
-                'exception' => $e,
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return response()->json([
-                'status' => 'error',
-                'message' => 'On Update Automation trigger failed: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function onCreateAutomationTrigger($request)
-    {
-
-        try {
-            $client = new Client();
-            $url = config('app.automations.on_create_url');
-            
-            $contactInfo = $this->getCustomerInfoOnCreate($request->lead_contact);
-      
-           
-
-            $payload = [
-                'contactInformation' => $contactInfo,
-                'dealCustomFields' => $request->all(),
-               ];
-            
-            $response = $client->post($url, [
-                'json' => $payload
-            ]);
-
-            $result = json_decode($response->getBody(), true);
-            return $result;
-        } catch (\Throwable $e) {
-            \Log::error('On Create Automation trigger failed: ' . $e->getMessage(), [
-                'exception' => $e,
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return response()->json([
-                'status' => 'error',
-                'message' => 'On Create Automation trigger failed: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get customer information data array (private method for internal use)
-     *
-     * @param int $id
-     * @return array
-     */
-    private function getCustomerInfoOnUpdate($id)
-    {
-        $deal = Deal::with('leadAgent.user:id,name,image', 'category')->findOrFail($id);
-        
-        // Get the lead contact information
-        $leadContact = null;
-        if ($deal->lead_id) {
-            $leadContact = Lead::findOrFail($deal->lead_id)->withCustomFields();
-        }
-
-        // Get custom fields data for the lead contact
-        $customFieldsData = [];
-        if ($leadContact) {
-            $getCustomFieldGroupsWithFields = $leadContact->getCustomFieldGroupsWithFields();
-            if ($getCustomFieldGroupsWithFields && isset($getCustomFieldGroupsWithFields->fields)) {
-                foreach ($getCustomFieldGroupsWithFields->fields as $field) {
-                    if (isset($field['name'])) {
-                        $customFieldsData[$field['name']] = $field['value'] ?? null;
-                    }
-                }
-            }
-        }
-        
-        $customerInfo = [
-           
-            'leadContact' => $leadContact ? [
-                'id' => $leadContact->id,
-                'client_name' => $leadContact->client_name,
-                'client_name_salutation' => $leadContact->client_name_salutation,
-                'client_email' => $leadContact->client_email,
-                'mobile' => $leadContact->mobile,
-                'office_phone' => $leadContact->office_phone,
-                'website' => $leadContact->website,
-                'address' => $leadContact->address,
-                'state' => $leadContact->state,
-                'city' => $leadContact->city,
-                'postal_code' => $leadContact->postal_code,
-                'country' => $leadContact->country,
-                'company_name' => $leadContact->company_name,
-                'client_id' => $leadContact->client_id,
-                'status' => $leadContact->status,
-                'source' => $leadContact->source,
-                'note' => $leadContact->note,
-                'created_at' => $leadContact->created_at,
-                'updated_at' => $leadContact->updated_at,
-            ] : null,
-            'leadContactCustomFields' => $customFieldsData,
-           
-        ];
-
-        return $customerInfo;
-    }
-    private function getCustomerInfoOnCreate($id)
-    {
-        
-        // Get the lead contact information
-        $leadContact = null;
-        if ($id) {
-            $leadContact = Lead::findOrFail($id)->withCustomFields();
-        }
-
-        // Get custom fields data for the lead contact
-        $customFieldsData = [];
-        if ($leadContact) {
-            $getCustomFieldGroupsWithFields = $leadContact->getCustomFieldGroupsWithFields();
-            if ($getCustomFieldGroupsWithFields && isset($getCustomFieldGroupsWithFields->fields)) {
-                foreach ($getCustomFieldGroupsWithFields->fields as $field) {
-                    if (isset($field['name'])) {
-                        $customFieldsData[$field['name']] = $field['value'] ?? null;
-                    }
-                }
-            }
-        }
-        
-        $customerInfo = [
-           
-            'leadContact' => $leadContact ? [
-                'id' => $leadContact->id,
-                'client_name' => $leadContact->client_name,
-                'client_name_salutation' => $leadContact->client_name_salutation,
-                'client_email' => $leadContact->client_email,
-                'mobile' => $leadContact->mobile,
-                'office_phone' => $leadContact->office_phone,
-                'website' => $leadContact->website,
-                'address' => $leadContact->address,
-                'state' => $leadContact->state,
-                'city' => $leadContact->city,
-                'postal_code' => $leadContact->postal_code,
-                'country' => $leadContact->country,
-                'company_name' => $leadContact->company_name,
-                'client_id' => $leadContact->client_id,
-                'status' => $leadContact->status,
-                'source' => $leadContact->source,
-                'note' => $leadContact->note,
-                'created_at' => $leadContact->created_at,
-                'updated_at' => $leadContact->updated_at,
-            ] : null,
-            'leadContactCustomFields' => $customFieldsData,
-           
-        ];
-
-        return $customerInfo;
-    }
-
-
 }

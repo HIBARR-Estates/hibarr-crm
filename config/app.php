@@ -203,8 +203,10 @@ return [
     */
 
     'automations' => [
-        'on_create_url' => env('AUTOMATIONS_ON_CREATE_URL'),
-        'on_update_url' => env('AUTOMATIONS_ON_UPDATE_URL'),
+        'deals' => [
+            'create_webhook_url' => env('DEAL_CREATE_WEBHOOK_URL'),
+            'update_webhook_url' => env('DEAL_UPDATE_WEBHOOK_URL'),
+        ]
     ],
 
 
