@@ -8,7 +8,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
 <div id="task-detail-section">
 
-    <h3 class="heading-h1 mb-3">{{ $deal->name }}</h3>
+    {{-- <h3 class="heading-h1 mb-3">{{ $deal->name }}</h3> --}}
 
     <div class="row">
         <!--  USER CARDS START -->
@@ -16,6 +16,9 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
             <x-cards.data :title="__('modules.deal.dealInfo')">
 
+                <x-slot name="customFieldCategories">
+                    <x-custom-field-category-tabs :customFieldCategories="$customFieldCategories" />
+                </x-slot>
                 <x-slot name="action">
                     <div class="dropdown">
                         <button class="btn f-14 px-0 py-0 text-dark-grey dropdown-toggle" type="button"
@@ -42,72 +45,86 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                     </div>
                 </x-slot>
 
-                <p class="f-w-500">
-                    <x-status style="color: {{ $deal->pipeline->label_color }}" color="yellow"
-                                :value="$deal->pipeline->name"/>
-                    <i class="bi bi-arrow-right mx-"></i>
-                    <x-status style="color: {{ $deal->leadStage->label_color }}" color="yellow"
-                                :value="$deal->leadStage->name"/>
-                </p>
-                <x-cards.data-row :label="__('modules.deal.dealName')" :value="$deal->name ?? '--'"/>
-
-
-
-                <x-cards.data-row :label="__('modules.leadContact.leadContact')"
-                                    :value="$deal->contact->client_name_salutation ?? '--'"/>
-
-                <x-cards.data-row :label="__('app.email')" :value="$deal->contact->client_email ?? '--'"/>
-
-                <x-cards.data-row :label="__('modules.lead.companyName')"
-                                    :value="!empty($deal->contact->company_name) ? $deal->contact->company_name : '--'"/>
-
-                <x-cards.data-row :label="__('modules.deal.dealCategory')"
-                                    :value="$deal->category->category_name ?? '--'"/>
-
-                <div class="col-12 px-0 pb-3 d-flex">
-                    <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">
-                        @lang('modules.deal.dealAgent')</p>
-                    <p class="mb-0 text-dark-grey f-14">
-                        @if (!is_null($deal->leadAgent))
-                            <x-employee :user="$deal->leadAgent->user"/>
-                        @else
-                            --
-                        @endif
+                <div id="normal-fields-container">
+                    <p class="f-w-500">
+                        <x-status style="color: {{ $deal->pipeline->label_color }}" color="yellow"
+                                    :value="$deal->pipeline->name"/>
+                        <i class="bi bi-arrow-right mx-"></i>
+                        <x-status style="color: {{ $deal->leadStage->label_color }}" color="yellow"
+                                    :value="$deal->leadStage->name"/>
                     </p>
-                </div>
+                    <div class="row">
 
-                <div class="col-12 px-0 pb-3 d-flex">
-                    <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatcher') }}</p>
-                    <p class="mb-0 text-dark-grey f-14">
-                        @if (!is_null($deal->dealWatcher))
-                            <x-employee :user="$deal->dealWatcher"/>
-                        @else
-                            --
+                        <x-cards.data-row :label="__('modules.deal.dealName')" :value="$deal->name ?? '--'"/>
+        
+                        <x-cards.data-row :label="__('modules.leadContact.leadContact')"
+                                            :value="$deal->contact->client_name_salutation ?? '--'"/>
+        
+                        <x-cards.data-row :label="__('app.email')" :value="$deal->contact->client_email ?? '--'"/>
+        
+                        <x-cards.data-row :label="__('modules.lead.companyName')"
+                                            :value="!empty($deal->contact->company_name) ? $deal->contact->company_name : '--'"/>
+        
+                        <x-cards.data-row :label="__('modules.deal.dealCategory')"
+                                            :value="$deal->category->category_name ?? '--'"/>
+        
+                        <div class="col-6 px-0 pb-3 d-flex">
+                            <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">
+                                @lang('modules.deal.dealAgent')</p>
+                            <p class="mb-0 text-dark-grey f-14">
+                                @if (!is_null($deal->leadAgent))
+                                    <x-employee :user="$deal->leadAgent->user"/>
+                                @else
+                                    --
+                                @endif
+                            </p>
+                        </div>
+        
+                        <div class="col-6 px-0 pb-3 d-flex">
+                            <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatcher') }}</p>
+                            <p class="mb-0 text-dark-grey f-14">
+                                @if (!is_null($deal->dealWatcher))
+                                    <x-employee :user="$deal->dealWatcher"/>
+                                @else
+                                    --
+                                @endif
+                            </p>
+                        </div>
+        
+                        @if ($deal->leadStatus)
+                            <div class="col-12 px-0 pb-3 d-flex">
+                                <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">@lang('app.status')</p>
+                                <p class="mb-0 text-dark-grey f-14">
+                                    <x-status :value="$deal->leadStatus->type"
+                                                :style="'color:'.$deal->leadStatus->label_color"/>
+                                </p>
+        
+                            </div>
                         @endif
-                    </p>
-                </div>
-
-                @if ($deal->leadStatus)
-                    <div class="col-12 px-0 pb-3 d-flex">
-                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">@lang('app.status')</p>
-                        <p class="mb-0 text-dark-grey f-14">
-                            <x-status :value="$deal->leadStatus->type"
-                                        :style="'color:'.$deal->leadStatus->label_color"/>
-                        </p>
-
+        
+                        <x-cards.data-row :label="__('modules.deal.closeDate')"
+                                            :value="($deal->close_date) ? $deal->close_date->translatedFormat(company()->date_format) : '--'"/>
+                        <x-cards.data-row :label="__('modules.deal.dealValue')"
+                                            :value="($deal->value) ? currency_format($deal->value, $deal->currency_id) : '--'"/>
+        
+                        <x-cards.data-row :label="__('modules.lead.products')"
+                                            :value="($productNames) ? implode(', ' , $productNames) : '--'"/>
                     </div>
+
+                </div>
+                
+            {{-- Custom fields data --}}
+            <div id="custom-fields-category-container">
+                @if (isset($customFieldCategories) && count($customFieldCategories) > 0)
+                    @foreach ($customFieldCategories as $category)
+                        <div class="row custom-fields-category-container"
+                            id="custom-fields-category-{{ $category->id }}" style="display: none;">
+                            <x-forms.custom-field-show :fields="$fields" :model="$deal"
+                                :categoryId="$category->id"></x-forms.custom-field-show>
+                        </div>
+                    @endforeach
                 @endif
-
-                <x-cards.data-row :label="__('modules.deal.closeDate')"
-                                    :value="($deal->close_date) ? $deal->close_date->translatedFormat(company()->date_format) : '--'"/>
-                <x-cards.data-row :label="__('modules.deal.dealValue')"
-                                    :value="($deal->value) ? currency_format($deal->value, $deal->currency_id) : '--'"/>
-
-                <x-cards.data-row :label="__('modules.lead.products')"
-                                    :value="($productNames) ? implode(', ' , $productNames) : '--'"/>
-
-                {{-- Custom fields data --}}
-                <x-forms.custom-field-show :fields="$fields" :model="$deal"></x-forms.custom-field-show>
+            </div>
 
             </x-cards.data>
 
@@ -157,7 +174,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         <div class="col-sm-3">
 
 
-            <x-cards.data :title="__('modules.leadContact.leadDetails')">
+            {{-- <x-cards.data :title="__('modules.leadContact.leadDetails')">
 
                 <x-cards.data-row :label="__('modules.leadContact.leadContact')" otherClasses="pr-1" labelClasses="pr-1"
                                     value="<a href='{{ route('lead-contact.show', $deal->contact->id) }}' class='text-darkest-grey'> {{ $deal->contact->client_name_salutation }}</a>"/>
@@ -180,7 +197,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                     @endif
                 </div>
 
-            </x-cards.data>
+            </x-cards.data> --}}
         </div>
     </div>
 

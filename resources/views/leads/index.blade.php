@@ -18,9 +18,10 @@ $addLeadCustomFormPermission = user()->permission('manage_lead_custom_forms');
     <div class="content-wrapper">
         <!-- Add Task Export Buttons Start -->
         <div class="d-grid d-lg-flex d-md-flex action-bar">
-            <div id="table-actions" class="flex-grow-1 align-items-center">
+            <div id="table-actions" class="flex-grow flex items-center gap-4">
+                <h3 class="heading-h1 inline-flex">{{ $currentPipelineName ?? 'All Pipelines' }}</h3>
                 @if ($addLeadPermission == 'all' || $addLeadPermission == 'added')
-                    <x-forms.link-primary :link="route('deals.create')" class="mr-3 float-left mb-2 mb-lg-0 mb-md-0 openRightModal" icon="plus">
+                    <x-forms.link-primary :link="route('deals.create')" class="float-left mb-2 mb-lg-0 mb-md-0 openRightModal" icon="plus">
                         @lang('modules.deal.addDeal')
                     </x-forms.link-primary>
                 @endif
@@ -124,7 +125,20 @@ $addLeadCustomFormPermission = user()->permission('manage_lead_custom_forms');
         });
         const showTable = () => {
             window.LaravelDataTables["leads-table"].draw(true);
+            updatePipelineHeading();
         }
+
+        function updatePipelineHeading() {
+            var pipelineSelect = $('#pipeline');
+            var selectedOption = pipelineSelect.find('option:selected');
+            var pipelineName = selectedOption.text();
+            if (pipelineName) {
+                $('.heading-h1').text(pipelineName);
+            }
+        }
+
+        // Initial heading update
+        updatePipelineHeading();
         $('#reset-filters').click(function() {
             $('#filter-form')[0].reset();
             $('.filter-box #status').val('not finished');

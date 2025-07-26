@@ -79,6 +79,9 @@ class LeadContactController extends AccountBaseController
 
         $this->leadId = $id;
 
+        // Get custom field categories for lead module
+        $this->customFieldCategories = $this->getLeadCustomFieldCategories();
+
         $getCustomFieldGroupsWithFields = $this->leadContact->getCustomFieldGroupsWithFields();
         if ($getCustomFieldGroupsWithFields) {
             $this->fields = $getCustomFieldGroupsWithFields->fields;
@@ -189,14 +192,7 @@ class LeadContactController extends AccountBaseController
         $this->salutations = Salutation::cases();
 
         // Get custom field categories for lead module
-        $leadCustomFieldGroup = CustomFieldGroup::where('model', Lead::CUSTOM_FIELD_MODEL)->first();
-        if ($leadCustomFieldGroup) {
-            $this->customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
-                ->where('company_id', company()->id)
-                ->get();
-        } else {
-            $this->customFieldCategories = collect();
-        }
+        $this->customFieldCategories = $this->getLeadCustomFieldCategories();
 
         // To create deal from lead
 
@@ -344,14 +340,7 @@ class LeadContactController extends AccountBaseController
 
 
         // Get custom field categories for lead module
-        $leadCustomFieldGroup = CustomFieldGroup::where('model', Lead::CUSTOM_FIELD_MODEL)->first();
-        if ($leadCustomFieldGroup) {
-            $this->customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
-                ->where('company_id', company()->id)
-                ->get();
-        } else {
-            $this->customFieldCategories = collect();
-        }
+        $this->customFieldCategories = $this->getLeadCustomFieldCategories();
 
         if (request()->ajax()) {
             $html = view('lead-contact.ajax.edit', $this->data)->render();
@@ -549,5 +538,21 @@ class LeadContactController extends AccountBaseController
                 $leadProduct->save();
             }
         }
+    }
+
+    /**
+     * Get custom field categories for the lead module.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    private function getLeadCustomFieldCategories()
+    {
+        $leadCustomFieldGroup = CustomFieldGroup::where('model', Lead::CUSTOM_FIELD_MODEL)->first();
+        if ($leadCustomFieldGroup) {
+            return CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
+                ->where('company_id', company()->id)
+                ->get();
+        }
+        return collect();
     }
 }

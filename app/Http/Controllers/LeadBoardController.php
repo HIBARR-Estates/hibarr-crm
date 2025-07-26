@@ -389,6 +389,17 @@ class LeadBoardController extends AccountBaseController
 
         $this->leads = Deal::get();
 
+        // Determine current pipeline name for display
+        $currentPipelineName = $this->defaultPipeline->name;
+        if (request()->has('pipeline') && request('pipeline') != 'all') {
+            $selectedPipeline = $this->pipelines->find(request('pipeline'));
+            if ($selectedPipeline) {
+                $currentPipelineName = $selectedPipeline->name;
+            }
+        }
+
+        $this->data['currentPipelineName'] = $currentPipelineName;
+
         return view('leads.board.index', $this->data);
     }
 

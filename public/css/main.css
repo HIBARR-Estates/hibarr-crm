@@ -8985,7 +8985,7 @@ input[type=button].btn-block {
 .card-body {
   flex: 1 1 auto;
   min-height: 1px;
-  padding: 1.25rem;
+  padding: 0.75rem;
 }
 .card-title {
   margin-bottom: 0.75rem;
@@ -18947,7 +18947,7 @@ button.disabled, button:disabled {
 }
 .btn-primary {
   text-transform: capitalize;
-  padding: 9px 11px;
+  padding: 9px 1rem !important;
   background-color: #1d82f5 !important;
   color: #fff !important;
   border: 1px solid #1d82f5 !important;
@@ -18968,7 +18968,7 @@ button.disabled, button:disabled {
 }
 .btn-secondary {
   text-transform: capitalize;
-  padding: 9px 11px;
+  padding: 9px 1rem !important;
   border: solid 1px #616e80;
   background-color: #fff !important;
   color: #616e80 !important;
@@ -18987,7 +18987,7 @@ button.disabled, button:disabled {
 }
 .btn-cancel {
   text-transform: capitalize;
-  padding: 9px 11px;
+  padding: 9px 1rem !important;
   border: 1px solid #fff;
   background-color: #fff !important;
   color: #99A5B5 !important;
@@ -19010,7 +19010,7 @@ button.disabled, button:disabled {
   color: #fff;
   border: 0px;
   position: relative;
-  padding: 9px 11px;
+  padding: 9px 1rem !important;
 }
 .btn-danger:hover {
   background-color: black;
@@ -19049,7 +19049,7 @@ button.disabled, button:disabled {
   }
 }
 .taskExportBtns button {
-  padding: 9px 11px;
+  padding: 9px 1rem !important;
 }
 @media (max-width: 767.98px) {
   div.dataTables_wrapper div.dataTables_paginate ul.pagination {
@@ -19230,7 +19230,7 @@ button.disabled, button:disabled {
   border-top: solid 1px #e8eef3;
 }
 .more-filters .more-filter-tab.in .clear-all button {
-  padding: 9px 11px;
+  padding: 9px 1rem !important;
   margin-right: 9px;
 }
 .more-filters .filter-detail {
@@ -19869,12 +19869,13 @@ button.disabled, button:disabled {
   height: 25px;
   border: solid 1px #707070;
   overflow: hidden;
+  object-position: center;
 }
 .avatar-img img {
   -o-object-fit: cover;
      object-fit: cover;
-  min-width: 25px;
-  height: 25px;
+  /* min-width: 25px;
+  height: 25px; */
 }
 .pagination .page-item.active .page-link {
   background-color: #1d82f5;
@@ -20823,7 +20824,7 @@ table {
   border: solid 1px #616e80;
 }
 .ticket-wrapper .ticket-left .ticket-reply-back button {
-  padding: 9px 11px;
+  padding: 9px 1rem !important;
 }
 .ticket-wrapper .ticket-right {
   max-width: 393px;
@@ -20854,7 +20855,7 @@ table {
   padding: 14px 28px;
 }
 .ticket-wrapper .ticket-right .ticket-update button {
-  padding: 9px 11px;
+  padding: 9px 1rem !important;
 }
 .ticket-wrapper .ticket-right .ticket-contact-owner .card-img {
   width: 42px;
@@ -21108,7 +21109,6 @@ table {
 button {
   cursor: pointer;
   border: 0;
-  padding: 0;
 }
 .tabs {
   position: relative;

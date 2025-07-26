@@ -38,9 +38,10 @@
 
             <x-alert type="warning" icon="info" class="d-lg-none">@lang('messages.dragDropScreenInfo')</x-alert>
 
-            <div id="table-actions" class="flex-grow-1 align-items-center">
+            <div id="table-actions" class="flex-grow flex items-center gap-4">
+                <h3 class="heading-h1 inline-flex">{{ $currentPipelineName ?? 'All Pipelines' }}</h3>
                 @if ($addLeadPermission == 'all' || $addLeadPermission == 'added')
-                    <x-forms.link-primary :link="route('deals.create')" class="mr-3 openRightModal float-left" icon="plus">
+                    <x-forms.link-primary :link="route('deals.create')" class="openRightModal float-left" icon="plus">
                         @lang('modules.deal.addDeal')
                     </x-forms.link-primary>
                 @endif
@@ -116,8 +117,21 @@
                     $("body").tooltip({
                         selector: '[data-toggle="tooltip"]'
                     });
+                    
+                    // Update the pipeline heading
+                    updatePipelineHeading();
                 }
             });
+        }
+
+        function updatePipelineHeading() {
+            var pipelineSelect = $('#pipeline');
+            var selectedOption = pipelineSelect.find('option:selected');
+            var pipelineName = selectedOption.text();
+            
+            if (pipelineName) {
+                $('.heading-h1').text(pipelineName);
+            }
         }
 
         $('body').on('click', '.load-more-tasks', function() {
@@ -319,5 +333,6 @@
         });
 
         showTable();
+        updatePipelineHeading();
     </script>
 @endpush
