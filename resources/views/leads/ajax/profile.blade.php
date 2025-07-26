@@ -4,7 +4,6 @@
     <div class="col-sm-9 mb-4 mb-xl-0 mb-lg-4 mb-md-0">
 
         <x-cards.data :title="__('modules.deal.dealInfo')">
-
             <x-slot name="customFieldCategories">
                 <x-custom-field-category-tabs :customFieldCategories="$customFieldCategories" />
             </x-slot>
