@@ -129,14 +129,6 @@ class CustomField extends BaseModel
                 if ($customField->type == 'checkbox') {
                     $checkboxValue = $finalData?->value;
                     if (!empty($checkboxValue)) {
-                        return $checkboxValue;
-                    }
-                    return '--';
-                }
-
-                if ($customField->type == 'checkbox') {
-                    $checkboxValue = $finalData?->value;
-                    if (!empty($checkboxValue)) {
                         $selectedValues = explode(', ', $checkboxValue);
                         $data = json_decode($customField->values);
                         $displayValues = [];
