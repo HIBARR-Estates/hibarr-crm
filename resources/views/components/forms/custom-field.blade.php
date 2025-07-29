@@ -71,8 +71,9 @@
                                 <input type="hidden" name="custom_fields_data[{{ $field->name . '_' . $field->id }}]"
                                        id="{{$field->field_name.'_'.$field->id}}"/>
                                 @php
-                                    // Check if any option contains "other"
+                                    $hasOtherOption = false;
                                     $fieldValues = $allFieldValues[$field->id] ?? [];
+                                     $selectedValue = $model->custom_fields_data['field_' . $field->id] ?? '';
                                     
                                     foreach ($fieldValues as $value) {
                                         if (strtolower($value) === 'other') {
@@ -428,7 +429,12 @@ $(document).ready(function() {
     $('[id^="country_phonecode_"]').on('change', function() {
         var fieldId = $(this).attr('id').replace('country_phonecode_', '');
         var selectedPhoneCode = $(this).val();
+        var phoneInput = $('input[name="custom_fields_data[field_' + fieldId + ']"]');
+        var phoneNumber = phoneInput.val();
         
+         if (phoneNumber) {
+            phoneInput.data('country-code', selectedPhoneCode);
+        }
     });
     
   
