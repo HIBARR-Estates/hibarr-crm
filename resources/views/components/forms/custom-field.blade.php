@@ -73,7 +73,6 @@
                                 @php
                                     $hasOtherOption = false;
                                     $fieldValues = $allFieldValues[$field->id] ?? [];
-                                     $selectedValue = $model->custom_fields_data['field_' . $field->id] ?? '';
                                     
                                     foreach ($fieldValues as $value) {
                                         if (strtolower($value) === 'other') {
@@ -81,6 +80,9 @@
                                             break;
                                         }
                                     }
+                                @endphp
+                                 @php
+                                    $selectedValue = $model->custom_fields_data['field_' . $field->id] ?? '';
                                 @endphp
                                 
                                 @foreach ($fieldValues as $key => $value)
