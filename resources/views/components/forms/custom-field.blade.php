@@ -61,17 +61,51 @@
                             <div class="d-flex flex-wrap">
                                 <input type="hidden" name="custom_fields_data[{{ $field->name . '_' . $field->id }}]"
                                        id="{{$field->field_name.'_'.$field->id}}"/>
-                                @foreach ($field->values as $key => $value)
+                                @php
+                                    $hasOtherOption = false;
+                                    $otherValue = '';
+                                    $selectedValue = $model ? $model->custom_fields_data['field_'.$field->id] : '';
+                                    
+                                    // Check if selected value is an "other" value
+                                    if (strpos($selectedValue, 'other: ') === 0) {
+                                        $otherValue = substr($selectedValue, 7);
+                                        $selectedValue = 'other';
+                                    }
+                                    
+                                    // Check if any option contains "other"
+                                    $fieldValues = is_string($field->values) ? json_decode($field->values) : $field->values;
+                                    
+                                    foreach ($fieldValues as $value) {
+                                        if (strtolower($value) === 'other') {
+                                            $hasOtherOption = true;
+                                            break;
+                                        }
+                                    }
+                                @endphp
+                                
+                                @foreach ($fieldValues as $key => $value)
                                     <x-forms.radio
                                         fieldId="optionsRadios{{ $key . $field->id }}"
                                         :fieldLabel="$value"
                                         fieldName="custom_fields_data[{{ $field->name . '_' . $field->id }}]"
                                         :fieldValue="$value"
-                                        :checked="($model && $model->custom_fields_data['field_'.$field->id] == $value) ? true : false"
+                                        :checked="($selectedValue == $value) ? true : false"
                                         :fieldRequired="($field->required === 'yes') ? true : false"
+                                        onchange="handleRadioChange('{{$field->field_name.'_'.$field->id}}', '{{$value}}', '{{$hasOtherOption}}', '{{$field->id}}')"
                                     />
                                 @endforeach
                             </div>
+                            
+                            @if($hasOtherOption)
+                                <div id="other_text_{{ $field->id }}" class="mt-2" style="display: {{ ($selectedValue == 'other') ? 'block' : 'none' }};">
+                                    <input type="text" 
+                                           class="form-control height-35 f-14" 
+                                           placeholder="Please specify..."
+                                           id="other_input_{{ $field->id }}"
+                                           value="{{ $otherValue }}"
+                                           onchange="updateOtherValue('{{$field->field_name.'_'.$field->id}}', '{{$field->id}}')">
+                                </div>
+                            @endif
                         </div>
 
                     @elseif($field->type == 'select')
@@ -93,47 +127,184 @@
                                             :fieldValue="($model && $model->custom_fields_data['field_'.$field->id] != '') ? \Carbon\Carbon::parse($model->custom_fields_data['field_'.$field->id])->format(company()->date_format) : now()->format(company()->date_format)"
                                             :fieldPlaceholder="$field->label"/>
 
+                  
+
                     @elseif($field->type == 'checkbox')
-                        <div class="col-md-12 p-0">
-                            <div class="form-group my-3">
-                                <x-forms.label
-                                    fieldId="custom_fields_data[{{ $field->field_name . '_' . $field->id }}]"
-                                    :fieldLabel="$field->label"
-                                    :fieldRequired="($field->required === 'yes') ? true : false">
-                                </x-forms.label>
-                                <div class="d-flex flex-wrap checkbox-{{$field->id}}">
-                                    @php
-                                        $checkedValues = '';
+                        <x-forms.label
+                            fieldId="custom_fields_data[{{ $field->field_name . '_' . $field->id }}]"
+                            :fieldLabel="$field->label"
+                            :fieldRequired="($field->required === 'yes') ? true : false">
+                        </x-forms.label>
+                        <div class="d-flex flex-wrap checkbox{{$field->id}}">
+                            @php
+                                $checkedValues = '';
+                                $selectedValues = [];
+                                $hasOtherOption = false;
+                                $otherValue = '';
 
-                                        foreach (json_decode($field->values) as $key => $value) {
-                                            if ($model && $model->custom_fields_data['field_'.$field->id] != '' && in_array($value ,explode(', ', $model->custom_fields_data['field_'.$field->id]))) {
+                                if ($model && $model->custom_fields_data['field_'.$field->id] != '') {
+                                    $selectedValues = explode(', ', $model->custom_fields_data['field_'.$field->id]);
+                                }
 
-                                                $checkedValues .= ($checkedValues == '') ? $value : ', '.$value;
-                                            }
-                                        }
-                                    @endphp
+                                // Check if any option contains "other"
+                                foreach (json_decode($field->values) as $value) {
+                                    if (strtolower($value) === 'other') {
+                                        $hasOtherOption = true;
+                                        break;
+                                    }
+                                }
+                                
+                                // Extract "other" value from selected values
+                                $otherSelectedValues = [];
+                                foreach ($selectedValues as $value) {
+                                    if (strpos($value, 'other: ') === 0) {
+                                        $otherValue = substr($value, 7);
+                                        $otherSelectedValues[] = 'other';
+                                    } else {
+                                        $otherSelectedValues[] = $value;
+                                    }
+                                }
 
-                                    <input type="hidden"
-                                           name="custom_fields_data[{{$field->field_name.'_'.$field->id}}]"
-                                           id="{{$field->field_name.'_'.$field->id}}"
-                                            value="{{ $checkedValues }}"
-                                           >
-                                    @foreach (json_decode($field->values) as $key => $value)
-                                        <div class="col-6 p-0">
+                                foreach (json_decode($field->values) as $key => $value) {
+                                    if (in_array($value, $otherSelectedValues)) {
+                                        $checkedValues .= ($checkedValues == '') ? $value : ', '.$value;
+                                    }
+                                }
+                            @endphp
 
-                                            <x-forms.checkbox
-                                                fieldId="optionsRadios{{ $key . $field->id }}"
-                                                :fieldLabel="$value"
-                                                :fieldName="$field->field_name.'_'.$field->id.'[]'"
-                                                :fieldValue="$value"
-                                                :checked="$model && $model->custom_fields_data['field_'.$field->id] != '' && in_array($value ,explode(', ', $model->custom_fields_data['field_'.$field->id]))"
-                                                onchange="checkboxChange('checkbox-{{$field->id}}', '{{$field->field_name.'_'.$field->id}}')"
-                                                :fieldRequired="($field->required === 'yes') ? true : false"/>
-                                        </div>
-                                    @endforeach
+                            <input type="hidden"
+                                   name="custom_fields_data[{{$field->field_name.'_'.$field->id}}]"
+                                   id="{{$field->field_name.'_'.$field->id}}"
+                                   value="{{ $checkedValues }}">
+
+                            @foreach (json_decode($field->values) as $key => $value)
+                                <div class="col-6 p-0">
+                                    <x-forms.checkbox
+                                        fieldId="checkbox{{ $key . $field->id }}"
+                                        :fieldLabel="$value"
+                                        :fieldName="$field->field_name.'_'.$field->id.'[]'"
+                                        :fieldValue="$value"
+                                        :checked="in_array($value, $otherSelectedValues)"
+                                        onchange="checkboxMsChange('checkbox{{$field->id}}', '{{$field->field_name.'_'.$field->id}}', '{{$hasOtherOption}}', '{{$field->id}}')"
+                                        :fieldRequired="($field->required === 'yes') ? true : false"/>
                                 </div>
-                            </div>
+                            @endforeach
                         </div>
+                        
+                        @if($hasOtherOption)
+                            <div id="other_text_checkbox_{{ $field->id }}" class="mt-2" style="display: {{ (in_array('other', $otherSelectedValues)) ? 'block' : 'none' }};">
+                                <input type="text" 
+                                       class="form-control height-35 f-14" 
+                                       placeholder="Please specify..."
+                                       id="other_input_checkbox_{{ $field->id }}"
+                                       value="{{ $otherValue }}"
+                                       onchange="updateOtherCheckboxValue('{{$field->field_name.'_'.$field->id}}', '{{$field->id}}')">
+                            </div>
+                        @endif
+
+                    @elseif($field->type == 'country')
+                        <x-forms.select
+                            fieldId="custom_fields_data[{{ $field->name . '_' . $field->id }}]"
+                            :fieldLabel="$field->label"
+                            fieldName="custom_fields_data[{{ $field->name . '_' . $field->id }}]"
+                            :fieldRequired="($field->required === 'yes') ? true : false"
+                            search="true">
+                            <option value="">--</option>
+                            @foreach (\App\Models\Country::all() as $item)
+                                <option data-tokens="{{ $item->iso3 }}" data-phonecode="{{ $item->phonecode }}"
+                                    data-iso="{{ $item->iso }}" 
+                                    data-content="<span class='flag-icon flag-icon-{{ strtolower($item->iso) }} flag-icon-squared'></span> {{ $item->nicename }}"
+                                    value="{{ $item->nicename }}" 
+                                    {{ ($model->custom_fields_data['field_'.$field->id] ?? '') == $item->nicename ? 'selected' : '' }}>
+                                    {{ $item->nicename }}
+                                </option>
+                            @endforeach
+                        </x-forms.select>
+                        
+                    @elseif($field->type == 'phone')
+                        @php
+                            $phoneValue = $model->custom_fields_data['field_'.$field->id] ?? '';
+                            $countryCode = '';
+                            $phoneNumber = '';
+                            
+                            // Parse existing phone value if it contains country code
+                            if (!empty($phoneValue) && strpos($phoneValue, '+') === 0) {
+                                $parts = explode(' ', $phoneValue, 2);
+                                if (count($parts) == 2) {
+                                    $countryCode = str_replace('+', '', $parts[0]);
+                                    $phoneNumber = $parts[1];
+                                } else {
+                                    $phoneNumber = $phoneValue;
+                                }
+                            } else {
+                                $phoneNumber = $phoneValue;
+                            }
+                        @endphp
+                        <x-forms.label class="my-3" fieldId="custom_fields_data[{{ $field->name . '_' . $field->id }}]"
+                            :fieldLabel="$field->label" :fieldRequired="($field->required === 'yes') ? true : false">
+                        </x-forms.label>
+                        <x-forms.input-group style="margin-top:-4px">
+                            <x-forms.select fieldId="country_phonecode_{{ $field->id }}" fieldName="country_phonecode_{{ $field->id }}"
+                                search="true">
+                                @foreach (\App\Models\Country::all() as $item)
+                                    <option data-tokens="{{ $item->name }}" data-country-iso="{{ $item->iso }}"
+                                            data-content="{{$item->flagSpanCountryCode()}}"
+                                            value="{{ $item->phonecode }}"
+                                            {{ $countryCode == $item->phonecode ? 'selected' : '' }}>
+                                        {{ $item->phonecode }}
+                                    </option>
+                                @endforeach
+                            </x-forms.select>
+                            <input type="tel" class="form-control height-35 f-14" 
+                                placeholder="@lang('placeholders.mobile')"
+                                name="custom_fields_data[{{ $field->name . '_' . $field->id }}]" 
+                                id="custom_fields_data[{{ $field->name . '_' . $field->id }}]" 
+                                value="{{ $phoneNumber }}">
+                        </x-forms.input-group>
+
+                    @elseif($field->type == 'currency')
+                        @php
+                            $currencyValue = $model->custom_fields_data['field_'.$field->id] ?? '';
+                            $selectedCurrencyId = '';
+                            $amountValue = '';
+                            
+                            // Parse existing currency value if it contains currency code and amount
+                            if (!empty($currencyValue) && strpos($currencyValue, '|') !== false) {
+                                $parts = explode('|', $currencyValue, 2);
+                                $currencyCode = $parts[0];
+                                $amountValue = $parts[1];
+                                
+                                $currency = \App\Models\Currency::where('currency_code', $currencyCode)->first();
+                                if ($currency) {
+                                    $selectedCurrencyId = $currency->id;
+                                }
+                            } else {
+                                $amountValue = $currencyValue;
+                            }
+                        @endphp
+                        <x-forms.label class="my-3" fieldId="custom_fields_data[{{ $field->name . '_' . $field->id }}]"
+                            :fieldLabel="$field->label" :fieldRequired="($field->required === 'yes') ? true : false">
+                        </x-forms.label>
+                        <x-forms.input-group style="margin-top:-4px">
+                            <x-forms.select fieldId="currency_{{ $field->id }}" fieldName="currency_{{ $field->id }}"
+                                search="true">
+                                @foreach (\App\Models\Currency::all() as $currency)
+                                    <option data-tokens="{{ $currency->currency_code }} {{ $currency->currency_name }}"
+                                            data-currency-symbol="{{ $currency->currency_symbol }}"
+                                            value="{{ $currency->id }}"
+                                            {{ $selectedCurrencyId == $currency->id ? 'selected' : '' }}>
+                                        {{ $currency->currency_code }}
+                                    </option>
+                                @endforeach
+                            </x-forms.select>
+                            <input type="number" class="form-control height-35 f-14" 
+                                placeholder="0.00"
+                                name="custom_fields_data[{{ $field->name . '_' . $field->id }}]" 
+                                id="custom_fields_data[{{ $field->name . '_' . $field->id }}]" 
+                                value="{{ $amountValue }}"
+                                step="0.01"
+                                min="0">
+                        </x-forms.input-group>
 
                     @elseif ($field->type == 'file')
                         <input type="hidden" name="custom_fields_data[{{$field->name.'_'.$field->id}}]"
@@ -155,3 +326,118 @@
         @endforeach
     </div>
 @endif
+
+<script>
+// Global functions for handling "other" options
+window.checkboxMsChange = function(containerClass, hiddenInputId, hasOtherOption, fieldId) {
+    var checkedValues = [];
+    $('.' + containerClass + ' input[type="checkbox"]:checked').each(function() {
+        checkedValues.push($(this).val());
+    });
+    $('#' + hiddenInputId).val(checkedValues.join(', '));
+
+    if (hasOtherOption) {
+        var otherInput = $('#other_input_checkbox_' + fieldId);
+        var otherTextDiv = $('#other_text_checkbox_' + fieldId);
+
+        if (checkedValues.includes('other')) {
+            otherTextDiv.show();
+        } else {
+            otherTextDiv.hide();
+            otherInput.val(''); // Clear value if "other" is unchecked
+        }
+    }
+};
+
+// Function to handle radio change for "other" option
+window.handleRadioChange = function(hiddenInputId, selectedValue, hasOtherOption, fieldId) {
+    var otherTextDiv = $('#other_text_' + fieldId);
+    var otherInput = $('#other_input_' + fieldId);
+
+    if (hasOtherOption && selectedValue.toLowerCase() === 'other') {
+        otherTextDiv.show();
+        otherInput.focus();
+    } else {
+        otherTextDiv.hide();
+        otherInput.val(''); // Clear value if "other" is not selected
+    }
+};
+
+// Function to update other value for radio fields
+window.updateOtherValue = function(fieldName, fieldId) {
+    var otherInput = $('#other_input_' + fieldId);
+    var otherValue = otherInput.val().trim();
+    
+    if (otherValue !== '') {
+        $('#' + fieldName).val('other: ' + otherValue);
+    } else {
+        $('#' + fieldName).val('other');
+    }
+};
+
+// Function to update other value for checkbox fields
+window.updateOtherCheckboxValue = function(fieldName, fieldId) {
+    var otherInput = $('#other_input_checkbox_' + fieldId);
+    var otherValue = otherInput.val().trim();
+    var hiddenInput = $('#' + fieldName);
+    var currentValues = hiddenInput.val().split(', ');
+    
+    // Remove any existing "other: " values
+    currentValues = currentValues.filter(function(value) {
+        return value.indexOf('other: ') !== 0;
+    });
+    
+    // Add "other" option if it's checked
+    if (currentValues.includes('other')) {
+        if (otherValue !== '') {
+            currentValues.push('other: ' + otherValue);
+        } else {
+            currentValues.push('other');
+        }
+    }
+    
+    hiddenInput.val(currentValues.join(', '));
+};
+
+$(document).ready(function() {
+    // Handle country code selection for phone fields
+    $('[id^="country_phonecode_"]').on('change', function() {
+        var fieldId = $(this).attr('id').replace('country_phonecode_', '');
+        var selectedPhoneCode = $(this).val();
+        
+        // You can add additional logic here if needed
+        // For example, auto-format the phone number or validate based on country
+    });
+    
+    // Initialize select picker for phone country codes
+    $('[id^="country_phonecode_"]').selectpicker();
+    
+    // Initialize select picker for currency fields
+    $('select[name*="custom_fields_data"][name*="currency"]').selectpicker();
+    
+    // Handle currency field functionality
+    $('select[id^="currency_"]').on('change', function() {
+        var fieldId = $(this).attr('id').replace('currency_', '');
+        var selectedCurrency = $(this).find(':selected');
+        var currencySymbol = selectedCurrency.data('currency-symbol');
+        var amountInput = $('input[name="custom_fields_data[field_' + fieldId + ']"]');
+        
+        // Update placeholder with currency symbol
+        if (currencySymbol) {
+            amountInput.attr('placeholder', currencySymbol + ' 0.00');
+        }
+    });
+    
+    // Initialize currency symbols for existing fields
+    $('select[id^="currency_"]').each(function() {
+        var fieldId = $(this).attr('id').replace('currency_', '');
+        var selectedCurrency = $(this).find(':selected');
+        var currencySymbol = selectedCurrency.data('currency-symbol');
+        var amountInput = $('input[name="custom_fields_data[field_' + fieldId + ']"]');
+        
+        if (currencySymbol) {
+            amountInput.attr('placeholder', currencySymbol + ' 0.00');
+        }
+    });
+});
+</script>

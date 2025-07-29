@@ -117,7 +117,7 @@
     }
 
     $('#type').on('change', function () {
-        if (this.value === 'select' || this.value === 'radio' || this.value === 'checkbox'){
+            if (this.value === 'select' || this.value === 'radio' || this.value === 'checkbox'){
             $(".mt-repeater").show();
         } else {
             $(".mt-repeater").hide();

@@ -47,9 +47,9 @@ class CustomFieldController extends AccountBaseController
      * @return \Illuminate\Http\Response
      */
     public function create()
-    {
-        $this->customFieldGroups = CustomFieldGroup::all();
-        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'file'];
+        {
+            $this->customFieldGroups = CustomFieldGroup::all();
+            $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
         return view('custom-fields.create-custom-field-modal', $this->data);
     }
 

@@ -122,6 +122,16 @@ trait CustomFieldsTrait
 
             $value = ($fieldType == 'date') ? Carbon::createFromFormat($company->date_format, $value)->format('Y-m-d') : $value;
             $value = ($fieldType == 'file' && !is_string($value) && !is_null($value)) ? Files::uploadLocalOrS3($value, 'custom_fields') : $value;
+            
+            // Handle phone field with country code
+            if ($fieldType == 'phone' && !empty($value)) {
+                // Check if there's a corresponding country code field
+                $countryCodeKey = 'country_phonecode_' . $id;
+                if (isset($fields[$countryCodeKey]) && !empty($fields[$countryCodeKey])) {
+                    $countryCode = $fields[$countryCodeKey];
+                    $value = '+' . $countryCode . ' ' . $value;
+                }
+            }
 
             // Find is entry exists
             $entry = DB::table('custom_fields_data')

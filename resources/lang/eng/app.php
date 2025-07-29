@@ -1039,7 +1039,7 @@ return array(
     'number' => 'Number',
     'textarea' => 'Text Area',
     'radio' => 'Radio',
-    'checkbox' => 'Check Box',
+    'checkbox' => 'Check Box (Multi-Select)',
     'inprocess' => 'In Process',
     'converted' => 'Converted',
     'google' => 'Google',
