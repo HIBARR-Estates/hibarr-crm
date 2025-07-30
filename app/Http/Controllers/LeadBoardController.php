@@ -16,9 +16,11 @@ use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use App\Models\UserLeadboardSetting;
 use App\Helper\Common;
+use App\Traits\DealAutomationTrait;
 
 class LeadBoardController extends AccountBaseController
 {
+    use DealAutomationTrait;
 
     public function __construct()
     {
@@ -487,12 +489,23 @@ class LeadBoardController extends AccountBaseController
             foreach ($taskIds as $key => $taskId) {
                 if (!is_null($taskId)) {
                     $task = Deal::findOrFail($taskId);
+                    
+                    // Only trigger automation if the deal actually changed stages
+                    $oldStageId = $task->pipeline_stage_id;
+                    $newStageId = $boardColumnId;
+                    
                     $task->update(
                         [
                             'pipeline_stage_id' => $boardColumnId,
                             'column_priority' => $priorities[$key]
                         ]
                     );
+
+                    // Only trigger automation if the stage actually changed
+                    if ($oldStageId != $newStageId) {
+                        $this->triggerDealMoveAutomation($task);
+                    }
+
                 }
             }
         }

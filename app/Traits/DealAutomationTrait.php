@@ -68,6 +68,15 @@ trait DealAutomationTrait
         ]);
     }
 
+    protected function triggerDealMoveAutomation( Deal $deal, bool $async = true): ?array
+    {
+        return $this->sendAutomationWebhook('update', [
+            'contactInformation' => $this->getCustomerInfo($deal->lead_id),
+            'dealInformation' => $deal->toArray(),
+            'dealCustomFields' => $this->extractDealCustomFieldsData($deal),
+        ]);
+    }
+
     /**
      * Send automation webhook
      *
@@ -223,6 +232,38 @@ trait DealAutomationTrait
             Log::error("Failed to extract custom fields data", [
                 'exception' => $e,
                 'lead_id' => $leadContact->id,
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Extract custom fields data from deal
+     *
+     * @param Deal $deal
+     * @return array
+     */
+    private function extractDealCustomFieldsData(Deal $deal): array
+    {
+        try {
+            $customFieldsData = [];
+            $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
+            
+            if ($getCustomFieldGroupsWithFields && isset($getCustomFieldGroupsWithFields->fields)) {
+                foreach ($getCustomFieldGroupsWithFields->fields as $field) {
+                    if (isset($field['name'])) {
+                        $customFieldsData[$field['name']] = $field['value'] ?? null;
+                    }
+                }
+            }
+
+            return $customFieldsData;
+
+        } catch (\Throwable $e) {
+            Log::error("Failed to extract deal custom fields data", [
+                'exception' => $e,
+                'deal_id' => $deal->id,
             ]);
 
             return [];
