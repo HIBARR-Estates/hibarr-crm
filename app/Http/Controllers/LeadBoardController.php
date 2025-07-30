@@ -490,7 +490,6 @@ class LeadBoardController extends AccountBaseController
                 if (!is_null($taskId)) {
                     $task = Deal::findOrFail($taskId);
                     
-                    // Only trigger automation if the deal actually changed stages
                     $oldStageId = $task->pipeline_stage_id;
                     $newStageId = $boardColumnId;
                     
@@ -501,7 +500,6 @@ class LeadBoardController extends AccountBaseController
                         ]
                     );
 
-                    // Only trigger automation if the stage actually changed
                     if ($oldStageId != $newStageId) {
                         $this->triggerDealMoveAutomation($task);
                     }

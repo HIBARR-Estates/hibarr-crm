@@ -32,11 +32,14 @@ class DealAutomationJob implements ShouldQueue
      */
     public function __construct(string $type, int $dealId, array $requestData = [])
     {
+        if (! in_array($type, ['create', 'update'])) {
+            throw new \InvalidArgumentException("Invalid automation type: {$type}");
+        }
+
         $this->type = $type;
         $this->dealId = $dealId;
         $this->requestData = $requestData;
     }
-
     /**
      * Execute the job.
      *
@@ -47,12 +50,13 @@ class DealAutomationJob implements ShouldQueue
         try {
             $deal = Deal::findOrFail($this->dealId);
             
-            // Create a mock request object for the trait methods
-            $request = new Request($this->requestData);
-
             if ($this->type === 'create') {
                 $this->triggerDealCreationAutomation($request);
+            } elseif ($this->type === 'update') {
+                $this->triggerDealUpdateAutomation($request, $deal);
             } else {
+                throw new \InvalidArgumentException("Unsupported automation type: {$this->type}");
+            }            } else {
                 $this->triggerDealUpdateAutomation($request, $deal);
             }
 

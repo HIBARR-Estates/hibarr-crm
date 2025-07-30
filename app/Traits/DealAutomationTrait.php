@@ -19,17 +19,36 @@ trait DealAutomationTrait
      */
     protected function triggerDealCreationAutomation(Request $request, bool $async = true): ?array
     {
+        $validatedData = $request->validate([
+            'lead_contact' => 'nullable|integer|exists:leads,id',
+            // Add other expected fields here
+        ]);
+
         // if ($async) {
-        //     $this->dispatchDealAutomationJob('create', 0, $request->all());
+        //     $this->dispatchDealAutomationJob('create', 0, $validatedData);
         //     return null;
         // }
 
         return $this->sendAutomationWebhook('create', [
-            'contactInformation' => $this->getCustomerInfo($request->lead_contact),
-            'dealCustomFields' => $request->all(),
+            'contactInformation' => $this->getCustomerInfo($validatedData['lead_contact'] ?? null),
+            'dealCustomFields'     => $validatedData,
         ]);
     }
-
+    private const EXCLUDED_DEAL_UPDATE_FIELDS = [
+        'f_email',
+        'f_slack_username', 
+        'redirect_url',
+        '_token',
+        '_method',
+        'name',
+        'pipeline',
+        'stage_id',
+        'category_id',
+        'agent_id',
+        'value',
+        'close_date',
+        'deal_watcher',
+    ];
     /**
      * Trigger automation for deal updates
      *
@@ -45,21 +64,7 @@ trait DealAutomationTrait
         //     return null;
         // }
 
-        $filteredRequest = collect($request->all())->except([
-            'f_email',
-            'f_slack_username',
-            'redirect_url',
-            '_token',
-            '_method',
-            'name',
-            'pipeline',
-            'stage_id',
-            'category_id',
-            'agent_id',
-            'value',
-            'close_date',
-            'deal_watcher',
-        ])->toArray();
+            $filteredRequest = collect($request->all())->except(self::EXCLUDED_DEAL_UPDATE_FIELDS)->toArray();
 
         return $this->sendAutomationWebhook('update', [
             'contactInformation' => $this->getCustomerInfo($deal->lead_id),
@@ -103,16 +108,24 @@ trait DealAutomationTrait
                 'json' => $payload,
                 'headers' => [
                     'Content-Type' => 'application/json',
-                    'User-Agent' => 'Hibarr-CRM/1.0',
-                ],
+            $body = $response->getBody()->getContents();
+            $result = ! empty($body) ? json_decode($body, true) : null;
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::warning("Invalid JSON response from webhook", [
+                    'type'       => $type,
+                    'json_error' => json_last_error_msg(),
+                ]);
+                return null;
+            }
+
+            Log::info("Automation webhook sent successfully", [
+                'type'        => $type,
+                'url'         => $url,
+                'status_code' => $response->getStatusCode(),
             ]);
 
-            $result = json_decode($response->getBody(), true);
-            
-            Log::info("Automation webhook sent successfully", [
-                'type' => $type,
-                'url' => $url,
-                'status_code' => $response->getStatusCode(),
+            return $result;                'status_code' => $response->getStatusCode(),
             ]);
 
             return $result;
@@ -207,16 +220,17 @@ trait DealAutomationTrait
     }
 
     /**
-     * Extract custom fields data from lead contact
+     * Extract custom fields data from any model with custom fields
      *
-     * @param Lead $leadContact
+     * @param \Illuminate\Database\Eloquent\Model $model
+     * @param string $modelType For logging purposes
      * @return array
      */
-    private function extractCustomFieldsData(Lead $leadContact): array
+    private function extractCustomFieldsFromModel($model, string $modelType): array
     {
         try {
             $customFieldsData = [];
-            $getCustomFieldGroupsWithFields = $leadContact->getCustomFieldGroupsWithFields();
+            $getCustomFieldGroupsWithFields = $model->getCustomFieldGroupsWithFields();
             
             if ($getCustomFieldGroupsWithFields && isset($getCustomFieldGroupsWithFields->fields)) {
                 foreach ($getCustomFieldGroupsWithFields->fields as $field) {
@@ -229,13 +243,24 @@ trait DealAutomationTrait
             return $customFieldsData;
 
         } catch (\Throwable $e) {
-            Log::error("Failed to extract custom fields data", [
+            Log::error("Failed to extract custom fields data from {$modelType}", [
                 'exception' => $e,
-                'lead_id' => $leadContact->id,
+                'id' => $model->id,
             ]);
 
             return [];
         }
+    }
+
+    /**
+     * Extract custom fields data from lead contact
+     *
+     * @param Lead $leadContact
+     * @return array
+     */
+    private function extractCustomFieldsData(Lead $leadContact): array
+    {
+        return $this->extractCustomFieldsFromModel($leadContact, 'lead');
     }
 
     /**
@@ -246,23 +271,9 @@ trait DealAutomationTrait
      */
     private function extractDealCustomFieldsData(Deal $deal): array
     {
-        try {
-            $customFieldsData = [];
-            $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
-            
-            if ($getCustomFieldGroupsWithFields && isset($getCustomFieldGroupsWithFields->fields)) {
-                foreach ($getCustomFieldGroupsWithFields->fields as $field) {
-                    if (isset($field['name'])) {
-                        $customFieldsData[$field['name']] = $field['value'] ?? null;
-                    }
-                }
-            }
-
-            return $customFieldsData;
-
-        } catch (\Throwable $e) {
-            Log::error("Failed to extract deal custom fields data", [
-                'exception' => $e,
+        return $this->extractCustomFieldsFromModel($deal, 'deal');
+    }
+}                 'exception' => $e,
                 'deal_id' => $deal->id,
             ]);
 
