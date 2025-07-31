@@ -43,13 +43,17 @@ use App\Models\PurposeConsent;
 use App\Models\PurposeConsentLead;
 use App\Models\User;
 use App\Traits\ImportExcel;
+use App\Traits\DealAutomationTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Log;
 
 class DealController extends AccountBaseController
 {
 
     use ImportExcel;
+    use DealAutomationTrait;
 
     public function __construct()
     {
@@ -201,6 +205,7 @@ class DealController extends AccountBaseController
                 abort_403(!in_array(user()->permission('view_lead_proposals'), ['all', 'added']));
 
                 $this->proposals = Proposal::where('deal_id', $id)->get();
+
 
                 if (user()->permission('view_lead_proposals') == 'added') {
                     $this->proposals = $this->proposals->where('added_by', user()->id);
@@ -365,6 +370,8 @@ class DealController extends AccountBaseController
         if ($request->custom_fields_data) {
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
+        
+        $this->triggerDealCreationAutomation($request);
 
         // Log search
         $this->logSearchEntry($deal->id, $deal->name, 'deals.show', 'deal');
@@ -504,9 +511,10 @@ class DealController extends AccountBaseController
         if ($request->custom_fields_data) {
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
-
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
-
+        
+        $this->triggerDealUpdateAutomation($request, $deal);
+        
         return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
     }
 
@@ -553,6 +561,8 @@ class DealController extends AccountBaseController
 
         $deal->status_id = $request->statusID;
         $deal->save();
+
+        $this->triggerDealUpdateAutomation($request, $deal);
 
         return Reply::success(__('messages.recordSaved'));
     }
@@ -896,6 +906,8 @@ class DealController extends AccountBaseController
             $leadFollowUp->save();
         }
 
+
+        $this->triggerDealUpdateAutomation($request, $leadFollowUp->deal);
         return Reply::success(__('messages.leadStatusChangeSuccess'));
     }
 
@@ -936,6 +948,8 @@ class DealController extends AccountBaseController
 
         $deal->pipeline_stage_id = $request->statusID;
         $deal->save();
+
+        $this->triggerDealUpdateAutomation($request, $deal);
 
         return Reply::successWithData(__('messages.updateSuccess'), ['status' => 'success']);
     }
@@ -1025,9 +1039,10 @@ class DealController extends AccountBaseController
             $dealNote->save();
         };
 
+        $this->triggerDealUpdateAutomation($request, $deal);
+
         return Reply::success(__('messages.updateSuccess'));
     }
-
     /**
      * Get custom field categories for the lead module.
      *
@@ -1043,4 +1058,5 @@ class DealController extends AccountBaseController
         }
         return collect();
     }
+
 }
