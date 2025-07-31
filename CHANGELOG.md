@@ -81,6 +81,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Configuration Validation**: Added checks for missing webhook URLs to prevent silent failures
   - **HTTP Client Optimization**: Added proper headers, timeouts, and connection settings for reliable webhook delivery
 
+- **Leads Board Pipeline Display**: Enhanced pipeline heading to show current selected pipeline
+  - **Dynamic Pipeline Heading**: Updated leads board to display the currently selected pipeline name instead of all pipelines
+  - **Controller Enhancement**: Modified `LeadBoardController` to determine and pass current pipeline name to view
+  - **View Updates**: Updated `leads/board/index.blade.php` to display selected pipeline name in heading
+  - **JavaScript Integration**: Added `updatePipelineHeading()` function to dynamically update heading when pipeline filter changes
+  - **User Experience**: Improved clarity by showing specific pipeline name rather than generic "pipelines" text
+- **Deals Table Pipeline Display**: Enhanced pipeline heading to show current selected pipeline in the deals table view
+  - **Dynamic Pipeline Heading**: Updated deals table view to display the currently selected pipeline name instead of all pipelines
+  - **Controller Enhancement**: Modified `DealController` to determine and pass current pipeline name to view
+  - **View Updates**: Updated `leads/index.blade.php` to display selected pipeline name in heading
+  - **JavaScript Integration**: Added `updatePipelineHeading()` function to dynamically update heading when pipeline filter changes
+  - **User Experience**: Improved clarity by showing specific pipeline name rather than generic "pipelines" text
+
 ## [Current State - 2024] - Initial Documentation
 
 ### Project Overview

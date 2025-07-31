@@ -36,6 +36,8 @@ use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Models\LeadStatus;
 use App\Models\Product;
+use App\Models\CustomFieldGroup;
+use App\Models\CustomFieldCategory;
 use App\Models\Proposal;
 use App\Models\PurposeConsent;
 use App\Models\PurposeConsentLead;
@@ -173,6 +175,8 @@ class DealController extends AccountBaseController
 
         $this->leadId = $id;
 
+        $this->customFieldCategories = $this->getDealCustomFieldCategories();
+
         $getCustomFieldGroupsWithFields = $this->deal->getCustomFieldGroupsWithFields();
 
         if ($getCustomFieldGroupsWithFields) {
@@ -201,6 +205,7 @@ class DealController extends AccountBaseController
                 abort_403(!in_array(user()->permission('view_lead_proposals'), ['all', 'added']));
 
                 $this->proposals = Proposal::where('deal_id', $id)->get();
+
 
                 if (user()->permission('view_lead_proposals') == 'added') {
                     $this->proposals = $this->proposals->where('added_by', user()->id);
@@ -309,6 +314,8 @@ class DealController extends AccountBaseController
 
         $this->pageTitle = __('modules.deal.createTitle');
         $this->salutations = Salutation::cases();
+
+        $this->customFieldCategories = $this->getDealCustomFieldCategories();
 
         $this->view = 'leads.ajax.create';
 
@@ -452,6 +459,7 @@ class DealController extends AccountBaseController
         $this->pageTitle = __('modules.deal.updateDeal');
         $this->salutations = Salutation::cases();
 
+        $this->customFieldCategories = $this->getDealCustomFieldCategories();
 
         $this->view = 'leads.ajax.edit';
 
@@ -898,8 +906,8 @@ class DealController extends AccountBaseController
             $leadFollowUp->save();
         }
 
-        $this->triggerDealUpdateAutomation($request, $leadFollowUp->deal);
 
+        $this->triggerDealUpdateAutomation($request, $leadFollowUp->deal);
         return Reply::success(__('messages.leadStatusChangeSuccess'));
     }
 
@@ -1035,4 +1043,20 @@ class DealController extends AccountBaseController
 
         return Reply::success(__('messages.updateSuccess'));
     }
+    /**
+     * Get custom field categories for the lead module.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    private function getDealCustomFieldCategories()
+    {
+        $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
+        if ($dealCustomFieldGroup) {
+            return CustomFieldCategory::where('custom_field_group_id', $dealCustomFieldGroup->id)
+                ->where('company_id', company()->id)
+                ->get();
+        }
+        return collect();
+    }
+
 }

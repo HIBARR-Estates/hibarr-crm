@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('custom_fields', function (Blueprint $table) {
-            $table->unsignedInteger('custom_field_category_id')->nullable()->after('custom_field_group_id');
+            $table->unsignedBigInteger('custom_field_category_id')->nullable()->after('custom_field_group_id');
             $table->foreign('custom_field_category_id')->references('id')->on('custom_field_categories')->onDelete('set null')->onUpdate('cascade');
         });
     }
