@@ -7,8 +7,8 @@
         <x-form id="editForm" method="PUT" class="form-horizontal">
 
             <div class="row">
-                <input type="hidden" name="id" value="{{$field->id}}" />
-                <input type="hidden" name="module" value="{{$field->custom_field_group_id}}" />
+                <input type="hidden" name="id" value="{{ $field->id }}" />
+                <input type="hidden" name="module" value="{{ $field->custom_field_group_id }}" />
                 <div class="col-md-4">
                     <div class="form-group my-3">
                         <label class="control-label required" for="display_name">@lang('app.module')</label>
@@ -17,14 +17,16 @@
                 </div>
 
                 <div class="col-md-4">
-                    <div class="form-group my-3">
-                        <label class="control-label required" for="display_name">@lang('modules.customFields.fieldType')</label>
-                        <p class="mt-2 form-control-static">{{ $field->type }}</p>
-                    </div>
+                    <x-forms.select fieldId="type" :fieldLabel="__('modules.customFields.fieldType')" fieldName="type" :fieldValue="$field->type" search="true">
+                        @foreach ($types as $type)
+                            <option value="{{ $type }}" @if ($field->type == $type) selected @endif>@lang('app.' . $type)</option>
+                        @endforeach
+                    </x-forms.select>
                 </div>
 
                 <div class="col-md-4">
-                    <x-forms.text class="" :fieldLabel="__('modules.customFields.label')" fieldName="label" fieldId="label" :fieldValue="$field->label" fieldRequired="true" />
+                    <x-forms.text class="" :fieldLabel="__('modules.customFields.label')" fieldName="label" fieldId="label" :fieldValue="$field->label"
+                        fieldRequired="true" />
                 </div>
 
                 <div class="col-md-4">
@@ -47,35 +49,37 @@
                 </div>
                 <div class="col-lg-6">
                     <div class="form-group my-5">
-                        <x-forms.checkbox fieldId="visible"
-                        :fieldLabel="__('modules.customFields.showInTable')" fieldName="visible" fieldValue="true"
-                        :checked="$field->visible == 'true'"/>
+                        <x-forms.checkbox fieldId="visible" :fieldLabel="__('modules.customFields.showInTable')" fieldName="visible" fieldValue="true"
+                            :checked="$field->visible == 'true'" />
                     </div>
                 </div>
                 <div class="col-lg-6">
                     <div class="form-group my-5">
-                    <x-forms.checkbox fieldId="export"
-                        :fieldLabel="__('modules.customFields.export')" fieldName="export" fieldValue="1"
-                        :checked="$field->export == 1"/>
+                        <x-forms.checkbox fieldId="export" :fieldLabel="__('modules.customFields.export')" fieldName="export" fieldValue="1"
+                            :checked="$field->export == 1" />
                     </div>
                 </div>
             </div>
-            <div class="form-group mt-repeater" @if($field->type != 'radio' && $field->type != 'select' && $field->type != 'checkbox') style="display: none;" @endif>
+            <div class="form-group mt-repeater" @if ($field->type != 'radio' && $field->type != 'select' && $field->type != 'checkbox') style="display: none;" @endif>
 
                 @foreach ($field->values as $item)
-                <div id="addMoreBox{{$loop->iteration}}" class="row mt-2">
-                    <div class="col-md-10">
-                        <div class="form-group">
-                            <label class="control-label">@lang('app.value')</label>
-                            <input class="form-control height-35 f-14" name="value[]" type="text" value="{{ $item }}" placeholder=""/>
+                    <div id="addMoreBox{{ $loop->iteration }}" class="row mt-2">
+                        <div class="col-md-10">
+                            <div class="form-group">
+                                <label class="control-label">@lang('app.value')</label>
+                                <input class="form-control height-35 f-14" name="value[]" type="text"
+                                    value="{{ $item }}" placeholder="" />
+                            </div>
                         </div>
+                        @if ($loop->iteration !== 1)
+                            <div class="col-md-1">
+                                <div class="task_view mt-4"> <a href="javascript:;"
+                                        class="task_view_more d-flex align-items-center justify-content-center dropdown-toggle"
+                                        onclick="removeBox({{ $loop->iteration }})"> <i
+                                            class="fa fa-trash icons mr-2"></i> @lang('app.delete')</a> </div>
+                            </div>
+                        @endif
                     </div>
-                    @if($loop->iteration !== 1)
-                        <div class="col-md-1">
-                            <div class="task_view mt-4"> <a href="javascript:;" class="task_view_more d-flex align-items-center justify-content-center dropdown-toggle" onclick="removeBox({{$loop->iteration}})"> <i class="fa fa-trash icons mr-2"></i> @lang('app.delete')</a> </div>
-                        </div>
-                    @endif
-                </div>
                 @endforeach
 
                 <div id="insertBefore"></div>
@@ -83,7 +87,7 @@
                     <div class="col-md-12 mt-4">
 
                         <a class="f-15 f-w-500" href="javascript:;" data-repeater-create id="plusButton"><i
-                            class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.invoices.addItem')</a>
+                                class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.invoices.addItem')</a>
                     </div>
                 </div>
             </div>
@@ -97,27 +101,28 @@
 </div>
 
 <script>
-
     $(".select-picker").selectpicker();
 
     var $insertBefore = $('#insertBefore');
     var $i = {{ sizeof($field->values) }};
 
     // Add More Inputs
-    $('#plusButton').click(function()
-    {
-        $i = $i+1;
-        var indexs = $i+1;
-        $('<div id="addMoreBox'+indexs+'" class="row my-3"> <div class="col-md-10">  <label class="control-label">@lang('app.value')</label> <input class="form-control height-35 f-14" name="value[]" type="text" value="" placeholder=""/>  </div> <div class="col-md-1"> <div class="task_view mt-4"> <a href="javascript:;" class="task_view_more d-flex align-items-center justify-content-center dropdown-toggle" onclick="removeBox('+indexs+')"> <i class="fa fa-trash icons mr-2"></i> @lang('app.delete')</a> </div> </div></div>').insertBefore($insertBefore);
+    $('#plusButton').click(function() {
+        $i = $i + 1;
+        var indexs = $i + 1;
+        $('<div id="addMoreBox' + indexs +
+            '" class="row my-3"> <div class="col-md-10">  <label class="control-label">@lang('app.value')</label> <input class="form-control height-35 f-14" name="value[]" type="text" value="" placeholder=""/>  </div> <div class="col-md-1"> <div class="task_view mt-4"> <a href="javascript:;" class="task_view_more d-flex align-items-center justify-content-center dropdown-toggle" onclick="removeBox(' +
+            indexs + ')"> <i class="fa fa-trash icons mr-2"></i> @lang('app.delete')</a> </div> </div></div>'
+        ).insertBefore($insertBefore);
     });
 
     // Remove fields
     function removeBox(index) {
-        $('#addMoreBox'+index).remove();
+        $('#addMoreBox' + index).remove();
     }
 
-    $('#type').on('change', function () {
-            if (this.value === 'select' || this.value === 'radio' || this.value === 'checkbox'){
+    $('#type').on('change', function() {
+        if (this.value === 'select' || this.value === 'radio' || this.value === 'checkbox') {
             $(".mt-repeater").show();
         } else {
             $(".mt-repeater").hide();
@@ -125,24 +130,24 @@
     });
 
     function convertToSlug(Text) {
-        return Text.toLowerCase().replace(/[^\w ]+/g,'').replace(/ +/g,'-');
+        return Text.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '-');
     }
 
-    $('#label').keyup(function(){
+    $('#label').keyup(function() {
         $('#name').val(convertToSlug($(this).val()));
     });
 
-    $('#update-custom-field').click(function () {
+    $('#update-custom-field').click(function() {
         $.easyAjax({
-            url: "{{route('custom-fields.update', $field->id)}}",
+            url: "{{ route('custom-fields.update', $field->id) }}",
             container: '#editForm',
             type: "POST",
             data: $('#editForm').serialize(),
-            file:true,
+            file: true,
             blockUI: true,
             buttonSelector: "#update-custom-field",
-            success: function (response) {
-                if(response.status == 'success'){
+            success: function(response) {
+                if (response.status == 'success') {
                     window.location.reload();
                 }
             }
@@ -157,28 +162,34 @@
             categorySelect.empty();
             categorySelect.append('<option value="">@lang('app.loading')...</option>');
             categorySelect.selectpicker('refresh');
-            
+
             $.easyAjax({
                 url: "{{ route('custom-field-categories.get-by-group') }}",
                 type: "GET",
-                data: { custom_field_group_id: moduleId },
-                success: function (response) {
+                data: {
+                    custom_field_group_id: moduleId
+                },
+                success: function(response) {
                     categorySelect.empty();
-                    categorySelect.append('<option value="">@lang('app.select') @lang('modules.customFields.category')</option>');
-                    
+                    categorySelect.append(
+                        '<option value="">@lang('app.select') @lang('modules.customFields.category')</option>');
+
                     if (response.categories && response.categories.length > 0) {
                         $.each(response.categories, function(index, category) {
-                            var selected = (selectedCategoryId && category.id == selectedCategoryId) ? 'selected' : '';
-                            categorySelect.append('<option value="' + category.id + '" ' + selected + '>' + category.name + '</option>');
+                            var selected = (selectedCategoryId && category.id ==
+                                selectedCategoryId) ? 'selected' : '';
+                            categorySelect.append('<option value="' + category.id + '" ' +
+                                selected + '>' + category.name + '</option>');
                         });
                     }
-                    
+
                     // Refresh the select picker
                     categorySelect.selectpicker('refresh');
                 },
                 error: function() {
                     categorySelect.empty();
-                    categorySelect.append('<option value="">@lang('app.select') @lang('modules.customFields.category')</option>');
+                    categorySelect.append(
+                        '<option value="">@lang('app.select') @lang('modules.customFields.category')</option>');
                     categorySelect.selectpicker('refresh');
                 }
             });
@@ -201,6 +212,4 @@
     });
 
     // Note: Module field is read-only in edit mode, so no change handler needed
-
 </script>
-

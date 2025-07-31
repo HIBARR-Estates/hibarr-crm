@@ -94,6 +94,7 @@ class CustomFieldController extends AccountBaseController
         $this->field = CustomField::findOrFail($id);
         $this->field->values = json_decode($this->field->values);
         $this->customFieldGroups = CustomFieldGroup::all();
+        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
         // Categories will be loaded dynamically based on the selected module
 
         return view('custom-fields.edit-custom-field-modal', $this->data);
@@ -111,6 +112,7 @@ class CustomFieldController extends AccountBaseController
         $name = CustomField::generateUniqueSlug($request->label, $field->custom_field_group_id);
         $field->label = $request->label;
         $field->name = $name;
+        $field->type = $request->type;
         $field->custom_field_category_id = $request->category;
         $field->values = json_encode($request->value);
         $field->required = $request->required;
