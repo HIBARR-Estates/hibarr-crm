@@ -34,21 +34,24 @@ trait DealAutomationTrait
             'dealCustomFields'     => $validatedData,
         ]);
     }
-    private const EXCLUDED_DEAL_UPDATE_FIELDS = [
-        'f_email',
-        'f_slack_username', 
-        'redirect_url',
-        '_token',
-        '_method',
-        'name',
-        'pipeline',
-        'stage_id',
-        'category_id',
-        'agent_id',
-        'value',
-        'close_date',
-        'deal_watcher',
-    ];
+    private static function getExcludedDealUpdateFields(): array
+    {
+        return [
+            'f_email',
+            'f_slack_username', 
+            'redirect_url',
+            '_token',
+            '_method',
+            'name',
+            'pipeline',
+            'stage_id',
+            'category_id',
+            'agent_id',
+            'value',
+            'close_date',
+            'deal_watcher',
+        ];
+    }
     /**
      * Trigger automation for deal updates
      *
@@ -64,7 +67,7 @@ trait DealAutomationTrait
         //     return null;
         // }
 
-            $filteredRequest = collect($request->all())->except(self::EXCLUDED_DEAL_UPDATE_FIELDS)->toArray();
+            $filteredRequest = collect($request->all())->except(self::getExcludedDealUpdateFields())->toArray();
 
         return $this->sendAutomationWebhook('update', [
             'contactInformation' => $this->getCustomerInfo($deal->lead_id),
@@ -82,7 +85,7 @@ trait DealAutomationTrait
         ]);
     }
 
-    /**
+        /**
      * Send automation webhook
      *
      * @param string $type
@@ -108,24 +111,16 @@ trait DealAutomationTrait
                 'json' => $payload,
                 'headers' => [
                     'Content-Type' => 'application/json',
-            $body = $response->getBody()->getContents();
-            $result = ! empty($body) ? json_decode($body, true) : null;
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                Log::warning("Invalid JSON response from webhook", [
-                    'type'       => $type,
-                    'json_error' => json_last_error_msg(),
-                ]);
-                return null;
-            }
-
-            Log::info("Automation webhook sent successfully", [
-                'type'        => $type,
-                'url'         => $url,
-                'status_code' => $response->getStatusCode(),
+                    'User-Agent' => 'Hibarr-CRM/1.0',
+                ],
             ]);
 
-            return $result;                'status_code' => $response->getStatusCode(),
+            $result = json_decode($response->getBody(), true);
+            
+            Log::info("Automation webhook sent successfully", [
+                'type' => $type,
+                'url' => $url,
+                'status_code' => $response->getStatusCode(),
             ]);
 
             return $result;
@@ -273,11 +268,4 @@ trait DealAutomationTrait
     {
         return $this->extractCustomFieldsFromModel($deal, 'deal');
     }
-}                 'exception' => $e,
-                'deal_id' => $deal->id,
-            ]);
-
-            return [];
-        }
-    }
-} 
+}               
