@@ -126,6 +126,50 @@ class CustomField extends BaseModel
                     return $finalData ? '<a href="' . asset_url_local_s3('custom_fields/' . $finalData->value) . '" target="__blank" class="text-dark-grey">' . __('app.storageSetting.viewFile') . '</a>' : '--';
                 }
 
+                if ($customField->type == 'checkbox') {
+                    $checkboxValue = $finalData?->value;
+                    if (!empty($checkboxValue)) {
+                        $selectedValues = explode(', ', $checkboxValue);
+                        $data = json_decode($customField->values);
+                        $displayValues = [];
+                        
+                        foreach ($selectedValues as $selectedValue) {
+                            if (in_array($selectedValue, $data)) {
+                                $displayValues[] = $selectedValue;
+                            }
+                        }
+                        
+                        return !empty($displayValues) ? implode(', ', $displayValues) : '--';
+                    }
+                    return '--';
+                }
+
+                if ($customField->type == 'currency') {
+                    $currencyValue = $finalData?->value;
+                    if (!empty($currencyValue)) {
+                        try {
+                            // Check if the value contains currency code and amount (format: "USD|1200")
+                            if (strpos($currencyValue, '|') !== false) {
+                                $parts = explode('|', $currencyValue, 2);
+                                $currencyCode = $parts[0];
+                                $amount = $parts[1];
+                                
+                                $currency = \App\Models\Currency::where('currency_code', $currencyCode)->first();
+                                if ($currency && !empty($amount)) {
+                                    return $currency->currency_symbol . ' ' . number_format($amount, 2);
+                                }
+                            } else {
+                                // Fallback for old format (just currency ID)
+                                $currency = \App\Models\Currency::find($currencyValue);
+                                return $currency ? $currency->currency_code . ' (' . $currency->currency_symbol . ')' : '--';
+                            }
+                        } catch (\Exception $e) {
+                            return '--';
+                        }
+                    }
+                    return '--';
+                }
+
                 return $finalData ? $finalData->value : '--';
             });
 
