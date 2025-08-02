@@ -33,6 +33,12 @@ class RemoveSvgStylingPlugin {
                         "img, video, canvas, audio, iframe, embed, object { display: block; vertical-align: middle; }"
                     );
 
+                    // Remove .collapse visibility: collapse;
+                    css = css.replace(
+                        /\.collapse\s*{[^}]*}/g,
+                        ""
+                    );
+
                     fs.writeFileSync(tailwindPath, css);
                     console.log("✅ Removed SVG styling from Tailwind CSS");
                 }
