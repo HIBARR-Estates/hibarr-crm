@@ -1,5 +1,5 @@
 @props(['customFieldCategories' => null])
-<div {{ $attributes->merge(['class' => 'card bg-white border-0 b-shadow-4 overflow-hidden']) }} style="padding: 0 36px;">
+<div {{ $attributes->merge(['class' => 'card bg-white border-0 b-shadow-4']) }}>
 
     @if ($title)
         <x-cards.card-header>

@@ -49,11 +49,11 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                     <p class="f-w-500">
                         <x-status style="color: {{ $deal->pipeline->label_color }}" color="yellow"
                                     :value="$deal->pipeline->name"/>
-                        <i class="bi bi-arrow-right mx-"></i>
+                        <i class="bi bi-arrow-right mx-1"></i>
                         <x-status style="color: {{ $deal->leadStage->label_color }}" color="yellow"
                                     :value="$deal->leadStage->name"/>
                     </p>
-                    <div class="row">
+                    <div class="row mx-0">
 
                         <x-cards.data-row :label="__('modules.deal.dealName')" :value="$deal->name ?? '--'"/>
         
@@ -117,7 +117,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
             <div id="custom-fields-category-container">
                 @if (isset($customFieldCategories) && count($customFieldCategories) > 0)
                     @foreach ($customFieldCategories as $category)
-                        <div class="row custom-fields-category-container"
+                        <div class="row custom-fields-category-container mx-0"
                             id="custom-fields-category-{{ $category->id }}" style="display: none;">
                             <x-forms.custom-field-show :fields="$fields" :model="$deal"
                                 :categoryId="$category->id"></x-forms.custom-field-show>

@@ -49,7 +49,7 @@
                 </div>
             </x-slot>
 
-            <div id="normal-fields-container" class="row">
+            <div id="normal-fields-container" class="row mx-0">
                 <x-cards.data-row :label="__('app.name')" :value="$leadContact->client_name_salutation ?? '--'" />
 
                 <x-cards.data-row :label="__('app.email')" :value="$leadContact->client_email ?? '--'" />
@@ -101,7 +101,7 @@
             <div id="custom-fields-category-container">
                 @if (isset($customFieldCategories) && count($customFieldCategories) > 0)
                     @foreach ($customFieldCategories as $category)
-                        <div class="row custom-fields-category-container"
+                        <div class="row custom-fields-category-container mx-0"
                             id="custom-fields-category-{{ $category->id }}" style="display: none;">
                             <x-forms.custom-field-show :fields="$fields" :model="$leadContact"
                                 :categoryId="$category->id"></x-forms.custom-field-show>

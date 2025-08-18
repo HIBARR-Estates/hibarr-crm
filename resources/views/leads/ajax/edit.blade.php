@@ -22,7 +22,7 @@
                     <x-custom-field-category-tabs :customFieldCategories="$customFieldCategories" />
                 </div>
 
-                <div id="normal-fields-container" class="row p-20">
+                <div id="normal-fields-container" class="row mx-2 pb-4 pt-2">
                     {{-- <div class="col-lg-4 ">
                         <x-forms.select fieldId="lead_contact" :fieldLabel="__('modules.leadContact.leadContacts')" fieldName="lead_contact" fieldRequired="true">
                             <option value="">--</option>
@@ -169,7 +169,7 @@
 
                 @if (isset($customFieldCategories) && count($customFieldCategories) > 0)
                     @foreach ($customFieldCategories as $category)
-                        <div class="custom-fields-category-container" id="custom-fields-category-{{ $category->id }}"
+                        <div class="custom-fields-category-container mx-0" id="custom-fields-category-{{ $category->id }}"
                             style="display: none;">
                             <x-forms.custom-field :fields="$fields" :model="$deal" :categoryId="$category->id" />
                         </div>
