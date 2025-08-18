@@ -49,7 +49,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                     <p class="f-w-500">
                         <x-status style="color: {{ $deal->pipeline->label_color }}" color="yellow"
                                     :value="$deal->pipeline->name"/>
-                        <i class="bi bi-arrow-right mx-"></i>
+                        <i class="bi bi-arrow-right mx-1"></i>
                         <x-status style="color: {{ $deal->leadStage->label_color }}" color="yellow"
                                     :value="$deal->leadStage->name"/>
                     </p>
