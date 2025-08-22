@@ -63,8 +63,10 @@
                     </div>
 
                     <div class="col-md-4">
-                        <x-forms.tel fieldId="contact_number" :fieldLabel="__('modules.bankaccount.contactNumber')" fieldName="contact_number"
-                           :fieldPlaceholder="__('placeholders.mobile')" fieldRequired="true"></x-forms.tel>
+                        <!-- <x-forms.tel fieldId="contact_number" :fieldLabel="__('modules.bankaccount.contactNumber')" fieldName="contact_number"
+                           :fieldPlaceholder="__('placeholders.mobile')" fieldRequired="true"></x-forms.tel> -->
+                        <x-forms.phone fieldId="contact_number" :fieldLabel="__('modules.bankaccount.contactNumber')" fieldName="contact_number"
+                           :fieldPlaceholder="__('placeholders.mobile')" fieldRequired="true" />
                     </div>
 
                     <div class="col-md-4">

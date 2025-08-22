@@ -47,8 +47,10 @@
                         </div>
 
                         <div class="col-lg-4 col-md-6">
-                            <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
-                                :fieldPlaceholder="__('placeholders.mobile')"></x-forms.tel>
+                            <!-- <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
+                                :fieldPlaceholder="__('placeholders.mobile')"></x-forms.tel> -->
+                            <x-forms.phone fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
+                                :fieldPlaceholder="__('placeholders.mobile')" />
                         </div>
 
                         @if ($viewLeadSourcesPermission != 'none')

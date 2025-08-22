@@ -43,8 +43,10 @@
                         </div>
 
                         <div class="col-lg-4 col-md-6">
-                            <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile" :fieldPlaceholder="__('placeholders.mobile')"
-                                :fieldValue="$leadContact->mobile"></x-forms.tel>
+                            <!-- <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile" :fieldPlaceholder="__('placeholders.mobile')"
+                                :fieldValue="$leadContact->mobile"></x-forms.tel> -->
+                            <x-forms.phone fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
+                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$leadContact->mobile" />
                         </div>
 
                         @if ($viewLeadSourcesPermission != 'none')
@@ -106,6 +108,8 @@
                     @endforeach
                 @endif
 
+                
+
                 {{-- 
                 <h4 class="mb-0 p-20 f-21 font-weight-normal  border-top-grey">
                     @lang('modules.lead.companyDetails')</h4>
@@ -124,8 +128,10 @@
                     </div>
 
                     <div class="col-lg-3 col-md-6">
-                        <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile" :fieldPlaceholder="__('placeholders.mobile')"
-                            :fieldValue="$leadContact->mobile"></x-forms.tel>
+                            <!-- <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile" :fieldPlaceholder="__('placeholders.mobile')"
+                                :fieldValue="$leadContact->mobile"></x-forms.tel> -->
+                            <x-forms.phone fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
+                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$leadContact->mobile" />
                     </div>
 
                     <div class="col-lg-3 col-md-6">
