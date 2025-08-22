@@ -33,8 +33,8 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                             @if (
                                 $deleteLeadPermission == 'all'
                                 || ($deleteLeadPermission == 'added' && user()->id == $deal->added_by)
-                                || ($deleteLeadPermission == 'owned' && ((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)))
-                                || ($deleteLeadPermission == 'both' &&  (((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)) || user()->id == $deal->added_by))
+                                || ($deleteLeadPermission == 'owned' && ((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)))
+                                || ($deleteLeadPermission == 'both' &&  (((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)) || user()->id == $deal->added_by))
                             )
                                 <a class="dropdown-item delete-table-row" href="javascript:;" data-id="{{ $deal->id }}">
                                     @lang('app.delete')
@@ -83,8 +83,11 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                         <div class="col-6 px-0 pb-3 d-flex">
                             <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatcher') }}</p>
                             <p class="mb-0 text-dark-grey f-14">
-                                @if (!is_null($deal->dealWatcher))
-                                    <x-employee :user="$deal->dealWatcher"/>
+                                @if ($deal->dealWatchers->isNotEmpty())
+                                    @foreach ($deal->dealWatchers as $watcher)
+                                        <x-employee :user="$watcher"/>
+                                        @if (!$loop->last), @endif
+                                    @endforeach
                                 @else
                                     --
                                 @endif

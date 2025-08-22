@@ -1,7 +1,7 @@
 <?php
 
 return array(
-    'dealWatcher' => 'Deal Watcher',
+    'dealWatcher' => 'Deal Watchers',
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
     'showContact' => 'Contact Details',

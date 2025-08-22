@@ -157,10 +157,9 @@
                     @endif
 
                     <div class="col-lg-4 col-md-6">
-                        <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher">
-                            <option value="">--</option>
+                        <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher[]" multiple>
                             @foreach ($employees as $item)
-                                <x-user-option :user="$item" :selected="$deal->deal_watcher == $item->id" />
+                                <x-user-option :user="$item" :selected="in_array($item->id, $deal->dealWatchers->pluck('id')->toArray())" />
                             @endforeach
                         </x-forms.select>
                     </div>

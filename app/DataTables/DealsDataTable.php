@@ -62,7 +62,7 @@ class DealsDataTable extends BaseDataTable
         $datatables = datatables()->eloquent($query);
         $datatables->addIndexColumn();
         $datatables->addColumn('check', fn($row) => $this->checkBox($row));
-        $datatables->addColumn('export_deal_watcher', fn($row) => $row->dealWatcher->name ?? '--');
+        $datatables->addColumn('export_deal_watcher', fn($row) => $row->dealWatchers->pluck('name')->implode(', ') ?: '--');
         $datatables->addColumn('action', function ($row) {
             $action = '<div class="task_view">
 
@@ -78,8 +78,8 @@ class DealsDataTable extends BaseDataTable
             if (
                 $this->editLeadPermission == 'all'
                 || ($this->editLeadPermission == 'added' && user()->id == $row->added_by)
-                || ($this->editLeadPermission == 'owned' && ((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || (!is_null($row->deal_watcher) && user()->id == $row->deal_watcher)))
-                || ($this->editLeadPermission == 'both' && (((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || (!is_null($row->deal_watcher) && user()->id == $row->deal_watcher)) || user()->id == $row->added_by))
+                || ($this->editLeadPermission == 'owned' && ((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || $row->dealWatchers->contains('id', user()->id)))
+                || ($this->editLeadPermission == 'both' && (((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || $row->dealWatchers->contains('id', user()->id)) || user()->id == $row->added_by))
             ) {
                 $action .= '<a class="dropdown-item openRightModal" href="' . route('deals.edit', [$row->id]) . '">
                                 <i class="fa fa-edit mr-2"></i>
@@ -90,8 +90,8 @@ class DealsDataTable extends BaseDataTable
             if (
                 $this->deleteLeadPermission == 'all'
                 || ($this->deleteLeadPermission == 'added' && user()->id == $row->added_by)
-                || ($this->deleteLeadPermission == 'owned' && ((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || (!is_null($row->deal_watcher) && user()->id == $row->deal_watcher)))
-                || ($this->deleteLeadPermission == 'both' && (((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || (!is_null($row->deal_watcher) && user()->id == $row->deal_watcher)) || user()->id == $row->added_by))
+                || ($this->deleteLeadPermission == 'owned' && ((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || $row->dealWatchers->contains('id', user()->id)))
+                || ($this->deleteLeadPermission == 'both' && (((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || $row->dealWatchers->contains('id', user()->id)) || user()->id == $row->added_by))
             ) {
                 $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-id="' . $row->id . '">
                         <i class="fa fa-trash mr-2"></i>
@@ -208,7 +208,15 @@ class DealsDataTable extends BaseDataTable
         $datatables->editColumn('close_date', fn($row) => $row->close_date ? $row->close_date->translatedFormat($this->company->date_format) : '--');
         $datatables->editColumn('lead_pipeline_id', fn($row) => $row->lead_pipeline_id ? $row->pipeline->name : '--');
         $datatables->editColumn('agent_name', fn($row) => $row->agent_id ? view('components.employee', ['user' => $row->leadAgent->user]) : '--');
-        $datatables->addColumn('deal_watcher_user', fn($row) => $row->dealWatcher ? view('components.employee', ['user' => $row->dealWatcher]) : '--');
+        $datatables->addColumn('deal_watcher_user', function($row) {
+            if ($row->dealWatchers->isNotEmpty()) {
+                $watchers = $row->dealWatchers->map(function($watcher) {
+                    return view('components.employee', ['user' => $watcher]);
+                })->implode(' ');
+                return $watchers;
+            }
+            return '--';
+        });
         $datatables->smart(false);
         $datatables->setRowId(fn($row) => 'row-' . $row->id);
         $datatables->removeColumn('status_id');
@@ -233,7 +241,7 @@ class DealsDataTable extends BaseDataTable
         $lead = $model->with([
             'leadAgent',
             'products',
-            'dealWatcher' => function ($query) {
+            'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class);
             },
             'leadAgent.user',
@@ -247,7 +255,7 @@ class DealsDataTable extends BaseDataTable
             ->select(
                 'deals.id',
                 'deals.name',
-                'deals.deal_watcher',
+
                 'deals.lead_id',
                 'deals.lead_pipeline_id',
                 'deals.agent_id',
@@ -372,7 +380,12 @@ class DealsDataTable extends BaseDataTable
                     $query->whereIn('agent_id', $this->myAgentId);
                 }
 
-                $query->orWhere('deals.deal_watcher', user()->id);
+                $query->orWhereExists(function ($subQuery) {
+                    $subQuery->select(DB::raw(1))
+                            ->from('deal_watchers')
+                            ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                            ->where('deal_watchers.user_id', user()->id);
+                });
             });
         }
 
@@ -383,12 +396,22 @@ class DealsDataTable extends BaseDataTable
                 }
 
                 $query->orWhere('deals.added_by', user()->id)
-                    ->orWhere('deals.deal_watcher', user()->id);
+                    ->orWhereExists(function ($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                                ->from('deal_watchers')
+                                ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                ->where('deal_watchers.user_id', user()->id);
+                    });
             });
         }
 
         if ($this->request()->deal_watcher_id !== null && $this->request()->deal_watcher_id != 'all' && $this->request()->deal_watcher_id != '') {
-            $lead = $lead->where('deals.deal_watcher', $this->request()->deal_watcher_id);
+            $lead = $lead->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                      ->from('deal_watchers')
+                      ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                      ->where('deal_watchers.user_id', $this->request()->deal_watcher_id);
+            });
         }
 
         if ($this->request()->stage_id != 'all' && $this->request()->stage_id != '') {
