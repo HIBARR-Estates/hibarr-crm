@@ -2386,7 +2386,7 @@ return array(
         'dealStageTooltip' => 'A New note will be create when stage changes to win or lost.',
         'category' => 'Category',
         'product' => 'Product',
-        'assignAgent' => 'Assigned Agent',
+        'assignAgent' => 'Assign Responsible Person',
     ),
     'estimateRequest' => array(
         'estimateRequest' => 'Estimate Request',
