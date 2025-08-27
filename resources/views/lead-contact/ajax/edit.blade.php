@@ -43,10 +43,8 @@
                         </div>
 
                         <div class="col-lg-4 col-md-6">
-                            <!-- <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile" :fieldPlaceholder="__('placeholders.mobile')"
-                                :fieldValue="$leadContact->mobile"></x-forms.tel> -->
                             <x-forms.phone fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
-                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$leadContact->mobile" :country="$leadContact->country" />
+                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$leadContact->mobile" :country="$leadContact->country"></x-forms.phone>
                         </div>
 
                         @if ($viewLeadSourcesPermission != 'none')
@@ -128,10 +126,8 @@
                     </div>
 
                     <div class="col-lg-3 col-md-6">
-                            <!-- <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile" :fieldPlaceholder="__('placeholders.mobile')"
-                                :fieldValue="$leadContact->mobile"></x-forms.tel> -->
-                            <x-forms.phone fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
-                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$leadContact->mobile" />
+                        <x-forms.phone fieldId="mobile_secondary" :fieldLabel="__('modules.lead.mobile') . ' (' . __('app.secondary') . ')'" fieldName="mobile_secondary" :fieldPlaceholder="__('placeholders.mobile')"
+                            :fieldValue="$leadContact->mobile_secondary ?? ''" :country="$leadContact->mobile_secondary ?? ''"></x-forms.phone>
                     </div>
 
                     <div class="col-lg-3 col-md-6">
