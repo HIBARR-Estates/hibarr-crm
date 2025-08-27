@@ -85,7 +85,7 @@ $addClientSubCategoryPermission = user()->permission('manage_client_subcategory'
                                     name="mobile" id="mobile" value="{{ $client->mobile }}">
                             </x-forms.input-group> -->
                             <x-forms.phone fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
-                                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$client->mobile" />
+                                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$client->mobile" :country="$client->country" />
                             </div>
                         </div>
                     </div>

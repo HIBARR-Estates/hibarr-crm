@@ -50,7 +50,7 @@
                             <!-- <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
                                 :fieldPlaceholder="__('placeholders.mobile')"></x-forms.tel> -->
                             <x-forms.phone fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
-                                :fieldPlaceholder="__('placeholders.mobile')" />
+                                :fieldPlaceholder="__('placeholders.mobile')" :country="$lead->country ?? null" />
                         </div>
 
                         @if ($viewLeadSourcesPermission != 'none')

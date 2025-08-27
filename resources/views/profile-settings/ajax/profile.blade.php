@@ -139,7 +139,7 @@
                        name="mobile" id="mobile" value="{{ $user->mobile }}">
             </x-forms.input-group> -->
                             <x-forms.phone fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
-                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$user->mobile" />
+                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$user->mobile" :country="$user->country" />
         </div>
 
         <div class="col-lg-4">

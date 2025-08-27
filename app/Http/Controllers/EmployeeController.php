@@ -218,7 +218,12 @@ class EmployeeController extends AccountBaseController
             $user->name = $request->name;
             $user->email = $request->email;
             $user->password = bcrypt($request->password);
-            $user->mobile = $request->mobile;
+            // Handle mobile field with country code
+            if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+                $user->mobile = '+' . $request->country_phonecode_mobile . ' ' . $request->mobile;
+            } else {
+                $user->mobile = $request->mobile;
+            }
             $user->country_id = $request->country;
             $user->salutation = $request->salutation;
             $user->country_phonecode = $request->country_phonecode;
@@ -456,7 +461,12 @@ class EmployeeController extends AccountBaseController
             $user->password = bcrypt($request->password);
         }
 
-        $user->mobile = $request->mobile;
+        // Handle mobile field with country code
+        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+            $user->mobile = '+' . $request->country_phonecode_mobile . ' ' . $request->mobile;
+        } else {
+            $user->mobile = $request->mobile;
+        }
         $user->country_id = $request->country;
         $user->salutation = $request->salutation;
         $user->country_phonecode = $request->country_phonecode;

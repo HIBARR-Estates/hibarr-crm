@@ -94,7 +94,7 @@ $addPermission = user()->permission('add_clients');
                                         name="mobile" id="mobile" value="{{$lead->mobile ?? ''}}">
                                 </x-forms.input-group> -->
                                 <x-forms.phone fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
-                                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$lead->mobile ?? ''" />
+                                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$lead->mobile ?? ''" :country="$lead->country ?? null" />
                             </div>
                         </div>
                     </div>

@@ -42,7 +42,12 @@ class ProfileController extends AccountBaseController
         $user->gender = $request->gender;
         $user->country_id = $request->country_id;
         $user->country_phonecode = $request->country_phonecode;
-        $user->mobile = $request->mobile;
+        // Handle mobile field with country code
+        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+            $user->mobile = '+' . $request->country_phonecode_mobile . ' ' . $request->mobile;
+        } else {
+            $user->mobile = $request->mobile;
+        }
         $user->email_notifications = $request->email_notifications;
         $user->locale = $request->locale;
         $user->rtl = $request->rtl;

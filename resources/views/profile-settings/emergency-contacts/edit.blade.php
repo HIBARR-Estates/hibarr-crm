@@ -24,9 +24,9 @@
                                     </x-forms.text>
                                 </div>
                                 <div class="col-md-6 col-sm-6">
-                                    <x-forms.tel fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
+                                    <x-forms.phone fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
                                        :fieldPlaceholder="__('placeholders.mobile')" fieldRequired="true"
-                                        :fieldValue="$contact->mobile"></x-forms.tel>
+                                        :fieldValue="$contact->mobile"></x-forms.phone>
                                 </div>
                                 <div class="col-md-6 col-sm-6">
                                     <x-forms.text :fieldLabel="__('app.relationship')" fieldName="relationship"
