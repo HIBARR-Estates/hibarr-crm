@@ -94,7 +94,7 @@ $addPermission = user()->permission('add_clients');
                                         name="mobile" id="mobile" value="{{$lead->mobile ?? ''}}">
                                 </x-forms.input-group> -->
                                 <x-forms.phone fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
-                                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$lead->mobile ?? ''" :country="$lead->country ?? null" />
+                                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$lead->mobile ?? ''" :country="$lead->country ?? ''" />
                             </div>
                         </div>
                     </div>
@@ -233,7 +233,7 @@ $addPermission = user()->permission('add_clients');
                             fieldName="office" :fieldPlaceholder="__('placeholders.mobileWithPlus')" :fieldValue="$lead->office ?? ''">
                         </x-forms.text> -->
                         <x-forms.phone fieldId="office" :fieldLabel="__('modules.client.officePhoneNumber')" fieldName="office"
-                            :fieldPlaceholder="__('placeholders.mobileWithPlus')" :fieldValue="$lead->office ?? ''" />
+                            :fieldPlaceholder="__('placeholders.mobileWithPlus')" :fieldValue="$lead->office ?? ''" :country="$lead->country ?? ''" />
                     </div>
                     <div class="col-md-3">
                         <x-forms.text fieldId="city" :fieldLabel="__('modules.stripeCustomerAddress.city')"
