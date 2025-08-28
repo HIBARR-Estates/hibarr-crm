@@ -83,10 +83,57 @@
                         }
                     }
                 @endphp
+                @php
+                    // Determine which country option should be selected
+                    $selectedCountry = null;
+                    
+                    // First priority: Use the stored country identifier if available
+                    if (!empty($phoneValue)) {
+                        $decoded = is_array($phoneValue) ? $phoneValue : json_decode($phoneValue, true);
+                        if (is_array($decoded) && isset($decoded['country_identifier'])) {
+                            $storedIdentifier = $decoded['country_identifier'];
+                            $selectedCountry = $countries->firstWhere('nicename', $storedIdentifier);
+                            if (!$selectedCountry) {
+                                $selectedCountry = $countries->firstWhere('iso', $storedIdentifier);
+                            }
+                            if (!$selectedCountry) {
+                                $selectedCountry = $countries->firstWhere('iso3', $storedIdentifier);
+                            }
+                        }
+                    }
+                    
+                    // Second priority: Use the country parameter if no stored identifier
+                    if (!$selectedCountry && !empty($country)) {
+                        $selectedCountry = $countries->firstWhere('nicename', $country);
+                        if (!$selectedCountry) {
+                            $selectedCountry = $countries->firstWhere('iso', $country);
+                        }
+                        if (!$selectedCountry) {
+                            $selectedCountry = $countries->firstWhere('iso3', $country);
+                        }
+                    }
+                    
+                    // Third priority: Use country code if no other identifier found
+                    if (!$selectedCountry && !empty($countryCode)) {
+                        $selectedCountry = $countries->firstWhere('phonecode', $countryCode);
+                    }
+                    
+                    // Debug: Log what we found for troubleshooting
+                    if (app()->environment('local')) {
+                        \Log::info('Phone component country selection:', [
+                            'fieldId' => $fieldId,
+                            'phoneValue' => $phoneValue,
+                            'countryCode' => $countryCode,
+                            'storedIdentifier' => $storedIdentifier ?? 'none',
+                            'selectedCountry' => $selectedCountry ? $selectedCountry->nicename . ' (' . $selectedCountry->phonecode . ')' : 'none'
+                        ]);
+                    }
+                @endphp
+                
                 @foreach ($countries as $item)
                     <option data-tokens="{{ $item->name }}" data-country-iso="{{ $item->iso }}"
                         data-country-nicename="{{ $item->nicename }}" data-content="{{ $item->flagSpanCountryCode() }}" 
-                        value="{{ $item->phonecode }}" {{ $countryCode == $item->phonecode ? 'selected' : '' }}>
+                        value="{{ $item->phonecode }}" {{ $selectedCountry && $selectedCountry->id == $item->id ? 'selected' : '' }}>
                         {{ $item->phonecode }}
                     </option>
                 @endforeach
@@ -96,20 +143,8 @@
             name="{{ $fieldName }}" id="{{ $fieldId }}" value="{{ $phoneNumber }}">
         
         @php
-            $countryIdentifier = '';
-            if (!empty($country)) {
-                $countryIdentifier = $country;
-            } elseif (!empty($phoneValue)) {
-                $decoded = is_array($phoneValue) ? $phoneValue : json_decode($phoneValue, true);
-                if (is_array($decoded) && isset($decoded['country_identifier'])) {
-                    $countryIdentifier = $decoded['country_identifier'];
-                }
-            } elseif (!empty($countryCode)) {
-                $countryModel = $countries->firstWhere('phonecode', $countryCode);
-                if ($countryModel) {
-                    $countryIdentifier = $countryModel->nicename;
-                }
-            }
+            // Use the selected country's nicename for the identifier
+            $countryIdentifier = $selectedCountry ? $selectedCountry->nicename : '';
         @endphp
         <input type="hidden" name="country_identifier_{{ $fieldId }}" value="{{ $countryIdentifier }}" id="country_identifier_{{ $fieldId }}">
     </div>
