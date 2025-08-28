@@ -244,10 +244,10 @@ $addClientSubCategoryPermission = user()->permission('manage_client_subcategory'
 
                     <div class="col-lg-3 col-md-6">
                         <!-- <x-forms.text fieldId="office" :fieldLabel="__('modules.client.officePhoneNumber')"
-                            fieldName="office" :fieldPlaceholder="__('placeholders.mobileWithPlus')"
+                            fieldName="office" :fieldPlaceholder="__('placeholders.mobileWithPlus')"    
                             :fieldValue="$client->clientDetails->office"></x-forms.text> -->
                         <x-forms.phone fieldId="office" :fieldLabel="__('modules.client.officePhoneNumber')" fieldName="office"
-                            :fieldPlaceholder="__('placeholders.mobileWithPlus')" :fieldValue="$client->office" :country="$client->country" />
+                            :fieldPlaceholder="__('placeholders.mobileWithPlus')" :fieldValue="$client->clientDetails->office" :country="$client->clientDetails->country" />
                     </div>
                     <div class="col-lg-3 col-md-6">
                         <x-forms.text fieldId="city" :fieldLabel="__('modules.stripeCustomerAddress.city')"

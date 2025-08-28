@@ -8,7 +8,7 @@
     }
     
     .phone-component .country-code-select {
-        min-width: 120px;
+        min-width: 10px;
         flex-shrink: 0;
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;

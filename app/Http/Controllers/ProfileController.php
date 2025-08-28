@@ -44,7 +44,13 @@ class ProfileController extends AccountBaseController
         $user->country_phonecode = $request->country_phonecode;
         // Handle mobile field with country code
         if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
-            $user->mobile = '+' . $request->country_phonecode_mobile . ' ' . $request->mobile;
+            $countryIdentifier = $request->input('country_identifier_mobile');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                'country_code' => $request->country_phonecode_mobile,
+                'country_identifier' => $countryIdentifier
+            ];
+            $user->mobile = json_encode($phoneData);
         } else {
             $user->mobile = $request->mobile;
         }
