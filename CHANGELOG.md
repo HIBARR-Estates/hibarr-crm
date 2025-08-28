@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **External Communications Module**: New module for tracking external communications across multiple channels
+  - **Communication Activity Tracking**: Created comprehensive system to track external communications via email, WhatsApp, Instagram, and Telegram
+  - **Database Schema**: Added `communication_activities` table with fields for channel type, message content, sender info, timestamp, and metadata
+  - **API Integration**: Created RESTful API endpoints for creating and retrieving communication activities
+  - **Permission-Based Access**: Implemented access control based on user permissions for deals and leads
+  - **Email Notifications**: Automatic email notifications sent to assigned agents when new communications are recorded
+  - **DataTable Integration**: Created DataTable for displaying communication activities with filtering and pagination
+  - **Model Relationships**: Added relationships between CommunicationActivity and Deal/Lead models
+  - **Factory and Seeder**: Created factory for generating test data and seeder for populating sample communications
+  - **Web Routes**: Added routes for viewing communication activities in web interface
+  - **Validation**: Comprehensive form validation for communication activity creation
+  - **Channel Support**: Support for email, WhatsApp, Instagram, and Telegram channels with distinct styling
+  - **Metadata Storage**: Flexible JSON metadata storage for platform-specific information
+  - **Timestamp Tracking**: Accurate timestamp tracking for communication activities
+  - **Sender Information**: Structured sender information storage with name and contact details
 - Initial codebase documentation and indexing
 - Comprehensive system architecture documentation
 - Module and feature inventory

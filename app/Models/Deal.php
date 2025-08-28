@@ -252,4 +252,9 @@ class Deal extends BaseModel
         return $this->belongsTo(User::class, 'added_by')->withoutGlobalScope(ActiveScope::class);
     }
 
+    public function communicationActivities(): HasMany
+    {
+        return $this->hasMany(CommunicationActivity::class, 'deal_id')->orderByDesc('timestamp');
+    }
+
 }
