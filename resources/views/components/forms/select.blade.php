@@ -12,23 +12,23 @@
 @if($withBadges)
 <style>
     /* Stack employee items vertically and remove commas when using x-user-option */
-    .filter-option-inner-inner {
+    #{{ $fieldId }} + .bootstrap-select .filter-option-inner-inner {
         display: flex !important;
         flex-direction: column !important;
         gap: 8px !important;
     }
     
-    .filter-option-inner-inner > div {
+    #{{ $fieldId }} + .bootstrap-select .filter-option-inner-inner > div {
         width: 100% !important;
     }
     
     /* Target Bootstrap Select's comma rendering */
-    .filter-option-inner-inner > div:not(:last-child)::after {
+    #{{ $fieldId }} + .bootstrap-select .filter-option-inner-inner > div:not(:last-child)::after {
         content: "" !important;
     }
     
     /* Alternative selector for comma removal */
-    .filter-option-inner-inner > *:not(:last-child)::after {
+    #{{ $fieldId }} + .bootstrap-select .filter-option-inner-inner > *:not(:last-child)::after {
         content: "" !important;
     }
 </style>
