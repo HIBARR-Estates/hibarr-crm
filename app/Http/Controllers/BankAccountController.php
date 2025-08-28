@@ -84,6 +84,7 @@ class BankAccountController extends AccountBaseController
         $account->account_name = $request->account_name;
         $account->account_type = $request->account_type;
         $account->currency_id = $request->currency_id;
+        $account->country = $request->country;
         
         // Handle contact_number field with country code
         if ($request->has('country_phonecode_contact_number') && !empty($request->country_phonecode_contact_number) && !empty($request->contact_number)) {
@@ -183,6 +184,7 @@ class BankAccountController extends AccountBaseController
         $account->account_name = $request->account_name;
         $account->account_type = $request->account_type;
         $account->currency_id = $request->currency_id;
+        $account->country = $request->country;
         
         // Handle contact_number field with country code
         if ($request->has('country_phonecode_contact_number') && !empty($request->country_phonecode_contact_number) && !empty($request->contact_number)) {

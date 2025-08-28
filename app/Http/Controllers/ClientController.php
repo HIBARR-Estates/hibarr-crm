@@ -168,6 +168,8 @@ class ClientController extends AccountBaseController
                 'country_identifier' => $countryIdentifier
             ];
             $data['mobile'] = json_encode($phoneData);
+        } elseif (!empty($request->mobile)) {
+            $data['mobile'] = $request->mobile;
         }
 
         // Handle office field with country code
@@ -179,6 +181,8 @@ class ClientController extends AccountBaseController
                 'country_identifier' => $countryIdentifier
             ];
             $data['office'] = json_encode($phoneData);
+        } elseif (!empty($request->office)) {
+            $data['office'] = $request->office;
         }
 
         if($request->is_client_contact){
@@ -391,6 +395,8 @@ class ClientController extends AccountBaseController
                 'country_identifier' => $countryIdentifier
             ];
             $data['mobile'] = json_encode($phoneData);
+        } elseif (!empty($request->mobile)) {
+            $data['mobile'] = $request->mobile;
         }
 
         // Handle office field with country code
@@ -402,6 +408,8 @@ class ClientController extends AccountBaseController
                 'country_identifier' => $countryIdentifier
             ];
             $data['office'] = json_encode($phoneData);
+        } elseif (!empty($request->office)) {
+            $data['office'] = $request->office;
         }
 
         if ($request->has('sendMail')) {
