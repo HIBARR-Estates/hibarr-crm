@@ -102,16 +102,20 @@
                         }
                     }
                     
-                    // Second priority: Use the country parameter if no stored identifier
-                    if (!$selectedCountry && !empty($country)) {
-                        $selectedCountry = $countries->firstWhere('nicename', $country);
-                        if (!$selectedCountry) {
-                            $selectedCountry = $countries->firstWhere('iso', $country);
-                        }
-                        if (!$selectedCountry) {
-                            $selectedCountry = $countries->firstWhere('iso3', $country);
-                        }
-                    }
+                                         // Second priority: Use the country parameter if no stored identifier
+                     if (!$selectedCountry && !empty($country)) {
+                         $selectedCountry = $countries->firstWhere('nicename', $country);
+                         if (!$selectedCountry) {
+                             $selectedCountry = $countries->firstWhere('iso', $country);
+                         }
+                         if (!$selectedCountry) {
+                             $selectedCountry = $countries->firstWhere('iso3', $country);
+                         }
+                         if (!$selectedCountry) {
+                             // Try to find by country name (like "TURKEY")
+                             $selectedCountry = $countries->firstWhere('name', $country);
+                         }
+                     }
                     
                     // Third priority: Use country code if no other identifier found
                     if (!$selectedCountry && !empty($countryCode)) {
@@ -142,10 +146,27 @@
         <input type="tel" class="form-control height-35 f-14 phone-input" placeholder="@lang('placeholders.mobile')"
             name="{{ $fieldName }}" id="{{ $fieldId }}" value="{{ $phoneNumber }}">
         
-        @php
-            // Use the selected country's nicename for the identifier
-            $countryIdentifier = $selectedCountry ? $selectedCountry->nicename : '';
-        @endphp
+                 @php
+             // Use the selected country's nicename for the identifier
+             $countryIdentifier = $selectedCountry ? $selectedCountry->nicename : '';
+             
+             // If we still don't have an identifier but have a country parameter, try to derive it
+             if (empty($countryIdentifier) && !empty($country)) {
+                 $countryModel = $countries->firstWhere('nicename', $country);
+                 if (!$countryModel) {
+                     $countryModel = $countries->firstWhere('iso', $country);
+                 }
+                 if (!$countryModel) {
+                     $countryModel = $countries->firstWhere('iso3', $country);
+                 }
+                 if (!$countryModel) {
+                     $countryModel = $countries->firstWhere('name', $country);
+                 }
+                 if ($countryModel) {
+                     $countryIdentifier = $countryModel->nicename;
+                 }
+             }
+         @endphp
         <input type="hidden" name="country_identifier_{{ $fieldId }}" value="{{ $countryIdentifier }}" id="country_identifier_{{ $fieldId }}">
     </div>
 </div>
