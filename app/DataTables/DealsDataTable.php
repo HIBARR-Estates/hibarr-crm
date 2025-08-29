@@ -62,7 +62,12 @@ class DealsDataTable extends BaseDataTable
         $datatables = datatables()->eloquent($query);
         $datatables->addIndexColumn();
         $datatables->addColumn('check', fn($row) => $this->checkBox($row));
-        $datatables->addColumn('export_deal_watcher', fn($row) => $row->dealWatchers->pluck('name')->implode(', ') ?: '--');
+        $datatables->addColumn('export_deal_watcher', function($row) {
+            if ($row->dealWatchers && $row->dealWatchers->isNotEmpty()) {
+                return $row->dealWatchers->pluck('name')->implode(', ');
+            }
+            return '--';
+        });
         $datatables->addColumn('action', function ($row) {
             $action = '<div class="task_view">
 
@@ -209,11 +214,14 @@ class DealsDataTable extends BaseDataTable
         $datatables->editColumn('lead_pipeline_id', fn($row) => $row->lead_pipeline_id ? $row->pipeline->name : '--');
         $datatables->editColumn('agent_name', fn($row) => $row->agent_id ? view('components.employee', ['user' => $row->leadAgent->user]) : '--');
         $datatables->addColumn('deal_watcher_user', function($row) {
-            if ($row->dealWatchers->isNotEmpty()) {
+            if ($row->dealWatchers && $row->dealWatchers->isNotEmpty()) {
                 $watchers = $row->dealWatchers->map(function($watcher) {
-                    return view('components.employee', ['user' => $watcher]);
-                })->implode(' ');
-                return $watchers;
+                    if ($watcher && $watcher->id) {
+                        return '<div class="d-flex align-items-center mb-1">' . view('components.employee', ['user' => $watcher]) . '</div>';
+                    }
+                    return '';
+                })->filter()->implode('');
+                return '<div class="d-flex flex-column">' . $watchers . '</div>';
             }
             return '--';
         });
@@ -228,7 +236,7 @@ class DealsDataTable extends BaseDataTable
 
         $customFieldColumns = CustomField::customFieldData($datatables, Deal::CUSTOM_FIELD_MODEL);
 
-        $datatables->rawColumns(array_merge(['status', 'action', 'name', 'client_name', 'next_follow_up_date', 'agent_name', 'check', 'mobile', 'stage', 'lead_email'], $customFieldColumns));
+        $datatables->rawColumns(array_merge(['status', 'action', 'name', 'client_name', 'next_follow_up_date', 'agent_name', 'check', 'mobile', 'stage', 'lead_email', 'deal_watcher_user'], $customFieldColumns));
 
         return $datatables;
     }
@@ -242,7 +250,9 @@ class DealsDataTable extends BaseDataTable
             'leadAgent',
             'products',
             'dealWatchers' => function ($query) {
-                $query->withoutGlobalScope(ActiveScope::class);
+                $query->withoutGlobalScope(ActiveScope::class)
+                      ->select('users.id', 'users.name', 'users.image', 'users.email')
+                      ->where('users.status', '!=', 'deactive');
             },
             'leadAgent.user',
             'category',

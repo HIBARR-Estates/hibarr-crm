@@ -111,7 +111,12 @@ class LeadBoardController extends AccountBaseController
                 }
 
                 if ($request->deal_watcher_id !== null && $request->deal_watcher_id != 'all' && $request->deal_watcher_id != '') {
-                    $q = $q->where('deals.deal_watcher', $request->deal_watcher_id);
+                    $q = $q->whereExists(function ($query) use ($request) {
+                        $query->select(DB::raw(1))
+                              ->from('deal_watchers')
+                              ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                              ->where('deal_watchers.user_id', $request->deal_watcher_id);
+                    });
                 }
 
                 if ($request->lead_agent_id !== null && $request->lead_agent_id != 'null' && $request->lead_agent_id != '' && $request->lead_agent_id != 'all') {
