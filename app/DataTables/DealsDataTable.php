@@ -114,8 +114,25 @@ class DealsDataTable extends BaseDataTable
         });
         $datatables->addColumn('employee_name', fn($row) => $row->leadAgent->user->name ?? '--');
         $datatables->addColumn('mobile', fn($row) => !empty($row->mobile) ? '<a href="tel:' . $row->mobile . '" class="text-darkest-grey"><u>' . $row->mobile . '</u></a>' : '--');
-        $datatables->addColumn('lead_email', fn($row) => !empty($row->client_email) ? '<a href="mailto:' . $row->client_email . '" class="text-darkest-grey"><u>' . str($row->client_email)->limit(25) . '</u></a>'
-            . '<p>' . $row->mobile . '</p>' : '--');
+        $datatables->addColumn('lead_email', function($row) {
+            $email = !empty($row->client_email) ? '<a href="mailto:' . $row->client_email . '" class="text-darkest-grey"><u>' . str($row->client_email)->limit(25) . '</u></a>' : '';
+            
+            $phone = '';
+            if (!empty($row->mobile)) {
+                // Try to parse JSON mobile field and extract phone number
+                if (is_string($row->mobile) && str_starts_with($row->mobile, '{')) {
+                    $mobileData = json_decode($row->mobile, true);
+                    if ($mobileData && isset($mobileData['phone'])) {
+                        $phone = '<p>' . $mobileData['phone'] . '</p>';
+                    }
+                } else {
+                    // If it's not JSON, use as is
+                    $phone = '<p>' . $row->mobile . '</p>';
+                }
+            }
+            
+            return $email . $phone ?: '--';
+        });
         $datatables->addColumn('export_mobile', fn($row) => $row->contact->mobile ?? '--');
         $datatables->addColumn('export_email', fn($row) => $row->client_email);
         $datatables->addColumn('lead_value', fn($row) => currency_format($row->value, $row->currency_id));
@@ -247,7 +264,6 @@ class DealsDataTable extends BaseDataTable
             ->select(
                 'deals.id',
                 'deals.name',
-                'deals.deal_watcher',
                 'deals.lead_id',
                 'deals.lead_pipeline_id',
                 'deals.agent_id',
