@@ -2337,7 +2337,7 @@ return array(
         'addPipeline' => 'Add Pipeline',
         'defaultPipeline' => 'Default Pipeline',
         'dealDetail' => 'Deal Detail',
-        'dealAgent' => 'Deal Agent',
+        'dealAgent' => 'Responsible Person',
         'updateDeal' => 'Update Deal Info',
         'dealNote' => 'Deal Note',
         'dealNotes' => 'Deal Notes',
@@ -2386,7 +2386,7 @@ return array(
         'dealStageTooltip' => 'A New note will be create when stage changes to win or lost.',
         'category' => 'Category',
         'product' => 'Product',
-        'assignAgent' => 'Assign Agent',
+        'assignAgent' => 'Assign Responsible Person',
     ),
     'estimateRequest' => array(
         'estimateRequest' => 'Estimate Request',
