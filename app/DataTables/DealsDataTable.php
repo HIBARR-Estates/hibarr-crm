@@ -247,7 +247,6 @@ class DealsDataTable extends BaseDataTable
             ->select(
                 'deals.id',
                 'deals.name',
-                'deals.deal_watcher',
                 'deals.lead_id',
                 'deals.lead_pipeline_id',
                 'deals.agent_id',
