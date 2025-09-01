@@ -217,7 +217,7 @@ class DealsDataTable extends BaseDataTable
             if ($row->dealWatchers && $row->dealWatchers->isNotEmpty()) {
                 $watchers = $row->dealWatchers->map(function($watcher) {
                     if ($watcher && $watcher->id) {
-                        return '<div class="d-flex align-items-center mb-1">' . view('components.employee', ['user' => $watcher]) . '</div>';
+                        return '<div class="d-flex align-items-center mb-1">' . view('components.employee', ['user' => $watcher])->render() . '</div>';
                     }
                     return '';
                 })->filter()->implode('');
@@ -252,7 +252,8 @@ class DealsDataTable extends BaseDataTable
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
                       ->select('users.id', 'users.name', 'users.image', 'users.email')
-                      ->where('users.status', '!=', 'deactive');
+                      ->where('users.status', '!=', 'deactive')
+                      ->orderBy('users.name');
             },
             'leadAgent.user',
             'category',
@@ -509,8 +510,8 @@ class DealsDataTable extends BaseDataTable
             __('modules.lead.nextFollowUp') => ['data' => 'next_follow_up_date', 'name' => 'next_follow_up_date', 'searchable' => false, 'exportable' => ($this->viewLeadFollowUpPermission != 'none'), 'title' => __('modules.lead.nextFollowUp'), 'visible' => ($this->viewLeadFollowUpPermission != 'none')],
             __('modules.deal.dealAgent') => ['data' => 'agent_name', 'name' => 'users.name', 'exportable' => false, 'title' => __('modules.deal.dealAgent')],
             __('app.leadAgent') => ['data' => 'employee_name', 'name' => 'users.name', 'visible' => false, 'title' => __('app.leadAgent')],
-            __('app.addedBy') => ['data' => 'export_deal_watcher', 'name' => 'users.name', 'exportable' => true, 'visible' => false, 'title' => __('app.dealWatcher')],
-            __('app.dealWatcher') => ['data' => 'deal_watcher_user', 'name' => 'users.name', 'exportable' => false, 'title' => __('app.dealWatcher')],
+            __('app.addedBy') => ['data' => 'export_deal_watcher', 'name' => 'deals.id', 'exportable' => true, 'visible' => false, 'title' => __('app.dealWatcher')],
+            __('app.dealWatcher') => ['data' => 'deal_watcher_user', 'name' => 'deals.id', 'exportable' => false, 'orderable' => false, 'searchable' => false, 'title' => __('app.dealWatcher')],
             __('modules.leadContact.stage') => ['data' => 'stage', 'name' => 'deals.pipeline_stage_id', 'exportable' => false, 'visible' => true, 'title' => __('modules.leadContact.stage')],
             __('modules.leadContact.leadStage') => ['data' => 'leadStage', 'name' => 'leadStage', 'visible' => false, 'orderable' => false, 'searchable' => false, 'title' => __('modules.leadContact.leadStage')]
         ];
