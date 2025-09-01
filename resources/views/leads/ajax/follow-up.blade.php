@@ -28,6 +28,8 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                     <th>@lang('app.createdOn')</th>
                     <th>@lang('modules.lead.nextFollowUp')</th>
                     <th>@lang('Meeting Type')</th>
+                    <th>@lang('Location')</th>
+                    <th>@lang('Meeting Link')</th>
                     <th>@lang('app.remark')</th>
                     <th>@lang('app.status')</th>
                     <th class="text-right">@lang('app.action')</th>
@@ -42,6 +44,33 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                 <span class="badge badge-secondary" style="background-color: {{ $folllowUp->meetingType->color }};">
                                     {{ $folllowUp->meetingType->name }}
                                 </span>
+                            @else
+                                <span class="text-muted">--</span>
+                            @endif
+                        </td>
+                        <td>
+                            @switch($folllowUp->location)
+                                @case('office')
+                                    <span class="badge badge-info">Office</span>
+                                    @break
+                                @case('zoom')
+                                    <span class="badge badge-primary">Zoom</span>
+                                    @break
+                                @case('zoho_meet')
+                                    <span class="badge badge-success">Zoho Meet</span>
+                                    @break
+                                @case('google_meet')
+                                    <span class="badge badge-warning">Google Meet</span>
+                                    @break
+                                @default
+                                    <span class="text-muted">--</span>
+                            @endswitch
+                        </td>
+                        <td>
+                            @if ($folllowUp->meeting_link && $folllowUp->location != 'office')
+                                <a href="{{ $folllowUp->meeting_link }}" target="_blank" class="text-primary">
+                                    <i class="fa fa-external-link-alt"></i> Join Meeting
+                                </a>
                             @else
                                 <span class="text-muted">--</span>
                             @endif
@@ -83,7 +112,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8">
+                        <td colspan="10">
                             <x-cards.no-record :message="__('messages.noRecordFound')" icon="clock" />
                         </td>
                     </tr>

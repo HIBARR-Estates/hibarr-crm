@@ -30,6 +30,8 @@ class StoreRequest extends CoreRequest
 
         $rules = [
             'meeting_type_id' => 'nullable|exists:meeting_types,id',
+            'location' => 'required|in:office,zoom,zoho_meet,google_meet',
+            'meeting_link' => 'nullable|url',
         ];
 
         if(request()->has('send_reminder')){

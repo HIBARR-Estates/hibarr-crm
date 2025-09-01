@@ -697,6 +697,8 @@ class DealController extends AccountBaseController
         $followUp = new DealFollowUp();
         $followUp->deal_id = $request->deal_id;
         $followUp->meeting_type_id = $request->meeting_type_id;
+        $followUp->location = $request->location ?? 'office';
+        $followUp->meeting_link = $request->meeting_link;
         $followUp->next_follow_up_date = $next_follow_up_date->format('Y-m-d H:i:s');
         $followUp->remark = $request->remark;
         $followUp->send_reminder = $request->send_reminder;
@@ -752,6 +754,8 @@ class DealController extends AccountBaseController
 
         $followUp->deal_id = $request->deal_id;
         $followUp->meeting_type_id = $request->meeting_type_id;
+        $followUp->location = $request->location ?? 'office';
+        $followUp->meeting_link = $request->meeting_link;
 
         $followUp->next_follow_up_date = Carbon::createFromFormat($this->company->date_format . ' ' . $this->company->time_format, $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
 

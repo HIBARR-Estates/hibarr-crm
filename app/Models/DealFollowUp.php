@@ -52,6 +52,8 @@ class DealFollowUp extends BaseModel
     protected $fillable = [
         'deal_id',
         'meeting_type_id',
+        'location',
+        'meeting_link',
         'remark',
         'next_follow_up_date',
         'send_reminder',

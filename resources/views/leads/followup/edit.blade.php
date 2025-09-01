@@ -35,6 +35,19 @@
                             @endforeach
                         </x-forms.select>
                     </div>
+                    <div class="col-md-12">
+                        <x-forms.select fieldId="location" :fieldLabel="__('Location')" fieldName="location"
+                            search="true">
+                            <option value="office" {{ $follow->location == 'office' ? 'selected' : '' }}>Office</option>
+                            <option value="zoom" {{ $follow->location == 'zoom' ? 'selected' : '' }}>Zoom</option>
+                            <option value="zoho_meet" {{ $follow->location == 'zoho_meet' ? 'selected' : '' }}>Zoho Meet</option>
+                            <option value="google_meet" {{ $follow->location == 'google_meet' ? 'selected' : '' }}>Google Meet</option>
+                        </x-forms.select>
+                    </div>
+                    <div class="col-md-12" id="meeting_link_container" style="display: {{ $follow->location != 'office' ? 'block' : 'none' }};">
+                        <x-forms.text :fieldLabel="__('Meeting Link')" fieldName="meeting_link" fieldId="meeting_link"
+                            :fieldPlaceholder="__('Enter meeting link')" :fieldValue="$follow->meeting_link" />
+                    </div>
 
                     <div class="col-md-12">
                         <div class="row">
@@ -120,6 +133,17 @@
     $('#send_reminder').change(function() {
             $('.send_reminder_div').toggleClass('d-none');
         })
+
+    // Show/hide meeting link field based on location selection
+    $('#location').change(function() {
+        var location = $(this).val();
+        if (location === 'office') {
+            $('#meeting_link_container').hide();
+            $('#meeting_link').val('');
+        } else {
+            $('#meeting_link_container').show();
+        }
+    });
 
     // save followup
     $('#save-followup').click(function() {

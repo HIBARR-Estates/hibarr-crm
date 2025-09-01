@@ -47,6 +47,19 @@
                             @endforeach
                         </x-forms.select>
                     </div>
+                    <div class="col-md-12">
+                        <x-forms.select fieldId="location" :fieldLabel="__('Location')" fieldName="location"
+                            search="true">
+                            <option value="office">Office</option>
+                            <option value="zoom">Zoom</option>
+                            <option value="zoho_meet">Zoho Meet</option>
+                            <option value="google_meet">Google Meet</option>
+                        </x-forms.select>
+                    </div>
+                    <div class="col-md-12" id="meeting_link_container" style="display: none;">
+                        <x-forms.text :fieldLabel="__('Meeting Link')" fieldName="meeting_link" fieldId="meeting_link"
+                            :fieldPlaceholder="__('Enter meeting link')" />
+                    </div>
                     <div class="col-lg-12 my-3">
                         <x-forms.checkbox :fieldLabel="__('modules.tasks.reminder')" fieldName="send_reminder"
                             fieldId="send_reminder" fieldValue="yes" fieldRequired="true" />
@@ -107,6 +120,17 @@
         $('#send_reminder').change(function() {
             $('.send_reminder_div').toggleClass('d-none');
         })
+
+        // Show/hide meeting link field based on location selection
+        $('#location').change(function() {
+            var location = $(this).val();
+            if (location === 'office') {
+                $('#meeting_link_container').hide();
+                $('#meeting_link').val('');
+            } else {
+                $('#meeting_link_container').show();
+            }
+        });
 
         // save channel
         $('#save-followup').click(function() {

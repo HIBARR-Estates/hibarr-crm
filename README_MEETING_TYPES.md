@@ -5,8 +5,11 @@ This feature adds meeting types to follow-ups and integrates with n8n for automa
 ## Features
 
 - **Meeting Types**: Create and manage different types of meetings (Kick Off, Strategy, Review, etc.)
-- **Follow-up Enhancement**: Add meeting type selection when creating follow-ups
+- **Location Support**: Choose meeting location (Office, Zoom, Zoho Meet, Google Meet)
+- **Meeting Link Management**: Automatic meeting link generation and storage
+- **Follow-up Enhancement**: Add meeting type and location selection when creating follow-ups
 - **n8n Integration**: Automatically trigger n8n workflows when follow-ups are created/updated
+- **Webhook Response Handling**: Automatically update meeting links from n8n webhook responses
 - **Unlimited Follow-ups**: No limit on the number of follow-ups per deal
 
 ## Installation
@@ -36,13 +39,15 @@ DEAL_UPDATE_WEBHOOK_URL=https://your-n8n-instance.com/webhook/deal-update
 
 ## Usage
 
-### Creating Follow-ups with Meeting Types
+### Creating Follow-ups with Meeting Types and Location
 
 1. Navigate to a deal
 2. Click on the "Follow Up" tab
 3. Click "New Follow Up"
 4. Select a meeting type from the dropdown
-5. Fill in other details and save
+5. Choose meeting location (Office, Zoom, Zoho Meet, Google Meet)
+6. If online platform is selected, meeting link field will appear
+7. Fill in other details and save
 
 ### Managing Meeting Types
 
@@ -68,6 +73,8 @@ When a follow-up is created or updated, the system will:
     "deal_id": 456,
     "meeting_type": "Kick Off",
     "meeting_type_id": 1,
+    "location": "zoom",
+    "meeting_link": "https://zoom.us/j/123456789",
     "next_follow_up_date": "2025-01-20 14:00:00",
     "remark": "Initial project discussion",
     "status": "pending",
@@ -90,6 +97,17 @@ When a follow-up is created or updated, the system will:
 }
 ```
 
+#### Webhook Response Example (n8n to CRM)
+
+```json
+{
+  "meeting_link": "https://zoom.us/j/123456789?pwd=abc123",
+  "meeting_id": "123456789",
+  "join_url": "https://zoom.us/j/123456789?pwd=abc123",
+  "start_url": "https://zoom.us/s/123456789?zak=abc123"
+}
+```
+
 ## Database Schema
 
 ### meeting_types Table
@@ -104,6 +122,8 @@ When a follow-up is created or updated, the system will:
 ### lead_follow_up Table (Updated)
 
 - Added `meeting_type_id` field (foreign key to meeting_types)
+- Added `location` field (enum: office, zoom, zoho_meet, google_meet)
+- Added `meeting_link` field (text, nullable)
 
 ## API Endpoints
 

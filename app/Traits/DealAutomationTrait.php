@@ -29,6 +29,8 @@ trait DealAutomationTrait
                     'deal_id' => $followUp->deal_id,
                     'meeting_type' => $followUp->meetingType ? $followUp->meetingType->name : null,
                     'meeting_type_id' => $followUp->meeting_type_id,
+                    'location' => $followUp->location,
+                    'meeting_link' => $followUp->meeting_link,
                     'next_follow_up_date' => $followUp->next_follow_up_date?->format('Y-m-d H:i:s'),
                     'remark' => $followUp->remark,
                     'status' => $followUp->status,
@@ -95,6 +97,11 @@ trait DealAutomationTrait
             $result = json_decode($responseBody, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new \Exception("Invalid JSON response from webhook: " . json_last_error_msg() . ". Raw response: {$responseBody}");
+            }
+
+            // Handle meeting link from webhook response
+            if (isset($result['meeting_link']) && !empty($result['meeting_link'])) {
+                $this->updateFollowUpMeetingLink($followUp->id, $result['meeting_link']);
             }
 
             return $result;
@@ -293,6 +300,28 @@ trait DealAutomationTrait
         }
     }
 
+
+    private function updateFollowUpMeetingLink(int $followUpId, string $meetingLink): void
+    {
+        try {
+            $followUp = DealFollowUp::find($followUpId);
+            if ($followUp) {
+                $followUp->meeting_link = $meetingLink;
+                $followUp->save();
+                
+                Log::info("Meeting link updated from webhook response", [
+                    'follow_up_id' => $followUpId,
+                    'meeting_link' => $meetingLink,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update meeting link from webhook response", [
+                'follow_up_id' => $followUpId,
+                'meeting_link' => $meetingLink,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 
     private function getCustomerInfo(?int $leadId): array
     {
