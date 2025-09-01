@@ -4,18 +4,170 @@ namespace App\Traits;
 
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\DealFollowUp;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use App\Models\User;
 
 trait DealAutomationTrait
 {
+    protected function triggerFollowUpAutomation(DealFollowUp $followUp, bool $async = true): ?array
+    {
+        try {
+            // Ensure the deal is loaded
+            if ($followUp->deal_id && !$followUp->deal) {
+                $followUp->load('deal');
+            }
+
+            $agentInfo = $this->getAgentInformation($followUp->deal);
+            $watcherInfo = $this->getWatcherInformation($followUp->deal);
+
+            $result = $this->sendFollowUpAutomationWebhook('followup', [
+                'followUpInformation' => [
+                    'id' => $followUp->id,
+                    'deal_id' => $followUp->deal_id,
+                    'meeting_type' => $followUp->meetingType ? $followUp->meetingType->name : null,
+                    'meeting_type_id' => $followUp->meeting_type_id,
+                    'next_follow_up_date' => $followUp->next_follow_up_date?->format('Y-m-d H:i:s'),
+                    'remark' => $followUp->remark,
+                    'status' => $followUp->status,
+                    'created_at' => $followUp->created_at->format('Y-m-d H:i:s'),
+                ],
+                'dealInformation' => $followUp->deal ? $followUp->deal->toArray() : null,
+                'contactInformation' => $followUp->deal ? $this->getCustomerInfo($followUp->deal->lead_id) : null,
+                'agentInformation' => $agentInfo,
+                'watcherInformation' => $watcherInfo,
+            ]);
+
+            Log::info("Follow-up automation triggered successfully", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'meeting_type' => $followUp->meetingType ? $followUp->meetingType->name : null,
+                'n8n_response' => $result,
+            ]);
+
+            return $result;
+
+        } catch (\Exception $e) {
+            Log::error("Failed to trigger follow-up automation", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    private function sendFollowUpAutomationWebhook(string $type, array $payload): array
+    {
+        $url = config("app.automations.followups.{$type}_webhook_url");
+        
+        if (!$url) {
+            throw new \Exception("Follow-up automation webhook URL not configured for type: {$type}");
+        }
+
+        try {
+            $client = new Client([
+                'timeout' => 30,
+                'connect_timeout' => 10,
+                'verify' => false,
+            ]);
+
+            $response = $client->post($url, [
+                'json' => $payload,
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'User-Agent' => 'Hibarr-CRM/1.0',
+                    'Accept' => 'application/json',
+                ],
+            ]);
+
+            $statusCode = $response->getStatusCode();
+            $responseBody = $response->getBody()->getContents();
+            
+            if ($statusCode < 200 || $statusCode >= 300) {
+                throw new \Exception("Webhook returned non-success status code: {$statusCode}. Response: {$responseBody}");
+            }
+
+            $result = json_decode($responseBody, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception("Invalid JSON response from webhook: " . json_last_error_msg() . ". Raw response: {$responseBody}");
+            }
+
+            return $result;
+
+        } catch (\Throwable $e) {
+            $error = "Unexpected error sending follow-up automation webhook: " . $e->getMessage();
+            Log::error($error, ['exception' => $e, 'url' => $url]);
+            throw new \Exception($error, 0, $e);
+        }
+    }
+
+    private function getAgentInformation(?Deal $deal): ?array
+    {
+        if (!$deal || !$deal->agent_id) {
+            return null;
+        }
+
+        try {
+            $leadAgent = \App\Models\LeadAgent::find($deal->agent_id);
+            if (!$leadAgent) {
+                return null;
+            }
+
+            $user = \App\Models\User::find($leadAgent->user_id);
+            if (!$user) {
+                return null;
+            }
+
+            return [
+                'agent_id' => $leadAgent->id,
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'mobile' => $user->mobile,
+                'status' => $user->status,
+                'role' => $user->role ? (is_object($user->role) && method_exists($user->role, 'first') ? $user->role->first()?->display_name : $user->role->display_name) : null,
+                'category_id' => $leadAgent->lead_category_id,
+                'category_name' => $leadAgent->lead_category_id ? \App\Models\LeadCategory::find($leadAgent->lead_category_id)?->category_name : null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error("Failed to get agent information for deal ID: {$deal->id}", ['exception' => $e, 'agent_id' => $deal->agent_id]);
+            return null;
+        }
+    }
+
+    private function getWatcherInformation(?Deal $deal): ?array
+    {
+        if (!$deal || !$deal->deal_watcher) {
+            return null;
+        }
+
+        try {
+            $user = \App\Models\User::find($deal->deal_watcher);
+            if (!$user) {
+                return null;
+            }
+
+            return [
+                'watcher_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'mobile' => $user->mobile,
+                'status' => $user->status,
+                'role' => $user->role ? (is_object($user->role) && method_exists($user->role, 'first') ? $user->role->first()?->display_name : $user->role->display_name) : null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error("Failed to get watcher information for deal ID: {$deal->id}", ['exception' => $e, 'deal_watcher' => $deal->deal_watcher]);
+            return null;
+        }
+    }
+
     /**
      * Trigger automation for deal creation
-     *
-     * @param Request $request
-     * @param bool $async
-     * @return array|null
      */
     protected function triggerDealCreationAutomation(Request $request, bool $async = true): ?array
     {
@@ -32,8 +184,11 @@ trait DealAutomationTrait
         return $this->sendAutomationWebhook('create', [
             'contactInformation' => $this->getCustomerInfo($validatedData['lead_contact'] ?? null),
             'dealCustomFields'     => $validatedData,
+            'agentInformation' => $this->getAgentInformation($followUp->deal),
+            'watcherInformation' => $this->getWatcherInformation($followUp->deal),
         ]);
     }
+
     private static function getExcludedDealUpdateFields(): array
     {
         return [
@@ -52,14 +207,7 @@ trait DealAutomationTrait
             'deal_watcher',
         ];
     }
-    /**
-     * Trigger automation for deal updates
-     *
-     * @param Request $request
-     * @param Deal $deal
-     * @param bool $async
-     * @return array|null
-     */
+  
     protected function triggerDealUpdateAutomation(Request $request, Deal $deal, bool $async = true): ?array
     {
         // if ($async) {
@@ -85,13 +233,7 @@ trait DealAutomationTrait
         ]);
     }
 
-        /**
-     * Send automation webhook
-     *
-     * @param string $type
-     * @param array $payload
-     * @return array|null
-     */
+  
     private function sendAutomationWebhook(string $type, array $payload): ?array
     {
         try {
@@ -136,14 +278,8 @@ trait DealAutomationTrait
         }
     }
 
-    /**
-     * Dispatch automation job asynchronously
-     *
-     * @param string $type
-     * @param int $dealId
-     * @param array $requestData
-     * @return void
-     */
+
+   
     private function dispatchDealAutomationJob(string $type, int $dealId, array $requestData): void
     {
         try {
@@ -157,12 +293,7 @@ trait DealAutomationTrait
         }
     }
 
-    /**
-     * Get customer information for automation
-     *
-     * @param int|null $leadId
-     * @return array
-     */
+
     private function getCustomerInfo(?int $leadId): array
     {
         if (!$leadId) {
@@ -181,30 +312,36 @@ trait DealAutomationTrait
                 'leadContact' => [
                     'id' => $leadContact->id,
                     'client_name' => $leadContact->client_name,
-                    'client_name_salutation' => $leadContact->client_name_salutation,
                     'client_email' => $leadContact->client_email,
                     'mobile' => $leadContact->mobile,
-                    'office_phone' => $leadContact->office_phone,
+                    'cell' => $leadContact->cell,
+                    'office' => $leadContact->office,
+                    'company_name' => $leadContact->company_name,
                     'website' => $leadContact->website,
                     'address' => $leadContact->address,
-                    'state' => $leadContact->state,
                     'city' => $leadContact->city,
-                    'postal_code' => $leadContact->postal_code,
+                    'state' => $leadContact->state,
                     'country' => $leadContact->country,
-                    'company_name' => $leadContact->company_name,
-                    'client_id' => $leadContact->client_id,
-                    'status' => $leadContact->status,
-                    'source' => $leadContact->source,
+                    'postal_code' => $leadContact->postal_code,
                     'note' => $leadContact->note,
-                    'created_at' => $leadContact->created_at,
-                    'updated_at' => $leadContact->updated_at,
+                    'value' => $leadContact->value,
+                    'total_value' => $leadContact->total_value,
+                    'currency_id' => $leadContact->currency_id,
+                    'category_id' => $leadContact->category_id,
+                    'source_id' => $leadContact->source_id,
+                    'status_id' => $leadContact->status_id,
+                    'agent_id' => $leadContact->agent_id,
+                    'added_by' => $leadContact->added_by,
+                    'last_updated_by' => $leadContact->last_updated_by,
+                    'created_at' => $leadContact->created_at?->format('Y-m-d H:i:s'),
+                    'updated_at' => $leadContact->updated_at?->format('Y-m-d H:i:s'),
                 ],
                 'leadContactCustomFields' => $customFieldsData,
             ];
-
         } catch (\Throwable $e) {
             Log::error("Failed to get customer info for lead ID: {$leadId}", [
                 'exception' => $e,
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
@@ -214,13 +351,6 @@ trait DealAutomationTrait
         }
     }
 
-    /**
-     * Extract custom fields data from any model with custom fields
-     *
-     * @param \Illuminate\Database\Eloquent\Model $model
-     * @param string $modelType For logging purposes
-     * @return array
-     */
     private function extractCustomFieldsFromModel($model, string $modelType): array
     {
         try {
@@ -247,24 +377,12 @@ trait DealAutomationTrait
         }
     }
 
-    /**
-     * Extract custom fields data from lead contact
-     *
-     * @param Lead $leadContact
-     * @return array
-     */
     private function extractCustomFieldsData(Lead $leadContact): array
     {
         return $this->extractCustomFieldsFromModel($leadContact, 'lead');
     }
 
-    /**
-     * Extract custom fields data from deal
-     *
-     * @param Deal $deal
-     * @return array
-     */
-    private function extractDealCustomFieldsData(Deal $deal): array
+    private function geDealCustomFieldsData(Deal $deal): array
     {
         return $this->extractCustomFieldsFromModel($deal, 'deal');
     }

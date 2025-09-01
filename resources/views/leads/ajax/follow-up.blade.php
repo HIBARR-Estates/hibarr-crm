@@ -27,6 +27,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                 <x-slot name="thead">
                     <th>@lang('app.createdOn')</th>
                     <th>@lang('modules.lead.nextFollowUp')</th>
+                    <th>@lang('Meeting Type')</th>
                     <th>@lang('app.remark')</th>
                     <th>@lang('app.status')</th>
                     <th class="text-right">@lang('app.action')</th>
@@ -36,6 +37,15 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                     <tr id="row-{{ $folllowUp->id }}">
                         <td>{{ $folllowUp->created_at->timezone(company()->timezone)->format(company()->date_format . ' ' . company()->time_format) }}</td>
                         <td>{{ $folllowUp->next_follow_up_date->format(company()->date_format . ' ' . company()->time_format) }}</td>
+                        <td>
+                            @if ($folllowUp->meetingType)
+                                <span class="badge badge-secondary" style="background-color: {{ $folllowUp->meetingType->color }};">
+                                    {{ $folllowUp->meetingType->name }}
+                                </span>
+                            @else
+                                <span class="text-muted">--</span>
+                            @endif
+                        </td>
                         <td>{{ $folllowUp->remark }}</td>
                         <td>
                             @if ($folllowUp->status == 'pending')
@@ -73,7 +83,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7">
+                        <td colspan="8">
                             <x-cards.no-record :message="__('messages.noRecordFound')" icon="clock" />
                         </td>
                     </tr>

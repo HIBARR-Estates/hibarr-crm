@@ -696,6 +696,7 @@ class DealController extends AccountBaseController
 
         $followUp = new DealFollowUp();
         $followUp->deal_id = $request->deal_id;
+        $followUp->meeting_type_id = $request->meeting_type_id;
         $followUp->next_follow_up_date = $next_follow_up_date->format('Y-m-d H:i:s');
         $followUp->remark = $request->remark;
         $followUp->send_reminder = $request->send_reminder;
@@ -704,6 +705,23 @@ class DealController extends AccountBaseController
         $followUp->status = 'pending';
 
         $followUp->save();
+
+        // Load the deal relationship for automation
+        $followUp->load('deal');
+
+        // Trigger follow-up automation
+        try {
+            $this->triggerFollowUpAutomation($followUp);
+        } catch (\Exception $e) {
+            Log::error("Follow-up automation failed during creation", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            // Still create the follow-up but show a warning about automation
+            return Reply::success(__('messages.recordSaved') . ' - ' . __('Warning: Automation failed: ') . $e->getMessage());
+        }
 
         event(new AutoFollowUpReminderEvent($followUp, true));
 
@@ -733,16 +751,34 @@ class DealController extends AccountBaseController
         }
 
         $followUp->deal_id = $request->deal_id;
+        $followUp->meeting_type_id = $request->meeting_type_id;
 
         $followUp->next_follow_up_date = Carbon::createFromFormat($this->company->date_format . ' ' . $this->company->time_format, $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
 
         $followUp->remark = $request->remark;
-        $followUp->send_reminder = $request->send_reminder;
         $followUp->status = $request->status;
         $followUp->remind_time = $request->remind_time;
         $followUp->remind_type = $request->remind_type;
 
         $followUp->save();
+
+        // Load the deal relationship for automation
+        $followUp->load('deal');
+
+        // Trigger follow-up automation for update
+        try {
+            $this->triggerFollowUpAutomation($followUp);
+        } catch (\Exception $e) {
+            Log::error("Follow-up automation failed during update", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            
+            // Still update the follow-up but show a warning about automation
+            return Reply::success(__('messages.updateSuccess') . ' - ' . __('Warning: Automation failed: ') . $e->getMessage());
+        }
 
         return Reply::success(__('messages.updateSuccess'));
     }

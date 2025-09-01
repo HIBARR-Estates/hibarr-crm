@@ -36,6 +36,17 @@
                                 :fieldValue="now(company()->timezone)->format(company()->time_format)" />
                         </div>
                     </div>
+                    <div class="col-md-12">
+                        <x-forms.select fieldId="meeting_type_id" :fieldLabel="__('Meeting Type')" fieldName="meeting_type_id"
+                            search="true">
+                            <option value="">-- Select Meeting Type --</option>
+                            @foreach (\App\Models\MeetingType::where('company_id', company()->id)->get() as $meetingType)
+                                <option value="{{ $meetingType->id }}" data-color="{{ $meetingType->color }}">
+                                    {{ $meetingType->name }}
+                                </option>
+                            @endforeach
+                        </x-forms.select>
+                    </div>
                     <div class="col-lg-12 my-3">
                         <x-forms.checkbox :fieldLabel="__('modules.tasks.reminder')" fieldName="send_reminder"
                             fieldId="send_reminder" fieldValue="yes" fieldRequired="true" />

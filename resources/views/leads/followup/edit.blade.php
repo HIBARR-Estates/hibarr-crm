@@ -7,7 +7,7 @@
     <div class="portlet-body">
 
         <x-form id="followUpForm" method="POST" class="ajax-form">
-            <input type="hidden" name="deal_id" value="{{ $follow->deal_id }}">
+            <input type="hidden" name="deal_id" value="{{ $follow->lead_id }}">
             <input type="hidden" name="id" value="{{ $follow->id }}">
             <div class="form-body">
                 <div class="row">
@@ -22,6 +22,18 @@
                         <div class="bootstrap-timepicker timepicker">
                             <x-forms.text fieldLabel="Start Time" :fieldPlaceholder="__('placeholders.hours')" fieldName="start_time" fieldId="start_time" fieldRequired="true" :fieldValue="$follow->next_follow_up_date->format(company()->time_format)"/>
                         </div>
+                    </div>
+
+                    <div class="col-md-12">
+                        <x-forms.select fieldId="meeting_type_id" :fieldLabel="__('Meeting Type')" fieldName="meeting_type_id"
+                            search="true">
+                            <option value="">-- Select Meeting Type --</option>
+                            @foreach (\App\Models\MeetingType::where('company_id', company()->id)->get() as $meetingType)
+                                <option value="{{ $meetingType->id }}" data-color="{{ $meetingType->color }}" {{ $follow->meeting_type_id == $meetingType->id ? 'selected' : '' }}>
+                                    {{ $meetingType->name }}
+                                </option>
+                            @endforeach
+                        </x-forms.select>
                     </div>
 
                     <div class="col-md-12">

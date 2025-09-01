@@ -28,7 +28,9 @@ class StoreRequest extends CoreRequest
         $deal = Deal::findOrFail($this->deal_id);
         $setting = company();
 
-        $rules = [];
+        $rules = [
+            'meeting_type_id' => 'nullable|exists:meeting_types,id',
+        ];
 
         if(request()->has('send_reminder')){
             $rules['remind_time'] = 'required';
