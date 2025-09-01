@@ -144,8 +144,7 @@
                     @endif
 
                     <div class="col-lg-4 col-md-6">
-                        <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher">
-                            <option value="">--</option>
+                        <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher[]" multiple :withBadges="true">
                             @foreach ($employees as $item)
                                 <x-user-option :user="$item" :selected="user()->id == $item->id" />
                             @endforeach

@@ -22,8 +22,8 @@
                         @if (
                             $deleteLeadPermission == 'all'
                             || ($deleteLeadPermission == 'added' && user()->id == $deal->added_by)
-                            || ($deleteLeadPermission == 'owned' && ((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)))
-                            || ($deleteLeadPermission == 'both' &&  (((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)) || user()->id == $deal->added_by))
+                            || ($deleteLeadPermission == 'owned' && ((user()->id === ($deal->leadAgent?->user?->id)) || $deal->dealWatchers->contains('id', user()->id)))
+                            || ($deleteLeadPermission == 'both' && (user()->id === $deal->added_by || user()->id === ($deal->leadAgent?->user?->id) || $deal->dealWatchers->contains('id', user()->id)))
                         )
                             <a class="dropdown-item delete-table-row" href="javascript:;" data-id="{{ $deal->id }}">
                                 @lang('app.delete')
@@ -37,7 +37,7 @@
             <p class="f-w-500">
                 <x-status style="color: {{ $deal->pipeline->label_color }}" color="yellow"
                           :value="$deal->pipeline->name"/>
-                <i class="bi bi-arrow-right mx-"></i>
+                <i class="bi bi-arrow-right mx-1"></i>
                 <x-status style="color: {{ $deal->leadStage->label_color }}" color="yellow"
                           :value="$deal->leadStage->name"/>
             </p>
@@ -66,14 +66,18 @@
             </div>
 
             <div class="col-12 px-0 pb-3 d-flex">
-                <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatcher') }}</p>
-                <p class="mb-0 text-dark-grey f-14">
-                    @if (!is_null($deal->dealWatcher))
-                        <x-employee :user="$deal->dealWatcher"/>
+                <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatchers') }}</p>
+                <div class="mb-0 text-dark-grey f-14">
+                    @if ($deal->dealWatchers->isNotEmpty())
+                        <div class="d-flex flex-column gap-1">
+                            @foreach ($deal->dealWatchers as $watcher)
+                                <x-employee :user="$watcher"/>
+                            @endforeach
+                        </div>
                     @else
                         --
                     @endif
-                </p>
+                </div>
             </div>
 
             @if ($deal->leadStatus)

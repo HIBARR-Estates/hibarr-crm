@@ -517,7 +517,12 @@ class LeadContactController extends AccountBaseController
         $deal->lead_id = $leadContact->id;
         $deal->next_follow_up = 'yes';
         $deal->category_id = $request->category_id;
-        $deal->deal_watcher = $request->deal_watcher;
+        $deal->save();
+
+        // Handle deal watchers
+        if ($request->deal_watcher && is_array($request->deal_watcher)) {
+            $deal->dealWatchers()->sync($request->deal_watcher);
+        }
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->create_client = $request->create_client == "on" ? '1' : '0';

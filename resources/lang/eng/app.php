@@ -1,7 +1,7 @@
 <?php
 
 return array(
-    'dealWatcher' => 'Deal Watcher',
+    'dealWatcher' => 'Deal Watchers',
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
     'showContact' => 'Contact Details',
@@ -957,7 +957,7 @@ return array(
     'twoFactorCodeEmail' => 'Two-factor email authentication code',
     'twoFactorRecoveryCode' => 'Two-factor authentication recovery code',
     'clickHere' => 'click here',
-    'itsYou' => 'It\'s you',
+    'itsYou' => 'You',
     'withoutDueDate' => 'Without Due Date',
     'regenerate' => 'Regenerate',
     'authenticationRequired' => 'Authentication Required',
