@@ -192,7 +192,7 @@ class DealsDataTable extends BaseDataTable
             $label = '';
 
             if ($row->client_id != null && $row->client_id != '') {
-                $label = '<label class="badge badge-secondary">' . __('app.client') . '</label>';
+                $label = '<label class="badge badge-secondary">' . e(__('app.client')) . '</label>';
             }
 
             $client_name = $row->client_name;
@@ -205,7 +205,7 @@ class DealsDataTable extends BaseDataTable
             return '
                         <div class="media-body">
                     <h5 class="mb-0 f-13 text-truncate"><a href="' . route('lead-contact.show', [$row->contact_id]) . '">' . e(str($client_name)->limit(18)) . '</a></h5>
-                    <p class="mb-0">' . e($label) . '</p>
+                    <p class="mb-0">' . $label . '</p>
                     <p class="mb-0 f-12 text-dark-grey text-truncate">
                     ' . e(str($row->company_name)->limit(18)) . '
                 </p>
@@ -227,7 +227,7 @@ class DealsDataTable extends BaseDataTable
             }
 
             if ($row->next_follow_up_date < $currentDate && $row->next_follow_up_status == 'incomplete' && $date != '--') {
-                return $date . '<br><label class="badge badge-danger">' . __('app.pending') . '</label>';
+                return $date . '<br><label class="badge badge-danger">' . e(__('app.pending')) . '</label>';
             }
 
             return $date;
