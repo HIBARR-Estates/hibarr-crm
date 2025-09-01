@@ -95,7 +95,7 @@ class DealsDataTable extends BaseDataTable
             if (
                 $this->deleteLeadPermission == 'all'
                 || ($this->deleteLeadPermission == 'added' && user()->id == $row->added_by)
-                || ($this->deleteLeadPermission == 'owned' && ((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || $row->dealWatchers->contains('id', user()->id)))
+                || ($this->deleteLeadPermission == 'owned' && ((data_get($row, 'leadAgent.user.id') === user()->id) || $row->dealWatchers->contains('id', user()->id)))
                 || ($this->deleteLeadPermission == 'both' && (((!is_null($row->agent_id) && !is_null($row->leadAgent) && user()->id == $row->leadAgent->user->id) || $row->dealWatchers->contains('id', user()->id)) || user()->id == $row->added_by))
             ) {
                 $action .= '<a class="dropdown-item delete-table-row" href="javascript:;" data-id="' . $row->id . '">
@@ -252,6 +252,7 @@ class DealsDataTable extends BaseDataTable
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
                       ->select('users.id', 'users.name', 'users.image', 'users.email')
+                      ->with('employeeDetail.designation:id,name')
                       ->where('users.status', '!=', 'deactive')
                       ->orderBy('users.name');
             },
