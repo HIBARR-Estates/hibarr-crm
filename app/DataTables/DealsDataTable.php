@@ -12,6 +12,7 @@ use App\Models\CustomFieldGroup;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Scopes\ActiveScope;
 use App\Helper\Common;
 
@@ -113,25 +114,34 @@ class DealsDataTable extends BaseDataTable
             return $action;
         });
         $datatables->addColumn('employee_name', fn($row) => $row->leadAgent->user->name ?? '--');
-        $datatables->addColumn('mobile', fn($row) => !empty($row->mobile) ? '<a href="tel:' . $row->mobile . '" class="text-darkest-grey"><u>' . $row->mobile . '</u></a>' : '--');
-        $datatables->addColumn('lead_email', function($row) {
-            $email = !empty($row->client_email) ? '<a href="mailto:' . $row->client_email . '" class="text-darkest-grey"><u>' . str($row->client_email)->limit(25) . '</u></a>' : '';
-            
+        $datatables->addColumn('mobile', fn($row) => !empty($row->mobile) ? '<a href="tel:' . e($row->mobile) . '" class="text-darkest-grey"><u>' . e($row->mobile) . '</u></a>' : '--');
+        $datatables->addColumn('lead_email', function ($row) {
+            // Email (escape content)
+            $email = '';
+            if (!empty($row->client_email) && filter_var($row->client_email, FILTER_VALIDATE_EMAIL)) {
+                $emailText = e(str($row->client_email)->limit(25));
+                $email = '<a href="mailto:' . e($row->client_email) . '" class="text-darkest-grey"><u>' . $emailText . '</u></a>';
+            }
+
+            // Phone: support JSON and raw strings, escape text, and make it clickable
             $phone = '';
             if (!empty($row->mobile)) {
-                // Try to parse JSON mobile field and extract phone number
-                if (is_string($row->mobile) && str_starts_with($row->mobile, '{')) {
-                    $mobileData = json_decode($row->mobile, true);
-                    if ($mobileData && isset($mobileData['phone'])) {
-                        $phone = '<p>' . $mobileData['phone'] . '</p>';
+                $mobileStr = is_string($row->mobile) ? trim($row->mobile) : '';
+                if ($mobileStr !== '' && Str::startsWith($mobileStr, '{')) {
+                    $mobileData = json_decode($mobileStr, true);
+                    if (is_array($mobileData) && !empty($mobileData['phone'])) {
+                        $mobileStr = $mobileData['phone'];
                     }
-                } else {
-                    // If it's not JSON, use as is
-                    $phone = '<p>' . $row->mobile . '</p>';
+                }
+                if ($mobileStr !== '') {
+                    $displayPhone = e($mobileStr);
+                    $hrefPhone = 'tel:' . preg_replace('/[^\d+]/', '', $mobileStr);
+                    $phone = '<p><a href="' . $hrefPhone . '" class="text-darkest-grey"><u>' . $displayPhone . '</u></a></p>';
                 }
             }
-            
-            return $email . $phone ?: '--';
+
+            $html = $email . $phone;
+            return $html !== '' ? $html : '--';
         });
         $datatables->addColumn('export_mobile', fn($row) => $row->contact->mobile ?? '--');
         $datatables->addColumn('export_email', fn($row) => $row->client_email);
@@ -163,14 +173,14 @@ class DealsDataTable extends BaseDataTable
                         $action .= 'selected';
                     }
 
-                    $action .= '  data-content="<i class=\'fa fa-circle mr-2\' style=\'color: ' . $item->label_color . '\'></i> ' . $item->name . '" data-id="' . $item->id . '" data-slug="' . $item->slug . '" value="' . $item->id . '">' . $item->name . '</option>';
+                    $action .= '  data-content="<i class=\'fa fa-circle mr-2\' style=\'color: ' . e($item->label_color) . '\'></i> ' . e($item->name) . '" data-id="' . e($item->id) . '" data-slug="' . e($item->slug) . '" value="' . e($item->id) . '">' . e($item->name) . '</option>';
                 }
 
                 $action .= '</select>';
             } else {
                 foreach ($stages as $st) {
                     if ($row->pipeline_stage_id == $st->id) {
-                        $action = "<div class='media align-items-center mw-120'><i class='fa fa-circle mr-1' style='color: " . $st->label_color . " '></i> " . str($st->name)->limit(10) . '</div>';
+                        $action = "<div class='media align-items-center mw-120'><i class='fa fa-circle mr-1' style='color: " . e($st->label_color) . " '></i> " . e(str($st->name)->limit(10)) . '</div>';
                     }
                 }
             }
@@ -194,10 +204,10 @@ class DealsDataTable extends BaseDataTable
 
             return '
                         <div class="media-body">
-                    <h5 class="mb-0 f-13 text-truncate"><a href="' . route('lead-contact.show', [$row->contact_id]) . '">' . str($client_name)->limit(18) . '</a></h5>
-                    <p class="mb-0">' . $label . '</p>
+                    <h5 class="mb-0 f-13 text-truncate"><a href="' . route('lead-contact.show', [$row->contact_id]) . '">' . e(str($client_name)->limit(18)) . '</a></h5>
+                    <p class="mb-0">' . e($label) . '</p>
                     <p class="mb-0 f-12 text-dark-grey text-truncate">
-                    ' . str($row->company_name)->limit(18) . '
+                    ' . e(str($row->company_name)->limit(18)) . '
                 </p>
                     </div>
                   ';
@@ -206,7 +216,7 @@ class DealsDataTable extends BaseDataTable
         $datatables->editColumn('name', function ($row) {
             return '
                         <div class="media-body">
-                            <h5 class="mb-0 f-13 "><a href="' . route('deals.show', [$row->id]) . '">' . $row->name . '</a></h5>
+                            <h5 class="mb-0 f-13 "><a href="' . route('deals.show', [$row->id]) . '">' . e($row->name) . '</a></h5>
                         </div>
                   ';
         });

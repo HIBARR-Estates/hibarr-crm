@@ -66,14 +66,18 @@
             </div>
 
             <div class="col-12 px-0 pb-3 d-flex">
-                <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatcher') }}</p>
-                <p class="mb-0 text-dark-grey f-14">
-                    @if (!is_null($deal->dealWatcher))
-                        <x-employee :user="$deal->dealWatcher"/>
+                <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatchers') }}</p>
+                <div class="mb-0 text-dark-grey f-14">
+                    @if ($deal->dealWatchers->isNotEmpty())
+                        <div class="d-flex flex-column gap-1">
+                            @foreach ($deal->dealWatchers as $watcher)
+                                <x-employee :user="$watcher"/>
+                            @endforeach
+                        </div>
                     @else
                         --
                     @endif
-                </p>
+                </div>
             </div>
 
             @if ($deal->leadStatus)
