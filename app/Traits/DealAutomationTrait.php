@@ -73,8 +73,8 @@ trait DealAutomationTrait
 
         try {
             $client = new Client([
-                'timeout' => 30,
-                'connect_timeout' => 10,
+                'timeout' => 60, // Increased timeout to wait longer for response
+                'connect_timeout' => 15,
                 'verify' => false,
             ]);
 
@@ -94,18 +94,43 @@ trait DealAutomationTrait
                 throw new \Exception("Webhook returned non-success status code: {$statusCode}. Response: {$responseBody}");
             }
 
-            $result = json_decode($responseBody, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception("Invalid JSON response from webhook: " . json_last_error_msg() . ". Raw response: {$responseBody}");
+            // Handle empty response (n8n might return empty response on success)
+            if (empty($responseBody)) {
+                $result = ['status' => 'success'];
+            } else {
+                $result = json_decode($responseBody, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception("Invalid JSON response from webhook: " . json_last_error_msg() . ". Raw response: {$responseBody}");
+                }
+
+                // Validate that we got a proper response
+                if (!isset($result['status']) || $result['status'] !== 'success') {
+                    throw new \Exception("Webhook did not return success status. Response: " . json_encode($result));
+                }
+            }
+
+            // For online meetings, require meeting_link in response
+            if (isset($payload['followUpInformation']['location']) && 
+                $payload['followUpInformation']['location'] !== 'office' && 
+                (!isset($result['meeting_link']) || empty($result['meeting_link']))) {
+                throw new \Exception("Meeting link is required for online meetings but was not provided in webhook response");
             }
 
             // Handle meeting link from webhook response
             if (isset($result['meeting_link']) && !empty($result['meeting_link'])) {
-                $this->updateFollowUpMeetingLink($followUp->id, $result['meeting_link']);
+                $this->updateFollowUpMeetingLink($payload['followUpInformation']['id'], $result['meeting_link']);
             }
 
             return $result;
 
+        } catch (\GuzzleHttp\Exception\ConnectException $e) {
+            $error = "Failed to connect to webhook URL: " . $e->getMessage();
+            Log::error($error, ['exception' => $e, 'url' => $url]);
+            throw new \Exception($error, 0, $e);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $error = "Webhook request failed: " . $e->getMessage();
+            Log::error($error, ['exception' => $e, 'url' => $url]);
+            throw new \Exception($error, 0, $e);
         } catch (\Throwable $e) {
             $error = "Unexpected error sending follow-up automation webhook: " . $e->getMessage();
             Log::error($error, ['exception' => $e, 'url' => $url]);

@@ -62,7 +62,17 @@ When a follow-up is created or updated, the system will:
 1. Send a webhook to your n8n instance
 2. Include meeting type information
 3. Provide deal and contact details
-4. Allow you to create meetings automatically
+4. **Wait for a proper response from n8n**
+5. **Only save the follow-up if n8n returns a success response**
+6. **Rollback the transaction if n8n fails or doesn't respond properly**
+
+**Important**: The follow-up will NOT be saved if:
+- n8n webhook URL is not configured
+- n8n doesn't respond within 60 seconds
+- n8n returns a non-success status code
+- n8n returns invalid JSON
+- n8n doesn't return `"status": "success"` in the response
+- For online meetings, n8n doesn't provide a `meeting_link` in the response
 
 #### Webhook Payload Example
 
@@ -99,14 +109,26 @@ When a follow-up is created or updated, the system will:
 
 #### Webhook Response Example (n8n to CRM)
 
+**Required Response Format:**
 ```json
 {
+  "status": "success",
   "meeting_link": "https://zoom.us/j/123456789?pwd=abc123",
   "meeting_id": "123456789",
   "join_url": "https://zoom.us/j/123456789?pwd=abc123",
   "start_url": "https://zoom.us/s/123456789?zak=abc123"
 }
 ```
+
+**Error Response Format:**
+```json
+{
+  "status": "error",
+  "message": "Failed to create meeting: Invalid credentials"
+}
+```
+
+**Note**: The `status` field is required and must be set to `"success"` for the follow-up to be saved. If `status` is `"error"` or missing, the follow-up creation will be rolled back.
 
 ## Database Schema
 
