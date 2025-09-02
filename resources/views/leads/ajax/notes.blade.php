@@ -68,7 +68,7 @@
                 @empty
                     <tr>
                         <td colspan="4">
-                            <x-cards.no-record :message="__('messages.noRecordFound')" icon="clipboard" />
+                            <x-cards.no-record-with-link :message="__('messages.noRecordFound')" icon="clipboard" id="add-notes-no-record" :linkHref="route('deal-notes.create').'?lead='.$deal->id" :linkText="__('modules.client.createNote')" linkClass="f-14 f-w-500 mt-4 openRightModal" />
                         </td>
                     </tr>
                 @endforelse

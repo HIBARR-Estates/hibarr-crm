@@ -104,7 +104,10 @@
                 @empty
                     <tr>
                         <td colspan="7">
-                            <x-cards.no-record :message="__('messages.noRecordFound')" icon="clipboard" />
+                            
+                            <x-cards.no-record-with-link :message="__('messages.noRecordFound')" 
+    icon="clipboard" id="add-proposal-no-record" :linkHref="route('proposals.create').'?deal_id='.$deal->id" :linkText="__('modules.proposal.addProposal')" 
+    linkClass="f-14 f-w-500 mt-4 openRightModal" data-redirect-url="{{ url()->full() }}"/>
                         </td>
                     </tr>
                 @endforelse

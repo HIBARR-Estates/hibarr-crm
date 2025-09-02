@@ -45,11 +45,9 @@
 
     @empty
         <div class="align-items-center d-flex flex-column text-lightest p-20 w-100">
-            <i class="fa fa-file-excel f-21 w-100"></i>
+          
 
-            <div class="f-15 mt-4">
-                - @lang('messages.noFileUploaded') -
-            </div>
+             <x-cards.no-record-with-link :message="__('messages.noFileUploaded')" icon="file-excel" id="add-files-no-record" :linkHref="'javascript:;'" :linkText="__('modules.projects.uploadFile')" linkClass="f-14 f-w-500 mt-4" data-lead-id="{{ $deal->id }}" />
         </div>
     @endforelse
 </div>

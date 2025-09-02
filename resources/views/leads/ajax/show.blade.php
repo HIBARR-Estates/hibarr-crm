@@ -334,14 +334,22 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);
         });
+        $('body').on('click', '#add-files-no-record', function() {
+            const url = "{{ route('deal-files.create') }}";
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+       
         // File tab script end
 
         // Follow up tab script start
-        $('body').on('click', '#add-lead-followup', function() {
+        const addFollowUpModal = function() {
             const url = "{{ route('deals.follow_up', $deal->id) }}";
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);
-        })
+        }
+        $('body').on('click', '#add-lead-followup', addFollowUpModal);
+        $('body').on('click', '#add-lead-followup-no-record', addFollowUpModal);
 
         $('body').on('click', '.edit-table-row-lead', function() {
             var id = $(this).data('followup-id');
