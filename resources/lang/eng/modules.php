@@ -1658,6 +1658,7 @@ return array(
         'viewDetails' => 'View Details',
         'title' => ' Lead Proposal',
         'proposal' => ' Lead Proposal',
+        'addProposal' => 'Add Proposal',
         'createProposal' => 'Create Proposal',
         'validTill' => 'Valid Till',
         'waiting' => 'Waiting',
@@ -1681,6 +1682,7 @@ return array(
         'name' => 'Name',
     ),
     'followup' => array(
+        'addFollowUp' => 'Add Follow Up',
         'newFollowUp' => 'New Follow Up',
         'updateFollow' => 'Update Follow Up',
         'addNewLead' => 'Add New Proposal',
