@@ -175,6 +175,7 @@ return array(
         'events' => 'Events',
         'event' => 'Event',
         'products' => 'Products',
+        'properties' => 'Properties',
         'orders' => 'Orders',
         'profileSettings' => 'Profile Settings',
         'twoFactorAuthentication' => 'Two-Factor Authentication',
