@@ -131,13 +131,17 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
             <div class="bg-additional-grey rounded my-3">
                 <div class="s-b-inner s-b-notifications bg-white b-shadow-4 rounded">
                     <x-tab-section class="deal-tabs">
-                        @if($viewLeadFilePermission != 'none')
-                            <x-tab-item class="ajax-tab files" :active="(request('tab') === 'files' || !request('tab'))"
-                                            :link="route('deals.show', $deal->id).'?tab=files'">@lang('modules.lead.file')</x-tab-item>
+                        @if ($viewClientNote != 'none')
+                            <x-tab-item class="ajax-tab notes" :active="(request('tab') === 'notes' || !request('tab'))"
+                                            :link="route('deals.show', $deal->id).'?tab=notes'">@lang('app.notes')</x-tab-item>
                         @endif
                         @if($viewLeadFollowupPermission != 'none')
                             <x-tab-item class="ajax-tab follow-up" :active="request('tab') === 'follow-up'"
                                             :link="route('deals.show', $deal->id).'?tab=follow-up'">@lang('modules.lead.followUp')</x-tab-item>
+                        @endif
+                        @if($viewLeadFilePermission != 'none')
+                            <x-tab-item class="ajax-tab files" :active="request('tab') === 'files'"
+                                            :link="route('deals.show', $deal->id).'?tab=files'">@lang('modules.lead.file')</x-tab-item>
                         @endif
 
 
@@ -146,18 +150,14 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                                             :link="route('deals.show', $deal->id).'?tab=proposals'">@lang('modules.lead.proposal')</x-tab-item>
                         @endif
 
-                        @if ($viewClientNote != 'none')
-                            <x-tab-item class="ajax-tab notes" :active="request('tab') === 'notes'"
-                                            :link="route('deals.show', $deal->id).'?tab=notes'">@lang('app.notes')</x-tab-item>
-                        @endif
+                        <x-tab-item class="ajax-tab history" :active="request('tab') === 'history'"
+                                    :link="route('deals.show', $deal->id).'?tab=history'">@lang('modules.tasks.history')</x-tab-item>
 
                         @if ($gdpr->enable_gdpr)
                             <x-tab-item class="ajax-tab gdpr" :active="request('tab') === 'gdpr'"
                                         :link="route('deals.show', $deal->id).'?tab=gdpr'">@lang('app.menu.gdpr')</x-tab-item>
                         @endif
 
-                        <x-tab-item class="ajax-tab history" :active="request('tab') === 'history'"
-                                    :link="route('deals.show', $deal->id).'?tab=history'">@lang('modules.tasks.history')</x-tab-item>
 
                     </x-tab-section>
 
