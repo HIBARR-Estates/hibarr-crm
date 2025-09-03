@@ -203,19 +203,18 @@
             });
         });
 
-        // Load agents for the current category
-        var categoryId = $('#category_id').val();
-        if (categoryId != '') {
-            getAgents(categoryId);
+        // Load agents for the current category (guarded)
+        const $category = $('#category_id');
+        const $agentSelect = $('#deal_agent_id');
+        if ($category.length && $agentSelect.length) {
+            const categoryId = $category.val();
+            if (categoryId) getAgents(categoryId);
+            // Handle category change to load agents
+            $category.on('change', function () {
+                const id = $(this).val();
+                if (id) getAgents(id);
+            });
         }
-
-        // Handle category change to load agents
-        $('#category_id').change(function() {
-            var id = $(this).val();
-            if (id != '') {
-                getAgents(id);
-            }
-        });
 
         // Handle pipeline change to load stages
         $('#editPipeline').on("change", function(e) {
@@ -224,57 +223,58 @@
         });
 
         function getAgents(categoryId) {
-            var url = "{{ route('deals.get_agents', ':id') }}";
-            url = url.replace(':id', categoryId);
+            const $select = $('#deal_agent_id');
+            if (!$select.length) return;
+            let url = "{{ route('deals.get_agents', ':id') }}".replace(':id', encodeURIComponent(categoryId));
             $.easyAjax({
                 url: url,
                 type: "GET",
-                success: function(response) {
-                    var options = [];
-                    var rData = [];
-                    if ($.isArray(response.data)) {
-                        rData = response.data;
-                        $.each(rData, function(index, value) {
-                            var selectData = '';
-                            options.push(value);
-                        });
-
-                        $('#deal_agent_id').html('<option value="">--</option>' + options);
-
-                    } else {
-                        $('#deal_agent_id').html(response.data);
+                success: function (response) {
+                    let optionsHtml = '<option value="">--</option>';
+                    const data = response && response.data;
+                    if (Array.isArray(data)) {
+                        // Support array of objects [{id,name}] or array of option HTML strings
+                        if (data.length && typeof data[0] === 'object' && 'id' in data[0]) {
+                            const $tmp = $('<div/>');
+                            data.forEach(function (u) { $tmp.append($('<option>', { value: u.id, text: u.name })); });
+                            optionsHtml += $tmp.html();
+                        } else {
+                            optionsHtml += data.join('');
+                        }
+                    } else if (typeof data === 'string') {
+                        optionsHtml += data;
                     }
-
-                    $('#deal_agent_id').selectpicker('refresh');
+                    $select.html(optionsHtml);
+                    if ($.fn.selectpicker) $select.selectpicker('refresh');
                 }
             });
         }
 
         function getStages(pipelineId) {
-            var url = "{{ route('deals.get-stage', ':id') }}";
-            url = url.replace(':id', pipelineId);
+            const $select = $('#stages');
+            if (!$select.length) return;
+            let url = "{{ route('deals.get-stage', ':id') }}".replace(':id', encodeURIComponent(pipelineId));
             $.easyAjax({
                 url: url,
                 type: "GET",
                 success: function(response) {
                     if (response.status == 'success') {
-                        var options = [];
-                        var rData = [];
-                        rData = response.data;
-                        $.each(rData, function(index, value) {
-                            var selected = '';
-                            @if (!is_null($deal->pipeline_stage_id))
-                                if ({{ $deal->pipeline_stage_id }} == value.id) {
-                                    selected = 'selected';
-                                }
-                            @endif
-                            var selectData = '';
-                            selectData =
-                                `<option data-content="<i class='fa fa-circle' style='color: ${value.label_color}'></i> ${value.name} " value="${value.id}" ${selected}> ${value.name}</option>`;
-                            options.push(selectData);
+                        const options = [];
+                        const rData = response.data;
+                        $.each(rData, function(_, value) {
+                            const color = /^#([0-9A-F]{3}|[0-9A-F]{6})$/i.test(value.label_color)
+                                ? value.label_color
+                                : '#666';
+                            const isSelected = {{ !is_null($deal->pipeline_stage_id) && $deal->pipeline_stage_id }} === value.id;
+                            const $opt = $('<option>')
+                                .val(value.id)
+                                .text(value.name)                                 // auto-escapes name
+                                .attr('data-content', `<i class="fa fa-circle" style="color:${color}"></i> ${value.name}`)
+                                .prop('selected', isSelected);
+                            options.push($opt.prop('outerHTML'));
                         });
-                        $('#stages').html(options);
-                        $('#stages').selectpicker('refresh');
+                        $select.html(options);
+                        if ($.fn.selectpicker) $select.selectpicker('refresh');
                     }
                 }
             });
