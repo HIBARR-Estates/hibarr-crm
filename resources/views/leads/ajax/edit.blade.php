@@ -177,7 +177,7 @@
 
                 {{-- <x-forms.custom-field :fields="$fields" :model="$deal"></x-forms.custom-field> --}}
 
-                <x-form-actions>
+            <x-form-actions>
                     <x-forms.button-primary id="save-lead-form" class="mr-3" icon="check">@lang('app.save')
                     </x-forms.button-primary>
                     <x-forms.button-cancel :link="route('deals.index')" class="border-0">@lang('app.cancel')
@@ -189,3 +189,95 @@
 
     </div>
 </div>
+
+<script>
+    $(document).ready(function() {
+        // Initialize Bootstrap Select for all select-picker elements
+        $(".select-picker").selectpicker();
+        
+        // Initialize datepicker
+        $('#close_date').each(function(ind, el) {
+            datepicker(el, {
+                position: 'bl',
+                ...datepickerConfig
+            });
+        });
+
+        // Load agents for the current category
+        var categoryId = $('#category_id').val();
+        if (categoryId != '') {
+            getAgents(categoryId);
+        }
+
+        // Handle category change to load agents
+        $('#category_id').change(function() {
+            var id = $(this).val();
+            if (id != '') {
+                getAgents(id);
+            }
+        });
+
+        // Handle pipeline change to load stages
+        $('#editPipeline').on("change", function(e) {
+            let pipelineId = $(this).val();
+            getStages(pipelineId);
+        });
+
+        function getAgents(categoryId) {
+            var url = "{{ route('deals.get_agents', ':id') }}";
+            url = url.replace(':id', categoryId);
+            $.easyAjax({
+                url: url,
+                type: "GET",
+                success: function(response) {
+                    var options = [];
+                    var rData = [];
+                    if ($.isArray(response.data)) {
+                        rData = response.data;
+                        $.each(rData, function(index, value) {
+                            var selectData = '';
+                            options.push(value);
+                        });
+
+                        $('#deal_agent_id').html('<option value="">--</option>' + options);
+
+                    } else {
+                        $('#deal_agent_id').html(response.data);
+                    }
+
+                    $('#deal_agent_id').selectpicker('refresh');
+                }
+            });
+        }
+
+        function getStages(pipelineId) {
+            var url = "{{ route('deals.get-stage', ':id') }}";
+            url = url.replace(':id', pipelineId);
+            $.easyAjax({
+                url: url,
+                type: "GET",
+                success: function(response) {
+                    if (response.status == 'success') {
+                        var options = [];
+                        var rData = [];
+                        rData = response.data;
+                        $.each(rData, function(index, value) {
+                            var selected = '';
+                            @if (!is_null($deal->pipeline_stage_id))
+                                if ({{ $deal->pipeline_stage_id }} == value.id) {
+                                    selected = 'selected';
+                                }
+                            @endif
+                            var selectData = '';
+                            selectData =
+                                `<option data-content="<i class='fa fa-circle' style='color: ${value.label_color}'></i> ${value.name} " value="${value.id}" ${selected}> ${value.name}</option>`;
+                            options.push(selectData);
+                        });
+                        $('#stages').html(options);
+                        $('#stages').selectpicker('refresh');
+                    }
+                }
+            });
+        }
+    });
+</script>
