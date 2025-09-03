@@ -253,27 +253,32 @@
         function getStages(pipelineId) {
             const $select = $('#stages');
             if (!$select.length) return;
+            if (!pipelineId) {
+                $select.html('<option value="">--</option>');
+                if ($.fn.selectpicker) $select.selectpicker('refresh');
+                return;
+            }
             let url = "{{ route('deals.get-stage', ':id') }}".replace(':id', encodeURIComponent(pipelineId));
             $.easyAjax({
                 url: url,
                 type: "GET",
                 success: function(response) {
-                    if (response.status == 'success') {
+                    if (response.status === 'success') {
+                        const rData = Array.isArray(response.data) ? response.data : [];
                         const options = [];
-                        const rData = response.data;
-                        $.each(rData, function(_, value) {
-                            const color = /^#([0-9A-F]{3}|[0-9A-F]{6})$/i.test(value.label_color)
-                                ? value.label_color
-                                : '#666';
-                            const isSelected = {{ !is_null($deal->pipeline_stage_id) && $deal->pipeline_stage_id }} === value.id;
+                        rData.forEach(function (value) {
+                            const color = /^#([0-9A-F]{3}|[0-9A-F]{6})$/i.test(value.label_color) ? value.label_color : '#666';
                             const $opt = $('<option>')
                                 .val(value.id)
-                                .text(value.name)                                 // auto-escapes name
-                                .attr('data-content', `<i class="fa fa-circle" style="color:${color}"></i> ${value.name}`)
-                                .prop('selected', isSelected);
+                                .text(value.name) // auto-escapes
+                                .attr('data-content', `<i class="fa fa-circle" style="color:${color}"></i> ${value.name}`);
                             options.push($opt.prop('outerHTML'));
                         });
-                        $select.html(options);
+                        $select.html(options.join(''));
+                        if (rData.length) { $select.val(String(rData[0].id)); }
+                        if ($.fn.selectpicker) $select.selectpicker('refresh');
+                    } else {
+                        $select.html('<option value="">--</option>');
                         if ($.fn.selectpicker) $select.selectpicker('refresh');
                     }
                 }
