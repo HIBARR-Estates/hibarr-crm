@@ -152,7 +152,17 @@ class DealController extends AccountBaseController
 
     public function show($id)
     {
-        $this->deal = Deal::with('leadAgent.user:id,name,image', 'category')->findOrFail($id)->withCustomFields();
+        $this->deal = Deal::with([
+            'leadAgent.user:id,name,image', 
+            'category',
+            'dealWatchers' => function ($query) {
+                $query->withoutGlobalScope(ActiveScope::class)
+                      ->select('users.id', 'users.name', 'users.image', 'users.email')
+                      ->with('employeeDetail.designation:id,name')
+                      ->where('users.status', '!=', 'deactive')
+                      ->orderBy('users.name');
+            }
+        ])->findOrFail($id)->withCustomFields();
 
         $this->leadAgentId = ($this->deal->leadAgent != null) ? $this->deal->leadAgent->user->id : 0;
 
@@ -403,7 +413,20 @@ class DealController extends AccountBaseController
      */
     public function edit($id)
     {
-        $this->deal = Deal::with('currency', 'leadAgent', 'leadAgent.user', 'products', 'leadStage', 'dealWatchers')->findOrFail($id)->withCustomFields();
+        $this->deal = Deal::with([
+            'currency', 
+            'leadAgent', 
+            'leadAgent.user', 
+            'products', 
+            'leadStage', 
+            'dealWatchers' => function ($query) {
+                $query->withoutGlobalScope(ActiveScope::class)
+                      ->select('users.id', 'users.name', 'users.image', 'users.email')
+                      ->with('employeeDetail.designation:id,name')
+                      ->where('users.status', '!=', 'deactive')
+                      ->orderBy('users.name');
+            }
+        ])->findOrFail($id)->withCustomFields();
 
         $this->productIds = $this->deal->products->pluck('id')->toArray();
 
