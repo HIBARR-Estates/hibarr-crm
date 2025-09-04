@@ -25,7 +25,7 @@
 
                 <div id="normal-fields-container">
 
-                    <div class="row p-20">
+                    <div class="row mx-2">
                         <div class="col-lg-4 col-md-6">
                             <x-forms.select fieldId="salutation" :fieldLabel="__('modules.client.salutation')" fieldName="salutation">
                                 <option value="">--</option>
@@ -98,7 +98,7 @@
                         </div>
                     </div>
 
-                    <div class="row p-20">
+                    <div class="row mt-4 mb-2 mx-2">
                         @if (in_array($addDealPermission, ['all', 'added']))
                             <div class="col-lg-2 col-md-6">
                                 <div class="form-group">
@@ -120,7 +120,7 @@
                         </div>
                     </div>
 
-                    <div class="row p-20 d-none" id="add_deal">
+                    <div class="row mt-4 mb-4 mx-2 d-none" id="add_deal">
                         <div class="col-lg-4 col-md-6">
                             <x-forms.text :fieldLabel="__('modules.deal.dealName')" fieldName="name" fieldId="name" :fieldPlaceholder="__('placeholders.name')"
                                 fieldRequired="true" :popover="__('modules.deal.dealnameInfo')" />

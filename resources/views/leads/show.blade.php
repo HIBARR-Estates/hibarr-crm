@@ -93,6 +93,11 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);
         });
+        $('body').on('click', '#add-files-no-record', function() {
+            const url = "{{ route('deal-files.create') }}";
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
 
         $('body').on('click', '.delete-table-row', function() {
             var id = $(this).data('id');

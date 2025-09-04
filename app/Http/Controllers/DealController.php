@@ -189,6 +189,21 @@ class DealController extends AccountBaseController
 
         $tab = request('tab');
 
+        // Helper to handle notes logic
+        $handleNotes = function() use ($id) {
+            $this->notes = DealNote::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
+            $viewNotesPermission = user()->permission('view_deal_note');
+            abort_403(!($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
+
+            if (user()->permission('view_deal_note') == 'added') {
+                $this->notes = $this->notes->where('added_by', user()->id);
+            }
+            elseif (user()->permission('view_deal_note') == 'owned') {
+                $this->notes = $this->notes->where('added_by', '!=', user()->id);
+            }
+            $this->tab = 'leads.ajax.notes';
+        };
+
         switch ($tab) {
             case 'files':
                 $this->tab = 'leads.ajax.files';
@@ -215,17 +230,7 @@ class DealController extends AccountBaseController
                 $this->tab = 'leads.ajax.proposal';
                 break;
             case 'notes':
-                $this->notes = DealNote::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
-                $viewNotesPermission = user()->permission('view_deal_note');
-                abort_403(!($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
-
-                if (user()->permission('view_deal_note') == 'added') {
-                    $this->notes->where('added_by', user()->id);
-                } elseif (user()->permission('view_deal_note') == 'owned') {
-                    $this->notes->where('added_by', '!=', user()->id);
-                }
-
-                $this->tab = 'leads.ajax.notes';
+                $handleNotes();
                 break;
             case 'gdpr':
 
@@ -249,7 +254,7 @@ class DealController extends AccountBaseController
                 $this->tab = 'leads.ajax.activities';
                 break;
             default:
-                $this->tab = 'leads.ajax.files';
+                $handleNotes();
                 break;
         }
 

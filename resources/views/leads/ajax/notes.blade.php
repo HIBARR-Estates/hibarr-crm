@@ -7,15 +7,7 @@
 
 <!-- TAB CONTENT START -->
 <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="nav-email-tab">
-    @if ($addDealNotePermission == 'all' || $addDealNotePermission == 'added' || $addDealNotePermission == 'both')
-        <div class="row p-20">
-            <div class="col-md-12">
-                <a class="f-15 f-w-500 openRightModal" href="{{ route('deal-notes.create').'?lead='.$deal->id }}" id="add-notes"><i
-                        class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.client.createNote')
-                    </a>
-            </div>
-        </div>
-    @endif
+
 
 
     <div class="d-flex flex-wrap p-20" id="task-file-list">
@@ -68,7 +60,18 @@
                 @empty
                     <tr>
                         <td colspan="4">
-                            <x-cards.no-record :message="__('messages.noRecordFound')" icon="clipboard" />
+                          
+                            @if ($addDealNotePermission == 'all' || $addDealNotePermission == 'added' || $addDealNotePermission == 'both')
+                                <x-cards.no-record-with-link
+                                    :message="__('messages.noRecordFound')"
+                                    icon="clipboard"
+                                    id="add-notes-no-record"
+                                    :linkHref="route('deal-notes.create', ['lead' => $deal->id])"
+                                    :linkText="__('modules.client.createNote')"
+                                    linkClass="f-14 f-w-500 mt-4 openRightModal" />
+                            @else
+                                <x-cards.no-record :message="__('messages.noRecordFound')" icon="clipboard" />
+                            @endif
                         </td>
                     </tr>
                 @endforelse
