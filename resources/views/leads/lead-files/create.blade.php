@@ -42,7 +42,10 @@
             }
         });
         leadDropzone.on('sending', function(file, xhr, formData) {
-            formData.append('lead_id', $('#add-files').data('lead-id'));
+            var leadId = $('#add-files').data('lead-id') || $('#add-files-no-record').data('lead-id'); // get the lead data from concerned elements
+            if (leadId) {
+                formData.append('lead_id', leadId);
+            }
             $.easyBlockUI();
         });
         leadDropzone.on('uploadprogress', function() {

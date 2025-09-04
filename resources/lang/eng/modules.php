@@ -1623,7 +1623,6 @@ return array(
         'client' => 'Client',
         'pending' => 'Pending',
         'changeToClient' => 'Change To Client',
-        'addFollowUp' => 'Add Follow Up',
         'edit' => 'Edit',
         'action' => 'Action',
         'view' => 'View',
@@ -1658,6 +1657,7 @@ return array(
         'viewDetails' => 'View Details',
         'title' => ' Lead Proposal',
         'proposal' => ' Lead Proposal',
+        'addProposal' => 'Add Proposal',
         'createProposal' => 'Create Proposal',
         'validTill' => 'Valid Till',
         'waiting' => 'Waiting',
@@ -1681,6 +1681,7 @@ return array(
         'name' => 'Name',
     ),
     'followup' => array(
+        'addFollowUp' => 'Add Follow Up',
         'newFollowUp' => 'New Follow Up',
         'updateFollow' => 'Update Follow Up',
         'addNewLead' => 'Add New Proposal',
