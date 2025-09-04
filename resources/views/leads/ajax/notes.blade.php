@@ -7,15 +7,7 @@
 
 <!-- TAB CONTENT START -->
 <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="nav-email-tab">
-    @if ($addDealNotePermission == 'all' || $addDealNotePermission == 'added' || $addDealNotePermission == 'both')
-        <div class="row p-20">
-            <div class="col-md-12">
-                <a class="f-15 f-w-500 openRightModal" href="{{ route('deal-notes.create').'?lead='.$deal->id }}" id="add-notes"><i
-                        class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.client.createNote')
-                    </a>
-            </div>
-        </div>
-    @endif
+
 
 
     <div class="d-flex flex-wrap p-20" id="task-file-list">

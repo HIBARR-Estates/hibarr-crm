@@ -1,12 +1,12 @@
-<div class="align-items-center d-flex flex-column text-lightest p-20 w-100">
+<div class="align-items-center d-flex flex-column text-lightest p-20 w-100 text-center">
     <i class="fa fa-{{ $icon }} f-21 w-100"></i>
     @if (!empty($message))
-        <div class="f-14 mt-3 w-100">{{ $message }}</div>
+        <div class="f-14 mt-3 w-100 text-center">{{ $message }}</div>
     @endif
 
 
 
-    <a class="{{ $linkClass }}" href="{{ $linkHref }}" 
+    <a class="btn btn-primary btn-xs {{ $linkClass }}" href="{{ $linkHref }}" 
         @isset($id) 
             id="{{ $id }}" 
         @endisset

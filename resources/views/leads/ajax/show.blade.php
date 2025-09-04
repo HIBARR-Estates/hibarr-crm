@@ -132,32 +132,88 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                 <div class="s-b-inner s-b-notifications bg-white b-shadow-4 rounded">
                     <x-tab-section class="deal-tabs">
                         @if($viewLeadFilePermission != 'none')
-                            <x-tab-item class="ajax-tab files" :active="(request('tab') === 'files' || !request('tab'))"
+                            <x-tab-item data-tab="files" class="ajax-tab files" :active="(request('tab') === 'files' || !request('tab'))"
                                             :link="route('deals.show', $deal->id).'?tab=files'">@lang('modules.lead.file')</x-tab-item>
                         @endif
                         @if($viewLeadFollowupPermission != 'none')
-                            <x-tab-item class="ajax-tab follow-up" :active="request('tab') === 'follow-up'"
+                            <x-tab-item data-tab="follow-up" class="ajax-tab follow-up" :active="request('tab') === 'follow-up'"
                                             :link="route('deals.show', $deal->id).'?tab=follow-up'">@lang('modules.lead.followUp')</x-tab-item>
                         @endif
 
 
                         @if($viewProposalPermission != 'none')
-                            <x-tab-item class="ajax-tab proposals" :active="request('tab') === 'proposals'"
+                            <x-tab-item data-tab="proposals" class="ajax-tab proposals" :active="request('tab') === 'proposals'"
                                             :link="route('deals.show', $deal->id).'?tab=proposals'">@lang('modules.lead.proposal')</x-tab-item>
                         @endif
 
                         @if ($viewClientNote != 'none')
-                            <x-tab-item class="ajax-tab notes" :active="request('tab') === 'notes'"
+                            <x-tab-item data-tab="notes" class="ajax-tab notes" :active="request('tab') === 'notes'"
                                             :link="route('deals.show', $deal->id).'?tab=notes'">@lang('app.notes')</x-tab-item>
                         @endif
 
                         @if ($gdpr->enable_gdpr)
-                            <x-tab-item class="ajax-tab gdpr" :active="request('tab') === 'gdpr'"
+                            <x-tab-item data-tab="gdpr" class="ajax-tab gdpr" :active="request('tab') === 'gdpr'"
                                         :link="route('deals.show', $deal->id).'?tab=gdpr'">@lang('app.menu.gdpr')</x-tab-item>
                         @endif
 
-                        <x-tab-item class="ajax-tab history" :active="request('tab') === 'history'"
+                        <x-tab-item data-tab="history" class="ajax-tab history" :active="request('tab') === 'history'"
                                     :link="route('deals.show', $deal->id).'?tab=history'">@lang('modules.tasks.history')</x-tab-item>
+                        
+                        @php
+                            $addLeadFilePermission = user()->permission('add_lead_files');
+                            $addLeadFollowUpPermission = user()->permission('add_lead_follow_up');
+                            $addProposalPermission = user()->permission('add_lead_proposals');
+                            $addDealNotePermission = user()->permission('add_deal_note');
+                        @endphp
+                        <x-slot name="action">
+                            {{-- Files Action --}}
+                            @if($addLeadFilePermission == 'all' || $addLeadFilePermission == 'added')
+                                <a class="f-15 f-w-500 d-none tab-action-btn" 
+                                data-tab="files" 
+                                href="javascript:;" 
+                                id="add-files" 
+                                data-lead-id="{{ $deal->id }}">
+                                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.projects.uploadFile')
+                                </a>
+                            @endif
+
+                            {{-- Follow-up Action --}}
+                            @if($deal->leadStage->slug != 'win' && $deal->leadStage->slug != 'lost' && ($addLeadFollowUpPermission == 'all' || $addLeadFollowUpPermission == 'added'))
+                                <a class="f-15 f-w-500 d-none tab-action-btn" 
+                                data-tab="follow-up" 
+                                href="#" 
+                                id="add-lead-followup">
+                                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.followup.newFollowUp')
+                                </a>
+                            @endif
+                            @if($deal->leadStage->slug == 'win' || $deal->leadStage->slug == 'lost')
+                                <x-alert type="info" icon="info-circle" class="d-none tab-action-btn" data-tab="follow-up">
+                                    @lang('messages.cantAddFollowup')
+                                </x-alert>
+                            @endif
+
+                            {{-- Proposal Action --}}
+                            @if($addProposalPermission == 'all' || $addProposalPermission == 'added')
+                                <a class="f-15 f-w-500 d-none tab-action-btn" 
+                                data-tab="proposals" 
+                                target="_blank" 
+                                data-redirect-url="{{ url()->full() }}" 
+                                href="{{ route('proposals.create').'?deal_id='.$deal->id }}" 
+                                id="add-proposal">
+                                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.proposal.createProposal')
+                                </a>
+                            @endif
+
+                            {{-- Notes Action --}}
+                            @if($addDealNotePermission == 'all' || $addDealNotePermission == 'added' || $addDealNotePermission == 'both')
+                                <a class="f-15 f-w-500 openRightModal d-none tab-action-btn" 
+                                data-tab="notes" 
+                                href="{{ route('deal-notes.create').'?lead='.$deal->id }}" 
+                                id="add-notes">
+                                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.client.createNote')
+                                </a>
+                            @endif
+                        </x-slot>
 
                     </x-tab-section>
 
@@ -202,6 +258,48 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
     </div>
 
     <script src="{{ asset('vendor/jquery/clipboard.min.js') }}"></script>
+    {{--tab action buttons --}}
+    <script>
+        function showTabAction(tab) {
+            $('.tab-action-btn').addClass('d-none');
+            $('.tab-action-btn[data-tab="' + tab + '"]').removeClass('d-none');
+        }
+
+        $(document).ready(function () {
+            // Initial show based on current tab
+            let initialTab = $('.deal-tabs .ajax-tab.active').data('tab') || 'files';
+            showTabAction(initialTab);
+
+            // On tab click
+            $('.deal-tabs').on('click', '.ajax-tab', function (event) {
+                event.preventDefault();
+
+                $('.deal-tabs .ajax-tab').removeClass('active');
+                $(this).addClass('active');
+
+                const tab = $(this).data('tab');
+                showTabAction(tab);
+
+                // ...existing AJAX tab loading code...
+                const requestUrl = this.href;
+                $.easyAjax({
+                    url: requestUrl,
+                    blockUI: true,
+                    container: "#nav-tabContent",
+                    historyPush: ($(RIGHT_MODAL).hasClass('in') ? false : true),
+                    data: {
+                        'json': true
+                    },
+                    success: function (response) {
+                        if (response.status == "success") {
+                            $('#nav-tabContent').html(response.html);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+    {{--tab action buttons --}}
 
     <script>
         var clipboard = new ClipboardJS('.btn-copy');

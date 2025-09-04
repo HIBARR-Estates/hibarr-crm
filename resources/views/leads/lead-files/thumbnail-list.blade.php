@@ -1,6 +1,7 @@
 @php
     $deleteLeadFilePermission = user()->permission('delete_lead_files');
     $viewLeadFilePermission = user()->permission('view_lead_files');
+    $addLeadFilePermission = user()->permission('add_lead_files');
 @endphp
 
 <div class="row d-flex flex-wrap p-20">

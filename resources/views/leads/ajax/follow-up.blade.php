@@ -7,20 +7,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
 
 <!-- TAB CONTENT START -->
 <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="nav-email-tab">
-    <div class="d-flex p-20">
-        @if ($deal->leadStage->slug == 'win' || $deal->leadStage->slug == 'lost')
-            <x-alert type="info" icon="info-circle">@lang('messages.cantAddFollowup') </x-alert>
-        @endif
-        @if ($deal->leadStage->slug != 'win' && $deal->leadStage->slug != 'lost' && ($addLeadFollowUpPermission == 'all' || $addLeadFollowUpPermission == 'added'))
-            <div class="row">
-                <div class="col-md-12">
-                    <button type="button" class="f-15 f-w-500 btn btn-link p-0" id="add-lead-followup">
-                        <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.followup.newFollowUp')
-                    </button>
-                </div>
-            </div>
-        @endif
-    </div>
+
 
     <div class="d-flex flex-wrap p-20" id="task-file-list">
         @if ($viewLeadFollowUpPermission == 'all' || $viewLeadFollowUpPermission == 'added')

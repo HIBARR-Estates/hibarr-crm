@@ -10,15 +10,7 @@
 
 <!-- TAB CONTENT START -->
 <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="nav-email-tab">
-    @if ($addProposalPermission == 'all' || $addProposalPermission == 'added')
-        <div class="row p-20">
-            <div class="col-md-12">
-                <a class="f-15 f-w-500" target="_blank" data-redirect-url="{{ url()->full() }}" href="{{ route('proposals.create').'?deal_id='.$deal->id }}" id="add-proposal">
-                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.proposal.createProposal')
-                </a>
-            </div>
-        </div>
-    @endif
+
 
 
     <div class="d-flex flex-wrap p-20" id="task-file-list">
