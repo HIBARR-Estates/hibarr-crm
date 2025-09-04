@@ -47,7 +47,18 @@
         <div class="align-items-center d-flex flex-column text-lightest p-20 w-100">
           
 
-             <x-cards.no-record-with-link :message="__('messages.noFileUploaded')" icon="file-excel" id="add-files-no-record" :linkHref="'javascript:;'" :linkText="__('modules.projects.uploadFile')" linkClass="f-14 f-w-500 mt-4" data-lead-id="{{ $deal->id }}" />
+            @if ($addLeadFilePermission == 'all' || $addLeadFilePermission == 'added')
+                <x-cards.no-record-with-link
+                    :message="__('messages.noFileUploaded')"
+                    icon="file-excel"
+                    id="add-files-no-record"
+                    :linkHref="'#'"
+                    :linkText="__('modules.projects.uploadFile')"
+                    linkClass="f-14 f-w-500 mt-4"
+                    data-lead-id="{{ $deal->id }}" />
+            @else
+                <x-cards.no-record :message="__('messages.noFileUploaded')" icon="file-excel" />
+            @endif
         </div>
     @endforelse
 </div>

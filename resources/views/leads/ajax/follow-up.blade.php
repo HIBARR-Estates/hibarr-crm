@@ -75,8 +75,22 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                 @empty
                     <tr>
                         <td colspan="5">
-                        
-                            <x-cards.no-record-with-link :message="__('messages.noRecordFound')" icon="clock" id="add-lead-followup-no-record" :linkHref="'javascript:;'" :linkText="__('modules.followup.addFollowUp')" linkClass="f-14 f-w-500 mt-4" />
+
+
+                             @if ($deal->leadStage->slug != 'win' && $deal->leadStage->slug != 'lost' && ($addLeadFollowUpPermission == 'all' || $addLeadFollowUpPermission == 'added'))
+                                <x-cards.no-record-with-link
+                                    :message="__('messages.noRecordFound')"
+                                    icon="clock"
+                                    id="add-lead-followup-no-record"
+                                    :linkHref="'javascript:;'"
+                                    :linkText="__('modules.followup.addFollowUp')"
+                                    linkClass="f-14 f-w-500 mt-4" />
+                            @else
+                                <x-cards.no-record-with-link
+                                    :message="__('messages.noRecordFound')"
+                                    icon="clock"
+                                    linkClass="d-none" />
+                            @endif
                         </td>
                     </tr>
                 @endforelse
