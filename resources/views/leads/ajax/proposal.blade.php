@@ -95,7 +95,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7">
+                        <td colspan="6">
                             
                             @if ($addProposalPermission == 'all' || $addProposalPermission == 'added')
                                 <x-cards.no-record-with-link

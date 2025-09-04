@@ -280,7 +280,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                 const tab = $(this).data('tab');
                 showTabAction(tab);
 
-                // ...existing AJAX tab loading code...
+              
                 const requestUrl = this.href;
                 $.easyAjax({
                     url: requestUrl,
@@ -324,35 +324,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         });
     </script>
 
-    <script>
-        $(document).ready(function () {
-            $(".ajax-tab").click(function (event) {
-                event.preventDefault();
-
-                $('.deal-tabs .ajax-tab').removeClass('active');
-                $(this).addClass('active');
-
-                const requestUrl = this.href;
-
-                $.easyAjax({
-                    url: requestUrl,
-                    blockUI: true,
-                    container: "#nav-tabContent",
-                    historyPush: ($(RIGHT_MODAL).hasClass('in') ? false : true),
-                    data: {
-                        'json': true
-                    },
-                    success: function (response) {
-                        if (response.status == "success") {
-                            $('#nav-tabContent').html(response.html);
-                        }
-                    }
-                });
-            });
-
-        });
-    </script>
-
+ 
     <script>
         var fileLayout = 'thumbnail-list';
         function leadFilesView(layout) {
