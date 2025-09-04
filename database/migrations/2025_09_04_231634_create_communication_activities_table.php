@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('communication_activities', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('company_id')->nullable();
-            $table->unsignedInteger('deal_id')->nullable();
+            $table->unsignedBigInteger('deal_id')->nullable();
             $table->unsignedInteger('lead_id')->nullable();
             $table->enum('channel_type', ['email', 'whatsapp', 'instagram', 'telegram']);
             $table->text('message_content');
