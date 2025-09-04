@@ -1623,7 +1623,6 @@ return array(
         'client' => 'Client',
         'pending' => 'Pending',
         'changeToClient' => 'Change To Client',
-        'addFollowUp' => 'Add Follow Up',
         'edit' => 'Edit',
         'action' => 'Action',
         'view' => 'View',
