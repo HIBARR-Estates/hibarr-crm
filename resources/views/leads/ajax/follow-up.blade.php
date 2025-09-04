@@ -74,7 +74,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7">
+                        <td colspan="5">
                         
                             <x-cards.no-record-with-link :message="__('messages.noRecordFound')" icon="clock" id="add-lead-followup-no-record" :linkHref="'javascript:;'" :linkText="__('modules.followup.addFollowUp')" linkClass="f-14 f-w-500 mt-4" />
                         </td>
