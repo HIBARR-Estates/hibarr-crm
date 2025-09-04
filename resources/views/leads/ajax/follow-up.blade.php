@@ -14,8 +14,9 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
         @if ($deal->leadStage->slug != 'win' && $deal->leadStage->slug != 'lost' && ($addLeadFollowUpPermission == 'all' || $addLeadFollowUpPermission == 'added'))
             <div class="row">
                 <div class="col-md-12">
-                    <a class="f-15 f-w-500" href="javascript:;" id="add-lead-followup"><i
-                            class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.followup.newFollowUp')</a>
+                    <button type="button" class="f-15 f-w-500 btn btn-link p-0" id="add-lead-followup">
+                        <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.followup.newFollowUp')
+                    </button>
                 </div>
             </div>
         @endif
