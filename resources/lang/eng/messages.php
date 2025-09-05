@@ -1,6 +1,8 @@
 <?php
 
 return array(
+    'unsupportedChannel' => 'Unsupported channel type provided.',
+    'invalidChannelRequestSignature' => 'Invalid channel request signature.',
     'attendanceIsMarked' => 'Attendance is marked for the date',
     'autoClockOut' => 'Enter no of hours from the end time after which employee will be auto clocked out. <br><br><b>Example:</b> If shift end time is 6 PM and auto clockout value is 1 then employee will be auto clocked out at 7 PM.<br><br><b>Note</b>: Auto clock out will not work if allow clock-in outside shift hours is checked in attendance settings.',
     'flexibleAutoClockOut' => 'Enter no of hours after which employee will be auto clocked out. <br><br><b>Example:</b> If total shift hours are 8 hours and auto clockout value is 1 then employee will be auto clocked out after 9 Hours.',
