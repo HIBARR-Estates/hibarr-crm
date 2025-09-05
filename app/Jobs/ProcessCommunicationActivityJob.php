@@ -52,9 +52,9 @@ class ProcessCommunicationActivityJob implements ShouldQueue
             }
 
             // Deal creator
-            if ($deal && $deal->addedBy) {
-                $notifiables->push($deal->addedBy);
-            }
+            // if ($deal && $deal->addedBy) {
+            //     $notifiables->push($deal->addedBy);
+            // }
 
             // Remove duplicates and nulls
             $notifiables = $notifiables->filter()->unique('id');
