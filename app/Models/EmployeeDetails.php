@@ -140,4 +140,24 @@ class EmployeeDetails extends BaseModel
         return $this->belongsTo(Team::class, 'department_id');
     }
 
+    public function commissions(): HasMany
+    {
+        return $this->hasMany(Commission::class, 'employee_id');
+    }
+
+    public function referralCode(): HasOne
+    {
+        return $this->hasOne(ReferralCode::class, 'employee_id');
+    }
+
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeDetails::class, 'referral_id');
+    }
+
+    // also referred to dowwnlines ...
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(EmployeeDetails::class, 'referral_id');
+    }
 }
