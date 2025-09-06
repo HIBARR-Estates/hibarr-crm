@@ -155,7 +155,7 @@ class EmployeeDetails extends BaseModel
         return $this->belongsTo(EmployeeDetails::class, 'referral_id');
     }
 
-    // also referred to dowwnlines ...
+    // also referred to as downlines ...
     public function referrals(): HasMany
     {
         return $this->hasMany(EmployeeDetails::class, 'referral_id');
