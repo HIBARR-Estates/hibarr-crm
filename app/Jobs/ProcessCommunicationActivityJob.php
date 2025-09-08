@@ -35,11 +35,11 @@ class ProcessCommunicationActivityJob implements ShouldQueue
         // Create the communication activity record
         $activity = CommunicationActivity::create($this->normalizedData);
 
+        $notifiables = collect();
         // Notify relevant users
         if (!empty($activity->deal_id)) {
             $deal = Deal::with('leadAgent.user', 'dealWatcher', 'addedBy')->find($activity->deal_id);
 
-            $notifiables = collect();
 
             // Lead agent
             if ($deal && $deal->leadAgent && $deal->leadAgent->user) {
@@ -51,17 +51,21 @@ class ProcessCommunicationActivityJob implements ShouldQueue
                 $notifiables->push($deal->dealWatcher);
             }
 
+
+              // Lead owner(should only be notified if this is the first communication activity on a deal)
+            $isFirstActivity = $deal->communicationActivities()->count() === 1;
+            if ($deal && $deal->lead?->leadOwner && $isFirstActivity) {
+                $notifiables->push($deal->lead?->leadOwner);
+            }
+
             // Deal creator
             // if ($deal && $deal->addedBy) {
             //     $notifiables->push($deal->addedBy);
             // }
 
-            // Remove duplicates and nulls
-            $notifiables = $notifiables->filter()->unique('id');
+            $dealOrLead = $deal;
 
-            foreach ($notifiables as $user) {
-                $user->notify(new NewCommunicationActivity($activity, $deal));
-            }
+           
         } elseif (!empty($activity->lead_id)) {
             $lead = Lead::with('leadAgent.user', 'addedBy', 'leadOwner')->find($activity->lead_id);
 
@@ -72,22 +76,22 @@ class ProcessCommunicationActivityJob implements ShouldQueue
                 $notifiables->push($lead->leadAgent->user);
             }
 
-            // Lead owner
-            if ($lead && $lead->leadOwner) {
-                $notifiables->push($lead->leadOwner);
-            }
+          
 
             // Lead creator
-            if ($lead && $lead->addedBy) {
-                $notifiables->push($lead->addedBy);
-            }
+            // if ($lead && $lead->addedBy) {
+            //     $notifiables->push($lead->addedBy);
+            // }
 
-            // Remove duplicates and nulls
-            $notifiables = $notifiables->filter()->unique('id');
+            $dealOrLead = $lead;
+        
+        }
 
-            foreach ($notifiables as $user) {
-                $user->notify(new NewCommunicationActivity($activity, $lead));
-            }
+         // Remove duplicates and nulls
+        $notifiables = $notifiables->filter()->unique('id');
+
+        foreach ($notifiables as $user) {
+            $user->notify(new NewCommunicationActivity($activity, $dealOrLead));
         }
     }
 }
