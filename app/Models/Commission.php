@@ -24,8 +24,50 @@ class Commission extends Model
         'amount',
         'level',
         'rule_version',
-        'status',
     ];
+
+    // Methods for status transitions for Commission
+     /**
+      * Approve the commission if it's currently pending.
+      *
+      * @throws \DomainException if the commission is not in a pending state.
+      */
+    public function approve()
+    {
+        if ($this->status !== CommissionStatus::Pending) {
+            throw new \DomainException('Only pending commissions can be approved.');
+        }
+        $this->status = CommissionStatus::Approved;
+        $this->save();
+    }
+
+    /**
+     * Mark the commission as paid if it's currently approved.
+     *
+     * @throws \DomainException if the commission is not in an approved state.
+     */
+    public function markPaid()
+    {
+        if ($this->status !== CommissionStatus::Approved) {
+            throw new \DomainException('Only approved commissions can be marked as paid.');
+        }
+        $this->status = CommissionStatus::Paid;
+        $this->save();
+    }
+    /**
+     * Cancel the commission unless it's already paid.
+     *
+     * @throws \DomainException if the commission is already paid.
+     */
+
+    public function cancel()
+    {
+        if ($this->status === CommissionStatus::Paid) {
+            throw new \DomainException('Paid commissions cannot be cancelled.');
+        }
+        $this->status = CommissionStatus::Cancelled;
+        $this->save();
+    }
 
     /**
      * The employee who earned the commission.
