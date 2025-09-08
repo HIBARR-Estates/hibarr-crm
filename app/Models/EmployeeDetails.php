@@ -8,6 +8,8 @@ use App\Traits\CustomFieldsTrait;
 use App\Traits\HasCompany;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * App\Models\EmployeeDetails

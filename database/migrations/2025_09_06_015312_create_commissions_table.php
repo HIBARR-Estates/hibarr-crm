@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedInteger('employee_id'); // who earned the commission
             $table->string('event_type'); // type of event responsible for commission
             $table->unsignedInteger('source_event_id'); // ID of the event record
-            $table->decimal('amount', 12, 2); // commission amount
+            $table->unsignedDecimal('amount', 12, 2); // commission amount
             $table->unsignedTinyInteger('level')->default(1); // MLM level 
             $table->string('rule_version')->nullable(); // rule version at time of calculation
             $table->string('status')->default('pending'); // status of the commission

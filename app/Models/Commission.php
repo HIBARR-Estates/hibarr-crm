@@ -4,12 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\CommissionStatus;
 
 class Commission extends Model
 {
     use HasFactory;
 
     protected $table = 'commissions';
+    protected $casts = [
+       'status' => CommissionStatus::class,
+       'amount' => 'decimal:2',
+       'level'  => 'integer',
+    ];
 
     protected $fillable = [
         'employee_id',
