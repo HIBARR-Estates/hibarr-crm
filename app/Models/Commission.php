@@ -26,6 +26,10 @@ class Commission extends Model
         'rule_version',
     ];
 
+    protected $attributes = [
+        'status' => CommissionStatus::Pending->value,
+    ];
+
     // Methods for status transitions for Commission
      /**
       * Approve the commission if it's currently pending.
@@ -34,11 +38,14 @@ class Commission extends Model
       */
     public function approve()
     {
-        if ($this->status !== CommissionStatus::Pending) {
+         $updated = static::query()
+        ->whereKey($this->getKey())
+        ->where('status', CommissionStatus::Pending)
+        ->update(['status' => CommissionStatus::Approved]);
+        if ($updated !== 1) {
             throw new \DomainException('Only pending commissions can be approved.');
         }
-        $this->status = CommissionStatus::Approved;
-        $this->save();
+        $this->refresh();
     }
 
     /**
@@ -48,11 +55,14 @@ class Commission extends Model
      */
     public function markPaid()
     {
-        if ($this->status !== CommissionStatus::Approved) {
-            throw new \DomainException('Only approved commissions can be marked as paid.');
-        }
-        $this->status = CommissionStatus::Paid;
-        $this->save();
+        $updated = static::query()
+        ->whereKey($this->getKey())
+        ->where('status', CommissionStatus::Approved)
+        ->update(['status' => CommissionStatus::Paid]);
+       if ($updated !== 1) {
+           throw new \DomainException('Only approved commissions can be marked as paid.');
+       }
+       $this->refresh();
     }
     /**
      * Cancel the commission unless it's already paid.
@@ -62,11 +72,14 @@ class Commission extends Model
 
     public function cancel()
     {
-        if ($this->status === CommissionStatus::Paid) {
-            throw new \DomainException('Paid commissions cannot be cancelled.');
+        $updated = static::query()
+            ->whereKey($this->getKey())
+            ->whereIn('status', [CommissionStatus::Pending, CommissionStatus::Approved])
+            ->update(['status' => CommissionStatus::Cancelled]);
+        if ($updated !== 1) {
+            throw new \DomainException('Only pending or approved commissions can be cancelled.');
         }
-        $this->status = CommissionStatus::Cancelled;
-        $this->save();
+        $this->refresh();
     }
 
     /**
