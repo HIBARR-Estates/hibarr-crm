@@ -36,7 +36,7 @@
                                 :fieldValue="now(company()->timezone)->format(company()->time_format)" />
                         </div>
                     </div>
-                    <div class="col-md-12">
+                    <div class="col-md-6">
                         <x-forms.select fieldId="meeting_type_id" :fieldLabel="__('Meeting Type')" fieldName="meeting_type_id"
                             search="true">
                             <option value="">-- Select Meeting Type --</option>
@@ -47,7 +47,7 @@
                             @endforeach
                         </x-forms.select>
                     </div>
-                    <div class="col-md-12">
+                    <div class="col-md-6">
                         <x-forms.select fieldId="location" :fieldLabel="__('Location')" fieldName="location"
                             search="true">
                             <option value="office">Office</option>
@@ -56,32 +56,7 @@
                             <option value="google_meet">Google Meet</option>
                         </x-forms.select>
                     </div>
-                    <div class="col-md-12" id="meeting_link_container" style="display: none;">
-                        <x-forms.text :fieldLabel="__('Meeting Link')" fieldName="meeting_link" fieldId="meeting_link"
-                            :fieldPlaceholder="__('Enter meeting link')" />
-                    </div>
-                    <div class="col-lg-12 my-3">
-                        <x-forms.checkbox :fieldLabel="__('modules.tasks.reminder')" fieldName="send_reminder"
-                            fieldId="send_reminder" fieldValue="yes" fieldRequired="true" />
-                    </div>
-
-                    <div class="col-lg-12 send_reminder_div d-none">
-                        <div class="row">
-                            <div class="col-lg-6 mt-1">
-                                <x-forms.number class="mr-0 mr-lg-2 mr-md-2"
-                                    :fieldLabel="__('modules.events.remindBefore')" fieldName="remind_time"
-                                    fieldId="remind_time" fieldValue="" fieldRequired="true" />
-                            </div>
-                            <div class="col-md-6 mt-3">
-                                <x-forms.select fieldId="remind_type" fieldLabel="" fieldName="remind_type"
-                                    search="true">
-                                    <option value="day">@lang('app.day')</option>
-                                    <option value="hour">@lang('app.hour')</option>
-                                    <option value="minute">@lang('app.minute')</option>
-                                </x-forms.select>
-                            </div>
-                        </div>
-                    </div>
+                    
                     <div class="col-md-12">
                         <div class="form-group my-3">
                             <x-forms.textarea class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('modules.lead.remark')"
@@ -89,6 +64,37 @@
                             </x-forms.textarea>
                         </div>
                     </div>
+                    <div class="col-lg-12 my-3">
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <x-forms.checkbox :fieldLabel="__('modules.tasks.reminder')" fieldName="send_reminder"
+                                    fieldId="send_reminder" fieldValue="yes" fieldRequired="true" />
+                            </div>
+                            <div class="col-lg-6 reminder_info d-none">
+                                <i class="fa fa-info-circle"></i> You will be reminded 30mins before the meeting starts
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4 send_reminder_div d-none">
+                        <div class="row">
+                            <div class="col-lg-6 mt-1">
+                                <x-forms.number class="mr-0 mr-lg-2 mr-md-2"
+                                    :fieldLabel="__('modules.events.remindBefore')" fieldName="remind_time"
+                                    fieldId="remind_time" fieldValue="30" fieldRequired="true" />
+                            </div>
+                            <div class="col-md-4 mt-3">
+                                <x-forms.select fieldId="remind_type" fieldLabel="" fieldName="remind_type"
+                                    search="true">
+                                    <option value="day">@lang('app.day')</option>
+                                    <option value="hour">@lang('app.hour')</option>
+                                    <option value="minute">@lang('app.minute')</option>
+                                    <option value="minute" selected>minute</option>
+                                </x-forms.select>
+                            </div>
+                        </div>
+                    </div>
+                    
                 </div>
             </div>
             <input type="hidden" name="deal_id" value="{{ $dealID }}">
@@ -118,7 +124,7 @@
         dp11.setMin(new Date())
 
         $('#send_reminder').change(function() {
-            $('.send_reminder_div').toggleClass('d-none');
+            $('.reminder_info').toggleClass('d-none');
         })
 
         // Show/hide meeting link field based on location selection

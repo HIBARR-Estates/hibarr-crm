@@ -1110,4 +1110,56 @@ class DealController extends AccountBaseController
         return collect();
     }
 
+    /** 
+     * Generate Meeting Link
+     */
+    public function generateMeetingLink(Request $request)
+    {
+        \Log::info('Generate Meeting Link function called', [
+            'request_data' => $request->all(),
+            'user_id' => auth()->id(),
+            'timestamp' => now()
+        ]);
+
+        $this->editPermission = user()->permission('edit_lead_follow_up');
+        abort_403(!($this->editPermission == 'all' || ($this->editPermission == 'added' && $request->added_by == user()->id)));
+
+        $followUpId = $request->followup_id;
+        $followUp = DealFollowUp::find($followUpId);
+
+        \Log::info('Follow-up found', [
+            'followup_id' => $followUpId,
+            'followup_exists' => $followUp ? true : false,
+            'followup_location' => $followUp ? $followUp->location : null
+        ]);
+
+        if (!$followUp) {
+            \Log::error('Follow-up not found', ['followup_id' => $followUpId]);
+            return Reply::error('Follow-up not found');
+        }
+
+        try {
+            \Log::info('Calling triggerFollowUpAutomation', [
+                'followup_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'location' => $followUp->location
+            ]);
+
+            $meetingResponse = $this->triggerFollowUpAutomation($followUp);
+            
+            \Log::info('triggerFollowUpAutomation response', [
+                'response' => $meetingResponse
+            ]);
+
+            $meetingLink = $meetingResponse['meeting_link'] ?? null;
+            return Reply::successWithData('Meeting link generated successfully', ['meeting_link' => $meetingLink]);
+        } catch (\Exception $e) {
+            \Log::error('Error in generateMeetingLink', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return Reply::error($e->getMessage());
+        }
+    }
+
 }

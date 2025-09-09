@@ -65,15 +65,27 @@ trait DealAutomationTrait
 
     private function sendFollowUpAutomationWebhook(string $type, array $payload): array
     {
-        $url = config("app.automations.followups.{$type}_webhook_url");
+        $url = config("app.automations.followups.followup_webhook_url");
+        
+        \Log::info('Webhook configuration check', [
+            'url' => $url,
+            'type' => $type,
+            'payload_keys' => array_keys($payload)
+        ]);
         
         if (!$url) {
+            \Log::error('Webhook URL not configured', ['type' => $type]);
             throw new \Exception("Follow-up automation webhook URL not configured for type: {$type}");
         }
 
+        \Log::info('Making webhook request', [
+            'url' => $url,
+            'payload_size' => strlen(json_encode($payload))
+        ]);
+
         try {
             $client = new Client([
-                'timeout' => 60, // Increased timeout to wait longer for response
+                'timeout' => false, // No timeout for testing
                 'connect_timeout' => 15,
                 'verify' => false,
             ]);
@@ -90,7 +102,17 @@ trait DealAutomationTrait
             $statusCode = $response->getStatusCode();
             $responseBody = $response->getBody()->getContents();
             
+            \Log::info('Webhook response received', [
+                'status_code' => $statusCode,
+                'response_body' => $responseBody,
+                'response_length' => strlen($responseBody)
+            ]);
+            
             if ($statusCode < 200 || $statusCode >= 300) {
+                \Log::error('Webhook returned error status', [
+                    'status_code' => $statusCode,
+                    'response_body' => $responseBody
+                ]);
                 throw new \Exception("Webhook returned non-success status code: {$statusCode}. Response: {$responseBody}");
             }
 

@@ -511,6 +511,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/gdpr-consent', [DealController::class, 'consent'])->name('deals.gdpr_consent');
     Route::post('deals/save-deal-consent/{deal}', [DealController::class, 'saveLeadConsent'])->name('deals.save_lead_consent');
     Route::post('deals/change-follow-up-status', [DealController::class, 'changeFollowUpStatus'])->name('deals.change_follow_up_status');
+    Route::post('deals/generate-meeting-link', [DealController::class, 'generateMeetingLink'])->name('deals.generate-meeting-link');
 
     // Lead Category
     Route::post('/update-lead-category', [LeadCategoryController::class, 'updateLeadCategory'])->name('category.updateDefault');
