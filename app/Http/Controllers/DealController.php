@@ -27,7 +27,6 @@ use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use App\Models\LeadCustomForm;
 use App\Models\DealFollowUp;
-use App\Models\MeetingType;
 use App\Models\DealHistory;
 use App\Models\DealNote;
 use App\Models\Lead;
@@ -48,11 +47,10 @@ use App\Traits\DealAutomationTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
 class DealController extends AccountBaseController
-{ 
+{
 
     use ImportExcel;
     use DealAutomationTrait;
@@ -195,9 +193,7 @@ class DealController extends AccountBaseController
                 $this->tab = 'leads.ajax.files';
                 break;
             case 'follow-up':
-                $this->dealFollowUps = DealFollowUp::where('deal_id', $id)
-                    ->orderBy('created_at', 'desc')
-                    ->paginate(10);
+                $this->dealFollowUps = DealFollowUp::where('deal_id', $id)->get();
 
                 if (user()->permission('view_lead_follow_up') == 'added') {
                     $this->dealFollowUps = $this->dealFollowUps->where('added_by', user()->id);
@@ -355,8 +351,6 @@ class DealController extends AccountBaseController
         $deal->close_date = companyToYmd($request->close_date);
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
-        $deal->strategy_accepted = $request->has('strategy_accepted') ? (bool) $request->strategy_accepted : false;
-        $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? (bool) $request->downpayment_confirmed : false;
         $deal->save();
 
         // Handle deal watchers
@@ -513,8 +507,6 @@ class DealController extends AccountBaseController
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
         $deal->category_id = $request->category_id;
-        $deal->strategy_accepted = $request->has('strategy_accepted') ? (bool) $request->strategy_accepted : false;
-        $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? (bool) $request->downpayment_confirmed : false;
         $deal->save();
 
         // Handle deal watchers
@@ -687,38 +679,6 @@ class DealController extends AccountBaseController
         return $dataTable->render('leads.show', $this->data);
     }
 
-    public function followUpAjax($id)
-    {
-        $this->deal = Deal::findOrFail($id);
-        
-        $query = DealFollowUp::where('deal_id', $id)->orderBy('created_at', 'desc');
-        
-        if (user()->permission('view_lead_follow_up') == 'added') {
-            $query->where('added_by', user()->id);
-        }
-        
-        // Get per-page parameter, default to 10
-        $perPage = request('per_page', 10);
-        
-        // Validate per-page value
-        $allowedPerPage = [10, 25, 50, 100];
-        if (!in_array($perPage, $allowedPerPage)) {
-            $perPage = 10;
-        }
-        
-        $this->dealFollowUps = $query->paginate($perPage);
-
-        // Return response in the same format as existing tab switching
-        if (request()->ajax()) {
-            return response()->json([
-                'status' => 'success',
-                'html' => view('leads.ajax.follow-up', $this->data)->render()
-            ]);
-        }
-
-        return view('leads.ajax.follow-up', $this->data);
-    }
-
     /**
      * @param FollowUpStoreRequest $request
      * @return array|void
@@ -773,8 +733,6 @@ class DealController extends AccountBaseController
                 // Throw the exception to trigger transaction rollback
                 throw new \Exception("Follow-up creation failed: " . $e->getMessage());
             }
-          
-            
             event(new AutoFollowUpReminderEvent($followUp, true));
 
             return Reply::success(__('messages.recordSaved'));
@@ -822,8 +780,19 @@ class DealController extends AccountBaseController
             // Load the deal relationship for automation
             $followUp->load('deal');
 
-
-           
+            // Trigger follow-up automation for update - if this fails, the transaction will rollback
+            try {
+                $this->triggerFollowUpAutomation($followUp);
+            } catch (\Exception $e) {
+                Log::error("Follow-up automation failed during update", [
+                    'follow_up_id' => $followUp->id,
+                    'deal_id' => $followUp->deal_id,
+                    'error' => $e->getMessage(),
+                ]);
+                
+                // Throw the exception to trigger transaction rollback
+                throw new \Exception("Follow-up update failed: " . $e->getMessage());
+            }
 
             return Reply::success(__('messages.updateSuccess'));
         });
@@ -991,144 +960,6 @@ class DealController extends AccountBaseController
 
         $this->triggerDealUpdateAutomation($request, $leadFollowUp->deal);
         return Reply::success(__('messages.leadStatusChangeSuccess'));
-    }
-
-    public function generateMeetingLink(Request $request)
-    {
-        $followUpId = $request->followup_id;
-        $followUp = DealFollowUp::findOrFail($followUpId);
-        
-       
-        $editPermission = user()->permission('edit_lead_follow_up');
-        abort_403(!($editPermission == 'all' || ($editPermission == 'added' && $followUp->added_by == user()->id)));
-
-       
-        $followUp->load(['deal', 'meetingType']);
-        
-       
-        $result = $this->triggerFollowUpAutomation($followUp);
-        
-       
-        Log::info("n8n response for meeting link generation", [
-            'follow_up_id' => $followUpId,
-            'result' => $result,
-            'has_meeting_link' => isset($result['meeting_link']),
-            'meeting_link_value' => $result['meeting_link'] ?? 'not_set'
-        ]);
-        
-        if (isset($result['status']) && $result['status'] === 'n8n_unavailable') {
-            Log::info("n8n webhook unavailable, follow-up created without meeting link", [
-                'follow_up_id' => $followUpId,
-                'message' => $result['message'],
-            ]);
-            
-            return Reply::error(__('messages.n8nGenerateMeetingLinkFailed'), [
-                    'meeting_link' => null,
-                    'followup_id' => $followUpId
-            ]);
-       
-        }
-        
-        if (empty($result['meeting_link'])) {
-            Log::warning("n8n returned success but no meeting link", [
-                'follow_up_id' => $followUpId,
-                'result' => $result
-            ]);
-            
-            return Reply::error(__('messages.n8nGenerateMeetingLinkFailed'), [
-                'meeting_link' => null,
-                'followup_id' => $followUpId
-            ]);
-        }
-        
-    
-        $followUp->meeting_link = $result['meeting_link'];
-        $followUp->save();
-        
-        
-    
-       
-        $followUp->refresh();
-        
-                    // Trigger deal update automation before returning (optional)
-                    $deal = $followUp->deal;
-                    if ($deal) {          
-                        try {
-                            $this->triggerDealUpdateAutomation(request(), $deal);
-                            Log::info("Deal update webhook triggered after meeting link generation", [
-                                'deal_id' => $deal->id,
-                                'follow_up_id' => $followUpId,
-                            ]);
-                        } catch (\Exception $e) {
-                            // Log warning instead of error since this webhook is optional
-                            Log::warning("Deal update webhook failed (optional)", [
-                                'deal_id' => $deal->id,
-                                'follow_up_id' => $followUpId,
-                                'error' => $e->getMessage(),
-                            ]);
-                        }
-                    }
-        
-        return Reply::successWithData(__('messages.n8nGenerateMeetingLinkSuccess'), [
-            'meeting_link' => $followUp->meeting_link,
-            'followup_id' => $followUpId
-        ]);
-        
-    }
-
-
-    /**
-     * Send email to agent when meeting link generation fails
-     */
-    private function sendMeetingLinkGenerationEmail(DealFollowUp $followUp)
-    {
-        try {
-           
-            $agent = $followUp->deal->leadAgent;
-            if (!$agent || !$agent->user) {
-                Log::warning("No agent found for deal, cannot send meeting link generation email", [
-                    'deal_id' => $followUp->deal_id,
-                    'follow_up_id' => $followUp->id
-                ]);
-                return;
-            }
-
-            
-            $meetingType = $followUp->meetingType;
-            
-            
-            $emailData = [
-                'agent_name' => $agent->user->name,
-                'agent_email' => $agent->user->email,
-                'deal_name' => $followUp->deal->deal_name,
-                'client_name' => $followUp->deal->client_name,
-                'meeting_type' => $meetingType ? $meetingType->name : 'Unknown',
-                'location' => $followUp->location,
-                'follow_up_date' => $followUp->next_follow_up_date,
-                'follow_up_id' => $followUp->id,
-                'deal_id' => $followUp->deal_id,
-                'crm_url' => url('/deals/' . $followUp->deal_id . '#follow-up')
-            ];
-
-            
-            Mail::send('emails.meeting-link-generation-failed', $emailData, function ($message) use ($agent) {
-                $message->to($agent->user->email, $agent->user->name)
-                        ->subject('Meeting Link Generation Required - CRM Follow-up');
-            });
-
-            Log::info("Meeting link generation email sent to agent", [
-                'agent_email' => $agent->user->email,
-                'follow_up_id' => $followUp->id,
-                'deal_id' => $followUp->deal_id
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error("Failed to send meeting link generation email", [
-                'follow_up_id' => $followUp->id,
-                'deal_id' => $followUp->deal_id,
-                'error' => $e->getMessage()
-            ]);
-        }
     }
 
     // Get Satges

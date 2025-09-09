@@ -497,12 +497,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
-    Route::get('deals/follow-up-ajax/{id}', [DealController::class, 'followUpAjax'])->name('deals.follow_up_ajax');
     Route::post('deals/follow-up-store', [DealController::class, 'followUpStore'])->name('deals.follow_up_store');
     Route::get('deals/follow-up-edit/{id?}', [DealController::class, 'editFollow'])->name('deals.follow_up_edit');
     Route::post('deals/follow-up-update', [DealController::class, 'updateFollow'])->name('deals.follow_up_update');
     Route::post('deals/follow-up-delete/{id}', [DealController::class, 'deleteFollow'])->name('deals.follow_up_delete');
-    Route::post('deals/generate-meeting-link', [DealController::class, 'generateMeetingLink'])->name('deals.generate_meeting_link');
 
     // Change status
     Route::get('stage-change/{id}', [DealController::class, 'stageChange'])->name('deals.stage_change');

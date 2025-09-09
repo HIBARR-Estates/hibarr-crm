@@ -1,1 +1,0 @@
-<x-einvoice::form.client />
