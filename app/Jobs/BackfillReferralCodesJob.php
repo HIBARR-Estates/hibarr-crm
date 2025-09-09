@@ -7,6 +7,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use App\Models\EmployeeDetails;
+use App\Models\ReferralCode;
 
 class BackfillReferralCodesJob implements ShouldQueue
 {
@@ -26,12 +28,13 @@ class BackfillReferralCodesJob implements ShouldQueue
     public function handle(): void
     {
         //
-        Employee::doesntHave('referralCode') // only employees without codes
+        EmployeeDetails::query()
+            ->doesntHave('referralCode') // only employees without codes
             ->chunkById(100, function ($employees) {
                 foreach ($employees as $employee) {
                     ReferralCode::firstOrCreate(
                         ['employee_id' => $employee->id],
-                        ['code' => ReferralCode::generateCode()]
+                        ['referral_code' => ReferralCode::generateCode($employee->company?->name ?? null)]
                     );
                 }
             });

@@ -50,7 +50,7 @@ class EmployeeDetailsObserver
          if (!ReferralCode::where('employee_id', $employee->id)->exists()) {
             ReferralCode::create([
                 'employee_id' => $employee->id,
-                'code' => ReferralCode::generateCode(),
+                'code' => ReferralCode::generateCode($employee->company?->name ?? null),
             ]);
         }
 

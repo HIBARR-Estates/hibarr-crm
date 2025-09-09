@@ -40,8 +40,8 @@ class Commission extends Model
     {
          $updated = static::query()
         ->whereKey($this->getKey())
-        ->where('status', CommissionStatus::Pending)
-        ->update(['status' => CommissionStatus::Approved]);
+        ->where('status', CommissionStatus::Pending->value)
+        ->update(['status' => CommissionStatus::Approved->value]);
         if ($updated !== 1) {
             throw new \DomainException('Only pending commissions can be approved.');
         }
@@ -57,8 +57,8 @@ class Commission extends Model
     {
         $updated = static::query()
         ->whereKey($this->getKey())
-        ->where('status', CommissionStatus::Approved)
-        ->update(['status' => CommissionStatus::Paid]);
+        ->where('status', CommissionStatus::Approved->value)
+        ->update(['status' => CommissionStatus::Paid->value]);
        if ($updated !== 1) {
            throw new \DomainException('Only approved commissions can be marked as paid.');
        }
@@ -74,8 +74,8 @@ class Commission extends Model
     {
         $updated = static::query()
             ->whereKey($this->getKey())
-            ->whereIn('status', [CommissionStatus::Pending, CommissionStatus::Approved])
-            ->update(['status' => CommissionStatus::Cancelled]);
+            ->whereIn('status', [CommissionStatus::Pending->value, CommissionStatus::Approved->value])
+            ->update(['status' => CommissionStatus::Cancelled->value]);
         if ($updated !== 1) {
             throw new \DomainException('Only pending or approved commissions can be cancelled.');
         }

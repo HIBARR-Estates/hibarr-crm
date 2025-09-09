@@ -30,11 +30,11 @@ class ReferralCode extends Model
     /**
      * Generate a new unique referral code.
      */
-    public static function generateCode(): string
+    public static function generateCode(?string $companyName = null): string
     {
         // Get the company prefix from settings if needed, or from the employee's company
-        $companyPrefix = company() ? strtoupper(substr(company()->name, 0, 3)) . '-' : '';
-        
+        $companyPrefix = $companyName ? Str::upper(Str::substr($companyName, 0, 3)).'-' : '';
+
         do {
             $code = $companyPrefix . strtoupper(Str::random(8));
         } while (self::where('referral_code', $code)->exists());
