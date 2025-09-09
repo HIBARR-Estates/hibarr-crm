@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
+use App\Models\Payment;
 
 /**
  * App\Models\Lead
@@ -250,6 +251,13 @@ class Deal extends BaseModel
     public function addedBy()
     {
         return $this->belongsTo(User::class, 'added_by')->withoutGlobalScope(ActiveScope::class);
+    }
+
+
+    // payments relation
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'deal_id');
     }
 
 }
