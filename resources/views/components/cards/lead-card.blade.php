@@ -41,16 +41,16 @@
 
         {{-- @if (($lead->next_follow_up_date != null && $lead->next_follow_up_date != '') || !is_null($lead->agent_id)) --}}
         <hr class="my-0">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex flex-column-reverse flex-lg-row justify-content-between align-items-center gap-2">
             @if ($lead->next_follow_up_date != null && $lead->next_follow_up_date != '')
-                <div class="d-flex text-lightest">
+                <div class="d-flex text-lightest mb-2 mb-lg-0">
                     <span class="f-12 ml-1"><i class="f-11 bi bi-calendar"></i>
                         {{ \Carbon\Carbon::parse($lead->next_follow_up_date)->translatedFormat(company()->date_format) }}</span>
                 </div>
             @endif
-            @if (!is_null($lead->agent_id))
-                <a href="{{ route('employees.show', $lead->leadAgent->user_id) }}" class="ml-auto">
-                    <div class="d-flex flex-wrap items-center gap-1">
+             @if (!is_null($lead->agent_id))
+                <a href="{{ route('employees.show', $lead->leadAgent->user_id) }}" class="mt-2 mt-lg-0">
+                    <div class="d-flex flex-wrap align-items-center gap-1">
                         <span class="text-xs font-normal text-dark-grey">{{ $lead->leadAgent->user->name }}</span>
                         <div class="avatar-img ml-1 rounded-circle" style="width: 24px; height: 24px;">
                             <div alt="{{ $lead->leadAgent->user->name }}" data-toggle="tooltip"
@@ -63,11 +63,19 @@
                 </a>
             @else
                 <a href="{{ route('deals.edit', [$lead->id]) }}"
-                    class="text-xs ml-auto font-medium text-dark mb-0 text-wrap openRightModal">
+                    class="text-xs mt-2 mt-lg-0 font-medium text-dark mb-0 text-wrap openRightModal">
                     @lang('modules.deal.assignAgent')
                 </a>
             @endif
         </div>
         {{-- @endif --}}
+
+        <style>
+            @media (max-width: 991.98px) {
+                .lead-card .d-flex.flex-column.flex-lg-row {
+                    gap: 1rem !important;
+                }
+            }
+        </style>
     </div>
 </div><!-- div end -->
