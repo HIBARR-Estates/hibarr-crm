@@ -8,6 +8,8 @@ use App\Models\EmployeeDetails;
 use App\Models\EmployeeLeaveQuota;
 use App\Events\NewUserSlackEvent;
 use App\Models\User;
+use App\Models\ReferralCode;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Artisan;
 
 class EmployeeDetailsObserver
@@ -43,6 +45,14 @@ class EmployeeDetailsObserver
         Artisan::call('app:recalculate-leaves-quotas ' . $detail->company_id . ' ' . $user->id);
 
         event(new NewUserSlackEvent($user));
+
+        // create a referral code for the employee
+         if (!ReferralCode::where('employee_id', $employee->id)->exists()) {
+            ReferralCode::create([
+                'employee_id' => $employee->id,
+                'code' => ReferralCode::generateCode(),
+            ]);
+        }
 
 
     }
