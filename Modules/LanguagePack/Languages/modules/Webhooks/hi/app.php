@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'वेबहुक',
+  'log' => 'लकड़ी का लट्ठा',
+  'addWebhook' => 'वेबहुक जोड़ें',
+  'editWebhook' => 'वेबहुक अपडेट करें',
+  'webhookName' => 'वेबहुक क्रिया का नाम',
+  'webhookFor' => 'वेबहुक के लिए',
+  'webhookAction' => 'वेबहुक एक्शन',
+  'requestUrl' => 'यूआरएल का अनुरोध करें',
+  'requestMethod' => 'अनुरोध विधि',
+  'requestFormat' => 'अनुरोध प्रारूप',
+  'requestHeaders' => 'हेडर का अनुरोध करें',
+  'requestBody' => 'निकाय से अनुरोध करें',
+  'addMore' => 'अधिक जोड़ें',
+  'responseCode' => 'प्रतिसाद कोड',
+  'createdAt' => 'पर रिकार्ड किया गया',
+  'action' => 'कार्रवाई',
+  'runDebug' => 'डिबग मोड में चलाएँ',
+  'requestDetails' => 'अनुरोध विवरण',
+  'response' => 'प्रतिक्रिया',
+];

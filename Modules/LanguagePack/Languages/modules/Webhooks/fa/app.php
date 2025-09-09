@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'وب هوک ها',
+  'log' => 'ورود به سیستم',
+  'addWebhook' => 'اضافه کردن Webhook',
+  'editWebhook' => 'وب هوک را به روز کنید',
+  'webhookName' => 'نام اقدام Webhook',
+  'webhookFor' => 'وب هوک برای',
+  'webhookAction' => 'اقدام وب هوک',
+  'requestUrl' => 'درخواست URL',
+  'requestMethod' => 'روش درخواست',
+  'requestFormat' => 'فرمت درخواست',
+  'requestHeaders' => 'درخواست سرصفحه ها',
+  'requestBody' => 'درخواست بدن',
+  'addMore' => 'بیشتر اضافه کنید',
+  'responseCode' => 'کد پاسخ',
+  'createdAt' => 'ضبط شده در',
+  'action' => 'عمل',
+  'runDebug' => 'در حالت اشکال زدایی اجرا شود',
+  'requestDetails' => 'جزئیات درخواست',
+  'response' => 'واکنش',
+];

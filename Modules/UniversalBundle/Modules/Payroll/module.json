@@ -1,0 +1,14 @@
+{
+    "name": "Payroll",
+    "alias": "payroll",
+    "description": "",
+    "keywords": [],
+    "order": 0,
+    "providers": [
+        "Modules\\Payroll\\Providers\\PayrollServiceProvider",
+        "Modules\\Payroll\\Providers\\EventServiceProvider"
+    ],
+    "aliases": {},
+    "files": [],
+    "requires": []
+}

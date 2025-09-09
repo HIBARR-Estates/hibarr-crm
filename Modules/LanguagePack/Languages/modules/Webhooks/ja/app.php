@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Webhook',
+  'log' => 'ログ',
+  'addWebhook' => 'Webhook の追加',
+  'editWebhook' => 'Webhook を更新する',
+  'webhookName' => 'Webhook アクション名',
+  'webhookFor' => 'Webhook の',
+  'webhookAction' => 'Webhook アクション',
+  'requestUrl' => 'リクエストURL',
+  'requestMethod' => 'リクエスト方法',
+  'requestFormat' => 'リクエストフォーマット',
+  'requestHeaders' => 'リクエストヘッダー',
+  'requestBody' => 'リクエストボディ',
+  'addMore' => 'さらに追加',
+  'responseCode' => '応答コード',
+  'createdAt' => '録音日',
+  'action' => 'アクション',
+  'runDebug' => 'デバッグモードで実行する',
+  'requestDetails' => 'リクエストの詳細',
+  'response' => '応答',
+];

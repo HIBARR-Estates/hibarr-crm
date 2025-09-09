@@ -1,0 +1,12 @@
+{
+    "name": "CyberSecurity",
+    "alias": "cybersecurity",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\CyberSecurity\\Providers\\CyberSecurityServiceProvider",
+        "Modules\\CyberSecurity\\Providers\\EventServiceProvider"
+    ],
+    "files": []
+}

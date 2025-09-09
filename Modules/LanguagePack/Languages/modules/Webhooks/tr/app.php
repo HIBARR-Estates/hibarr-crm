@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Web kancaları',
+  'log' => 'Kayıt',
+  'addWebhook' => 'Web Kancası Ekle',
+  'editWebhook' => 'Webhook\'u Güncelle',
+  'webhookName' => 'Web kancası eylemi adı',
+  'webhookFor' => 'Web kancası',
+  'webhookAction' => 'Web Kancası Eylemi',
+  'requestUrl' => 'URL\'yi talep et',
+  'requestMethod' => 'Talep yöntemi',
+  'requestFormat' => 'Talep formatı',
+  'requestHeaders' => 'Başlıkları iste',
+  'requestBody' => 'Talep gövdesi',
+  'addMore' => 'Daha ekle',
+  'responseCode' => 'Cevap kodu',
+  'createdAt' => 'Kaydedilme Tarihi',
+  'action' => 'Aksiyon',
+  'runDebug' => 'Hata ayıklama modunda çalıştır',
+  'requestDetails' => 'İstek detayları',
+  'response' => 'Cevap',
+];

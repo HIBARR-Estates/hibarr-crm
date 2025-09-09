@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'ვებჰუკები',
+  'log' => 'შესვლა',
+  'addWebhook' => 'დაამატეთ Webhook',
+  'editWebhook' => 'განაახლეთ Webhook',
+  'webhookName' => 'Webhook მოქმედების სახელი',
+  'webhookFor' => 'Webhook ამისთვის',
+  'webhookAction' => 'ვებჰუკის მოქმედება',
+  'requestUrl' => 'მოითხოვეთ URL',
+  'requestMethod' => 'მოთხოვნის მეთოდი',
+  'requestFormat' => 'მოთხოვნის ფორმატი',
+  'requestHeaders' => 'მოითხოვეთ სათაურები',
+  'requestBody' => 'მოითხოვეთ სხეული',
+  'addMore' => 'Მეტის დამატება',
+  'responseCode' => 'რეაგირების კოდი',
+  'createdAt' => 'ჩაწერილია',
+  'action' => 'მოქმედება',
+  'runDebug' => 'გაშვება გამართვის რეჟიმში',
+  'requestDetails' => 'მოითხოვეთ დეტალები',
+  'response' => 'პასუხი',
+];

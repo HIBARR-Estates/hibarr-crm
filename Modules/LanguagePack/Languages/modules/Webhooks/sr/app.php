@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Вебхоокс',
+  'log' => 'Пријава',
+  'addWebhook' => 'Додај Вебхоок',
+  'editWebhook' => 'Ажурирајте Вебхоок',
+  'webhookName' => 'Назив радње веб-хука',
+  'webhookFor' => 'Вебхоок фор',
+  'webhookAction' => 'Вебхоок Ацтион',
+  'requestUrl' => 'УРЛ захтева',
+  'requestMethod' => 'Метода захтева',
+  'requestFormat' => 'Формат захтева',
+  'requestHeaders' => 'Заглавља захтева',
+  'requestBody' => 'Тело захтева',
+  'addMore' => 'Додај још',
+  'responseCode' => 'Респонсе Цоде',
+  'createdAt' => 'Рецордед Он',
+  'action' => 'поступак',
+  'runDebug' => 'Покрени у режиму за отклањање грешака',
+  'requestDetails' => 'Захтевајте детаље',
+  'response' => 'Одговор',
+];

@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'خطافات الويب',
+  'log' => 'سجل',
+  'addWebhook' => 'إضافة خطاف ويب',
+  'editWebhook' => 'تحديث خطاف الويب',
+  'webhookName' => 'اسم إجراء Webhook',
+  'webhookFor' => 'خطاف ويب لـ',
+  'webhookAction' => 'عمل خطاف الويب',
+  'requestUrl' => 'طلب عنوان URL',
+  'requestMethod' => 'طريقة الطلب',
+  'requestFormat' => 'تنسيق الطلب',
+  'requestHeaders' => 'طلب رؤوس',
+  'requestBody' => 'هيئة الطلب',
+  'addMore' => 'أضف المزيد',
+  'responseCode' => 'رمز الاستجابة',
+  'createdAt' => 'مسجل على',
+  'action' => 'فعل',
+  'runDebug' => 'تشغيل في وضع التصحيح',
+  'requestDetails' => 'طلب تفاصيل',
+  'response' => 'إجابة',
+];

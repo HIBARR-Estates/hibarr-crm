@@ -1,0 +1,11 @@
+{
+    "name": "ProjectRoadmap",
+    "alias": "projectroadmap",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\ProjectRoadmap\\Providers\\ProjectRoadmapServiceProvider"
+    ],
+    "files": []
+}

@@ -1,0 +1,26 @@
+{
+    "name": "UniversalBundle",
+    "alias": "universalbundle",
+    "description": "",
+    "keywords": [],
+    "active": 1,
+    "order": 2,
+    "providers": [
+        "Modules\\UniversalBundle\\Providers\\UniversalBundleServiceProvider"
+    ],
+    "aliases":{},
+    "files": [
+        "start.php"
+    ],
+    "permissions": [
+        
+    ],
+    "roles_permissions": {
+        "admin": [
+            
+        ],
+        "manager": [
+            
+        ]
+    }
+}

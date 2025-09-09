@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Вебхуки',
+  'log' => 'Бревно',
+  'addWebhook' => 'Добавить вебхук',
+  'editWebhook' => 'Обновить вебхук',
+  'webhookName' => 'Название действия вебхука',
+  'webhookFor' => 'Вебхук для',
+  'webhookAction' => 'Действие вебхука',
+  'requestUrl' => 'URL-адрес запроса',
+  'requestMethod' => 'Метод запроса',
+  'requestFormat' => 'Формат запроса',
+  'requestHeaders' => 'Заголовки запросов',
+  'requestBody' => 'Тело запроса',
+  'addMore' => 'Добавить больше',
+  'responseCode' => 'Код ответа',
+  'createdAt' => 'Записано',
+  'action' => 'Действие',
+  'runDebug' => 'Запустить в режиме отладки',
+  'requestDetails' => 'Детали запроса',
+  'response' => 'Ответ',
+];

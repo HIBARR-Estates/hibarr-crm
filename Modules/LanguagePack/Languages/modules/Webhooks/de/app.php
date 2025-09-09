@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Webhooks',
+  'log' => 'Protokoll',
+  'addWebhook' => 'Webhook hinzufügen',
+  'editWebhook' => 'Webhook aktualisieren',
+  'webhookName' => 'Name der Webhook-Aktion',
+  'webhookFor' => 'Webhook für',
+  'webhookAction' => 'Webhook-Aktion',
+  'requestUrl' => 'Anfrage-URL',
+  'requestMethod' => 'Anfragemethode',
+  'requestFormat' => 'Anfrageformat',
+  'requestHeaders' => 'Header anfordern',
+  'requestBody' => 'Anforderungstext',
+  'addMore' => 'Weitere hinzufügen',
+  'responseCode' => 'Antwortcode',
+  'createdAt' => 'Aufgenommen am',
+  'action' => 'Aktion',
+  'runDebug' => 'Im Debug-Modus ausführen',
+  'requestDetails' => 'Anfragedetails',
+  'response' => 'Antwort',
+];

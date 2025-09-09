@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => '網路鉤子',
+  'log' => '紀錄',
+  'addWebhook' => '添加網路鉤子',
+  'editWebhook' => '更新網路鉤子',
+  'webhookName' => 'Webhook 操作名稱',
+  'webhookFor' => 'Webhook 用於',
+  'webhookAction' => 'Webhook 操作',
+  'requestUrl' => '請求網址',
+  'requestMethod' => '請求方式',
+  'requestFormat' => '請求格式',
+  'requestHeaders' => '請求標頭',
+  'requestBody' => '請求正文',
+  'addMore' => '添加更多',
+  'responseCode' => '回應代碼',
+  'createdAt' => '錄製於',
+  'action' => '行動',
+  'runDebug' => '在調試模式下運行',
+  'requestDetails' => '請求詳情',
+  'response' => '回覆',
+];

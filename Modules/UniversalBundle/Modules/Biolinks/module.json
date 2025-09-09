@@ -1,0 +1,13 @@
+{
+    "name": "Biolinks",
+    "alias": "biolinks",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Biolinks\\Providers\\BiolinksServiceProvider",
+        "Modules\\Biolinks\\Providers\\EventServiceProvider"
+
+    ],
+    "files": []
+}

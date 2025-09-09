@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => '웹훅',
+  'log' => '통나무',
+  'addWebhook' => '웹훅 추가',
+  'editWebhook' => '웹훅 업데이트',
+  'webhookName' => '웹훅 작업 이름',
+  'webhookFor' => '다음에 대한 웹훅',
+  'webhookAction' => '웹훅 작업',
+  'requestUrl' => '요청 URL',
+  'requestMethod' => '요청 방법',
+  'requestFormat' => '요청 형식',
+  'requestHeaders' => '요청 헤더',
+  'requestBody' => '요청 본문',
+  'addMore' => '더 추가',
+  'responseCode' => '응답 코드',
+  'createdAt' => '녹화 날짜',
+  'action' => '행동',
+  'runDebug' => '디버그 모드에서 실행',
+  'requestDetails' => '요청 세부정보',
+  'response' => '응답',
+];

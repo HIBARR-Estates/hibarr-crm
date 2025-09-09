@@ -37,6 +37,8 @@ class StoreRequest extends CoreRequest
         $rules['value'] = 'required';
         $rules['deal_watcher'] = 'nullable|array';
         $rules['deal_watcher.*'] = 'exists:users,id';
+        $rules['strategy_accepted'] = 'nullable|boolean';
+        $rules['downpayment_confirmed'] = 'nullable|boolean';
 
         $rules = $this->customFieldRules($rules);
 

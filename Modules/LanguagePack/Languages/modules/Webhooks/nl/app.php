@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Webhaken',
+  'log' => 'Logboek',
+  'addWebhook' => 'Webhook toevoegen',
+  'editWebhook' => 'Webhook bijwerken',
+  'webhookName' => 'Naam van webhookactie',
+  'webhookFor' => 'Webhook voor',
+  'webhookAction' => 'Webhook-actie',
+  'requestUrl' => 'Aanvraag-URL',
+  'requestMethod' => 'Aanvraagmethode',
+  'requestFormat' => 'Aanvraag formaat',
+  'requestHeaders' => 'Vraag headers aan',
+  'requestBody' => 'Lichaam aanvragen',
+  'addMore' => 'Voeg meer toe',
+  'responseCode' => 'Reactiecode',
+  'createdAt' => 'Opgenomen aan',
+  'action' => 'Actie',
+  'runDebug' => 'Uitvoeren in debug-modus',
+  'requestDetails' => 'Vraag details aan',
+  'response' => 'Antwoord',
+];

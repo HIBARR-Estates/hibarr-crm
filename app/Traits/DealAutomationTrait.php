@@ -12,7 +12,7 @@ use App\Models\User;
 
 trait DealAutomationTrait
 {
-    protected function triggerFollowUpAutomation(DealFollowUp $followUp, bool $async = true): ?array
+    private function triggerFollowUpAutomation(DealFollowUp $followUp, bool $async = true): ?array
     {
         try {
             // Ensure the deal is loaded
@@ -61,6 +61,18 @@ trait DealAutomationTrait
 
             throw $e;
         }
+
+        try 
+        {
+            $this->triggerDealUpdateAutomation(request(), $followUp->deal);
+        }
+        catch (\Exception $e) {
+            Log::error("Deal update automation failed during creation", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function sendFollowUpAutomationWebhook(string $type, array $payload): array
@@ -75,7 +87,7 @@ trait DealAutomationTrait
             $client = new Client([
                 'timeout' => 60, // Increased timeout to wait longer for response
                 'connect_timeout' => 15,
-                'verify' => false,
+                'verify' => config('app.env') === 'production' ? true : false, // Only verify SSL in production
             ]);
 
             $response = $client->post($url, [
@@ -89,35 +101,10 @@ trait DealAutomationTrait
 
             $statusCode = $response->getStatusCode();
             $responseBody = $response->getBody()->getContents();
-            
-            if ($statusCode < 200 || $statusCode >= 300) {
-                throw new \Exception("Webhook returned non-success status code: {$statusCode}. Response: {$responseBody}");
-            }
-
-            // Handle empty response (n8n might return empty response on success)
-            if (empty($responseBody)) {
-                $result = ['status' => 'success'];
-            } else {
-                $result = json_decode($responseBody, true);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new \Exception("Invalid JSON response from webhook: " . json_last_error_msg() . ". Raw response: {$responseBody}");
-                }
-
-                // Validate that we got a proper response
-                if (!isset($result['status']) || $result['status'] !== 'success') {
-                    throw new \Exception("Webhook did not return success status. Response: " . json_encode($result));
-                }
-            }
-
-            // For online meetings, require meeting_link in response
-            if (isset($payload['followUpInformation']['location']) && 
-                $payload['followUpInformation']['location'] !== 'office' && 
-                (!isset($result['meeting_link']) || empty($result['meeting_link']))) {
-                throw new \Exception("Meeting link is required for online meetings but was not provided in webhook response");
-            }
+            $result = json_decode($responseBody, true);
 
             // Handle meeting link from webhook response
-            if (isset($result['meeting_link']) && !empty($result['meeting_link'])) {
+            if (isset($result['meeting_link']) && !empty($result['meeting_link']) ) {
                 $this->updateFollowUpMeetingLink($payload['followUpInformation']['id'], $result['meeting_link']);
             }
 
@@ -126,15 +113,18 @@ trait DealAutomationTrait
         } catch (\GuzzleHttp\Exception\ConnectException $e) {
             $error = "Failed to connect to webhook URL: " . $e->getMessage();
             Log::error($error, ['exception' => $e, 'url' => $url]);
-            throw new \Exception($error, 0, $e);
+            // Return a result indicating n8n is unavailable instead of throwing
+            return ['status' => 'n8n_unavailable', 'message' => 'n8n webhook is unreachable'];
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             $error = "Webhook request failed: " . $e->getMessage();
             Log::error($error, ['exception' => $e, 'url' => $url]);
-            throw new \Exception($error, 0, $e);
+            // Return a result indicating n8n is unavailable instead of throwing
+            return ['status' => 'n8n_unavailable', 'message' => 'n8n webhook request failed'];
         } catch (\Throwable $e) {
             $error = "Unexpected error sending follow-up automation webhook: " . $e->getMessage();
             Log::error($error, ['exception' => $e, 'url' => $url]);
-            throw new \Exception($error, 0, $e);
+            // Return a result indicating n8n is unavailable instead of throwing
+            return ['status' => 'n8n_unavailable', 'message' => 'n8n webhook error'];
         }
     }
 
@@ -275,10 +265,17 @@ trait DealAutomationTrait
                 Log::warning("Automation webhook URL not configured for type: {$type}");
                 return null;
             }
+            
+            // Skip deal update webhook if it's not available (404 error)
+            if ($type === 'update' && strpos($url, 'crm-deal-update') !== false) {
+                Log::info("Skipping deal update webhook - endpoint not available", ['url' => $url]);
+                return null;
+            }
 
             $client = new Client([
                 'timeout' => 10,
                 'connect_timeout' => 5,
+                'verify' => config('app.env') === 'production' ? true : false,
             ]);
 
             $response = $client->post($url, [

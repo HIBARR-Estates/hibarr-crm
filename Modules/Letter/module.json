@@ -1,0 +1,12 @@
+{
+    "name": "Letter",
+    "alias": "letter",
+    "description": "The Letter module provides access to creating letter for employees",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Letter\\Providers\\LetterServiceProvider",
+        "Modules\\Letter\\Providers\\EventServiceProvider"
+    ],
+    "files": []
+}

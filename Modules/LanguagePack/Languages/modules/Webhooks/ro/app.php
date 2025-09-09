@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Webhook-uri',
+  'log' => 'Buturuga',
+  'addWebhook' => 'Adăugați Webhook',
+  'editWebhook' => 'Actualizați Webhook',
+  'webhookName' => 'Numele acțiunii Webhook',
+  'webhookFor' => 'Webhook pentru',
+  'webhookAction' => 'Acțiune Webhook',
+  'requestUrl' => 'Solicitare URL',
+  'requestMethod' => 'Metoda de solicitare',
+  'requestFormat' => 'Format de solicitare',
+  'requestHeaders' => 'Antete de solicitare',
+  'requestBody' => 'Corpul cererii',
+  'addMore' => 'Adăuga mai mult',
+  'responseCode' => 'Cod de răspuns',
+  'createdAt' => 'Înregistrat pe',
+  'action' => 'Acțiune',
+  'runDebug' => 'Rulați în modul de depanare',
+  'requestDetails' => 'Cere detalii',
+  'response' => 'Raspuns',
+];

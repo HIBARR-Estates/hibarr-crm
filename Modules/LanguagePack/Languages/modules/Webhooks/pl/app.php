@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Haki internetowe',
+  'log' => 'Dziennik',
+  'addWebhook' => 'Dodaj webhooka',
+  'editWebhook' => 'Zaktualizuj webhooka',
+  'webhookName' => 'Nazwa akcji webhooka',
+  'webhookFor' => 'Webhook dla',
+  'webhookAction' => 'Akcja webhooka',
+  'requestUrl' => 'Adres URL żądania',
+  'requestMethod' => 'Metoda żądania',
+  'requestFormat' => 'Format żądania',
+  'requestHeaders' => 'Nagłówki żądań',
+  'requestBody' => 'Treść żądania',
+  'addMore' => 'Dodaj więcej',
+  'responseCode' => 'Kod odpowiedzi',
+  'createdAt' => 'Nagrano',
+  'action' => 'Działanie',
+  'runDebug' => 'Uruchom w trybie debugowania',
+  'requestDetails' => 'Szczegóły żądania',
+  'response' => 'Odpowiedź',
+];

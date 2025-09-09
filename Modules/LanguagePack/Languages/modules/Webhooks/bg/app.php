@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Уеб кукички',
+  'log' => 'Дневник',
+  'addWebhook' => 'Добавете Webhook',
+  'editWebhook' => 'Актуализирайте Webhook',
+  'webhookName' => 'Име на действие за уеб кукичка',
+  'webhookFor' => 'Уеб кукичка за',
+  'webhookAction' => 'Действие на Webhook',
+  'requestUrl' => 'URL адрес на заявка',
+  'requestMethod' => 'Метод на заявка',
+  'requestFormat' => 'Формат на заявката',
+  'requestHeaders' => 'Заглавки на заявки',
+  'requestBody' => 'Тяло на заявката',
+  'addMore' => 'Добави още',
+  'responseCode' => 'Код за отговор',
+  'createdAt' => 'Записано на',
+  'action' => 'Действие',
+  'runDebug' => 'Стартирайте в режим на отстраняване на грешки',
+  'requestDetails' => 'Подробности за заявка',
+  'response' => 'Отговор',
+];

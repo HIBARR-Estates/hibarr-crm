@@ -1,0 +1,1330 @@
+openapi: 3.0.0
+info:
+    title: Worksuite API
+    description: REST API for Worksuite application
+    version: 1.0.0
+
+servers:
+    - url: /api
+      description: API base URL
+
+components:
+    securitySchemes:
+        BearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+    schemas:
+        Error:
+            type: object
+            properties:
+                message:
+                    type: string
+                errors:
+                    type: object
+
+paths:
+    /app:
+        get:
+            summary: Get application information
+            tags:
+                - Application
+            responses:
+                '200':
+                    description: Application information retrieved successfully
+
+    /auth/forgot-password:
+        post:
+            summary: Request password reset
+            tags:
+                - Authentication
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+            responses:
+                '200':
+                    description: Password reset email sent successfully
+
+    /auth/login:
+        post:
+            summary: User login
+            tags:
+                - Authentication
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+                                password:
+                                    type: string
+            responses:
+                '200':
+                    description: Login successful
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    token:
+                                        type: string
+
+    /auth/reset-password:
+        post:
+            summary: Reset password
+            tags:
+                - Authentication
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                token:
+                                    type: string
+                                password:
+                                    type: string
+            responses:
+                '200':
+                    description: Password reset successful
+
+    /file/{name}:
+        get:
+            summary: Download file
+            tags:
+                - Files
+            parameters:
+                - name: name
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: File downloaded successfully
+
+    /file:
+        post:
+            summary: Upload file
+            tags:
+                - Files
+            requestBody:
+                required: true
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            properties:
+                                file:
+                                    type: string
+                                    format: binary
+            responses:
+                '200':
+                    description: File uploaded successfully
+
+    /lang:
+        get:
+            summary: Get language translations
+            tags:
+                - Localization
+            responses:
+                '200':
+                    description: Language translations retrieved successfully
+
+    /auth/logout:
+        post:
+            summary: User logout
+            tags:
+                - Authentication
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: Logout successful
+
+    /auth/refresh:
+        get:
+            summary: Refresh authentication token
+            tags:
+                - Authentication
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: Token refreshed successfully
+
+    /dashboard:
+        get:
+            summary: Get dashboard data
+            tags:
+                - Dashboard
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: Dashboard data retrieved successfully
+
+    /dashboard/me:
+        get:
+            summary: Get user's dashboard data
+            tags:
+                - Dashboard
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: User dashboard data retrieved successfully
+
+    /auth/me:
+        get:
+            summary: Get current user information
+            tags:
+                - Authentication
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: User information retrieved successfully
+
+    /project/me:
+        get:
+            summary: Get user's projects
+            tags:
+                - Projects
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: User's projects retrieved successfully
+
+    /company:
+        get:
+            summary: Get company information
+            tags:
+                - Company
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: Company information retrieved successfully
+
+    /project/{project_id}/members:
+        post:
+            summary: Add project members
+            tags:
+                - Projects
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: project_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                members:
+                                    type: array
+                                    items:
+                                        type: integer
+            responses:
+                '200':
+                    description: Members added successfully
+
+    /project/{project_id}/member/{id}:
+        delete:
+            summary: Remove project member
+            tags:
+                - Projects
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: project_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Member removed successfully
+
+    /task/me:
+        get:
+            summary: Get user's tasks
+            tags:
+                - Tasks
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: User's tasks retrieved successfully
+
+    /task/remind/{id}:
+        get:
+            summary: Get task reminder
+            tags:
+                - Tasks
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Task reminder retrieved successfully
+
+    /lead/me:
+        get:
+            summary: Get user's leads
+            tags:
+                - Leads
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: User's leads retrieved successfully
+
+    /ticket/me:
+        get:
+            summary: Get user's tickets
+            tags:
+                - Tickets
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: User's tickets retrieved successfully
+
+    /attendance/today:
+        get:
+            summary: Get today's attendance
+            tags:
+                - Attendance
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: Today's attendance retrieved successfully
+
+    /attendance/clock-in:
+        post:
+            summary: Clock in
+            tags:
+                - Attendance
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: Clocked in successfully
+
+    /attendance/clock-out/{attendance}:
+        post:
+            summary: Clock out
+            tags:
+                - Attendance
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: attendance
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Clocked out successfully
+
+    /device/register:
+        post:
+            summary: Register device for push notifications
+            tags:
+                - Devices
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                device_id:
+                                    type: string
+                                device_type:
+                                    type: string
+                                    enum: [ios, android]
+            responses:
+                '200':
+                    description: Device registered successfully
+
+    /device/unregister:
+        post:
+            summary: Unregister device
+            tags:
+                - Devices
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                device_id:
+                                    type: string
+            responses:
+                '200':
+                    description: Device unregistered successfully
+
+    /project:
+        get:
+            summary: List all projects
+            tags:
+                - Projects
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of projects retrieved successfully
+        post:
+            summary: Create a new project
+            tags:
+                - Projects
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                project_name:
+                                    type: string
+                                project_summary:
+                                    type: string
+                                start_date:
+                                    type: string
+                                    format: date
+                                deadline:
+                                    type: string
+                                    format: date
+                                category_id:
+                                    type: integer
+                                client_id:
+                                    type: integer
+            responses:
+                '201':
+                    description: Project created successfully
+    /project/{id}:
+        get:
+            summary: Get project details
+            tags:
+                - Projects
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Project details retrieved successfully
+        put:
+            summary: Update project
+            tags:
+                - Projects
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                project_name:
+                                    type: string
+                                project_summary:
+                                    type: string
+                                start_date:
+                                    type: string
+                                    format: date
+                                deadline:
+                                    type: string
+                                    format: date
+                                category_id:
+                                    type: integer
+                                client_id:
+                                    type: integer
+            responses:
+                '200':
+                    description: Project updated successfully
+        delete:
+            summary: Delete project
+            tags:
+                - Projects
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Project deleted successfully
+
+    /project-category:
+        get:
+            summary: List all project categories
+            tags:
+                - Project Categories
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of project categories retrieved successfully
+        post:
+            summary: Create a new project category
+            tags:
+                - Project Categories
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                category_name:
+                                    type: string
+            responses:
+                '201':
+                    description: Project category created successfully
+    /project-category/{id}:
+        get:
+            summary: Get project category details
+            tags:
+                - Project Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Project category details retrieved successfully
+        put:
+            summary: Update project category
+            tags:
+                - Project Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                category_name:
+                                    type: string
+            responses:
+                '200':
+                    description: Project category updated successfully
+        delete:
+            summary: Delete project category
+            tags:
+                - Project Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Project category deleted successfully
+
+    /currency:
+        get:
+            summary: List all currencies
+            tags:
+                - Currencies
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of currencies retrieved successfully
+        post:
+            summary: Create a new currency
+            tags:
+                - Currencies
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                currency_name:
+                                    type: string
+                                currency_symbol:
+                                    type: string
+                                currency_code:
+                                    type: string
+            responses:
+                '201':
+                    description: Currency created successfully
+    /currency/{id}:
+        get:
+            summary: Get currency details
+            tags:
+                - Currencies
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Currency details retrieved successfully
+        put:
+            summary: Update currency
+            tags:
+                - Currencies
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                currency_name:
+                                    type: string
+                                currency_symbol:
+                                    type: string
+                                currency_code:
+                                    type: string
+            responses:
+                '200':
+                    description: Currency updated successfully
+        delete:
+            summary: Delete currency
+            tags:
+                - Currencies
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Currency deleted successfully
+
+    /task-category:
+        get:
+            summary: List all task categories
+            tags:
+                - Task Categories
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of task categories retrieved successfully
+        post:
+            summary: Create a new task category
+            tags:
+                - Task Categories
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                category_name:
+                                    type: string
+            responses:
+                '201':
+                    description: Task category created successfully
+    /task-category/{id}:
+        get:
+            summary: Get task category details
+            tags:
+                - Task Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Task category details retrieved successfully
+        put:
+            summary: Update task category
+            tags:
+                - Task Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                category_name:
+                                    type: string
+            responses:
+                '200':
+                    description: Task category updated successfully
+        delete:
+            summary: Delete task category
+            tags:
+                - Task Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Task category deleted successfully
+
+    /taskboard-columns:
+        get:
+            summary: List all taskboard columns
+            tags:
+                - Taskboard Columns
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of taskboard columns retrieved successfully
+        post:
+            summary: Create a new taskboard column
+            tags:
+                - Taskboard Columns
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                column_name:
+                                    type: string
+                                label_color:
+                                    type: string
+                                priority:
+                                    type: integer
+            responses:
+                '201':
+                    description: Taskboard column created successfully
+    /taskboard-columns/{id}:
+        get:
+            summary: Get taskboard column details
+            tags:
+                - Taskboard Columns
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Taskboard column details retrieved successfully
+        put:
+            summary: Update taskboard column
+            tags:
+                - Taskboard Columns
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                column_name:
+                                    type: string
+                                label_color:
+                                    type: string
+                                priority:
+                                    type: integer
+            responses:
+                '200':
+                    description: Taskboard column updated successfully
+        delete:
+            summary: Delete taskboard column
+            tags:
+                - Taskboard Columns
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Taskboard column deleted successfully
+
+    /lead:
+        get:
+            summary: List all leads
+            tags:
+                - Leads
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of leads retrieved successfully
+        post:
+            summary: Create a new lead
+            tags:
+                - Leads
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                client_name:
+                                    type: string
+                                client_email:
+                                    type: string
+                                    format: email
+                                company_name:
+                                    type: string
+                                website:
+                                    type: string
+                                address:
+                                    type: string
+                                mobile:
+                                    type: string
+                                category_id:
+                                    type: integer
+                                source_id:
+                                    type: integer
+                                status_id:
+                                    type: integer
+            responses:
+                '201':
+                    description: Lead created successfully
+    /lead/{id}:
+        get:
+            summary: Get lead details
+            tags:
+                - Leads
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead details retrieved successfully
+        put:
+            summary: Update lead
+            tags:
+                - Leads
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                client_name:
+                                    type: string
+                                client_email:
+                                    type: string
+                                    format: email
+                                company_name:
+                                    type: string
+                                website:
+                                    type: string
+                                address:
+                                    type: string
+                                mobile:
+                                    type: string
+                                category_id:
+                                    type: integer
+                                source_id:
+                                    type: integer
+                                status_id:
+                                    type: integer
+            responses:
+                '200':
+                    description: Lead updated successfully
+        delete:
+            summary: Delete lead
+            tags:
+                - Leads
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead deleted successfully
+
+    /lead-category:
+        get:
+            summary: List all lead categories
+            tags:
+                - Lead Categories
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of lead categories retrieved successfully
+        post:
+            summary: Create a new lead category
+            tags:
+                - Lead Categories
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                category_name:
+                                    type: string
+            responses:
+                '201':
+                    description: Lead category created successfully
+    /lead-category/{id}:
+        get:
+            summary: Get lead category details
+            tags:
+                - Lead Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead category details retrieved successfully
+        put:
+            summary: Update lead category
+            tags:
+                - Lead Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                category_name:
+                                    type: string
+            responses:
+                '200':
+                    description: Lead category updated successfully
+        delete:
+            summary: Delete lead category
+            tags:
+                - Lead Categories
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead category deleted successfully
+
+    /lead-source:
+        get:
+            summary: List all lead sources
+            tags:
+                - Lead Sources
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of lead sources retrieved successfully
+        post:
+            summary: Create a new lead source
+            tags:
+                - Lead Sources
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                type:
+                                    type: string
+            responses:
+                '201':
+                    description: Lead source created successfully
+    /lead-source/{id}:
+        get:
+            summary: Get lead source details
+            tags:
+                - Lead Sources
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead source details retrieved successfully
+        put:
+            summary: Update lead source
+            tags:
+                - Lead Sources
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                type:
+                                    type: string
+            responses:
+                '200':
+                    description: Lead source updated successfully
+        delete:
+            summary: Delete lead source
+            tags:
+                - Lead Sources
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead source deleted successfully
+
+    /lead-agent:
+        get:
+            summary: List all lead agents
+            tags:
+                - Lead Agents
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of lead agents retrieved successfully
+        post:
+            summary: Create a new lead agent
+            tags:
+                - Lead Agents
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                user_id:
+                                    type: integer
+                                status:
+                                    type: string
+            responses:
+                '201':
+                    description: Lead agent created successfully
+    /lead-agent/{id}:
+        get:
+            summary: Get lead agent details
+            tags:
+                - Lead Agents
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead agent details retrieved successfully
+        put:
+            summary: Update lead agent
+            tags:
+                - Lead Agents
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                user_id:
+                                    type: integer
+                                status:
+                                    type: string
+            responses:
+                '200':
+                    description: Lead agent updated successfully
+        delete:
+            summary: Delete lead agent
+            tags:
+                - Lead Agents
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead agent deleted successfully
+
+    /lead-status:
+        get:
+            summary: List all lead statuses
+            tags:
+                - Lead Statuses
+            security:
+                - BearerAuth: []
+            responses:
+                '200':
+                    description: List of lead statuses retrieved successfully
+        post:
+            summary: Create a new lead status
+            tags:
+                - Lead Statuses
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                type:
+                                    type: string
+                                priority:
+                                    type: integer
+                                label_color:
+                                    type: string
+            responses:
+                '201':
+                    description: Lead status created successfully
+    /lead-status/{id}:
+        get:
+            summary: Get lead status details
+            tags:
+                - Lead Statuses
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead status details retrieved successfully
+        put:
+            summary: Update lead status
+            tags:
+                - Lead Statuses
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                type:
+                                    type: string
+                                priority:
+                                    type: integer
+                                label_color:
+                                    type: string
+            responses:
+                '200':
+                    description: Lead status updated successfully
+        delete:
+            summary: Delete lead status
+            tags:
+                - Lead Statuses
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                '200':
+                    description: Lead status deleted successfully

@@ -1,0 +1,12 @@
+{
+    "name": "Performance",
+    "alias": "performance",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Performance\\Providers\\PerformanceServiceProvider",
+        "Modules\\Performance\\Providers\\EventServiceProvider"
+    ],
+    "files": []
+}

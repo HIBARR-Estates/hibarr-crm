@@ -107,6 +107,8 @@ use App\Models\LeadAgent;
  * @property int|null $pipeline_stage_id
  * @property int|null $lead_id
  * @property \Illuminate\Support\Carbon|null $close_date
+ * @property bool $strategy_accepted
+ * @property bool $downpayment_confirmed
  * @property-read \App\Models\Lead|null $contact
  * @property-read \App\Models\PipelineStage|null $leadStage
  * @property-read \App\Models\LeadPipeline|null $pipeline
@@ -115,6 +117,8 @@ use App\Models\LeadAgent;
  * @method static \Illuminate\Database\Eloquent\Builder|Deal whereLeadPipelineId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Deal whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Deal wherePipelineStageId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Deal whereStrategyAccepted($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Deal whereDownpaymentConfirmed($value)
  * @mixin \Eloquent
  */
 class Deal extends BaseModel
@@ -131,6 +135,8 @@ class Deal extends BaseModel
     protected $casts = [
         'close_date' => 'datetime',
         'next_follow_up_date' => 'datetime',
+        'strategy_accepted' => 'boolean',
+        'downpayment_confirmed' => 'boolean',
     ];
 
     public function getImageUrlAttribute()

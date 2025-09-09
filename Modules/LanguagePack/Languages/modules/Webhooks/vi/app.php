@@ -1,0 +1,22 @@
+<?php 
+return [
+  'webhooks' => 'Webhook',
+  'log' => 'Nhật ký',
+  'addWebhook' => 'Thêm Webhook',
+  'editWebhook' => 'Cập nhật Webhook',
+  'webhookName' => 'Tên hành động webhook',
+  'webhookFor' => 'Webhook cho',
+  'webhookAction' => 'Hành động webhook',
+  'requestUrl' => 'URL yêu cầu',
+  'requestMethod' => 'Phương thức yêu cầu',
+  'requestFormat' => 'Định dạng yêu cầu',
+  'requestHeaders' => 'Tiêu đề yêu cầu',
+  'requestBody' => 'Nội dung yêu cầu',
+  'addMore' => 'Bổ sung thêm',
+  'responseCode' => 'Mã phản hồi',
+  'createdAt' => 'Đã ghi vào',
+  'action' => 'Hoạt động',
+  'runDebug' => 'Chạy ở chế độ gỡ lỗi',
+  'requestDetails' => 'Yêu cầu chi tiết',
+  'response' => 'Phản ứng',
+];
