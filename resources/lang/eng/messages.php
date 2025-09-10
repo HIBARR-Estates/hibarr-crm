@@ -80,6 +80,7 @@ return array(
     'notAnValidLocation' => 'Your current location is not with in the clock-in range',
     'qrDisabled' => 'QR Clock-in feature is disabled for this company.',
     'unAuthorisedUser' => 'You are not a authorised user.',
+    'tokenRevoked' => 'This token has been revoked.',
     'updatedProfile' => 'Updated profile.',
     'taskUpdated' => 'Marked the task as ',
     'timerStartedTask' => 'Started the timer for task ',
