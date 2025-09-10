@@ -183,16 +183,16 @@
         });
 
         // Ensure phone input only accepts numbers
-        $('#{{ $fieldId }}').on('input', function() {
+        $('[id="{{ $fieldId }}"]').on('input', function() {
             // Remove any non-numeric characters
             var value = $(this).val().replace(/[^0-9]/g, '');
             $(this).val(value);
         });
 
-        // Prevent non-numeric characters on keypress
-        $('#{{ $fieldId }}').on('keypress', function(e) {
-            // Allow: backspace, delete, tab, escape, enter
-            if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+        // Prevent non-numeric characters while allowing navigation keys
+        $('[id="{{ $fieldId }}"]').on('keydown', function(e) {
+            // Allow: backspace, delete, tab, escape, enter, home, end, arrows
+            if ([8, 9, 27, 13, 46, 35, 36, 37, 38, 39, 40].indexOf(e.keyCode) !== -1 ||
                 // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
                 (e.keyCode === 65 && e.ctrlKey === true) ||
                 (e.keyCode === 67 && e.ctrlKey === true) ||
@@ -207,10 +207,11 @@
         });
 
         // Handle paste events to clean pasted content
-        $('#{{ $fieldId }}').on('paste', function(e) {
+        $('[id="{{ $fieldId }}"]').on('paste', function(e) {
             setTimeout(function() {
-                var value = $('#{{ $fieldId }}').val().replace(/[^0-9]/g, '');
-                $('#{{ $fieldId }}').val(value);
+                var $el = $('[id="{{ $fieldId }}"]');
+                var value = $el.val().replace(/[^0-9]/g, '');
+                $el.val(value);
             }, 10);
         });
     });
