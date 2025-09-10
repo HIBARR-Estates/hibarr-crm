@@ -64,22 +64,32 @@
                     if (!empty($phoneValue)) {
                         // Support both array-cast and JSON string payloads
                         $decoded = is_array($phoneValue) ? $phoneValue : json_decode($phoneValue, true);
-                        if (is_array($decoded) && isset($decoded['country_code'])) {
-                            // New format: JSON with country code and identifier
-                            $countryCode = $decoded['country_code'];
-                            $phoneNumber = $decoded['phone'] ?? '';
-                            // Extract just the phone number part from the full phone string
-                            if (preg_match('/^\+(\d{1,4})\s*(.*)$/', $phoneNumber, $matches)) {
-                                $phoneNumber = $matches[2];
+                        if (is_array($decoded)) {
+                            if (isset($decoded['country_code'])) {
+                                // New format: JSON with country code and identifier
+                                $countryCode = $decoded['country_code'];
+                                $phoneNumber = $decoded['phone'] ?? '';
+                            } else {
+                                // Array payload without country_code; try common keys
+                                $candidate = $decoded['phone'] ?? $decoded['mobile'] ?? $decoded['number'] ?? null;
+                                if (is_string($candidate)) {
+                                    $phoneNumber = $candidate;
+                                }
                             }
-                        } else {
+                        } elseif (is_string($phoneValue)) {
                             // Old format: simple string, try to parse international format
-                            if (preg_match('/^\+(\d{1,4})\s*(.*)$/', $phoneValue, $matches)) {
+                            $raw = $phoneValue;
+                            if (preg_match('/^\+(\d{1,4})\s*(.*)$/', $raw, $matches)) {
                                 $countryCode = $matches[1];
                                 $phoneNumber = $matches[2];
                             } else {
-                                $phoneNumber = $phoneValue;
+                                $phoneNumber = $raw;
                             }
+                        }
+                        // If phone contains a prefixed country code, strip it out
+                        if (is_string($phoneNumber) && preg_match('/^\+(\d{1,4})\s*(.*)$/', $phoneNumber, $matches)) {
+                            $countryCode = $countryCode ?: $matches[1];
+                            $phoneNumber = $matches[2];
                         }
                     }
                 @endphp
