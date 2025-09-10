@@ -52,6 +52,9 @@
                 $idField.val(nicename || iso || '');
             }
         });
+        
+        // Initialize on load
+        $('#country_phonecode_{{ $fieldId }}').trigger('change');
 
         // Ensure phone input only accepts numbers
         $('[id="{{ $fieldId }}"]').on('input', function() {
