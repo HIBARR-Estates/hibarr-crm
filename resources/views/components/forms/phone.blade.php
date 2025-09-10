@@ -25,6 +25,7 @@
                 @endphp
                 @foreach ($countries as $item)
                     <option data-tokens="{{ $item->name }}" data-country-iso="{{ $item->iso }}"
+                        data-country-nicename="{{ $item->nicename ?? $item->name }}"
                         data-content="{{ $item->flagSpanCountryCode() }}" value="{{ $item->phonecode }}"
                         {{ $countryCode == $item->phonecode ? 'selected' : '' }}>
                         {{ $item->phonecode }}
@@ -36,6 +37,7 @@
             name="{{ $fieldName }}" id="{{ $fieldId }}" value="{{ $phoneNumber }}"
             style="flex: 1; min-width: 0;">
     </div>
+    <input type="hidden" name="country_identifier_{{ $fieldId }}" id="country_identifier_{{ $fieldId }}" value="">
 </div>
 
 <script>
@@ -46,7 +48,9 @@
             var nicename = selectedOption.data('country-nicename');
             var iso = selectedOption.data('country-iso');
             var $idField = $('input[name="country_identifier_{{ $fieldId }}"]');
-            $idField.val(nicename || iso || '');
+            if ($idField.length) {
+                $idField.val(nicename || iso || '');
+            }
         });
 
         // Ensure phone input only accepts numbers

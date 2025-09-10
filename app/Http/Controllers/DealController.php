@@ -9,6 +9,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
+use App\Scopes\ActiveScope;
 use ReflectionClass;
 use Illuminate\Support\Facades\DB;
 use App\Helper\Reply;
@@ -157,7 +158,7 @@ class DealController extends AccountBaseController
             'category',
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
-                      ->select('users.id', 'users.name', 'users.image', 'users.email')
+                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
                       ->with('employeeDetail.designation:id,name')
                       ->where('users.status', '!=', 'deactive')
                       ->orderBy('users.name');
@@ -421,9 +422,8 @@ class DealController extends AccountBaseController
             'leadStage', 
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
-                      ->select('users.id', 'users.name', 'users.image', 'users.email')
+                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
                       ->with('employeeDetail.designation:id,name')
-                      ->where('users.status', '!=', 'deactive')
                       ->orderBy('users.name');
             }
         ])->findOrFail($id)->withCustomFields();
