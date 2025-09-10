@@ -80,7 +80,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                    @else
                                         <div class="d-flex align-items-center">
                                           
-                                            <div class="d-flex align-items-center" data-followup-id="{{ $folllowUp->id }}"    >
+                                            <div class="d-flex align-items-center" >
                                                @switch($folllowUp->location)
                                                 @case('zoom')
                                                     <img src="https://img.icons8.com/color/20/000000/zoom.png" alt="Zoom" class="mr-2" style="width: 20px; height: 20px;">
@@ -95,14 +95,8 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                                 
                                             @endswitch
                                         <div class="generate-meeting-link d-flex align-items-center" 
-                                        data-followup-id="{{ $folllowUp->id }}"
-                                        style="padding:4px 8px;
-                                        align-items: center;
-                                        background-color:rgb(212, 0, 0); 
-                                        border-radius: 4px; 
-                                        color:#fff;
-                                        text-decoration: none;
-                                        cursor: pointer;">
+                                             data-followup-id="{{ $folllowUp->id }}"
+                                             style="padding:4px 8px; align-items: center; background-color:rgb(212, 0, 0); border-radius: 4px; color:#fff; text-decoration: none; cursor: pointer;">
                                            
                                            <i class="fa fa-magic mr-2"></i><span>Generate</span>
                                         </div> 
@@ -367,7 +361,7 @@ $(document).ready(function() {
                     button.html('<span class="text-primary">Join Meeting</span>');
                     button.css({
                         'background-color': 'transparent',
-                        'color': '#007bff'
+                        'color': '#007bff',
                         'text-decoration': 'underline',
                     });
                     button.removeClass('generate-meeting-link').addClass('join-meeting-link');
@@ -409,7 +403,7 @@ $(document).ready(function() {
                     // Show error notification
                     Swal.fire({
                         icon: 'error',
-                        text: response.message || 'Failed to generate meeting link',
+                        text: 'Failed to generate meeting link if issue persists please contact support',
                         toast: true,
                         position: "top-end",
                         timer: 40000,
@@ -439,7 +433,7 @@ $(document).ready(function() {
                 // Show error notification
                 Swal.fire({
                     icon: 'error',
-                    text: 'Failed to generate meeting link. Please try again.',
+                    text: 'Failed to generate meeting link. If issue persists please contact support',
                     toast: true,
                     position: "top-end",
                     timer: 4000,

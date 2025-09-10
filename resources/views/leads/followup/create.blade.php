@@ -31,9 +31,9 @@
                     </div>
                     <div class="col-md-6">
                         <div class="bootstrap-timepicker timepicker">
-                            <x-forms.text :fieldLabel="__('modules.timeLogs.startTime')" :fieldPlaceholder="__('placeholders.hours')"
+                            <x-forms.text :fieldLabel="__('Meeting Start Time')" :fieldPlaceholder="__('placeholders.hours')"
                                 fieldName="start_time" fieldId="start_time" fieldRequired="true"
-                                :fieldValue="now(company()->timezone)->format(company()->time_format)" />
+                                :fieldValue="now(company()->timezone)->addMinutes(30)->format(company()->time_format)" />
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -48,7 +48,7 @@
                         </x-forms.select>
                     </div>
                     <div class="col-md-6">
-                        <x-forms.select fieldId="location" :fieldLabel="__('Location')" fieldName="location"
+                        <x-forms.select fieldId="location" :fieldLabel="__('Meeting Location')" fieldName="location"
                             search="true">
                             <option value="office">Office</option>
                             <option value="zoom">Zoom</option>
@@ -59,7 +59,7 @@
                     
                     <div class="col-md-12">
                         <div class="form-group my-3">
-                            <x-forms.textarea class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('modules.lead.remark')"
+                            <x-forms.textarea class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('Meeting Remark')"
                                 fieldName="remark" fieldId="remark" fieldPlaceholder="">
                             </x-forms.textarea>
                         </div>
@@ -138,8 +138,117 @@
             }
         });
 
+        // Validation function
+        function validateFollowUpForm() {
+            let isValid = true;
+            let errorMessage = '';
+
+            // Validate Meeting Type
+            const meetingType = $('#meeting_type_id').val();
+            if (!meetingType || meetingType === '') {
+                isValid = false;
+                errorMessage += 'Please select a meeting type.\n';
+                $('#meeting_type_id').addClass('is-invalid');
+            } else {
+                $('#meeting_type_id').removeClass('is-invalid');
+            }
+
+            // Validate Start Time
+            const startTime = $('#start_time').val();
+            const followUpDate = $('#next_follow_up_date').val();
+            
+            if (!startTime || startTime.trim() === '') {
+                isValid = false;
+                errorMessage += 'Please enter a start time.\n';
+                $('#start_time').addClass('is-invalid');
+            } else if (followUpDate) {
+                // Check if the selected date and time is in the future
+                const selectedDateTime = new Date(followUpDate + ' ' + startTime);
+                const now = new Date();
+                
+                if (selectedDateTime <= now) {
+                    isValid = false;
+                    errorMessage += 'Please select a time in the future.\n';
+                    $('#start_time').addClass('is-invalid');
+                } else {
+                    $('#start_time').removeClass('is-invalid');
+                }
+            } else {
+                $('#start_time').removeClass('is-invalid');
+            }
+
+            // Validate Follow-up Date
+            if (!followUpDate || followUpDate.trim() === '') {
+                isValid = false;
+                errorMessage += 'Please select a follow-up date.\n';
+                $('#next_follow_up_date').addClass('is-invalid');
+            } else {
+                $('#next_follow_up_date').removeClass('is-invalid');
+            }
+
+            // Show error message if validation fails
+            if (!isValid) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validation Error',
+                    text: errorMessage.trim(),
+                    customClass: {
+                        confirmButton: 'btn btn-primary',
+                    },
+                    showClass: {
+                        popup: 'swal2-noanimation',
+                        backdrop: 'swal2-noanimation',
+                    },
+                });
+            }
+
+            return isValid;
+        }
+
+        // Real-time validation
+        $('#meeting_type_id, #start_time, #next_follow_up_date').on('change blur', function() {
+            $(this).removeClass('is-invalid');
+            
+            // Validate individual fields
+            if ($(this).attr('id') === 'meeting_type_id') {
+                if (!$(this).val() || $(this).val() === '') {
+                    $(this).addClass('is-invalid');
+                }
+            }
+            
+            if ($(this).attr('id') === 'start_time') {
+                const timeValue = $(this).val();
+                const followUpDate = $('#next_follow_up_date').val();
+                
+                if (!timeValue || timeValue.trim() === '') {
+                    $(this).addClass('is-invalid');
+                } else if (followUpDate) {
+                    // Check if the selected date and time is in the future
+                    const selectedDateTime = new Date(followUpDate + ' ' + timeValue);
+                    const now = new Date();
+                    
+                    if (selectedDateTime <= now) {
+                        $(this).addClass('is-invalid');
+                    }
+                }
+            }
+            
+            if ($(this).attr('id') === 'next_follow_up_date') {
+                if (!$(this).val() || $(this).val().trim() === '') {
+                    $(this).addClass('is-invalid');
+                }
+            }
+        });
+
         // save channel
-        $('#save-followup').click(function() {
+        $('#save-followup').click(function(e) {
+            e.preventDefault();
+            
+            // Validate form before submitting
+            if (!validateFollowUpForm()) {
+                return false;
+            }
+
             $.easyAjax({
                 url: "{{ route('deals.follow_up_store') }}",
                 container: '#followUpForm',
@@ -148,10 +257,57 @@
                 data: $('#followUpForm').serialize(),
                 success: function(response) {
                     if (response.status == "success") {
-                        window.location.reload();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: 'Follow-up created successfully. ',
+                            customClass: {
+                                confirmButton: 'btn btn-primary',
+                            },
+                            showClass: {
+                                popup: 'swal2-noanimation',
+                                backdrop: 'swal2-noanimation',
+                            },
+                        });
                     }
+                },
+                error: function(xhr) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'Failed to create follow-up. Please try again.',
+                        customClass: {
+                            confirmButton: 'btn btn-primary',
+                        },
+                        showClass: {
+                            popup: 'swal2-noanimation',
+                            backdrop: 'swal2-noanimation',
+                        },
+                    });
                 }
             })
         });
     });
 </script>
+
+<style>
+    /* Only apply validation styles to input fields, not dropdowns */
+    input.is-invalid, 
+    textarea.is-invalid {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+    }
+    
+    input.is-invalid:focus, 
+    textarea.is-invalid:focus {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+    }
+    
+    .form-group .is-invalid + .invalid-feedback {
+        display: block;
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+</style>

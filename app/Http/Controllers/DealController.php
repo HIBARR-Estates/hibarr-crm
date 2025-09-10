@@ -9,6 +9,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
+use App\Notifications\MeetingLinkGenerationFailed;
 use ReflectionClass;
 use Illuminate\Support\Facades\DB;
 use App\Helper\Reply;
@@ -701,42 +702,47 @@ class DealController extends AccountBaseController
             $request->next_follow_up_date . ' ' . $request->start_time
         );
 
-        // Use database transaction to ensure atomicity
-        return DB::transaction(function () use ($request, $next_follow_up_date) {
-            $followUp = new DealFollowUp();
-            $followUp->deal_id = $request->deal_id;
-            $followUp->meeting_type_id = $request->meeting_type_id;
-            $followUp->location = $request->location ?? 'office';
-            $followUp->meeting_link = $request->meeting_link;
-            $followUp->next_follow_up_date = $next_follow_up_date->format('Y-m-d H:i:s');
-            $followUp->remark = $request->remark;
-            $followUp->send_reminder = $request->send_reminder;
-            $followUp->remind_time = $request->remind_time;
-            $followUp->remind_type = $request->remind_type;
-                        $followUp->status = 'pending';
+        // Create follow-up first, then try meeting generation
+        $followUp = new DealFollowUp();
+        $followUp->deal_id = $request->deal_id;
+        $followUp->meeting_type_id = $request->meeting_type_id;
+        $followUp->location = $request->location ?? 'office';
+        $followUp->meeting_link = $request->meeting_link;
+        $followUp->next_follow_up_date = $next_follow_up_date->format('Y-m-d H:i:s');
+        $followUp->remark = $request->remark;
+        $followUp->send_reminder = $request->send_reminder;
+        $followUp->remind_time = $request->remind_time;
+        $followUp->remind_type = $request->remind_type;
+        $followUp->status = 'pending';
 
-            $followUp->save();
+        $followUp->save();
 
-            // Load the deal relationship for automation
-            $followUp->load('deal');
+        // Load the deal relationship for automation
+        $followUp->load('deal');
 
-            // Trigger follow-up automation - if this fails, the transaction will rollback
-            try {
-                $this->triggerFollowUpAutomation($followUp);
-            } catch (\Exception $e) {
-                Log::error("Follow-up automation failed during creation", [
-                    'follow_up_id' => $followUp->id,
-                    'deal_id' => $followUp->deal_id,
-                    'error' => $e->getMessage(),
-                ]);
-                
-                // Throw the exception to trigger transaction rollback
-                throw new \Exception("Follow-up creation failed: " . $e->getMessage());
-            }
-            event(new AutoFollowUpReminderEvent($followUp, true));
+        // Try to trigger follow-up automation - if this fails, continue anyway
+        try {
+            $this->triggerFollowUpAutomation($followUp);
+            Log::info("Follow-up automation triggered successfully", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Follow-up automation failed during creation - continuing without meeting link", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            // Send notification to responsible agent
+            $this->notifyAgentOfMeetingLinkFailure($followUp, $e->getMessage());
+            
+            // Continue without throwing exception - follow-up is already saved
+        }
 
-            return Reply::success(__('messages.recordSaved'));
-        });
+        event(new AutoFollowUpReminderEvent($followUp, true));
+
+        return Reply::success(__('messages.recordSaved'));
     }
 
     public function editFollow($id)
@@ -761,41 +767,45 @@ class DealController extends AccountBaseController
             return Reply::error(__('messages.leadFollowUpRestricted'));
         }
 
-        // Use database transaction to ensure atomicity
-        return DB::transaction(function () use ($request, $followUp) {
-            $followUp->deal_id = $request->deal_id;
-            $followUp->meeting_type_id = $request->meeting_type_id;
-            $followUp->location = $request->location ?? 'office';
-            $followUp->meeting_link = $request->meeting_link;
+        // Update follow-up first, then try meeting generation
+        $followUp->deal_id = $request->deal_id;
+        $followUp->meeting_type_id = $request->meeting_type_id;
+        $followUp->location = $request->location ?? 'office';
+        $followUp->meeting_link = $request->meeting_link;
 
-            $followUp->next_follow_up_date = Carbon::createFromFormat($this->company->date_format . ' ' . $this->company->time_format, $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
+        $followUp->next_follow_up_date = Carbon::createFromFormat($this->company->date_format . ' ' . $this->company->time_format, $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
 
-            $followUp->remark = $request->remark;
-            $followUp->status = $request->status;
-            $followUp->remind_time = $request->remind_time;
-            $followUp->remind_type = $request->remind_type;
+        $followUp->remark = $request->remark;
+        $followUp->status = $request->status;
+        $followUp->remind_time = $request->remind_time;
+        $followUp->remind_type = $request->remind_type;
 
-            $followUp->save();
+        $followUp->save();
 
-            // Load the deal relationship for automation
-            $followUp->load('deal');
+        // Load the deal relationship for automation
+        $followUp->load('deal');
 
-            // Trigger follow-up automation for update - if this fails, the transaction will rollback
-            try {
-                $this->triggerFollowUpAutomation($followUp);
-            } catch (\Exception $e) {
-                Log::error("Follow-up automation failed during update", [
-                    'follow_up_id' => $followUp->id,
-                    'deal_id' => $followUp->deal_id,
-                    'error' => $e->getMessage(),
-                ]);
-                
-                // Throw the exception to trigger transaction rollback
-                throw new \Exception("Follow-up update failed: " . $e->getMessage());
-            }
+        // Try to trigger follow-up automation for update - if this fails, continue anyway
+        try {
+            $this->triggerFollowUpAutomation($followUp);
+            Log::info("Follow-up automation triggered successfully during update", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Follow-up automation failed during update - continuing without meeting link", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            // Send notification to responsible agent
+            $this->notifyAgentOfMeetingLinkFailure($followUp, $e->getMessage());
+            
+            // Continue without throwing exception - follow-up is already updated
+        }
 
-            return Reply::success(__('messages.updateSuccess'));
-        });
+        return Reply::success(__('messages.updateSuccess'));
     }
 
     public function deleteFollow($id)
@@ -1158,7 +1168,61 @@ class DealController extends AccountBaseController
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            
+            // Send notification to responsible agent
+            $this->notifyAgentOfMeetingLinkFailure($followUp, $e->getMessage());
+            
             return Reply::error($e->getMessage());
+        }
+    }
+
+    /**
+     * Notify agent when meeting link generation fails
+     */
+    private function notifyAgentOfMeetingLinkFailure(DealFollowUp $followUp, string $errorMessage)
+    {
+        try {
+            // Get the responsible agent
+            $agent = null;
+            
+            if ($followUp->deal && $followUp->deal->agent_id) {
+                $leadAgent = \App\Models\LeadAgent::find($followUp->deal->agent_id);
+                if ($leadAgent) {
+                    $agent = \App\Models\User::find($leadAgent->user_id);
+                }
+            }
+            
+            // If no agent found, try to get the deal watcher
+            if (!$agent && $followUp->deal && $followUp->deal->deal_watcher) {
+                $agent = \App\Models\User::find($followUp->deal->deal_watcher);
+            }
+            
+            // If still no agent, get the user who created the follow-up
+            if (!$agent) {
+                $agent = \App\Models\User::find($followUp->added_by);
+            }
+            
+            if ($agent) {
+                $agent->notify(new MeetingLinkGenerationFailed($followUp, $agent, $errorMessage));
+                
+                Log::info("Meeting link generation failure notification sent to agent", [
+                    'follow_up_id' => $followUp->id,
+                    'deal_id' => $followUp->deal_id,
+                    'agent_id' => $agent->id,
+                    'agent_email' => $agent->email,
+                ]);
+            } else {
+                Log::warning("No agent found to notify about meeting link generation failure", [
+                    'follow_up_id' => $followUp->id,
+                    'deal_id' => $followUp->deal_id,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to send meeting link generation failure notification", [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
