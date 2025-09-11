@@ -44,7 +44,7 @@ class EmployeeDetailsObserver
 
         event(new NewUserSlackEvent($user));
 
-
+        // TODO: Call Zoho API to create/link employee and populate zoho_id, if not already linked
     }
 
     public function updated(EmployeeDetails $detail)
