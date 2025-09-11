@@ -5,27 +5,33 @@
         display: flex;
         align-items: stretch;
         width: 100%;
+        position: relative;
+    }
+
+    .phone-component .input-group > div {
+        display: flex;
+        align-items: stretch;
     }
     
     .phone-component .country-code-select {
-        min-width: 10px;
+        min-width: 87px;
         flex-shrink: 0;
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        border-right: none !important;
+        height: 35px !important;
+       
     }
     
     .phone-component .phone-input {
         flex: 1;
         min-width: 200px;
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+        border-left: none !important;
+        
     }
-    
-    .phone-component .country-code-select:focus + .phone-input,
-    .phone-component .phone-input:focus {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
+ 
     
     @media (max-width: 768px) {
         .phone-component .input-group {

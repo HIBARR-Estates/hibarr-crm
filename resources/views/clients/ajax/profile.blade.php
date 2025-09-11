@@ -144,7 +144,7 @@
             </div>
 
             <x-cards.data-row :label="__('modules.client.officePhoneNumber')"
-                :value="$client->clientDetails->office ?? '--'" />
+                :value="$client->clientDetails->office ? '+' . preg_replace('/[^0-9]/', '', $client->clientDetails->office) : '--'" />
 
             <x-cards.data-row :label="__('modules.client.website')" :value="$client->clientDetails->website ?? '--'" />
 
