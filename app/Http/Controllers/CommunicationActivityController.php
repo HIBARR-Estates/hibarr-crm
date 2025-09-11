@@ -9,7 +9,7 @@ use App\Models\Deal;
 use App\Models\Lead;
 use Illuminate\Http\Request;
 use App\Http\Requests\CommunicationActivity\StoreRequest;
-use App\Jobs\ProcessCommunicationActivity;
+use App\Jobs\ProcessCommunicationActivityJob;
 
 class CommunicationActivityController extends Controller
 {
