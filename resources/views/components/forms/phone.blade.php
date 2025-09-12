@@ -16,9 +16,9 @@
 
                     if (!empty($phoneValue)) {
                         if (preg_match('/^\+(\d{1,4})\s*(.*)$/', $phoneValue, $matches)) {
-                            $countryCode = $matches[1];
-                            $phoneNumber = $matches[2];
-                        } else {
+                                $countryCode = $matches[1];
+                                $phoneNumber = $matches[2];
+                            } else {
                             $phoneNumber = $phoneValue;
                         }
                     }
@@ -49,7 +49,7 @@
             var iso = selectedOption.data('country-iso');
             var $idField = $('input[name="country_identifier_{{ $fieldId }}"]');
             if ($idField.length) {
-                $idField.val(nicename || iso || '');
+            $idField.val(nicename || iso || '');
             }
         });
         

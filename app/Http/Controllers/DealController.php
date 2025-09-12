@@ -359,7 +359,7 @@ class DealController extends AccountBaseController
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->agent_id = $agentId;
-        $deal->close_date = companyToYmd($request->close_date);
+        $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
         $deal->save();
@@ -394,9 +394,9 @@ class DealController extends AccountBaseController
         $redirectUrl = urldecode($request->redirect_url);
 
         if ($request->add_more == 'true') {
-            $html = $this->create();
-
-            return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
+            \Log::info('Deal saved with add_more=true, deal ID: ' . $deal->id);
+            // Just return success with add_more flag, don't reload the entire form
+            return Reply::successWithData(__('messages.recordSaved'), ['add_more' => true]);
         }
 
         if ($redirectUrl == '') {
@@ -526,7 +526,7 @@ class DealController extends AccountBaseController
         $deal->next_follow_up = $request->next_follow_up;
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
-        $deal->close_date = companyToYmd($request->close_date);
+        $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
         $deal->category_id = $request->category_id;
@@ -1060,7 +1060,7 @@ class DealController extends AccountBaseController
         $deal = Deal::findOrFail($request->dealId);
 
         $deal->pipeline_stage_id = $request->pipelineStageId;
-        $deal->close_date = companyToYmd($request->close_date);
+        $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->update();
 
         if (!empty($request->description)) {
@@ -1089,6 +1089,23 @@ class DealController extends AccountBaseController
                 ->get();
         }
         return collect();
+    }
+
+    /**
+     * Safely convert company date format to Y-m-d format
+     * Returns null if date is invalid or empty
+     */
+    private function safeCompanyToYmd($date)
+    {
+        try {
+            if (empty($date)) {
+                return null;
+            }
+            return companyToYmd($date);
+        } catch (\Exception $e) {
+            \Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
+            return null;
+        }
     }
 
 }

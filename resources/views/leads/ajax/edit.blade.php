@@ -177,7 +177,7 @@
 
                 {{-- <x-forms.custom-field :fields="$fields" :model="$deal"></x-forms.custom-field> --}}
 
-            <x-form-actions>
+                <x-form-actions>
                     <x-forms.button-primary id="save-lead-form" class="mr-3" icon="check">@lang('app.save')
                     </x-forms.button-primary>
                     <x-forms.button-cancel :link="route('deals.index')" class="border-0">@lang('app.cancel')
@@ -192,10 +192,7 @@
 
 <script>
     $(document).ready(function() {
-        // Initialize Bootstrap Select for all select-picker elements
-        $(".select-picker").selectpicker();
-        
-        // Initialize datepicker
+
         $('#close_date').each(function(ind, el) {
             datepicker(el, {
                 position: 'bl',
@@ -203,86 +200,197 @@
             });
         });
 
-        // Load agents for the current category (guarded)
-        const $category = $('#category_id');
-        const $agentSelect = $('#deal_agent_id');
-        if ($category.length && $agentSelect.length) {
-            const categoryId = $category.val();
-            if (categoryId) getAgents(categoryId);
-            // Handle category change to load agents
-            $category.on('change', function () {
-                const id = $(this).val();
-                if (id) getAgents(id);
-            });
-        }
+        $('#save-lead-form').click(function() {
 
-        // Handle pipeline change to load stages
-        $('#editPipeline').on("change", function(e) {
-            let pipelineId = $(this).val();
-            getStages(pipelineId);
-        });
+            const tab = "{{ $tab }}";
+            const url = tab != null ? "{{ route('deals.update', [$deal->id]) }}?tab=" + tab :
+                "{{ route('deals.update', [$deal->id]) }}";
 
-        function getAgents(categoryId) {
-            const $select = $('#deal_agent_id');
-            if (!$select.length) return;
-            let url = "{{ route('deals.get_agents', ':id') }}".replace(':id', encodeURIComponent(categoryId));
             $.easyAjax({
                 url: url,
-                type: "GET",
-                success: function (response) {
-                    let optionsHtml = '<option value="">--</option>';
-                    const data = response && response.data;
-                    if (Array.isArray(data)) {
-                        // Support array of objects [{id,name}] or array of option HTML strings
-                        if (data.length && typeof data[0] === 'object' && 'id' in data[0]) {
-                            const $tmp = $('<div/>');
-                            data.forEach(function (u) { $tmp.append($('<option>', { value: u.id, text: u.name })); });
-                            optionsHtml += $tmp.html();
-                        } else {
-                            optionsHtml += data.join('');
-                        }
-                    } else if (typeof data === 'string') {
-                        optionsHtml += data;
-                    }
-                    $select.html(optionsHtml);
-                    if ($.fn.selectpicker) $select.selectpicker('refresh');
+                container: '#save-lead-data-form',
+                type: "POST",
+                disableButton: true,
+                blockUI: true,
+                file: true,
+                buttonSelector: "#save-lead-form",
+                data: $('#save-lead-data-form').serialize(),
+                success: function(response) {
+                    window.location.href = response.redirectUrl;
                 }
             });
-        }
+        });
 
+        $('body').on('click', '.add-lead-agent', function() {
+            var categoryId = $('#category_id').val();
+            var url = "{{ route('lead-agent-settings.create') . '?categoryId=' }}" + categoryId;
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+
+        $('body').on('click', '.add-lead-source', function() {
+            const url = '{{ route('lead-source-settings.create') }}';
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+
+        $('body').on('click', '.add-lead-category', function() {
+            var url = '{{ route('leadCategory.create') }}';
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+
+        $('#create_task_category').click(function() {
+            const url = "{{ route('taskCategory.create') }}";
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+
+        $('#department-setting').click(function() {
+            const url = "{{ route('departments.create') }}";
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+
+        $('#client_view_task').change(function() {
+            $('#clientNotification').toggleClass('d-none');
+        });
+
+        $('#set_time_estimate').change(function() {
+            $('#set-time-estimate-fields').toggleClass('d-none');
+        });
+
+        $('#repeat-task').change(function() {
+            $('#repeat-fields').toggleClass('d-none');
+        });
+
+        $('#dependent-task').change(function() {
+            $('#dependent-fields').toggleClass('d-none');
+        });
+
+        $('.toggle-other-details').click(function() {
+            $(this).find('svg').toggleClass('fa-chevron-down fa-chevron-up');
+            $('#other-details').toggleClass('d-none');
+        });
+
+        $('#createTaskLabel').click(function() {
+            const url = "{{ route('task-label.create') }}";
+            $(MODAL_XL + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_XL, url);
+        });
+
+        $('#add-project').click(function() {
+            $(MODAL_XL).modal('show');
+            const url = "{{ route('projects.create') }}";
+            $.easyAjax({
+                url: url,
+                blockUI: true,
+                container: MODAL_XL,
+                success: function(response) {
+                    if (response.status == "success") {
+                        $(MODAL_XL + ' .modal-body').html(response.html);
+                        $(MODAL_XL + ' .modal-title').html(response.title);
+                        init(MODAL_XL);
+                    }
+                }
+            });
+        });
+
+        $('#editPipeline').on("change", function(e) {
+            let pipelineId = $(this).val();
+            getStages(pipelineId)
+        });
+
+        getStages($('#editPipeline').val());
+        var selectedStageId = {{ $deal->pipeline_stage_id }};
+        // GET STAGES
         function getStages(pipelineId) {
-            const $select = $('#stages');
-            if (!$select.length) return;
-            if (!pipelineId) {
-                $select.html('<option value="">--</option>');
-                if ($.fn.selectpicker) $select.selectpicker('refresh');
-                return;
-            }
-            let url = "{{ route('deals.get-stage', ':id') }}".replace(':id', encodeURIComponent(pipelineId));
+            var url = "{{ route('deals.get-stage', ':id') }}";
+            url = url.replace(':id', pipelineId);
+
             $.easyAjax({
                 url: url,
                 type: "GET",
                 success: function(response) {
-                    if (response.status === 'success') {
-                        const rData = Array.isArray(response.data) ? response.data : [];
-                        const options = [];
-                        rData.forEach(function (value) {
-                            const color = /^#([0-9A-F]{3}|[0-9A-F]{6})$/i.test(value.label_color) ? value.label_color : '#666';
-                            const $opt = $('<option>')
-                                .val(value.id)
-                                .text(value.name) // auto-escapes
-                                .attr('data-content', `<i class="fa fa-circle" style="color:${color}"></i> ${value.name}`);
-                            options.push($opt.prop('outerHTML'));
+                    if (response.status == 'success') {
+                        var options = [];
+                        var rData = [];
+                        rData = response.data;
+                        $.each(rData, function(index, value) {
+                            var selectData = '';
+                            var selected = value.id == selectedStageId ? 'selected' : '';
+                            selectData =
+                                `<option data-content="<i class='fa fa-circle' style='color: ${value.label_color}'></i> ${value.name} " value="${value.id}" ${selected}> ${value.name}</option>`;
+                            options.push(selectData);
                         });
-                        $select.html(options.join(''));
-                        if (rData.length) { $select.val(String(rData[0].id)); }
-                        if ($.fn.selectpicker) $select.selectpicker('refresh');
-                    } else {
-                        $select.html('<option value="">--</option>');
-                        if ($.fn.selectpicker) $select.selectpicker('refresh');
+
+                        $('#stages').html(options);
+                        $('#stages').selectpicker('refresh');
+                    }
+                }
+            })
+        }
+
+        $('#add-employee').click(function() {
+            $(MODAL_XL).modal('show');
+
+            const url = "{{ route('employees.create') }}";
+
+            $.easyAjax({
+                url: url,
+                blockUI: true,
+                container: MODAL_XL,
+                success: function(response) {
+                    if (response.status == "success") {
+                        $(MODAL_XL + ' .modal-body').html(response.html);
+                        $(MODAL_XL + ' .modal-title').html(response.title);
+                        init(MODAL_XL);
                     }
                 }
             });
+        });
+        var categoryId = $('#category_id').val();
+        if (categoryId != '') {
+            getAgents(categoryId);
         }
+
+        function getAgents(categoryId) {
+            var url = "{{ route('deals.get_agents', ':id') }}";
+            url = url.replace(':id', categoryId);
+            var dealId = "{{ $deal->id }}";
+            $.easyAjax({
+                url: url,
+                type: "GET",
+                data: {
+                    dealId: dealId,
+                },
+                success: function(response) {
+                    var options = [];
+                    var rData = [];
+                    if ($.isArray(response.data)) {
+                        rData = response.data;
+                        $.each(rData, function(index, value) {
+                            var selectData = '';
+                            options.push(value);
+                        });
+                        $('#deal_agent_id').html('<option value="">--</option>' + options);
+                    } else {
+                        $('#deal_agent_id').html(response.data);
+                    }
+                    $('#deal_agent_id').selectpicker('refresh');
+                }
+            });
+        }
+
+        $('#category_id').change(function() {
+            var id = $(this).val();
+            if (id != '') {
+                getAgents(id);
+            }
+        });
+
+        <x-forms.custom-field-filejs/>
+
+        init(RIGHT_MODAL);
     });
 </script>
