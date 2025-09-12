@@ -46,6 +46,8 @@ class EmployeeDetailsObserver
 
         event(new NewUserSlackEvent($user));
 
+        // TODO: Call Zoho API to create/link employee and populate zoho_id, if not already linked
+  
         // create a referral code for the employee
          if (!ReferralCode::where('employee_id', $employee->id)->exists()) {
             ReferralCode::create([
@@ -53,8 +55,6 @@ class EmployeeDetailsObserver
                 'code' => ReferralCode::generateCode($employee->company?->name ?? null),
             ]);
         }
-
-
     }
 
     public function updated(EmployeeDetails $detail)
