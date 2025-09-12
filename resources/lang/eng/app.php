@@ -1259,6 +1259,12 @@ return array(
     'moduleNotifySwitchMessage' => 'This will hide/show new update message on dashboard for :name module',
     'leadContact' => 'Lead Contact',
     'deal' => 'Deals',
+    'commissionStatus' => array(
+        'pending' => 'Pending',
+        'approved' => 'Approved',
+        'paid' => 'Paid',
+        'cancelled' => 'Cancelled'
+    ),
     'maritalStatus' => array(
         'single' => 'Single',
         'married' => 'Married',
