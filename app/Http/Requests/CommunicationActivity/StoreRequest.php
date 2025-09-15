@@ -4,6 +4,9 @@ namespace App\Http\Requests\CommunicationActivity;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+
+// TODO: use lang files for these messages, not hardcoded strings
+
 class StoreRequest extends FormRequest
 {
     /**
@@ -20,8 +23,8 @@ class StoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'deal_id' => 'nullable|exists:deals,id',
-            'lead_id' => 'nullable|exists:leads,id',
+            // 'deal_id' => 'nullable|exists:deals,id',
+            // 'lead_id' => 'nullable|exists:leads,id',
             'channel_type' => 'required|in:email,whatsapp,instagram,telegram',
             'message_content' => 'required|string|max:10000',
             'sender_info' => 'required|array',
@@ -52,7 +55,6 @@ class StoreRequest extends FormRequest
      */
     public function messages(): array
     {
-        // TODO: use lang files for these messages, not hardcoded strings
         return [
             'deal_id.exists' => 'The selected deal does not exist.',
             'lead_id.exists' => 'The selected lead does not exist.',
@@ -67,17 +69,35 @@ class StoreRequest extends FormRequest
     /**
      * Configure the validator instance.
      */
-    // public function withValidator($validator)
-    // {
-    //     $validator->after(function ($validator) {
-    //         // Ensure either deal_id or lead_id is provided, but not both
-    //         if (empty($this->deal_id) && empty($this->lead_id)) {
-    //             $validator->errors()->add('deal_id', 'Either deal_id or lead_id must be provided.');
-    //         }
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $channel = $this->input('channel_type');
 
-    //         if (!empty($this->deal_id) && !empty($this->lead_id)) {
-    //             $validator->errors()->add('deal_id', 'Cannot provide both deal_id and lead_id.');
-    //         }
-    //     });
-    // }
+            // Email channel → email must be present
+            if ($channel === 'email' && empty($this->input('email'))) {
+                $validator->errors()->add('email', 'An email address is required when the channel type is email.');
+            }
+
+            // WhatsApp channel → phone_number must be present
+            if ($channel === 'whatsapp' && empty($this->input('phone_number'))) {
+                $validator->errors()->add('phone_number', 'A phone number is required when the channel type is whatsapp.');
+            }
+
+            // Instagram channel → instagram_username must be present
+            if ($channel === 'instagram' && empty($this->input('instagram_username'))) {
+                $validator->errors()->add('instagram_username', 'An Instagram username is required when the channel type is instagram.');
+            }
+
+            // Telegram channel → telegram_username or phone_number must be present
+            if ($channel === 'telegram' && empty($this->input('telegram_username')) && empty($this->input('phone_number'))) {
+                $validator->errors()->add('telegram_username', 'A telegram username or phone number is required when the channel type is telegram.');
+            }
+
+            // If message_type is "file" then files array must be present
+            if ($this->input('message_type') === 'file' && empty($this->input('files'))) {
+                $validator->errors()->add('files', 'Files are required when message_type is set to file.');
+            }
+        });
+    }
 } 
