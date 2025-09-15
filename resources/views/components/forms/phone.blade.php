@@ -1,9 +1,55 @@
-<div {{ $attributes->merge(['class' => 'form-group my-3']) }}>
+@props(['fieldId', 'fieldLabel', 'fieldName', 'fieldRequired' => false, 'fieldValue' => '', 'country' => null])
+
+<style>
+    .phone-component .input-group {
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+    }
+    
+    .phone-component .country-code-select {
+        min-width: 120px;
+        flex-shrink: 0;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    
+    .phone-component .phone-input {
+        flex: 1;
+        min-width: 200px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+    
+    .phone-component .country-code-select:focus + .phone-input,
+    .phone-component .phone-input:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    @media (max-width: 768px) {
+        .phone-component .input-group {
+            flex-direction: column;
+        }
+        
+        .phone-component .country-code-select,
+        .phone-component .phone-input {
+            min-width: 100%;
+            border-radius: 4px;
+        }
+        
+        .phone-component .country-code-select {
+            margin-bottom: 8px;
+        }
+    }
+</style>
+
+<div {{ $attributes->merge(['class' => 'form-group my-3 phone-component']) }}>
     <x-forms.label :fieldId="$fieldId" :fieldLabel="$fieldLabel" :fieldRequired="$fieldRequired"></x-forms.label>
 
     <div class="input-group">
         <div>
-            <select class="form-control select-picker" id="country_phonecode_{{ $fieldId }}"
+            <select class="form-control select-picker country-code-select" id="country_phonecode_{{ $fieldId }}"
                 name="country_phonecode_{{ $fieldId }}" data-live-search="true">
                 @php
                     $countries = Cache::remember('countries_list', 3600, function () {
@@ -14,79 +60,69 @@
                     $countryCode = '';
                     $phoneNumber = '';
 
-                    if (!empty($phoneValue)) {
-                        if (preg_match('/^\+(\d{1,4})\s*(.*)$/', $phoneValue, $matches)) {
-                                $countryCode = $matches[1];
-                                $phoneNumber = $matches[2];
-                            } else {
-                            $phoneNumber = $phoneValue;
-                        }
-                    }
+                                         if (!empty($phoneValue)) {
+                         // Support both array-cast and JSON string payloads
+                         $decoded = is_array($phoneValue) ? $phoneValue : json_decode($phoneValue, true);
+                         if (is_array($decoded) && isset($decoded['country_code'])) {
+                             // New format: JSON with country code and identifier
+                             $countryCode = $decoded['country_code'];
+                             $phoneNumber = $decoded['phone'] ?? '';
+                             // Extract just the phone number part from the full phone string
+                             if (preg_match('/^\+(\d{1,4})\s*(.*)$/', $phoneNumber, $matches)) {
+                                 $phoneNumber = $matches[2];
+                             }
+                         } else {
+                             // Old format: simple string, try to parse international format
+                             if (preg_match('/^\+(\d{1,4})\s*(.*)$/', $phoneValue, $matches)) {
+                                 $countryCode = $matches[1];
+                                 $phoneNumber = $matches[2];
+                             } else {
+                                 $phoneNumber = $phoneValue;
+                             }
+                         }
+                     }
                 @endphp
-                @foreach ($countries as $item)
-                    <option data-tokens="{{ $item->name }}" data-country-iso="{{ $item->iso }}"
-                        data-country-nicename="{{ $item->nicename ?? $item->name }}"
-                        data-content="{{ $item->flagSpanCountryCode() }}" value="{{ $item->phonecode }}"
-                        {{ $countryCode == $item->phonecode ? 'selected' : '' }}>
-                        {{ $item->phonecode }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <input type="tel" class="form-control height-35 f-14" placeholder="@lang('placeholders.mobile')"
-            name="{{ $fieldName }}" id="{{ $fieldId }}" value="{{ $phoneNumber }}"
-            style="flex: 1; min-width: 0;">
-    </div>
-    <input type="hidden" name="country_identifier_{{ $fieldId }}" id="country_identifier_{{ $fieldId }}" value="">
-</div>
-
-<script>
-    // Auto-update country identifier when country code changes
-    $(document).ready(function() {
-        $('select[name="country_phonecode_{{ $fieldId }}"]').on('change', function() {
-            var selectedOption = $(this).find('option:selected');
-            var nicename = selectedOption.data('country-nicename');
-            var iso = selectedOption.data('country-iso');
-            var $idField = $('input[name="country_identifier_{{ $fieldId }}"]');
-            if ($idField.length) {
-            $idField.val(nicename || iso || '');
-            }
-        });
-        
-        // Initialize on load
-        $('#country_phonecode_{{ $fieldId }}').trigger('change');
-
-        // Ensure phone input only accepts numbers
-        $('[id="{{ $fieldId }}"]').on('input', function() {
-            // Remove any non-numeric characters
-            var value = $(this).val().replace(/[^0-9]/g, '');
-            $(this).val(value);
-        });
-
-        // Prevent non-numeric characters while allowing navigation keys
-        $('[id="{{ $fieldId }}"]').on('keydown', function(e) {
-            // Allow: backspace, delete, tab, escape, enter, home, end, arrows
-            if ([8, 9, 27, 13, 46, 35, 36, 37, 38, 39, 40].indexOf(e.keyCode) !== -1 ||
-                // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
-                (e.keyCode === 65 && e.ctrlKey === true) ||
-                (e.keyCode === 67 && e.ctrlKey === true) ||
-                (e.keyCode === 86 && e.ctrlKey === true) ||
-                (e.keyCode === 88 && e.ctrlKey === true)) {
-                return;
-            }
-            // Ensure that it is a number and stop the keypress
-            if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
-                e.preventDefault();
-            }
-        });
-
-        // Handle paste events to clean pasted content
-        $('[id="{{ $fieldId }}"]').on('paste', function(e) {
-            setTimeout(function() {
-                var $el = $('[id="{{ $fieldId }}"]');
-                var value = $el.val().replace(/[^0-9]/g, '');
-                $el.val(value);
-            }, 10);
-        });
-    });
-</script>
+                                 @foreach ($countries as $item)
+                     <option data-tokens="{{ $item->name }}" data-country-iso="{{ $item->iso }}"
+                         data-country-nicename="{{ $item->nicename }}" data-content="{{ $item->flagSpanCountryCode() }}" 
+                         value="{{ $item->phonecode }}" {{ $countryCode == $item->phonecode ? 'selected' : '' }}>
+                         {{ $item->phonecode }}
+                     </option>
+                 @endforeach
+             </select>
+         </div>
+         <input type="tel" class="form-control height-35 f-14 phone-input" placeholder="@lang('placeholders.mobile')"
+             name="{{ $fieldName }}" id="{{ $fieldId }}" value="{{ $phoneNumber }}">
+         
+         @php
+             $countryIdentifier = '';
+             if (!empty($country)) {
+                 $countryIdentifier = $country;
+             } elseif (!empty($phoneValue)) {
+                 $decoded = is_array($phoneValue) ? $phoneValue : json_decode($phoneValue, true);
+                 if (is_array($decoded) && isset($decoded['country_identifier'])) {
+                     $countryIdentifier = $decoded['country_identifier'];
+                 }
+             } elseif (!empty($countryCode)) {
+                 $countryModel = $countries->firstWhere('phonecode', $countryCode);
+                 if ($countryModel) {
+                     $countryIdentifier = $countryModel->nicename;
+                 }
+             }
+         @endphp
+         <input type="hidden" name="country_identifier_{{ $fieldId }}" value="{{ $countryIdentifier }}" id="country_identifier_{{ $fieldId }}">
+     </div>
+ </div>
+ 
+ <script>
+     // Auto-update country identifier when country code changes
+     $(document).ready(function() {
+         $('select[name="country_phonecode_{{ $fieldId }}"]').on('change', function() {
+             var selectedOption = $(this).find('option:selected');
+             var nicename = selectedOption.data('country-nicename');
+             var iso = selectedOption.data('country-iso');
+             var $idField = $('input[name="country_identifier_{{ $fieldId }}"]');
+             $idField.val(nicename || iso || '');
+         });
+     });
+ </script>

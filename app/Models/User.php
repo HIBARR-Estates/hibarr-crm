@@ -272,21 +272,11 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         'salutation' => Salutation::class,
     ];
 
-    protected $appends = ['image_url', 'modules', 'mobile_with_phonecode', 'name_salutation', 'phone_number', 'country_code'];
+    protected $appends = ['image_url', 'modules', 'mobile_with_phone_code', 'name_salutation', 'phone_number', 'country_code'];
 
     public function getNameSalutationAttribute()
     {
         return ($this->salutation ? $this->salutation->label() . ' ' : '') . $this->name;
-    }
-
-    public function getPhoneNumberAttribute()
-    {
-        return $this->mobile ?? '--';
-    }
-
-    public function getCountryCodeAttribute()
-    {
-        return $this->country_phonecode ?? null;
     }
 
     public function getImageUrlAttribute()
@@ -335,6 +325,16 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         }
 
         return '--';
+    }
+
+    public function getPhoneNumberAttribute()
+    {
+        return $this->mobile;
+    }
+
+    public function getCountryCodeAttribute()
+    {
+        return $this->country_phonecode;
     }
 
     /**
