@@ -84,7 +84,7 @@
                 @endphp
                                  @foreach ($countries as $item)
                      <option data-tokens="{{ $item->name }}" data-country-iso="{{ $item->iso }}"
-                         data-country-nicename="{{ $item->nicename }}" data-content="{{ $item->flagSpanCountryCode() }}" 
+                         data-country-nicename="{{ $item->nicename }}" data-content="{!! $item->flagSpanCountryCode() !!}" 
                          value="{{ $item->phonecode }}" {{ $countryCode == $item->phonecode ? 'selected' : '' }}>
                          {{ $item->phonecode }}
                      </option>
@@ -96,17 +96,17 @@
          
          @php
              $countryIdentifier = '';
+             $decoded = is_array($phoneValue) ? $phoneValue : json_decode($phoneValue, true);
              if (!empty($country)) {
                  $countryIdentifier = $country;
-             } elseif (!empty($phoneValue)) {
-                 $decoded = is_array($phoneValue) ? $phoneValue : json_decode($phoneValue, true);
-                 if (is_array($decoded) && isset($decoded['country_identifier'])) {
-                     $countryIdentifier = $decoded['country_identifier'];
-                 }
-             } elseif (!empty($countryCode)) {
+             }
+             if (empty($countryIdentifier) && is_array($decoded) && isset($decoded['country_identifier'])) {
+                 $countryIdentifier = $decoded['country_identifier'];
+             }
+             if (empty($countryIdentifier) && !empty($countryCode)) {
                  $countryModel = $countries->firstWhere('phonecode', $countryCode);
                  if ($countryModel) {
-                     $countryIdentifier = $countryModel->nicename;
+                     $countryIdentifier = $countryModel->nicename ?? $countryModel->name ?? $countryModel->iso;
                  }
              }
          @endphp
