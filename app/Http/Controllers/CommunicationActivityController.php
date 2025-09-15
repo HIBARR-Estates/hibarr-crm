@@ -9,7 +9,7 @@ use App\Models\Deal;
 use App\Models\Lead;
 use Illuminate\Http\Request;
 use App\Http\Requests\CommunicationActivity\StoreRequest;
-use App\Jobs\ProcessCommunicationActivityJob;
+use App\Jobs\CreateCommunicationActivityJob;
 
 class CommunicationActivityController extends Controller
 {
@@ -26,7 +26,7 @@ class CommunicationActivityController extends Controller
 
         // The automation trigger calls this endpoint to create a communication activity
         // we will dispatch a job to process the activity asynchronously, and send the appropriate notifications
-        ProcessCommunicationActivityJob::dispatch($request->validated());
+        CreateCommunicationActivityJob::dispatch($request->validated());
 
         return Reply::successWithData('Communication activity been processed', [
             'data' => null

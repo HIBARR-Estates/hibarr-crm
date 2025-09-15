@@ -29,6 +29,21 @@ class StoreRequest extends FormRequest
             'sender_info.contact' => 'required|string|max:255',
             'timestamp' => 'required|date',
             'metadata' => 'nullable|array',
+            // New fields
+            'email' => 'nullable|email|max:255',
+            'phone_number' => 'nullable|string|max:20',
+            'instagram_username' => 'nullable|string|max:255',
+            'telegram_username' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'subject' => 'nullable|string|max:255',
+            'message_type' => 'nullable|in:text,image,video,audio,file',
+            'files' => 'nullable|array',
+            // only file url is required, file_type and file_size can be nullable
+            'files.*.file_url' => 'required_with:files|string|max:2048',
+            'files.*.file_type' => 'nullable|string|max:255',
+            'files.*.file_size' => 'nullable|integer|min:1',
+
         ];
     }
 
@@ -37,10 +52,12 @@ class StoreRequest extends FormRequest
      */
     public function messages(): array
     {
+        // TODO: use lang files for these messages, not hardcoded strings
         return [
             'deal_id.exists' => 'The selected deal does not exist.',
             'lead_id.exists' => 'The selected lead does not exist.',
             'channel_type.in' => 'The channel type must be one of: email, whatsapp, instagram, telegram.',
+            'message_type.in' => 'The message type must be one of: text, image, video, audio, file.',
             'sender_info.required' => 'Sender information is required.',
             'sender_info.name.required' => 'Sender name is required.',
             'sender_info.contact.required' => 'Sender contact is required.',
@@ -50,17 +67,17 @@ class StoreRequest extends FormRequest
     /**
      * Configure the validator instance.
      */
-    public function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
-            // Ensure either deal_id or lead_id is provided, but not both
-            if (empty($this->deal_id) && empty($this->lead_id)) {
-                $validator->errors()->add('deal_id', 'Either deal_id or lead_id must be provided.');
-            }
+    // public function withValidator($validator)
+    // {
+    //     $validator->after(function ($validator) {
+    //         // Ensure either deal_id or lead_id is provided, but not both
+    //         if (empty($this->deal_id) && empty($this->lead_id)) {
+    //             $validator->errors()->add('deal_id', 'Either deal_id or lead_id must be provided.');
+    //         }
 
-            if (!empty($this->deal_id) && !empty($this->lead_id)) {
-                $validator->errors()->add('deal_id', 'Cannot provide both deal_id and lead_id.');
-            }
-        });
-    }
+    //         if (!empty($this->deal_id) && !empty($this->lead_id)) {
+    //             $validator->errors()->add('deal_id', 'Cannot provide both deal_id and lead_id.');
+    //         }
+    //     });
+    // }
 } 

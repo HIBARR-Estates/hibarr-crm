@@ -17,14 +17,15 @@ class ProcessCommunicationActivityJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected array $normalizedData;
+    
+    protected CommunicationActivity $activity;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(array $normalizedData)
+    public function __construct(CommunicationActivity $activity)
     {
-        $this->normalizedData = $normalizedData;
+        $this->activity = $activity;
     }
 
     /**
@@ -32,8 +33,17 @@ class ProcessCommunicationActivityJob implements ShouldQueue
      */
     public function handle(): void
     {
-        // Create the communication activity record
-        $activity = CommunicationActivity::create($this->normalizedData);
+        
+        $activity = $this->activity;
+
+        // TODO: Add logs to all step processes for communication activity processing
+        // TODO: Write tests for all case scenarios
+
+        // check if activity is linked to a deal or lead
+        if (empty($activity->deal_id) && empty($activity->lead_id)) {
+            return;
+        }
+    
 
         $notifiables = collect();
         // Notify relevant users

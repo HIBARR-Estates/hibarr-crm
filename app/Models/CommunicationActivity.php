@@ -6,6 +6,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * App\Models\CommunicationActivity
@@ -37,7 +38,17 @@ class CommunicationActivity extends Model
         'sender_info',
         'timestamp',
         'metadata',
-        'company_id'
+        'company_id',
+        'email',
+        'phone_number',
+        'instagram_username',
+        'telegram_username',
+        'first_name',
+        'last_name',
+        'message_type',
+        'subject',
+        'resolution_status',
+        'resolution_attempts',
     ];
 
     protected $casts = [
@@ -45,6 +56,14 @@ class CommunicationActivity extends Model
         'metadata' => 'array',
         'timestamp' => 'datetime',
     ];
+
+    /**
+     * Get the files associated with the communication activity.
+     */
+    public function files(): HasMany
+    {
+        return $this->hasMany(CommunicationActivityFile::class, 'activity_id');
+    }
 
     /**
      * Get the deal that owns the communication activity.
