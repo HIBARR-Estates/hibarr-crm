@@ -22,6 +22,13 @@ class CommunicationActivityFile extends Model
 {
     use HasFactory;
 
+    protected $fillable = [
+        'activity_id',
+        'file_url',
+        'file_type',
+        'file_size',
+    ];
+
 
     // communication activity the file belongs to
     public function activity(): BelongsTo

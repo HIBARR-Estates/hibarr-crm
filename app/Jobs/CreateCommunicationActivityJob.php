@@ -34,20 +34,9 @@ class CreateCommunicationActivityJob implements ShouldQueue
         if ($this->normalizedData['channel_type'] === 'email') {
             $this->normalizedData['message_content'] = strip_tags($this->normalizedData['message_content']);
         }
-        // attach files
-        if (isset($this->normalizedData['files']) && is_array($this->normalizedData['files'])) {
-            foreach ($this->normalizedData['files'] as $file) {
-                $activity->files()->create([
-                    'file_url'  => $file['file_url'],
-                    'file_type' => $file['file_type'],
-                    'file_size' => $file['file_size'],
-                ]);
-            }
-        }
-
         // Always save as "pending" unresolved log
         $activity = CommunicationActivity::create(array_merge($this->normalizedData, [
-            'resolution_status'   => ResolutionStatus::PENDING->value,
+            'resolution_status'   => ResolutionStatus::Pending->value,
             'resolution_attempts' => 0,
         ]));
 
@@ -61,6 +50,8 @@ class CreateCommunicationActivityJob implements ShouldQueue
                 ]);
             }
         }
+
+        
 
         // Immediately attempt resolution (fast path)
         ResolveCommunicationActivityJob::dispatch($activity->id)->onQueue('resolvers');

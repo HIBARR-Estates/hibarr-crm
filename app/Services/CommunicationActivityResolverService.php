@@ -60,59 +60,69 @@ class CommunicationActivityResolverService
 
     private function findDealByPhone(string $phone): ?Deal
     {
-        return Deal::query()
-            ->where('phone_number', $phone)
-            ->where('status', 'open')
-            ->orderByDesc('last_contact_at')
-            ->orderByDesc('updated_at')
-            ->first();
+        // return Deal::query()
+        //     ->where('phone_number', $phone)
+        //     ->where('status', 'open')
+        //     ->orderByDesc('last_contact_at')
+        //     ->orderByDesc('updated_at')
+        //     ->first();
+
+        return null;
     }
 
     private function findLeadByPhone(string $phone): ?Lead
     {
-        return Lead::query()
-            ->where('phone_number', $phone)
-            ->where('status', 'open')
-            ->orderByDesc('last_contact_at')
-            ->orderByDesc('updated_at')
-            ->first();
+        // return Lead::query()
+        //     ->where('phone_number', $phone)
+        //     ->where('status', 'open')
+        //     ->orderByDesc('last_contact_at')
+        //     ->orderByDesc('updated_at')
+        //     ->first();
+
+        return null;
     }
 
     private function findDealByEmail(string $email): ?Deal
     {
-        return Deal::query()
-            ->whereRaw('LOWER(email) = ?', [strtolower($email)])
-            ->where('status', 'open')
-            ->orderByDesc('last_contact_at')
-            ->orderByDesc('updated_at')
-            ->first();
+        // return Deal::query()
+        //     ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+        //     ->where('status', 'open')
+        //     ->orderByDesc('last_contact_at')
+        //     ->orderByDesc('updated_at')
+        //     ->first();
+
+        return null;
     }
 
     private function findLeadByEmail(string $email): ?Lead
     {
-        return Lead::query()
-            ->whereRaw('LOWER(email) = ?', [strtolower($email)])
-            ->where('status', 'open')
-            ->orderByDesc('last_contact_at')
-            ->orderByDesc('updated_at')
-            ->first();
+        // return Lead::query()
+        //     ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+        //     ->where('status', 'open')
+        //     ->orderByDesc('last_contact_at')
+        //     ->orderByDesc('updated_at')
+        //     ->first();
+        return null;
     }
 
     private function findLeadByTelegram(string $username): ?Lead
     {
-        return Lead::query()
-            ->where('telegram_username', $username)
-            ->where('status', 'open')
-            ->orderByDesc('updated_at')
-            ->first();
+        // return Lead::query()
+        //     ->where('telegram_username', $username)
+        //     ->where('status', 'open')
+        //     ->orderByDesc('updated_at')
+        //     ->first();
+
+        return null;
     }
 
     private function findLeadByInstagram(string $username): ?Lead
     {
-        return Lead::query()
-            ->where('instagram_username', $username)
-            ->where('status', 'open')
-            ->orderByDesc('updated_at')
-            ->first();
+        // return Lead::query()
+        //     ->where('instagram_username', $username)
+        //     ->where('status', 'open')
+        //     ->orderByDesc('updated_at')
+        //     ->first();
+        return null;
     }
 }
