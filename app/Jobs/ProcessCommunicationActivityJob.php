@@ -52,13 +52,13 @@ class ProcessCommunicationActivityJob implements ShouldQueue
 
 
             // Lead agent
-            if ($deal && $deal->leadAgent && $deal->leadAgent->user) {
-                $notifiables->push($deal->leadAgent->user);
+            if ($deal && $deal?->leadAgent && $deal?->leadAgent->user) {
+                $notifiables->push($deal?->leadAgent->user);
             }
 
             // Deal watcher
-            if ($deal && $deal->dealWatcher) {
-                $notifiables->push($deal->dealWatcher);
+            if ($deal && $deal?->dealWatcher) {
+                $notifiables->push($deal?->dealWatcher);
             }
 
 
@@ -77,13 +77,31 @@ class ProcessCommunicationActivityJob implements ShouldQueue
 
            
         } elseif (!empty($activity->lead_id)) {
-            $lead = Lead::with('leadAgent.user', 'addedBy', 'leadOwner')->find($activity->lead_id);
+            $lead = Lead::find($activity->lead_id);
+
+            if( !$lead ) {
+                return;
+            }
+            // get all deals connected to this lead
+            $deals = Deal::where('lead_id', $activity->lead_id)->with([
+                'leadAgent.user', 'dealWatcher', 'addedBy'
+            ])->get();
 
             $notifiables = collect();
 
-            // Lead agent
-            if ($lead && $lead->leadAgent && $lead->leadAgent->user) {
-                $notifiables->push($lead->leadAgent->user);
+            // notify the deal watchers and the lead agent on the deals connected to this lead
+            if ($deals) {
+                foreach ($deals as $deal) {
+                    // Deal watcher
+                    if ($deal?->dealWatcher) {
+                        $notifiables->push($deal?->dealWatcher);
+                    }
+
+                    // Lead agent
+                    if ($deal?->leadAgent && $deal?->leadAgent?->user) {
+                        $notifiables->push($deal?->leadAgent?->user);
+                    }
+                }
             }
 
           

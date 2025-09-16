@@ -85,7 +85,7 @@ class NewCommunicationActivity extends Notification implements ShouldQueue
         if ($this->activity->deal_id) {
             return route('deals.show', $this->activity->deal_id);
         } else {
-            return route('leads.show', $this->activity->lead_id);
+            return route('lead-contact.show', $this->activity->lead_id);
         }
     }
 } 

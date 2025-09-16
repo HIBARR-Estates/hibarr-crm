@@ -15,6 +15,9 @@ class ResolveCommunicationActivityJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+
+    // TODO: Implement exponential backoff for retries & try at least 3 times before marking as unresolved
+
     protected int $activityId;
     protected int $maxResolutionAttempts = 3;
 

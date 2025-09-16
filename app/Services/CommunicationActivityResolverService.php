@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\CommunicationActivity;
 use App\Models\Deal;
 use App\Models\Lead;
+use Illuminate\Support\Facades\Log;
+use App\Jobs\ProcessCommunicationActivityJob;
 
 class CommunicationActivityResolverService
 {
@@ -16,27 +18,46 @@ class CommunicationActivityResolverService
     {
         $dealOrLead = null;
 
-        // Priority 1: Phone Number
-        if (!empty($activity->phone_number)) {
-            $dealOrLead = $this->findDealByPhone($activity->phone_number)
-                ?? $this->findLeadByPhone($activity->phone_number);
+        // General rule of thumb:
+        // 1. Try to find a Lead or Deal based on the channel type and associated
+        // 2. The fields to match are probably located as columns prefixed with client_ in the leads or deals table, or can be located in the related client_details table or client_contacts table
+
+        // TODO: Still does require a bit of fine-tuning and testing with real data
+
+        switch ($activity->channel_type) {
+            case 'email':
+                Log::info('Resolving email activity for email: ' . $activity->email);
+                if (empty($activity->email)) {
+                    return null; // Cannot resolve without email
+                }
+                $dealOrLead = $this->findLeadByEmail($activity->email) ?? $this->findDealByEmail($activity->email);
+                break;
+            case 'telegram':
+                if (empty($activity->telegram_username)) {
+                    return null; // Cannot resolve without telegram username
+                }
+                $dealOrLead = $this->findDealByTelegram($activity->telegram_username)
+                    ?? $this->findLeadByTelegram($activity->telegram_username);
+                break;
+            case 'phone':
+                if (empty($activity->phone_number)) {
+                    return null; // Cannot resolve without phone number
+                }
+                $dealOrLead = $this->findDealByPhone($activity->phone_number)
+                    ?? $this->findLeadByPhone($activity->phone_number);
+                break;
+            case 'instagram':
+                if (empty($activity->instagram_username)) {
+                    return null; // Cannot resolve without instagram username
+                }
+                $dealOrLead = $this->findDealByInstagram($activity->instagram_username)
+                    ?? $this->findLeadByInstagram($activity->instagram_username);
+                break;
+            default:
+                return null; // Unsupported channel type
         }
 
-        // Priority 2: Email
-        if (!$dealOrLead && !empty($activity->email)) {
-            $dealOrLead = $this->findDealByEmail($activity->email)
-                ?? $this->findLeadByEmail($activity->email);
-        }
 
-        // Priority 3: Telegram Username
-        if (!$dealOrLead && !empty($activity->telegram_username)) {
-            $dealOrLead = $this->findLeadByTelegram($activity->telegram_username);
-        }
-
-        // Priority 4: Instagram Username
-        if (!$dealOrLead && !empty($activity->instagram_username)) {
-            $dealOrLead = $this->findLeadByInstagram($activity->instagram_username);
-        }
 
         // If resolved → update activity
         if ($dealOrLead) {
@@ -84,25 +105,37 @@ class CommunicationActivityResolverService
 
     private function findDealByEmail(string $email): ?Deal
     {
-        // return Deal::query()
-        //     ->whereRaw('LOWER(email) = ?', [strtolower($email)])
-        //     ->where('status', 'open')
-        //     ->orderByDesc('last_contact_at')
-        //     ->orderByDesc('updated_at')
-        //     ->first();
+        return Deal::query()
+            ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+            ->where('status', 'open')
+            ->orderByDesc('last_contact_at')
+            ->orderByDesc('updated_at')
+            ->first();
 
-        return null;
+        // return null;
     }
 
     private function findLeadByEmail(string $email): ?Lead
     {
-        // return Lead::query()
-        //     ->whereRaw('LOWER(email) = ?', [strtolower($email)])
-        //     ->where('status', 'open')
-        //     ->orderByDesc('last_contact_at')
-        //     ->orderByDesc('updated_at')
-        //     ->first();
-        return null;
+        // Try direct match on lead email
+        $lead = Lead::query()
+            ->whereRaw('LOWER(client_email) = ?', [strtolower($email)])
+            // ->where('status_id', 'open') //TODO: Check to see the proper status value to be used here
+            ->orderByDesc('updated_at')
+            ->first();
+
+        if ($lead) {
+            return $lead;
+        }
+
+        // Try matching via related client (User) email
+        return Lead::query()
+            ->whereHas('client', function ($q) use ($email) {
+                $q->whereRaw('LOWER(email) = ?', [strtolower($email)]);
+            })
+            // ->where('status_id', 'open') //TODO: Check to see the proper status value to be used here
+            ->orderByDesc('updated_at')
+            ->first();
     }
 
     private function findLeadByTelegram(string $username): ?Lead
