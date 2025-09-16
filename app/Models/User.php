@@ -461,24 +461,30 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     }
 
     // phpcs:ignore
+    /**
+     * @suppressWarnings(PHPMD.UnusedFormalParameter)
+     */
     public function routeNotificationForNexmo($notification)
     {
         $mobileData = $this->parseMobileData();
         
         if ($mobileData && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
-            return $mobileData['country_code'] . $mobileData['phone'];
+            return '+' . $mobileData['country_code'] . $mobileData['phone'];
         }
 
         return null;
     }
 
     // phpcs:ignore
+    /**
+     * @suppressWarnings(PHPMD.UnusedFormalParameter)
+     */
     public function routeNotificationForVonage($notification)
     {
         $mobileData = $this->parseMobileData();
         
         if ($mobileData && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
-            return $mobileData['country_code'] . $mobileData['phone'];
+            return '+' . $mobileData['country_code'] . $mobileData['phone'];
         }
 
         return null;
