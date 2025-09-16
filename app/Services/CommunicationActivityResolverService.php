@@ -105,14 +105,14 @@ class CommunicationActivityResolverService
 
     private function findDealByEmail(string $email): ?Deal
     {
-        return Deal::query()
-            ->whereRaw('LOWER(email) = ?', [strtolower($email)])
-            ->where('status', 'open')
-            ->orderByDesc('last_contact_at')
-            ->orderByDesc('updated_at')
-            ->first();
+        // return Deal::query()
+        //     ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+        //     ->where('status', 'open')
+        //     ->orderByDesc('last_contact_at')
+        //     ->orderByDesc('updated_at')
+        //     ->first();
 
-        // return null;
+        return null;
     }
 
     private function findLeadByEmail(string $email): ?Lead
