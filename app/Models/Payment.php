@@ -7,6 +7,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Deal;
 
 /**
  * App\Models\Payment
@@ -212,6 +213,12 @@ class Payment extends BaseModel
                 return $this->amount;
             },
         );
+    }
+
+    // deal relation
+    public function deal(): BelongsTo
+    {
+        return $this->belongsTo(Deal::class, 'deal_id');
     }
 
 }

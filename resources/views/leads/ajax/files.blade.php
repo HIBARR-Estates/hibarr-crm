@@ -1,20 +1,9 @@
-@php
-$addLeadFilePermission = user()->permission('add_lead_files');
-@endphp
+
 <!-- ROW START -->
 <div class="row">
     <!--  USER CARDS START -->
     <div class="col-xl-12 col-lg-12 col-md-12 mb-4 mb-xl-0 mb-lg-4 mb-md-0">
-        @if ($addLeadFilePermission == 'all' || $addLeadFilePermission == 'added')
-            <div class="d-flex p-20">
-                <div class="row">
-                    <div class="col-md-12">
-                        <a class="f-15 f-w-500" href="javascript:;" id="add-files" data-lead-id="{{ $deal->id }}"><i
-                                class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.projects.uploadFile')</a>
-                    </div>
-                </div>
-            </div>
-        @endif
+      
 
         <div class="p-20">
             <div id="layout">
