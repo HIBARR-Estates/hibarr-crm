@@ -117,10 +117,10 @@ class CommunicationActivityResolverService
 
     private function findLeadByEmail(string $email): ?Lead
     {
+        // TODO: Leads should have unique emails ....
         // Try direct match on lead email
         $lead = Lead::query()
             ->whereRaw('LOWER(client_email) = ?', [strtolower($email)])
-            // ->where('status_id', 'open') //TODO: Check to see the proper status value to be used here
             ->orderByDesc('updated_at')
             ->first();
 
@@ -129,13 +129,15 @@ class CommunicationActivityResolverService
         }
 
         // Try matching via related client (User) email
-        return Lead::query()
+        $lead =  Lead::query()
             ->whereHas('client', function ($q) use ($email) {
                 $q->whereRaw('LOWER(email) = ?', [strtolower($email)]);
             })
-            // ->where('status_id', 'open') //TODO: Check to see the proper status value to be used here
             ->orderByDesc('updated_at')
             ->first();
+        
+        // create a lead if not found
+        return $lead;
     }
 
     private function findLeadByTelegram(string $username): ?Lead
@@ -149,7 +151,7 @@ class CommunicationActivityResolverService
         return null;
     }
 
-    private function findLeadByInstagram(string $username): ?Lead
+    private function findDealByTelegram(string $username): ?Lead
     {
         // return Lead::query()
         //     ->where('instagram_username', $username)
