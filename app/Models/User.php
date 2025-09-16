@@ -414,10 +414,12 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         $mobileData = $this->parseMobileData();
         
         if ($mobileData && isset($mobileData['country_code'])) {
-            return $mobileData['country_code'];
+            return preg_replace('/\D+/', '', (string) $mobileData['country_code']);
         }
 
-        return $this->country_phonecode ?? null;
+        return $this->country_phonecode !== null
+            ? preg_replace('/\D+/', '', (string) $this->country_phonecode)
+            : null;
     }
 
     /**
@@ -496,7 +498,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         $mobileData = $this->parseMobileData();
         
         if ($mobileData && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
-            return $mobileData['country_code'] . $mobileData['phone'];
+            return '+' . $mobileData['country_code'] . $mobileData['phone'];
         }
 
         return null;
