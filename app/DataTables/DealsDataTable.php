@@ -103,7 +103,7 @@ class DealsDataTable extends BaseDataTable
             if (($this->addFollowUpPermission == 'all' || ($this->addFollowUpPermission == 'added' && user()->id == $row->added_by)) && $row->next_follow_up == 'yes' && !in_array($row->leadStage?->slug, ['win', 'lost'])) {
                 $action .= '<a onclick="followUp(' . $row->id . ')" class="dropdown-item" href="javascript:;">
                                 <i class="fa fa-thumbs-up mr-2"></i>
-                                ' . trans('modules.lead.addFollowUp') . '
+                                ' . trans('modules.followup.addFollowUp') . '
                             </a>';
             }
 
