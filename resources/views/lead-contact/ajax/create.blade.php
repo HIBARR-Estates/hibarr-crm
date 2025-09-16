@@ -235,12 +235,11 @@
                         @endif
 
                         <div class="col-lg-4 col-md-6">
-                            <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher">
-                                <option value="">--</option>
-                                @foreach ($employees as $item)
-                                    <x-user-option :user="$item" :selected="user()->id == $item->id" />
-                                @endforeach
-                            </x-forms.select>
+                        <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher[]" multiple>
+                            @foreach ($employees as $item)
+                                <x-user-option :user="$item" :selected="user()->id == $item->id" />
+                            @endforeach
+                        </x-forms.select>
                         </div>
                     </div>
                 </div>
