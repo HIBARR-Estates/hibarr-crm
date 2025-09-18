@@ -1,22 +1,64 @@
 @props(['customFieldCategories', 'defaultLabel' => 'app.generalInformation'])
 
 @if (isset($customFieldCategories) && count($customFieldCategories) > 0)
-    <div class="custom-field-tabs-wrapper" style="overflow-x: auto; overflow-y: hidden;">
-        <div class="flex flex-nowrap gap-2 py-2" style="min-width: max-content;">
+    <div class="w-full overflow-x-auto scrollbar-hide">
+        <div class="flex flex-nowrap gap-0 border-b border-gray-200" style="min-width: 100%;">
             <button type="button"
-                class="tab-btn px-4 py-2 text-sm font-medium text-white bg-blue-600 border-b-2 border-blue-600 rounded-t transition-all duration-200"
+                class="tab-category-btn text-sm  text-gray-700 bg-transparent border-none border-b-2 border-transparent px-4 py-2 whitespace-nowrap transition-all duration-200 focus:outline-none"
                 data-category-id="general" data-active="true">
                 @lang($defaultLabel)
             </button>
             @foreach ($customFieldCategories as $category)
                 <button type="button"
-                    class="tab-btn px-4 py-2 text-sm font-medium whitespace-nowrap text-gray-700 bg-white border-b-2 border-gray-300 rounded-t transition-all duration-200"
+                    class="tab-category-btn text-sm font-normal text-gray-700 bg-transparent border-none border-b-2 border-transparent px-4 py-2 whitespace-nowrap transition-all duration-200 focus:outline-none"
                     data-category-id="{{ $category->id }}">
                     {{ $category->name }}
                 </button>
             @endforeach
         </div>
     </div>
+
+    <style>
+        .tab-category-btn {
+            appearance: none;
+            background: none;
+            border-radius: 0;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #374151;
+            font-size: 0.90rem;
+            font-weight: 400;
+            padding: 0.5rem 1rem;
+            margin: 0;
+            transition: border-color 0.2s, color 0.2s, background 0.2s;
+            cursor: pointer;
+        }
+        .tab-category-btn.active-category,
+        .tab-category-btn.bg-blue-600 {
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb !important;
+            background: #f3f4f6;
+            font-weight: 600;
+        }
+        .tab-category-btn:focus {
+            outline: none;
+            border-bottom: 2px solid #2563eb;
+        }
+        .scrollbar-hide {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        /* Responsive font size for legibility */
+        @media (max-width: 600px) {
+            .tab-category-btn {
+                font-size: 0.95rem;
+                padding: 0.5rem 0.75rem;
+            }
+        }
+    </style>
 @endif
 
 

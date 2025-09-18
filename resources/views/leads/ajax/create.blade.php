@@ -15,8 +15,8 @@
     <div class="col-sm-12">
         <x-form id="save-lead-data-form">
             <div class="add-client bg-white rounded">
-                <div class="flex flex-col justify-start items-start p-4 border-b border-gray-200" style="background-color: #f3f4f6;">
-                    <h4 class="mb-0 f-21 font-weight-normal">
+                <div class="flex flex-col justify-start items-start p-4">
+                    <h4 class="mb-4 f-21 font-weight-normal">
                         @lang('modules.deal.dealDetails')
                     </h4>
                     <x-custom-field-category-tabs :customFieldCategories="$customFieldCategories" />

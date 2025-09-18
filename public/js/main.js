@@ -36773,6 +36773,14 @@ function closeTaskDetail() {
 
     var ctd3 = document.getElementById("close-task-detail");
     ctd3.classList.remove("in");
+
+
+        $('.task-detail-panel').removeClass('open');
+    $('.task-overlay').removeClass('open');
+    setTimeout(function() {
+        $('#right-modal-content').html('');
+        $('#right-modal-title').html('');
+    }, 350); // match your transition duration
 }
 /*******************************************************
                  Task Detail End
