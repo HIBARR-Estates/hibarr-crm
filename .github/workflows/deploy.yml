@@ -3,15 +3,17 @@ name: Deploy WorkSuite CRM to Production
 on:
   push:
     branches:
+      - main
       - staging
   workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-staging:
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Deploy on server via SSH
+      - name: Deploy to Staging Server via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.STAGING_HOST }}
@@ -22,6 +24,27 @@ jobs:
             git pull origin staging
             rsync -av --exclude 'public/user-uploads' --exclude 'public/favicon.ico' --exclude 'storage/app/modules_statuses.json' --exclude 'Modules' --exclude '.env' ~/hibarr-crm/ /var/www/html/worksuite-staging
             cd /var/www/html/worksuite-staging
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+            npm install
+            npm run production
+            php artisan migrate --force
+
+  deploy-main:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Deploy to Main Server via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/hibarr-crm
+            git pull origin main
+            rsync -av --exclude 'public/user-uploads' --exclude 'public/favicon.ico' --exclude 'storage/app/modules_statuses.json' --exclude 'Modules' --exclude '.env' ~/hibarr-crm/ /var/www/html/worksuite-main
+            cd /var/www/html/worksuite-main
             composer install --no-interaction --prefer-dist --optimize-autoloader
             npm install
             npm run production
