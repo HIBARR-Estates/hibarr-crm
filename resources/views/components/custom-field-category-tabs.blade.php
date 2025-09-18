@@ -1,8 +1,8 @@
 @props(['customFieldCategories', 'defaultLabel' => 'app.generalInformation'])
 
 @if (isset($customFieldCategories) && count($customFieldCategories) > 0)
-    <div class="w-full overflow-x-auto scrollbar-hide">
-        <div class="flex flex-nowrap gap-0 border-b border-gray-200" style="min-width: 100%;">
+    <div class="w-full max-w-full overflow-x-auto scrollbar-hide" style="overflow-x: auto; overflow-y: hidden;">
+        <div class="flex flex-nowrap gap-0 border-b border-gray-200 min-w-0" style="min-width: max-content;">
             <button type="button"
                 class="tab-category-btn text-sm  text-gray-700 bg-transparent border-none border-b-2 border-transparent px-4 py-2 whitespace-nowrap transition-all duration-200 focus:outline-none"
                 data-category-id="general" data-active="true">
