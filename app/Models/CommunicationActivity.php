@@ -43,12 +43,14 @@ class CommunicationActivity extends Model
         'phone_number',
         'instagram_username',
         'telegram_username',
+        'whatsapp_username',
         'first_name',
         'last_name',
         'message_type',
         'subject',
         'resolution_status',
         'resolution_attempts',
+        'chat_id'
     ];
 
     protected $casts = [

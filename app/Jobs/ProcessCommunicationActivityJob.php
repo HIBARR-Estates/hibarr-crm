@@ -63,7 +63,7 @@ class ProcessCommunicationActivityJob implements ShouldQueue
 
 
               // Lead owner(should only be notified if this is the first communication activity on a deal)
-            $isFirstActivity = $deal->communicationActivities()->count() === 1;
+            $isFirstActivity = $deal->communicationActivities()->count() === 0;
             if ($deal && $deal->lead?->leadOwner && $isFirstActivity) {
                 $notifiables->push($deal->lead?->leadOwner);
             }

@@ -25,6 +25,7 @@ class StoreRequest extends FormRequest
         return [
             // 'deal_id' => 'nullable|exists:deals,id',
             // 'lead_id' => 'nullable|exists:leads,id',
+            'chat_id' => 'nullable|string|max:255', 
             'channel_type' => 'required|in:email,whatsapp,instagram,telegram',
             'message_content' => 'required|string|max:10000',
             'sender_info' => 'required|array',
@@ -75,28 +76,106 @@ class StoreRequest extends FormRequest
             $channel = $this->input('channel_type');
 
             // Email channel → email must be present
-            if ($channel === 'email' && empty($this->input('email'))) {
-                $validator->errors()->add('email', 'An email address is required when the channel type is email.');
+            if ($channel === 'email' ) {
+                if(empty($this->input('email'))){
+                    $validator->errors()->add('email', 'An email address is required when the channel type is email.');
+                }
+                // ensure that the following fields are not present, to enforce the unique channel identifier constraint
+                // telegram_username, instagram_username, phone_number
+                if(!empty($this->input('telegram_username'))){
+                    $validator->errors()->add('telegram_username', 'Telegram username should not be provided when the channel type is email.');
+                }
+                if(!empty($this->input('instagram_username'))){
+                    $validator->errors()->add('instagram_username', 'Instagram username should not be provided when the channel type is email.');
+                }
+                if(!empty($this->input('phone_number'))){
+                    $validator->errors()->add('phone_number', 'Phone number should not be provided when the channel type is email.');
+                }
+            }
+            // Telegram channel → telegram_username or phone_number must be present
+            if ($channel === 'telegram') {
+                if(empty($this->input('telegram_username'))) {
+                    $validator->errors()->add('telegram_username', 'A telegram username is required when the channel type is telegram.');
+                }
+                if(empty($this->input('chat_id'))) {
+                    $validator->errors()->add('chat_id', 'A chat ID is required when the channel type is telegram.');
+                }
+                // ensure that the following fields are not present, to enforce the unique channel identifier constraint
+                // email, instagram_username, phone_number
+                if(!empty($this->input('email'))){
+                    $validator->errors()->add('email', 'Email should not be provided when the channel type is telegram.');
+                }
+                if(!empty($this->input('instagram_username'))){
+                    $validator->errors()->add('instagram_username', 'Instagram username should not be provided when the channel type is telegram.');
+                }
+                if(!empty($this->input('phone_number'))){
+                    $validator->errors()->add('phone_number', 'Phone number should not be provided when the channel type is telegram.');
+                }
             }
 
             // WhatsApp channel → phone_number must be present
-            if ($channel === 'whatsapp' && empty($this->input('phone_number'))) {
-                $validator->errors()->add('phone_number', 'A phone number is required when the channel type is whatsapp.');
+            if ($channel === 'whatsapp' ) {
+                if(empty($this->input('whatsapp_username'))){
+                    $validator->errors()->add('whatsapp_username', 'A WhatsApp username is required when the channel type is whatsapp, this is likely to be same value as phone number');
+                }
+                if(empty($this->input('phone_number'))){
+                    $validator->errors()->add('phone_number', 'A phone number is required when the channel type is whatsapp.');
+                }
+                // ensure that the following fields are not present, to enforce the unique channel identifier constraint
+                // telegram_username, instagram_username, email
+                if(!empty($this->input('telegram_username'))){
+                    $validator->errors()->add('telegram_username', 'Telegram username should not be provided when the channel type is whatsapp.');
+                }
+                if(!empty($this->input('instagram_username'))){
+                    $validator->errors()->add('instagram_username', 'Instagram username should not be provided when the channel type is whatsapp.');
+                }
+                if(!empty($this->input('email'))){
+                    $validator->errors()->add('email', 'Email should not be provided when the channel type is whatsapp.');
+                }
             }
 
             // Instagram channel → instagram_username must be present
-            if ($channel === 'instagram' && empty($this->input('instagram_username'))) {
-                $validator->errors()->add('instagram_username', 'An Instagram username is required when the channel type is instagram.');
+            if ($channel === 'instagram') {
+                if(empty($this->input('instagram_username'))){
+                    $validator->errors()->add('instagram_username', 'An Instagram username is required when the channel type is instagram.');
+                }
+                // ensure that the following fields are not present, to enforce the unique channel identifier constraint
+                // telegram_username, email, phone_number
+                if(!empty($this->input('telegram_username'))){
+                    $validator->errors()->add('telegram_username', 'Telegram username should not be provided when the channel type is instagram.');
+                }
+                if(!empty($this->input('phone_number'))){
+                    $validator->errors()->add('phone_number', 'Phone number should not be provided when the channel type is instagram.');
+                }
+                if(!empty($this->input('email'))){
+                    $validator->errors()->add('email', 'Email should not be provided when the channel type is instagram.');
+                }
+
             }
 
-            // Telegram channel → telegram_username or phone_number must be present
-            if ($channel === 'telegram' && empty($this->input('telegram_username')) && empty($this->input('phone_number'))) {
-                $validator->errors()->add('telegram_username', 'A telegram username or phone number is required when the channel type is telegram.');
-            }
 
             // If message_type is "file" then files array must be present
             if ($this->input('message_type') === 'file' && empty($this->input('files'))) {
                 $validator->errors()->add('files', 'Files are required when message_type is set to file.');
+                // TODO: ensure that only of them is present at a time and not all - telegram_username, instagram_username, phone_number, email
+                $valuesNet = ([
+                    $this->input('telegram_username'),
+                    $this->input('instagram_username'),
+                    $this->input('phone_number'),
+                    $this->input('email'),
+                ]);
+                // go through and ensure just one item is present
+                $nonEmptyCount = 0;
+                foreach ($valuesNet as $value) {
+                    if (!empty($value)) {
+                        $nonEmptyCount++;
+                    }
+                }
+                if ($nonEmptyCount > 1) {
+                    $validator->errors()->add('channel_type', 'Only one unique channel identifier should be provided among telegram_username, instagram_username, phone_number, or email.');
+                }
+
+                
             }
         });
     }
