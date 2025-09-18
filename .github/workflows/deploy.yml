@@ -20,10 +20,10 @@ jobs:
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGIN_SSH_PRIVATE_KEY }}
           script: |
-            cd /var/www/html
+            cd ~/hibarr-crm-staging
             git pull origin staging
             rsync -av --exclude 'public/user-uploads' --exclude 'public/favicon.ico' --exclude 'storage/app/modules_statuses.json' --exclude 'Modules' --exclude '.env' ~/hibarr-crm/ /var/www/html/worksuite-staging
-            cd /var/www/html/worksuite-staging
+            cd /var/www/html
             composer install --no-interaction --prefer-dist --optimize-autoloader
             npm install
             npm run production
@@ -44,7 +44,7 @@ jobs:
             cd ~/hibarr-crm
             git pull origin main
             rsync -av --exclude 'public/user-uploads' --exclude 'public/favicon.ico' --exclude 'storage/app/modules_statuses.json' --exclude 'Modules' --exclude '.env' ~/hibarr-crm/ /var/www/html/worksuite-main
-            cd /var/www/html/worksuite-main
+            cd /var/www/html
             composer install --no-interaction --prefer-dist --optimize-autoloader
             npm install
             npm run production
