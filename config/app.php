@@ -206,7 +206,10 @@ return [
         'deals' => [
             'create_webhook_url' => env('DEAL_CREATE_WEBHOOK_URL'),
             'update_webhook_url' => env('DEAL_UPDATE_WEBHOOK_URL'),
-        ]
+        ],
+        'activities' => [
+            'activity_response_handler_url' => env('ACTIVITY_RESPONSE_HANDLER_URL'),
+        ],
     ],
 
 

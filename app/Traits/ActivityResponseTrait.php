@@ -17,7 +17,7 @@ trait ActivityResponseTrait
      * @param int $delay
      * @return array|null
      */
-    public function sendActivityResponse(array $data, array $headers = [], int $maxRetries = 10, int $delay = 10000): ?array
+    public function sendActivityResponse(array $data, array $headers = [], int $maxRetries = 10, int $delay = 10000, int $timeout = 60): ?array
     {
         $url = config('app.automations.activities.activity_response_handler_url');
         
@@ -27,6 +27,8 @@ trait ActivityResponseTrait
         }
 
         $attempt = 0;
+        
+        $statusCode = null; // Initialize status code variable
         
         while ($attempt < $maxRetries) {
             try {
@@ -38,7 +40,7 @@ trait ActivityResponseTrait
 
                 $mergedHeaders = array_merge($defaultHeaders, $headers);
 
-                $httpClient = Http::withHeaders($mergedHeaders)->timeout(30);
+                $httpClient = Http::withHeaders($mergedHeaders)->timeout($timeout);
                 
                 // Disable SSL verification in development/local environment
                 if (app()->environment(['local', 'development', 'testing', 'codecanyon'])) {
@@ -46,22 +48,100 @@ trait ActivityResponseTrait
                 }
                 
                 $response = $httpClient->post($url, $data);
+                $statusCode = $response->status();
 
+                $responseBody = $response->body();
+                $responseData = null;
+                
+                // Try to parse JSON response
+                try {
+                    $responseData = json_decode($responseBody, true);
+                } catch (Exception $e) {
+                    Log::warning('Could not parse response as JSON', ['body' => $responseBody]);
+                }
+
+                // Check N8N response format first
+                if ($responseData && isset($responseData['valid']) && isset($responseData['statusCode'])) {
+                    $n8nValid = $responseData['valid'];
+                    $n8nStatusCode = $responseData['statusCode'];
+                    
+                    if ($n8nValid && $n8nStatusCode === 200) {
+                        Log::info('N8N response valid and successful', [
+                            'url' => $url,
+                            'http_status' => $statusCode,
+                            'n8n_status' => $n8nStatusCode,
+                            'attempt' => $attempt + 1
+                        ]);
+                        
+                        return [
+                            'status_code' => $statusCode,
+                            'response' => $responseData,
+                            'success' => true
+                        ];
+                    } elseif (!$n8nValid && ($n8nStatusCode === 400 || $n8nStatusCode === 422)) {
+                        Log::error('N8N validation error - stopping retries', [
+                            'url' => $url,
+                            'http_status' => $statusCode,
+                            'n8n_status' => $n8nStatusCode,
+                            'missing_fields' => $responseData['missingFields'] ?? [],
+                            'attempt' => $attempt + 1
+                        ]);
+
+                        if($n8nStatusCode === 400){
+                            //Data sent to N8N is invalid
+                        }
+                        elseif($n8nStatusCode === 422){
+                            //Data missing field in request
+                        }
+                        
+                        return [
+                            'status_code' => $n8nStatusCode,
+                            'response' => $responseData,
+                            'success' => false
+                        ];
+                    }
+                }
+                
+                // Fallback to HTTP status code logic
                 if ($response->successful()) {
-                    Log::info('Activity response sent successfully', [
+                    Log::info('HTTP response successful', [
                         'url' => $url,
-                        'status' => $response->status(),
+                        'status' => $statusCode,
                         'attempt' => $attempt + 1
                     ]);
 
-                    return $response->json();
+                    return [
+                        'status_code' => $statusCode,
+                        'response' => $responseData ?: $responseBody,
+                        'success' => true
+                    ];
                 } else {
                     Log::error('Activity response failed', [
                         'url' => $url,
-                        'status' => $response->status(),
-                        'body' => $response->body(),
+                        'status' => $statusCode,
+                        'body' => $responseBody,
                         'attempt' => $attempt + 1
                     ]);
+
+                    // Custom logic based on HTTP status codes
+                    if ($statusCode === 404) {
+                        Log::warning('Not Found - webhook not registered, will retry');
+                        // Continue to retry logic below
+                    } elseif ($statusCode === 500) {
+                        Log::error('Internal Server Error - server error, stopping retries');
+                        return [
+                            'status_code' => $statusCode,
+                            'response' => $responseData ?: $responseBody,
+                            'success' => false
+                        ];
+                    } else {
+                        Log::error("Unexpected status code {$statusCode}, stopping retries");
+                        return [
+                            'status_code' => $statusCode,
+                            'response' => $responseData ?: $responseBody,
+                            'success' => false
+                        ];
+                    }
                 }
 
             } catch (Exception $e) {
@@ -70,92 +150,53 @@ trait ActivityResponseTrait
                     'error' => $e->getMessage(),
                     'attempt' => $attempt + 1
                 ]);
+                $statusCode = 0; // Set to 0 for exceptions
             }
             
             $attempt++;
             
-            if ($attempt < $maxRetries) {
-                Log::info("Retrying activity response, attempt {$attempt}");
+            // Only retry if we got a 404 error and haven't exceeded max retries
+            if ($statusCode === 404 && $attempt < $maxRetries) {
+                Log::info("Retrying activity response for 404 error, attempt {$attempt}");
                 usleep($delay * 1000); // Convert to microseconds
                 $delay *= 2; // Exponential backoff
+            } else {
+                // Stop retrying for non-404 errors or when max retries reached
+                break;
             }
         }
         
         Log::error("Activity response failed after {$maxRetries} attempts");
-        return null;
-    }
-
-
-
-    /**
-     * Prepare activity data for sending based on ActivityDTO format
-     *
-     * @param string $channel - 'email' | 'whatsapp' | 'instagram' | 'telegram'
-     * @param string $message
-     * @param array $options - Additional options like email, phone_number, etc.
-     * @return array
-     */
-    public function prepareActivityData(string $channel, string $message, array $options = []): array
-    {
-        $data = [
-            'channel' => $channel,
-            'message' => $message,
+        return [
+            'status_code' => 404,
+            'response' => 'Max retries exceeded',
+            'success' => false
         ];
-
-        // Add optional fields based on channel
-        if (isset($options['email'])) {
-            $data['email'] = $options['email'];
-        }
-
-        if (isset($options['phone_number'])) {
-            $data['phone_number'] = $options['phone_number'];
-        }
-
-        if (isset($options['instagram_username'])) {
-            $data['instagram_username'] = $options['instagram_username'];
-        }
-
-        if (isset($options['telegram_username'])) {
-            $data['telegram_username'] = $options['telegram_username'];
-        }
-
-        if (isset($options['first_name'])) {
-            $data['first_name'] = $options['first_name'];
-        }
-
-        if (isset($options['last_name'])) {
-            $data['last_name'] = $options['last_name'];
-        }
-
-        if (isset($options['message_type'])) {
-            $data['message_type'] = $options['message_type'];
-        }
-
-        if (isset($options['subject'])) {
-            $data['subject'] = $options['subject'];
-        }
-
-        if (isset($options['files'])) {
-            $data['files'] = $options['files'];
-        }
-
-        return $data;
     }
 
+
+
     /**
-     * Send activity response with ActivityDTO format
+     * Send activity data to N8N with basic validation
      *
-     * @param string $channel
-     * @param string $message
-     * @param array $options
+     * @param array $activityData
      * @param array $headers
      * @param int $maxRetries
      * @param int $delay
      * @return array|null
+     * @throws \InvalidArgumentException
      */
-    public function sendActivity(string $channel, string $message, array $options = [], array $headers = [], int $maxRetries = 5, int $delay = 10000): ?array
+    public function sendActivity(array $activityData, array $headers = [], int $maxRetries = 5, int $delay = 10000, int $timeout = 60): ?array
     {
-        $data = $this->prepareActivityData($channel, $message, $options);
-        return $this->sendActivityResponse($data, $headers, $maxRetries, $delay);
+        // Basic validation
+        if (empty($activityData['channel'])) {
+            throw new \InvalidArgumentException("Activity data is missing required field 'channel'");
+        }
+
+        if (empty($activityData['message'])) {
+            throw new \InvalidArgumentException("Activity data is missing required field 'message'");
+        }
+
+        return $this->sendActivityResponse($activityData, $headers, $maxRetries, $delay, $timeout);
     }
 }

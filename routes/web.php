@@ -913,4 +913,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);
+
+    // Test Activity Response Trait Routes
+    Route::prefix('test-activity')->name('test-activity.')->group(function () {
+        Route::post('email', [App\Http\Controllers\TestActivityController::class, 'testEmail'])->name('email');
+        Route::post('whatsapp', [App\Http\Controllers\TestActivityController::class, 'testWhatsApp'])->name('whatsapp');
+        Route::post('instagram', [App\Http\Controllers\TestActivityController::class, 'testInstagram'])->name('instagram');
+        Route::post('telegram', [App\Http\Controllers\TestActivityController::class, 'testTelegram'])->name('telegram');
+        Route::post('retry', [App\Http\Controllers\TestActivityController::class, 'testWithRetry'])->name('retry');
+        Route::post('all', [App\Http\Controllers\TestActivityController::class, 'testAllChannels'])->name('all');
+    });
 });
