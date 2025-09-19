@@ -64,29 +64,40 @@
 
 <script>
     $(document).ready(function() {
+        const $panel = $('.task-detail-panel.in');
+        // Decide the target container
+        const $scope = $panel.length ? $panel : $(document);
+
         // Category tab click handler
-        $('[data-category-id]').on('click', function() {
+        $scope.find('[data-category-id]').on('click', function() {
             var categoryId = $(this).attr('data-category-id');
-            // Remove highlight from all buttons
-            $('[data-category-id]').removeClass(
-                'active-category bg-blue-600 text-white border-blue-600').addClass(
-                'bg-white text-gray-700 border-gray-300');
+
+            // Remove highlight from all buttons within the scope
+            $scope.find('[data-category-id]')
+                .removeClass('active-category bg-blue-600 text-white border-blue-600')
+                .addClass('bg-white text-gray-700 border-gray-300');
+
             // Add highlight to the clicked button
-            $(this).addClass('active-category bg-blue-600 text-white border-blue-600').removeClass(
-                'bg-white text-gray-700 border-gray-300');
+            $(this).addClass('active-category bg-blue-600 text-white border-blue-600')
+                .removeClass('bg-white text-gray-700 border-gray-300');
+
+            // Toggle visibility
             if (categoryId === 'general') {
-                $('#normal-fields-container').show();
-                $('.custom-fields-category-container').hide();
+                $scope.find('#normal-fields-container').show();
+                $scope.find('.custom-fields-category-container').hide();
             } else {
-                $('#normal-fields-container').hide();
-                $('.custom-fields-category-container').hide();
-                $('#custom-fields-category-' + categoryId).show();
+                $scope.find('#normal-fields-container').hide();
+                $scope.find('.custom-fields-category-container').hide();
+                $scope.find('#custom-fields-category-' + categoryId).show();
             }
         });
+
         // Default state: highlight 'General Information'
-        $('[data-category-id="general"]').addClass('active-category bg-blue-600 text-white border-blue-600')
+        $scope.find('[data-category-id="general"]')
+            .addClass('active-category bg-blue-600 text-white border-blue-600')
             .removeClass('bg-white text-gray-700 border-gray-300');
-        $('#normal-fields-container').show();
-        $('.custom-fields-category-container').hide();
+
+        $scope.find('#normal-fields-container').show();
+        $scope.find('.custom-fields-category-container').hide();
     });
 </script>
