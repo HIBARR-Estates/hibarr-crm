@@ -121,7 +121,8 @@ class CommunicationActivityResolverService
         $lead->client_whatsapp = $data['client_whatsapp'] ?? null;
         $lead->client_instagram = $data['client_instagram'] ?? null;
         $lead->client_telegram = $data['client_telegram'] ?? null;
-        $lead->chat_id = $data['chat_id'] ?? null;
+        $lead->telegram_chat_id = $data['chat_id'] ?? null;
+        // populate {channel_type}_chat_id if there is ever a need, similar to what is being done for telegram above
         $lead->mobile = $data['mobile'];
         $lead->cell = $data['cell'];
         $lead->lead_owner = $data['lead_owner'] ?? null;
