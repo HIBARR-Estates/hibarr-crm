@@ -635,14 +635,12 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 </div>
 
 <style>
-    /* Ensure .col-sm-9, and .col-sm-3 is full width inside modal */
-    .task-detail-panel .row .col-sm-9, .task-detail-panel .row .col-sm-3 {
-        flex: 0 0 100%;
-        max-width: 100%;
-        width: 100%;
+    /* Large screens: max 95% of viewport width */
+    @media (min-width: 992px) {
+        .task-detail-panel {
+            width: 95vw !important;
+            max-width: 95vw !important;
+        }
     }
-    /* Optionally, remove right margin if present */
-    .task-detail-panel .row .col-sm-9, .task-detail-panel .row .col-sm-3 {
-        margin-right: 0 !important;
-    }
+
 </style>
