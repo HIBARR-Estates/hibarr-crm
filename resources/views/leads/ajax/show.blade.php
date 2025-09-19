@@ -633,3 +633,16 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         // Proposal tab script end
     </script>
 </div>
+
+<style>
+    /* Ensure .col-sm-9, and .col-sm-3 is full width inside modal */
+    .task-detail-panel .row .col-sm-9, .task-detail-panel .row .col-sm-3 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        width: 100%;
+    }
+    /* Optionally, remove right margin if present */
+    .task-detail-panel .row .col-sm-9, .task-detail-panel .row .col-sm-3 {
+        margin-right: 0 !important;
+    }
+</style>
