@@ -12,7 +12,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
     <div class="row">
         <!--  USER CARDS START -->
-        <div class="col-sm-9 mb-4 mb-xl-0 mb-lg-4 mb-md-0">
+        <div class="col-sm-7 mb-4 mb-xl-0 mb-lg-4 mb-md-0">
 
             <x-cards.data :title="__('modules.deal.dealInfo')">
 
@@ -227,7 +227,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         </div>
         <!--  USER CARDS END -->
 
-        <div class="col-sm-3">
+        <div class="col-sm-5">
 
 
             {{-- <x-cards.data :title="__('modules.leadContact.leadDetails')">
