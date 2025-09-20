@@ -400,8 +400,9 @@ class DealController extends AccountBaseController
 
         if ($request->add_more == 'true') {
             \Log::info('Deal saved with add_more=true, deal ID: ' . $deal->id);
-            // Just return success with add_more flag, don't reload the entire form
-            return Reply::successWithData(__('messages.recordSaved'), ['add_more' => true]);
+            // Return fresh form HTML for add more functionality
+            $html = $this->create();
+            return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
         }
 
         if ($redirectUrl == '') {
