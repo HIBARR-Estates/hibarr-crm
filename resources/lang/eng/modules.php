@@ -764,6 +764,7 @@ return array(
         'companyEmail' => 'Company Email',
         'companyPhone' => 'Company Phone',
         'companyWebsite' => 'Company Website',
+        'companyDefaultLeadCreator' => 'Company Default Lead Creator',
         'companyLogo' => 'Company Logo',
         'darkCompanyLogo' => 'Dark Mode Logo',
         'lightCompanyLogo' => 'Light Mode Logo',

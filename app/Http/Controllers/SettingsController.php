@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Http\Requests\Settings\UpdateOrganisationSettings;
 use App\Traits\CurrencyExchange;
+use App\Models\User;
 
 class SettingsController extends AccountBaseController
 {
@@ -28,6 +29,7 @@ class SettingsController extends AccountBaseController
      */
     public function index()
     {
+        $this->employees = User::allEmployees(null, false);
         return view('company-settings.index', $this->data);
     }
 
@@ -39,6 +41,7 @@ class SettingsController extends AccountBaseController
         $setting->company_email = $request->company_email;
         $setting->company_phone = $request->company_phone;
         $setting->website = $request->website;
+        $setting->default_lead_creator_id = $request->default_lead_creator_id;
         $setting->save();
 
         return Reply::success(__('messages.updateSuccess'));

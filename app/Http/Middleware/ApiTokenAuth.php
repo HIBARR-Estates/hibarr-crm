@@ -17,8 +17,11 @@ class ApiTokenAuth
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->header('X-API-TOKEN');
+        $companyId = $request->header('X-COMPANY-ID');
 
-        if (!$token || !DB::table('api_tokens')->where('token', $token)->exists()) {
+        
+
+        if (!$token || !DB::table('api_tokens')->where('token', $token)->where('company_id', $companyId)->exists()) {
             return response()->json(['message' => __('messages.unAuthorisedUser')], 401);
         }
         // check if token is revoked

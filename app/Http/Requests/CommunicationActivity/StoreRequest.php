@@ -23,8 +23,8 @@ class StoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // 'deal_id' => 'nullable|exists:deals,id',
-            // 'lead_id' => 'nullable|exists:leads,id',
+            'deal_id' => 'nullable|exists:deals,id',
+            'lead_id' => 'nullable|exists:leads,id',
             'chat_id' => 'nullable|string|max:255', 
             'channel_type' => 'required|in:email,whatsapp,instagram,telegram',
             'message_content' => 'required|string|max:10000',

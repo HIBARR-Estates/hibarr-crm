@@ -42,6 +42,8 @@ return array(
     'linkTitle' => 'Link Title',
     'url' => 'URL',
     'categoryName' => 'e.g. Finance',
+    'selectEmployee' => 'Select Employee',
+    'selectUser' => 'Select User',
     'invoices' => array(
         'invoicePrefix' => 'Enter invoice prefix',
         'estimatePrefix' => 'Enter estimate prefix',

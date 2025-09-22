@@ -20,15 +20,22 @@ class CommunicationActivityController extends Controller
      */
     public function store(StoreRequest $request)
     {
-        
+        // get the company id from the header and attach it to the request
+        $companyId = $request->header('X-COMPANY-ID');
+
+        if (!$companyId) {
+            return Reply::error(__('messages.missingCompanyId'));
+        }
 
         // Validate and create a new communication activity
 
         // The automation trigger calls this endpoint to create a communication activity
         // we will dispatch a job to process the activity asynchronously, and send the appropriate notifications
-        CreateCommunicationActivityJob::dispatch($request->validated());
+        CreateCommunicationActivityJob::dispatch(array_merge($request->validated(), [
+            'company_id' => $companyId
+        ]));
 
-        return Reply::successWithData('Communication activity been processed', [
+        return Reply::successWithData(__('messages.processingCommunicationActivity'), [
             'data' => null
         ]);
     }
@@ -43,7 +50,7 @@ class CommunicationActivityController extends Controller
             ->orderByDesc('timestamp')
             ->paginate($perPage);
 
-        return Reply::successWithData('Deal communication activities', [
+        return Reply::successWithData(__('messages.dealCommunicationActities'), [
             'data' => $activities
         ]);
     }
@@ -58,7 +65,7 @@ class CommunicationActivityController extends Controller
             ->orderByDesc('timestamp')
             ->paginate($perPage);
 
-        return Reply::successWithData('Lead communication activities', [
+        return Reply::successWithData(__('messages.leadCommunicationActities'), [
             'data' => $activities
         ]);
     }
@@ -73,7 +80,7 @@ class CommunicationActivityController extends Controller
             ->orderByDesc('timestamp')
             ->paginate($perPage);
 
-        return Reply::successWithData('Communication activities by channel', [
+        return Reply::successWithData(__('messages.communicationActivitiesByChannel'), [
             'data' => $activities
         ]);
     }
