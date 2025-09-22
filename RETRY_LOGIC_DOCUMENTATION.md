@@ -4,6 +4,10 @@
 
 The Hibarr CRM system implements a sophisticated retry mechanism for handling failed activity responses (emails, WhatsApp, Instagram, Telegram, etc.). The retry system uses a combination of immediate retries, queued retries, and exponential backoff to ensure reliable delivery of activity responses.
 
+## Test commands
+
+php test_activity.php {channel}
+
 ## Architecture Components
 
 ### 1. Core Components
