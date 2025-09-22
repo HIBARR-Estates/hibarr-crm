@@ -10,13 +10,35 @@ use Illuminate\Queue\SerializesModels;
 use App\Services\CommunicationActivityResolverService;
 use App\Models\CommunicationActivity;
 use App\Enums\ResolutionStatus;
+use Illuminate\Support\Facades\Log;
 
 class ResolveCommunicationActivityJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
 
-    // TODO: Implement exponential backoff for retries & try at least 3 times before marking as unresolved
+    // Exponential backoff for retries & try at least 3 times before marking as unresolved
+        /**
+     * The number of times the job may be attempted.
+     */
+    public $tries = 3;
+
+    /**
+     * The maximum number of unhandled exceptions to allow before failing.
+     */
+    public $maxExceptions = 3;
+
+    /**
+     * Calculate the number of seconds to wait before retrying the job.
+     */
+    public function backoff(): array
+    {
+        return [
+            60,      // First retry after 1 minute
+            300,     // Second retry after 5 minutes  
+            900,     // Third retry after 15 minutes
+        ];
+    }
 
     protected int $activityId;
     protected int $maxResolutionAttempts = 3;
@@ -27,6 +49,9 @@ class ResolveCommunicationActivityJob implements ShouldQueue
     public function __construct(int $activityId)
     {
         $this->activityId = $activityId;
+
+        // Set queue to resolvers for better organization
+        $this->onQueue('resolvers');
     }
 
     /**
@@ -44,20 +69,62 @@ class ResolveCommunicationActivityJob implements ShouldQueue
         $activity->resolution_attempts = ($activity->resolution_attempts ?? 0) + 1;
         $activity->last_resolution_attempt_at = now();
 
-        // Attempt to resolve
-        $resolver->resolve($activity);
+        try {
+            // Attempt to resolve
+            $resolver->resolve($activity);
 
-        // If still not resolved, update status
-        if (empty($activity->deal_id) && empty($activity->lead_id)) {
-            // After maxResolutionAttempts, mark as unresolved
+            // Check if resolution was successful
+            if (!empty($activity->deal_id) || !empty($activity->lead_id)) {
+                $activity->resolution_status = ResolutionStatus::Resolved->value;
+                $activity->save();
+                return;
+            }
+
+            // If still not resolved after max attempts, mark as unresolved
             if ($activity->resolution_attempts >= $this->maxResolutionAttempts) {
                 $activity->resolution_status = ResolutionStatus::Unresolved->value;
+                $activity->save();
+                return;
             }
-        } else {
-            $activity->resolution_status = ResolutionStatus::Resolved->value;
+
+            // If not at max attempts yet, throw exception to trigger retry
+            throw new \Exception("Resolution attempt {$activity->resolution_attempts} failed. Will retry.");
+
+        } catch (\Exception $e) {
+            $activity->save(); // Save attempt count even on failure
+            
+            // If we've reached max attempts, mark as unresolved and don't retry
+            if ($activity->resolution_attempts >= $this->maxResolutionAttempts) {
+                $activity->resolution_status = ResolutionStatus::Unresolved->value;
+                $activity->save();
+                
+                // Don't retry - let the job fail silently
+                $this->fail($e);
+                return;
+            }
+
+            // Re-throw to trigger retry mechanism
+            throw $e;
+        }        
+    }
+
+     /**
+     * Handle a job failure.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        $activity = CommunicationActivity::find($this->activityId);
+        
+        if ($activity) {
+            $activity->resolution_status = ResolutionStatus::Unresolved->value;
+            $activity->save();
         }
 
-        $activity->save();
+        \Log::error('ResolveCommunicationActivityJob failed', [
+            'activity_id' => $this->activityId,
+            'attempts' => $activity?->resolution_attempts ?? 0,
+            'error' => $exception->getMessage()
+        ]);
     }
 
 }

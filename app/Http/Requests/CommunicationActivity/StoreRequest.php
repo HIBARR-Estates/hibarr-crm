@@ -157,7 +157,7 @@ class StoreRequest extends FormRequest
             // If message_type is "file" then files array must be present
             if ($this->input('message_type') === 'file' && empty($this->input('files'))) {
                 $validator->errors()->add('files', 'Files are required when message_type is set to file.');
-                // TODO: ensure that only of them is present at a time and not all - telegram_username, instagram_username, phone_number, email
+                // Ensure that only of them is present at a time and not all - telegram_username, instagram_username, phone_number, email
                 $valuesNet = ([
                     $this->input('telegram_username'),
                     $this->input('instagram_username'),

@@ -38,7 +38,7 @@ class CreateCommunicationActivityJob implements ShouldQueue
         $activity = CommunicationActivity::create(array_merge($this->normalizedData, [
             'resolution_status'   => ResolutionStatus::Pending->value,
             'resolution_attempts' => 0,
-            // 'company_id' => companyId(), //TODO: This might not be present because this job can be dispatched from outside a company context, so confirm from business rules [either derive and account for it via the api_token or make it nullable and handle accordingly]//TODO: Verify this helper does not exist and if so create it
+
         ]));
 
         // Save files if attached
@@ -55,6 +55,6 @@ class CreateCommunicationActivityJob implements ShouldQueue
         
 
         // Immediately attempt resolution (fast path)
-        ResolveCommunicationActivityJob::dispatch($activity->id)->onQueue('resolvers');
+        ResolveCommunicationActivityJob::dispatch($activity->id);
     }
 }
