@@ -201,7 +201,7 @@ class CommunicationActivityResolverService
         return $lead;
     }
 
-    // TODO: Adjust all methods to check for the right columns in table for deals or leads, also ensure you check the customer fields also as they could contain data such as email or phone number or instagram_username , e.t.c
+  
 
     // phone
     private function findDealByPhone(string $phone): ?Deal
@@ -302,7 +302,7 @@ class CommunicationActivityResolverService
         // TODO: Discuss the use case where a client has multiple open deals
         return Deal::query()
             ->where('lead_id', $leadId)
-            ->where('close_date', null) // Open deals only//TODO: Confirm this is the way open deals are identified
+            ->where('close_date', null) // Open deals only
             ->orderByDesc('updated_at')
             ->first();
           
