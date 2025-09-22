@@ -6,7 +6,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
 @endphp
 
-<div id="task-detail-section">
+<div id="task-detail-section" class="deal-show-content">
 
     {{-- <h3 class="heading-h1 mb-3">{{ $deal->name }}</h3> --}}
 
@@ -636,11 +636,6 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
 <style>
     /* Large screens: max 95% of viewport width */
-    @media (min-width: 992px) {
-        .task-detail-panel {
-            width: 95vw !important;
-            max-width: 95vw !important;
-        }
-    }
+   
 
 </style>
