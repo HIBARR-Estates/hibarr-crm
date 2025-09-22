@@ -7,6 +7,7 @@ $app = require __DIR__ . '/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 use App\Traits\ActivityResponseTrait;
+use App\Models\ActivityResponseRetryQueue;
 
 if (!class_exists('TestActivity')) {
 class TestActivity
@@ -16,7 +17,7 @@ class TestActivity
     }
 
     // Override to use real N8N webhook
-    public function sendActivityResponse(array $data, array $headers = [], int $maxRetries = 10, int $delay = 10000, int $timeout = 60): ?array
+    public function sendActivityResponse(array $data, array $headers = [], int $timeout = 60): ?array
     {
         // Use real N8N webhook URL
         $url = 'https://automations.hibarr.net/webhook-test/activity-response-handler';
@@ -25,7 +26,7 @@ class TestActivity
         echo "📦 Data: " . json_encode($data, JSON_PRETTY_PRINT) . "\n";
         
         // Let the trait handle all retry logic
-        $response = $this->originalSendActivityResponse($data, $headers, $maxRetries, $delay, $timeout);
+        $response = $this->originalSendActivityResponse($data, $headers, $timeout);
         
         // Display status code and response details
         if ($response && isset($response['status_code'])) {
@@ -61,17 +62,17 @@ class TestActivity
         echo "📧 Testing Email Channel...\n";
             $emailData = [
                 'channel' => 'email',
-                'message' => 'Test email from Hibarr CRM',
-            'email' => 'test@example.com',
+                'message' => 'Hi Test User, This is a test email from Hibarr CRM.Message:Test email from Hibarr CRM Best regards,CRM User',
+                'email' => 'damtowis@gmail.com',
                 'subject' => 'Test Email Subject',
-            'first_name' => 'Test',
-            'last_name' => 'User',
-                'reply_to' => 'test@example.com',
+                'first_name' => 'Test',
+                'last_name' => 'User',
+                'reply_to' => 'j.einstein@hibarr.de',
                 'message_type' => 'text',
-                // 'sender_name' => 'CRM User'
+                'sender_name' => 'CRM User'
             ];
             echo "⏳ Waiting for N8N response (up to 2 minutes)...\n";
-            $response = $this->sendActivity($emailData, [], 3, 5000, 120);
+            $response = $this->sendActivity($emailData, [], 120);
             $success = $response && isset($response['success']) && $response['success'];
         }
 
@@ -80,13 +81,13 @@ class TestActivity
         echo "📱 Testing WhatsApp Channel...\n";
             $whatsappData = [
                 'channel' => 'whatsapp',
-                 'message' => 'Test WhatsApp message from Hibarr CRM',
-            'phone_number' => '+1234567890',
-            'first_name' => 'Test',
+                'message' => 'Test WhatsApp message from Hibarr CRM',
+                'phone_number' => '+1234567890',
+                'first_name' => 'Test',
                 'last_name' => 'User'
             ];
             echo "⏳ Waiting for N8N response (up to 2 minutes)...\n";
-            $response = $this->sendActivity($whatsappData, [], 3, 5000, 120);
+            $response = $this->sendActivity($whatsappData, [], 120);
             $success = $response && isset($response['success']) && $response['success'];
         }
 
@@ -96,12 +97,13 @@ class TestActivity
             $instagramData = [
                 'channel' => 'instagram',
                 'message' => 'Test Instagram message from Hibarr CRM',
-            'instagram_username' => '@test_user',
+                'instagram_username' => '@test_user',
+                'instagram_page_id' => '123456789', // Instagram page ID
                 'first_name' => 'Test',
                 'last_name' => 'User'
             ];
             echo "⏳ Waiting for N8N response (up to 2 minutes)...\n";
-            $response = $this->sendActivity($instagramData, [], 3, 5000, 120);
+            $response = $this->sendActivity($instagramData, [], 120);
             $success = $response && isset($response['success']) && $response['success'];
         }
 
@@ -111,13 +113,15 @@ class TestActivity
             $telegramData = [
                 'channel' => 'telegram',
                 'message' => 'Test Telegram message from Hibarr CRM',
-            'telegram_username' => '@test_user',
-                'telegram_chat_id' => '123456789',
-            'first_name' => 'Test',
-                'last_name' => 'User'
+                'telegram_username' => '@indigovioletb',
+                'telegram_chat_id' => '7303380207',
+                'first_name' => 'Test',
+                'last_name' => 'User',
+                'sender_name' => 'CRM User',  
+                'message_type' => 'text'
             ];
             echo "⏳ Waiting for N8N response (up to 2 minutes)...\n";
-            $response = $this->sendActivity($telegramData, [], 3, 5000, 120);
+            $response = $this->sendActivity($telegramData, [], 120);
             $success = $response && isset($response['success']) && $response['success'];
         }
 
@@ -148,7 +152,41 @@ class TestActivity
         }
         echo "\n";
 
+
         echo "🏁 Testing completed!\n";
+        
+        // Show retry queue stats
+        $this->showRetryQueueStats();
+    }
+
+
+    /**
+     * Show retry queue statistics
+     */
+    public function showRetryQueueStats()
+    {
+        echo "\n📊 Activity Response Retry Queue Statistics\n";
+        echo "==========================================\n";
+        
+        $total = ActivityResponseRetryQueue::count();
+        $pending = ActivityResponseRetryQueue::where('status', 'pending')->count();
+        $processing = ActivityResponseRetryQueue::where('status', 'processing')->count();
+        $completed = ActivityResponseRetryQueue::where('status', 'completed')->count();
+        $failed = ActivityResponseRetryQueue::where('status', 'failed')->count();
+        
+        echo "Total Items: {$total}\n";
+        echo "Pending: {$pending}\n";
+        echo "Processing: {$processing}\n";
+        echo "Completed: {$completed}\n";
+        echo "Failed: {$failed}\n";
+        
+        if ($total > 0) {
+            echo "\nRecent Items:\n";
+            $recent = ActivityResponseRetryQueue::orderBy('created_at', 'desc')->limit(5)->get();
+            foreach ($recent as $item) {
+                echo "- ID: {$item->id}, Channel: {$item->channel}, Status: {$item->status}, Attempts: {$item->attempts}\n";
+            }
+        }
     }
 }
 }
