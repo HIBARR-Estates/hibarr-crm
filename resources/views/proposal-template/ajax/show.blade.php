@@ -88,8 +88,8 @@
                             @if ($invoice->lead && $invoice->lead->client_email && invoice_setting()->show_client_email == 'yes')
                                 {{ $invoice->lead->client_email }}<br>
                             @endif
-                            @if ($invoice->lead && $invoice->lead->mobile && invoice_setting()->show_client_phone == 'yes')
-                                {{ $invoice->lead->mobile }}<br>
+                            @if ($invoice->lead && $invoice->lead->mobile_with_phonecode && $invoice->lead->mobile_with_phonecode !== '--' && invoice_setting()->show_client_phone == 'yes')
+                                {{ $invoice->lead->mobile_with_phonecode }}<br>
                             @endif
                             @if ($invoice->lead && $invoice->lead->company_name && invoice_setting()->show_client_company_name == 'yes')
                                 {{ $invoice->lead->company_name }}<br>

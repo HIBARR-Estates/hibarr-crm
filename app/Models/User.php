@@ -272,7 +272,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         'salutation' => Salutation::class,
     ];
 
-    protected $appends = ['image_url', 'modules', 'mobile_with_phone_code', 'name_salutation', 'phone_number', 'country_code'];
+    protected $appends = ['image_url', 'modules', 'mobile_with_phone_code', 'name_salutation', 'phone_number', 'country_code', 'phone_number', 'country_code'];
 
     public function getNameSalutationAttribute()
     {
@@ -318,23 +318,108 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         return $hasValidAvatar;
     }
 
+    /**
+     * Parse mobile data from JSON format or legacy format
+     */
+    private function parseMobileData()
+    {
+        if (is_null($this->mobile)) {
+            return null;
+        }
+
+        $mobileData = $this->mobile;
+        
+        // If mobile is stored as JSON string, decode it
+        if (is_string($mobileData)) {
+            $decoded = json_decode($mobileData, true);
+            if (is_array($decoded) && isset($decoded['phone']) && isset($decoded['country_code'])) {
+                $phone = $decoded['phone'];
+                $countryCode = $decoded['country_code'];
+                
+                // Clean the phone number (remove +, spaces, and country code if already included)
+                $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+                
+                // If phone already starts with country code, remove it
+                if (strpos($cleanPhone, $countryCode) === 0) {
+                    $cleanPhone = substr($cleanPhone, strlen($countryCode));
+                }
+                
+                return [
+                    'phone' => $cleanPhone,
+                    'country_code' => $countryCode
+                ];
+            }
+        }
+        
+        // If mobile is already an array/object
+        if (is_array($mobileData) && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
+            $phone = $mobileData['phone'];
+            $countryCode = $mobileData['country_code'];
+            
+            // Clean the phone number (remove +, spaces, and country code if already included)
+            $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+            
+            // If phone already starts with country code, remove it
+            if (strpos($cleanPhone, $countryCode) === 0) {
+                $cleanPhone = substr($cleanPhone, strlen($countryCode));
+            }
+            
+            return [
+                'phone' => $cleanPhone,
+                'country_code' => $countryCode
+            ];
+        }
+        
+        // Fallback to old format (separate mobile and country_phonecode fields)
+        if (!is_null($this->country_phonecode)) {
+            return [
+                'phone' => $this->mobile,
+                'country_code' => $this->country_phonecode
+            ];
+        }
+
+        return null;
+    }
+
     public function getMobileWithPhoneCodeAttribute()
     {
-        if (!is_null($this->mobile) && !is_null($this->country_phonecode)) {
-            return '+' . $this->country_phonecode . $this->mobile;
+        $mobileData = $this->parseMobileData();
+        
+        if ($mobileData && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
+            return '+' . $mobileData['country_code'] . $mobileData['phone'];
         }
 
         return '--';
     }
 
+    /**
+     * Get just the phone number without country code
+     */
     public function getPhoneNumberAttribute()
     {
-        return $this->mobile;
+        $mobileData = $this->parseMobileData();
+        
+        if ($mobileData && isset($mobileData['phone'])) {
+            return $mobileData['phone'];
+        }
+
+        return $this->mobile ?? '--';
     }
 
+    /**
+     * Get the country code from mobile data
+     */
     public function getCountryCodeAttribute()
     {
-        return $this->country_phonecode;
+        $mobileData = $this->parseMobileData();
+        
+        if ($mobileData && isset($mobileData['country_code'])) {
+            return preg_replace('/\D+/', '', (string) $mobileData['country_code']);
+        }
+
+        return $this->country_phonecode !== null
+            ? preg_replace('/\D+/', '', (string) $this->country_phonecode)
+            : null;
     }
 
     /**
@@ -356,8 +441,10 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
 
     public function routeNotificationForTwilio()
     {
-        if (!is_null($this->mobile) && !is_null($this->country_phonecode)) {
-            return '+' . $this->country_phonecode . $this->mobile;
+        $mobileData = $this->parseMobileData();
+        
+        if ($mobileData && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
+            return '+' . $mobileData['country_code'] . $mobileData['phone'];
         }
 
         return null;
@@ -376,21 +463,30 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     }
 
     // phpcs:ignore
+    /**
+     * @suppressWarnings(PHPMD.UnusedFormalParameter)
+     */
     public function routeNotificationForNexmo($notification)
     {
-        if (!is_null($this->mobile) && !is_null($this->country_phonecode)) {
-            return $this->country_phonecode . $this->mobile;
+        $mobileData = $this->parseMobileData();
+        
+        if ($mobileData && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
+            return '+' . $mobileData['country_code'] . $mobileData['phone'];
         }
 
         return null;
-
     }
 
     // phpcs:ignore
+    /**
+     * @suppressWarnings(PHPMD.UnusedFormalParameter)
+     */
     public function routeNotificationForVonage($notification)
     {
-        if (!is_null($this->mobile) && !is_null($this->country_phonecode)) {
-            return $this->country_phonecode . $this->mobile;
+        $mobileData = $this->parseMobileData();
+        
+        if ($mobileData && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
+            return '+' . $mobileData['country_code'] . $mobileData['phone'];
         }
 
         return null;
@@ -399,8 +495,10 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     // phpcs:ignore
     public function routeNotificationForMsg91($notification)
     {
-        if (!is_null($this->mobile) && !is_null($this->country_phonecode)) {
-            return $this->country_phonecode . $this->mobile;
+        $mobileData = $this->parseMobileData();
+        
+        if ($mobileData && isset($mobileData['phone']) && isset($mobileData['country_code'])) {
+            return '+' . $mobileData['country_code'] . $mobileData['phone'];
         }
 
         return null;

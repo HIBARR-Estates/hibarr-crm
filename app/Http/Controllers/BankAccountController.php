@@ -84,7 +84,21 @@ class BankAccountController extends AccountBaseController
         $account->account_name = $request->account_name;
         $account->account_type = $request->account_type;
         $account->currency_id = $request->currency_id;
-        $account->contact_number = $request->contact_number;
+        $account->country = $request->country;
+        
+        // Handle contact_number field with country code
+        if ($request->has('country_phonecode_contact_number') && !empty($request->country_phonecode_contact_number) && !empty($request->contact_number)) {
+            $countryIdentifier = $request->input('country_identifier_contact_number');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_contact_number . ' ' . $request->contact_number,
+                'country_code' => $request->country_phonecode_contact_number,
+                'country_identifier' => $countryIdentifier
+            ];
+            $account->contact_number = json_encode($phoneData);
+        } else {
+            $account->contact_number = $request->contact_number;
+        }
+        
         $account->opening_balance = round($request->opening_balance, 2);
         $account->status = $request->status;
 
@@ -170,7 +184,21 @@ class BankAccountController extends AccountBaseController
         $account->account_name = $request->account_name;
         $account->account_type = $request->account_type;
         $account->currency_id = $request->currency_id;
-        $account->contact_number = $request->contact_number;
+        $account->country = $request->country;
+        
+        // Handle contact_number field with country code
+        if ($request->has('country_phonecode_contact_number') && !empty($request->country_phonecode_contact_number) && !empty($request->contact_number)) {
+            $countryIdentifier = $request->input('country_identifier_contact_number');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_contact_number . ' ' . $request->contact_number,
+                'country_code' => $request->country_phonecode_contact_number,
+                'country_identifier' => $countryIdentifier
+            ];
+            $account->contact_number = json_encode($phoneData);
+        } else {
+            $account->contact_number = $request->contact_number;
+        }
+        
         $account->opening_balance = round($request->opening_balance, 2);
         $account->status = $request->status;
 

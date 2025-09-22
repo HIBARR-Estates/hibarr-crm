@@ -248,7 +248,19 @@ class LeadContactController extends AccountBaseController
         $leadContact->state = $request->state;
         $leadContact->country = $request->country;
         $leadContact->postal_code = $request->postal_code;
-        $leadContact->mobile = $request->mobile;
+        // Handle mobile field with country code
+        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+            // Store phone with country code and country identifier for accurate reloading
+            $countryIdentifier = $request->input('country_identifier_mobile');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                'country_code' => $request->country_phonecode_mobile,
+                'country_identifier' => $countryIdentifier
+            ];
+            $leadContact->mobile = json_encode($phoneData);
+        } else {
+            $leadContact->mobile = $request->mobile;
+        }
 
         if ($request->has('create_deal') && $request->create_deal == 'on') {
             Session::put('create_deal_with_lead', true);
@@ -387,7 +399,19 @@ class LeadContactController extends AccountBaseController
         $leadContact->state = $request->state;
         $leadContact->country = $request->country;
         $leadContact->postal_code = $request->postal_code;
-        $leadContact->mobile = $request->mobile;
+        // Handle mobile field with country code
+        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+            // Store phone with country code and country identifier for accurate reloading
+            $countryIdentifier = $request->input('country_identifier_mobile');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                'country_code' => $request->country_phonecode_mobile,
+                'country_identifier' => $countryIdentifier
+            ];
+            $leadContact->mobile = json_encode($phoneData);
+        } else {
+            $leadContact->mobile = $request->mobile;
+        }
         $leadContact->save();
 
         $clientCreated = $request->create_client == "on" ? '1' : '0';

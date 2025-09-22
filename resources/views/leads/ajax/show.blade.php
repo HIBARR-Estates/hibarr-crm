@@ -240,7 +240,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                                     value="<a href='{{ route('lead-contact.show', $deal->contact->id) }}' class='text-darkest-grey'> {{ $deal->contact->client_name_salutation }}</a>"/>
 
                 <x-cards.data-row :label="__('app.email')" :value="$deal->contact->client_email ?? '--'" otherClasses="pr-1" labelClasses="pr-1"/>
-                <x-cards.data-row :label="__('modules.lead.mobile')" :value="$deal->contact->mobile ?? '--'" otherClasses="pr-1" labelClasses="pr-1"/>
+                <x-cards.data-row :label="__('modules.lead.mobile')" :value="$deal->contact->mobile_with_phonecode ?? '--'" otherClasses="pr-1" labelClasses="pr-1"/>
 
                 <x-cards.data-row :label="__('modules.lead.companyName')"
                                     :value="!empty($deal->contact->company_name) ? $deal->contact->company_name : '--'" otherClasses="pr-1" labelClasses="pr-1"/>
@@ -251,8 +251,8 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                                                 icon="envelope">@lang('app.email')</x-forms.link-secondary>
                     @endif
 
-                    @if ($deal->contact->mobile )
-                        <x-forms.button-secondary class="btn-copy pr-1" data-clipboard-text="{{ $deal->contact->mobile }}"
+                    @if ($deal->contact->mobile_with_phonecode && $deal->contact->mobile_with_phonecode !== '--')
+                        <x-forms.button-secondary class="btn-copy pr-1" data-clipboard-text="{{ $deal->contact->mobile_with_phonecode }}"
                                                     icon="phone">@lang('app.mobile')</x-forms.button-secondary>
                     @endif
                 </div>
