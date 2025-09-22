@@ -308,13 +308,13 @@ class CommunicationActivityResolverService
           
     }
     // get deal by Id
-    private function findDealById(int $dealId): ?Deal
+    private function findDealById(?int $dealId): ?Deal
     {
         return Deal::query()
             ->where('id', $dealId)
             ->first();
     }
-    private function findLeadById(int $leadId): ?Lead
+    private function findLeadById(?int $leadId): ?Lead
     {
         return Lead::query()
             ->where('id', $leadId)
