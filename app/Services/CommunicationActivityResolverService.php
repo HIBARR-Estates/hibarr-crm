@@ -23,7 +23,7 @@ class CommunicationActivityResolverService
         // 2. The fields to match are probably located as columns prefixed with client_ in the leads or deals table, or can be located in the related client_details table or client_contacts table
 
         // TODO: Still does require a bit of fine-tuning and testing with real data
-        $dealOrLead = $this->getDealById($activity?->deal_id) ?? $this->getLeadById($activity?->lead_id);
+        $dealOrLead = $this->findDealById($activity?->deal_id) ?? $this->findLeadById($activity?->lead_id);
         if($dealOrLead){
             Log::info('Activity already linked to ' . ( $dealOrLead instanceof Deal ? 'Deal' : 'Lead') . ' ID: ' . $dealOrLead->id);
             ProcessCommunicationActivityJob::dispatch($activity);
