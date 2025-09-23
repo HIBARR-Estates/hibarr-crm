@@ -199647,8 +199647,8 @@ function openTaskDetail() {
     const url = $(this).attr("href") || window.location.href;
     //  || or get from window object;
 
-    // Check if it's a show/view route that needs wider modal
-    if (url.includes("/account/deals/")) {
+    // Check if it's a show/view route that needs wider modal (more specific)
+    if (url.match(/\/account\/deals\/\d+$/) || url.match(/\/account\/deals\/\d+\?/)) {
         $(".task-detail-panel").addClass("wide-modal-content");
     } else {
         $(".task-detail-panel").removeClass("wide-modal-content");
