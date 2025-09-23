@@ -20,7 +20,7 @@
                 </div>
 
                 <div id="normal-fields-container">
-                    <div class="row p-20">
+                    <div class="row mx-2">
                         <div class="col-lg-4 col-md-6">
                             <x-forms.select fieldId="salutation" :fieldLabel="__('modules.client.salutation')" fieldName="salutation">
                                 <option value="">--</option>
@@ -85,7 +85,7 @@
 
                     </div>
 
-                    <div class="row p-20">
+                    <div class="row mt-4 mx-2">
                         <div class="col-lg-4 col-md-6">
                             <div class="form-group">
                                 <div class="mt-2 d-flex">
@@ -98,7 +98,7 @@
                 </div>
                 @if (isset($customFieldCategories) && count($customFieldCategories) > 0)
                     @foreach ($customFieldCategories as $category)
-                        <div class="row p-20 custom-fields-category-container"
+                        <div class="row p-20 custom-fields-category-container mx-0"
                             id="custom-fields-category-{{ $category->id }}" style="display: none;">
                             <x-forms.custom-field :fields="$fields" :model="$leadContact"
                                 :categoryId="$category->id"></x-forms.custom-field>
@@ -290,14 +290,14 @@
 
         <x-forms.custom-field-filejs/>
 
-        init(RIGHT_MODAL);
+            init(RIGHT_MODAL);
     });
 
-    function checkboxChange(parentClass, id){
+    function checkboxChange(parentClass, id) {
         let checkedData = '';
-        $('.'+parentClass).find("input[type= 'checkbox']:checked").each(function () {
-            checkedData = (checkedData !== '') ? checkedData+', '+$(this).val() : $(this).val();
+        $('.' + parentClass).find("input[type= 'checkbox']:checked").each(function() {
+            checkedData = (checkedData !== '') ? checkedData + ', ' + $(this).val() : $(this).val();
         });
-        $('#'+id).val(checkedData);
+        $('#' + id).val(checkedData);
     }
 </script>

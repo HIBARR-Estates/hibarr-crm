@@ -1,6 +1,9 @@
 <?php
 
 return array(
+    // resolution status
+    'unresolved' => 'Unresolved',
+    // resolution status
     'dealWatcher' => 'Deal Watcher',
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
@@ -175,6 +178,7 @@ return array(
         'events' => 'Events',
         'event' => 'Event',
         'products' => 'Products',
+        'properties' => 'Properties',
         'orders' => 'Orders',
         'profileSettings' => 'Profile Settings',
         'twoFactorAuthentication' => 'Two-Factor Authentication',
@@ -1032,6 +1036,7 @@ return array(
     'every' => 'Every',
     'client_email' => 'Client Email',
     'single' => 'Full Day',
+
     'general' => 'General',
     'ticket' => 'Ticket',
     'contract' => 'Contract',

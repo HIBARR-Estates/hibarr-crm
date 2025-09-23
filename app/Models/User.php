@@ -396,6 +396,10 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         return null;
     }
 
+    public function userContactDetails(): HasOne
+    {
+        return $this->hasOne(UserContactDetails::class, 'user_id');
+    }
     public function clientDetails(): HasOne
     {
         return $this->hasOne(ClientDetails::class, 'user_id');

@@ -7,19 +7,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
 
 <!-- TAB CONTENT START -->
 <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="nav-email-tab">
-    <div class="d-flex p-20">
-        @if ($deal->leadStage->slug == 'win' || $deal->leadStage->slug == 'lost')
-            <x-alert type="info" icon="info-circle">@lang('messages.cantAddFollowup') </x-alert>
-        @endif
-        @if ($deal->leadStage->slug != 'win' && $deal->leadStage->slug != 'lost' && ($addLeadFollowUpPermission == 'all' || $addLeadFollowUpPermission == 'added'))
-            <div class="row">
-                <div class="col-md-12">
-                    <a class="f-15 f-w-500" href="javascript:;" id="add-lead-followup"><i
-                            class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.followup.newFollowUp')</a>
-                </div>
-            </div>
-        @endif
-    </div>
+
 
     <div class="d-flex flex-wrap p-20" id="task-file-list">
         @if ($viewLeadFollowUpPermission == 'all' || $viewLeadFollowUpPermission == 'added')
@@ -73,8 +61,23 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7">
-                            <x-cards.no-record :message="__('messages.noRecordFound')" icon="clock" />
+                        <td colspan="5">
+
+
+                             @if ($deal->leadStage->slug != 'win' && $deal->leadStage->slug != 'lost' && ($addLeadFollowUpPermission == 'all' || $addLeadFollowUpPermission == 'added'))
+                                <x-cards.no-record-with-link
+                                    :message="__('messages.noRecordFound')"
+                                    icon="clock"
+                                    id="add-lead-followup-no-record"
+                                    :linkHref="'javascript:;'"
+                                    :linkText="__('modules.followup.addFollowUp')"
+                                    linkClass="f-14 f-w-500 mt-4" />
+                            @else
+                                <x-cards.no-record-with-link
+                                    :message="__('messages.noRecordFound')"
+                                    icon="clock"
+                                    linkClass="d-none" />
+                            @endif
                         </td>
                     </tr>
                 @endforelse
