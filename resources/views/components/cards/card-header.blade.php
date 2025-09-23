@@ -7,7 +7,7 @@
         @endif
 
     </div>
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-4 w-full">
         @if ($customFieldCategories)
             {!! $customFieldCategories !!}
         @endif
