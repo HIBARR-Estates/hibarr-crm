@@ -28,8 +28,8 @@ trait ActivityResponseTrait
         }
 
         // Internal retry configuration variables
-        $maxRetries = config('app.automations.retry_queue.max_retries', 10);
-        $delay = config('app.automations.retry_queue.base_delay_seconds', 60) * 1000; // Convert to milliseconds
+        $maxRetries = 10;
+        $delay = 60 * 1000; // Convert to milliseconds
         
         // Handle null max_retries (disable retry queue)
         if ($maxRetries === null) {
@@ -157,7 +157,7 @@ trait ActivityResponseTrait
                         ]);
                         
                         // Add to retry queue if enabled and max retries is not null
-                        if (config('app.automations.retry_queue.enabled', true) && config('app.automations.retry_queue.max_retries') !== null) {
+                        if (true && 10 !== null) {
                             $this->addToRetryQueue($data, $headers, $timeout, [
                                 'status_code' => $statusCode,
                                 'response' => $responseData ?: $responseBody,
@@ -169,7 +169,7 @@ trait ActivityResponseTrait
                             'status_code' => $statusCode,
                             'response' => $responseData ?: $responseBody,
                             'success' => false,
-                            'queued_for_retry' => config('app.automations.retry_queue.enabled', true)
+                            'queued_for_retry' => true
                         ];
                     } else {
                         Log::error("Unexpected status code {$statusCode}, stopping retries");
@@ -475,7 +475,7 @@ trait ActivityResponseTrait
                 'status' => ActivityResponseRetryQueue::STATUS_PENDING,
                 'attempts' => 0,
                 'last_response' => $response,
-                'next_retry_at' => now()->addSeconds(config('app.automations.retry_queue.initial_delay_seconds', 120))
+                'next_retry_at' => now()->addSeconds(120)
             ]);
 
             Log::info('Added request to retry queue', [

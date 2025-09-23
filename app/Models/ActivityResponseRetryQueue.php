@@ -101,7 +101,7 @@ class ActivityResponseRetryQueue extends Model
      */
     public function hasExceededMaxRetries(int $maxRetries = null): bool
     {
-        $maxRetries = $maxRetries ?? config('app.automations.retry_queue.max_retries', 10);
+        $maxRetries = $maxRetries ?? 10;
         return $this->attempts >= $maxRetries;
     }
 
@@ -159,8 +159,8 @@ class ActivityResponseRetryQueue extends Model
      */
     public function calculateRetryDelay(): int
     {
-        $baseDelay = config('app.automations.retry_queue.base_delay_seconds', 60);
-        $maxDelay = config('app.automations.retry_queue.max_delay_seconds', 3600);
+        $baseDelay = 60;
+        $maxDelay = 3600;
         
         $delay = $baseDelay * pow(2, $this->attempts);
         

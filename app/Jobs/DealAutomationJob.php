@@ -56,7 +56,7 @@ class DealAutomationJob implements ShouldQueue
                 $this->triggerDealUpdateAutomation($request, $deal);
             } else {
                 throw new \InvalidArgumentException("Unsupported automation type: {$this->type}");
-            }            } else {
+            } else {
                 $this->triggerDealUpdateAutomation($request, $deal);
             }
 

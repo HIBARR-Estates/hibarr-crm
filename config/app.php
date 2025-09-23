@@ -210,18 +210,6 @@ return [
         'activities' => [
             'activity_response_handler_url' => env('ACTIVITY_RESPONSE_HANDLER_URL'),
         ],
-        'retry_queue' => [
-            'enabled' => env('ACTIVITY_RETRY_QUEUE_ENABLED', true),
-            'max_retries' => env('ACTIVITY_RETRY_MAX_RETRIES', 10), // Set to null to disable retry queue
-            'initial_delay_seconds' => env('ACTIVITY_RETRY_INITIAL_DELAY_SECONDS', 120), // Initial delay when adding to queue
-            'base_delay_seconds' => env('ACTIVITY_RETRY_BASE_DELAY_SECONDS', 60),
-            'max_delay_seconds' => env('ACTIVITY_RETRY_MAX_DELAY_SECONDS', 3600),
-            'max_job_retries' => env('ACTIVITY_RETRY_JOB_MAX_RETRIES', 3),
-            'max_exceptions' => env('ACTIVITY_RETRY_JOB_MAX_EXCEPTIONS', 5),
-            'job_timeout' => env('ACTIVITY_RETRY_JOB_TIMEOUT', 300),
-            'job_backoff' => [30, 60, 120], // seconds
-            'cleanup_after_days' => env('ACTIVITY_RETRY_CLEANUP_AFTER_DAYS', 30),
-        ],
     ],
 
 

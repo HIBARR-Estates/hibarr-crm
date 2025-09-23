@@ -40,10 +40,10 @@ class ActivityResponseRetryJob implements ShouldQueue
         $this->originalTimeout = $originalTimeout;
 
         // Job configuration
-        $this->tries = config('app.automations.retry_queue.max_job_retries', 3);
-        $this->maxExceptions = config('app.automations.retry_queue.max_exceptions', 5);
-        $this->timeout = config('app.automations.retry_queue.job_timeout', 300);
-        $this->backoff = config('app.automations.retry_queue.job_backoff', [30, 60, 120]); // seconds
+        $this->tries = 3;
+        $this->maxExceptions = 5;
+        $this->timeout = 300;
+        $this->backoff = [30, 60, 120]; // seconds
     }
 
     /**
@@ -112,7 +112,7 @@ class ActivityResponseRetryJob implements ShouldQueue
      */
     protected function handleRetryFailure(ActivityResponseRetryQueue $retryQueue, ?array $response): void
     {
-        $maxRetries = config('app.automations.retry_queue.max_retries', 10);
+        $maxRetries = 10;
         $newAttempts = $retryQueue->attempts + 1;
 
         if ($newAttempts >= $maxRetries) {
@@ -266,8 +266,8 @@ class ActivityResponseRetryJob implements ShouldQueue
      */
     protected function calculateRetryDelay(int $attempt): int
     {
-        $baseDelay = config('app.automations.retry_queue.base_delay_seconds', 60);
-        $maxDelay = config('app.automations.retry_queue.max_delay_seconds', 3600);
+        $baseDelay = 60;
+        $maxDelay = 3600;
         
         $delay = $baseDelay * pow(2, $attempt - 1);
         
