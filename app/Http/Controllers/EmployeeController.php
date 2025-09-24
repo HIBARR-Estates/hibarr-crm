@@ -218,7 +218,18 @@ class EmployeeController extends AccountBaseController
             $user->name = $request->name;
             $user->email = $request->email;
             $user->password = bcrypt($request->password);
-            $user->mobile = $request->mobile;
+            // Handle mobile field with country code
+            if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+                $countryIdentifier = $request->input('country_identifier_mobile');
+                $phoneData = [
+                    'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                    'country_code' => $request->country_phonecode_mobile,
+                    'country_identifier' => $countryIdentifier
+                ];
+                $user->mobile = json_encode($phoneData);
+            } else {
+                $user->mobile = $request->mobile;
+            }
             $user->country_id = $request->country;
             $user->salutation = $request->salutation;
             $user->country_phonecode = $request->country_phonecode;
@@ -456,7 +467,18 @@ class EmployeeController extends AccountBaseController
             $user->password = bcrypt($request->password);
         }
 
-        $user->mobile = $request->mobile;
+        // Handle mobile field with country code
+        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+            $countryIdentifier = $request->input('country_identifier_mobile');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                'country_code' => $request->country_phonecode_mobile,
+                'country_identifier' => $countryIdentifier
+            ];
+            $user->mobile = json_encode($phoneData);
+        } else {
+            $user->mobile = $request->mobile;
+        }
         $user->country_id = $request->country;
         $user->salutation = $request->salutation;
         $user->country_phonecode = $request->country_phonecode;

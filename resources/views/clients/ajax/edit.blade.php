@@ -68,7 +68,7 @@ $addClientSubCategoryPermission = user()->permission('manage_client_subcategory'
                             </x-forms.select>
                         </div>
                         <div class="col-md-4">
-                            <x-forms.label class="my-3" fieldId="mobile"
+                            <!-- <x-forms.label class="my-3" fieldId="mobile"
                                 :fieldLabel="__('app.mobile')"></x-forms.label>
                             <x-forms.input-group style="margin-top:-4px">
                                 <x-forms.select fieldId="country_phonecode" fieldName="country_phonecode"
@@ -83,7 +83,9 @@ $addClientSubCategoryPermission = user()->permission('manage_client_subcategory'
                                 </x-forms.select>
                                 <input type="tel" class="form-control height-35 f-14" placeholder="@lang('placeholders.mobile')"
                                     name="mobile" id="mobile" value="{{ $client->mobile }}">
-                            </x-forms.input-group>
+                            </x-forms.input-group> -->
+                            <x-forms.phone fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
+                                    :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$client->mobile" :country="$client->country" />
                             </div>
                         </div>
                     </div>
@@ -241,9 +243,11 @@ $addClientSubCategoryPermission = user()->permission('manage_client_subcategory'
                     </div>
 
                     <div class="col-lg-3 col-md-6">
-                        <x-forms.text fieldId="office" :fieldLabel="__('modules.client.officePhoneNumber')"
-                            fieldName="office" :fieldPlaceholder="__('placeholders.mobileWithPlus')"
-                            :fieldValue="$client->clientDetails->office"></x-forms.text>
+                        <!-- <x-forms.text fieldId="office" :fieldLabel="__('modules.client.officePhoneNumber')"
+                            fieldName="office" :fieldPlaceholder="__('placeholders.mobileWithPlus')"    
+                            :fieldValue="$client->clientDetails->office"></x-forms.text> -->
+                        <x-forms.phone fieldId="office" :fieldLabel="__('modules.client.officePhoneNumber')" fieldName="office"
+                            :fieldPlaceholder="__('placeholders.mobileWithPlus')" :fieldValue="$client->clientDetails->office" :country="$client->clientDetails->country" />
                     </div>
                     <div class="col-lg-3 col-md-6">
                         <x-forms.text fieldId="city" :fieldLabel="__('modules.stripeCustomerAddress.city')"

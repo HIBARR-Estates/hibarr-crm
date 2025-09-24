@@ -36,8 +36,8 @@
                         </div>
 
                         <div class="col-lg-6">
-                            <x-forms.tel fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
-                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$user->mobile"></x-forms.tel>
+                            <x-forms.phone fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
+                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$user->mobile"></x-forms.phone>
                         </div>
 
                         <!-- COMPANY NAME START -->
