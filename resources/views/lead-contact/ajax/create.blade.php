@@ -47,8 +47,8 @@
                         </div>
 
                         <div class="col-lg-4 col-md-6">
-                            <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
-                                :fieldPlaceholder="__('placeholders.mobile')"></x-forms.tel>
+                            <x-forms.phone fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
+                                :fieldPlaceholder="__('placeholders.mobile')" :country="null"></x-forms.phone>
                         </div>
 
                         @if ($viewLeadSourcesPermission != 'none')
@@ -235,12 +235,11 @@
                         @endif
 
                         <div class="col-lg-4 col-md-6">
-                            <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher">
-                                <option value="">--</option>
-                                @foreach ($employees as $item)
-                                    <x-user-option :user="$item" :selected="user()->id == $item->id" />
-                                @endforeach
-                            </x-forms.select>
+                        <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher[]" multiple>
+                            @foreach ($employees as $item)
+                                <x-user-option :user="$item" :selected="user()->id == $item->id" />
+                            @endforeach
+                        </x-forms.select>
                         </div>
                     </div>
                 </div>

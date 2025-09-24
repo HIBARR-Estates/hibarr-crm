@@ -8,6 +8,8 @@ use App\Models\EmployeeDetails;
 use App\Models\EmployeeLeaveQuota;
 use App\Events\NewUserSlackEvent;
 use App\Models\User;
+use App\Models\ReferralCode;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Artisan;
 
 class EmployeeDetailsObserver
@@ -44,7 +46,15 @@ class EmployeeDetailsObserver
 
         event(new NewUserSlackEvent($user));
 
-
+        // TODO: Call Zoho API to create/link employee and populate zoho_id, if not already linked
+  
+        // create a referral code for the employee
+         if (!ReferralCode::where('employee_id', $employee->id)->exists()) {
+            ReferralCode::create([
+                'employee_id' => $employee->id,
+                'code' => ReferralCode::generateCode($employee->company?->name ?? null),
+            ]);
+        }
     }
 
     public function updated(EmployeeDetails $detail)

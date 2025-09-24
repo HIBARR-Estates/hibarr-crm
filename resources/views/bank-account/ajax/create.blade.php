@@ -63,8 +63,21 @@
                     </div>
 
                     <div class="col-md-4">
-                        <x-forms.tel fieldId="contact_number" :fieldLabel="__('modules.bankaccount.contactNumber')" fieldName="contact_number"
-                           :fieldPlaceholder="__('placeholders.mobile')" fieldRequired="true"></x-forms.tel>
+                        <x-forms.select fieldId="country" :fieldLabel="__('app.country')" fieldName="country"
+                            search="true">
+                            <option value="">--</option>
+                            @foreach (countries() as $item)
+                                <option data-tokens="{{ $item->iso3 }}" data-content="<span class='flag-icon flag-icon-{{ strtolower($item->iso) }} flag-icon-squared'></span> {{ $item->nicename }}"
+                                    value="{{ $item->nicename }}">{{ $item->nicename }}</option>
+                            @endforeach
+                        </x-forms.select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <!-- <x-forms.tel fieldId="contact_number" :fieldLabel="__('modules.bankaccount.contactNumber')" fieldName="contact_number"
+                           :fieldPlaceholder="__('placeholders.mobile')" fieldRequired="true"></x-forms.tel> -->
+                        <x-forms.phone fieldId="contact_number" :fieldLabel="__('modules.bankaccount.contactNumber')" fieldName="contact_number"
+                           :fieldPlaceholder="__('placeholders.mobile')" fieldRequired="true" :country="request('country')" />
                     </div>
 
                     <div class="col-md-4">

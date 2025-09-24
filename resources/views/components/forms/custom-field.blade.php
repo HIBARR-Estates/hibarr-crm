@@ -267,7 +267,8 @@
                             :fieldName="'custom_fields_data[' . $field->name . '_' . $field->id . ']'"
                             fieldId="custom_fields_data[{{ $field->name . '_' . $field->id }}]"
                             :fieldRequired="($field->required === 'yes') ? true : false"
-                            :fieldValue="$model->custom_fields_data['field_'.$field->id] ?? ''">
+                            :fieldValue="$model->custom_fields_data['field_'.$field->id] ?? ''"
+                            :country="$model->country ?? ''">
                         </x-forms.phone>
                     @elseif($field->type == 'currency')
                         <x-forms.currency
@@ -416,19 +417,25 @@ window.CustomFieldHandlers = {
 };
 
 $(document).ready(function() {
-    $('[id^="country_phonecode_"]').on('change', function() {
-        var fieldId = $(this).attr('id').replace('country_phonecode_', '');
+    // Handle country phone code changes for phone fields (both regular and custom)
+    $('select[name^="country_phonecode"]').on('change', function() {
         var selectedPhoneCode = $(this).val();
-        var phoneInput = $('input[name="custom_fields_data[field_' + fieldId + ']"]');
-        var phoneNumber = phoneInput.val();
+        var phoneInput = $(this).closest('.form-group').find('input[type="tel"]');
         
-         if (phoneNumber) {
+        if (phoneInput.length && selectedPhoneCode) {
             phoneInput.data('country-code', selectedPhoneCode);
         }
     });
     
-  
-    $('[id^="country_phonecode_"]').selectpicker();
+    // Initialize select picker for country phone codes
+    $('select[name^="country_phonecode"]').selectpicker();
+    
+    // Ensure all phone components are properly initialized
+    $('select[name^="country_phonecode"]').each(function() {
+        if (!$(this).hasClass('selectpicker')) {
+            $(this).selectpicker();
+        }
+    });
     
     $('select[name*="custom_fields_data"][name*="currency"]').selectpicker();
     

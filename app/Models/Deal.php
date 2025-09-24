@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
+use App\Models\Payment;
 
 /**
  * App\Models\Lead
@@ -156,9 +157,14 @@ class Deal extends BaseModel
         return $this->belongsTo(LeadAgent::class, 'agent_id');
     }
 
+    public function dealWatchers()
+    {
+        return $this->belongsToMany(User::class, 'deal_watchers', 'deal_id', 'user_id')->using(DealWatcher::class);
+    }
+
     public function dealWatcher()
     {
-        return $this->belongsTo(User::class, 'deal_watcher', 'id');
+        return $this->belongsToMany(User::class, 'deal_watchers', 'deal_id', 'user_id')->using(DealWatcher::class)->first();
     }
 
     public function contact(): BelongsTo
@@ -250,6 +256,13 @@ class Deal extends BaseModel
     public function addedBy()
     {
         return $this->belongsTo(User::class, 'added_by')->withoutGlobalScope(ActiveScope::class);
+    }
+
+
+    // payments relation
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'deal_id');
     }
 
 }

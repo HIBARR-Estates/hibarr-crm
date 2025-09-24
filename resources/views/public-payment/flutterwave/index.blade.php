@@ -20,7 +20,7 @@
                                 fieldId="email" :fieldPlaceholder="__('modules.flutterwave.client_email')" fieldValue="" :fieldRequired="true" />
                         </div>
                         <div class="col-lg-12 col-md-12">
-                            <x-forms.tel :fieldLabel="__('modules.flutterwave.client_phone')" fieldName="phone"
+                            <x-forms.phone :fieldLabel="__('modules.flutterwave.client_phone')" fieldName="phone"
                                 fieldId="phone" :fieldPlaceholder="__('modules.flutterwave.client_phone')" fieldValue="" />
                         </div>
                     </div>
