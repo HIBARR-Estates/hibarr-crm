@@ -1164,7 +1164,9 @@ class DealController extends AccountBaseController
         } catch (\Exception $e) {
             \Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
             return null;
+        }
     }
+
     /** 
      * Generate Meeting Link
      */
