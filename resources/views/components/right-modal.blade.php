@@ -7,7 +7,7 @@
     <div class="p-4 t-d-inner-panel">
         <h3 class="heading-h1 mb-0" id="right-modal-title"></h3>
 
-        <div id="right-modal-content" class="mt-4 mb-5">
+        <div id="right-modal-content" class="mt-4 mb-5" >
 
         </div>
     </div>
