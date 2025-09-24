@@ -257,18 +257,9 @@
                 data: $('#followUpForm').serialize(),
                 success: function(response) {
                     if (response.status == "success") {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: 'Follow-up created successfully. ',
-                            customClass: {
-                                confirmButton: 'btn btn-primary',
-                            },
-                            showClass: {
-                                popup: 'swal2-noanimation',
-                                backdrop: 'swal2-noanimation',
-                            },
-                        });
+                        // Close modal and reload page
+                        $('#addFollowUpModal').modal('hide');
+                        window.location.reload();
                     }
                 },
                 error: function(xhr) {
