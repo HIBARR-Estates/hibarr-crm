@@ -185,7 +185,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                             @if($deal->leadStage->slug != 'win' && $deal->leadStage->slug != 'lost' && ($addLeadFollowUpPermission == 'all' || $addLeadFollowUpPermission == 'added'))
                                 <a class="f-15 f-w-500 d-none tab-action-btn" 
                                 data-tab="follow-up" 
-                                href="#" 
+                                href="javascript:;" 
                                 id="add-lead-followup">
                                     <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.followup.newFollowUp')
                                 </a>
