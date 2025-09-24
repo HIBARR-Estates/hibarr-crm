@@ -128,6 +128,7 @@ use App\Http\Controllers\ProjectTemplateMilestoneController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\TimelogWeeklyApprovalController;
 use App\Http\Controllers\WeeklyTimesheetController;
+use App\Http\Controllers\MeetingTypeController;
 
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
@@ -510,6 +511,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/gdpr-consent', [DealController::class, 'consent'])->name('deals.gdpr_consent');
     Route::post('deals/save-deal-consent/{deal}', [DealController::class, 'saveLeadConsent'])->name('deals.save_lead_consent');
     Route::post('deals/change-follow-up-status', [DealController::class, 'changeFollowUpStatus'])->name('deals.change_follow_up_status');
+    Route::post('deals/generate-meeting-link', [DealController::class, 'generateMeetingLink'])->name('deals.generate-meeting-link');
 
     // Lead Category
     Route::post('/update-lead-category', [LeadCategoryController::class, 'updateLeadCategory'])->name('category.updateDefault');
@@ -557,6 +559,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::resource('deals', DealController::class);
+
+    // Meeting Types
+    Route::resource('meeting-types', MeetingTypeController::class);
 
     // leaves files routes
     Route::get('leave-files/download/{id}', [LeaveFileController::class, 'download'])->name('leave-files.download');

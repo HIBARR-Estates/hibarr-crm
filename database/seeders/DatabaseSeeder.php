@@ -61,6 +61,7 @@ class DatabaseSeeder extends Seeder
             }
 
             $this->call(EmployeePermissionSeeder::class, false, ['companyId' => $company->id]);
+            $this->call(MeetingTypeSeeder::class, false, ['companyId' => $company->id]);
         }
 
         if (!App::environment('codecanyon')) {

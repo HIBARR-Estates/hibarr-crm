@@ -15,3 +15,12 @@
 ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
     ApiRoute::get('purchased-module', ['as' => 'api.purchasedModule', 'uses' => 'HomeController@installedModule']);
 });
+
+// API Routes for external applications
+ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
+    ApiRoute::post('deals/change-stage', ['as' => 'api.deals.changeStage', 'uses' => 'DealApiController@changeStage']);
+    // ->validate([
+    //     'deal_id' => 'required|exists:deals,id',
+    //     'new_stage_id' => 'required|exists:pipeline_stages,id',
+    // ]);
+});

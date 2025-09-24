@@ -37,3 +37,4 @@ demo_db_copy.sql
 database/maxmind/
 public/css/app-custom.css
 public/css/theme-custom.css
+settings.json

@@ -399,7 +399,7 @@ trait EmployeeDashboard
 
             // Deal Follow Up Data
 
-            $this->dealFollowUps = DealFollowUp::with('lead')->whereHas('lead', function ($q) {
+            $this->dealFollowUps = DealFollowUp::with('deal')->whereHas('deal', function ($q) {
                 $q->whereHas('leadAgent', function ($q) {
                     $q->where('user_id', $this->user->id);
                 });
