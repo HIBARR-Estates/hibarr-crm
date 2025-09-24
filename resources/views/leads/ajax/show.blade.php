@@ -6,7 +6,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
 @endphp
 
-<div id="task-detail-section">
+<div id="task-detail-section" class="deal-show-content">
 
     {{-- <h3 class="heading-h1 mb-3">{{ $deal->name }}</h3> --}}
 
@@ -33,8 +33,8 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                             @if (
                                 $deleteLeadPermission == 'all'
                                 || ($deleteLeadPermission == 'added' && user()->id == $deal->added_by)
-                                || ($deleteLeadPermission == 'owned' && ((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)))
-                                || ($deleteLeadPermission == 'both' &&  (((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)) || user()->id == $deal->added_by))
+                                || ($deleteLeadPermission == 'owned' && ((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)))
+                                || ($deleteLeadPermission == 'both' &&  (((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)) || user()->id == $deal->added_by))
                             )
                                 <a class="dropdown-item delete-table-row" href="javascript:;" data-id="{{ $deal->id }}">
                                     @lang('app.delete')
@@ -82,13 +82,17 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         
                         <div class="col-6 px-0 pb-3 d-flex">
                             <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatcher') }}</p>
-                            <p class="mb-0 text-dark-grey f-14">
-                                @if (!is_null($deal->dealWatcher))
-                                    <x-employee :user="$deal->dealWatcher"/>
+                            <div class="mb-0 text-dark-grey f-14">
+                                @if ($deal->dealWatchers->isNotEmpty())
+                                    <div class="d-flex flex-column gap-1">
+                                        @foreach ($deal->dealWatchers as $watcher)
+                                            <x-employee :user="$watcher"/>
+                                        @endforeach
+                                    </div>
                                 @else
                                     --
                                 @endif
-                            </p>
+                            </div>
                         </div>
         
                         @if ($deal->leadStatus)
@@ -228,7 +232,36 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         <!--  USER CARDS END -->
 
         <div class="col-sm-5">
+
             @include('leads.ajax.activities')
+
+
+
+            {{-- <x-cards.data :title="__('modules.leadContact.leadDetails')">
+
+                <x-cards.data-row :label="__('modules.leadContact.leadContact')" otherClasses="pr-1" labelClasses="pr-1"
+                                    value="<a href='{{ route('lead-contact.show', $deal->contact->id) }}' class='text-darkest-grey'> {{ $deal->contact->client_name_salutation }}</a>"/>
+
+                <x-cards.data-row :label="__('app.email')" :value="$deal->contact->client_email ?? '--'" otherClasses="pr-1" labelClasses="pr-1"/>
+                <x-cards.data-row :label="__('modules.lead.mobile')" :value="$deal->contact->mobile_with_phonecode ?? '--'" otherClasses="pr-1" labelClasses="pr-1"/>
+
+                <x-cards.data-row :label="__('modules.lead.companyName')"
+                                    :value="!empty($deal->contact->company_name) ? $deal->contact->company_name : '--'" otherClasses="pr-1" labelClasses="pr-1"/>
+
+                <div class="d-flex">
+                    @if ($deal->contact->client_email)
+                        <x-forms.link-secondary class="mr-3 pr-1" link='mailto:{{ $deal->contact->client_email }}'
+                                                icon="envelope">@lang('app.email')</x-forms.link-secondary>
+                    @endif
+
+                    @if ($deal->contact->mobile_with_phonecode && $deal->contact->mobile_with_phonecode !== '--')
+                        <x-forms.button-secondary class="btn-copy pr-1" data-clipboard-text="{{ $deal->contact->mobile_with_phonecode }}"
+                                                    icon="phone">@lang('app.mobile')</x-forms.button-secondary>
+                    @endif
+                </div>
+
+            </x-cards.data> --}}
+
         </div>
     </div>
 
@@ -608,3 +641,9 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         // Proposal tab script end
     </script>
 </div>
+
+<style>
+    /* Large screens: max 95% of viewport width */
+   
+
+</style>

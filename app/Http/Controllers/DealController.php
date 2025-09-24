@@ -9,6 +9,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
+use App\Scopes\ActiveScope;
 use ReflectionClass;
 use Illuminate\Support\Facades\DB;
 use App\Helper\Reply;
@@ -153,7 +154,20 @@ class DealController extends AccountBaseController
 
     public function show($id)
     {
-        $this->deal = Deal::with('leadAgent.user:id,name,image', 'category', 'communicationActivities')->findOrFail($id)->withCustomFields();
+
+        $this->deal = Deal::with([
+            'leadAgent.user:id,name,image', 
+            'category',
+            'communicationActivities',
+            'dealWatchers' => function ($query) {
+                $query->withoutGlobalScope(ActiveScope::class)
+                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
+                      ->with('employeeDetail.designation:id,name')
+                      ->where('users.status', '!=', 'deactive')
+                      ->orderBy('users.name');
+            }
+        ])->findOrFail($id)->withCustomFields();
+
 
         $this->leadAgentId = ($this->deal->leadAgent != null) ? $this->deal->leadAgent->user->id : 0;
 
@@ -164,8 +178,8 @@ class DealController extends AccountBaseController
         abort_403(!(
             $this->viewPermission == 'all'
             || ($this->viewPermission == 'added' && $this->deal->added_by == user()->id)
-            || ($this->viewPermission == 'owned' && (($this->leadAgentId == user()->id) || (!is_null($this->deal->deal_watcher) && user()->id == $this->deal->deal_watcher)))
-            || ($this->viewPermission == 'both' && ($this->deal->added_by == user()->id || $this->leadAgentId == user()->id || (!is_null($this->deal->deal_watcher) && user()->id == $this->deal->deal_watcher)))
+            || ($this->viewPermission == 'owned' && (($this->leadAgentId == user()->id) || $this->deal->dealWatchers->contains('id', user()->id)))
+            || ($this->viewPermission == 'both' && ($this->deal->added_by == user()->id || $this->leadAgentId == user()->id || $this->deal->dealWatchers->contains('id', user()->id)))
         ));
 
         $this->pageTitle = $this->deal->name;
@@ -358,14 +372,18 @@ class DealController extends AccountBaseController
         $deal->lead_id = $request->lead_contact;
         $deal->next_follow_up = 'yes';
         $deal->category_id = $request->category_id;
-        $deal->deal_watcher = $request->deal_watcher;
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->agent_id = $agentId;
-        $deal->close_date = companyToYmd($request->close_date);
+        $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
         $deal->save();
+
+        // Handle deal watchers
+        if ($request->deal_watcher && is_array($request->deal_watcher)) {
+            $deal->dealWatchers()->sync($request->deal_watcher);
+        }
 
         if (!is_null($request->product_id)) {
 
@@ -392,8 +410,9 @@ class DealController extends AccountBaseController
         $redirectUrl = urldecode($request->redirect_url);
 
         if ($request->add_more == 'true') {
+            \Log::info('Deal saved with add_more=true, deal ID: ' . $deal->id);
+            // Return fresh form HTML for add more functionality
             $html = $this->create();
-
             return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
         }
 
@@ -412,7 +431,19 @@ class DealController extends AccountBaseController
      */
     public function edit($id)
     {
-        $this->deal = Deal::with('currency', 'leadAgent', 'leadAgent.user', 'products', 'leadStage')->findOrFail($id)->withCustomFields();
+        $this->deal = Deal::with([
+            'currency', 
+            'leadAgent', 
+            'leadAgent.user', 
+            'products', 
+            'leadStage', 
+            'dealWatchers' => function ($query) {
+                $query->withoutGlobalScope(ActiveScope::class)
+                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
+                      ->with('employeeDetail.designation:id,name')
+                      ->orderBy('users.name');
+            }
+        ])->findOrFail($id)->withCustomFields();
 
         $this->productIds = $this->deal->products->pluck('id')->toArray();
 
@@ -422,8 +453,8 @@ class DealController extends AccountBaseController
 
         abort_403(!($this->editPermission == 'all'
             || ($this->editPermission == 'added' && $this->deal->added_by == user()->id)
-            || ($this->editPermission == 'owned' && ((!is_null($this->deal->agent_id) && !is_null($this->deal->leadAgent) && user()->id == $this->deal->leadAgent->user->id) || (!is_null($this->deal->deal_watcher) && user()->id == $this->deal->deal_watcher)))
-            || ($this->editPermission == 'both' && (((!is_null($this->deal->agent_id) && !is_null($this->deal->leadAgent) && user()->id == $this->deal->leadAgent->user->id) || (!is_null($this->deal->deal_watcher) && user()->id == $this->deal->deal_watcher)) || user()->id == $this->deal->added_by))
+            || ($this->editPermission == 'owned' && ((!is_null($this->deal->agent_id) && !is_null($this->deal->leadAgent) && user()->id == $this->deal->leadAgent->user->id) || $this->deal->dealWatchers->contains('id', user()->id)))
+            || ($this->editPermission == 'both' && (((!is_null($this->deal->agent_id) && !is_null($this->deal->leadAgent) && user()->id == $this->deal->leadAgent->user->id) || $this->deal->dealWatchers->contains('id', user()->id)) || user()->id == $this->deal->added_by))
         ));
 
         $this->tab = (!is_null(request('tab'))) ? request('tab') : null;
@@ -432,12 +463,13 @@ class DealController extends AccountBaseController
             return $employee->status !== 'deactive';
         });
 
-        // Get the selected employee who is a deal watcher
-        $selectedEmployee = $this->employees->firstWhere('id', $this->deal->deal_watcher);
-
-        // Include the selected deactivated employee in the list if they are deactivated
-        if ($selectedEmployee && $selectedEmployee->status === 'deactive') {
-            $this->employees = $activeEmployees->push($selectedEmployee);
+        // Get the selected employees who are deal watchers
+        $selectedEmployees = $this->deal->dealWatchers->pluck('id')->toArray();
+        
+        // Include any deactivated employees who are watchers
+        $deactivatedWatchers = $this->deal->dealWatchers->where('status', 'deactive');
+        if ($deactivatedWatchers->isNotEmpty()) {
+            $this->employees = $activeEmployees->merge($deactivatedWatchers);
         } else {
             $this->employees = $activeEmployees;
         }
@@ -496,8 +528,8 @@ class DealController extends AccountBaseController
 
         abort_403(!($this->editPermission == 'all'
             || ($this->editPermission == 'added' && $deal->added_by == user()->id)
-            || ($this->editPermission == 'owned' && ((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)))
-            || ($this->editPermission == 'both' && (((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)) || user()->id == $deal->added_by))
+            || ($this->editPermission == 'owned' && ((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)))
+            || ($this->editPermission == 'both' && (((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)) || user()->id == $deal->added_by))
         ));
 
         if (!is_null($request->agent_id)) {
@@ -508,15 +540,19 @@ class DealController extends AccountBaseController
         }
 
         $deal->name = $request->name;
-        $deal->deal_watcher = $request->deal_watcher;
         $deal->next_follow_up = $request->next_follow_up;
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
-        $deal->close_date = companyToYmd($request->close_date);
+        $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
         $deal->category_id = $request->category_id;
         $deal->save();
+
+        // Handle deal watchers
+        if ($request->deal_watcher && is_array($request->deal_watcher)) {
+            $deal->dealWatchers()->sync($request->deal_watcher);
+        }
 
         $deal->products()->sync($request->product_id);
 
@@ -544,8 +580,8 @@ class DealController extends AccountBaseController
 
         abort_403(!($this->deletePermission == 'all'
             || ($this->deletePermission == 'added' && $deal->added_by == user()->id)
-            || ($this->deletePermission == 'owned' && ((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)))
-            || ($this->deletePermission == 'both' && (((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)) || user()->id == $deal->added_by))
+            || ($this->deletePermission == 'owned' && ((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)))
+            || ($this->deletePermission == 'both' && (((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)) || user()->id == $deal->added_by))
         ));
 
         $model = new ReflectionClass('App\Models\Deal');
@@ -1041,7 +1077,7 @@ class DealController extends AccountBaseController
         $deal = Deal::findOrFail($request->dealId);
 
         $deal->pipeline_stage_id = $request->pipelineStageId;
-        $deal->close_date = companyToYmd($request->close_date);
+        $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->update();
 
         if (!empty($request->description)) {
@@ -1071,4 +1107,24 @@ class DealController extends AccountBaseController
         }
         return collect();
     }
+
+
+    /**
+     * Safely convert company date format to Y-m-d format
+     * Returns null if date is invalid or empty
+     */
+    private function safeCompanyToYmd($date)
+    {
+        try {
+            if (empty($date)) {
+                return null;
+            }
+            return companyToYmd($date);
+        } catch (\Exception $e) {
+            \Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
+            return null;
+        }
+    }
+
+
 }

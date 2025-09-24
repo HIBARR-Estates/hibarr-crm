@@ -112,7 +112,7 @@ class Lead extends BaseModel
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Lead';
 
-    protected $appends = ['image_url', 'client_name_salutation'];
+    protected $appends = ['image_url', 'client_name_salutation', 'mobile_with_phonecode', 'office_phone_formatted'];
 
     protected $casts = [
         'salutation' => Salutation::class,
@@ -130,6 +130,42 @@ class Lead extends BaseModel
         return Attribute::make(
             get: fn($value) => ($this->salutation ? $this->salutation->label() . ' ' : '') . $this->client_name
         );
+    }
+
+    public function getMobileWithPhoneCodeAttribute()
+    {
+        if (empty($this->mobile)) {
+            return '--';
+        }
+
+        // Clean the phone number (remove all non-numeric characters)
+        $cleanPhone = preg_replace('/[^0-9]/', '', $this->mobile);
+        
+        // If the phone number is empty after cleaning, return --
+        if (empty($cleanPhone)) {
+            return '--';
+        }
+
+        // Add + prefix to match mobile phone format
+        return '+' . $cleanPhone;
+    }
+
+    public function getOfficePhoneFormattedAttribute()
+    {
+        if (empty($this->office)) {
+            return '--';
+        }
+
+        // Clean the phone number (remove all non-numeric characters)
+        $cleanPhone = preg_replace('/[^0-9]/', '', $this->office);
+        
+        // If the phone number is empty after cleaning, return --
+        if (empty($cleanPhone)) {
+            return '--';
+        }
+
+        // Add + prefix to match mobile phone format
+        return '+' . $cleanPhone;
     }
 
     /**

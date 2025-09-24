@@ -17,6 +17,7 @@ class Select extends Component
     public $fieldId;
     public $popover;
     public $changeDealStage;
+    public $withBadges;
 
     /**
      * Create a new component instance.
@@ -32,7 +33,8 @@ class Select extends Component
         bool $search = false,
         bool $alignRight = false,
         $popover = null,
-        $changeDealStage = null
+        $changeDealStage = null,
+        bool $withBadges = false
     )
     {
         $this->fieldName = $fieldName;
@@ -44,6 +46,7 @@ class Select extends Component
         $this->popover = $popover;
         $this->alignRight = $alignRight;
         $this->changeDealStage = $changeDealStage;
+        $this->withBadges = $withBadges;
     }
 
     /**

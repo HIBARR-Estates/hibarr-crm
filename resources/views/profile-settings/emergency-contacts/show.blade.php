@@ -10,7 +10,7 @@
                     <div class="col-xl-12 col-lg-12 col-sm-12">
                         <x-cards.data-row :label="__('app.name')" :value="$contact->name" />
                         <x-cards.data-row :label="__('app.email')" :value="$contact->email ? $contact->email : '--'" />
-                        <x-cards.data-row :label="__('app.mobile')" :value="$contact->mobile" />
+                        <x-cards.data-row :label="__('app.mobile')" :value="$contact->mobile_with_phonecode" />
                         <x-cards.data-row :label="__('app.relationship')" :value="$contact->relation" />
                         <x-cards.data-row :label="__('app.address')" :value="$contact->address ? $contact->address : '--'" />
                     </div>

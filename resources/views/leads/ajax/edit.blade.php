@@ -15,8 +15,8 @@
     <div class="col-sm-12">
         <x-form id="save-lead-data-form" method="PUT">
             <div class="add-client bg-white rounded">
-                <div class="flex justify-between items-center p-4 border-b border-gray-200">
-                    <h4 class="mb-0 f-21 font-weight-normal">
+                <div class="flex flex-col justify-start items-start p-4">
+                    <h4 class="mb-4 f-21 font-weight-normal">
                         @lang('modules.deal.dealDetails')
                     </h4>
                     <x-custom-field-category-tabs :customFieldCategories="$customFieldCategories" />
@@ -154,13 +154,12 @@
                                 </x-forms.input-group>
                             </div>
                         </div>
-                    @endif
+                    @endif                    
 
                     <div class="col-lg-4 col-md-6">
-                        <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher">
-                            <option value="">--</option>
+                        <x-forms.select fieldId="deal_watcher" :fieldLabel="__('app.dealWatcher')" fieldName="deal_watcher[]" :withBadges="true" multiple>
                             @foreach ($employees as $item)
-                                <x-user-option :user="$item" :selected="$deal->deal_watcher == $item->id" />
+                                <x-user-option :user="$item" :selected="in_array($item->id, $deal->dealWatchers->pluck('id')->toArray())" />
                             @endforeach
                         </x-forms.select>
                     </div>
@@ -190,7 +189,6 @@
 
     </div>
 </div>
-
 
 <script>
     $(document).ready(function() {
