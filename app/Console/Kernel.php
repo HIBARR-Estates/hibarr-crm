@@ -33,7 +33,6 @@ use App\Console\Commands\AssignShiftRotation;
 use App\Console\Commands\AssignEmployeeShiftRotation;
 use App\Console\Commands\RecalculateLeavesQuotas;
 use App\Console\Commands\AutoClockOut;
-use App\Console\Commands\ActivityResponseRetryCommand;
 use DateTimeZone;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -80,7 +79,6 @@ class Kernel extends ConsoleKernel
         AssignShiftRotation::class,
         AssignEmployeeShiftRotation::class,
         RecalculateLeavesQuotas::class,
-        ActivityResponseRetryCommand::class,
     ];
 
     /**
