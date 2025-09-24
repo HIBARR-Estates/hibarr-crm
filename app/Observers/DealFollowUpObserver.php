@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\DealFollowUp;
+use App\Services\DealAutomationService;
 
 class DealFollowUpObserver
 {

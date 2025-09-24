@@ -15,6 +15,7 @@ use App\Models\LeadSetting;
 use Illuminate\Support\Facades\Notification;
 use App\Traits\EmployeeActivityTrait;
 use App\Notifications\LeadImported;
+use App\Services\DealAutomationService;
 
 
 use App\Traits\DealHistoryTrait;
