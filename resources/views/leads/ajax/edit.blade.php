@@ -129,16 +129,6 @@
                             :fieldLabel="__('modules.deal.closeDate')" fieldName="close_date" :fieldPlaceholder="__('placeholders.date')" :fieldValue="$deal->close_date ? $deal->close_date->format(company()->date_format) : ''" />
                     </div>
 
-                    <div class="col-lg-4 col-md-6">
-                        <x-forms.checkbox :fieldLabel="__('modules.deal.strategyAccepted')" fieldName="strategy_accepted" fieldId="strategy_accepted" 
-                            :checked="(bool) $deal->strategy_accepted" />
-                    </div>
-
-                    <div class="col-lg-4 col-md-6">
-                        <x-forms.checkbox :fieldLabel="__('modules.deal.downpaymentConfirmed')" fieldName="downpayment_confirmed" fieldId="downpayment_confirmed" 
-                            :checked="(bool) $deal->downpayment_confirmed" />
-                    </div>
-
                     @if (in_array('products', user_modules()) || in_array('purchase', user_modules()))
                         <div class="col-lg-4 mt-3">
                             <div class="form-group">
@@ -173,6 +163,18 @@
                             @endforeach
                         </x-forms.select>
                     </div>
+
+                    <div class="col-lg-7">
+                        <div class="col-lg-4 col-md-6">
+                            <x-forms.checkbox :fieldLabel="__('modules.deal.strategyAccepted')" fieldName="strategy_accepted" fieldId="strategy_accepted" 
+                                :checked="(bool) $deal->strategy_accepted" />
+                        </div>
+
+                        <div class="col-lg-4 col-md-6">
+                            <x-forms.checkbox :fieldLabel="__('modules.deal.downpaymentConfirmed')" fieldName="downpayment_confirmed" fieldId="downpayment_confirmed" 
+                                :checked="(bool) $deal->downpayment_confirmed" />
+                        </div>
+                     </div>
 
                 </div>
 
