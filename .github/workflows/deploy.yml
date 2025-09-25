@@ -28,6 +28,7 @@ jobs:
             npm install
             npm run production
             php artisan migrate --force
+            php artisan queue:restart
 
   deploy-main:
     if: github.ref == 'refs/heads/main'
