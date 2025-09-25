@@ -106,7 +106,7 @@
                     </div><!-- div end -->
 
                     @foreach ($column['deals'] as $lead)
-                        <x-cards.lead-card :draggable="$changeStatusPermission == 'all' ? 'true' : 'false'" :lead="$lead" />
+                        <x-cards.lead-card :draggable="'false'" :lead="$lead" />
                     @endforeach
                 </div>
                 <!-- MAIN TASKS END -->

@@ -229,6 +229,9 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
         <div class="col-sm-5">
 
+            @include('leads.ajax.activities')
+
+
 
             {{-- <x-cards.data :title="__('modules.leadContact.leadDetails')">
 
@@ -254,6 +257,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                 </div>
 
             </x-cards.data> --}}
+
         </div>
     </div>
 

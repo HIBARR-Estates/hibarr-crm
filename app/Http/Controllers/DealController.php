@@ -43,6 +43,7 @@ use App\Models\Proposal;
 use App\Models\PurposeConsent;
 use App\Models\PurposeConsentLead;
 use App\Models\User;
+use App\Models\CommunicationActivity;
 use App\Traits\ImportExcel;
 use App\Traits\DealAutomationTrait;
 use Carbon\Carbon;
@@ -153,9 +154,11 @@ class DealController extends AccountBaseController
 
     public function show($id)
     {
+
         $this->deal = Deal::with([
             'leadAgent.user:id,name,image', 
             'category',
+            'communicationActivities',
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
                       ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
@@ -164,6 +167,7 @@ class DealController extends AccountBaseController
                       ->orderBy('users.name');
             }
         ])->findOrFail($id)->withCustomFields();
+
 
         $this->leadAgentId = ($this->deal->leadAgent != null) ? $this->deal->leadAgent->user->id : 0;
 
@@ -255,6 +259,13 @@ class DealController extends AccountBaseController
             case 'history':
                 $this->histories = DealHistory::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
                 $this->tab = 'leads.ajax.history';
+                break;
+            case 'activities':
+                $this->activities = CommunicationActivity::where('deal_id', $id)
+                    ->with(['deal', 'lead'])
+                    ->orderBy('timestamp', 'desc')
+                    ->get();
+                $this->tab = 'leads.ajax.activities';
                 break;
             default:
                 $handleNotes();
@@ -390,7 +401,7 @@ class DealController extends AccountBaseController
         if ($request->custom_fields_data) {
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
-        
+
         $this->triggerDealCreationAutomation($request);
 
         // Log search
@@ -550,9 +561,9 @@ class DealController extends AccountBaseController
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
-        
+
         $this->triggerDealUpdateAutomation($request, $deal);
-        
+
         return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
     }
 
@@ -1097,6 +1108,7 @@ class DealController extends AccountBaseController
         return collect();
     }
 
+
     /**
      * Safely convert company date format to Y-m-d format
      * Returns null if date is invalid or empty
@@ -1113,5 +1125,6 @@ class DealController extends AccountBaseController
             return null;
         }
     }
+
 
 }
