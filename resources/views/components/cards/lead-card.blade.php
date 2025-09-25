@@ -9,7 +9,7 @@
 
 <div class="card bg-white border-grey m-1 mx-3 mb-2 {{ $moveClass }} task-card" data-task-id="{{ $lead->id }}"
     id="drag-task-{{ $lead->id }}" style="border-radius: 0.75rem !important">
-    <div class="card-body flex flex-col gap-2">
+    <div class="card-body flex flex-col gap-2 pt-3">
         <div class="flex flex-col gap-1">
             <div class="d-flex justify-content-between">
                 <a href="{{ route('deals.show', [$lead->id]) }}"
@@ -78,4 +78,4 @@
             }
         </style>
     </div>
-</div><!-- div end -->
+</div>
