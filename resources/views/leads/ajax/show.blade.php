@@ -6,13 +6,13 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
 @endphp
 
-<div id="task-detail-section">
+<div id="task-detail-section" class="deal-show-content">
 
     {{-- <h3 class="heading-h1 mb-3">{{ $deal->name }}</h3> --}}
 
     <div class="row">
         <!--  USER CARDS START -->
-        <div class="col-sm-9 mb-4 mb-xl-0 mb-lg-4 mb-md-0">
+        <div class="col-sm-7 mb-4 mb-xl-0 mb-lg-4 mb-md-0">
 
             <x-cards.data :title="__('modules.deal.dealInfo')">
 
@@ -135,26 +135,22 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
             <div class="bg-additional-grey rounded my-3">
                 <div class="s-b-inner s-b-notifications bg-white b-shadow-4 rounded">
                     <x-tab-section class="deal-tabs">
-                        @if($viewLeadFilePermission != 'none')
-                            <x-tab-item data-tab="files" class="ajax-tab files" :active="(request('tab') === 'files' || !request('tab'))"
-                                            :link="route('deals.show', $deal->id).'?tab=files'">@lang('modules.lead.file')</x-tab-item>
+                        @if ($viewClientNote != 'none')
+                            <x-tab-item data-tab="notes" class="ajax-tab notes" :active="(request('tab') === 'notes' || !request('tab'))"
+                                            :link="route('deals.show', $deal->id).'?tab=notes'">@lang('app.notes')</x-tab-item>
                         @endif
                         @if($viewLeadFollowupPermission != 'none')
                             <x-tab-item data-tab="follow-up" class="ajax-tab follow-up" :active="request('tab') === 'follow-up'"
                                             :link="route('deals.show', $deal->id).'?tab=follow-up'">@lang('modules.lead.followUp')</x-tab-item>
                         @endif
-
-
+                        @if($viewLeadFilePermission != 'none')
+                            <x-tab-item data-tab="files" class="ajax-tab files" :active="request('tab') === 'files'"
+                                            :link="route('deals.show', $deal->id).'?tab=files'">@lang('modules.lead.file')</x-tab-item>
+                        @endif
                         @if($viewProposalPermission != 'none')
                             <x-tab-item data-tab="proposals" class="ajax-tab proposals" :active="request('tab') === 'proposals'"
                                             :link="route('deals.show', $deal->id).'?tab=proposals'">@lang('modules.lead.proposal')</x-tab-item>
                         @endif
-
-                        @if ($viewClientNote != 'none')
-                            <x-tab-item data-tab="notes" class="ajax-tab notes" :active="request('tab') === 'notes'"
-                                            :link="route('deals.show', $deal->id).'?tab=notes'">@lang('app.notes')</x-tab-item>
-                        @endif
-
                         @if ($gdpr->enable_gdpr)
                             <x-tab-item data-tab="gdpr" class="ajax-tab gdpr" :active="request('tab') === 'gdpr'"
                                         :link="route('deals.show', $deal->id).'?tab=gdpr'">@lang('app.menu.gdpr')</x-tab-item>
@@ -231,7 +227,10 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         </div>
         <!--  USER CARDS END -->
 
-        <div class="col-sm-3">
+        <div class="col-sm-5">
+
+            @include('leads.ajax.activities')
+
 
 
             {{-- <x-cards.data :title="__('modules.leadContact.leadDetails')">
@@ -258,6 +257,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                 </div>
 
             </x-cards.data> --}}
+
         </div>
     </div>
 
@@ -271,7 +271,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
         $(document).ready(function () {
             // Initial show based on current tab
-            let initialTab = $('.deal-tabs .ajax-tab.active').data('tab') || 'files';
+            let initialTab = $('.deal-tabs .ajax-tab.active').data('tab') || 'notes';
             showTabAction(initialTab);
 
             // On tab click
@@ -637,3 +637,9 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         // Proposal tab script end
     </script>
 </div>
+
+<style>
+    /* Large screens: max 95% of viewport width */
+   
+
+</style>

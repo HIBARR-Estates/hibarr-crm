@@ -98,6 +98,7 @@ use App\Http\Controllers\RecurringTaskController;
 use App\Http\Controllers\ContractTemplateController;
 use App\Http\Controllers\EmergencyContactController;
 use App\Http\Controllers\EstimateTemplateController;
+
 use App\Http\Controllers\ProjectMilestoneController;
 use App\Http\Controllers\ProposalTemplateController;
 use App\Http\Controllers\RecurringExpenseController;

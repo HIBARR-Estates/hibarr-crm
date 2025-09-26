@@ -261,10 +261,16 @@ class Deal extends BaseModel
     }
 
 
+    public function communicationActivities(): HasMany
+    {
+        return $this->hasMany(CommunicationActivity::class, 'deal_id')->orderByDesc('timestamp');
+    }
+
     // payments relation
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class, 'deal_id');
+
     }
 
 }

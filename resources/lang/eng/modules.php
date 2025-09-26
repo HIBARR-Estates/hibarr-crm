@@ -764,6 +764,7 @@ return array(
         'companyEmail' => 'Company Email',
         'companyPhone' => 'Company Phone',
         'companyWebsite' => 'Company Website',
+        'companyDefaultLeadCreator' => 'Company Default Lead Creator',
         'companyLogo' => 'Company Logo',
         'darkCompanyLogo' => 'Dark Mode Logo',
         'lightCompanyLogo' => 'Light Mode Logo',
@@ -2390,7 +2391,7 @@ return array(
         'dealStageTooltip' => 'A New note will be create when stage changes to win or lost.',
         'category' => 'Category',
         'product' => 'Product',
-        'assignAgent' => 'Assign Responsible Person',
+        'assignAgent' => 'Assign Agent',
     ),
     'estimateRequest' => array(
         'estimateRequest' => 'Estimate Request',
