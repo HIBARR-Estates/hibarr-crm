@@ -41,12 +41,14 @@ class NewCommunicationActivity extends Notification implements ShouldQueue
         $entityName = $this->dealOrLead->name ?? $this->dealOrLead->client_name ?? 'Unknown';
         $channelType = ucfirst($this->activity->channel_type);
         $senderName = $this->activity->sender_name;
+        $defaultSubject = "New {$channelType} Communication for {$entityType}: {$entityName}";
+        $subject = $this->activity->subject ?? $defaultSubject;
 
         $messagePreview = substr((string) $this->activity->message_content, 0, 100);
         $messagePreview .= (strlen((string) $this->activity->message_content) > 100 ? '...' : '');
 
         return (new MailMessage)
-            ->subject("New {$channelType} Communication - {$entityType}: {$entityName}")
+            ->subject($subject)
             ->greeting("Hello {$notifiable->name},")
             ->line("A new {$channelType} communication has been recorded for {$entityType}: {$entityName}")
             ->line("From: {$senderName}")

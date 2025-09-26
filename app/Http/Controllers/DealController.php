@@ -156,7 +156,8 @@ class DealController extends AccountBaseController
     {
 
         $this->deal = Deal::with([
-            'leadAgent.user:id,name,image', 
+            'leadAgent.user:id,name,image',
+            'contact',
             'category',
             'communicationActivities',
             'dealWatchers' => function ($query) {

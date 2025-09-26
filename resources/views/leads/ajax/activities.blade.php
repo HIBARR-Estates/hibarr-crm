@@ -1,3 +1,5 @@
+{{-- filepath: resources/views/leads/ajax/activities.blade.php --}}
+
 <!-- Quick Actions Card -->
 <div class="card border mb-4 border-gray-400 overflow-hidden" style="border-radius: 10px;">
     <div class="card-header bg-white border-0">
@@ -7,31 +9,42 @@
         </h6>
     </div>
     <div class="card-body p-3">
-        <div class="grid sm:grid-cols-2 gap-4">
-            <div class="">
-                <button class="btn btn-outline-primary btn-sm w-100" onclick="sendEmail()">
-                    <i class="fa fa-envelope mr-1"></i>
-                    @lang('app.activities.email')
-                </button>
-            </div>
-            <div class="">
-                <button class="btn btn-outline-success btn-sm w-100" onclick="sendWhatsApp()">
-                    <i class="fa fa-whatsapp mr-1"></i>
-                    @lang('app.activities.whatsapp')
-                </button>
-            </div>
-            <div class="">
-                <button class="btn btn-outline-info btn-sm w-100" onclick="makeCall()">
-                    <i class="fa fa-phone mr-1"></i>
-                    @lang('app.activities.call')
-                </button>
-            </div>
-            <div class="">
-                <button class="btn btn-outline-secondary btn-sm w-100" onclick="scheduleMeeting()">
-                    <i class="fa fa-calendar mr-1"></i>
-                    @lang('app.activities.scheduleMeeting')
-                </button>
-            </div>
+        <div class="d-flex justify-content-center gap-3">
+            <button class="btn btn-round btn-primary" 
+                    onclick="sendEmail()" 
+                    title="@lang('app.activities.email')"
+                    data-toggle="tooltip"
+                    data-placement="top">
+                <i class="fa fa-envelope"></i>
+            </button>
+            <button class="btn btn-round btn-success" 
+                    onclick="sendWhatsApp()" 
+                    title="@lang('app.activities.whatsapp')"
+                    data-toggle="tooltip"
+                    data-placement="top">
+                <i class="fa fa-whatsapp"></i>
+            </button>
+            <button class="btn btn-round btn-info" 
+                    onclick="makeCall()" 
+                    title="@lang('app.activities.call')"
+                    data-toggle="tooltip"
+                    data-placement="top">
+                <i class="fa fa-phone"></i>
+            </button>
+            <button class="btn btn-round btn-secondary" 
+                    onclick="scheduleMeeting()" 
+                    title="@lang('app.activities.scheduleMeeting')"
+                    data-toggle="tooltip"
+                    data-placement="top">
+                <i class="fa fa-calendar"></i>
+            </button>
+            <button class="btn btn-round btn-primary" 
+                    onclick="startNewConversation()"
+                    title="@lang('app.activities.startConversation')"
+                    data-toggle="tooltip"
+                    data-placement="top">
+                <i class="fa fa-plus"></i>
+            </button>
         </div>
     </div>
 </div>
@@ -44,108 +57,95 @@
                 <i class="fa fa-comments text-primary mr-2"></i>
                 @lang('app.activities.communicationActivities')
             </h5>
-            <span class="badge badge-primary badge-pill">{{ $deal->communicationActivities->count() }}</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge badge-primary badge-pill" id="activities-count">0</span>
+                <button class="btn btn-round btn-sm btn-outline-primary" 
+                        id="refresh-activities-btn"
+                        onclick="refreshActivities()" 
+                        title="@lang('app.activities.refresh')"
+                        data-toggle="tooltip"
+                        data-placement="top">
+                    <i class="fa fa-refresh"></i>
+                </button>
+            </div>
         </div>
     </div>
     <div class="card-body p-0">
-        @if ($deal->communicationActivities->count() > 0)
-            <div class="activity-timeline">
-                @foreach ($deal->communicationActivities->take(5) as $activity)
-                    <div class="activity-item p-3 border-bottom">
-                        <div class="d-flex align-items-start">
-                            <!-- Channel Icon -->
-                            <div class="activity-icon mr-3">
-                                @php
-                                    $channelIcons = [
-                                        'email' => 'fa-envelope',
-                                        'whatsapp' => 'fa-whatsapp',
-                                        'instagram' => 'fa-instagram',
-                                        'telegram' => 'fa-telegram',
-                                    ];
-                                    $channelColors = [
-                                        'email' => 'bg-primary',
-                                        'whatsapp' => 'bg-success',
-                                        'instagram' => 'bg-danger',
-                                        'telegram' => 'bg-info',
-                                    ];
-                                    $icon = $channelIcons[$activity->channel_type] ?? 'fa-comment';
-                                    $color = $channelColors[$activity->channel_type] ?? 'bg-secondary';
-                                @endphp
-                                <div class="rounded-circle {{ $color }} d-flex align-items-center justify-content-center"
-                                    style="width: 40px; height: 40px;">
-                                    <i class="fa {{ $icon }} text-white"></i>
-                                </div>
-                            </div>
+        <!-- Loading State -->
+        <div id="activities-loading" class="text-center py-4 d-none">
+            <i class="fa fa-spinner fa-spin fa-2x text-muted"></i>
+            <p class="text-muted mt-2">@lang('app.activities.loading')</p>
+        </div>
 
-                            <!-- Activity Content -->
-                            <div class="activity-content flex-grow-1">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <div>
-                                        <h6 class="mb-1 font-weight-bold text-dark">{{ $activity->sender_name }}</h6>
-                                        <small class="text-muted">{{ $activity->sender_contact }}</small>
-                                    </div>
-                                    <small class="text-muted">{{ $activity->timestamp->diffForHumans() }}</small>
-                                </div>
-
-                                <div class="activity-message mb-3">
-                                    @php
-                                        $preview = substr($activity->message_content, 0, 80);
-                                        $hasMore = strlen($activity->message_content) > 80;
-                                    @endphp
-                                    <p class="mb-0 text-dark">{{ $preview }}{{ $hasMore ? '...' : '' }}</p>
-                                    @if ($hasMore)
-                                        <small class="text-primary cursor-pointer"
-                                            onclick="showFullMessage({{ $activity->id }})">
-                                            @lang('app.activities.viewMore')
-                                        </small>
-                                    @endif
-                                </div>
-
-                                <!-- Action Buttons -->
-                                <div class="activity-actions">
-                                    <button class="btn btn-sm btn-outline-primary mr-2"
-                                        onclick="replyToActivity({{ $activity->id }}, '{{ $activity->channel_type }}')">
-                                        <i class="fa fa-reply mr-1"></i>
-                                        @lang('app.activities.reply')
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary"
-                                        onclick="viewActivityDetails({{ $activity->id }})">
-                                        <i class="fa fa-eye mr-1"></i>
-                                        @lang('app.activities.view')
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
-
-                @if ($deal->communicationActivities->count() > 5)
-                    <div class="text-center p-3">
-                        <a href="{{ route('deals.show', $deal->id) . '?tab=activities' }}"
-                            class="btn btn-outline-primary btn-sm">
-                            @lang('app.activities.viewAllActivities') ({{ $deal->communicationActivities->count() }})
-                        </a>
-                    </div>
-                @endif
-            </div>
-        @else
-            <div class="text-center py-4">
-                <div class="empty-state">
-                    <i class="fa fa-comments fa-3x text-muted mb-3"></i>
-                    <h6 class="text-muted mb-2">@lang('app.activities.noActivitiesYet')</h6>
-                    <p class="text-muted small mb-3">@lang('app.activities.noActivitiesDescription')</p>
-                    <button class="btn btn-primary btn-sm" onclick="startNewConversation()">
-                        <i class="fa fa-plus mr-1"></i>
-                        @lang('app.activities.startConversation')
-                    </button>
-                </div>
-            </div>
-        @endif
+        <!-- Activities Container -->
+        <div id="activities-container">
+            <!-- Activities will be loaded here -->
+        </div>
     </div>
 </div>
 
+{{-- Include the styles --}}
 <style>
-    /* Modern Activity Timeline Styles */
+    /* All your existing styles remain the same */
+    .btn-round {
+        width: 45px;
+        height: 45px;
+        border-radius: 50% !important;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        border: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-round.btn-sm {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+
+    .btn-round:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-round:active {
+        transform: translateY(0);
+    }
+
+    .btn-round.btn-outline-primary {
+        background: white;
+        border: 2px solid #007bff;
+        color: #007bff;
+    }
+
+    .btn-round.btn-outline-primary:hover {
+        background: #007bff;
+        color: white;
+    }
+
+    .btn-round.btn-outline-secondary {
+        background: white;
+        border: 2px solid #6c757d;
+        color: #6c757d;
+    }
+
+    .btn-round.btn-outline-secondary:hover {
+        background: #6c757d;
+        color: white;
+    }
+
+    .gap-3 {
+        gap: 1rem;
+    }
+
+    .gap-2 {
+        gap: 0.5rem;
+    }
+
     .activity-timeline {
         max-height: 450px;
         overflow-y: auto;
@@ -192,11 +192,6 @@
         opacity: 1;
     }
 
-    .activity-actions .btn {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-
     .empty-state {
         padding: 2rem 1rem;
     }
@@ -205,61 +200,6 @@
         opacity: 0.5;
     }
 
-    /* Quick Actions Styles */
-    .card.shadow-sm {
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
-    }
-
-    .card-header {
-        border-bottom: 1px solid #e9ecef;
-    }
-
-    .btn-outline-primary:hover,
-    .btn-outline-success:hover,
-    .btn-outline-info:hover,
-    .btn-outline-secondary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .activity-timeline {
-            max-height: 450px;
-        }
-
-        .activity-actions .btn {
-            font-size: 0.7rem;
-            padding: 0.2rem 0.4rem;
-        }
-    }
-
-    /* Custom scrollbar for activity timeline */
-    .activity-timeline::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    .activity-timeline::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 2px;
-    }
-
-    .activity-timeline::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 2px;
-    }
-
-    .activity-timeline::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
-    }
-
-    /* Badge styling */
-    .badge-pill {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-
-    /* Cursor pointer for clickable elements */
     .cursor-pointer {
         cursor: pointer;
     }
@@ -267,12 +207,375 @@
     .cursor-pointer:hover {
         text-decoration: underline;
     }
+
+    #refresh-activities-btn.spin i {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+        .btn-round {
+            width: 40px;
+            height: 40px;
+            font-size: 14px;
+        }
+
+        .btn-round.btn-sm {
+            width: 28px;
+            height: 28px;
+            font-size: 11px;
+        }
+
+        .gap-3 {
+            gap: 0.75rem;
+        }
+
+        .activity-timeline {
+            max-height: 400px;
+        }
+    }
 </style>
 
 <script>
-    // Communication Activities Functions
+    // Global variables
+    const dealId = {{ $deal->id }};
+    let isLoadingActivities = false;
+
+    // Initialize on page load
+    $(document).ready(function() {
+        $('[data-toggle="tooltip"]').tooltip();
+        loadActivities();
+    });
+
+    /**
+     * Load activities from the endpoint
+     */
+    async function loadActivities() {
+        if (isLoadingActivities) return;
+        
+        isLoadingActivities = true;
+        showLoadingState(true);
+
+        try {
+            const response = await fetch(`/api/v1/internal/deals/${dealId}/communication-activities`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log(result, "result from activities fetch");
+            renderActivities(result.data);
+            updateActivitiesCount(result.data.total);
+            
+        } catch (error) {
+            console.error('Error loading activities:', error);
+            showError('@lang('app.activities.loadingError')');
+        } finally {
+            showLoadingState(false);
+            isLoadingActivities = false;
+        }
+    }
+
+    /**
+     * Refresh activities - called by refresh button
+     */
+    async function refreshActivities() {
+        const refreshBtn = document.getElementById('refresh-activities-btn');
+        refreshBtn.classList.add('spin');
+        
+        await loadActivities();
+        
+        setTimeout(() => {
+            refreshBtn.classList.remove('spin');
+        }, 1000);
+    }
+
+    /**
+     * Show/hide loading state
+     */
+    function showLoadingState(show) {
+        const loadingEl = document.getElementById('activities-loading');
+        const containerEl = document.getElementById('activities-container');
+        
+        if (show) {
+            loadingEl.classList.remove('d-none');
+            containerEl.style.opacity = '0.5';
+        } else {
+            loadingEl.classList.add('d-none');
+            containerEl.style.opacity = '1';
+        }
+    }
+
+    /**
+     * Update activities count badge
+     */
+    function updateActivitiesCount(count) {
+        document.getElementById('activities-count').textContent = count;
+    }
+
+    /**
+     * Render activities in the container
+     */
+    function renderActivities(data) {
+        const container = document.getElementById('activities-container');
+        
+        if (!data.data || data.data.length === 0) {
+            container.innerHTML = renderEmptyState();
+            return;
+        }
+
+        let html = '<div class="activity-timeline">';
+        
+        data.data.forEach(activity => {
+            html += renderActivityItem(activity);
+        });
+        
+        html += '</div>';
+        
+        if (data.has_more) {
+            html += renderViewAllButton(data.total);
+        }
+        
+        container.innerHTML = html;
+        
+        // Re-initialize tooltips for new content
+        $('[data-toggle="tooltip"]').tooltip();
+    }
+
+    /**
+     * Render a single activity item
+     */
+    function renderActivityItem(activity) {
+        const channelIcons = {
+            'email': 'fa-envelope',
+            'whatsapp': 'fa-whatsapp', 
+            'instagram': 'fa-instagram',
+            'telegram': 'fa-telegram'
+        };
+        
+        const channelColors = {
+            'email': 'bg-primary',
+            'whatsapp': 'bg-success',
+            'instagram': 'bg-danger', 
+            'telegram': 'bg-info'
+        };
+        
+        const icon = channelIcons[activity.channel_type] || 'fa-comment';
+        const color = channelColors[activity.channel_type] || 'bg-secondary';
+        
+        const preview = activity.message_content.length > 80 
+            ? activity.message_content.substring(0, 80) + '...' 
+            : activity.message_content;
+        const hasMore = activity.message_content.length > 80;
+        
+        const timeAgo = moment(activity.timestamp).fromNow();
+        
+        return `
+            <div class="activity-item p-3 border-bottom">
+                <div class="d-flex align-items-start">
+                    <div class="activity-icon mr-3">
+                        <div class="rounded-circle ${color} d-flex align-items-center justify-content-center"
+                            style="width: 40px; height: 40px;">
+                            <i class="fa ${icon} text-white"></i>
+                        </div>
+                    </div>
+                    <div class="activity-content flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1 font-weight-bold text-dark">${activity?.sender_info?.name}</h6>
+                                <small class="text-muted">${activity?.sender_info?.contact}</small>
+                            </div>
+                            <small class="text-muted">${timeAgo}</small>
+                        </div>
+                        <div class="activity-message mb-3">
+                            <p class="mb-0 text-dark">${preview}</p>
+                            ${hasMore ? `<small class="text-primary cursor-pointer" onclick="showFullMessage(${activity.id})">@lang('app.activities.viewMore')</small>` : ''}
+                        </div>
+                        <div class="activity-actions d-flex">
+                            <button class="btn btn-round btn-sm btn-outline-primary mr-2"
+                                    onclick="replyToActivity(${activity.id}, '${activity.channel_type}')"
+                                    title="@lang('app.activities.reply')"
+                                    data-toggle="tooltip"
+                                    data-placement="top">
+                                <i class="fa fa-reply"></i>
+                            </button>
+                            <button class="btn btn-round btn-sm btn-outline-secondary"
+                                    onclick="viewActivityDetails(${activity.id})"
+                                    title="@lang('app.activities.view')"
+                                    data-toggle="tooltip"
+                                    data-placement="top">
+                                <i class="fa fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render empty state
+     */
+    function renderEmptyState() {
+        return `
+            <div class="text-center py-4">
+                <div class="empty-state">
+                    <i class="fa fa-comments fa-3x text-muted mb-3"></i>
+                    <h6 class="text-muted mb-2">@lang('app.activities.noActivitiesYet')</h6>
+                    <p class="text-muted small mb-3">@lang('app.activities.noActivitiesDescription')</p>
+                    <button class="btn btn-round btn-primary" 
+                            onclick="startNewConversation()"
+                            title="@lang('app.activities.startConversation')"
+                            data-toggle="tooltip"
+                            data-placement="top">
+                        <i class="fa fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render view all button
+     */
+    function renderViewAllButton(totalCount) {
+        return `
+            <div class="text-center p-3">
+                <a href="{{ route('deals.show', $deal->id) }}?tab=activities"
+                    class="btn btn-outline-primary btn-sm">
+                    @lang('app.activities.viewAllActivities') (${totalCount})
+                </a>
+            </div>
+        `;
+    }
+
+    /**
+     * Show error message
+     */
+    function showError(message) {
+        const container = document.getElementById('activities-container');
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fa fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                <h6 class="text-danger mb-2">@lang('app.error')</h6>
+                <p class="text-muted">${message}</p>
+                <button class="btn btn-primary btn-sm" onclick="refreshActivities()">
+                    @lang('app.activities.tryAgain')
+                </button>
+            </div>
+        `;
+    }
+
+    /**
+     * Updated startNewConversation to refresh after success
+     */
+    async function startNewConversation() {
+        const dealData = {
+            deal_id: dealId,
+            email: @json($deal->contact->client_email ?? ''),
+            phone_number: @json($deal->contact->whatsapp ?? $deal->contact->cell ?? ''),
+            instagram_username: @json($deal->contact->instagram_username ?? ''),
+            telegram_username: @json($deal->contact->telegram_username ?? ''),
+            sender_info:{
+                name: @json(auth()->user()->name),
+                contact: @json(auth()->user()->email)
+            }
+        };
+
+        const result = await Swal.fire({
+            title: '@lang('app.startNewConversation')',
+            html: `
+                <div class="text-left">
+                    <div class="form-group">
+                        <label>@lang('app.activities.selectChannel')</label>
+                        <select id="channel-type" class="form-control">
+                            <option value="email">@lang('app.activities.channels.email')</option>
+                            <option value="whatsapp">@lang('app.activities.channels.whatsapp')</option>
+                            <option value="instagram">@lang('app.activities.channels.instagram')</option>
+                            <option value="telegram">@lang('app.activities.channels.telegram')</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>@lang('app.activities.message')</label>
+                        <textarea id="new-message" class="form-control" rows="4" placeholder="@lang('app.activities.typeYourMessage')"></textarea>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '@lang('app.activities.send')',
+            cancelButtonText: '@lang('app.activities.cancel')',
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
+                const channelType = document.getElementById('channel-type').value;
+                const messageVal = document.getElementById('new-message').value;
+
+                if (!messageVal || messageVal.trim() === '') {
+                    Swal.showValidationMessage('@lang('app.activities.messageRequired')');
+                    return false;
+                }
+
+                const payload = {
+                    channel_type: channelType,
+                    message_content: messageVal,
+                    direction: 'outbound',
+                    timestamp: new Date().toISOString(),
+                    ...dealData
+                };
+
+                
+
+                try {
+                    const response = await fetch('/api/v1/internal/communication-activities', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-COMPANY-ID': @json(company()->id)
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    Swal.showValidationMessage(`Request failed: ${error.message}`);
+                    throw error;
+                }
+            }
+        });
+
+        if (result.isConfirmed) {
+            Swal.fire({
+                icon: 'success',
+                title: '@lang('app.activities.conversationStarted')',
+                text: '@lang('app.activities.conversationStartedSuccessfully')',
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            // Refresh activities after successful submission
+            setTimeout(() => {
+                refreshActivities();
+            }, 1000);
+        }
+    }
+
+    // Your other existing functions remain the same
     function showFullMessage(activityId) {
-        // Show full message in a modal
         Swal.fire({
             title: '@lang('app.messageDetails')',
             text: '@lang('app.featureNotAvailable')',
@@ -282,7 +585,6 @@
     }
 
     function replyToActivity(activityId, channelType) {
-        // Show reply modal based on channel type
         let modalTitle = '@lang('app.reply')';
         let placeholder = '@lang('app.typeYourMessage')';
 
@@ -315,7 +617,6 @@
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                // For now, just show success message
                 Swal.fire({
                     icon: 'success',
                     title: '@lang('app.messageSent')',
@@ -328,7 +629,6 @@
     }
 
     function viewActivityDetails(activityId) {
-        // Show activity details in a modal
         Swal.fire({
             title: '@lang('app.activityDetails')',
             text: '@lang('app.featureNotAvailable')',
@@ -337,61 +637,9 @@
         });
     }
 
-    function startNewConversation() {
-        // Show new conversation modal
-        Swal.fire({
-            title: '@lang('app.startNewConversation')',
-            html: `
-                    <div class="text-left">
-                        <div class="form-group">
-                            <label>@lang('app.activities.selectChannel')</label>
-                            <select id="channel-type" class="form-control">
-                                <option value="email">@lang('app.activities.channels.email')</option>
-                                <option value="whatsapp">@lang('app.activities.channels.whatsapp')</option>
-                                <option value="instagram">@lang('app.activities.channels.instagram')</option>
-                                <option value="telegram">@lang('app.activities.channels.telegram')</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>@lang('app.activities.message')</label>
-                            <textarea id="new-message" class="form-control" rows="4" placeholder="@lang('app.activities.typeYourMessage')"></textarea>
-                        </div>
-                    </div>
-                `,
-            showCancelButton: true,
-            confirmButtonText: '@lang('app.activities.send')',
-            cancelButtonText: '@lang('app.activities.cancel')',
-            preConfirm: () => {
-                const channelType = document.getElementById('channel-type').value;
-                const message = document.getElementById('new-message').value;
-
-                if (!message || message.trim() === '') {
-                    Swal.showValidationMessage('@lang('app.activities.messageRequired')');
-                    return false;
-                }
-
-                return {
-                    channelType,
-                    message
-                };
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // For now, just show success message
-                Swal.fire({
-                    icon: 'success',
-                    title: '@lang('app.activities.conversationStarted')',
-                    text: '@lang('app.activities.conversationStartedSuccessfully')',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            }
-        });
-    }
-
     // Quick Actions Functions
     function sendEmail() {
-        const email = '{{ $deal->contact->client_email }}';
+        const email = @json($deal->contact->client_email ?? '');
         if (email) {
             window.open(`mailto:${email}?subject=Re: {{ $deal->name }}`, '_blank');
         } else {
@@ -404,9 +652,9 @@
     }
 
     function sendWhatsApp() {
-        const phone = '{{ $deal->contact->mobile }}';
+        const phone = @json($deal->contact->mobile ?? '');
         if (phone) {
-            const message = encodeURIComponent(`Hi {{ $deal->contact->client_name }}, regarding {{ $deal->name }}`);
+            const message = encodeURIComponent(`Hi {{ $deal->contact->client_name ?? 'there' }}, regarding {{ $deal->name }}`);
             window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
         } else {
             Swal.fire({
@@ -418,7 +666,7 @@
     }
 
     function makeCall() {
-        const phone = '{{ $deal->contact->mobile }}';
+        const phone = @json($deal->contact->mobile ?? '');
         if (phone) {
             window.open(`tel:${phone}`, '_blank');
         } else {
@@ -431,11 +679,25 @@
     }
 
     function scheduleMeeting() {
-        // Open calendar scheduling
-        const subject = encodeURIComponent('Meeting: {{ $deal->name }}');
-        const body = encodeURIComponent(
-            `Hi {{ $deal->contact->client_name }},\n\nI'd like to schedule a meeting to discuss {{ $deal->name }}.\n\nBest regards,\n{{ auth()->user()->name }}`
-        );
-        window.open(`mailto:{{ $deal->contact->client_email }}?subject=${subject}&body=${body}`, '_blank');
+        const email = @json($deal->contact->client_email ?? '');
+        const clientName = @json($deal->contact->client_name ?? 'there');
+        const userName = @json(auth()->user()->name);
+        
+        if (email) {
+            const subject = encodeURIComponent('Meeting: {{ $deal->name }}');
+            const body = encodeURIComponent(
+                `Hi ${clientName},\n\nI'd like to schedule a meeting to discuss {{ $deal->name }}.\n\nBest regards,\n${userName}`
+            );
+            window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: '@lang('app.activities.noEmailAddress')',
+                text: '@lang('app.activities.contactHasNoEmail')'
+            });
+        }
     }
 </script>
+
+{{-- Include Moment.js for time formatting --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
