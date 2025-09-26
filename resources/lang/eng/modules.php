@@ -2328,6 +2328,8 @@ return array(
         'stages' => 'Deal Stages',
         'createTitle' => 'Add Deal info',
         'closeDate' => 'Close Date',
+        'strategyAccepted' => 'Strategy Meeting Accepted',
+        'downpaymentConfirmed' => 'Down Payment Confirmed',
         'dealDetails' => 'Deal Details',
         'addDeal' => 'Add Deal',
         'createClient' => 'Auto convert lead to client when deal stage is set to \'Win\' ',

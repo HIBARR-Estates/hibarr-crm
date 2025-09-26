@@ -368,6 +368,8 @@ class DealController extends AccountBaseController
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
+        $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
+        $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
         $deal->save();
 
         // Handle deal watchers
@@ -537,6 +539,13 @@ class DealController extends AccountBaseController
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
         $deal->category_id = $request->category_id;
+        $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
+        $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
+        
+        // Debug logging
+        \Log::info('Deal update - strategy_accepted: ' . ($deal->strategy_accepted ? 'true' : 'false'));
+        \Log::info('Deal update - downpayment_confirmed: ' . ($deal->downpayment_confirmed ? 'true' : 'false'));
+        
         $deal->save();
 
         // Handle deal watchers
@@ -1164,7 +1173,7 @@ class DealController extends AccountBaseController
         } catch (\Exception $e) {
             \Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
             return null;
-        }
+    }
     }
 
     /** 
