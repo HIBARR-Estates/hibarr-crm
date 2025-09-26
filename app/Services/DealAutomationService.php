@@ -3,90 +3,124 @@
 namespace App\Services;
 
 use App\Models\Deal;
+use App\Models\LeadPipeline;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use App\Enums\MeetingType; 
 
 /**
- * This service automates the progression of deals through various stages based on predefined business rules.
- * 
+ * Service to automate the progression of deals through pipeline stages
+ * based on predefined business rules.
  */
-
 class DealAutomationService
 {
-    protected $stage_1 = "Stage 1: Lead Stage"; // No follow-up exists
-    protected $stage_2 = "Stage 2: Prospect Stage"; // Follow-up exists but no strategy meeting has been accepted
-    protected $stage_3 = "Stage 3: Stage 3"; // Strategy meeting has been accepted but no down_payment made
-    protected $stage_4 = "Stage 4: Stage 4"; // Strategy meeting accepted and down_payment made
+    private array $stages = [];
 
     public function __construct()
     {
-        // TODO: Add an n8n logger as per request of Developer(@gh:einstein-john)
-        // TODO: Update moverMethods to have any side effects that are ought to be specified by business rules
-        // Initialization code if needed
+        // Stages will be initialized dynamically from pipeline, as opposed to defaulting to first pipeline stage or pipeline with id of 1.
     }
-    public function automate(Deal $deal)
+
+    /**
+     * Automate deal progression through stages.
+     */
+    public function automate(Deal $deal): void
     {
-        // There are 4 stages, and you'll have to first define what stage the deal is in.
-        // after which you define what actions/methods to take based on the stage.
+        $this->initializeStages($deal);
+
         $currentStage = $this->defineStage($deal);
-        switch ($currentStage) {
-            case $this->stage_1:
-                $this->moveToStage2($deal);
-                Log::info("Deal ID {$deal->id} moved to Stage 2");
-                break;
-            case $this->stage_2:
-                $this->moveToStage3($deal);
-                Log::info("Deal ID {$deal->id} moved to Stage 3");
-                break;
-            case $this->stage_3:
-                $this->moveToStage4($deal);
-                Log::info("Deal ID {$deal->id} moved to Stage 4");
-                break;
-            case $this->stage_4:
-                Log::info("Deal ID {$deal->id} is already in Stage 4. No further action taken.");
-                // TODO: Confirm if there are any side effects or actions to be taken when a deal is in Stage 4
-                break;
+        $currentStageId = $currentStage['id'] ?? null;
 
-            default:
-                throw new \Exception("Unknown stage: " . $currentStage);
+        DB::transaction(function () use ($deal, $currentStageId) {
+            switch ($currentStageId) {
+                case $this->stages['stage_1']['id']:
+                    $this->moveTo('stage_2', $deal);
+                    break;
+                case $this->stages['stage_2']['id']:
+                    $this->moveTo('stage_3', $deal);
+                    break;
+                case $this->stages['stage_3']['id']:
+                    $this->moveTo('stage_4', $deal);
+                    break;
+                case $this->stages['stage_4']['id']:
+                    $this->moveTo('stage_5', $deal);
+                    break;
+                default:
+                    Log::warning("Deal ID {$deal->id}: stage could not be determined or already final.");
+            }
+        });
+    }
+
+    /**
+     * Initialize stages from pipeline (must have at least 5).
+     */
+    private function initializeStages(Deal $deal): void
+    {
+        $pipeline = $deal->lead_pipeline_id
+            ? LeadPipeline::find($deal->lead_pipeline_id)
+            : LeadPipeline::first();
+
+        if (!$pipeline) {
+            throw new \RuntimeException("No pipeline found for the deal.");
         }
+
+        $stages = $pipeline->stages()->orderBy('priority')->get();
+
+        if ($stages->count() < 5) {
+            throw new \RuntimeException("Pipeline must have at least 5 stages.");
+        }
+
         
+        $this->stages = [
+            'stage_1' => ['id' => $stages[0]->id, 'name' => $stages[0]->name],
+            'stage_2' => ['id' => $stages[1]->id, 'name' => $stages[1]->name],
+            'stage_3' => ['id' => $stages[2]->id, 'name' => $stages[2]->name],
+            'stage_4' => ['id' => $stages[3]->id, 'name' => $stages[3]->name],
+            'stage_5' => ['id' => $stages[4]->id, 'name' => $stages[4]->name],
+        ];
     }
 
-    private function moveToStage2(Deal $deal)
+    /**
+     * Define current stage based on deal attributes & business rules.
+     */
+    private function defineStage(Deal $deal): array
     {
-        // Logic to move deal to Stage 2
-        $deal->pipeline_stage_id = 2; //TODO: Confirm this values and map to meaningful constants or enums, as this was just communicated by Developer(@gh:einstein-john) in requirement gathering
-        $deal->save();
+        if (!$deal->followup || $deal->followup?->meeting_type !== MeetingType::KickOff->value) {
+            return $this->stages['stage_1'];
+        }
+
+        if ($deal->followup && $deal->pipeline_stage_id === $this->stages['stage_2']['id'] && !$deal->strategy_accepted) {
+            return $this->stages['stage_2'];
+        }
+
+        if ($deal->strategy_accepted && $deal->pipeline_stage_id === $this->stages['stage_3']['id'] && !$deal->downpayment_confirmed) {
+            return $this->stages['stage_3'];
+        }
+
+        if ($deal->pipeline_stage_id === $this->stages['stage_4']['id'] && $deal->downpayment_confirmed) {
+            return $this->stages['stage_4'];
+        }
+
+        // Stage 5 is considered final — no automation beyond this
+        if ($deal->pipeline_stage_id === $this->stages['stage_5']['id']) {
+            return $this->stages['stage_5'];
+        }
+
+        return []; // Undefined state
     }
 
-    private function moveToStage3(Deal $deal)
+    /**
+     * Move deal to a new stage and log it.
+     */
+    private function moveTo(string $targetStage, Deal $deal): void
     {
-        // Logic to move deal to Stage 3
-        $deal->pipeline_stage_id = 3; //TODO: Confirm this values and map to meaningful constants or enums, as this was just communicated by Developer(@gh:einstein-john) in requirement gathering
-        $deal->save();
-    }
-    private function moveToStage4(Deal $deal)
-    {
-        // Logic to move deal to Stage 4
-        $deal->pipeline_stage_id = 4; //TODO: Confirm this values and map to meaningful constants or enums, as this was just communicated by Developer(@gh:einstein-john) in requirement gathering
-        $deal->save();
-    }
+        if (!isset($this->stages[$targetStage])) {
+            throw new \InvalidArgumentException("Target stage {$targetStage} not defined.");
+        }
 
-    private function defineStage(Deal $deal): string
-    {
-        if (!($deal->followup && $deal->followup?->meeting_type == 'kick_off')) { //TODO: Confirm the meeting_type value with meaningful constant or enum, as this was just communicated by Developer(@gh:einstein-john) in requirement gathering
-            return $this->stage_1; // No follow-up exists
-        }
-        if ($deal->followup && $deal->pipeline_stage_id == 2 && !$deal->strategy_accepted) {
-            return $this->stage_2; // Follow-up exists but no strategy meeting has been accepted
-        }
-        if ($deal->strategy_accepted && $deal->pipeline_stage_id == 3 && !$deal->downpayment_confirmed) {
-            return $this->stage_3; // Strategy meeting has been accepted but no down_payment made
-        }
-        if ($deal->pipeline_stage_id == 4 && $deal->downpayment_confirmed) {
-            return $this->stage_4; // Strategy meeting accepted and down_payment made
-        }
-        throw new \Exception("Unable to determine the stage for the deal.");
-    }
+        $deal->pipeline_stage_id = $this->stages[$targetStage]['id'];
+        $deal->saveQuietly();
 
+        Log::info("Deal ID {$deal->id} moved to {$this->stages[$targetStage]['name']}");
+    }
 }
