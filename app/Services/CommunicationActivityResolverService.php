@@ -350,7 +350,7 @@ class CommunicationActivityResolverService
         // $deal->pipeline_stage_id = $request->stage_id;
         $deal->close_date =  null;
         $deal->value =  0;
-        $deal->currency_id = company()->currency_id;
+        $deal->currency_id = $lead->company?->currency_id;
         $deal->save();
 
         // Link the activity to the newly created deal
