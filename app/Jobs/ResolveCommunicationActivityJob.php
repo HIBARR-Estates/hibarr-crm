@@ -42,13 +42,15 @@ class ResolveCommunicationActivityJob implements ShouldQueue
 
     protected int $activityId;
     protected int $maxResolutionAttempts = 3;
+    protected bool $can_create_deal = true; 
 
     /**
      * Create a new job instance.
      */
-    public function __construct(int $activityId)
+    public function __construct(int $activityId, bool $can_create_deal = true)
     {
         $this->activityId = $activityId;
+        $this->can_create_deal = $can_create_deal;
 
         // Set queue to resolvers for better organization
         $this->onQueue('resolvers');
@@ -72,6 +74,13 @@ class ResolveCommunicationActivityJob implements ShouldQueue
         try {
             // Attempt to resolve
             $resolver->resolve($activity);
+
+            Log::info("Attempting to create deal for activity {$activity->id} linked to lead {$activity->lead_id}  can_create_deal: " . ($this->can_create_deal ? 'true' : 'false') . "deal_id: " . ($activity->deal_id ?? 'null') . " lead_id: " . ($activity->lead_id ?? 'null'));
+                
+            if($this->can_create_deal && empty($activity->deal_id) && isset($activity->lead_id)) {
+                Log::info("Attempting to create deal for activity {$activity->id} linked to lead {$activity->lead_id}");
+                $resolver->createDealIfNeeded($activity);
+            }
 
             // Check if resolution was successful
             if (!empty($activity->deal_id) || !empty($activity->lead_id)) {

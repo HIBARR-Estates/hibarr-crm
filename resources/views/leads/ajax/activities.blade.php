@@ -1,4 +1,4 @@
-{{-- filepath: resources/views/leads/ajax/activities.blade.php --}}
+
 
 <!-- Quick Actions Card -->
 <div class="card border mb-4 border-gray-400 overflow-hidden" style="border-radius: 10px;">
@@ -11,33 +11,34 @@
     <div class="card-body p-3">
         <div class="d-flex justify-content-center gap-3">
             <button class="btn btn-round btn-primary" 
-                    onclick="sendEmail()" 
-                    title="@lang('app.activities.email')"
+                    onclick="sendTelegram()" 
+                    title="@lang('app.activities.telegram')"
                     data-toggle="tooltip"
                     data-placement="top">
-                <i class="fa fa-envelope"></i>
+                <i class="fa fa-paper-plane"></i>
             </button>
             <button class="btn btn-round btn-success" 
                     onclick="sendWhatsApp()" 
                     title="@lang('app.activities.whatsapp')"
                     data-toggle="tooltip"
                     data-placement="top">
-                <i class="fa fa-whatsapp"></i>
+                <i class="fab fa-whatsapp"></i>
             </button>
             <button class="btn btn-round btn-info" 
-                    onclick="makeCall()" 
-                    title="@lang('app.activities.call')"
+                    onclick="sendEmail()" 
+                    title="@lang('app.activities.email')"
                     data-toggle="tooltip"
                     data-placement="top">
-                <i class="fa fa-phone"></i>
+                <i class="fa fa-envelope"></i>
             </button>
-            <button class="btn btn-round btn-secondary" 
-                    onclick="scheduleMeeting()" 
-                    title="@lang('app.activities.scheduleMeeting')"
+            <button class="btn btn-round btn-info" 
+                    onclick="sendInstagram()" 
+                    title="@lang('app.activities.instagram')"
                     data-toggle="tooltip"
                     data-placement="top">
-                <i class="fa fa-calendar"></i>
+                <i class="fab fa-instagram"></i>
             </button>
+            
             <button class="btn btn-round btn-primary" 
                     onclick="startNewConversation()"
                     title="@lang('app.activities.startConversation')"
@@ -65,12 +66,12 @@
                         title="@lang('app.activities.refresh')"
                         data-toggle="tooltip"
                         data-placement="top">
-                    <i class="fa fa-refresh"></i>
+                    <i class="fas fa-sync-alt"></i>
                 </button>
             </div>
         </div>
     </div>
-    <div class="card-body p-0">
+    <div class="card-body p-0 relative">
         <!-- Loading State -->
         <div id="activities-loading" class="text-center py-4 d-none">
             <i class="fa fa-spinner fa-spin fa-2x text-muted"></i>
@@ -86,7 +87,7 @@
 
 {{-- Include the styles --}}
 <style>
-    /* All your existing styles remain the same */
+    
     .btn-round {
         width: 45px;
         height: 45px;
@@ -237,6 +238,9 @@
         .activity-timeline {
             max-height: 400px;
         }
+
+
+        
     }
 </style>
 
@@ -310,11 +314,31 @@
         const containerEl = document.getElementById('activities-container');
         
         if (show) {
+            // Show loading state dominantly
             loadingEl.classList.remove('d-none');
-            containerEl.style.opacity = '0.5';
+            loadingEl.style.position = 'absolute';
+            // Position loading element in the center
+            loadingEl.style.top = '50%';
+            loadingEl.style.left = '50%';
+            loadingEl.style.transform = 'translate(-50%, -50%)';
+            loadingEl.style.zIndex = '1000';
+            
+            // Disable interaction with activities container
+            containerEl.style.opacity = '0.3';
+            containerEl.style.pointerEvents = 'none';
+            containerEl.style.userSelect = 'none';
+            containerEl.style.filter = 'blur(1px)';
         } else {
+            // Hide loading and restore interaction
             loadingEl.classList.add('d-none');
+            loadingEl.style.position = '';
+            loadingEl.style.zIndex = '';
+            
+            // Re-enable interaction with activities container
             containerEl.style.opacity = '1';
+            containerEl.style.pointerEvents = 'auto';
+            containerEl.style.userSelect = 'auto';
+            containerEl.style.filter = 'none';
         }
     }
 
@@ -359,17 +383,17 @@
      */
     function renderActivityItem(activity) {
         const channelIcons = {
-            'email': 'fa-envelope',
-            'whatsapp': 'fa-whatsapp', 
-            'instagram': 'fa-instagram',
-            'telegram': 'fa-telegram'
+            'email': 'fa fa-envelope',
+            'whatsapp': 'fab fa-whatsapp', 
+            'instagram': 'fab fa-instagram',
+            'telegram': 'fa fa-paper-plane'
         };
         
         const channelColors = {
-            'email': 'bg-primary',
+            'email': 'bg-info',
             'whatsapp': 'bg-success',
-            'instagram': 'bg-danger', 
-            'telegram': 'bg-info'
+            'instagram': 'bg-info', 
+            'telegram': 'bg-primary'
         };
         
         const icon = channelIcons[activity.channel_type] || 'fa-comment';
@@ -388,7 +412,7 @@
                     <div class="activity-icon mr-3">
                         <div class="rounded-circle ${color} d-flex align-items-center justify-content-center"
                             style="width: 40px; height: 40px;">
-                            <i class="fa ${icon} text-white"></i>
+                            <i class="${icon} text-white"></i>
                         </div>
                     </div>
                     <div class="activity-content flex-grow-1">
@@ -481,44 +505,64 @@
     /**
      * Updated startNewConversation to refresh after success
      */
-    async function startNewConversation() {
+    async function startNewConversation(
+    channelType = null,
+    activity_id_being_replied_to = null,
+    title = '@lang('app.startNewConversation')'
+    ) {
         const dealData = {
             deal_id: dealId,
+            activity_id_being_replied_to,
             email: @json($deal->contact->client_email ?? ''),
             phone_number: @json($deal->contact->whatsapp ?? $deal->contact->cell ?? ''),
             instagram_username: @json($deal->contact->instagram_username ?? ''),
             telegram_username: @json($deal->contact->telegram_username ?? ''),
-            sender_info:{
+            sender_info: {
                 name: @json(auth()->user()->name),
                 contact: @json(auth()->user()->email)
             }
         };
 
+        const channelOptions = `
+            <option value="email" ${channelType === 'email' ? 'selected' : ''}>@lang('app.activities.channels.email')</option>
+            <option value="whatsapp" ${channelType === 'whatsapp' ? 'selected' : ''}>@lang('app.activities.channels.whatsapp')</option>
+            <option value="instagram" ${channelType === 'instagram' ? 'selected' : ''}>@lang('app.activities.channels.instagram')</option>
+            <option value="telegram" ${channelType === 'telegram' ? 'selected' : ''}>@lang('app.activities.channels.telegram')</option>
+        `;
+
         const result = await Swal.fire({
-            title: '@lang('app.startNewConversation')',
+            title: `<div class="text-lg font-semibold text-gray-800">@lang('app.startNewConversation')</div>`,
             html: `
-                <div class="text-left">
-                    <div class="form-group">
-                        <label>@lang('app.activities.selectChannel')</label>
-                        <select id="channel-type" class="form-control">
-                            <option value="email">@lang('app.activities.channels.email')</option>
-                            <option value="whatsapp">@lang('app.activities.channels.whatsapp')</option>
-                            <option value="instagram">@lang('app.activities.channels.instagram')</option>
-                            <option value="telegram">@lang('app.activities.channels.telegram')</option>
+                <div class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">@lang('app.activities.selectChannel')</label>
+                        <select id="channel-type" class="swal2-input !w-full !px-3 !py-2 !rounded-md !border !border-gray-300 !text-sm focus:!ring-2 focus:!ring-blue-500 focus:!border-blue-500" ${channelType ? 'disabled' : ''}>
+                            ${channelOptions}
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>@lang('app.activities.message')</label>
-                        <textarea id="new-message" class="form-control" rows="4" placeholder="@lang('app.activities.typeYourMessage')"></textarea>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">@lang('app.activities.message')</label>
+                        <textarea id="new-message" rows="4" placeholder="@lang('app.activities.typeYourMessage')"
+                            class="swal2-textarea !w-full !px-3 !py-2 !rounded-md !border !border-gray-300 !text-sm focus:!ring-2 focus:!ring-blue-500 focus:!border-blue-500"></textarea>
                     </div>
                 </div>
             `,
+            focusConfirm: false,
+            width: 600,
             showCancelButton: true,
-            confirmButtonText: '@lang('app.activities.send')',
-            cancelButtonText: '@lang('app.activities.cancel')',
-            showLoaderOnConfirm: true, //TODO: SHould stop when a response is received
+            confirmButtonText: '<i class="fas fa-paper-plane"></i> @lang('app.activities.send')',
+            cancelButtonText: '<i class="fas fa-times"></i> @lang('app.activities.cancel')',
+            confirmButtonColor: '#2563eb',
+            cancelButtonColor: '#6b7280',
+            customClass: {
+                popup: '!rounded-xl !shadow-lg',
+                confirmButton: '!px-5 !py-2.5 !rounded-lg !text-sm !font-medium',
+                cancelButton: '!px-5 !py-2.5 !rounded-lg !text-sm !font-medium !bg-gray-200 !text-gray-800 hover:!bg-gray-300'
+            },
+            showLoaderOnConfirm: true,
             preConfirm: async () => {
-                const channelType = document.getElementById('channel-type').value;
+                const selectedChannel = channelType || document.getElementById('channel-type').value;
                 const messageVal = document.getElementById('new-message').value;
 
                 if (!messageVal || messageVal.trim() === '') {
@@ -527,35 +571,34 @@
                 }
 
                 const payload = {
-                    channel_type: channelType,
+                    channel_type: selectedChannel,
                     message_content: messageVal,
                     direction: 'outbound',
                     timestamp: new Date().toISOString(),
                     ...dealData
                 };
 
-                if (channelType === 'email') {
+                // prune irrelevant fields
+                if (selectedChannel === 'email') {
                     delete payload.phone_number;
                     delete payload.instagram_username;
-                    delete payload.telegram_username;  
+                    delete payload.telegram_username;
                 }
-                if (channelType === 'whatsapp') {
+                if (selectedChannel === 'whatsapp') {
                     delete payload.email;
                     delete payload.instagram_username;
                     delete payload.telegram_username;
                 }
-                if (channelType === 'telegram') {
+                if (selectedChannel === 'telegram') {
                     delete payload.whatsapp;
                     delete payload.instagram_username;
                     delete payload.email;
                 }
-                if (channelType === 'instagram') {
+                if (selectedChannel === 'instagram') {
                     delete payload.whatsapp;
                     delete payload.phone_number;
                     delete payload.email;
                 }
-
-                
 
                 try {
                     const response = await fetch('/api/v1/internal/communication-activities', {
@@ -574,16 +617,10 @@
 
                     return await response.json();
                 } catch (error) {
-                    console.error('API Error:', error);
-                    
                     let errorMessages = [];
-                    
-
                     if (error.data) {
-                        if (error.data.message) {
-                            errorMessages.push(error.data.message);
-                        }
-                        if (error.data.error && error.data.error.details) {
+                        if (error.data.message) errorMessages.push(error.data.message);
+                        if (error.data.error?.details) {
                             Object.keys(error.data.error.details).forEach(field => {
                                 const fieldErrors = error.data.error.details[field];
                                 errorMessages.push(`${field}: ${Array.isArray(fieldErrors) ? fieldErrors.join(', ') : fieldErrors}`);
@@ -592,9 +629,7 @@
                     } else {
                         errorMessages.push(error.message || 'Unexpected error');
                     }
-
                     Swal.showValidationMessage(errorMessages.join('<br>'));
-                    
                     return false;
                 }
             }
@@ -609,14 +644,13 @@
                 showConfirmButton: false
             });
 
-            // Refresh activities after successful submission
-            setTimeout(() => {
-                refreshActivities();
-            }, 1000);
+            setTimeout(() => refreshActivities(), 1000);
         }
     }
 
-    // Your other existing functions remain the same
+
+
+    
     function showFullMessage(activityId) {
         Swal.fire({
             title: '@lang('app.messageDetails')',
@@ -627,47 +661,7 @@
     }
 
     function replyToActivity(activityId, channelType) {
-        let modalTitle = '@lang('app.reply')';
-        let placeholder = '@lang('app.typeYourMessage')';
-
-        if (channelType === 'email') {
-            modalTitle = '@lang('app.replyEmail')';
-            placeholder = '@lang('app.typeYourEmail')';
-        } else if (channelType === 'whatsapp') {
-            modalTitle = '@lang('app.replyWhatsApp')';
-            placeholder = '@lang('app.typeYourWhatsAppMessage')';
-        }
-
-        Swal.fire({
-            title: modalTitle,
-            input: 'textarea',
-            inputPlaceholder: placeholder,
-            inputAttributes: {
-                'aria-label': placeholder,
-                'rows': 4
-            },
-            showCancelButton: true,
-            confirmButtonText: '@lang('app.send')',
-            cancelButtonText: '@lang('app.cancel')',
-            showLoaderOnConfirm: true,
-            preConfirm: (message) => {
-                if (!message || message.trim() === '') {
-                    Swal.showValidationMessage('@lang('app.messageRequired')');
-                    return false;
-                }
-                return message;
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    icon: 'success',
-                    title: '@lang('app.messageSent')',
-                    text: '@lang('app.messageSentSuccessfully')',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            }
-        });
+        startNewConversation(channelType, activityId, '@lang('app.activities.replyToActivity')');
     }
 
     function viewActivityDetails(activityId) {
@@ -683,7 +677,7 @@
     function sendEmail() {
         const email = @json($deal->contact->client_email ?? '');
         if (email) {
-            window.open(`mailto:${email}?subject=Re: {{ $deal->name }}`, '_blank');
+            startNewConversation('email');
         } else {
             Swal.fire({
                 icon: 'warning',
@@ -693,16 +687,54 @@
         }
     }
 
+    //whatsapp
     function sendWhatsApp() {
         const phone = @json($deal->contact->mobile ?? '');
         if (phone) {
-            const message = encodeURIComponent(`Hi {{ $deal->contact->client_name ?? 'there' }}, regarding {{ $deal->name }}`);
-            window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+            startNewConversation('whatsapp');
         } else {
             Swal.fire({
                 icon: 'warning',
                 title: '@lang('app.activities.noPhoneNumber')',
                 text: '@lang('app.activities.contactHasNoPhone')'
+            });
+        }
+    }
+    //telegram
+    function sendTelegram() {
+        const telegramUsername = @json($deal->contact->telegram_username ?? '');
+        const chat_id = @json($deal->contact->telegram_chat_id ?? '');
+
+        let title = ''
+        let text = ''
+        if (Boolean(chat_id) === false) {
+            title = '@lang('app.activities.noTelegramChatIdTitle')';
+            text = '@lang('app.activities.noTelegramChatIdMessage')';
+        } else {
+            title = '@lang('app.activities.noTelegramUsername')';
+            text = '@lang('app.activities.contactHasNoTelegram')';
+        }
+
+        if (telegramUsername) {
+            startNewConversation('telegram');
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: title,
+                text: text
+            });
+        }
+    }
+    //instagram
+    function sendInstagram() {
+        const instagramUsername = @json($deal->contact->instagram_username ?? '');
+        if (instagramUsername) {
+            startNewConversation('instagram');
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: '@lang('app.activities.noInstagramUsername')',
+                text: '@lang('app.activities.contactHasNoInstagram')'
             });
         }
     }
