@@ -285,9 +285,28 @@ class CommunicationActivityResolverService
             ->first();
 
     }
-    private function findDealByTelegram(string $username): ?Lead
+    private function findDealByTelegram(string $username): ?Deal
     {
         $lead  = $this->findLeadByTelegram($username);
+        if(!$lead){
+            return null;
+        }
+        return $this->findDealByLeadId($lead->id);
+    
+    }
+
+    // instagram
+    private function findLeadByInstagram(string $username): ?Lead
+    {
+        return Lead::query()
+            ->whereRaw('LOWER(client_instagram) = ?', [strtolower($username)])
+            ->orderByDesc('updated_at')
+            ->first();
+
+    }
+    private function findDealByInstagram(string $username): ?Deal
+    {
+        $lead  = $this->findLeadByInstagram($username);
         if(!$lead){
             return null;
         }
