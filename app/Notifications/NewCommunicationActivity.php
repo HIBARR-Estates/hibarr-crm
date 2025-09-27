@@ -42,7 +42,7 @@ class NewCommunicationActivity extends Notification implements ShouldQueue
         $channelType = ucfirst($this->activity->channel_type);
         $senderName = $this->activity->sender_name;
         $defaultSubject = "New {$channelType} Communication for {$entityType}: {$entityName}";
-        $subject = $this->activity->subject ?: $defaultSubject;
+        $subject = $this->activity?->subject ? $this->activity?->subject : $defaultSubject;
 
         $messagePreview = substr((string) $this->activity->message_content, 0, 100);
         $messagePreview .= (strlen((string) $this->activity->message_content) > 100 ? '...' : '');
