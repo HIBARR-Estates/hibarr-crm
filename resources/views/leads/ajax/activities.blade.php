@@ -74,7 +74,7 @@
         <!-- Loading State -->
         <div id="activities-loading" class="text-center py-4 d-none">
             <i class="fa fa-spinner fa-spin fa-2x text-muted"></i>
-            <p class="text-muted mt-2">@lang('app.activities.loading')</p>
+            <p class="text-muted mt-2">@lang('app.activities.loadingActivities')</p>
         </div>
 
         <!-- Activities Container -->
@@ -516,7 +516,7 @@
             showCancelButton: true,
             confirmButtonText: '@lang('app.activities.send')',
             cancelButtonText: '@lang('app.activities.cancel')',
-            showLoaderOnConfirm: true,
+            showLoaderOnConfirm: true, //TODO: SHould stop when a response is received
             preConfirm: async () => {
                 const channelType = document.getElementById('channel-type').value;
                 const messageVal = document.getElementById('new-message').value;
@@ -534,6 +534,27 @@
                     ...dealData
                 };
 
+                if (channelType === 'email') {
+                    delete payload.phone_number;
+                    delete payload.instagram_username;
+                    delete payload.telegram_username;  
+                }
+                if (channelType === 'whatsapp') {
+                    delete payload.email;
+                    delete payload.instagram_username;
+                    delete payload.telegram_username;
+                }
+                if (channelType === 'telegram') {
+                    delete payload.whatsapp;
+                    delete payload.instagram_username;
+                    delete payload.email;
+                }
+                if (channelType === 'instagram') {
+                    delete payload.whatsapp;
+                    delete payload.phone_number;
+                    delete payload.email;
+                }
+
                 
 
                 try {
@@ -547,13 +568,34 @@
                     });
 
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        const errorData = await response.json();
+                        throw { status: response.status, data: errorData };
                     }
 
                     return await response.json();
                 } catch (error) {
-                    Swal.showValidationMessage(`Request failed: ${error.message}`);
-                    throw error;
+                    console.error('API Error:', error);
+                    
+                    let errorMessages = [];
+                    
+
+                    if (error.data) {
+                        if (error.data.message) {
+                            errorMessages.push(error.data.message);
+                        }
+                        if (error.data.error && error.data.error.details) {
+                            Object.keys(error.data.error.details).forEach(field => {
+                                const fieldErrors = error.data.error.details[field];
+                                errorMessages.push(`${field}: ${Array.isArray(fieldErrors) ? fieldErrors.join(', ') : fieldErrors}`);
+                            });
+                        }
+                    } else {
+                        errorMessages.push(error.message || 'Unexpected error');
+                    }
+
+                    Swal.showValidationMessage(errorMessages.join('<br>'));
+                    
+                    return false;
                 }
             }
         });
