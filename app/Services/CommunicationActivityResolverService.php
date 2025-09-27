@@ -357,6 +357,8 @@ class CommunicationActivityResolverService
         // Check if there is already an open deal for this lead
         $existingDeal = $this->findDealByLeadId($lead->id);
         if ($existingDeal) {
+            $activity->deal_id = $existingDeal->id;
+            $activity->save();
             Log::info('No new deal created: Existing open deal found for lead ID ' . $lead->id);
             return $existingDeal; // Return existing open deal
         }
