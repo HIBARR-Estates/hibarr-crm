@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MeetingSummary;
-use App\Models\LeadFollowUp;
+use App\Models\DealFollowUp;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -29,7 +29,7 @@ class MeetingSummaryController extends Controller
 
         // If meeting_id is provided, update the lead_follow_up record
         if ($request->meeting_id) {
-            $leadFollowUp = LeadFollowUp::where('meeting_id', $request->meeting_id)->first();
+            $leadFollowUp = DealFollowUp::where('meeting_id', $request->meeting_id)->first();
             if ($leadFollowUp) {
                 $leadFollowUp->update(['summary_id' => $meetingSummary->id]);
             }
@@ -95,7 +95,7 @@ class MeetingSummaryController extends Controller
      */
     public function getByMeetingId($meetingId): JsonResponse
     {
-        $leadFollowUp = LeadFollowUp::where('meeting_id', $meetingId)->first();
+        $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)->first();
         
         if (!$leadFollowUp || !$leadFollowUp->summary_id) {
             return response()->json([

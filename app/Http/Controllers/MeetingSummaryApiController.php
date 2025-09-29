@@ -33,9 +33,11 @@ class MeetingSummaryApiController extends Controller
         }
 
         return DB::transaction(function () use ($meetingSummary, $meetingId, $meetingPlatform, $meetingInfo) {
-            // Check if a summary already exists for this meeting with the correct platform
+            // Lock the follow-up row to prevent concurrent modifications
+            // Use case-insensitive comparison for platform/location
             $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)
-                                       ->where('location', $meetingPlatform)
+                                       ->whereRaw('LOWER(location) = LOWER(?)', [$meetingPlatform])
+                                       ->lockForUpdate()
                                        ->first();
             
             if ($leadFollowUp && $leadFollowUp->summary_id) {
@@ -105,8 +107,10 @@ class MeetingSummaryApiController extends Controller
             return response()->json(['error' => 'Meeting not found'], 404);
         }
         
-        // Find the DealFollowUp record that matches the platform/location
-        $meetingInfo = $meetings->firstWhere('location', $meetingPlatform);
+        // Find the DealFollowUp record that matches the platform/location (case-insensitive)
+        $meetingInfo = $meetings->first(function ($meeting) use ($meetingPlatform) {
+            return strtolower($meeting->location) === strtolower($meetingPlatform);
+        });
         
         if(!$meetingInfo){
             // If no exact match, return all available platforms for this meeting_id

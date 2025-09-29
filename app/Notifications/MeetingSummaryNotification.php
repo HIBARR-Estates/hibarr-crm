@@ -48,13 +48,27 @@ class MeetingSummaryNotification extends Notification
             
         $summaryLink = url('/deals/' . $this->deal->id . '/meeting-summary/' . $this->meetingSummary->id);
         
-        return (new MailMessage)
+        $mailMessage = (new MailMessage)
                     ->subject($subject)
                     ->greeting('Hello ' . $notifiable->name . '!')
                     ->line('A meeting summary has been ' . $this->action . ' for the following deal:')
-                    ->line('**Deal:** ' . $this->deal->name)
-                    ->line('**Meeting Date:** ' . $this->dealFollowUp->next_follow_up_date->format('M d, Y H:i'))
-                    ->line('**Platform:** ' . ucfirst($this->dealFollowUp->location))
+                    ->line('**Deal:** ' . $this->deal->name);
+        
+        // Safely format meeting date
+        if ($this->dealFollowUp->next_follow_up_date) {
+            $mailMessage->line('**Meeting Date:** ' . $this->dealFollowUp->next_follow_up_date->format('M d, Y H:i'));
+        } else {
+            $mailMessage->line('**Meeting Date:** Not specified');
+        }
+        
+        // Safely format platform
+        if ($this->dealFollowUp->location) {
+            $mailMessage->line('**Platform:** ' . ucfirst($this->dealFollowUp->location));
+        } else {
+            $mailMessage->line('**Platform:** Not specified');
+        }
+        
+        return $mailMessage
                     ->line('Click the button below to view the meeting summary:')
                     ->action('View Meeting Summary', $summaryLink)
                     ->line('Thank you for using our CRM system!');
