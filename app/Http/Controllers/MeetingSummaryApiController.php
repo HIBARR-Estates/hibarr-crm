@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\DealFollowUp;
 use App\Models\MeetingSummary;
+use App\Models\Deal;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class MeetingSummaryApiController extends Controller
 {
@@ -44,6 +48,9 @@ class MeetingSummaryApiController extends Controller
                         'deal_id' => $meetingInfo['deal_id'],
                     ]);
                     
+                    // Send email notification for updated summary
+                    $this->sendSummaryNotification($summary, $leadFollowUp, 'updated');
+                    
                     return response()->json([
                         'success' => true,
                         'message' => 'Meeting summary updated successfully',
@@ -64,6 +71,9 @@ class MeetingSummaryApiController extends Controller
             if ($leadFollowUp) {
                 $leadFollowUp->update(['summary_id' => $summary->id]);
             }
+
+            // Send email notification for new summary
+            $this->sendSummaryNotification($summary, $leadFollowUp, 'created');
 
             return response()->json([
                 'success' => true,
@@ -113,5 +123,55 @@ class MeetingSummaryApiController extends Controller
         $meeting['meeting_type_id'] = $meetingInfo->meeting_type_id;
         $meeting['location'] = $meetingInfo->location;
         return $meeting;
+    }
+
+    /**
+     * Send email notification about meeting summary
+     */
+    private function sendSummaryNotification($summary, $leadFollowUp, $action)
+    {
+        try {
+            // Get the deal information
+            $deal = Deal::find($summary->deal_id);
+            if (!$deal) {
+                Log::warning("Deal not found for summary ID: {$summary->id}");
+                return;
+            }
+
+            // Get the responsible person (deal agent)
+            $responsiblePerson = null;
+            if ($deal->agent_id) {
+                $responsiblePerson = User::find($deal->agent_id);
+            }
+
+            // If no agent, try to get the deal creator
+            if (!$responsiblePerson && $deal->added_by) {
+                $responsiblePerson = User::find($deal->added_by);
+            }
+
+            // If still no responsible person, get the follow-up creator
+            if (!$responsiblePerson && $leadFollowUp->added_by) {
+                $responsiblePerson = User::find($leadFollowUp->added_by);
+            }
+
+            if (!$responsiblePerson) {
+                Log::warning("No responsible person found for summary ID: {$summary->id}");
+                return;
+            }
+
+            // Send the notification
+            $responsiblePerson->notify(new \App\Notifications\MeetingSummaryNotification(
+                $summary, 
+                $leadFollowUp, 
+                $deal, 
+                $action
+            ));
+
+            Log::info("Meeting summary notification sent to: {$responsiblePerson->email} for summary ID: {$summary->id}");
+
+        } catch (\Exception $e) {
+            Log::error("Failed to send meeting summary notification: " . $e->getMessage());
+            // Don't throw the exception to avoid breaking the main flow
+        }
     }
 }
