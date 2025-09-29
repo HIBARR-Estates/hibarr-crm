@@ -118,7 +118,7 @@ class LeadFollowUpObserver
         $googleAccount = company();
         $module = GoogleCalendarModule::first();
 
-        if ($googleAccount && $googleAccount->google_calendar_status == 'active' && $googleAccount->google_calendar_verification_status == 'verified' && $googleAccount->token && $module->lead_status == 1) {
+        if ($googleAccount && $googleAccount->google_calendar_status == 'active' && $googleAccount->google_calendar_verification_status == 'verified' && $googleAccount->token && $module && $module->lead_status == 1) {
             $google = new Google();
             $attendiesData = [];
 

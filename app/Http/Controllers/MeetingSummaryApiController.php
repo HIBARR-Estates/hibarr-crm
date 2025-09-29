@@ -6,6 +6,7 @@ use App\Models\DealFollowUp;
 use App\Models\MeetingSummary;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class MeetingSummaryApiController extends Controller
 {
@@ -27,45 +28,50 @@ class MeetingSummaryApiController extends Controller
             return $meetingInfo;
         }
 
-        // Check if a summary already exists for this meeting
-        $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)->first();
-        
-        if ($leadFollowUp && $leadFollowUp->summary_id) {
-            // Update existing summary
-            $summary = MeetingSummary::find($leadFollowUp->summary_id);
-            if ($summary) {
-                $summary->update([
-                    'summary_object' => $meetingSummary,
-                    'meeting_type_id' => $meetingInfo['meeting_type_id'],
-                    'deal_id' => $meetingInfo['deal_id'],
-                ]);
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Meeting summary updated successfully',
-                    'action' => 'updated'
-                ], 200);
+        return DB::transaction(function () use ($meetingSummary, $meetingId, $meetingPlatform, $meetingInfo) {
+            // Check if a summary already exists for this meeting with the correct platform
+            $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)
+                                       ->where('location', $meetingPlatform)
+                                       ->first();
+            
+            if ($leadFollowUp && $leadFollowUp->summary_id) {
+                // Update existing summary
+                $summary = MeetingSummary::find($leadFollowUp->summary_id);
+                if ($summary) {
+                    $summary->update([
+                        'summary_object' => $meetingSummary,
+                        'meeting_type_id' => $meetingInfo['meeting_type_id'],
+                        'deal_id' => $meetingInfo['deal_id'],
+                    ]);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Meeting summary updated successfully',
+                        'data' => $summary,
+                        'action' => 'updated'
+                    ], 200);
+                }
             }
-        }
-        
-        // Create new summary
-        $summary = MeetingSummary::create([
-            'summary_object' => $meetingSummary,
-            'meeting_type_id' => $meetingInfo['meeting_type_id'],
-            'deal_id' => $meetingInfo['deal_id'],
-        ]);
+            
+            // Create new summary
+            $summary = MeetingSummary::create([
+                'summary_object' => $meetingSummary,
+                'meeting_type_id' => $meetingInfo['meeting_type_id'],
+                'deal_id' => $meetingInfo['deal_id'],
+            ]);
 
-        // Update the lead_follow_up record with the summary_id
-        if ($leadFollowUp) {
-            $leadFollowUp->update(['summary_id' => $summary->id]);
-        }
+            // Update the DealFollowUp record with the summary_id
+            if ($leadFollowUp) {
+                $leadFollowUp->update(['summary_id' => $summary->id]);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Meeting summary created successfully',
-            'data' => $summary,
-            'action' => 'created'
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Meeting summary created successfully',
+                'data' => $summary,
+                'action' => 'created'
+            ], 201);
+        });
     }
 
     private function findOrFailMeetingId(string $meetingId, string $meetingPlatform)
@@ -82,14 +88,14 @@ class MeetingSummaryApiController extends Controller
             return response()->json(['error' => 'Meeting platform is required'], 400);
         }
         
-        // Get all meetings with the same meeting_id
+        // Get all DealFollowUp records with the same meeting_id
         $meetings = DealFollowUp::where('meeting_id', $meetingId)->get();
         
         if($meetings->isEmpty()){
             return response()->json(['error' => 'Meeting not found'], 404);
         }
         
-        // Find the meeting that matches the platform/location
+        // Find the DealFollowUp record that matches the platform/location
         $meetingInfo = $meetings->firstWhere('location', $meetingPlatform);
         
         if(!$meetingInfo){
