@@ -24,6 +24,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities', 'uses' => 'CommunicationActivityController@getDealActivities']);
         ApiRoute::get('leads/{leadId}/communication-activities', ['as' => 'api.leads.communication-activities', 'uses' => 'CommunicationActivityController@getLeadActivities']);
         ApiRoute::get('communication-activities/channel/{channelType}', ['as' => 'api.communication-activities.by-channel', 'uses' => 'CommunicationActivityController@getActivitiesByChannel']);
+        ApiRoute::post('meeting-summary', ['as' => 'api.meeting-summary', 'uses' => 'MeetingSummaryApiController@getMeetingSummary']);
 
     });
 });
