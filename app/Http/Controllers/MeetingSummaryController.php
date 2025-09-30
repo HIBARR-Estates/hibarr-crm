@@ -92,6 +92,10 @@ class MeetingSummaryController extends Controller
     public function destroy($id): JsonResponse
     {
         $meetingSummary = MeetingSummary::findOrFail($id);
+        
+        // Nullify orphaned references
+        DealFollowUp::where('summary_id', $id)->update(['summary_id' => null]);
+        
         $meetingSummary->delete();
 
         return response()->json([
@@ -103,9 +107,15 @@ class MeetingSummaryController extends Controller
     /**
      * Get meeting summary by meeting ID
      */
-    public function getByMeetingId($meetingId): JsonResponse
+    public function getByMeetingId($meetingId, Request $request): JsonResponse
     {
-        $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)->first();
+        $query = DealFollowUp::where('meeting_id', $meetingId);
+        
+        if ($request->filled('meeting_platform')) {
+            $query->whereRaw('LOWER(location) = LOWER(?)', [$request->meeting_platform]);
+        }
+        
+        $leadFollowUp = $query->first();
         
         if (!$leadFollowUp || !$leadFollowUp->summary_id) {
             return response()->json([
