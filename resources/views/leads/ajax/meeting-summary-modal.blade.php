@@ -4,9 +4,6 @@
     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
-    {{-- Debug: Summary data available: {{ isset($summary) ? 'Yes' : 'No' }} --}}
-    {{-- Debug: Summary keys: {{ isset($summary) ? implode(', ', array_keys($summary)) : 'No data' }} --}}
-    
     <div class="meeting-summary" style="font-size: 16px; padding: 0 7px;">
     {{-- Meeting Information --}}
     <h4 style="font-size: 20px; margin-bottom: 15px;">Meeting Information</h4>

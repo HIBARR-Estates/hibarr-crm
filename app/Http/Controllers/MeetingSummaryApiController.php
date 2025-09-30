@@ -155,7 +155,6 @@ class MeetingSummaryApiController extends Controller
             // Get the deal information
             $deal = Deal::find($summary->deal_id);
             if (!$deal) {
-                Log::warning("Deal not found for summary ID: {$summary->id}");
                 return;
             }
 
@@ -176,7 +175,6 @@ class MeetingSummaryApiController extends Controller
             }
 
             if (!$responsiblePerson) {
-                Log::warning("No responsible person found for summary ID: {$summary->id}");
                 return;
             }
 
@@ -188,10 +186,7 @@ class MeetingSummaryApiController extends Controller
                 $action
             ));
 
-            Log::info("Meeting summary notification sent to: {$responsiblePerson->email} for summary ID: {$summary->id}");
-
         } catch (\Exception $e) {
-            Log::error("Failed to send meeting summary notification: " . $e->getMessage());
             // Don't throw the exception to avoid breaking the main flow
         }
     }

@@ -562,7 +562,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     
 // Meeting Summary Routes
 Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
-Route::post('meeting-summary/{summaryId}/render', [MeetingSummaryController::class, 'render'])->name('meeting-summary.render');
 
     // leaves files routes
     Route::get('leave-files/download/{id}', [LeaveFileController::class, 'download'])->name('leave-files.download');

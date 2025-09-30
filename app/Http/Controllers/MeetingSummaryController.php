@@ -55,11 +55,7 @@ class MeetingSummaryController extends Controller
                 }
                 return response()->json([
                     'success' => false,
-                    'message' => 'Meeting summary not found',
-                    'debug' => [
-                        'summary_id' => $summaryId,
-                        'error' => 'Record not found in database'
-                    ]
+                    'message' => 'Meeting summary not found'
                 ], 404);
             }
             
@@ -71,8 +67,6 @@ class MeetingSummaryController extends Controller
                 $meetingSummary->load(['meetingType']);
             }
             
-            // Debug: Log the actual data being returned
-            \Log::info('MeetingSummary data:', $meetingSummary->toArray());
             
             // Return view for web requests (ajaxModal)
             if (request()->ajax()) {
@@ -82,15 +76,7 @@ class MeetingSummaryController extends Controller
             // Return JSON for API requests
             return response()->json([
                 'success' => true,
-                'data' => $meetingSummary,
-                'debug' => [
-                    'summary_id' => $summaryId,
-                    'summary_object_type' => gettype($meetingSummary->summary_object),
-                    'summary_object_value' => $meetingSummary->summary_object,
-                    'summary_object_empty' => empty($meetingSummary->summary_object),
-                    'summary_object_null' => is_null($meetingSummary->summary_object),
-                    'all_fields' => $meetingSummary->getAttributes()
-                ]
+                'data' => $meetingSummary
             ]);
         } catch (\Exception $e) {
             \Log::error('MeetingSummary show error: ' . $e->getMessage());
@@ -101,11 +87,7 @@ class MeetingSummaryController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading meeting summary: ' . $e->getMessage(),
-                'debug' => [
-                    'summary_id' => $summaryId ?? 'unknown',
-                    'error' => $e->getMessage()
-                ]
+                'message' => 'Error loading meeting summary'
             ], 500);
         }
     }
@@ -165,38 +147,4 @@ class MeetingSummaryController extends Controller
         ]);
     }
 
-    /**
-     * Render meeting summary modal content
-     */
-    public function render($summaryId): string
-    {
-        try {
-            // Find the meeting summary by ID
-            $meetingSummary = MeetingSummary::find($summaryId);
-            
-            if (!$meetingSummary) {
-                return view('leads.ajax.meeting-summary-modal', [
-                    'summary' => []
-                ])->render();
-            }
-            
-            // Load relationships
-            $meetingSummary->load(['deal']);
-            
-            // Load meetingType only if it exists
-            if ($meetingSummary->meeting_type_id) {
-                $meetingSummary->load(['meetingType']);
-            }
-            
-            return view('leads.ajax.meeting-summary-modal', [
-                'summary' => $meetingSummary->toArray()
-            ])->render();
-            
-        } catch (\Exception $e) {
-            \Log::error('MeetingSummary render error: ' . $e->getMessage());
-            return view('leads.ajax.meeting-summary-modal', [
-                'summary' => []
-            ])->render();
-        }
-    }
 }
