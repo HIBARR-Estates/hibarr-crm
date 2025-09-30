@@ -45,8 +45,26 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DealFollowUp extends BaseModel
 {
-
     protected $table = 'lead_follow_up';
+
+    protected $fillable = [
+        'deal_id',
+        'meeting_type_id',
+        'location',
+        'meeting_link',
+        'remark',
+        'meeting_type',
+        'next_follow_up_date',
+        'added_by',
+        'last_updated_by',
+        'event_id',
+        'meeting_id',
+        'summary_id',
+        'send_reminder',
+        'remind_time',
+        'remind_type',
+        'status',
+    ];
 
     protected $casts = [
         'next_follow_up_date' => 'datetime',
@@ -61,6 +79,11 @@ class DealFollowUp extends BaseModel
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
+    }
+
+    public function meetingType(): BelongsTo
+    {
+        return $this->belongsTo(MeetingType::class);
     }
 
 }

@@ -1,0 +1,202 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\MeetingSummary;
+use App\Models\DealFollowUp;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+
+class MeetingSummaryController extends Controller
+{
+    /**
+     * Store a new meeting summary
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $request->validate([
+            'summary_object' => 'required|array',
+            'deal_id' => 'required|exists:deals,id',
+            'meeting_id' => 'nullable|string',
+        ]);
+
+        $meetingSummary = MeetingSummary::create([
+            'summary_object' => $request->summary_object,
+            'deal_id' => $request->deal_id,
+        ]);
+
+        // If meeting_id is provided, update the lead_follow_up record
+        if ($request->meeting_id) {
+            $leadFollowUp = DealFollowUp::where('meeting_id', $request->meeting_id)->first();
+            if ($leadFollowUp) {
+                $leadFollowUp->update(['summary_id' => $meetingSummary->id]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting summary created successfully',
+            'data' => $meetingSummary
+        ], 201);
+    }
+
+    /**
+     * Display the specified meeting summary
+     */
+    public function show($summaryId)
+    {
+        try {
+            // Find the meeting summary by ID
+            $meetingSummary = MeetingSummary::find($summaryId);
+            
+            if (!$meetingSummary) {
+                if (request()->ajax()) {
+                    return view('leads.ajax.meeting-summary-modal', ['summary' => []])->withErrors(['error' => 'Meeting summary not found']);
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Meeting summary not found',
+                    'debug' => [
+                        'summary_id' => $summaryId,
+                        'error' => 'Record not found in database'
+                    ]
+                ], 404);
+            }
+            
+            // Load relationships
+            $meetingSummary->load(['deal']);
+            
+            // Load meetingType only if it exists
+            if ($meetingSummary->meeting_type_id) {
+                $meetingSummary->load(['meetingType']);
+            }
+            
+            // Debug: Log the actual data being returned
+            \Log::info('MeetingSummary data:', $meetingSummary->toArray());
+            
+            // Return view for web requests (ajaxModal)
+            if (request()->ajax()) {
+                return view('leads.ajax.meeting-summary-modal', ['summary' => $meetingSummary->toArray()]);
+            }
+            
+            // Return JSON for API requests
+            return response()->json([
+                'success' => true,
+                'data' => $meetingSummary,
+                'debug' => [
+                    'summary_id' => $summaryId,
+                    'summary_object_type' => gettype($meetingSummary->summary_object),
+                    'summary_object_value' => $meetingSummary->summary_object,
+                    'summary_object_empty' => empty($meetingSummary->summary_object),
+                    'summary_object_null' => is_null($meetingSummary->summary_object),
+                    'all_fields' => $meetingSummary->getAttributes()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('MeetingSummary show error: ' . $e->getMessage());
+            
+            if (request()->ajax()) {
+                return view('leads.ajax.meeting-summary-modal', ['summary' => []])->withErrors(['error' => $e->getMessage()]);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading meeting summary: ' . $e->getMessage(),
+                'debug' => [
+                    'summary_id' => $summaryId ?? 'unknown',
+                    'error' => $e->getMessage()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Update the specified meeting summary
+     */
+    public function update(Request $request, MeetingSummary $meetingSummary): JsonResponse
+    {
+        $request->validate([
+            'summary_object' => 'required|array',
+        ]);
+
+        $meetingSummary->update([
+            'summary_object' => $request->summary_object,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting summary updated successfully',
+            'data' => $meetingSummary
+        ]);
+    }
+
+    /**
+     * Remove the specified meeting summary
+     */
+    public function destroy(MeetingSummary $meetingSummary): JsonResponse
+    {
+        $meetingSummary->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting summary deleted successfully'
+        ]);
+    }
+
+    /**
+     * Get meeting summary by meeting ID
+     */
+    public function getByMeetingId($meetingId): JsonResponse
+    {
+        $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)->first();
+        
+        if (!$leadFollowUp || !$leadFollowUp->summary_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Meeting summary not found'
+            ], 404);
+        }
+
+        $summary = MeetingSummary::with(['deal', 'meetingType'])->find($leadFollowUp->summary_id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $summary
+        ]);
+    }
+
+    /**
+     * Render meeting summary modal content
+     */
+    public function render($summaryId): string
+    {
+        try {
+            // Find the meeting summary by ID
+            $meetingSummary = MeetingSummary::find($summaryId);
+            
+            if (!$meetingSummary) {
+                return view('leads.ajax.meeting-summary-modal', [
+                    'summary' => []
+                ])->render();
+            }
+            
+            // Load relationships
+            $meetingSummary->load(['deal']);
+            
+            // Load meetingType only if it exists
+            if ($meetingSummary->meeting_type_id) {
+                $meetingSummary->load(['meetingType']);
+            }
+            
+            return view('leads.ajax.meeting-summary-modal', [
+                'summary' => $meetingSummary->toArray()
+            ])->render();
+            
+        } catch (\Exception $e) {
+            \Log::error('MeetingSummary render error: ' . $e->getMessage());
+            return view('leads.ajax.meeting-summary-modal', [
+                'summary' => []
+            ])->render();
+        }
+    }
+}

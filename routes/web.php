@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\DealController;
+use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AwardController;
 use App\Http\Controllers\ImageController;
@@ -558,6 +559,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::resource('deals', DealController::class);
+    
+// Meeting Summary Routes
+Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
+Route::post('meeting-summary/{summaryId}/render', [MeetingSummaryController::class, 'render'])->name('meeting-summary.render');
 
     // leaves files routes
     Route::get('leave-files/download/{id}', [LeaveFileController::class, 'download'])->name('leave-files.download');

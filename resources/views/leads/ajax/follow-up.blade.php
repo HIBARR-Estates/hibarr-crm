@@ -15,7 +15,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                 <x-slot name="thead">
                     <th>@lang('app.createdOn')</th>
                     <th>@lang('modules.lead.nextFollowUp')</th>
-                    <th>@lang('app.remark')</th>
+                    <th>Summary</th>
                     <th>@lang('app.status')</th>
                     <th class="text-right">@lang('app.action')</th>
                 </x-slot>
@@ -24,7 +24,9 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                     <tr id="row-{{ $folllowUp->id }}">
                         <td>{{ $folllowUp->created_at->timezone(company()->timezone)->format(company()->date_format . ' ' . company()->time_format) }}</td>
                         <td>{{ $folllowUp->next_follow_up_date->format(company()->date_format . ' ' . company()->time_format) }}</td>
-                        <td>{{ $folllowUp->remark }}</td>
+                        <td>
+                            <a href="javascript:;" class="" data-summary-id="{{ $folllowUp->summary_id }}" data-meeting-id="{{ $folllowUp->meeting_id }}" data-platform="{{ $folllowUp->location }}">View Summary</a>
+                        </td>
                         <td>
                             @if ($folllowUp->status == 'pending')
                                 <i class="fa fa-circle mr-1 text-yellow f-10"></i>
@@ -86,4 +88,21 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
     </div>
 </div>
 <!-- TAB CONTENT END -->
+
+<script>
+$(document).ready(function() {
+    $(document).on('click', 'a[data-summary-id][data-meeting-id][data-platform]', function(e) {
+        e.preventDefault();
+        const summaryId = $(this).data('summary-id');
+        
+        if (!summaryId || summaryId === 'null' || summaryId === '') {
+            $(MODAL_XL + ' .modal-body').html('<div class="text-center py-4"><p>No summary available</p></div>');
+            $(MODAL_XL).modal('show');
+        } else {
+            const url = `/account/meeting-summary/${summaryId}`;
+            $.ajaxModal(MODAL_XL, url);
+        }
+    });
+});
+</script>
 
