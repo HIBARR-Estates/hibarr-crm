@@ -114,13 +114,13 @@
                                 
                                 // If the key is empty or just whitespace after cleaning, use the value
                                 if (empty(trim($cleanSubKey))) {
-                                    $cleanSubKey = $subValue ?? 'Item';
+                                    $cleanSubKey = (is_scalar($subValue) ? $subValue : null) ?? 'Item';
                                 }
                                 
                                 // Also handle cases where the key might be just a number
                                 if (is_numeric(trim($cleanSubKey))) {
                                     // If the key is just a number, use the value as the key
-                                    $cleanSubKey = $subValue ?? 'Item';
+                                    $cleanSubKey = (is_scalar($subValue) ? $subValue : null) ?? 'Item';
                                 }
                                 
                                 $displaySubKey = ucwords(str_replace('_', ' ', $cleanSubKey));
