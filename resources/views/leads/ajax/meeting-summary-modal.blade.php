@@ -1,6 +1,6 @@
 {{-- Meeting Summary Modal --}}
 <div class="modal-header">
-    <h5 class="modal-title" id="modelHeading">📝 {{ $summary['meetingType']['name'] ?? 'Meeting Summary for ' . $summary['deal']['name'] ?? 'N/A' }} </h5>
+    <h5 class="modal-title" id="modelHeading">📝 {{ $summary['meetingType']['name'] ?? ('Meeting Summary for ' . ($summary['deal']['name'] ?? 'N/A')) }} </h5>
     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
@@ -41,7 +41,6 @@
                     'recommendations' => 'Recommendations'
                 ];
                 
-                $counter = 1;
                 $processedSections = [];
                 
                 // Helper function to find section key regardless of format (underscore vs space)
@@ -130,7 +129,6 @@
                         <p style="margin-bottom: 15px; padding-left: 10px;">{{ $value ?? 'Not specified' }}</p>
                     @endif
                 </div>
-                @php $counter++; @endphp
             @endforeach
         @else
             {{-- Render string content --}}

@@ -54,7 +54,9 @@ class MeetingSummaryNotification extends Notification
         $mailMessage = (new MailMessage)
                     ->subject($subject)
                     ->greeting('Hello ' . $notifiable->name . '!')
-                    ->line('A meeting summary has been ' . $this->action . ' for the following deal:')
+                    ->line($this->action === 'created' 
+                        ? 'A new meeting summary has been created for the following deal:'
+                        : 'A meeting summary has been updated for the following deal:')
                     ->line('**Deal:** ' . $this->deal->name);
         
         // Safely format meeting date

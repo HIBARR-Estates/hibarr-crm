@@ -6,6 +6,7 @@ use App\Models\MeetingSummary;
 use App\Models\DealFollowUp;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class MeetingSummaryController extends Controller
 {
@@ -20,24 +21,28 @@ class MeetingSummaryController extends Controller
             'meeting_id' => 'nullable|string',
         ]);
 
-        $meetingSummary = MeetingSummary::create([
-            'summary_object' => $request->summary_object,
-            'deal_id' => $request->deal_id,
-        ]);
+        return DB::transaction(function () use ($request) {
+            $meetingSummary = MeetingSummary::create([
+                'summary_object' => $request->summary_object,
+                'deal_id' => $request->deal_id,
+            ]);
 
-        // If meeting_id is provided, update the lead_follow_up record
-        if ($request->meeting_id) {
-            $leadFollowUp = DealFollowUp::where('meeting_id', $request->meeting_id)->first();
-            if ($leadFollowUp) {
-                $leadFollowUp->update(['summary_id' => $meetingSummary->id]);
+            // If meeting_id is provided, update the lead_follow_up record
+            if ($request->meeting_id) {
+                $leadFollowUp = DealFollowUp::where('meeting_id', $request->meeting_id)
+                    ->lockForUpdate()
+                    ->first();
+                if ($leadFollowUp) {
+                    $leadFollowUp->update(['summary_id' => $meetingSummary->id]);
+                }
             }
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Meeting summary created successfully',
-            'data' => $meetingSummary
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Meeting summary created successfully',
+                'data' => $meetingSummary
+            ], 201);
+        });
     }
 
     /**
@@ -117,6 +122,8 @@ class MeetingSummaryController extends Controller
      */
     public function destroy(MeetingSummary $meetingSummary): JsonResponse
     {
+        DealFollowUp::where('summary_id', $meetingSummary->id)->update(['summary_id' => null]);
+        
         $meetingSummary->delete();
 
         return response()->json([
