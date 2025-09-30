@@ -91,17 +91,19 @@ class MeetingSummaryController extends Controller
      */
     public function destroy($id): JsonResponse
     {
-        $meetingSummary = MeetingSummary::findOrFail($id);
-        
-        // Nullify orphaned references
-        DealFollowUp::where('summary_id', $id)->update(['summary_id' => null]);
-        
-        $meetingSummary->delete();
+        return DB::transaction(function () use ($id) {
+            $meetingSummary = MeetingSummary::findOrFail($id);
+            
+            // Nullify orphaned references
+            DealFollowUp::where('summary_id', $id)->update(['summary_id' => null]);
+            
+            $meetingSummary->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Meeting summary deleted successfully'
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Meeting summary deleted successfully'
+            ]);
+        });
     }
 
     /**
