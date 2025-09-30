@@ -36,6 +36,61 @@ class Module extends BaseModel
     protected $guarded = ['id'];
 
     const MODULE_LIST = [
+
+        // Developers & Developer Projects
+        [
+            'module_name' => 'developers',
+            'description' => 'Manage real estate developers and their projects',
+            'permissions' => [
+                [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'is_custom' => 0,
+                    'name' => 'add_developers',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'is_custom' => 0,
+                    'name' => 'view_developers',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'is_custom' => 0,
+                    'name' => 'edit_developers',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'is_custom' => 0,
+                    'name' => 'delete_developers',
+                ],
+            ]
+        ],
+        [
+            'module_name' => 'developer_projects',
+            'description' => 'Manage developer projects and properties',
+            'permissions' => [
+                [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'is_custom' => 0,
+                    'name' => 'add_developer_projects',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'is_custom' => 0,
+                    'name' => 'view_developer_projects',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'is_custom' => 0,
+                    'name' => 'edit_developer_projects',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'is_custom' => 0,
+                    'name' => 'delete_developer_projects',
+                ],
+            ]
+        ],
+        // Clients & Employees ....
         [
             'module_name' => 'clients',
             'permissions' => [
