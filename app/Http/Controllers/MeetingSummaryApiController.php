@@ -50,8 +50,8 @@ class MeetingSummaryApiController extends Controller
                         'deal_id' => $meetingInfo['deal_id'],
                     ]);
                     
-                    // Send email notification for updated summary
-                    $this->sendSummaryNotification($summary, $leadFollowUp, 'updated');
+                    // Send email notification after the transaction commits
+                    DB::afterCommit(fn () => $this->sendSummaryNotification($summary, $leadFollowUp, 'updated'));
                     
                     return response()->json([
                         'success' => true,
@@ -74,8 +74,8 @@ class MeetingSummaryApiController extends Controller
                 $leadFollowUp->update(['summary_id' => $summary->id]);
             }
 
-            // Send email notification for new summary
-            $this->sendSummaryNotification($summary, $leadFollowUp, 'created');
+            // Send email notification after the transaction commits
+            DB::afterCommit(fn () => $this->sendSummaryNotification($summary, $leadFollowUp, 'created'));
 
             return response()->json([
                 'success' => true,

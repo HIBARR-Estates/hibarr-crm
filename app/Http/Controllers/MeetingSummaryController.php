@@ -6,6 +6,7 @@ use App\Models\MeetingSummary;
 use App\Models\DealFollowUp;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class MeetingSummaryController extends Controller
 {
@@ -18,28 +19,37 @@ class MeetingSummaryController extends Controller
             'summary_object' => 'required|array',
             'meeting_type_id' => 'nullable|integer|exists:meeting_types,id',
             'deal_id' => 'nullable|integer|exists:deals,id',
-            'meeting_id' => 'nullable|string'
+            'meeting_id' => 'nullable|string',
+            'meeting_platform' => 'nullable|string'
         ]);
 
-        $meetingSummary = MeetingSummary::create([
-            'summary_object' => $request->summary_object,
-            'meeting_type_id' => $request->meeting_type_id,
-            'deal_id' => $request->deal_id,
-        ]);
+        return DB::transaction(function () use ($request) {
+            $meetingSummary = MeetingSummary::create([
+                'summary_object' => $request->summary_object,
+                'meeting_type_id' => $request->meeting_type_id,
+                'deal_id' => $request->deal_id,
+            ]);
 
-        // If meeting_id is provided, update the lead_follow_up record
-        if ($request->meeting_id) {
-            $leadFollowUp = DealFollowUp::where('meeting_id', $request->meeting_id)->first();
-            if ($leadFollowUp) {
-                $leadFollowUp->update(['summary_id' => $meetingSummary->id]);
+            if ($request->filled('meeting_id')) {
+                $leadFollowUp = DealFollowUp::where('meeting_id', $request->meeting_id)
+                    ->when($request->filled('meeting_platform'), function ($q) use ($request) {
+                        $q->whereRaw('LOWER(location) = LOWER(?)', [$request->meeting_platform]);
+                    })
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($leadFollowUp) {
+                    $leadFollowUp->summary_id = $meetingSummary->id;
+                    $leadFollowUp->save();
+                }
             }
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Meeting summary saved successfully',
-            'data' => $meetingSummary
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Meeting summary saved successfully',
+                'data' => $meetingSummary
+            ], 201);
+        });
     }
 
     /**
@@ -105,7 +115,12 @@ class MeetingSummaryController extends Controller
         }
 
         $meetingSummary = MeetingSummary::with(['meetingType', 'deal'])->find($leadFollowUp->summary_id);
-
+        if (!$meetingSummary) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Meeting summary not found'
+            ], 404);
+        }
         return response()->json([
             'success' => true,
             'data' => $meetingSummary
