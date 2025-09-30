@@ -122,14 +122,16 @@ class MeetingSummaryController extends Controller
      */
     public function destroy(MeetingSummary $meetingSummary): JsonResponse
     {
-        DealFollowUp::where('summary_id', $meetingSummary->id)->update(['summary_id' => null]);
-        
-        $meetingSummary->delete();
+        return DB::transaction(function () use ($meetingSummary) {
+            DealFollowUp::where('summary_id', $meetingSummary->id)->update(['summary_id' => null]);
+            
+            $meetingSummary->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Meeting summary deleted successfully'
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Meeting summary deleted successfully'
+            ]);
+        });
     }
 
     /**

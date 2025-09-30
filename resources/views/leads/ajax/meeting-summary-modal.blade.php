@@ -4,6 +4,11 @@
     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
+    @if($errors->any())
+        <div class="alert alert-danger" role="alert">
+            {{ $errors->first('error') }}
+        </div>
+    @else
     <div class="meeting-summary" style="font-size: 16px; padding: 0 7px;">
     {{-- Meeting Information --}}
     <h4 style="font-size: 20px; margin-bottom: 15px;">Meeting Information</h4>
@@ -138,6 +143,7 @@
         <p><em>No meeting summary has been generated for this meeting yet.</em></p>
     @endif
     </div>
+    @endif
 </div>
 <div class="modal-footer">
     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
