@@ -57,6 +57,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                             @lang('app.delete')
                                         </a>
                                     @endif
+                                    <a href="javascript:;" class="cursor-pointer d-block text-dark-grey f-13 pb-3 px-3" data-summary-id="{{ $folllowUp->summary_id }}" data-meeting-id="{{ $folllowUp->meeting_id }}" data-platform="{{ $folllowUp->location }}">View Summary</a>
                                 </div>
                             </div>
                         </td>
