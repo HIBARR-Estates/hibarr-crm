@@ -161,6 +161,7 @@ return array(
         'December' => 'December',
     ),
     'menu' => array(
+        'developers' => 'Developers',
         'units' => 'Units',
         'prefixSettings' => 'Prefix Settings',
         'parent_id' => 'Parent',

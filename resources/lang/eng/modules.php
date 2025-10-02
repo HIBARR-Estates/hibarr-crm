@@ -1,6 +1,28 @@
 <?php
 
 return array(
+    'developers' => array(
+        'addDeveloper' => 'Add Developer',
+        'editDeveloper' => 'Edit Developer',
+        'deleteDeveloper' => 'Delete Developer',
+        'viewDeveloper' => 'View Developer',
+        'manageProjects' => 'Manage Projects',
+        'addProject' => 'Add Project',
+        'editProject' => 'Edit Project',
+        'deleteProject' => 'Delete Project',
+        'viewProject' => 'View Project',
+        'allDevelopers' => 'All Developers',
+        'projectName' => 'Project Name',
+        'developerName' => 'Developer Name',
+        'projectDescription' => 'Project Description',
+        'developerDescription' => 'Developer Description',
+        'projectCreatedOn' => 'Project Created On',
+        'developerCreatedOn' => 'Developer Created On',
+        'noProjectsAdded' => 'No projects added yet.',
+        'noDevelopersAdded' => 'No developers added yet.',
+        'projects' => 'Projects',
+        'developers' => 'Developers',
+    ),
     'dashboard' => array(
         'totalClients' => 'Total Clients',
         'newClients' => 'New Clients',
@@ -1826,6 +1848,8 @@ return array(
     ),
     'timelogAlreadyExist' => 'Time-log already exist for this user.',
     'module' => array(
+        'developers' => 'Developers',
+        'developer_projects' => 'Developer Projects',
         'clients' => 'Clients',
         'employees' => 'Employees',
         'projects' => 'Projects',
