@@ -1192,10 +1192,10 @@ class DealController extends AccountBaseController
      */
     public function generateMeetingLink(Request $request)
     {
-        \Log::info('Generate Meeting Link function called', [
-            'request_data' => $request->all(),
+        \Log::info('Generate Meeting Link invoked', [
+            'followup_id' => $request->followup_id,
             'user_id' => auth()->id(),
-            'timestamp' => now()
+            'timestamp' => now(),
         ]);
 
         $this->editPermission = user()->permission('edit_lead_follow_up');

@@ -61,13 +61,17 @@ class DealAutomationService
             : LeadPipeline::first();
 
         if (!$pipeline) {
-            throw new \RuntimeException("No pipeline found for the deal.");
+            Log::warning("Deal ID {$deal->id}: no pipeline found; skipping automation");
+            $this->stages = [];
+            return;
         }
 
         $stages = $pipeline->stages()->orderBy('priority')->get();
 
         if ($stages->count() < 5) {
-            throw new \RuntimeException("Pipeline must have at least 5 stages.");
+            Log::warning("Deal ID {$deal->id}: pipeline has insufficient stages ({$stages->count()}); skipping automation");
+            $this->stages = [];
+            return;
         }
 
         
