@@ -9,8 +9,8 @@ return new class extends Migration
     /**
      * Run the migrations.
      * 
-     * Add foreign key constraints to meeting_summary table with explicit naming.
-     * Note: The table was created without foreign keys, so we just add them.
+     * No-op migration. Foreign keys already exist from the table creation migration
+     * (2025_09_27_135046_create_meeting_summary_table.php).
      */
     public function up(): void
     {
