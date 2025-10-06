@@ -66,18 +66,13 @@ class MeetingSummaryApiController extends Controller
             throw new \InvalidArgumentException('Meeting summary cannot be empty');
         }
         
-        // Lock the follow-up row to prevent concurrent modifications
-            // Use case-insensitive comparison for platform/location
+        [$summary, $leadFollowUp, $action] = DB::transaction(function () use ($meetingSummary, $meetingId, $meetingPlatform, $meetingInfo) {
             $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)
-                                       ->whereRaw('LOWER(location) = LOWER(?)', [$meetingPlatform])
-                                       ->lockForUpdate()
-                                       ->first();
+                ->whereRaw('LOWER(location) = ?', [mb_strtolower($meetingPlatform)])
+                ->lockForUpdate()
+                ->first();
 
-        $summary = DB::transaction(function () use ($meetingSummary, $meetingId, $meetingPlatform, $meetingInfo) {
-           
-            
             if ($leadFollowUp && $leadFollowUp->summary_id) {
-                // Update existing summary
                 $summary = MeetingSummary::find($leadFollowUp->summary_id);
                 if ($summary) {
                     $summary->update([
@@ -85,43 +80,37 @@ class MeetingSummaryApiController extends Controller
                         'meeting_type_id' => $meetingInfo['meeting_type_id'],
                         'deal_id' => $meetingInfo['deal_id'],
                     ]);
-                    
-                    // Send email notification for updated summary
-                    $this->sendSummaryNotification($summary, $leadFollowUp, 'updated');
-                    
-                    return response()->json(
-                        Reply::successWithData('modules.meeting.messages.updated', [
-                            'data' => $summary,
-                            'action' => 'updated'
-                        ]), 200
-                    );
+
+                    return [$summary, $leadFollowUp, 'updated'];
                 }
             }
-            
-            // Create new summary
+
             $summary = MeetingSummary::create([
                 'summary_object' => $meetingSummary,
                 'meeting_type_id' => $meetingInfo['meeting_type_id'],
                 'deal_id' => $meetingInfo['deal_id'],
             ]);
 
-            // Update the DealFollowUp record with the summary_id
             if ($leadFollowUp) {
                 $leadFollowUp->update(['summary_id' => $summary->id]);
             }
 
-
-            return $summary;
+            return [$summary, $leadFollowUp, 'created'];
         });
-       
-            // Send email notification for new summary
-            $this->sendSummaryNotification($summary, $leadFollowUp, 'created');
+
+        DB::afterCommit(fn () => $this->sendSummaryNotification($summary, $leadFollowUp, $action));
+
+        $status = $action === 'updated' ? 200 : 201;
+        $messageKey = $action === 'updated'
+            ? 'modules.meeting.messages.updated'
+            : 'modules.meeting.messages.created';
 
         return response()->json(
-            Reply::successWithData('modules.meeting.messages.created', [
+            Reply::successWithData($messageKey, [
                 'data' => $summary,
-                'action' => 'created'
-            ]), 201
+                'action' => $action
+            ]),
+            $status
         );
     }
 

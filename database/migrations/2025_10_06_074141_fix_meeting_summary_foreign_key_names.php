@@ -14,19 +14,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('meeting_summary', function (Blueprint $table) {
-            // Add foreign keys with explicit names
-            // Note: The table was created without foreign keys, so we just add them
-            $table->foreign('meeting_type_id', 'fk_meeting_summary_meeting_type_id')
-                  ->references('id')
-                  ->on('meeting_types')
-                  ->onDelete('set null');
-                  
-            $table->foreign('deal_id', 'fk_meeting_summary_deal_id')
-                  ->references('id')
-                  ->on('deals')
-                  ->onDelete('cascade');
-        });
+        // Foreign keys already exist from the table creation migration.
     }
 
     /**
@@ -34,10 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('meeting_summary', function (Blueprint $table) {
-            // Drop the explicitly named foreign keys
-            $table->dropForeign('fk_meeting_summary_meeting_type_id');
-            $table->dropForeign('fk_meeting_summary_deal_id');
-        });
+        // No-op: nothing was added in up().
     }
 };
