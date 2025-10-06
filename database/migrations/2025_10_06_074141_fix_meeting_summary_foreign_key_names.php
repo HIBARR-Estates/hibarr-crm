@@ -8,15 +8,15 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Add foreign key constraints to meeting_summary table with explicit naming.
+     * Note: The table was created without foreign keys, so we just add them.
      */
     public function up(): void
     {
         Schema::table('meeting_summary', function (Blueprint $table) {
-            // Drop existing foreign keys (Laravel's default naming)
-            $table->dropForeign(['meeting_type_id']);
-            $table->dropForeign(['deal_id']);
-            
-            // Recreate with explicit names
+            // Add foreign keys with explicit names
+            // Note: The table was created without foreign keys, so we just add them
             $table->foreign('meeting_type_id', 'fk_meeting_summary_meeting_type_id')
                   ->references('id')
                   ->on('meeting_types')
@@ -38,17 +38,6 @@ return new class extends Migration
             // Drop the explicitly named foreign keys
             $table->dropForeign('fk_meeting_summary_meeting_type_id');
             $table->dropForeign('fk_meeting_summary_deal_id');
-            
-            // Recreate with Laravel's default naming (for rollback)
-            $table->foreign('meeting_type_id')
-                  ->references('id')
-                  ->on('meeting_types')
-                  ->onDelete('set null');
-                  
-            $table->foreign('deal_id')
-                  ->references('id')
-                  ->on('deals')
-                  ->onDelete('cascade');
         });
     }
 };

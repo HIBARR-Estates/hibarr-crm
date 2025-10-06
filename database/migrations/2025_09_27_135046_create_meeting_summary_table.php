@@ -18,8 +18,15 @@ return new class extends Migration
             $table->unsignedBigInteger('deal_id')->nullable();
             $table->timestamps();
             
-            $table->foreign('meeting_type_id')->references('id')->on('meeting_types')->onDelete('set null');
-            $table->foreign('deal_id')->references('id')->on('deals')->onDelete('cascade');
+            $table->foreign('meeting_type_id', 'fk_meeting_summary_meeting_type_id')
+                  ->references('id')
+                  ->on('meeting_types')
+                  ->onDelete('set null');
+                  
+            $table->foreign('deal_id', 'fk_meeting_summary_deal_id')
+                  ->references('id')
+                  ->on('deals')
+                  ->onDelete('cascade');
         });
     }
 
