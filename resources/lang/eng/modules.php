@@ -2401,5 +2401,38 @@ return array(
         'sendEstimateRequest' => 'Send Estimate Request',
         'description' => 'Details of requirement',
         'prefix' => 'ESTRQ',
+    ),
+    'meeting' => array(
+        'summary' => 'Summary',
+        'title' => 'Meeting Summary',
+        'information' => 'Meeting Information',
+        'deal' => 'Deal',
+        'meetingType' => 'Meeting Type',
+        'notLinked' => 'Not linked',
+        'notSpecified' => 'Not specified',
+        'noSummaryGenerated' => 'No meeting summary has been generated for this meeting yet.',
+        'close' => 'Close',
+        'meetingSummaryFor' => 'Meeting Summary for',
+        'sections' => array(
+            'executive_summary' => 'Executive Summary',
+            'key_points_discussed' => 'Key Points Discussed',
+            'action_points' => 'Action Points',
+            'sales_objections' => 'Sales Objections',
+            'recommendations' => 'Recommendations',
+        ),
+        'content' => array(
+            'notSpecified' => 'Not specified',
+            'item' => 'Item',
+        ),
+        'messages' => array(
+            'created' => 'Meeting summary created successfully',
+            'updated' => 'Meeting summary updated successfully',
+            'meetingIdRequired' => 'Meeting ID is required',
+            'meetingPlatformRequired' => 'Meeting platform is required',
+            'meetingNotFound' => 'Meeting not found',
+            'invalidMeetingInfo' => 'Invalid meeting information provided',
+            'platformMismatch' => 'Meeting platform mismatch',
+            'platformMismatchMessage' => 'Meeting found but platform does not match',
+        ),
     )
 );

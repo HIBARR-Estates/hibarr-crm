@@ -1,6 +1,6 @@
 {{-- Meeting Summary Modal --}}
 <div class="modal-header">
-    <h5 class="modal-title" id="modelHeading">📝 {{ $summary['meetingType']['name'] ?? ('Meeting Summary for ' . ($summary['deal']['name'] ?? 'N/A')) }} </h5>
+    <h5 class="modal-title" id="modelHeading">📝 {{ $summary['meetingType']['name'] ?? (__('modules.meeting.meetingSummaryFor') . ' ' . ($summary['deal']['name'] ?? 'N/A')) }} </h5>
     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
@@ -11,140 +11,55 @@
     @else
     <div class="meeting-summary" style="font-size: 16px; padding: 0 7px;">
     {{-- Meeting Information --}}
-    <h4 style="font-size: 20px; margin-bottom: 15px;">Meeting Information</h4>
+    <h4 style="font-size: 20px; margin-bottom: 15px;">@lang('modules.meeting.information')</h4>
     <hr>
     
-    <p style="margin-bottom: 10px;"><strong>Deal:</strong> 
+    <p style="margin-bottom: 10px;"><strong>@lang('modules.meeting.deal'):</strong> 
         @if(isset($summary['deal']) && $summary['deal'])
             {{ $summary['deal']['name'] ?? 'N/A' }}
         @else
-            Not linked
+            @lang('modules.meeting.notLinked')
         @endif
     </p>
     
-    <p style="margin-bottom: 20px;"><strong>Meeting Type:</strong> 
+    <p style="margin-bottom: 20px;"><strong>@lang('modules.meeting.meetingType'):</strong> 
         @if(isset($summary['meetingType']) && $summary['meetingType'])
             {{ $summary['meetingType']['name'] ?? 'N/A' }}
         @else
-            Not specified
+            @lang('modules.meeting.notSpecified')
         @endif
     </p>
 
     {{-- Summary Content --}}
     @if(isset($summary['summary_object']) && $summary['summary_object'] !== null && $summary['summary_object'] !== '')
-        <h4 style="font-size: 20px; margin-bottom: 15px;">Meeting Summary </h4>
+        <h4 style="font-size: 20px; margin-bottom: 15px;">@lang('modules.meeting.title')</h4>
         <hr>
         
-        @if(is_array($summary['summary_object']) || is_object($summary['summary_object']))
-            {{-- Render object/array as formatted content with custom ordering --}}
-            @php 
-                $orderedSections = [
-                    'executive_summary' => 'Executive Summary',
-                    'key_points_discussed' => 'Key Points Discussed',
-                    'action_points' => 'Action Points',
-                    'sales_objections' => 'Sales Objections',
-                    'recommendations' => 'Recommendations'
-                ];
-                
-                $processedSections = [];
-                
-                // Helper function to find section key regardless of format (underscore vs space)
-                $findSectionKey = function($targetKey, $data) {
-                    $variations = [
-                        $targetKey,
-                        str_replace('_', ' ', $targetKey),
-                        str_replace(' ', '_', $targetKey)
-                    ];
-                    foreach ($variations as $variation) {
-                        if (isset($data[$variation])) {
-                            return $variation;
-                        }
-                    }
-                    return null;
-                };
-            @endphp
-            
-            {{-- First, process sections in the desired order --}}
-            @foreach($orderedSections as $sectionKey => $sectionTitle)
-                @php $actualKey = $findSectionKey($sectionKey, $summary['summary_object']); @endphp
-                @if($actualKey)
-                    @php $processedSections[$actualKey] = $summary['summary_object'][$actualKey]; @endphp
-                @endif
-            @endforeach
-            
-            {{-- Then process any remaining sections not in the ordered list --}}
-            @foreach($summary['summary_object'] as $key => $value)
-                @if(!isset($processedSections[$key]))
-                    @php $processedSections[$key] = $value; @endphp
-                @endif
-            @endforeach
-            
-            {{-- Display sections in order --}}
-            @foreach($processedSections as $key => $value)
-                @php 
-                    // Find the display title by matching the key to our ordered sections
-                    $displayTitle = ucwords(str_replace('_', ' ', $key));
-                    foreach($orderedSections as $sectionKey => $sectionTitle) {
-                        if ($key === $sectionKey || $key === str_replace('_', ' ', $sectionKey) || $key === str_replace(' ', '_', $sectionKey)) {
-                            $displayTitle = $sectionTitle;
-                            break;
-                        }
-                    }
-                @endphp
+        @if(isset($summary['processed_sections']) && !empty($summary['processed_sections']))
+            @foreach($summary['processed_sections'] as $section)
                 <div style="margin-bottom: 20px; margin-top: 20px; padding: 0 5px;">
-                    <p style="margin-bottom: 10px; margin-top: 20px;"><strong>{{ $displayTitle }}:</strong></p>
-                    @if(is_array($value) || is_object($value))
-                        @php $subCounter = 1; @endphp
-                        @foreach($value as $subKey => $subValue)
-                            @php 
-                                // Clean the sub-key to remove numeric prefixes and colons
-                                
-                                // Remove numeric prefixes like "0: ", "1: ", "2: ", etc.
-                                $cleanSubKey = $subKey;
-                                
-                                // More comprehensive cleaning - try multiple approaches
-                                // First, remove any leading number followed by colon and space
-                                $cleanSubKey = preg_replace('/^\d+\s*:\s*/', '', $cleanSubKey);
-                                
-                                // Remove just leading colon and space
-                                $cleanSubKey = preg_replace('/^:\s*/', '', $cleanSubKey);
-                                
-                                // Remove leading spaces
-                                $cleanSubKey = ltrim($cleanSubKey);
-                                
-                                // If the key is empty or just whitespace after cleaning, use the value
-                                if (empty(trim($cleanSubKey))) {
-                                    $cleanSubKey = (is_scalar($subValue) ? $subValue : null) ?? 'Item';
-                                }
-                                
-                                // Also handle cases where the key might be just a number
-                                if (is_numeric(trim($cleanSubKey))) {
-                                    // If the key is just a number, use the value as the key
-                                    $cleanSubKey = (is_scalar($subValue) ? $subValue : null) ?? 'Item';
-                                }
-                                
-                                $displaySubKey = ucwords(str_replace('_', ' ', $cleanSubKey));
-                            @endphp
+                    <p style="margin-bottom: 10px; margin-top: 20px;"><strong>{{ $section['title'] }}:</strong></p>
+                    
+                    @if(isset($section['content']['type']) && $section['content']['type'] === 'simple')
+                        <p style="margin-bottom: 15px; padding-left: 10px;">{{ $section['content']['value'] }}</p>
+                    @elseif(isset($section['content']['type']) && $section['content']['type'] === 'list')
+                        @foreach($section['content']['items'] as $item)
                             <div style="text-align: justify; margin-bottom: 8px; padding-left: 7px;">
-                                <strong>{{ $subCounter }}.</strong> {{ $displaySubKey }}
+                                <strong>{{ $item['number'] }}.</strong> {{ $item['text'] }}
                             </div>
-                            @php $subCounter++; @endphp
                         @endforeach
-                    @else
-                        <p style="margin-bottom: 15px; padding-left: 10px;">{{ $value ?? 'Not specified' }}</p>
-                    @endif
+                    @endif  
                 </div>
             @endforeach
         @else
-            {{-- Render string content --}}
-            <p>{{ $summary['summary_object'] }}</p>
+            <p><em>@lang('modules.meeting.noSummaryGenerated')</em></p>
         @endif
     @else
-        <p><em>No meeting summary has been generated for this meeting yet.</em></p>
+        <p><em>@lang('modules.meeting.noSummaryGenerated')</em></p>
     @endif
     </div>
     @endif
 </div>
 <div class="modal-footer">
-    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+    <button type="button" class="btn btn-secondary" data-dismiss="modal">@lang('modules.meeting.close')</button>
 </div>

@@ -21,7 +21,7 @@ class MeetingSummaryController extends Controller
             'meeting_id' => 'nullable|string',
         ]);
 
-        return DB::transaction(function () use ($request) {
+        $meetingSummary = DB::transaction(function () use ($request) {
             $meetingSummary = MeetingSummary::create([
                 'summary_object' => $request->summary_object,
                 'deal_id' => $request->deal_id,
@@ -37,12 +37,14 @@ class MeetingSummaryController extends Controller
                 }
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Meeting summary created successfully',
-                'data' => $meetingSummary
-            ], 201);
+            return $meetingSummary;
         });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting summary created successfully',
+            'data' => $meetingSummary
+        ], 201);
     }
 
     /**
@@ -71,14 +73,15 @@ class MeetingSummaryController extends Controller
             if ($meetingSummary->meeting_type_id) {
                 $meetingSummary->load(['meetingType']);
             }
-            
-            
-            // Return view for web requests (ajaxModal)
+
+            // Process sections with proper ordering and provide structured data
+            $summaryData = $meetingSummary->toArray();
+            $summaryData['processed_sections'] = $this->processSummarySections($summaryData['summary_object']);
+
             if (request()->ajax()) {
-                return view('leads.ajax.meeting-summary-modal', ['summary' => $meetingSummary->toArray()]);
+                return view('leads.ajax.meeting-summary-modal', ['summary' => $summaryData]);
             }
             
-            // Return JSON for API requests
             return response()->json([
                 'success' => true,
                 'data' => $meetingSummary
@@ -95,6 +98,163 @@ class MeetingSummaryController extends Controller
                 'message' => 'Error loading meeting summary'
             ], 500);
         }
+    }
+
+    /**
+     * Process summary sections with proper ordering and provide structured data
+     */
+    private function processSummarySections($summaryObject)
+    {
+        if (empty($summaryObject)) {
+            return [];
+        }
+
+        if (!is_array($summaryObject) && !is_object($summaryObject)) {
+            return [
+                [
+                    'title' => __('modules.meeting.summary'),
+                    'content' => $summaryObject,
+                    'is_simple' => true
+                ]
+            ];
+        }
+           
+                $orderedSections = [
+            'executive_summary' => __('modules.meeting.sections.executive_summary'),
+            'key_points_discussed' => __('modules.meeting.sections.key_points_discussed'),
+            'action_points' => __('modules.meeting.sections.action_points'),
+            'sales_objections' => __('modules.meeting.sections.sales_objections'),
+            'recommendations' => __('modules.meeting.sections.recommendations')
+                ];
+                
+                $processedSections = [];
+                
+                // Helper function to find section key regardless of format (underscore vs space)
+                $findSectionKey = function($targetKey, $data) {
+                    $variations = [
+                        $targetKey,
+                        str_replace('_', ' ', $targetKey),
+                        str_replace(' ', '_', $targetKey)
+                    ];
+                    foreach ($variations as $variation) {
+                        if (isset($data[$variation])) {
+                            return $variation;
+                        }
+                    }
+                    return null;
+                };
+
+        // First, process sections in the desired order
+        foreach($orderedSections as $sectionKey => $sectionTitle) {
+            $actualKey = $findSectionKey($sectionKey, $summaryObject);
+            if($actualKey) {
+                $processedSections[] = [
+                    'title' => $sectionTitle,
+                    'content' => $this->processSectionContent($summaryObject[$actualKey])
+                ];
+            }
+        }
+        
+        // Then process any remaining sections not in the ordered list
+        foreach($summaryObject as $key => $value) {
+            $alreadyProcessed = false;
+            foreach($processedSections as $processed) {
+                if ($processed['title'] === ucwords(str_replace('_', ' ', $key))) {
+                    $alreadyProcessed = true;
+                    break;
+                }
+            }
+            
+            if (!$alreadyProcessed) {
+                $displayTitle = ucwords(str_replace('_', ' ', $key));
+                
+                // Check if this key has a translation
+                $translationKey = 'modules.meeting.sections.' . $key;
+                if (__($translationKey) !== $translationKey) {
+                    $displayTitle = __($translationKey);
+                } else {
+                    // Fallback to checking against ordered sections
+                    foreach($orderedSections as $sectionKey => $sectionTitle) {
+                        if ($key === $sectionKey || $key === str_replace('_', ' ', $sectionKey) || $key === str_replace(' ', '_', $sectionKey)) {
+                            $displayTitle = $sectionTitle;
+                            break;
+                        }
+                    }
+                }
+                
+                $processedSections[] = [
+                    'title' => $displayTitle,
+                    'content' => $this->processSectionContent($value)
+                ];
+            }
+        }
+
+        return $processedSections;
+    }
+
+    /**
+     * Process section content and return structured data
+     */
+    private function processSectionContent($content)
+    {
+        // If content is not an array/object, return as simple content
+        if (!is_array($content) && !is_object($content)) {
+            return [
+                'type' => 'simple',
+                'value' => $content ?? __('modules.meeting.content.notSpecified')
+            ];
+        }
+
+        $items = [];
+        $counter = 1;
+
+        foreach ($content as $subKey => $subValue) {
+            // Clean the sub-key
+            $cleanSubKey = $this->cleanSubKey($subKey, $subValue);
+            
+            $items[] = [
+                'number' => $counter,
+                'text' => $cleanSubKey
+            ];
+            
+            $counter++;
+        }
+
+        return [
+            'type' => 'list',
+            'items' => $items
+        ];
+    }
+
+
+    /**
+     * Clean sub-key by removing numeric prefixes, colons, and formatting
+     */
+    private function cleanSubKey($subKey, $subValue)
+    {
+        $cleanSubKey = $subKey;
+        
+        // Remove numeric prefixes like "0: ", "1: ", "2: ", etc.
+        $cleanSubKey = preg_replace('/^\d+\s*:\s*/', '', $cleanSubKey);
+        
+        // Remove just leading colon and space
+        $cleanSubKey = preg_replace('/^:\s*/', '', $cleanSubKey);
+        
+        // Remove leading spaces
+        $cleanSubKey = ltrim($cleanSubKey);
+        
+        // If the key is empty or just whitespace after cleaning, use the value
+        if (empty(trim($cleanSubKey))) {
+            $cleanSubKey = (is_scalar($subValue) ? $subValue : null) ?? __('modules.meeting.content.item');
+        }
+        
+        // Also handle cases where the key might be just a number
+        if (is_numeric(trim($cleanSubKey))) {
+            // If the key is just a number, use the value as the key
+            $cleanSubKey = (is_scalar($subValue) ? $subValue : null) ?? __('modules.meeting.content.item');
+        }
+        
+        return ucwords(str_replace('_', ' ', $cleanSubKey));
     }
 
     /**
@@ -122,16 +282,18 @@ class MeetingSummaryController extends Controller
      */
     public function destroy(MeetingSummary $meetingSummary): JsonResponse
     {
-        return DB::transaction(function () use ($meetingSummary) {
+        $meetingSummary = DB::transaction(function () use ($meetingSummary) {
             DealFollowUp::where('summary_id', $meetingSummary->id)->update(['summary_id' => null]);
             
             $meetingSummary->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Meeting summary deleted successfully'
-            ]);
+            return $meetingSummary;
         });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting summary deleted successfully'
+        ]);
     }
 
     /**

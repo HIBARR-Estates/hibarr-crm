@@ -15,7 +15,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                 <x-slot name="thead">
                     <th>@lang('app.createdOn')</th>
                     <th>@lang('modules.lead.nextFollowUp')</th>
-                    <th>Summary</th>
+                    <th>@lang('modules.meeting.summary')</th>
                     <th>@lang('app.status')</th>
                     <th class="text-right">@lang('app.action')</th>
                 </x-slot>

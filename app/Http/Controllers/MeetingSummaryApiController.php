@@ -6,6 +6,8 @@ use App\Models\MeetingSummary;
 use App\Models\DealFollowUp;
 use App\Models\Deal;
 use App\Models\User;
+use App\Helper\Reply;
+use App\Exceptions\MeetingSummaryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -29,30 +31,50 @@ class MeetingSummaryApiController extends Controller
         $meetingPlatform = $request->meeting_platform;
         $meetingSummary = $request->meeting_summary;
 
-        // Find meeting info
-        $meetingInfo = $this->findOrFailMeetingId($meetingId, $meetingPlatform);
-        
-        if (is_array($meetingInfo) && isset($meetingInfo['deal_id'])) {
+        try {
+            // Find meeting info - will throw exception if not found
+            $meetingInfo = $this->findOrFailMeetingId($meetingId, $meetingPlatform);
+            
             // Meeting found, proceed with create/update
             return $this->createOrUpdateSummary($meetingSummary, $meetingId, $meetingPlatform, $meetingInfo);
-        } else {
-            // Return error response
-            return $meetingInfo;
+            
+        } catch (MeetingSummaryException $e) {
+            // Handle meeting summary specific errors
+            return response()->json(
+                Reply::error($e->getMessage(), $e->getErrorCode(), $e->getAdditionalData()),
+                $e->getCode()
+            );
         }
     }
 
     /**
      * Create or update meeting summary
      */
-    private function createOrUpdateSummary($meetingSummary, $meetingId, $meetingPlatform, $meetingInfo)
+    private function createOrUpdateSummary(array $meetingSummary, string $meetingId, string $meetingPlatform, array $meetingInfo): JsonResponse
     {
-        return DB::transaction(function () use ($meetingSummary, $meetingId, $meetingPlatform, $meetingInfo) {
-            // Lock the follow-up row to prevent concurrent modifications
+        // Validate required meeting info fields
+        if (!isset($meetingInfo['deal_id']) || !is_numeric($meetingInfo['deal_id'])) {
+            throw new \InvalidArgumentException('Invalid or missing deal_id in meeting info');
+        }
+        
+        if (!isset($meetingInfo['meeting_type_id']) || !is_numeric($meetingInfo['meeting_type_id'])) {
+            throw new \InvalidArgumentException('Invalid or missing meeting_type_id in meeting info');
+        }
+        
+        // Validate meeting summary is not empty
+        if (empty($meetingSummary)) {
+            throw new \InvalidArgumentException('Meeting summary cannot be empty');
+        }
+        
+        // Lock the follow-up row to prevent concurrent modifications
             // Use case-insensitive comparison for platform/location
             $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)
                                        ->whereRaw('LOWER(location) = LOWER(?)', [$meetingPlatform])
                                        ->lockForUpdate()
                                        ->first();
+
+        $summary = DB::transaction(function () use ($meetingSummary, $meetingId, $meetingPlatform, $meetingInfo) {
+           
             
             if ($leadFollowUp && $leadFollowUp->summary_id) {
                 // Update existing summary
@@ -67,12 +89,12 @@ class MeetingSummaryApiController extends Controller
                     // Send email notification for updated summary
                     $this->sendSummaryNotification($summary, $leadFollowUp, 'updated');
                     
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Meeting summary updated successfully',
-                        'data' => $summary,
-                        'action' => 'updated'
-                    ], 200);
+                    return response()->json(
+                        Reply::successWithData('modules.meeting.messages.updated', [
+                            'data' => $summary,
+                            'action' => 'updated'
+                        ]), 200
+                    );
                 }
             }
             
@@ -88,40 +110,57 @@ class MeetingSummaryApiController extends Controller
                 $leadFollowUp->update(['summary_id' => $summary->id]);
             }
 
+
+            return $summary;
+        });
+       
             // Send email notification for new summary
             $this->sendSummaryNotification($summary, $leadFollowUp, 'created');
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Meeting summary created successfully',
+        return response()->json(
+            Reply::successWithData('modules.meeting.messages.created', [
                 'data' => $summary,
                 'action' => 'created'
-            ], 201);
-        });
+            ]), 201
+        );
     }
 
     /**
      * Find meeting by ID and platform
+     * 
+     * @throws MeetingSummaryException
      */
-    private function findOrFailMeetingId(string $meetingId, string $meetingPlatform)
+    private function findOrFailMeetingId(string $meetingId, string $meetingPlatform): array
     {
-        $meeting = [];
-        $meeting['deal_id'] = null;
-        $meeting['meeting_type_id'] = null;
-        
-        if(!$meetingId){
-            return response()->json(['error' => 'Meeting ID is required'], 400);
+        // Validate input parameters
+        if (empty($meetingId)) {
+            throw new MeetingSummaryException(
+                trans('modules.meeting.messages.meetingIdRequired'),
+                'meeting_id_required',
+                [],
+                400
+            );
         }
         
-        if(!$meetingPlatform){
-            return response()->json(['error' => 'Meeting platform is required'], 400);
+        if (empty($meetingPlatform)) {
+            throw new MeetingSummaryException(
+                trans('modules.meeting.messages.meetingPlatformRequired'),
+                'meeting_platform_required',
+                [],
+                400
+            );
         }
         
         // Get all DealFollowUp records with the same meeting_id
         $meetings = DealFollowUp::where('meeting_id', $meetingId)->get();
         
-        if($meetings->isEmpty()){
-            return response()->json(['error' => 'Meeting not found'], 404);
+        if ($meetings->isEmpty()) {
+            throw new MeetingSummaryException(
+                trans('modules.meeting.messages.meetingNotFound'),
+                'meeting_not_found',
+                [],
+                404
+            );
         }
         
         // Find the DealFollowUp record that matches the platform/location (case-insensitive)
@@ -129,27 +168,32 @@ class MeetingSummaryApiController extends Controller
             return strtolower($meeting->location) === strtolower($meetingPlatform);
         });
         
-        if(!$meetingInfo){
-            // If no exact match, return all available platforms for this meeting_id
+        if (!$meetingInfo) {
+            // If no exact match, provide available platforms for this meeting_id
             $availablePlatforms = $meetings->pluck('location')->unique()->values()->toArray();
-            return response()->json([
-                'error' => 'Meeting platform mismatch',
-                'message' => "Meeting found but platform '{$meetingPlatform}' does not match",
-                'available_platforms' => $availablePlatforms,
-                'meeting_id' => $meetingId
-            ], 400);
+            throw new MeetingSummaryException(
+                trans('modules.meeting.messages.platformMismatchMessage') . " '{$meetingPlatform}'",
+                'platform_mismatch',
+                [
+                    'available_platforms' => $availablePlatforms,
+                    'meeting_id' => $meetingId
+                ],
+                400
+            );
         }
         
-        $meeting['deal_id'] = $meetingInfo->deal_id;
-        $meeting['meeting_type_id'] = $meetingInfo->meeting_type_id;
-        $meeting['location'] = $meetingInfo->location;
-        return $meeting;
+        // Return structured meeting data
+        return [
+            'deal_id' => $meetingInfo->deal_id,
+            'meeting_type_id' => $meetingInfo->meeting_type_id,
+            'location' => $meetingInfo->location
+        ];
     }
 
     /**
      * Send email notification for meeting summary
      */
-    private function sendSummaryNotification($summary, $leadFollowUp, $action)
+    private function sendSummaryNotification(MeetingSummary $summary, DealFollowUp $leadFollowUp, string $action): void
     {
         try {
             // Get the deal information
@@ -187,6 +231,15 @@ class MeetingSummaryApiController extends Controller
             ));
 
         } catch (\Exception $e) {
+            // Log the exception for debugging and monitoring
+            Log::error('Failed to send meeting summary notification', [
+                'summary_id' => $summary->id ?? null,
+                'deal_id' => $summary->deal_id ?? null,
+                'action' => $action,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             // Don't throw the exception to avoid breaking the main flow
         }
     }
