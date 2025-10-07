@@ -25,5 +25,16 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('leads/{leadId}/communication-activities', ['as' => 'api.leads.communication-activities', 'uses' => 'CommunicationActivityController@getLeadActivities']);
         ApiRoute::get('communication-activities/channel/{channelType}', ['as' => 'api.communication-activities.by-channel', 'uses' => 'CommunicationActivityController@getActivitiesByChannel']);
 
+        // Properties API
+        ApiRoute::get('properties', ['as' => 'api.properties.index', 'uses' => 'PropertyController@apiIndex']);
+        ApiRoute::post('properties', ['as' => 'api.properties.store', 'uses' => 'PropertyController@apiStore']);
+        ApiRoute::get('properties/{id}', ['as' => 'api.properties.show', 'uses' => 'PropertyController@apiShow']);
+        ApiRoute::put('properties/{id}', ['as' => 'api.properties.update', 'uses' => 'PropertyController@apiUpdate']);
+        ApiRoute::delete('properties/{id}', ['as' => 'api.properties.destroy', 'uses' => 'PropertyController@apiDestroy']);
+        
+        // Property Configuration Endpoints
+        ApiRoute::get('properties/config/configurations', ['as' => 'api.properties.configurations', 'uses' => 'PropertyController@getPropertyConfigurations']);
+        ApiRoute::get('properties/config/allowed-types', ['as' => 'api.properties.allowed-types', 'uses' => 'PropertyController@getAllowedPropertyTypes']);
+        ApiRoute::get('properties/config/allowed-fields', ['as' => 'api.properties.allowed-fields', 'uses' => 'PropertyController@getAllowedFields']);
     });
 });

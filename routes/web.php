@@ -912,6 +912,13 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('estimate-request/send_estimate_mail', [EstimateRequestController::class, 'sendEstimateMail'])->name('estimate-request.send_estimate_mail');
     Route::resource('estimate-request', EstimateRequestController::class);
 
+    // Properties
+    Route::post('properties/apply-quick-action', [App\Http\Controllers\PropertyController::class, 'applyQuickAction'])->name('properties.apply_quick_action');
+    Route::get('properties/configurations', [App\Http\Controllers\PropertyController::class, 'getPropertyConfigurations'])->name('properties.configurations');
+    Route::get('properties/allowed-types', [App\Http\Controllers\PropertyController::class, 'getAllowedPropertyTypes'])->name('properties.allowed_types');
+    Route::get('properties/allowed-fields', [App\Http\Controllers\PropertyController::class, 'getAllowedFields'])->name('properties.allowed_fields');
+    Route::resource('properties', App\Http\Controllers\PropertyController::class);
+
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);
 });

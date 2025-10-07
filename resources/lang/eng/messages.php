@@ -577,4 +577,10 @@ return array(
     'SelectaDepartment' => 'Select a current department.',
     'changeWeeklyTimesheetStatusConfirmation' => 'Are you sure you want to change the status of this weekly timesheet?',
     'submitWeeklyTimesheetConfirmation' => 'Are you sure you want to submit this weekly timesheet? You will not be able to edit it later.',
+    
+    // Property-related error messages
+    'fieldCannotBeUpdatedInCurrentStatus' => 'The :field field cannot be updated when the property status is :status.',
+    'cannotUpdatePriceWhenSoldOrUnderOffer' => 'Price cannot be updated when the property is sold or under offer.',
+    'cannotUpdateSaleTypeWhenSoldOrUnderOffer' => 'Sale type cannot be updated when the property is sold or under offer.',
+    'cannotUpdateStatusWhenSold' => 'Status cannot be updated when the property is sold.',
 );
