@@ -18,6 +18,17 @@ use Illuminate\Support\Facades\Route;
 ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
     ApiRoute::get('purchased-module', ['as' => 'api.purchasedModule', 'uses' => 'HomeController@installedModule']);
 
+});
+
+// API Routes for external applications
+ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
+    ApiRoute::post('deals/change-stage', ['as' => 'api.deals.changeStage', 'uses' => 'DealApiController@changeStage']);
+    // ->validate([
+    //     'deal_id' => 'required|exists:deals,id',
+    //     'new_stage_id' => 'required|exists:pipeline_stages,id',
+    // ]);
+
+
     // External Communications Module Routes
     ApiRoute::middleware(['api.token'])->group(function () {
         ApiRoute::post('communication-activities', ['as' => 'api.communication-activities.store', 'uses' => 'CommunicationActivityController@store']);
@@ -26,4 +37,5 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('communication-activities/channel/{channelType}', ['as' => 'api.communication-activities.by-channel', 'uses' => 'CommunicationActivityController@getActivitiesByChannel']);
 
     });
+
 });
