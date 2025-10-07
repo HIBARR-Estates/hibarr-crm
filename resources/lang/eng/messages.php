@@ -583,4 +583,11 @@ return array(
     'cannotUpdatePriceWhenSoldOrUnderOffer' => 'Price cannot be updated when the property is sold or under offer.',
     'cannotUpdateSaleTypeWhenSoldOrUnderOffer' => 'Sale type cannot be updated when the property is sold or under offer.',
     'cannotUpdateStatusWhenSold' => 'Status cannot be updated when the property is sold.',
+    // Meeting Link Generation Failed
+    'meetingLinkGenerationFailed' => [
+        'subject' => 'Meeting Link Generation Failed',
+        'error' => 'Error Details',
+        'actionRequired' => 'Please manually generate the meeting link or contact the system administrator.',
+        'action' => 'View Deal'
+    ],
 );

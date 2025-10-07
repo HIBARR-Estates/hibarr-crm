@@ -28,7 +28,11 @@ class StoreRequest extends CoreRequest
         $deal = Deal::findOrFail($this->deal_id);
         $setting = company();
 
-        $rules = [];
+        $rules = [
+            'meeting_type_id' => 'nullable|exists:meeting_types,id',
+            'location' => 'required|in:office,zoom,zoho_meet,google_meet',
+            'meeting_link' => 'nullable|url',
+        ];
 
         if(request()->has('send_reminder')){
             $rules['remind_time'] = 'required';
