@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Property;
 use App\Models\Product;
-use App\DataTables\PropertiesDataTable;
 use App\Http\Requests\Property\StoreRequest;
 use App\Http\Requests\Property\UpdateRequest;
 use App\Helper\Reply;
@@ -32,14 +31,80 @@ class PropertyController extends AccountBaseController
         });
     }
 
-    public function index(PropertiesDataTable $dataTable)
+    public function index(Request $request)
     {
         abort_403(!in_array($this->viewPropertyPermission, ['all', 'added', 'owned', 'both']));
 
+        // Get properties with pagination and filtering
+        $query = Property::with('product');
+
+        // Apply permission-based filtering
+        switch ($this->viewPropertyPermission) {
+            case 'added':
+                $query->whereHas('product', function($q) {
+                    $q->where('added_by', user()->id);
+                });
+                break;
+            case 'owned':
+                $query->whereHas('product', function($q) {
+                    $q->where('assigned_to', user()->id);
+                });
+                break;
+            case 'both':
+                $query->whereHas('product', function($q) {
+                    $q->where(function($subQ) {
+                        $subQ->where('added_by', user()->id)
+                             ->orWhere('assigned_to', user()->id);
+                    });
+                });
+                break;
+        }
+
+        // Apply filters if provided
+        if ($request->has('property_type') && $request->property_type !== '') {
+            $query->where('property_type', $request->property_type);
+        }
+
+        if ($request->has('sale_type') && $request->sale_type !== '') {
+            $query->where('sale_type', $request->sale_type);
+        }
+
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('city') && $request->city !== '') {
+            $query->where('city', 'like', '%' . $request->city . '%');
+        }
+
+        if ($request->has('min_price') && $request->min_price !== '') {
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        if ($request->has('max_price') && $request->max_price !== '') {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        // Apply search if provided
+        if ($request->has('search') && $request->search !== '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%')
+                  ->orWhere('area', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Order by creation date (newest first)
+        $query->orderBy('created_at', 'desc');
+
+        $properties = $query->paginate(15);
+
         // Get products for property assignment
         $this->products = Product::where('status', 'active')->get();
+        $this->properties = $properties;
         
-        return $dataTable->render('properties.index', $this->data);
+        return view('properties.index', $this->data);
     }
 
     public function create()
