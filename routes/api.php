@@ -20,6 +20,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
     ApiRoute::post('internal/communication-activities', ['as' => 'api.communication-activities.store', 'uses' => 'CommunicationActivityController@store']);
     ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities', 'uses' => 'CommunicationActivityController@getDealActivities']);
+  
     // External Communications Module Routes
     ApiRoute::middleware(['api.token'])->group(function () {
         ApiRoute::post('communication-activities', ['as' => 'api.communication-activities.store', 'uses' => 'CommunicationActivityController@store']);
@@ -28,4 +29,17 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('communication-activities/channel/{channelType}', ['as' => 'api.communication-activities.by-channel', 'uses' => 'CommunicationActivityController@getActivitiesByChannel']);
 
     });
+});
+
+// API Routes for external applications
+ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
+    ApiRoute::post('deals/change-stage', ['as' => 'api.deals.changeStage', 'uses' => 'DealApiController@changeStage']);
+    // ->validate([
+    //     'deal_id' => 'required|exists:deals,id',
+    //     'new_stage_id' => 'required|exists:pipeline_stages,id',
+    // ]);
+
+
+
+
 });

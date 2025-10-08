@@ -15,6 +15,7 @@ use App\Models\LeadSetting;
 use Illuminate\Support\Facades\Notification;
 use App\Traits\EmployeeActivityTrait;
 use App\Notifications\LeadImported;
+use App\Services\DealAutomationService;
 
 
 use App\Traits\DealHistoryTrait;
@@ -23,6 +24,14 @@ class DealObserver
 {
     use DealHistoryTrait;
     use EmployeeActivityTrait;
+
+    protected DealAutomationService $dealAutomation;
+
+    public function __construct(
+    DealAutomationService $dealAutomation
+    ) {
+        $this->dealAutomation = $dealAutomation;
+    }
 
     public function saving(Deal $deal)
     {
@@ -138,6 +147,9 @@ class DealObserver
                 event(new DealEvent($deal, $deal->leadAgent, 'StageUpdated'));
             }
         }
+        //deal automation trigger
+        $this->dealAutomation->automate($deal);
+        
     }
 
     public function created(Deal $deal)
@@ -177,6 +189,9 @@ class DealObserver
 
             $this->createClient($deal);
         }
+        //deal automation trigger
+        $this->dealAutomation->automate($deal);
+
     }
 
     public function deleting(Deal $deal)
