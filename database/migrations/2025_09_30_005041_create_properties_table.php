@@ -38,7 +38,7 @@ return new class extends Migration
             $table->string('title_deed_stage')->nullable(); // TypeTitleDeedStage enum as string
             
             // Status and location
-            $table->string('status')->default('Available'); // Status enum as string
+            $table->string('status')->default('available'); // Status enum as string
             $table->string('city');
             $table->text('map')->nullable(); // Google Maps URL or coordinates
             $table->string('area'); // e.g., "Downtown", "Suburbs"

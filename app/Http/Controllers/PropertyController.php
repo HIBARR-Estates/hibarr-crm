@@ -8,6 +8,7 @@ use App\Http\Requests\Property\StoreRequest;
 use App\Http\Requests\Property\UpdateRequest;
 use App\Helper\Reply;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PropertyController extends AccountBaseController
 {
@@ -20,46 +21,21 @@ class PropertyController extends AccountBaseController
     {
         parent::__construct();
         
-        $this->addPropertyPermission = user()->permission('add_properties');
-        $this->viewPropertyPermission = user()->permission('view_properties');
-        $this->editPropertyPermission = user()->permission('edit_properties');
-        $this->deletePropertyPermission = user()->permission('delete_properties');
-
-        $this->middleware(function ($request, $next) {
-            abort_403(!in_array($this->viewPropertyPermission, ['all', 'added', 'owned', 'both']));
-            return $next($request);
-        });
+        
     }
 
     public function index(Request $request)
     {
-        abort_403(!in_array($this->viewPropertyPermission, ['all', 'added', 'owned', 'both']));
+        // Debug: Let's see if we reach this point
+        \Log::info('PropertyController index method called', [
+            'url' => $request->url(),
+            'method' => $request->method()
+        ]);
 
         // Get properties with pagination and filtering
         $query = Property::with('product');
 
-        // Apply permission-based filtering
-        switch ($this->viewPropertyPermission) {
-            case 'added':
-                $query->whereHas('product', function($q) {
-                    $q->where('added_by', user()->id);
-                });
-                break;
-            case 'owned':
-                $query->whereHas('product', function($q) {
-                    $q->where('assigned_to', user()->id);
-                });
-                break;
-            case 'both':
-                $query->whereHas('product', function($q) {
-                    $q->where(function($subQ) {
-                        $subQ->where('added_by', user()->id)
-                             ->orWhere('assigned_to', user()->id);
-                    });
-                });
-                break;
-        }
-
+        
         // Apply filters if provided
         if ($request->has('property_type') && $request->property_type !== '') {
             $query->where('property_type', $request->property_type);
@@ -101,10 +77,18 @@ class PropertyController extends AccountBaseController
         $properties = $query->paginate(15);
 
         // Get products for property assignment
-        $this->products = Product::where('status', 'active')->get();
-        $this->properties = $properties;
+        // $this->products = Product::where('status', 'active')->get();
+    $this->properties = $properties;
+    return Inertia::render('Home', [
+        'greeting' => 'Hello, Inertia!'
+    ]);
         
-        return view('properties.index', $this->data);
+        // return Inertia::render('Properties/Index', [
+        //     'properties' => $properties,
+        //     // 'products' => $this->products,
+        //     'products' => [],
+        //     'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price'])
+        // ]);
     }
 
     public function create()
@@ -119,10 +103,14 @@ class PropertyController extends AccountBaseController
             ->get();
 
         if (request()->ajax()) {
-            return view('properties.ajax.create', $this->data);
+            return Inertia::render('Properties/Create', [
+                'products' => $this->products
+            ]);
         }
 
-        return view('properties.create', $this->data);
+        return Inertia::render('Properties/Create', [
+            'products' => $this->products
+        ]);
     }
 
     public function store(StoreRequest $request)
@@ -189,10 +177,14 @@ class PropertyController extends AccountBaseController
         $this->pageTitle = $this->property->title;
 
         if (request()->ajax()) {
-            return view('properties.ajax.show', $this->data);
+            return Inertia::render('Properties/Show', [
+                'property' => $this->property
+            ]);
         }
 
-        return view('properties.show', $this->data);
+        return Inertia::render('Properties/Show', [
+            'property' => $this->property
+        ]);
     }
 
     public function edit($id)
@@ -224,10 +216,16 @@ class PropertyController extends AccountBaseController
         $this->products = Product::where('status', 'active')->get();
 
         if (request()->ajax()) {
-            return view('properties.ajax.edit', $this->data);
+            return Inertia::render('Properties/Edit', [
+                'property' => $this->property,
+                'products' => $this->products
+            ]);
         }
 
-        return view('properties.edit', $this->data);
+        return Inertia::render('Properties/Edit', [
+            'property' => $this->property,
+            'products' => $this->products
+        ]);
     }
 
     public function update(UpdateRequest $request, $id)

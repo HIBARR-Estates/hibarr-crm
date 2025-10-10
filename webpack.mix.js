@@ -34,10 +34,7 @@ class RemoveSvgStylingPlugin {
                     );
 
                     // Remove .collapse visibility: collapse;
-                    css = css.replace(
-                        /\.collapse\s*{[^}]*}/g,
-                        ""
-                    );
+                    css = css.replace(/\.collapse\s*{[^}]*}/g, "");
 
                     fs.writeFileSync(tailwindPath, css);
                     console.log("✅ Removed SVG styling from Tailwind CSS");
@@ -75,6 +72,9 @@ mix.js("resources/js/bootstrap.js", "public/js")
         ],
         "public/js/main.js"
     )
+    // Inertia React entry point
+    .ts("resources/js/inertia.tsx", "public/js")
+    .react()
     .sass("resources/scss/main.scss", "public/css")
     .postCss("resources/css/tailwind.css", "public/css/tailwind.css", [
         require("@tailwindcss/postcss"),
