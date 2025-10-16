@@ -51,6 +51,7 @@ class DatabaseSeeder extends Seeder
                 $this->call(LeadSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(TaxTableSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(ProductTableSeeder::class, false, ['companyId' => $company->id]);
+                $this->call(PropertySeeder::class, false, ['companyId' => $company->id]);
                 $this->call(ContractTypeTableSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(ContractTableSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(LeadsTableSeeder::class, false, ['companyId' => $company->id]);

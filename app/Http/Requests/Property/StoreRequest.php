@@ -26,7 +26,6 @@ class StoreRequest extends CoreRequest
     public function rules()
     {
         $rules = [
-            'product_id' => 'required|exists:products,id',
             'property_type' => [
                 'required',
                 'string',
@@ -122,7 +121,7 @@ class StoreRequest extends CoreRequest
             'description' => 'required|string',
             'video_url' => 'nullable|url',
             'tour_360_url' => 'nullable|url',
-            'photos' => 'required|array|min:1',
+            'photos' => 'nullable|array',
             'photos.*' => 'string',
             'add_ons' => 'nullable|array',
             'add_ons.*' => 'string',
@@ -202,7 +201,6 @@ class StoreRequest extends CoreRequest
     public function attributes()
     {
         return [
-            'product_id' => __('modules.properties.product'),
             'property_type' => __('modules.properties.propertyType'),
             'sale_type' => __('modules.properties.saleType'),
             'price' => __('modules.properties.price'),
@@ -240,8 +238,7 @@ class StoreRequest extends CoreRequest
     public function messages()
     {
         return [
-            'product_id.required' => __('validation.required', ['attribute' => __('modules.properties.product')]),
-            'product_id.exists' => __('validation.exists', ['attribute' => __('modules.properties.product')]),
+      
             'property_type.required' => __('validation.required', ['attribute' => __('modules.properties.propertyType')]),
         'sale_type.required' => __('validation.required', ['attribute' => __('modules.properties.saleType')]),
             'price.numeric' => __('validation.numeric', ['attribute' => __('modules.properties.price')]),
