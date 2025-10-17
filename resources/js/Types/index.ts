@@ -1,4 +1,4 @@
-import { ErrorBag, Errors, Page } from "@inertiajs/core";
+import { ErrorBag, Errors, Page, PageProps } from "@inertiajs/core";
 
 // Laravel Pagination Interface
 export interface Pagination<T> {
@@ -151,7 +151,7 @@ export interface PropertyFilters {
 }
 
 // Page Props
-export interface PropertyIndexProps extends Page {
+export interface PropertyIndexProps extends PageProps {
     props: {
         properties: Pagination<Property>;
         products: Product[];
@@ -161,7 +161,7 @@ export interface PropertyIndexProps extends Page {
     };
 }
 
-export interface PropertyCreateProps extends Page {
+export interface PropertyCreateProps extends PageProps {
     props: {
         products: Product[];
         errors: Errors & ErrorBag;
@@ -169,7 +169,7 @@ export interface PropertyCreateProps extends Page {
     };
 }
 
-export interface PropertyEditProps extends Page {
+export interface PropertyEditProps extends PageProps {
     props: {
         property: Property;
         products: Product[];
@@ -178,7 +178,7 @@ export interface PropertyEditProps extends Page {
     };
 }
 
-export interface PropertyShowProps extends Page {
+export interface PropertyShowProps extends PageProps {
     props: {
         property: Property;
         errors: Errors & ErrorBag;
@@ -201,7 +201,7 @@ export interface FlashMessage {
     message: string;
 }
 
-export interface AppProps extends Page {
+export interface AppProps extends PageProps {
     props: {
         auth: {
             user: User;

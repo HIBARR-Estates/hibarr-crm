@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
-    Modal,
     Form,
     Select,
     DatePicker,
@@ -12,9 +11,9 @@ import {
     Input,
     message,
     Divider,
+    Drawer,
 } from "antd";
 import { DownloadOutlined, FilterOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -120,7 +119,7 @@ export default function ExportModal({
     };
 
     return (
-        <Modal
+        <Drawer
             title={
                 <div className="flex items-center gap-2">
                     <DownloadOutlined />
@@ -128,7 +127,7 @@ export default function ExportModal({
                 </div>
             }
             open={visible}
-            onCancel={onClose}
+            onClose={onClose}
             width={600}
             footer={
                 <div className="flex justify-between">
@@ -293,6 +292,6 @@ export default function ExportModal({
                     <li>• Large exports may take a few moments to process</li>
                 </ul>
             </div>
-        </Modal>
+        </Drawer>
     );
 }

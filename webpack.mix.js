@@ -1,4 +1,5 @@
 const mix = require("laravel-mix");
+const path = require("path");
 
 /*
  |--------------------------------------------------------------------------
@@ -84,4 +85,18 @@ mix.js("resources/js/bootstrap.js", "public/js")
     .sourceMaps(true, "source-map")
     .webpackConfig({
         plugins: [new RemoveSvgStylingPlugin()],
+        resolve: {
+            alias: {
+                "@": path.resolve(__dirname, "resources/js"),
+                "@/Components": path.resolve(
+                    __dirname,
+                    "resources/js/Components"
+                ),
+                "@/Pages": path.resolve(__dirname, "resources/js/Pages"),
+                "@/Types": path.resolve(__dirname, "resources/js/Types"),
+                "@/Modules": path.resolve(__dirname, "resources/js/Modules"),
+                "@/lib": path.resolve(__dirname, "resources/js/lib"),
+                "@/Hooks": path.resolve(__dirname, "resources/js/Hooks"),
+            },
+        },
     });

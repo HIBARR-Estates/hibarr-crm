@@ -2,10 +2,9 @@ import React, { useState, useEffect } from "react";
 import { router, useForm } from "@inertiajs/react";
 import { Typography, message } from "antd";
 import { Property } from "@/Types";
+import PropertyForm from "@/Modules/Properties/SaveProperty/PropertyForm";
 
 // Import the new PropertyForm component
-import PropertyForm from "../../Components/Properties/PropertyForm";
-import { set } from "lodash";
 
 const { Title } = Typography;
 

@@ -29,7 +29,7 @@ import {
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { router } from "@inertiajs/react";
-import ConfirmationModal from "../Common/ConfirmationModal";
+import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 
 const { Text, Title } = Typography;
 

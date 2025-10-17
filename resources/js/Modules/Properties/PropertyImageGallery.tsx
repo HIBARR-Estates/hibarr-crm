@@ -6,7 +6,6 @@ import {
     LeftOutlined,
     RightOutlined,
 } from "@ant-design/icons";
-import "../../../css/property-view.css";
 
 interface PropertyImageGalleryProps {
     images: string[];

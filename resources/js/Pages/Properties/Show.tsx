@@ -5,9 +5,8 @@ import { Property } from "@/Types";
 // Import components
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
-import PropertyView from "../../Components/Properties/PropertyView";
 import { message } from "antd";
-
+import PropertyView from "@/Modules/Properties/PropertyView/PropertyView";
 interface ShowProps {
     pageTitle: string;
     property: Property;

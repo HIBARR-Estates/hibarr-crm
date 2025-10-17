@@ -20,7 +20,10 @@
             "@/*": ["resources/js/*"],
             "@/Components/*": ["resources/js/Components/*"],
             "@/Pages/*": ["resources/js/Pages/*"],
-            "@/Types/*": ["resources/js/Types/*"]
+            "@/Types/*": ["resources/js/Types/*"],
+            "@/Modules/*": ["resources/js/Modules/*"],
+            "@/lib/*": ["resources/js/lib/*"],
+            "@/Hooks/*": ["resources/js/Hooks/*"]
         },
         "checkJs": false,
         "skipDefaultLibCheck": true
