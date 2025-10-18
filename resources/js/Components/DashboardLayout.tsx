@@ -430,7 +430,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                 collapsible
                 collapsed={collapsed}
                 onCollapse={(value) => setCollapsed(value)}
-                theme={user?.dark_theme ? "dark" : "light"}
+                theme={"dark"}
             >
                 {/* Sidebar Brand */}
                 <div className="p-4 border-b">
