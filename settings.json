@@ -1,0 +1,32 @@
+{
+  "php.validate.enable": true,
+  "php.suggest.basic": true,
+  "intelephense.files.exclude": [
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/storage/**",
+    "**/cache/**"
+  ],
+  "intelephense.indexing.enabled": true,
+  "intelephense.environment.memoryLimit": "512M",
+  "intelephense.telemetry.enabled": false,
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": true
+  },
+  "editor.suggest.snippetsPreventQuickSuggestions": false,
+  "editor.suggestSelection": "first",
+  "editor.wordBasedSuggestions": false,
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/vendor/**": true,
+    "**/.git/**": true
+  },
+  "code-runner.executorMap": {
+    "php": "php"
+  },
+  "code-runner.runInTerminal": true,
+  "php.snippets.enabled": true
+}

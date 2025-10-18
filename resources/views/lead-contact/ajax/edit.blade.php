@@ -12,8 +12,8 @@
     <div class="col-sm-12">
         <x-form id="save-lead-data-form" method="PUT">
             <div class="add-client bg-white rounded">
-                <div class="flex justify-between items-center p-4 border-b border-gray-200">
-                    <h4 class="mb-0 f-21 font-weight-normal">
+                <div class="flex flex-col justify-start items-start p-4">
+                    <h4 class="mb-4 f-21 font-weight-normal">
                         @lang('modules.leadContact.leadDetails')
                     </h4>
                     <x-custom-field-category-tabs :customFieldCategories="$customFieldCategories" />
@@ -43,8 +43,8 @@
                         </div>
 
                         <div class="col-lg-4 col-md-6">
-                            <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile" :fieldPlaceholder="__('placeholders.mobile')"
-                                :fieldValue="$leadContact->mobile"></x-forms.tel>
+                            <x-forms.phone fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile"
+                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$leadContact->mobile" :country="$leadContact->country"></x-forms.phone>
                         </div>
 
                         @if ($viewLeadSourcesPermission != 'none')
@@ -106,6 +106,8 @@
                     @endforeach
                 @endif
 
+                
+
                 {{-- 
                 <h4 class="mb-0 p-20 f-21 font-weight-normal  border-top-grey">
                     @lang('modules.lead.companyDetails')</h4>
@@ -124,8 +126,8 @@
                     </div>
 
                     <div class="col-lg-3 col-md-6">
-                        <x-forms.tel fieldId="mobile" :fieldLabel="__('modules.lead.mobile')" fieldName="mobile" :fieldPlaceholder="__('placeholders.mobile')"
-                            :fieldValue="$leadContact->mobile"></x-forms.tel>
+                        <x-forms.phone fieldId="mobile_secondary" :fieldLabel="__('modules.lead.mobile') . ' (' . __('app.secondary') . ')'" fieldName="mobile_secondary" :fieldPlaceholder="__('placeholders.mobile')"
+                            :fieldValue="$leadContact->mobile_secondary ?? ''" :country="$leadContact->mobile_secondary ?? ''"></x-forms.phone>
                     </div>
 
                     <div class="col-lg-3 col-md-6">

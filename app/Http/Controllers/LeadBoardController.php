@@ -111,7 +111,12 @@ class LeadBoardController extends AccountBaseController
                 }
 
                 if ($request->deal_watcher_id !== null && $request->deal_watcher_id != 'all' && $request->deal_watcher_id != '') {
-                    $q = $q->where('deals.deal_watcher', $request->deal_watcher_id);
+                    $q = $q->whereExists(function ($query) use ($request) {
+                        $query->select(DB::raw(1))
+                              ->from('deal_watchers')
+                              ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                              ->where('deal_watchers.user_id', $request->deal_watcher_id);
+                    });
                 }
 
                 if ($request->lead_agent_id !== null && $request->lead_agent_id != 'null' && $request->lead_agent_id != '' && $request->lead_agent_id != 'all') {
@@ -156,7 +161,12 @@ class LeadBoardController extends AccountBaseController
                         }
                     });
 
-                    $q->orWhere('deals.deal_watcher', user()->id);
+                    $q->orWhereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                          ->from('deal_watchers')
+                          ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                          ->where('deal_watchers.user_id', user()->id);
+                });
                 }
 
                 if ($this->viewLeadPermission == 'both') {
@@ -165,14 +175,19 @@ class LeadBoardController extends AccountBaseController
                             $query->whereIn('agent_id', $this->myAgentId);
                         }
 
-                        $query->orWhere('deals.added_by', user()->id)->orWhere('deals.deal_watcher', user()->id);
+                        $query->orWhere('deals.added_by', user()->id)->orWhereExists(function ($subQuery) {
+                            $subQuery->select(DB::raw(1))
+                                    ->from('deal_watchers')
+                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                    ->where('deal_watchers.user_id', user()->id);
+                        });
                     });
                 }
 
                 $q->select(DB::raw('count(distinct deals.id)'));
             }])
                 ->with(['deals' => function ($q) use ($startDate, $endDate, $request) {
-                    $q->with(['leadAgent', 'leadAgent.user', 'currency'])
+                    $q->with(['leadAgent', 'leadAgent.user', 'currency', 'dealWatchers'])
                         ->leftJoin('leads', 'leads.id', 'deals.lead_id')
                         ->groupBy('deals.id');
 
@@ -196,7 +211,12 @@ class LeadBoardController extends AccountBaseController
                             if (!empty($this->myAgentId)) {
                                 $query->whereIn('agent_id', $this->myAgentId);
                             }
-                            $query->orWhere('deals.deal_watcher', user()->id);
+                            $query->orWhereExists(function ($subQuery) {
+                                $subQuery->select(DB::raw(1))
+                                        ->from('deal_watchers')
+                                        ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                        ->where('deal_watchers.user_id', user()->id);
+                            });
                         });
                     }
 
@@ -207,7 +227,12 @@ class LeadBoardController extends AccountBaseController
                             }
 
                             $query->orWhere('deals.added_by', user()->id)
-                                ->orWhere('deals.deal_watcher', user()->id);
+                                ->orWhereExists(function ($subQuery) {
+                                $subQuery->select(DB::raw(1))
+                                        ->from('deal_watchers')
+                                        ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                        ->where('deal_watchers.user_id', user()->id);
+                            });
                         });
                     }
 
@@ -227,7 +252,12 @@ class LeadBoardController extends AccountBaseController
                     }
 
                     if ($request->deal_watcher_id !== null && $request->deal_watcher_id != 'all' && $request->deal_watcher_id != '') {
-                        $q = $q->where('deals.deal_watcher', $request->deal_watcher_id);
+                        $q = $q->whereExists(function ($query) use ($request) {
+                            $query->select(DB::raw(1))
+                                  ->from('deal_watchers')
+                                  ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                  ->where('deal_watchers.user_id', $request->deal_watcher_id);
+                        });
                     }
 
                     if ($request->lead_agent_id !== null && $request->lead_agent_id != 'null' && $request->lead_agent_id != '' && $request->lead_agent_id != 'all') {
@@ -306,9 +336,14 @@ class LeadBoardController extends AccountBaseController
                 }
 
 
-                if ($request->deal_watcher_id !== null && $request->deal_watcher_id != 'all' && $request->deal_watcher_id != '') {
-                    $leads->where('deals.deal_watcher', $request->deal_watcher_id);
-                }
+                            if ($request->deal_watcher_id !== null && $request->deal_watcher_id != 'all' && $request->deal_watcher_id != '') {
+                $leads->whereExists(function ($query) use ($request) {
+                    $query->select(DB::raw(1))
+                          ->from('deal_watchers')
+                          ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                          ->where('deal_watchers.user_id', $request->deal_watcher_id);
+                });
+            }
 
                 if ($request->lead_agent_id !== null && $request->lead_agent_id != 'null' && $request->lead_agent_id != '' && $request->lead_agent_id != 'all') {
                     $leads->where('deals.lead_id', $request->lead_agent_id);
@@ -351,7 +386,12 @@ class LeadBoardController extends AccountBaseController
                             $query->whereIn('agent_id', $this->myAgentId);
                         }
 
-                        $query->orWhere('deals.deal_watcher', user()->id);
+                        $query->orWhereExists(function ($subQuery) {
+                            $subQuery->select(DB::raw(1))
+                                    ->from('deal_watchers')
+                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                    ->where('deal_watchers.user_id', user()->id);
+                        });
                     });
                 }
 
@@ -362,7 +402,12 @@ class LeadBoardController extends AccountBaseController
                         }
 
                         $query->orWhere('deals.added_by', user()->id)
-                            ->orWhere('deals.deal_watcher', user()->id);
+                            ->orWhereExists(function ($subQuery) {
+                                $subQuery->select(DB::raw(1))
+                                        ->from('deal_watchers')
+                                        ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                        ->where('deal_watchers.user_id', user()->id);
+                            });
                     });
                 }
 

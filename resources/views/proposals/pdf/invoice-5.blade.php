@@ -353,8 +353,8 @@
                                 @if ($proposal->lead->contact && $proposal->lead->contact->client_email && $invoiceSetting->show_client_email == 'yes')
                                     {{ $proposal->lead->contact->client_email }}<br>
                                 @endif
-                                @if ($proposal->lead->contact && $proposal->lead->contact->mobile && $invoiceSetting->show_client_phone == 'yes')
-                                    {{ $proposal->lead->contact->mobile }}<br>
+                                @if ($proposal->lead->contact && $proposal->lead->contact->mobile_with_phonecode && $proposal->lead->contact->mobile_with_phonecode !== '--' && $invoiceSetting->show_client_phone == 'yes')
+                                    {{ $proposal->lead->contact->mobile_with_phonecode }}<br>
                                 @endif
                                 @if ($proposal->lead->contact && $proposal->lead->contact->company_name && $invoiceSetting->show_client_company_name == 'yes')
                                     {{ $proposal->lead->contact->company_name }}<br>

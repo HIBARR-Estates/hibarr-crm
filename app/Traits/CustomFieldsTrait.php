@@ -127,9 +127,19 @@ trait CustomFieldsTrait
             if ($fieldType == 'phone' && !empty($value)) {
                 // Check if there's a corresponding country code field
                 $countryCodeKey = 'country_phonecode_' . $id;
+                $countryIdentifierKey = 'country_identifier_' . $id;
+                
                 if (isset($fields[$countryCodeKey]) && !empty($fields[$countryCodeKey])) {
                     $countryCode = $fields[$countryCodeKey];
-                    $value = '+' . $countryCode . ' ' . $value;
+                    $countryIdentifier = $fields[$countryIdentifierKey] ?? '';
+                    
+                    // Store phone with country code and country identifier for accurate reloading
+                    $phoneData = [
+                        'phone' => '+' . $countryCode . ' ' . $value,
+                        'country_code' => $countryCode,
+                        'country_identifier' => $countryIdentifier
+                    ];
+                    $value = json_encode($phoneData);
                 }
             }
 

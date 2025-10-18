@@ -1,7 +1,13 @@
 <?php
 
 return array(
-    'dealWatcher' => 'Deal Watcher',
+
+    // resolution status
+    'unresolved' => 'Unresolved',
+    // resolution status
+
+    'dealWatcher' => 'Deal Watchers',
+
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
     'showContact' => 'Contact Details',
@@ -61,6 +67,7 @@ return array(
     'tasks' => 'Tasks',
     'print' => 'Print',
     'client' => 'Client',
+    'property' => 'Property',
     'stop' => 'Stop',
     'remove' => 'Remove',
     'description' => 'Description',
@@ -958,7 +965,7 @@ return array(
     'twoFactorCodeEmail' => 'Two-factor email authentication code',
     'twoFactorRecoveryCode' => 'Two-factor authentication recovery code',
     'clickHere' => 'click here',
-    'itsYou' => 'It\'s you',
+    'itsYou' => 'You',
     'withoutDueDate' => 'Without Due Date',
     'regenerate' => 'Regenerate',
     'authenticationRequired' => 'Authentication Required',
@@ -1033,6 +1040,7 @@ return array(
     'every' => 'Every',
     'client_email' => 'Client Email',
     'single' => 'Full Day',
+
     'general' => 'General',
     'ticket' => 'Ticket',
     'contract' => 'Contract',
@@ -1259,6 +1267,12 @@ return array(
     'moduleNotifySwitchMessage' => 'This will hide/show new update message on dashboard for :name module',
     'leadContact' => 'Lead Contact',
     'deal' => 'Deals',
+    'commissionStatus' => array(
+        'pending' => 'Pending',
+        'approved' => 'Approved',
+        'paid' => 'Paid',
+        'cancelled' => 'Cancelled'
+    ),
     'maritalStatus' => array(
         'single' => 'Single',
         'married' => 'Married',
@@ -1318,4 +1332,53 @@ return array(
     'addMore' => 'Add More',
     'timesheetRejectReason' => 'Timesheet Reject Reason',
     'projectWiseTimeLogReport' => 'Project Wise Report',
+    'selectChannel' => 'Select Channel',
+    'startNewConversation' => 'Start New Conversation',
+    'activities' => [
+        'channels' => [
+            'email' => 'Email',
+            'whatsapp' => 'WhatsApp',
+            'instagram' => 'Instagram',
+            'telegram' => 'Telegram',
+        ],
+        'communicationActivities' => 'Communication Activities',
+        'messageDetails' => 'Message Details',
+        'featureNotAvailable' => 'Feature not available',
+        'ok' => 'OK',
+        'reply' => 'Reply',
+        'typeYourMessage' => 'Type your message',
+        'replyEmail' => 'Reply Email',
+        'typeYourEmail' => 'Type your email',
+        'replyWhatsApp' => 'Reply WhatsApp',
+        'typeYourWhatsAppMessage' => 'Type your WhatsApp message',
+        'noEmailAddress' => 'No Email Address',
+        'contactHasNoEmail' => 'Contact has no email',
+        'noPhoneNumber' => 'No Phone Number',
+        'contactHasNoPhone' => 'Contact has no phone',
+        'startConversation' => 'Start Conversation',
+        'selectChannel' => 'Select Channel',
+        'messageSent' => 'Message Sent',
+        'messageSentSuccessfully' => 'Message sent successfully',
+        'conversationStarted' => 'Conversation Started',
+        'conversationStartedSuccessfully' => 'Conversation started successfully',
+        'messageRequired' => 'Message required',
+        'email' => 'Email',
+        'whatsapp' => 'WhatsApp',
+        'instagram' => 'Instagram',
+        'telegram' => 'Telegram',
+        'viewMore' => 'View More',
+        'call' => 'Call',
+        'quickActions' => 'Quick Actions',
+        'noActivitiesYet' => 'No activities yet',
+        'noActivitiesDescription' => 'Activities related to this deal will be shown here',
+        'viewAllActivities' => 'View All Activities',
+        'scheduleMeeting' => 'Schedule Meeting',
+        'activityDetails' => 'Activity Details',
+        'send' => 'Send',
+        'cancel' => 'Cancel',
+        'message' => 'Message',
+        'conversationStarted' => 'Conversation Started',
+        'conversationStartedSuccessfully' => 'Conversation started successfully',
+        'messageRequired' => 'Message required',
+    ],
 );

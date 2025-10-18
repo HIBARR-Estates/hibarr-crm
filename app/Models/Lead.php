@@ -9,6 +9,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 
 /**
@@ -111,7 +112,7 @@ class Lead extends BaseModel
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Lead';
 
-    protected $appends = ['image_url', 'client_name_salutation'];
+    protected $appends = ['image_url', 'client_name_salutation', 'mobile_with_phonecode', 'office_phone_formatted'];
 
     protected $casts = [
         'salutation' => Salutation::class,
@@ -119,7 +120,7 @@ class Lead extends BaseModel
 
     public function getImageUrlAttribute()
     {
-        $gravatarHash = !is_null($this->email) ? md5(strtolower(trim($this->email))) : '';
+        $gravatarHash = !is_null($this->client_email) ? md5(strtolower(trim($this->client_email))) : '';
 
         return 'https://www.gravatar.com/avatar/' . $gravatarHash . '.png?s=200&d=mp';
     }
@@ -131,6 +132,42 @@ class Lead extends BaseModel
         );
     }
 
+    public function getMobileWithPhoneCodeAttribute()
+    {
+        if (empty($this->mobile)) {
+            return '--';
+        }
+
+        // Clean the phone number (remove all non-numeric characters)
+        $cleanPhone = preg_replace('/[^0-9]/', '', $this->mobile);
+        
+        // If the phone number is empty after cleaning, return --
+        if (empty($cleanPhone)) {
+            return '--';
+        }
+
+        // Add + prefix to match mobile phone format
+        return '+' . $cleanPhone;
+    }
+
+    public function getOfficePhoneFormattedAttribute()
+    {
+        if (empty($this->office)) {
+            return '--';
+        }
+
+        // Clean the phone number (remove all non-numeric characters)
+        $cleanPhone = preg_replace('/[^0-9]/', '', $this->office);
+        
+        // If the phone number is empty after cleaning, return --
+        if (empty($cleanPhone)) {
+            return '--';
+        }
+
+        // Add + prefix to match mobile phone format
+        return '+' . $cleanPhone;
+    }
+
     /**
      * Route notifications for the mail channel.
      *
@@ -140,7 +177,7 @@ class Lead extends BaseModel
     // phpcs:ignore
     public function routeNotificationForMail($notification)
     {
-        return $this->email;
+        return $this->client_email;
     }
 
     public function leadSource(): BelongsTo
@@ -208,6 +245,11 @@ class Lead extends BaseModel
 
         // Retrieve leads
         return $leadsQuery->get();
+    }
+
+    public function communicationActivities(): HasMany
+    {
+        return $this->hasMany(CommunicationActivity::class, 'lead_id')->orderByDesc('timestamp');
     }
 
 }

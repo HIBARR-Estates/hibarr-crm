@@ -98,6 +98,7 @@ use App\Http\Controllers\RecurringTaskController;
 use App\Http\Controllers\ContractTemplateController;
 use App\Http\Controllers\EmergencyContactController;
 use App\Http\Controllers\EstimateTemplateController;
+
 use App\Http\Controllers\ProjectMilestoneController;
 use App\Http\Controllers\ProposalTemplateController;
 use App\Http\Controllers\RecurringExpenseController;
@@ -128,6 +129,7 @@ use App\Http\Controllers\ProjectTemplateMilestoneController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\TimelogWeeklyApprovalController;
 use App\Http\Controllers\WeeklyTimesheetController;
+use App\Http\Controllers\MeetingTypeController;
 
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
@@ -510,6 +512,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/gdpr-consent', [DealController::class, 'consent'])->name('deals.gdpr_consent');
     Route::post('deals/save-deal-consent/{deal}', [DealController::class, 'saveLeadConsent'])->name('deals.save_lead_consent');
     Route::post('deals/change-follow-up-status', [DealController::class, 'changeFollowUpStatus'])->name('deals.change_follow_up_status');
+    Route::post('deals/generate-meeting-link', [DealController::class, 'generateMeetingLink'])->name('deals.generate-meeting-link');
 
     // Lead Category
     Route::post('/update-lead-category', [LeadCategoryController::class, 'updateLeadCategory'])->name('category.updateDefault');
@@ -557,6 +560,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::resource('deals', DealController::class);
+
+    // Meeting Types
+    Route::resource('meeting-types', MeetingTypeController::class);
 
     // leaves files routes
     Route::get('leave-files/download/{id}', [LeaveFileController::class, 'download'])->name('leave-files.download');
@@ -910,6 +916,29 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('estimate-request/send-estimate-request', [EstimateRequestController::class, 'sendEstimateRequest'])->name('estimate-request.send_estimate_request');
     Route::post('estimate-request/send_estimate_mail', [EstimateRequestController::class, 'sendEstimateMail'])->name('estimate-request.send_estimate_mail');
     Route::resource('estimate-request', EstimateRequestController::class);
+
+    // Properties
+    Route::post('properties/apply-quick-action', [App\Http\Controllers\PropertyController::class, 'applyQuickAction'])->name('properties.apply_quick_action');
+    Route::post('properties/bulk-action', [App\Http\Controllers\PropertyController::class, 'bulkAction'])->name('properties.bulk_action');
+    Route::get('properties/import', [App\Http\Controllers\PropertyController::class, 'importProperty'])->name('properties.import');
+    Route::post('properties/import', [App\Http\Controllers\PropertyController::class, 'importStore'])->name('properties.import.store');
+    Route::post('properties/import-process', [App\Http\Controllers\PropertyController::class, 'importProcess'])->name('properties.import.process');
+    Route::get('properties/sample-import', [App\Http\Controllers\PropertyController::class, 'downloadSampleImport'])->name('properties.sample_import');
+    Route::post('properties/export', [App\Http\Controllers\PropertyController::class, 'exportProperties'])->name('properties.export');
+    Route::get('properties/configurations', [App\Http\Controllers\PropertyController::class, 'getPropertyConfigurations'])->name('properties.configurations');
+    Route::get('properties/allowed-types', [App\Http\Controllers\PropertyController::class, 'getAllowedPropertyTypes'])->name('properties.allowed_types');
+    Route::get('properties/allowed-fields', [App\Http\Controllers\PropertyController::class, 'getAllowedFields'])->name('properties.allowed_fields');
+    
+    // Property Asset Management Routes
+    Route::post('properties/{property}/photos', [App\Http\Controllers\PropertyController::class, 'updatePhotos'])->name('properties.update_photos');
+    Route::post('properties/{property}/photos/add', [App\Http\Controllers\PropertyController::class, 'addSinglePhoto'])->name('properties.add_single_photo');
+    Route::put('properties/{property}/photos/{index}', [App\Http\Controllers\PropertyController::class, 'updateSinglePhoto'])->name('properties.update_single_photo');
+    Route::delete('properties/{property}/photos/single', [App\Http\Controllers\PropertyController::class, 'deleteSinglePhoto'])->name('properties.delete_single_photo');
+    Route::post('properties/{property}/video', [App\Http\Controllers\PropertyController::class, 'updateVideo'])->name('properties.update_video');
+    Route::post('properties/{property}/360-tour', [App\Http\Controllers\PropertyController::class, 'update360Tour'])->name('properties.update_360_tour');
+    Route::delete('properties/{property}/assets', [App\Http\Controllers\PropertyController::class, 'deleteAssets'])->name('properties.delete_assets');
+    
+    Route::resource('properties', App\Http\Controllers\PropertyController::class);
 
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);

@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Payment;
+use App\Models\LeadAgent;
+
 
 /**
  * App\Models\Lead
@@ -157,9 +159,14 @@ class Deal extends BaseModel
         return $this->belongsTo(LeadAgent::class, 'agent_id');
     }
 
+    public function dealWatchers()
+    {
+        return $this->belongsToMany(User::class, 'deal_watchers', 'deal_id', 'user_id')->using(DealWatcher::class);
+    }
+
     public function dealWatcher()
     {
-        return $this->belongsTo(User::class, 'deal_watcher', 'id');
+        return $this->belongsToMany(User::class, 'deal_watchers', 'deal_id', 'user_id')->using(DealWatcher::class)->first();
     }
 
     public function contact(): BelongsTo
@@ -254,10 +261,16 @@ class Deal extends BaseModel
     }
 
 
+    public function communicationActivities(): HasMany
+    {
+        return $this->hasMany(CommunicationActivity::class, 'deal_id')->orderByDesc('timestamp');
+    }
+
     // payments relation
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class, 'deal_id');
+
     }
 
 }

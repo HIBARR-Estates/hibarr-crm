@@ -134,7 +134,7 @@ $addDepartmentPermission = user()->permission('add_department');
                         </x-forms.select>
                     </div>
                     <div class="col-md-4">
-                        <x-forms.label class="my-3" fieldId="mobile"
+                        <!-- <x-forms.label class="my-3" fieldId="mobile"
                             :fieldLabel="__('app.mobile')"></x-forms.label>
                         <x-forms.input-group style="margin-top:-4px">
                             <x-forms.select fieldId="country_phonecode" fieldName="country_phonecode"
@@ -149,7 +149,9 @@ $addDepartmentPermission = user()->permission('add_department');
                             </x-forms.select>
                             <input type="tel" class="form-control height-35 f-14" placeholder="@lang('placeholders.mobile')"
                                 name="mobile" id="mobile" value="{{ $employee->mobile }}">
-                        </x-forms.input-group>
+                        </x-forms.input-group> -->
+                                                    <x-forms.phone fieldId="mobile" :fieldLabel="__('app.mobile')" fieldName="mobile"
+                                :fieldPlaceholder="__('placeholders.mobile')" :fieldValue="$employee->mobile" :country="$employee->country" />
                     </div>
                     <div class="col-md-4">
                         <x-forms.select fieldId="gender" :fieldLabel="__('modules.employees.gender')"

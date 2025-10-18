@@ -50,6 +50,20 @@
                                       fieldName="website"
                                       fieldId="website" :fieldValue="company()->website"/>
                     </div>
+                    <div class="col-lg-6">
+                        {{-- <x-forms.text class="mr-0 mr-lg-2 mr-md-2"
+                                      :fieldLabel="__('modules.accountSettings.companyDefaultLeadCreator')"
+                                      :fieldPlaceholder="__('placeholders.website')" fieldRequired="false"
+                                      fieldName="website"
+                                      fieldId="website" :fieldValue="company()->website"/> --}}
+                        <x-forms.select  :fieldLabel="__('modules.accountSettings.companyDefaultLeadCreator')" fieldName="default_lead_creator_id" fieldId="default_lead_creator_id"
+                            :fieldPlaceholder="__('placeholders.selectUser')" fieldRequired="false">
+                            <option value="">--</option>
+                            @foreach ($employees as $item)
+                                <x-user-option :user="$item" :selected="company()->default_lead_creator_id == $item->id" />
+                            @endforeach
+                        </x-forms.select>
+                    </div>
                 </div>
 
             </div>

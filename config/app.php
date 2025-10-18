@@ -210,6 +210,9 @@ return [
         'activities' => [
             'activity_response_handler_url' => env('ACTIVITY_RESPONSE_HANDLER_URL'),
         ],
+        'followups' => [
+            'followup_webhook_url' => env('FOLLOWUP_WEBHOOK_URL'),
+        ]
     ],
 
 
