@@ -59,6 +59,7 @@ return array(
     'reasonForLeaveRejection' => 'Reason for leave rejection',
     'reasonForLeaveApproval' => 'Reason for leave approval',
     'importSuccess' => 'File imported successfully.',
+    'importError' => 'Issue in importing file. Please check the file and try again. Ensure its populated and not empty.',
     'newFileUploadedToTheProject' => 'New file uploaded to the project.',
     'isAddedAsProjectMember' => 'is added as a project member.',
     'memberRemovedFromProject' => 'Member removed from project successfully.',
@@ -577,4 +578,24 @@ return array(
     'SelectaDepartment' => 'Select a current department.',
     'changeWeeklyTimesheetStatusConfirmation' => 'Are you sure you want to change the status of this weekly timesheet?',
     'submitWeeklyTimesheetConfirmation' => 'Are you sure you want to submit this weekly timesheet? You will not be able to edit it later.',
+    
+    // Property-related error messages
+    'fieldCannotBeUpdatedInCurrentStatus' => 'The :field field cannot be updated when the property status is :status.',
+    'cannotUpdatePriceWhenSoldOrUnderOffer' => 'Price cannot be updated when the property is sold or under offer.',
+    'cannotUpdateSaleTypeWhenSoldOrUnderOffer' => 'Sale type cannot be updated when the property is sold or under offer.',
+    'cannotUpdateStatusWhenSold' => 'Status cannot be updated when the property is sold.',
+    // Meeting Link Generation Failed
+    'meetingLinkGenerationFailed' => [
+        'subject' => 'Meeting Link Generation Failed',
+        'error' => 'Error Details',
+        'actionRequired' => 'Please manually generate the meeting link or contact the system administrator.',
+        'action' => 'View Deal'
+    ],
+
+    // Property bulk actions
+    'propertiesAssignedToProject' => ':count properties assigned to project :project successfully.',
+    'propertiesStatusChanged' => ':count properties status changed to :status successfully.',
+    'propertiesDeleted' => ':count properties deleted successfully.',
+    'invalidAction' => 'Invalid action selected.',
+    'somethingWentWrong' => 'Something went wrong. Please try again.',
 );

@@ -1,4 +1,5 @@
 const mix = require("laravel-mix");
+const path = require("path");
 
 /*
  |--------------------------------------------------------------------------
@@ -34,10 +35,7 @@ class RemoveSvgStylingPlugin {
                     );
 
                     // Remove .collapse visibility: collapse;
-                    css = css.replace(
-                        /\.collapse\s*{[^}]*}/g,
-                        ""
-                    );
+                    css = css.replace(/\.collapse\s*{[^}]*}/g, "");
 
                     fs.writeFileSync(tailwindPath, css);
                     console.log("✅ Removed SVG styling from Tailwind CSS");
@@ -75,6 +73,9 @@ mix.js("resources/js/bootstrap.js", "public/js")
         ],
         "public/js/main.js"
     )
+    // Inertia React entry point
+    .ts("resources/js/inertia.tsx", "public/js")
+    .react()
     .sass("resources/scss/main.scss", "public/css")
     .postCss("resources/css/tailwind.css", "public/css/tailwind.css", [
         require("@tailwindcss/postcss"),
@@ -84,4 +85,18 @@ mix.js("resources/js/bootstrap.js", "public/js")
     .sourceMaps(true, "source-map")
     .webpackConfig({
         plugins: [new RemoveSvgStylingPlugin()],
+        resolve: {
+            alias: {
+                "@": path.resolve(__dirname, "resources/js"),
+                "@/Components": path.resolve(
+                    __dirname,
+                    "resources/js/Components"
+                ),
+                "@/Pages": path.resolve(__dirname, "resources/js/Pages"),
+                "@/Types": path.resolve(__dirname, "resources/js/Types"),
+                "@/Modules": path.resolve(__dirname, "resources/js/Modules"),
+                "@/lib": path.resolve(__dirname, "resources/js/lib"),
+                "@/Hooks": path.resolve(__dirname, "resources/js/Hooks"),
+            },
+        },
     });

@@ -67,6 +67,7 @@ return array(
     'tasks' => 'Tasks',
     'print' => 'Print',
     'client' => 'Client',
+    'property' => 'Property',
     'stop' => 'Stop',
     'remove' => 'Remove',
     'description' => 'Description',
