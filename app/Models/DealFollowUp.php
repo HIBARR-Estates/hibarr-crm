@@ -79,11 +79,6 @@ class DealFollowUp extends BaseModel
         return $this->belongsTo(Deal::class, 'deal_id');
     }
 
-    public function meetingType(): BelongsTo
-    {
-        return $this->belongsTo(MeetingType::class, 'meeting_type_id');
-    }
-
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
