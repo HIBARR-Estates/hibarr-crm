@@ -23,13 +23,6 @@ class DealAutomationJob implements ShouldQueue
     protected $dealId;
     protected $requestData;
 
-    /**
-     * Create a new job instance.
-     *
-     * @param string $type
-     * @param int $dealId
-     * @param array $requestData
-     */
     public function __construct(string $type, int $dealId, array $requestData = [])
     {
         if (! in_array($type, ['create', 'update'])) {
@@ -40,11 +33,7 @@ class DealAutomationJob implements ShouldQueue
         $this->dealId = $dealId;
         $this->requestData = $requestData;
     }
-    /**
-     * Execute the job.
-     *
-     * @return void
-     */
+   
     public function handle()
     {
         try {
@@ -56,8 +45,6 @@ class DealAutomationJob implements ShouldQueue
                 $this->triggerDealUpdateAutomation($request, $deal);
             } else {
                 throw new \InvalidArgumentException("Unsupported automation type: {$this->type}");
-            }            } else {
-                $this->triggerDealUpdateAutomation($request, $deal);
             }
 
         } catch (\Throwable $e) {
@@ -70,13 +57,7 @@ class DealAutomationJob implements ShouldQueue
             throw $e;
         }
     }
-
-    /**
-     * Handle a job failure.
-     *
-     * @param \Throwable $exception
-     * @return void
-     */
+    
     public function failed(\Throwable $exception)
     {
         Log::error("Deal automation job failed permanently", [

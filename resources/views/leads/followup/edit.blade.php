@@ -7,7 +7,7 @@
     <div class="portlet-body">
 
         <x-form id="followUpForm" method="POST" class="ajax-form">
-            <input type="hidden" name="deal_id" value="{{ $follow->deal_id }}">
+            <input type="hidden" name="deal_id" value="{{ $follow->lead_id }}">
             <input type="hidden" name="id" value="{{ $follow->id }}">
             <div class="form-body">
                 <div class="row">
@@ -22,6 +22,31 @@
                         <div class="bootstrap-timepicker timepicker">
                             <x-forms.text fieldLabel="Start Time" :fieldPlaceholder="__('placeholders.hours')" fieldName="start_time" fieldId="start_time" fieldRequired="true" :fieldValue="$follow->next_follow_up_date->format(company()->time_format)"/>
                         </div>
+                    </div>
+
+                    <div class="col-md-12">
+                        <x-forms.select fieldId="meeting_type_id" :fieldLabel="__('Meeting Type')" fieldName="meeting_type_id"
+                            search="true">
+                            <option value="">-- Select Meeting Type --</option>
+                            @foreach (\App\Models\MeetingType::where('company_id', company()->id)->get() as $meetingType)
+                                <option value="{{ $meetingType->id }}" data-color="{{ $meetingType->color }}" {{ $follow->meeting_type_id == $meetingType->id ? 'selected' : '' }}>
+                                    {{ $meetingType->name }}
+                                </option>
+                            @endforeach
+                        </x-forms.select>
+                    </div>
+                    <div class="col-md-12">
+                        <x-forms.select fieldId="location" :fieldLabel="__('Location')" fieldName="location"
+                            search="true">
+                            <option value="office" {{ $follow->location == 'office' ? 'selected' : '' }}>Office</option>
+                            <option value="zoom" {{ $follow->location == 'zoom' ? 'selected' : '' }}>Zoom</option>
+                            <option value="zoho_meet" {{ $follow->location == 'zoho_meet' ? 'selected' : '' }}>Zoho Meet</option>
+                            <option value="google_meet" {{ $follow->location == 'google_meet' ? 'selected' : '' }}>Google Meet</option>
+                        </x-forms.select>
+                    </div>
+                    <div class="col-md-12" id="meeting_link_container" style="display: {{ $follow->location != 'office' ? 'block' : 'none' }};">
+                        <x-forms.text :fieldLabel="__('Meeting Link')" fieldName="meeting_link" fieldId="meeting_link"
+                            :fieldPlaceholder="__('Enter meeting link')" :fieldValue="$follow->meeting_link" />
                     </div>
 
                     <div class="col-md-12">
@@ -108,6 +133,17 @@
     $('#send_reminder').change(function() {
             $('.send_reminder_div').toggleClass('d-none');
         })
+
+    // Show/hide meeting link field based on location selection
+    $('#location').change(function() {
+        var location = $(this).val();
+        if (location === 'office') {
+            $('#meeting_link_container').hide();
+            $('#meeting_link').val('');
+        } else {
+            $('#meeting_link_container').show();
+        }
+    });
 
     // save followup
     $('#save-followup').click(function() {

@@ -164,6 +164,18 @@
                         </x-forms.select>
                     </div>
 
+                    <div class="col-lg-7">
+                        <div class="col-lg-4 col-md-6">
+                            <x-forms.checkbox :fieldLabel="__('modules.deal.strategyAccepted')" fieldName="strategy_accepted" fieldId="strategy_accepted" 
+                                :checked="(bool) $deal->strategy_accepted" />
+                        </div>
+
+                        <div class="col-lg-4 col-md-6">
+                            <x-forms.checkbox :fieldLabel="__('modules.deal.downpaymentConfirmed')" fieldName="downpayment_confirmed" fieldId="downpayment_confirmed" 
+                                :checked="(bool) $deal->downpayment_confirmed" />
+                        </div>
+                     </div>
+
                 </div>
 
                 @if (isset($customFieldCategories) && count($customFieldCategories) > 0)

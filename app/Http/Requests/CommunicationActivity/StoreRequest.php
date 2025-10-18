@@ -34,6 +34,8 @@ class StoreRequest extends FormRequest
             'timestamp' => 'required|date',
             'metadata' => 'nullable|array',
             // New fields
+            'can_create_deal' => 'nullable|boolean',
+            'activity_id_being_replied_to' => 'nullable|integer|exists:communication_activities,id',
             'email' => 'nullable|email|max:255',
             'phone_number' => 'nullable|string|max:20',
             'instagram_username' => 'nullable|string|max:255',
@@ -74,6 +76,12 @@ class StoreRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $channel = $this->input('channel_type');
+            $dealId = $this->input('deal_id');
+            $leadId = $this->input('lead_id');
+
+            if ($dealId || $leadId) { //allow for no further checks if dealId or leadId is provided
+                return;
+            }
 
             // Email channel → email must be present
             if ($channel === 'email' ) {
