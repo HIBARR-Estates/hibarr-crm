@@ -186,6 +186,11 @@ class Product extends BaseModel
         return $this->hasMany(ProductFiles::class, 'product_id')->orderByDesc('id');
     }
 
+    public function property()
+    {
+        return $this->hasOne(Property::class, 'product_id');
+    }
+
     public function getTaxListAttribute()
     {
         $productItem = Product::findOrFail($this->id);
