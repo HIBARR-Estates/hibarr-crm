@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Session;
 use Maatwebsite\Excel\HeadingRowImport;
 use Maatwebsite\Excel\Imports\HeadingRowFormatter;
+use Illuminate\Support\Facades\Log;
 use ReflectionClass;
 
 trait ImportExcel
@@ -75,6 +76,7 @@ trait ImportExcel
     {
         // get class name from $importClass
         $importClassName = (new ReflectionClass($importClass))->getShortName();
+        Log::info('Importing to queue: ' . $importClassName);
 
         // clear previous import
         Artisan::call('queue:clear database --queue=' . $importClassName);
@@ -98,7 +100,7 @@ trait ImportExcel
 
         foreach ($excelData as $row) {
 
-            $jobs[] = (new $importJobClass($row, $columns, company()));
+            $jobs[] = (new $importJobClass($row, $columns, company(), user()?->id))->onQueue($importClassName);
         }
 
         $batch = Bus::batch($jobs)->onConnection('database')->onQueue($importClassName)->name($importClassName)->dispatch();

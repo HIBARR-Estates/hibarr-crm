@@ -1,0 +1,322 @@
+import { useState, useCallback, useEffect } from "react";
+import { Link, router } from "@inertiajs/react";
+import DashboardLayout from "../../Components/DashboardLayout";
+import PageLayout from "../../Components/PageLayout";
+import { Table, Button, Form } from "antd";
+import type { MenuProps } from "antd";
+import {
+    PlusOutlined,
+    DownloadOutlined,
+    EditOutlined,
+    EyeOutlined,
+    DeleteOutlined,
+    ImportOutlined,
+} from "@ant-design/icons";
+import { Property } from "@/Types";
+import { PageProps } from "@inertiajs/core";
+import { PROPERTY_TABLE_COLUMNS } from "@/Modules/Properties/Columns";
+import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
+import BulkActionSelector from "@/Modules/Properties/BulkActions/BulkActionSelector";
+import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import SavePropertyModal from "@/Modules/Properties/SaveProperty/SavePropertyModal";
+import ImportProperties from "@/Modules/Properties/ImportProperties";
+import ExportProperties from "@/Modules/Properties/ExportProperties";
+import DeleteProperty from "@/Modules/Properties/DeleteProperty";
+import BasicPropertyFilterBox from "@/Modules/Properties/Filter/BasicPropertyFilterBox";
+import { TFilter } from "@/Types/common";
+import { filterProperties } from "@/lib/utils";
+
+interface Project {
+    id: number;
+    project_name: string;
+    project_admin: {
+        id: number;
+        name: string;
+    } | null;
+}
+
+interface Developer {
+    id: number;
+    name: string;
+    email: string;
+}
+
+interface PaginationData {
+    data: Property[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number;
+    to: number;
+}
+
+export interface IndexProps extends PageProps {
+    pageTitle: string;
+    properties: PaginationData;
+    projects: Project[];
+    developers: Developer[];
+    filters: TFilter;
+}
+
+export default function Index({
+    pageTitle,
+    properties,
+
+    filters: urlFilters,
+}: IndexProps) {
+    const {
+        handleAction,
+        handleClose,
+        action,
+        selected: property,
+    } = useGenericEntityAction<Property>();
+    const [filters, setFilters] = useState(urlFilters);
+    // Check URL for create parameter to show drawer
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const showCreate = urlParams.get("create") === "true";
+        if (showCreate) handleAction("add");
+    }, []);
+
+    // Handle browser back/forward button
+    useEffect(() => {
+        const handlePopState = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const showCreate = urlParams.get("create") === "true";
+            if (showCreate) handleAction("add");
+        };
+
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
+    }, []);
+
+    // Handle quick filter changes (for the filter bar)
+    const handleQuickFilter = useCallback(
+        (key: keyof TFilter, value: TFilter[keyof TFilter]) => {
+            setFilters((prev) => {
+                const updated = { ...prev } as TFilter;
+                if (value === "" || value === "all") {
+                    delete (updated as any)[key];
+                } else {
+                    if (typeof value === "string") {
+                        (updated as any)[key] = value;
+                    }
+                }
+                return updated;
+            });
+        },
+        []
+    );
+
+    // Reset filters
+    const handleResetQuickFilters = useCallback(() => {
+        setFilters({});
+    }, []);
+
+    // Handle filter form submission
+    const handleFilterSubmit = useCallback(
+        (values: TFilter) => {
+            const newFilters = { ...filters, ...values };
+            // Remove empty values
+            (Object.keys(newFilters) as (keyof TFilter)[]).forEach((key) => {
+                if (
+                    ["string", "number", "boolean"].includes(
+                        typeof newFilters[key]
+                    ) === false
+                ) {
+                    delete newFilters[key];
+                }
+            });
+
+            router.get(route("properties.index"), newFilters, {
+                preserveState: true,
+                preserveScroll: true,
+            });
+            handleClose();
+        },
+        [filters]
+    );
+
+    // Reset filters
+    const handleResetFilters = useCallback(() => {
+        router.get(
+            route("properties.index"),
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+            }
+        );
+        handleClose();
+    }, []);
+
+    // Table row selection
+
+    const { selectedEntities, rowSelection, clearSelected } =
+        useGenericTableRowSelection<Property>();
+
+    // Action dropdown for each row
+    const getActionItems = (record: Property): MenuProps["items"] => [
+        {
+            key: "view",
+            label: (
+                <Link href={route("properties.show", record.id)}>
+                    <EyeOutlined className="mr-2" />
+                    View
+                </Link>
+            ),
+        },
+        {
+            key: "edit",
+            label: (
+                <span>
+                    <EditOutlined className="mr-2" />
+                    Edit
+                </span>
+            ),
+            onClick: () => {
+                handleAction("edit", record);
+            },
+        },
+        {
+            type: "divider",
+        },
+        {
+            key: "delete",
+            label: (
+                <span className="text-red-600">
+                    <DeleteOutlined className="mr-2" />
+                    Delete
+                </span>
+            ),
+            onClick: () => {
+                handleAction("delete", record);
+            },
+        },
+    ];
+
+    // Table columns
+    const columns = PROPERTY_TABLE_COLUMNS(getActionItems);
+
+    return (
+        <DashboardLayout>
+            <PageLayout
+                title={pageTitle}
+                breadcrumbs={[{ name: "Properties" }]}
+                filterSection={
+                    <BasicPropertyFilterBox
+                        filters={filters}
+                        handleResetFilters={handleResetFilters}
+                        handleQuickFilter={handleQuickFilter}
+                        handleResetQuickFilters={handleResetQuickFilters}
+                        handleSubmit={handleFilterSubmit}
+                    />
+                }
+            >
+                <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Header with Actions */}
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => handleAction("add")}
+                            >
+                                Add Property
+                            </Button>
+                            <Button
+                                type="primary"
+                                icon={<ImportOutlined />}
+                                onClick={() => {
+                                    handleAction("import");
+                                }}
+                            >
+                                Import Properties
+                            </Button>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            {/* Bulk Actions - Only show when items are selected */}
+                            {selectedEntities.length > 0 && (
+                                <BulkActionSelector
+                                    selectedEntityIds={selectedEntities?.map(
+                                        ({ id }) => id
+                                    )}
+                                    clearSelected={clearSelected}
+                                />
+                            )}
+
+                            <Button
+                                icon={<DownloadOutlined />}
+                                onClick={() => {
+                                    handleAction("export");
+                                }}
+                            >
+                                Export
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Properties Table */}
+                    <div className="bg-white rounded-lg shadow">
+                        <Table
+                            columns={columns}
+                            dataSource={filterProperties(
+                                properties.data,
+                                filters
+                            )}
+                            rowKey="id"
+                            rowSelection={rowSelection}
+                            pagination={{
+                                current: properties.current_page,
+                                total: properties.total,
+                                pageSize: properties.per_page,
+                                showSizeChanger: false,
+                                showQuickJumper: false,
+                                showTotal: (total, range) =>
+                                    `${range[0]}-${range[1]} of ${total} properties`,
+                                onChange: (page, pageSize) => {
+                                    router.get(
+                                        route("properties.index"),
+                                        {
+                                            ...filters,
+                                            page,
+                                            per_page: pageSize,
+                                        },
+                                        {
+                                            preserveState: true,
+                                            preserveScroll: true,
+                                        }
+                                    );
+                                },
+                            }}
+                            scroll={{ x: 1200 }}
+                            size="small"
+                        />
+                    </div>
+
+                    {/* Advanced Filters Drawer */}
+                </div>
+            </PageLayout>
+            <SavePropertyModal
+                open={["add", "edit"].includes(action || "")}
+                onClose={handleClose}
+                property={property}
+            />
+            <DeleteProperty
+                open={action === "delete"}
+                onClose={() => handleClose()}
+                property={property}
+            />
+            <ImportProperties
+                open={action === "import"}
+                onClose={() => handleClose()}
+            />
+            <ExportProperties
+                open={action === "export"}
+                onClose={() => handleClose()}
+            />
+        </DashboardLayout>
+    );
+}
