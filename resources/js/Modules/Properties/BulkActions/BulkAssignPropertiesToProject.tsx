@@ -47,7 +47,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                             "Properties assigned to project successfully"
                         );
 
-                        onClose();
+                        onClose(true);
                         projectForm.resetFields();
                         router.reload();
                     },

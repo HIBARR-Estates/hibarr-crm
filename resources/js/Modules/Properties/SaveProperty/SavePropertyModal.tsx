@@ -6,9 +6,10 @@ import { router, usePage } from "@inertiajs/react";
 import { Drawer, message } from "antd";
 import React from "react";
 
-interface Props extends IModalProps {
+interface Props extends Omit<IModalProps, "onClose"> {
     property?: Property;
     setProperty?: (property: Property | undefined) => void;
+    onClose: () => void;
 }
 
 const SavePropertyModal: React.FC<Props> = ({

@@ -94,17 +94,19 @@ export default function Index({
     // Handle quick filter changes (for the filter bar)
     const handleQuickFilter = useCallback(
         (key: keyof TFilter, value: TFilter[keyof TFilter]) => {
-            const newFilters = { ...filters, [key]: value } as any;
-            // Remove empty values
-            if (value === "" || value === "all") {
-                delete newFilters[key];
-            }
-            router.get(route("properties.index"), newFilters, {
-                preserveState: true,
-                preserveScroll: true,
+            setFilters((prev) => {
+                const updated = { ...prev } as TFilter;
+                if (value === "" || value === "all") {
+                    delete (updated as any)[key];
+                } else {
+                    if (typeof value === "string") {
+                        (updated as any)[key] = value;
+                    }
+                }
+                return updated;
             });
         },
-        [filters]
+        []
     );
 
     // Reset filters
@@ -304,16 +306,16 @@ export default function Index({
             />
             <DeleteProperty
                 open={action === "delete"}
-                onClose={handleClose}
+                onClose={() => handleClose()}
                 property={property}
             />
             <ImportProperties
                 open={action === "import"}
-                onClose={handleClose}
+                onClose={() => handleClose()}
             />
             <ExportProperties
                 open={action === "export"}
-                onClose={handleClose}
+                onClose={() => handleClose()}
             />
         </DashboardLayout>
     );

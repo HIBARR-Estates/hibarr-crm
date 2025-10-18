@@ -34,6 +34,7 @@ const BasicPropertyFilterBox: React.FC<Props> = ({
         <FilterBox
             onReset={handleResetFilters}
             showReset={Object.keys(filters).length > 0}
+            handleSubmit={() => handleSubmit(filters)}
         >
             {/* Search Filter */}
             <SearchFilter

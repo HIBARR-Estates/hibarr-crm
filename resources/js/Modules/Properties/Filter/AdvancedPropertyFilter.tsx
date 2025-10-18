@@ -1,11 +1,11 @@
 import { IModalProps } from "@/Types/common";
 import { Drawer, Space, Button, Form, Select, Input, Row, Col } from "antd";
-import form from "antd/es/form";
 import React from "react";
 
-interface Props extends IModalProps {
+interface Props extends Omit<IModalProps, "onClose"> {
     handleReset: { fn: () => void; loading?: boolean };
     handleSubmit: { fn: () => void; loading?: boolean };
+    onClose: () => void;
 }
 
 const AdvancedPropertyFilter: React.FC<Props> = ({

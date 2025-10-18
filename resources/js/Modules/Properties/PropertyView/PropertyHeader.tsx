@@ -80,9 +80,9 @@ function PropertyHeader({
                             Edit Property
                         </Button>
                     )}
-                    <Button icon={<ShareAltOutlined />} onClick={onShare}>
+                    {/* <Button icon={<ShareAltOutlined />} onClick={onShare}>
                         Share
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
         </div>

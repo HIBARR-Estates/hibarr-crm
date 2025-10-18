@@ -24,7 +24,7 @@ const BulkDeleteProperties: React.FC<Props> = ({ open, onClose, ids }) => {
                 onSuccess: () => {
                     message.success("Properties deleted successfully");
 
-                    onClose();
+                    onClose(true);
                     // Refresh the properties list
                     router.reload();
                 },

@@ -41,12 +41,6 @@ class PropertyController extends AccountBaseController
 
     public function index(Request $request)
     {
-        // Debug: Let's see if we reach this point
-        \Log::info('PropertyController index method called', [
-            'url' => $request->url(),
-            'method' => $request->method()
-        ]);
-
         // Get properties with pagination and filtering
         $query = Property::with('product');
 
@@ -148,11 +142,6 @@ class PropertyController extends AccountBaseController
 
     public function store(StoreRequest $request)
     {
-          // Debug: Let's see if we reach this point
-        \Log::info('PropertyController store method called', [
-            'url' => $request->url(),
-            'method' => $request->method()
-        ]);
         // abort_403(!in_array($this->addPropertyPermission, ['all', 'added']));
 
         // create the product first, and then attach the product_id to property
@@ -295,7 +284,7 @@ class PropertyController extends AccountBaseController
         //         break;
         // }
 
-        abort_403(!$canEdit);
+        // abort_403(!$canEdit);
 
         $this->pageTitle = __('app.edit') . ' ' . __('app.property');
         
@@ -727,8 +716,6 @@ class PropertyController extends AccountBaseController
                 'redirectUrl' => route('properties.index')
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error adding single photo: ' . $e->getMessage());
-
             return back()->with([
                 'success' => false,
                 'message' => __('messages.errorOccurred'),
@@ -771,7 +758,6 @@ class PropertyController extends AccountBaseController
                 'redirectUrl' => route('properties.index')
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error updating single photo: ' . $e->getMessage());
             return back()->with([
                 'success' => false,
                 'message' => __('messages.errorOccurred'),
@@ -978,30 +964,7 @@ class PropertyController extends AccountBaseController
         return view('properties.import', $this->data);
     }
 
-    /**
-     * Process import file and show preview
-     */
-    public function importStoreOld(ImportRequest $request)
-    {
-        Log::info('Importing properties from file: ' . $request->file('import_file')->getClientOriginalName());
-        // $this->addPropertyPermission = user()->permission('add_property');
-        // abort_403(!in_array($this->addPropertyPermission, ['all', 'added']));
-
-        $rvalue = $this->importFileProcess($request, PropertyImport::class);
-
-        if ($rvalue == 'abort') {
-            return back()->with([
-                'error' => true,
-                'message' => __('messages.importError')
-            ]);
-        }
-
-        return back()->with([
-            'success' => true,
-            'message' => __('messages.importPreviewReady'),
-      
-        ]);
-    }
+  
 
     /**
      * Execute the import process with background jobs

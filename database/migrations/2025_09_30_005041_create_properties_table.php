@@ -11,8 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Drop the existing properties table if it exists
-        Schema::dropIfExists('properties');
+        
 
         // No use of enums here, and just use strings and JSON arrays, to ensure extensibility. The validation on code will ensure conformity to enums
 

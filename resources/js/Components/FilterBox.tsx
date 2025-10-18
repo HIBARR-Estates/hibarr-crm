@@ -1,12 +1,13 @@
 import React from "react";
 import { Button, Input } from "antd";
-import { ReloadOutlined, SearchOutlined } from "@ant-design/icons";
+import { ReloadOutlined, FilterOutlined } from "@ant-design/icons";
 
 const { Search } = Input;
 
 interface FilterBoxProps {
     children: React.ReactNode;
     onReset?: () => void;
+    handleSubmit: () => void;
     showReset?: boolean;
 }
 
@@ -14,6 +15,7 @@ export default function FilterBox({
     children,
     onReset,
     showReset = false,
+    handleSubmit,
 }: FilterBoxProps) {
     return (
         <form>
@@ -34,6 +36,17 @@ export default function FilterBox({
                         </Button>
                     </div>
                 )}
+                {/* Apply Filters */}
+                <div className="flex items-center py-2 px-3">
+                    <Button
+                        size="middle"
+                        icon={<FilterOutlined />}
+                        onClick={handleSubmit}
+                        type="primary"
+                    >
+                        Apply Filters
+                    </Button>
+                </div>
             </div>
         </form>
     );

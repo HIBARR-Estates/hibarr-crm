@@ -32,7 +32,7 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
                             "Properties status changed successfully"
                         );
 
-                        onClose();
+                        onClose(true);
                         // Refresh the properties list
                         router.reload();
                         statusForm.resetFields();

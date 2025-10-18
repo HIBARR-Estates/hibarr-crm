@@ -9,7 +9,7 @@ export type TGenericEntityAction =
 
 export interface IModalProps {
     open: boolean;
-    onClose: () => void;
+    onClose: (operationSucceeded?: boolean) => void;
 }
 
 export type TFilter = Partial<{

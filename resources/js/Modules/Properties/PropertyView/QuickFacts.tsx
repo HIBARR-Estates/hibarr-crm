@@ -9,8 +9,9 @@ interface QuickFactsProps {
 }
 
 export default function QuickFacts({ property }: QuickFactsProps) {
+    // console.log("created at", property.created_at, "prop", property);
     return (
-        <Card title="Quick Facts" size="small">
+        <Card title="Property Details" size="small">
             <div className="space-y-2">
                 <div className="flex justify-between">
                     <Text type="secondary">Listed:</Text>

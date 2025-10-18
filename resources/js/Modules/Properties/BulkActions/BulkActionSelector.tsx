@@ -30,9 +30,10 @@ const BulkActionSelector: React.FC<Props> = ({
     const onApply = () => {
         setOpen(true);
     };
-    const onClose = () => {
+    const onClose = (operationSucceeded?: boolean) => {
         setOpen(false);
         setAction(undefined);
+        if (operationSucceeded) clearSelected();
     };
     return (
         <>

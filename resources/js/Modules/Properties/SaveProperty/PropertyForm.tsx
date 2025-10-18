@@ -9,6 +9,7 @@ import LocationInfoTab from "./LocationInfoTab";
 import PropertyDetailsTab from "./PropertyDetailsTab";
 import LegalFinancialTab from "./LegalFinancialTab";
 import AssetsTab from "./AssetsTab";
+import FeaturesAndAddOnsTab from "./FeaturesAndAddOnsTab";
 
 export interface PropertyFormProps {
     data?: Partial<Property>;
@@ -107,6 +108,23 @@ export default function PropertyForm({
             label: "Legal & Finance",
             children: (
                 <LegalFinancialTab
+                    onCancel={onCancel}
+                    cancelText={cancelText}
+                    loading={loading}
+                    submitText={submitText}
+                    onSubmit={onSubmit}
+                    data={data}
+                    onErrorsClear={onErrorsClear}
+                    setErrors={setErrors}
+                />
+            ),
+            disabled: data === undefined,
+        },
+        {
+            key: "features",
+            label: "Features & Add-Ons",
+            children: (
+                <FeaturesAndAddOnsTab
                     onCancel={onCancel}
                     cancelText={cancelText}
                     loading={loading}

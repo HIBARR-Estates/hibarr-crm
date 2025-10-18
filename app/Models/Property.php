@@ -113,6 +113,14 @@ class Property extends BaseModel
         'add_ons',
     ];
 
+    /**
+     * Override the parent's hidden fields to show timestamps
+     * The parent ApiModel hides created_at and updated_at by default
+     *
+     * @var array
+     */
+    protected $hidden = ["pivot"];
+
     protected $casts = [
         'price' => 'decimal:2',
         'land_size' => 'decimal:2',

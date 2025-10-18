@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, usePage } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 import { Layout, Menu, Avatar, Dropdown, Switch, theme } from "antd";
 import type { MenuProps } from "antd";
 import {
@@ -14,7 +14,7 @@ import {
     HouseDoorIcon,
     GearIcon,
 } from "./icons";
-import { PageProps as InertiaPageProps } from "@inertiajs/core";
+import { PageProps as InertiaPageProps, router } from "@inertiajs/core";
 
 const { Header, Content, Sider } = Layout;
 
@@ -111,23 +111,21 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         ) {
             items.push({
                 key: "dashboard",
-                label: <Link href={route("dashboard")}>Dashboard</Link>,
+                label: <a href={route("dashboard")}>Dashboard</a>,
                 icon: <HouseIcon />,
                 children: [
                     {
                         key: "private-dashboard",
                         label: (
-                            <Link href={route("dashboard")}>
-                                Private Dashboard
-                            </Link>
+                            <a href={route("dashboard")}>Private Dashboard</a>
                         ),
                     },
                     {
                         key: "advanced-dashboard",
                         label: (
-                            <Link href={route("dashboard.advanced")}>
+                            <a href={route("dashboard.advanced")}>
                                 Advanced Dashboard
-                            </Link>
+                            </a>
                         ),
                     },
                 ],
@@ -144,9 +142,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         ) {
             items.push({
                 key: "my-calendar",
-                label: (
-                    <Link href={route("my-calendar.index")}>My Calendar</Link>
-                ),
+                label: <a href={route("my-calendar.index")}>My Calendar</a>,
                 icon: <CalendarIcon />,
             });
         }
@@ -163,9 +159,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                 leadChildren.push({
                     key: "lead-contact",
                     label: (
-                        <Link href={route("lead-contact.index")}>
-                            Lead Contact
-                        </Link>
+                        <a href={route("lead-contact.index")}>Lead Contact</a>
                     ),
                 });
             }
@@ -173,7 +167,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
             if (hasPermission("view_deals")) {
                 leadChildren.push({
                     key: "deals",
-                    label: <Link href={route("leadboards.index")}>Deals</Link>,
+                    label: <a href={route("leadboards.index")}>Deals</a>,
                 });
             }
 
@@ -193,7 +187,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         ) {
             items.push({
                 key: "clients",
-                label: <Link href={route("clients.index")}>Clients</Link>,
+                label: <a href={route("clients.index")}>Clients</a>,
                 icon: <BuildingIcon />,
             });
         }
@@ -215,34 +209,28 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
             if (hasModule("employees") && hasPermission("view_employees")) {
                 hrChildren.push({
                     key: "employees",
-                    label: (
-                        <Link href={route("employees.index")}>Employees</Link>
-                    ),
+                    label: <a href={route("employees.index")}>Employees</a>,
                 });
             }
 
             if (hasModule("leaves") && hasPermission("view_leave")) {
                 hrChildren.push({
                     key: "leaves",
-                    label: <Link href={route("leaves.index")}>Leaves</Link>,
+                    label: <a href={route("leaves.index")}>Leaves</a>,
                 });
             }
 
             if (hasModule("attendance") && hasPermission("view_attendance")) {
                 hrChildren.push({
                     key: "attendance",
-                    label: (
-                        <Link href={route("attendances.index")}>
-                            Attendance
-                        </Link>
-                    ),
+                    label: <a href={route("attendances.index")}>Attendance</a>,
                 });
             }
 
             if (hasModule("holidays") && hasPermission("view_holiday")) {
                 hrChildren.push({
                     key: "holidays",
-                    label: <Link href={route("holidays.index")}>Holidays</Link>,
+                    label: <a href={route("holidays.index")}>Holidays</a>,
                 });
             }
 
@@ -270,32 +258,28 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
             if (hasModule("contracts") && hasPermission("view_contract")) {
                 workChildren.push({
                     key: "contracts",
-                    label: (
-                        <Link href={route("contracts.index")}>Contracts</Link>
-                    ),
+                    label: <a href={route("contracts.index")}>Contracts</a>,
                 });
             }
 
             if (hasModule("projects") && hasPermission("view_projects")) {
                 workChildren.push({
                     key: "projects",
-                    label: <Link href={route("projects.index")}>Projects</Link>,
+                    label: <a href={route("projects.index")}>Projects</a>,
                 });
             }
 
             if (hasModule("tasks") && hasPermission("view_tasks")) {
                 workChildren.push({
                     key: "tasks",
-                    label: <Link href={route("tasks.index")}>Tasks</Link>,
+                    label: <a href={route("tasks.index")}>Tasks</a>,
                 });
             }
 
             if (hasModule("timelogs") && hasPermission("view_timelogs")) {
                 workChildren.push({
                     key: "timelogs",
-                    label: (
-                        <Link href={route("timelogs.index")}>Time Logs</Link>
-                    ),
+                    label: <a href={route("timelogs.index")}>Time Logs</a>,
                 });
             }
 
@@ -325,23 +309,21 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
             if (hasModule("estimates") && hasPermission("view_estimates")) {
                 financeChildren.push({
                     key: "estimates",
-                    label: (
-                        <Link href={route("estimates.index")}>Estimates</Link>
-                    ),
+                    label: <a href={route("estimates.index")}>Estimates</a>,
                 });
             }
 
             if (hasModule("invoices") && hasPermission("view_invoices")) {
                 financeChildren.push({
                     key: "invoices",
-                    label: <Link href={route("invoices.index")}>Invoices</Link>,
+                    label: <a href={route("invoices.index")}>Invoices</a>,
                 });
             }
 
             if (hasModule("payments") && hasPermission("view_payments")) {
                 financeChildren.push({
                     key: "payments",
-                    label: <Link href={route("payments.index")}>Payments</Link>,
+                    label: <a href={route("payments.index")}>Payments</a>,
                 });
             }
 
@@ -357,7 +339,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         if (hasModule("products") && hasPermission("view_product")) {
             items.push({
                 key: "products",
-                label: <Link href={route("products.index")}>Products</Link>,
+                label: <a href={route("products.index")}>Products</a>,
                 icon: <BasketIcon />,
             });
         }
@@ -366,7 +348,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         if (hasModule("products") && hasPermission("view_product")) {
             items.push({
                 key: "properties",
-                label: <Link href={route("properties.index")}>Properties</Link>,
+                label: <a href={route("properties.index")}>Properties</a>,
                 icon: <HouseDoorIcon />,
             });
         }
@@ -375,7 +357,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         items.push({
             key: "settings",
             label: (
-                <Link
+                <a
                     href={
                         hasPermission("manage_company_setting", 4)
                             ? route("company-settings.index")
@@ -383,7 +365,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                     }
                 >
                     Settings
-                </Link>
+                </a>
             ),
             icon: <GearIcon />,
         });
@@ -396,9 +378,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         {
             key: "profile",
             label: (
-                <Link href={route("profile-settings.index")}>
-                    Profile Settings
-                </Link>
+                <a href={route("profile-settings.index")}>Profile Settings</a>
             ),
         },
         {
@@ -411,7 +391,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                         checked={user?.dark_theme}
                         onChange={(checked) => {
                             // Implement dark theme toggle
-                            console.log("Toggle dark theme:", checked);
+                            // console.log("Toggle dark theme:", checked);
                         }}
                     />
                 </div>
@@ -423,14 +403,22 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         {
             key: "logout",
             label: (
-                <Link
-                    href={route("logout")}
-                    method="post"
-                    as="button"
-                    className="w-full text-left"
+                <span
+                    onClick={() => {
+                        router.post(
+                            route("logout"),
+                            {},
+                            {
+                                onSuccess: () => {
+                                    window.location.href = route("login");
+                                },
+                            }
+                        );
+                    }}
+                    className="w-full text-left cursor-pointer"
                 >
                     Logout
-                </Link>
+                </span>
             ),
         },
     ];
@@ -485,7 +473,9 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
 
                 {/* Navigation Menu */}
                 <Menu
-                    theme={user?.dark_theme ? "dark" : "light"}
+                    // theme={user?.dark_theme ? "dark" : "light"}
+                    // TODO: Update once work is finished on the dashboard layout
+                    theme={"dark"}
                     mode="inline"
                     selectedKeys={[currentRouteName]}
                     items={buildMenuItems()}

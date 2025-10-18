@@ -6,11 +6,11 @@ import { Providers } from "./providers";
 // If using Vite or another bundler, dynamic imports will work without this.
 // You can safely remove this line.
 
-console.log("Inertia app starting...");
+// console.log("Inertia app starting...");
 
 // Simple route helper for development
 window.route = function (name: string, params?: any, absolute?: boolean) {
-    console.log("Route called:", name, params);
+    // console.log("Route called:", name, params);
     const routes: Record<string, string> = {
         "properties.index": "/account/properties",
         "properties.create": "/account/properties/create",
@@ -39,8 +39,123 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "properties.update_video": "/account/properties/{id}/video",
         "properties.update_360_tour": "/account/properties/{id}/360-tour",
         "properties.delete_assets": "/account/properties/{id}/assets",
-        //TODO: Refer to web.php and update this list
-        // Add more routes as needed
+
+        // Dashboard routes
+        dashboard: "/account/dashboard",
+        "dashboard.advanced": "/account/dashboard-advanced",
+
+        // Calendar routes
+        "my-calendar.index": "/account/my-calendar",
+
+        // Lead/Deal routes
+        "lead-contact.index": "/account/lead-contact",
+        "leadboards.index": "/account/leadboards",
+
+        // Client routes
+        "clients.index": "/account/clients",
+
+        // HR routes
+        "employees.index": "/account/employees",
+        "leaves.index": "/account/leaves",
+        "attendances.index": "/account/attendances",
+        "holidays.index": "/account/holidays",
+
+        // Work routes
+        "contracts.index": "/account/contracts",
+        "projects.index": "/account/projects",
+        "tasks.index": "/account/tasks",
+        "timelogs.index": "/account/timelogs",
+
+        // Finance routes
+        "estimates.index": "/account/estimates",
+        "invoices.index": "/account/invoices",
+        "payments.index": "/account/payments",
+
+        // Product routes
+        "products.index": "/account/products",
+
+        // Settings routes
+        "company-settings.index": "/account/company-settings",
+        "profile-settings.index": "/account/profile-settings",
+
+        // Auth routes
+        logout: "/logout",
+
+        // Resource routes follow standard Laravel resource pattern
+        // Clients
+        "clients.create": "/account/clients/create",
+        "clients.show": "/account/clients/{id}",
+        "clients.edit": "/account/clients/{id}/edit",
+        "clients.store": "/account/clients",
+        "clients.update": "/account/clients/{id}",
+        "clients.destroy": "/account/clients/{id}",
+
+        // Employees
+        "employees.create": "/account/employees/create",
+        "employees.show": "/account/employees/{id}",
+        "employees.edit": "/account/employees/{id}/edit",
+        "employees.store": "/account/employees",
+        "employees.update": "/account/employees/{id}",
+        "employees.destroy": "/account/employees/{id}",
+
+        // Projects
+        "projects.create": "/account/projects/create",
+        "projects.show": "/account/projects/{id}",
+        "projects.edit": "/account/projects/{id}/edit",
+        "projects.store": "/account/projects",
+        "projects.update": "/account/projects/{id}",
+        "projects.destroy": "/account/projects/{id}",
+
+        // Tasks
+        "tasks.create": "/account/tasks/create",
+        "tasks.show": "/account/tasks/{id}",
+        "tasks.edit": "/account/tasks/{id}/edit",
+        "tasks.store": "/account/tasks",
+        "tasks.update": "/account/tasks/{id}",
+        "tasks.destroy": "/account/tasks/{id}",
+
+        // Products
+        "products.create": "/account/products/create",
+        "products.show": "/account/products/{id}",
+        "products.edit": "/account/products/{id}/edit",
+        "products.store": "/account/products",
+        "products.update": "/account/products/{id}",
+        "products.destroy": "/account/products/{id}",
+
+        // Invoices
+        "invoices.create": "/account/invoices/create",
+        "invoices.show": "/account/invoices/{id}",
+        "invoices.edit": "/account/invoices/{id}/edit",
+        "invoices.store": "/account/invoices",
+        "invoices.update": "/account/invoices/{id}",
+        "invoices.destroy": "/account/invoices/{id}",
+
+        // Estimates
+        "estimates.create": "/account/estimates/create",
+        "estimates.show": "/account/estimates/{id}",
+        "estimates.edit": "/account/estimates/{id}/edit",
+        "estimates.store": "/account/estimates",
+        "estimates.update": "/account/estimates/{id}",
+        "estimates.destroy": "/account/estimates/{id}",
+
+        // Leaves
+        "leaves.create": "/account/leaves/create",
+        "leaves.show": "/account/leaves/{id}",
+        "leaves.edit": "/account/leaves/{id}/edit",
+        "leaves.store": "/account/leaves",
+        "leaves.update": "/account/leaves/{id}",
+        "leaves.destroy": "/account/leaves/{id}",
+
+        // Deals
+        "deals.index": "/account/deals",
+        "deals.create": "/account/deals/create",
+        "deals.show": "/account/deals/{id}",
+        "deals.edit": "/account/deals/{id}/edit",
+        "deals.store": "/account/deals",
+        "deals.update": "/account/deals/{id}",
+        "deals.destroy": "/account/deals/{id}",
+
+        //TODO: Add more routes as needed from web.php
     };
 
     let url = routes[name] || `/${name}`;
@@ -73,28 +188,28 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
 createInertiaApp({
     resolve: (name) => {
         try {
-            console.log(
-                "Attempting to load page:",
-                name,
-                "from URL:",
-                window.location.href
-            );
+            // console.log(
+            //     "Attempting to load page:",
+            //     name,
+            //     "from URL:",
+            //     window.location.href
+            // );
             const component = require(`./Pages/${name}`).default;
-            console.log("Successfully loaded component:", component);
+            // console.log("Successfully loaded component:", component);
             return component;
         } catch (e) {
-            console.error("Could not load page:", name, e);
-            console.error(
-                "Full error details:",
-                e instanceof Error ? e.message : "Unknown error",
-                e instanceof Error ? e.stack : ""
-            );
+            // console.error("Could not load page:", name, e);
+            // console.error(
+            //     "Full error details:",
+            //     e instanceof Error ? e.message : "Unknown error",
+            //     e instanceof Error ? e.stack : ""
+            // );
             throw e;
         }
     },
     setup({ App, props, el: og }) {
-        console.log("Setting up Inertia app with element:", og);
-        console.log("App props:", props);
+        // console.log("Setting up Inertia app with element:", og);
+        // console.log("App props:", props);
 
         // if (!el) {
         //     console.error('No element found with id "app"');
@@ -102,17 +217,17 @@ createInertiaApp({
         // }
         const el = document.getElementById("app");
         if (!el) {
-            console.error("❌ Could not find #app element");
+            // console.error("❌ Could not find #app element");
             return;
         }
 
         const root = createRoot(el);
-        console.log("Creating React root and rendering...");
+        // console.log("Creating React root and rendering...");
         root.render(
             <Providers>
                 <App {...props} />
             </Providers>
         );
-        console.log("React app rendered successfully");
+        // console.log("React app rendered successfully");
     },
 });

@@ -29,6 +29,7 @@ export default function PropertyView({
     onShare,
     canEdit = false,
 }: PropertyViewProps) {
+    // console.log("PropertyView Rendered", property);
     // Mock photos for demo (replace with actual property photos)
     const photos =
         property.photos && property.photos?.length > 0
@@ -39,12 +40,6 @@ export default function PropertyView({
                   "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
               ];
 
-    const renderImageGallery = () => (
-        <Card>
-            <PropertyImageGallery images={photos} title={property.title} />
-        </Card>
-    );
-
     return (
         <div className="property-view">
             <PropertyHeader
@@ -53,26 +48,28 @@ export default function PropertyView({
                 onShare={onShare}
                 canEdit={canEdit}
             />
-            
-            {renderImageGallery()}
+
+            <Card>
+                <PropertyImageGallery images={photos} title={property.title} />
+            </Card>
 
             <Row gutter={[24, 24]} className="mt-6">
                 <Col xs={24} lg={16}>
-                    <div className="space-y-6">
+                    <div className="flex flex-col gap-4">
                         <PropertyDetails property={property} />
                         <PropertyStats property={property} />
                         <PropertyFeatures property={property} />
                         <PropertySpecifications property={property} />
-                        <LegalFinancialInfo property={property} />
                         <PropertyMedia property={property} />
+                        <LegalFinancialInfo property={property} />
                         <AssetsTab property={property} canEdit={canEdit} />
                     </div>
                 </Col>
 
                 <Col xs={24} lg={8}>
-                    <div className="space-y-6">
+                    <div className="flex flex-col gap-4">
                         <PropertyLocation property={property} />
-                        <ContactInfo property={property} />
+                        {/* <ContactInfo property={property} /> */}
                         <QuickFacts property={property} />
                     </div>
                 </Col>

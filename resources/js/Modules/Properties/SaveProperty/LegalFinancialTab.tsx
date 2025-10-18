@@ -84,7 +84,7 @@ export default function LegalFinancialTab({
             layout="vertical"
             onFinish={handleSubmit}
             onFinishFailed={(errorInfo) => {
-                console.log("Form validation failed:", errorInfo);
+                // console.log("Form validation failed:", errorInfo);
                 setErrors?.(
                     errorInfo.errorFields.map((field) => field.errors).flat()
                 );

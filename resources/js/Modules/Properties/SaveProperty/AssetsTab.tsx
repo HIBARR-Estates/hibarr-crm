@@ -86,27 +86,27 @@ export default function AssetsTab({
             setUploadedFiles([]); // Start with empty file list
             setEditMode(true);
         }
-        console.log("Edit mode toggled:", !editMode);
+        // console.log("Edit mode toggled:", !editMode);
     };
 
     const handleSave = async (values: any) => {
         setLoading(true);
-        console.log("Saving assets with values:", values);
-        console.log("Form values:", form.getFieldsValue());
-        console.log("Uploaded files state:", uploadedFiles);
+        // console.log("Saving assets with values:", values);
+        // console.log("Form values:", form.getFieldsValue());
+        // console.log("Uploaded files state:", uploadedFiles);
 
         try {
             // Handle photo uploads - use uploadedFiles state
             if (uploadedFiles.length > 0) {
                 const formData = new FormData();
                 uploadedFiles.forEach((file: any) => {
-                    console.log("Processing file:", file);
+                    // console.log("Processing file:", file);
                     if (file.originFileObj) {
                         formData.append("photos[]", file.originFileObj);
                     }
                 });
 
-                console.log("Submitting photos FormData");
+                // console.log("Submitting photos FormData");
                 router.post(
                     route("properties.update_photos", property.id),
                     formData,
@@ -118,7 +118,7 @@ export default function AssetsTab({
                         },
                         onError: (errors) => {
                             message.error("Failed to update photos");
-                            console.error(errors);
+                            // console.error(errors);
                         },
                     }
                 );
@@ -136,7 +136,7 @@ export default function AssetsTab({
                         },
                         onError: (errors) => {
                             message.error("Failed to update video URL");
-                            console.error(errors);
+                            // console.error(errors);
                         },
                     }
                 );
@@ -271,7 +271,7 @@ export default function AssetsTab({
     };
 
     const handleUploadChange = (info: any) => {
-        console.log("Upload change:", info);
+        // console.log("Upload change:", info);
         setUploadedFiles(info.fileList);
         // Update form field value when files change
         form.setFieldsValue({
@@ -342,7 +342,7 @@ export default function AssetsTab({
                     layout="vertical"
                     onFinish={handleSave}
                     onFinishFailed={(errorInfo) => {
-                        console.log("Form validation failed:", errorInfo);
+                        // console.log("Form validation failed:", errorInfo);
                         message.error("Please check the form for errors");
                     }}
                     onValuesChange={(changedValues, allValues) => {
