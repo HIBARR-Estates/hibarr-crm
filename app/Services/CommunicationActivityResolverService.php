@@ -285,9 +285,28 @@ class CommunicationActivityResolverService
             ->first();
 
     }
-    private function findDealByTelegram(string $username): ?Lead
+    private function findDealByTelegram(string $username): ?Deal
     {
         $lead  = $this->findLeadByTelegram($username);
+        if(!$lead){
+            return null;
+        }
+        return $this->findDealByLeadId($lead->id);
+    
+    }
+
+    // instagram
+    private function findLeadByInstagram(string $username): ?Lead
+    {
+        return Lead::query()
+            ->whereRaw('LOWER(client_instagram) = ?', [strtolower($username)])
+            ->orderByDesc('updated_at')
+            ->first();
+
+    }
+    private function findDealByInstagram(string $username): ?Deal
+    {
+        $lead  = $this->findLeadByInstagram($username);
         if(!$lead){
             return null;
         }
@@ -319,6 +338,49 @@ class CommunicationActivityResolverService
         return Lead::query()
             ->where('id', $leadId)
             ->first();
+    }
+
+    public function createDealIfNeeded(CommunicationActivity $activity): ?Deal
+    {
+        // Only create a deal if there is a lead associated with the activity
+        if (empty($activity->lead_id)) {
+            Log::info('Cannot create deal: No lead associated with activity ID ' . $activity->id);
+            return null;
+        }
+
+        $lead = Lead::find($activity->lead_id);
+        if (!$lead) {
+            Log::info('Cannot create deal: Lead not found for lead ID ' . $activity->lead_id);
+            return null;
+        }
+
+        // Check if there is already an open deal for this lead
+        $existingDeal = $this->findDealByLeadId($lead->id);
+        if ($existingDeal) {
+            $activity->deal_id = $existingDeal->id;
+            $activity->save();
+            Log::info('No new deal created: Existing open deal found for lead ID ' . $lead->id);
+            return $existingDeal; // Return existing open deal
+        }
+
+        // Create a new deal
+        $deal = new Deal();
+        $deal->name = 'New Deal for ' . $lead->client_name;
+        $deal->lead_id = $lead->id;
+        // $deal->lead_pipeline_id = $lead->pipeline_id;
+        // $deal->pipeline_stage_id = $request->stage_id;
+        $deal->close_date =  null;
+        $deal->value =  0;
+        $deal->currency_id = $lead->company?->currency_id;
+        $deal->save();
+
+        // Link the activity to the newly created deal
+        $activity->deal_id = $deal->id;
+        $activity->save();
+
+        Log::info('Created new deal with ID ' . $deal->id . ' for lead ID ' . $lead->id);
+
+        return $deal;
     }
 
 

@@ -33,7 +33,7 @@ class CommunicationActivityController extends Controller
         // we will dispatch a job to process the activity asynchronously, and send the appropriate notifications
         CreateCommunicationActivityJob::dispatch(array_merge($request->validated(), [
             'company_id' => $companyId
-        ]));
+        ]), $request->get('can_create_deal', false));
 
         return Reply::successWithData(__('messages.processingCommunicationActivity'), [
             'data' => null
