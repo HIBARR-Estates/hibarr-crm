@@ -16,6 +16,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
             <x-table headType="thead-light">
                 <x-slot name="thead">
                     <th>@lang('modules.lead.nextFollowUp')</th>
+                    <th>@lang('modules.meeting.summary')</th>
                     <th>@lang('Meeting Type')</th>
                     <th>@lang('Meeting Link')</th>
                     <th>@lang('app.status')</th>

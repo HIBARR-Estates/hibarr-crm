@@ -119,6 +119,8 @@ class Kernel extends ConsoleKernel
         // $schedule->command('fetch-ticket-emails')->everyMinute(); // phpcs:ignore
         $schedule->command('send-auto-followup-reminder')->everyMinute();
         $schedule->command('send-time-tracker')->everyMinute();
+        // Retry queue process every 5 minutes
+        $schedule->command('activity:retry-queue process --limit=50')->everyFiveMinutes();
 
         // Daily added different time to reduce server load
         $schedule->command('send-project-reminder')->dailyAt('01:10');
@@ -134,6 +136,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('inactive-employee')->dailyAt('02:50');
         $schedule->command('daily-schedule-reminder')->daily();
         $schedule->command('assign-shift-rotation')->dailyAt('00:01');
+        // Retry queue cleanup every day at 3:00 AM
+        $schedule->command('activity:retry-queue cleanup --days=30')->dailyAt('03:00');
 
         // Hourly
         $schedule->command('clear-null-session')->hourly();
@@ -150,7 +154,7 @@ class Kernel extends ConsoleKernel
 
         $schedule->command('queue:flush')->weekly();
 
-        // Schedule the queue:work command to run without overlapping and with 3 tries
+        // Schedule the queue:work command to run without overlapping and with 3 tries every minute
         $schedule->command('queue:work database --tries=3 --stop-when-empty')->withoutOverlapping();
     }
 

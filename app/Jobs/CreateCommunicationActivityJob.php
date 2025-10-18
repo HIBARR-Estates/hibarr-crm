@@ -16,13 +16,15 @@ class CreateCommunicationActivityJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected array $normalizedData;
+    protected bool $can_create_deal;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(array $normalizedData)
+    public function __construct(array $normalizedData, bool $can_create_deal = false)
     {
         $this->normalizedData = $normalizedData;
+        $this->can_create_deal = $can_create_deal;
     }
 
     /**
@@ -55,6 +57,6 @@ class CreateCommunicationActivityJob implements ShouldQueue
         
 
         // Immediately attempt resolution (fast path)
-        ResolveCommunicationActivityJob::dispatch($activity->id);
+        ResolveCommunicationActivityJob::dispatch($activity->id, $this->can_create_deal);
     }
 }

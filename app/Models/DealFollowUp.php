@@ -33,6 +33,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereUpdatedAt($value)
  * @property string|null $event_id
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereEventId($value)
+ * @property string|null $meeting_id
+ * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereMeetingId($value)
  * @property string|null $send_reminder
  * @property string|null $remind_time
  * @property string|null $remind_type
@@ -46,7 +48,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DealFollowUp extends BaseModel
 {
-
     protected $table = 'lead_follow_up';
 
     protected $fillable = [
@@ -55,11 +56,17 @@ class DealFollowUp extends BaseModel
         'location',
         'meeting_link',
         'remark',
+        'meeting_type',
         'next_follow_up_date',
+        'added_by',
+        'last_updated_by',
+        'event_id',
+        'meeting_id',
+        'summary_id',
         'send_reminder',
         'remind_time',
         'remind_type',
-        'status'
+        'status',
     ];
 
     protected $casts = [
@@ -80,6 +87,11 @@ class DealFollowUp extends BaseModel
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
+    }
+
+    public function meetingType(): BelongsTo
+    {
+        return $this->belongsTo(MeetingType::class);
     }
 
 }

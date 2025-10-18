@@ -2,47 +2,36 @@
 
 namespace App\Models;
 
-use App\Traits\HasCompany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
-/**
- * App\Models\MeetingType
- *
- * @property int $id
- * @property string $name
- * @property string $description
- * @property string $color
- * @property int|null $company_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Company|null $company
- * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\DealFollowUp[] $followUps
- * @property-read int|null $follow_ups_count
- */
-class MeetingType extends BaseModel
+class MeetingType extends Model
 {
-    use HasCompany;
+    use HasFactory;
 
     protected $fillable = [
         'name',
         'description',
-        'color',
-        'company_id'
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     /**
-     * Get the follow-ups for this meeting type
+     * Get the meeting summaries for this meeting type.
      */
-    public function followUps(): HasMany
+    public function meetingSummaries()
     {
-        return $this->hasMany(DealFollowUp::class, 'meeting_type_id');
+        return $this->hasMany(MeetingSummary::class);
     }
 
     /**
-     * Get the display name with color
+     * Get the follow-ups for this meeting type.
      */
-    public function getDisplayNameAttribute(): string
+    public function followUps()
     {
-        return $this->name;
+        return $this->hasMany(DealFollowUp::class);
     }
 }

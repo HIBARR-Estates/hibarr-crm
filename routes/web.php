@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\DealController;
+use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AwardController;
 use App\Http\Controllers\ImageController;
@@ -560,6 +561,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::resource('deals', DealController::class);
+    
+// Meeting Summary Routes
+Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
 
     // Meeting Types
     Route::resource('meeting-types', MeetingTypeController::class);
@@ -942,4 +946,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);
+
+    // Test Activity Response Trait Routes
+    Route::prefix('test-activity')->name('test-activity.')->group(function () {
+        Route::post('email', [App\Http\Controllers\TestActivityController::class, 'testEmail'])->name('email');
+        Route::post('whatsapp', [App\Http\Controllers\TestActivityController::class, 'testWhatsApp'])->name('whatsapp');
+        Route::post('instagram', [App\Http\Controllers\TestActivityController::class, 'testInstagram'])->name('instagram');
+        Route::post('telegram', [App\Http\Controllers\TestActivityController::class, 'testTelegram'])->name('telegram');
+        Route::post('retry', [App\Http\Controllers\TestActivityController::class, 'testWithRetry'])->name('retry');
+        Route::post('all', [App\Http\Controllers\TestActivityController::class, 'testAllChannels'])->name('all');
+    });
 });

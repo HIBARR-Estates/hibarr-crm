@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class ProcessCommunicationActivityJob implements ShouldQueue
 {
@@ -48,17 +49,20 @@ class ProcessCommunicationActivityJob implements ShouldQueue
         $notifiables = collect();
         // Notify relevant users
         if (!empty($activity->deal_id)) {
-            $deal = Deal::with('leadAgent.user', 'dealWatcher', 'addedBy')->find($activity->deal_id);
+            $deal = Deal::with('leadAgent.user', 'dealWatchers', 'addedBy')->find($activity->deal_id);
 
 
             // Lead agent
             if ($deal && $deal?->leadAgent && $deal?->leadAgent->user) {
                 $notifiables->push($deal?->leadAgent->user);
             }
-
-            // Deal watcher
-            if ($deal && $deal?->dealWatcher) {
-                $notifiables->push($deal?->dealWatcher);
+            Log::info('Deal Watchers: ' . ($deal?->dealWatchers ?? 'None'));
+            // Deal watchers
+            if ($deal?->dealWatchers) {
+                foreach ($deal->dealWatchers as $watcher) {
+                    $notifiables->push($watcher);
+                    Log::info("Added deal watcher {$watcher->id} to notifications");
+                }
             }
 
 
@@ -84,7 +88,7 @@ class ProcessCommunicationActivityJob implements ShouldQueue
             }
             // get all deals connected to this lead
             $deals = Deal::where('lead_id', $activity->lead_id)->with([
-                'leadAgent.user', 'dealWatcher', 'addedBy'
+                'leadAgent.user', 'dealWatchers', 'addedBy'
             ])->get();
 
             $notifiables = collect();
@@ -92,9 +96,12 @@ class ProcessCommunicationActivityJob implements ShouldQueue
             // notify the deal watchers and the lead agent on the deals connected to this lead
             if ($deals) {
                 foreach ($deals as $deal) {
-                    // Deal watcher
-                    if ($deal?->dealWatcher) {
-                        $notifiables->push($deal?->dealWatcher);
+                    // Deal watchers
+                    if ($deal?->dealWatchers) {
+                        foreach ($deal->dealWatchers as $watcher) {
+                            $notifiables->push($watcher);
+                            Log::info("Added deal watcher {$watcher->id} to notifications");
+                        }
                     }
 
                     // Lead agent
