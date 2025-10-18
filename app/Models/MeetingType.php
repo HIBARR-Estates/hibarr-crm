@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MeetingType extends Model
 {
@@ -13,12 +12,26 @@ class MeetingType extends Model
     protected $fillable = [
         'name',
         'description',
-        'color',
-        'company_id',
+        'is_active',
     ];
 
-    public function meetingSummaries(): HasMany
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    /**
+     * Get the meeting summaries for this meeting type.
+     */
+    public function meetingSummaries()
     {
-        return $this->hasMany(MeetingSummary::class, 'meeting_type_id');
+        return $this->hasMany(MeetingSummary::class);
+    }
+
+    /**
+     * Get the follow-ups for this meeting type.
+     */
+    public function followUps()
+    {
+        return $this->hasMany(DealFollowUp::class);
     }
 }

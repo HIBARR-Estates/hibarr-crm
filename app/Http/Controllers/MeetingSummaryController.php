@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\MeetingSummary;
 use App\Models\DealFollowUp;
-use App\Helper\Reply;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -18,41 +17,34 @@ class MeetingSummaryController extends Controller
     {
         $request->validate([
             'summary_object' => 'required|array',
-            'meeting_type_id' => 'nullable|integer|exists:meeting_types,id',
-            'deal_id' => 'nullable|integer|exists:deals,id',
+            'deal_id' => 'required|exists:deals,id',
             'meeting_id' => 'nullable|string',
-            'meeting_platform' => 'nullable|string'
         ]);
 
         $meetingSummary = DB::transaction(function () use ($request) {
             $meetingSummary = MeetingSummary::create([
                 'summary_object' => $request->summary_object,
-                'meeting_type_id' => $request->meeting_type_id,
                 'deal_id' => $request->deal_id,
             ]);
 
-            if ($request->filled('meeting_id')) {
+            // If meeting_id is provided, update the lead_follow_up record
+            if ($request->meeting_id) {
                 $leadFollowUp = DealFollowUp::where('meeting_id', $request->meeting_id)
-                    ->when($request->filled('meeting_platform'), function ($q) use ($request) {
-                        $q->whereRaw('LOWER(location) = LOWER(?)', [$request->meeting_platform]);
-                    })
                     ->lockForUpdate()
                     ->first();
-
                 if ($leadFollowUp) {
-                    $leadFollowUp->summary_id = $meetingSummary->id;
-                    $leadFollowUp->save();
+                    $leadFollowUp->update(['summary_id' => $meetingSummary->id]);
                 }
             }
 
             return $meetingSummary;
         });
 
-        return response()->json(
-            Reply::successWithData('modules.meeting.messages.created', [
-                'data' => $meetingSummary
-            ]), 201
-        );
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting summary created successfully',
+            'data' => $meetingSummary
+        ], 201);
     }
 
     /**
@@ -109,81 +101,6 @@ class MeetingSummaryController extends Controller
     }
 
     /**
-     * Update meeting summary
-     */
-    public function update(Request $request, $id): JsonResponse
-    {
-        $request->validate([
-            'summary_object' => 'sometimes|array',
-            'meeting_type_id' => 'sometimes|integer|exists:meeting_types,id',
-            'deal_id' => 'sometimes|integer|exists:deals,id',
-        ]);
-
-        $meetingSummary = MeetingSummary::findOrFail($id);
-        $meetingSummary->update($request->only(['summary_object', 'meeting_type_id', 'deal_id']));
-
-        return response()->json(
-            Reply::successWithData('modules.meeting.messages.updated', [
-                'data' => $meetingSummary
-            ])
-        );
-    }
-
-    /**
-     * Delete meeting summary
-     */
-    public function destroy($id): JsonResponse
-    {
-        $meetingSummary = DB::transaction(function () use ($id) {
-            $meetingSummary = MeetingSummary::findOrFail($id);
-            
-            // Nullify orphaned references
-            DealFollowUp::where('summary_id', $id)->update(['summary_id' => null]);
-            
-            $meetingSummary->delete();
-
-            return $meetingSummary;
-        });
-
-        return response()->json(
-            Reply::success('modules.meeting.messages.deleted')
-        );
-    }
-
-    /**
-     * Get meeting summary by meeting ID
-     */
-    public function getByMeetingId($meetingId, Request $request): JsonResponse
-    {
-        $query = DealFollowUp::where('meeting_id', $meetingId);
-        
-        if ($request->filled('meeting_platform')) {
-            $query->whereRaw('LOWER(location) = LOWER(?)', [$request->meeting_platform]);
-        }
-        
-        $leadFollowUp = $query->first();
-        
-        if (!$leadFollowUp || !$leadFollowUp->summary_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Meeting summary not found'
-            ], 404);
-        }
-
-        $meetingSummary = MeetingSummary::with(['meetingType', 'deal'])->find($leadFollowUp->summary_id);
-        if (!$meetingSummary) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Meeting summary not found'
-            ], 404);
-        }
-        return response()->json([
-            'success' => true,
-            'data' => $meetingSummary
-        ]);
-    }
-
-    /**
      * Process summary sections with proper ordering and provide structured data
      */
     private function processSummarySections($summaryObject)
@@ -201,31 +118,31 @@ class MeetingSummaryController extends Controller
                 ]
             ];
         }
-
-        $orderedSections = [
+           
+                $orderedSections = [
             'executive_summary' => __('modules.meeting.sections.executive_summary'),
             'key_points_discussed' => __('modules.meeting.sections.key_points_discussed'),
             'action_points' => __('modules.meeting.sections.action_points'),
             'sales_objections' => __('modules.meeting.sections.sales_objections'),
             'recommendations' => __('modules.meeting.sections.recommendations')
-        ];
-        
-        $processedSections = [];
-        
-        // Helper function to find section key regardless of format (underscore vs space)
-        $findSectionKey = function($targetKey, $data) {
-            $variations = [
-                $targetKey,
-                str_replace('_', ' ', $targetKey),
-                str_replace(' ', '_', $targetKey)
-            ];
-            foreach ($variations as $variation) {
-                if (isset($data[$variation])) {
-                    return $variation;
-                }
-            }
-            return null;
-        };
+                ];
+                
+                $processedSections = [];
+                
+                // Helper function to find section key regardless of format (underscore vs space)
+                $findSectionKey = function($targetKey, $data) {
+                    $variations = [
+                        $targetKey,
+                        str_replace('_', ' ', $targetKey),
+                        str_replace(' ', '_', $targetKey)
+                    ];
+                    foreach ($variations as $variation) {
+                        if (isset($data[$variation])) {
+                            return $variation;
+                        }
+                    }
+                    return null;
+                };
 
         // First, process sections in the desired order
         foreach($orderedSections as $sectionKey => $sectionTitle) {
@@ -309,6 +226,7 @@ class MeetingSummaryController extends Controller
         ];
     }
 
+
     /**
      * Clean sub-key by removing numeric prefixes, colons, and formatting
      */
@@ -338,4 +256,66 @@ class MeetingSummaryController extends Controller
         
         return ucwords(str_replace('_', ' ', $cleanSubKey));
     }
+
+    /**
+     * Update the specified meeting summary
+     */
+    public function update(Request $request, MeetingSummary $meetingSummary): JsonResponse
+    {
+        $request->validate([
+            'summary_object' => 'required|array',
+        ]);
+
+        $meetingSummary->update([
+            'summary_object' => $request->summary_object,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting summary updated successfully',
+            'data' => $meetingSummary
+        ]);
+    }
+
+    /**
+     * Remove the specified meeting summary
+     */
+    public function destroy(MeetingSummary $meetingSummary): JsonResponse
+    {
+        $meetingSummary = DB::transaction(function () use ($meetingSummary) {
+            DealFollowUp::where('summary_id', $meetingSummary->id)->update(['summary_id' => null]);
+            
+            $meetingSummary->delete();
+
+            return $meetingSummary;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting summary deleted successfully'
+        ]);
+    }
+
+    /**
+     * Get meeting summary by meeting ID
+     */
+    public function getByMeetingId($meetingId): JsonResponse
+    {
+        $leadFollowUp = DealFollowUp::where('meeting_id', $meetingId)->first();
+        
+        if (!$leadFollowUp || !$leadFollowUp->summary_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Meeting summary not found'
+            ], 404);
+        }
+
+        $summary = MeetingSummary::with(['deal', 'meetingType'])->find($leadFollowUp->summary_id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $summary
+        ]);
+    }
+
 }

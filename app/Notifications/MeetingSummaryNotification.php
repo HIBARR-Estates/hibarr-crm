@@ -2,12 +2,15 @@
 
 namespace App\Notifications;
 
+use App\Models\MeetingSummary;
+use App\Models\DealFollowUp;
+use App\Models\Deal;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class MeetingSummaryNotification extends Notification implements ShouldQueue
+class MeetingSummaryNotification extends Notification
 {
     use Queueable;
 
@@ -19,7 +22,7 @@ class MeetingSummaryNotification extends Notification implements ShouldQueue
     /**
      * Create a new notification instance.
      */
-    public function __construct($meetingSummary, $dealFollowUp, $deal, $action = 'created')
+    public function __construct(MeetingSummary $meetingSummary, DealFollowUp $dealFollowUp, Deal $deal, string $action)
     {
         $this->meetingSummary = $meetingSummary;
         $this->dealFollowUp = $dealFollowUp;
@@ -51,7 +54,9 @@ class MeetingSummaryNotification extends Notification implements ShouldQueue
         $mailMessage = (new MailMessage)
                     ->subject($subject)
                     ->greeting('Hello ' . $notifiable->name . '!')
-                    ->line('A meeting summary has been ' . $this->action . ' for the following deal:')
+                    ->line($this->action === 'created' 
+                        ? 'A new meeting summary has been created for the following deal:'
+                        : 'A meeting summary has been updated for the following deal:')
                     ->line('**Deal:** ' . $this->deal->name);
         
         // Safely format meeting date
@@ -82,7 +87,10 @@ class MeetingSummaryNotification extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
-            //
+            'meeting_summary_id' => $this->meetingSummary->id,
+            'deal_id' => $this->deal->id,
+            'deal_name' => $this->deal->name,
+            'action' => $this->action,
         ];
     }
 }

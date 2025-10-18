@@ -48,7 +48,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DealFollowUp extends BaseModel
 {
-
     protected $table = 'lead_follow_up';
 
     protected $fillable = [
@@ -88,6 +87,11 @@ class DealFollowUp extends BaseModel
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
+    }
+
+    public function meetingType(): BelongsTo
+    {
+        return $this->belongsTo(MeetingType::class);
     }
 
 }

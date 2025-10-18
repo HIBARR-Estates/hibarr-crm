@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MeetingSummary extends Model
 {
@@ -22,13 +21,27 @@ class MeetingSummary extends Model
         'summary_object' => 'array',
     ];
 
-    public function meetingType(): BelongsTo
+    /**
+     * Get the deal that owns the meeting summary.
+     */
+    public function deal()
     {
-        return $this->belongsTo(MeetingType::class, 'meeting_type_id');
+        return $this->belongsTo(Deal::class);
     }
 
-    public function deal(): BelongsTo
+    /**
+     * Get the meeting type for the meeting summary.
+     */
+    public function meetingType()
     {
-        return $this->belongsTo(Deal::class, 'deal_id');
+        return $this->belongsTo(MeetingType::class);
+    }
+
+    /**
+     * Get the follow-ups for this meeting summary.
+     */
+    public function followUps()
+    {
+        return $this->hasMany(DealFollowUp::class, 'summary_id');
     }
 }
