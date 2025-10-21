@@ -21,7 +21,7 @@
             "@/Components/*": ["resources/js/Components/*"],
             "@/Pages/*": ["resources/js/Pages/*"],
             "@/Types/*": ["resources/js/Types/*"],
-            "@/Modules/*": ["resources/js/Modules/*"],
+            "@/Features/*": ["resources/js/Features/*"],
             "@/lib/*": ["resources/js/lib/*"],
             "@/Hooks/*": ["resources/js/Hooks/*"]
         },

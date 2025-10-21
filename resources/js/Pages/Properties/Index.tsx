@@ -14,15 +14,15 @@ import {
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
-import { PROPERTY_TABLE_COLUMNS } from "@/Modules/Properties/Columns";
+import { PROPERTY_TABLE_COLUMNS } from "@/Features/Properties/Columns";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
-import BulkActionSelector from "@/Modules/Properties/BulkActions/BulkActionSelector";
+import BulkActionSelector from "@/Features/Properties/BulkActions/BulkActionSelector";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
-import SavePropertyModal from "@/Modules/Properties/SaveProperty/SavePropertyModal";
-import ImportProperties from "@/Modules/Properties/ImportProperties";
-import ExportProperties from "@/Modules/Properties/ExportProperties";
-import DeleteProperty from "@/Modules/Properties/DeleteProperty";
-import BasicPropertyFilterBox from "@/Modules/Properties/Filter/BasicPropertyFilterBox";
+import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyModal";
+import ImportProperties from "@/Features/Properties/ImportProperties";
+import ExportProperties from "@/Features/Properties/ExportProperties";
+import DeleteProperty from "@/Features/Properties/DeleteProperty";
+import BasicPropertyFilterBox from "@/Features/Properties/Filter/BasicPropertyFilterBox";
 import { TFilter } from "@/Types/common";
 import { filterProperties } from "@/lib/utils";
 

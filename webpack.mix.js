@@ -94,7 +94,7 @@ mix.js("resources/js/bootstrap.js", "public/js")
                 ),
                 "@/Pages": path.resolve(__dirname, "resources/js/Pages"),
                 "@/Types": path.resolve(__dirname, "resources/js/Types"),
-                "@/Modules": path.resolve(__dirname, "resources/js/Modules"),
+                "@/Features": path.resolve(__dirname, "resources/js/Features"),
                 "@/lib": path.resolve(__dirname, "resources/js/lib"),
                 "@/Hooks": path.resolve(__dirname, "resources/js/Hooks"),
             },
