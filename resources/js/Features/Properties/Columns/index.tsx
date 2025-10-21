@@ -11,7 +11,8 @@ import { ColumnsType } from "antd/lib/table";
 import { MoreOutlined } from "@ant-design/icons";
 
 export const PROPERTY_TABLE_COLUMNS = (
-    actionItems?: (item: Property) => MenuProps["items"]
+    actionItems?: (item: Property) => MenuProps["items"],
+    currencyCode: string | null | undefined = "GBP"
 ): ColumnsType<Property> => [
     {
         title: "Title",
@@ -63,7 +64,7 @@ export const PROPERTY_TABLE_COLUMNS = (
         width: 120,
         render: (price: number, record: Property) => (
             <div className="font-medium">
-                {formatCurrency(price)}
+                {formatCurrency(price, currencyCode)}
                 {record.sale_type === "rent" && (
                     <span className="text-xs text-gray-500">/month</span>
                 )}

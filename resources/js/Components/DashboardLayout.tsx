@@ -32,6 +32,7 @@ interface Company {
     app_name: string;
     logo_url: string;
     favicon_url: string;
+    currency_id: number;
 }
 
 interface SidebarPermissions {

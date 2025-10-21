@@ -11,7 +11,7 @@ export const pluralOrSingular = (
 
 export const getStatusColor = (status: string): string => {
     const colors: Record<string, string> = {
-        Available: "green",
+        Available: "#bdbec3",
         "Under offer": "orange",
         Sold: "red",
         Rented: "blue",
@@ -32,10 +32,13 @@ export const getPropertyTypeColor = (type: string): string => {
     return colors[type] || "default";
 };
 
-export const formatCurrency = (amount: number): string => {
+export const formatCurrency = (
+    amount: number,
+    currencyCode: string | null | undefined = "GBP"
+): string => {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "USD",
+        currency: currencyCode || "GBP",
         minimumFractionDigits: 0,
     }).format(amount);
 };

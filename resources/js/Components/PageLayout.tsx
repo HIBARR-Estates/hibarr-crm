@@ -13,13 +13,20 @@ interface PageLayoutProps {
     breadcrumbs?: BreadcrumbItem[];
     children: React.ReactNode;
     filterSection?: React.ReactNode;
+    config?: {
+        showTitle?: boolean;
+    };
 }
+const defaultConfig = {
+    showTitle: false,
+};
 
 export default function PageLayout({
     title,
     breadcrumbs = [],
     children,
     filterSection,
+    config = defaultConfig,
 }: PageLayoutProps) {
     // Generate breadcrumb items
     const breadcrumbItems = [
@@ -55,9 +62,11 @@ export default function PageLayout({
                 <div className="flex items-center justify-between">
                     <div className="flex-1">
                         <div className="flex items-center space-x-3">
-                            <h1 className="text-lg font-semibold text-gray-900 truncate max-w-xs">
-                                {title}
-                            </h1>
+                            {config.showTitle && (
+                                <h1 className="text-lg font-semibold text-gray-900 truncate max-w-xs">
+                                    {title}
+                                </h1>
+                            )}
 
                             {/* Breadcrumbs */}
                             <div className="hidden lg:flex">

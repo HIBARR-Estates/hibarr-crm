@@ -29,6 +29,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => fn () => [
                 'user' => auth()->user(),
             ],
+            'default_currency_symbol' => company()?->currency->currency_symbol,
+            'default_currency_code' => company()?->currency->currency_code,
+            'currencies' => fn () => company()?->currencies,
             'errors' => fn () => $request->session()->get('errors')
                 ? $request->session()->get('errors')->getBag('default')->getMessages()
                 : (object) [],

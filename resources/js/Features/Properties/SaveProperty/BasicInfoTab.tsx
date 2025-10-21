@@ -13,6 +13,8 @@ import {
 import { PropertyFormProps } from "./PropertyForm";
 import { Property } from "@/Types";
 import { useEffect, useState } from "react";
+import { usePage } from "@inertiajs/react";
+import { PageProps } from "@/Components/DashboardLayout";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -94,6 +96,11 @@ export default function BasicInfoTab({
     setErrors,
 }: BasicInfoTabProps) {
     const [form] = Form.useForm<Omit<Property, "id">>();
+    const { props } = usePage<PageProps>();
+    // const defaultCurrencyId = props.company?.currency_id;
+    // const currencies = props.currencies || [];
+    // TODO: Refactor the property model to use currency id instead of symbol, also this will mean the import template needs to be updated
+    const defaultCurrencySymbol = props.default_currency_symbol || "£";
 
     // Populate form when data changes
     useEffect(() => {
@@ -248,12 +255,8 @@ export default function BasicInfoTab({
                                 style={{ width: "100%" }}
                                 placeholder="Enter price"
                                 min={0}
-                                formatter={(value) =>
-                                    `$ ${value}`.replace(
-                                        /\B(?=(\d{3})+(?!\d))/g,
-                                        ","
-                                    )
-                                }
+                                // TODO: Use property product currency if available, and fallback to default company currency, when not sent from ui
+                                prefix={defaultCurrencySymbol}
                                 parser={(value) => {
                                     const num = parseFloat(
                                         value?.replace(/\$\s?|(,*)/g, "") || "0"

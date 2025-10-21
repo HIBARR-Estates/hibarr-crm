@@ -21,3 +21,16 @@ export type TFilter = Partial<{
     min_price: number;
     max_price: number;
 }>;
+
+export type Currency = {
+    id: number;
+    company_id: number;
+    currency_name: string;
+    currency_symbol: string;
+    exchange_rate: number;
+    is_cryptocurrency: "yes" | "no";
+    usd_price: number | null;
+    created_at: string;
+    updated_at: string;
+    // TODO: Add other fields as necessary
+};
