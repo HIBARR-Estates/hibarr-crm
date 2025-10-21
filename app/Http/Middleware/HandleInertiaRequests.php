@@ -29,9 +29,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => fn () => [
                 'user' => auth()->user(),
             ],
-            'default_currency_symbol' => company()?->currency?->currency_symbol,
-            'default_currency_code' => company()?->currency?->currency_code,
-            'currencies' => fn () => company()?->currencies,
+            'default_currency_symbol' => fn () => $this->getDefaultCurrencySymbol(),
+            'default_currency_code' => fn () => $this->getDefaultCurrencyCode(),
+            'currencies' => fn () => $this->getCompanyCurrencies(),
             'errors' => fn () => $request->session()->get('errors')
                 ? $request->session()->get('errors')->getBag('default')->getMessages()
                 : (object) [],
@@ -55,6 +55,59 @@ class HandleInertiaRequests extends Middleware
             ],
             'currentRouteName' => $request->route() ? $request->route()->getName() : '',
         ]);
+    }
+     /**
+     * Get default currency symbol safely
+     */
+    private function getDefaultCurrencySymbol(): ?string
+    {
+        try {
+            $company = function_exists('company') ? company() : null;
+            
+            if (!$company || !$company->currency) {
+                return null;
+            }
+            
+            return $company?->currency?->currency_symbol;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Get default currency code safely
+     */
+    private function getDefaultCurrencyCode(): ?string
+    {
+        try {
+            $company = function_exists('company') ? company() : null;
+            
+            if (!$company || !$company->currency) {
+                return null;
+            }
+
+            return $company?->currency?->currency_code;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+        /**
+     * Get company currencies safely
+     */
+    private function getCompanyCurrencies()
+    {
+        try {
+            $company = function_exists('company') ? company() : null;
+            
+            if (!$company) {
+                return [];
+            }
+
+            return $company?->currencies ?? [];
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     private function getSidebarPermissions(): array
