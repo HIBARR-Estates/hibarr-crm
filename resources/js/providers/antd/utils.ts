@@ -6,7 +6,7 @@ export const THEME_COLOR = {
 export const antdMainThemeConfig: ThemeConfig = {
     cssVar: true,
 
-    algorithm: theme.darkAlgorithm,
+    // algorithm: theme.darkAlgorithm,
 
     token: {
         colorPrimary: THEME_COLOR.primary,

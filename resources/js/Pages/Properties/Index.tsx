@@ -62,9 +62,10 @@ export interface IndexProps extends PageProps {
 export default function Index({
     pageTitle,
     properties,
-
+    default_currency_code: currencyCode,
     filters: urlFilters,
 }: IndexProps) {
+    console.log(currencyCode, "CURRENCY CODE ....");
     const {
         handleAction,
         handleClose,
@@ -197,7 +198,7 @@ export default function Index({
     ];
 
     // Table columns
-    const columns = PROPERTY_TABLE_COLUMNS(getActionItems);
+    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencyCode);
 
     return (
         <DashboardLayout>
@@ -226,13 +227,13 @@ export default function Index({
                                 Add Property
                             </Button>
                             <Button
-                                type="primary"
+                                type="text"
                                 icon={<ImportOutlined />}
                                 onClick={() => {
                                     handleAction("import");
                                 }}
                             >
-                                Import Properties
+                                Import
                             </Button>
                         </div>
 
