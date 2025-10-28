@@ -967,6 +967,20 @@ class DealController extends AccountBaseController
         return Reply::successWithData(__('messages.importProcessStart'), ['batch' => $batch]);
     }
 
+    /**
+     * Download sample import template with custom fields
+     */
+    public function downloadSampleImport()
+    {
+        $this->addPermission = user()->permission('add_deals');
+        abort_403(!in_array($this->addPermission, ['all', 'added']));
+
+        $export = new \App\Exports\DealSampleExport(company()->id);
+        $filename = 'deal-sample-import-' . now()->format('Y-m-d') . '.xlsx';
+        
+        return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
+    }
+
     public function destroySession()
     {
 

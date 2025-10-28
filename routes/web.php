@@ -544,6 +544,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('import', [DealController::class, 'importLead'])->name('deals.import');
         Route::post('import', [DealController::class, 'importStore'])->name('deals.import.store');
         Route::post('import/process', [DealController::class, 'importProcess'])->name('deals.import.process');
+        Route::get('import/download-sample', [DealController::class, 'downloadSampleImport'])->name('deals.import.download-sample');
     });
 
     Route::group(['prefix' => 'lead-contact'], function () {

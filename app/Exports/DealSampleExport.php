@@ -1,0 +1,266 @@
+<?php
+
+namespace App\Exports;
+
+use App\Models\CustomField;
+use App\Models\CustomFieldGroup;
+use App\Models\LeadPipeline;
+use App\Models\PipelineStage;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+
+class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormatting, WithEvents
+{
+    protected $companyId;
+
+    public function __construct($companyId)
+    {
+        $this->companyId = $companyId;
+    }
+
+    /**
+     * Return sample data for the Excel file
+     */
+    public function collection()
+    {
+        $customFields = $this->getCustomFields();
+        $stages = $this->getAllStages();
+        
+        // Generate multiple sample rows with actual data
+        $sampleRows = [];
+        
+        $dealNames = [
+            'Bennie Wunsch Deal',
+            'Dayne Towne V Deal',
+            'Mrs. Willow Keeling Deal',
+            'Freida Veum Deal',
+            'Prof. Maxwell Strosin Deal',
+            'Mr. Alfredo Hirthe III Deal',
+            'Camille Legros DDS Deal',
+            'Enterprise Software License',
+            'Marketing Campaign Package',
+            'Consulting Services Contract',
+            'Annual Subscription Renewal',
+        ];
+        
+        $emails = [
+            'bennie@example.com',
+            'dayne@example.com',
+            'willow@example.com',
+            'freida@example.com',
+            'maxwell@example.com',
+            'alfredo@example.com',
+            'camille@example.com',
+            'enterprise@example.com',
+            'marketing@example.com',
+            'consulting@example.com',
+            'subscription@example.com',
+        ];
+        
+        $values = [46787, 69230, 32044, 38321, 15840, 73958, 71490, 25556, 3185, 76817, 70298];
+        
+        // Get default pipeline
+        $pipeline = LeadPipeline::where('default', 1)->first();
+        $pipelineName = $pipeline ? $pipeline->name : 'Sales Pipeline';
+        
+        foreach ($dealNames as $index => $dealName) {
+            $stage = $stages[$index % count($stages)] ?? 'Prospect';
+            
+            $row = [
+                $dealName,                                      // Deal Name
+                $emails[$index],                               // Lead Contact Email
+                $pipelineName,                                 // Pipeline
+                number_format($values[$index], 2, '.', ''),   // Value
+                now()->addDays(rand(1, 30))->format('Y-m-d'), // Close Date
+                $stage,                                        // Deal Stage
+            ];
+            
+            // Add sample data for custom fields
+            foreach ($customFields as $fieldIndex => $customField) {
+                $row[] = $this->getSampleValueForField($customField, $index);
+            }
+            
+            $sampleRows[] = $row;
+        }
+
+        return new Collection($sampleRows);
+    }
+    
+    /**
+     * Generate sample value for a custom field
+     */
+    private function getSampleValueForField($customField, $rowIndex)
+    {
+        switch ($customField->type) {
+            case 'text':
+                return 'Sample text ' . ($rowIndex + 1);
+                
+            case 'number':
+                return rand(100, 1000);
+                
+            case 'date':
+                return now()->addDays(rand(1, 60))->format('Y-m-d');
+                
+            case 'select':
+            case 'radio':
+                $options = json_decode($customField->values, true);
+                if (is_array($options) && !empty($options)) {
+                    return $options[$rowIndex % count($options)];
+                }
+                return 'Option 1';
+                
+            case 'checkbox':
+                $options = json_decode($customField->values, true);
+                if (is_array($options) && !empty($options)) {
+                    $selectedCount = min(2, count($options));
+                    $selected = array_slice($options, 0, $selectedCount);
+                    return implode(', ', $selected);
+                }
+                return 'Option 1, Option 2';
+                
+            case 'textarea':
+                return 'This is a longer text sample for row ' . ($rowIndex + 1);
+                
+            default:
+                return 'Sample value';
+        }
+    }
+    
+    /**
+     * Get all pipeline stages
+     */
+    private function getAllStages()
+    {
+        // Get stages from the default pipeline for this company
+        $pipeline = LeadPipeline::where('default', 1)
+            ->where('company_id', $this->companyId)
+            ->first();
+        
+        if ($pipeline) {
+            return PipelineStage::where('lead_pipeline_id', $pipeline->id)
+                ->orderBy('priority')
+                ->pluck('name')
+                ->toArray();
+        }
+        
+        // Fallback stages if no pipeline found
+        return [
+            'Generated',
+            'Initial Contact',
+            'Qualified',
+            'Schedule Appointment',
+            'Proposal Sent',
+            'Negotiation',
+            'Win',
+            'Lost',
+        ];
+    }
+
+    /**
+     * Return headings for the Excel file
+     * These must match the field IDs that the import expects
+     */
+    public function headings(): array
+    {
+        $headings = [
+            'deal_name',
+            'lead_contact_email',
+            'pipeline',
+            'deal_value',
+            'close_date',
+            'deal_stage',
+        ];
+
+        // Add custom field headings using slugified labels (to match import field IDs)
+        $customFields = $this->getCustomFields();
+        
+        foreach ($customFields as $customField) {
+            // Slugify to match what import expects
+            $headings[] = Str::slug($customField->label, '_');
+        }
+
+        return $headings;
+    }
+
+    /**
+     * Format columns
+     */
+    public function columnFormats(): array
+    {
+        return [
+            'D' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1, // Deal Value column
+            'E' => NumberFormat::FORMAT_DATE_YYYYMMDD2,          // Close Date column
+        ];
+    }
+
+    /**
+     * Get custom fields for Deal model
+     */
+    private function getCustomFields()
+    {
+        $customFieldsGroupsId = CustomFieldGroup::where('model', 'App\Models\Deal')
+            ->where('company_id', $this->companyId)
+            ->select('id')
+            ->first();
+
+        if (!$customFieldsGroupsId) {
+            return collect();
+        }
+
+        // Get ALL custom fields for the template (not just export = 1)
+        return CustomField::where('custom_field_group_id', $customFieldsGroupsId->id)
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Register events to add human-readable labels as comments
+     */
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $customFields = $this->getCustomFields();
+                
+                // Map of technical headers to human labels
+                $headerLabels = [
+                    'deal_name' => 'Deal Name',
+                    'lead_contact_email' => 'Lead Contact Email',
+                    'pipeline' => 'Pipeline',
+                    'deal_value' => 'Deal Value',
+                    'close_date' => 'Close Date',
+                    'deal_stage' => 'Deal Stage',
+                ];
+                
+                // Add custom field labels
+                foreach ($customFields as $customField) {
+                    $slug = Str::slug($customField->label, '_');
+                    $headerLabels[$slug] = $customField->label;
+                }
+                
+                // Add comments to header row
+                $col = 1;
+                foreach ($headerLabels as $technical => $humanLabel) {
+                    $cellCoordinate = Coordinate::stringFromColumnIndex($col) . '1';
+                    $sheet->getComment($cellCoordinate)->getText()->createTextRun($humanLabel);
+                    $col++;
+                }
+                
+                // Style header row
+                $sheet->getStyle('1:1')->getFont()->setBold(true);
+                $sheet->getStyle('1:1')->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('FFE0E0E0');
+            },
+        ];
+    }
+}
+
