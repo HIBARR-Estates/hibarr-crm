@@ -97,6 +97,11 @@ class LeadContactController extends AccountBaseController
                 return $this->deals();
             case 'notes':
                 return $this->notes();
+            case 'marketing':
+                // Load marketing data for the lead contact
+                $this->leadContact = $this->leadContact->load('marketing');
+                $this->view = 'lead-contact.ajax.marketing';
+                break;
             default:
                 $this->view = 'lead-contact.ajax.profile';
                 break;

@@ -269,6 +269,9 @@ class DealController extends AccountBaseController
                     ->get();
                 $this->tab = 'leads.ajax.activities';
                 break;
+            case 'marketing':
+                $this->tab = 'leads.ajax.marketing';
+                break;
             default:
                 $handleNotes();
                 break;

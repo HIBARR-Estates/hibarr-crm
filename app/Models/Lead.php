@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 
 /**
@@ -208,6 +209,11 @@ class Lead extends BaseModel
     public function leadOwner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'lead_owner')->withoutGlobalScope(ActiveScope::class);
+    }
+
+    public function marketing(): HasOne
+    {
+        return $this->hasOne(LeadMarketing::class, 'lead_id');
     }
 
     public static function allLeads($contactId = null)
