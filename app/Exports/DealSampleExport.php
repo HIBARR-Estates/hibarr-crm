@@ -70,6 +70,21 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
         $pipeline = LeadPipeline::where('default', 1)->first();
         $pipelineName = $pipeline ? $pipeline->name : 'Sales Pipeline';
         
+        // Agent names demonstrating the email convention
+        $agentNames = [
+            'Rabih Rabea',      // r.r@hibarr.de
+            'Shirin',           // shirin@hibarr.de
+            'John Doe',         // john.d@hibarr.de
+            'Sarah Smith',      // sarah.s@hibarr.de
+            'Michael Brown',    // michael.b@hibarr.de
+            'Emily Johnson',    // emily.j@hibarr.de
+            'Rabih Rabea',      // r.r@hibarr.de
+            'David Wilson',     // david.w@hibarr.de
+            'Shirin',           // shirin@hibarr.de
+            'Anna Mueller',     // anna.m@hibarr.de
+            'Thomas Weber',     // thomas.w@hibarr.de
+        ];
+        
         foreach ($dealNames as $index => $dealName) {
             $stage = $stages[$index % count($stages)] ?? 'Prospect';
             
@@ -80,6 +95,25 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                 number_format($values[$index], 2, '.', ''),   // Value
                 now()->addDays(rand(1, 30))->format('Y-m-d'), // Close Date
                 $stage,                                        // Deal Stage
+                $agentNames[$index],                           // Responsible Agent Name
+                
+                // Marketing fields
+                'google',                                      // UTM Source
+                'cpc',                                        // UTM Medium
+                'summer_campaign',                            // UTM Campaign
+                'real estate deals',                          // UTM Term
+                'banner_ad',                                  // UTM Content
+                'buyers',                                     // UTM Audience
+                'source_' . ($index + 1),                     // Traffic Source ID
+                'fb_click_' . rand(1000, 9999),              // Facebook Click ID
+                'fb_lead_' . rand(1000, 9999),               // Facebook Lead ID
+                $index % 2 ? 'Yes' : 'No',                   // Registered for Webinar
+                $index % 3 ? 'Yes' : 'No',                   // Joined Facebook Group
+                $index % 2 ? 'Yes' : 'No',                   // Downloaded Ebook
+                $index % 3 ? 'Yes' : 'No',                   // Attended Webinar
+                $index % 2 ? 'Yes' : 'No',                   // Registered for Zoom
+                now()->subDays(rand(1, 30))->format('Y-m-d'), // Last Webinar Date
+                rand(50, 100),                               // Contact Score
             ];
             
             // Add sample data for custom fields
@@ -176,6 +210,25 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
             'deal_value',
             'close_date',
             'deal_stage',
+            'responsible_name',
+            
+            // Marketing fields
+            'utm_source',
+            'utm_medium',
+            'utm_campaign',
+            'utm_term',
+            'utm_content',
+            'utm_audience',
+            'traffic_source_id',
+            'facebook_click_id',
+            'facebook_lead_id',
+            'has_registered_for_the_webinar',
+            'has_joined_the_facebook_group',
+            'has_downloaded_the_ebook',
+            'has_attended_the_webinar',
+            'registered_for_zoom_meeting',
+            'last_webinar_date',
+            'contact_score',
         ];
 
         // Add custom field headings using slugified labels (to match import field IDs)
@@ -238,6 +291,25 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                     'deal_value' => 'Deal Value',
                     'close_date' => 'Close Date',
                     'deal_stage' => 'Deal Stage',
+                    'responsible_name' => 'Responsible Agent Name',
+                    
+                    // Marketing field labels
+                    'utm_source' => 'UTM Source',
+                    'utm_medium' => 'UTM Medium',
+                    'utm_campaign' => 'UTM Campaign',
+                    'utm_term' => 'UTM Term',
+                    'utm_content' => 'UTM Content',
+                    'utm_audience' => 'UTM Audience',
+                    'traffic_source_id' => 'Traffic Source ID',
+                    'facebook_click_id' => 'Facebook Click ID',
+                    'facebook_lead_id' => 'Facebook Lead ID',
+                    'has_registered_for_the_webinar' => 'Registered for Webinar',
+                    'has_joined_the_facebook_group' => 'Joined Facebook Group',
+                    'has_downloaded_the_ebook' => 'Downloaded Ebook',
+                    'has_attended_the_webinar' => 'Attended Webinar',
+                    'registered_for_zoom_meeting' => 'Registered for Zoom Meeting',
+                    'last_webinar_date' => 'Last Webinar Date',
+                    'contact_score' => 'Contact Score',
                 ];
                 
                 // Add custom field labels

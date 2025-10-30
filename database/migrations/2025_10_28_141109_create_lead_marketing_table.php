@@ -49,11 +49,6 @@ return new class extends Migration
             // Lead Scoring
             $table->integer('contact_score')->nullable()->default(0);
             
-            // Lead Categorization
-            $table->string('type')->nullable();
-            $table->string('vip_package')->nullable();
-            $table->string('bank_package')->nullable();
-            
             $table->timestamps();
             
             // Indexes for better query performance

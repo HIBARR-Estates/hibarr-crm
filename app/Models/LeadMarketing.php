@@ -32,10 +32,6 @@ class LeadMarketing extends BaseModel
         'last_webinar_date',
         // Lead Scoring
         'contact_score',
-        // Lead Categorization
-        'type',
-        'vip_package',
-        'bank_package',
     ];
 
     protected $casts = [

@@ -62,12 +62,12 @@
                     </div>
 
                     <x-cards.data-row 
-                        :label="__('@lang('marketing.facebook_click_id')')" 
+                        :label="__('modules.marketing.facebook_click_id')" 
                         :value="$deal->contact->marketing->facebook_click_id ?? '--'" 
                     />
 
                     <x-cards.data-row 
-                        :label="__('@lang('marketing.facebook_lead_id')')" 
+                        :label="__('modules.marketing.facebook_lead_id')" 
                         :value="$deal->contact->marketing->facebook_lead_id ?? '--'" 
                     />
 
@@ -79,45 +79,45 @@
                     </div>
 
                     <div class="col-6 px-0 pb-3 d-flex">
-                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('@lang('marketing.registered_for_webinar')') }}</p>
+                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('modules.marketing.registered_for_webinar') }}</p>
                         <p class="mb-0 text-dark-grey f-14">
                             @if($deal->contact->marketing->has_registered_for_the_webinar)
-                                <x-status color="green" :value="__('@lang('marketing.yes')')" />
+                                <x-status color="green" :value="__('modules.marketing.yes')" />
                             @else
-                                <x-status color="red" :value="__('@lang('marketing.no')')" />
+                                <x-status color="red" :value="__('modules.marketing.no')" />
                             @endif
                         </p>
                     </div>
 
                     <div class="col-6 px-0 pb-3 d-flex">
-                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('@lang('marketing.joined_facebook_group')') }}</p>
+                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('modules.marketing.joined_facebook_group') }}</p>
                         <p class="mb-0 text-dark-grey f-14">
                             @if($deal->contact->marketing->has_joined_the_facebook_group)
-                                <x-status color="green" :value="__('@lang('marketing.yes')')" />
+                                <x-status color="green" :value="__('modules.marketing.yes')" />
                             @else
-                                <x-status color="red" :value="__('@lang('marketing.no')')" />
+                                <x-status color="red" :value="__('modules.marketing.no')" />
                             @endif
                         </p>
                     </div>
 
                     <div class="col-6 px-0 pb-3 d-flex">
-                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('@lang('marketing.downloaded_ebook')') }}</p>
+                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('modules.marketing.downloaded_ebook') }}</p>
                         <p class="mb-0 text-dark-grey f-14">
                             @if($deal->contact->marketing->has_downloaded_the_ebook)
-                                <x-status color="green" :value="__('@lang('marketing.yes')')" />
+                                <x-status color="green" :value="__('modules.marketing.yes')" />
                             @else
-                                <x-status color="red" :value="__('@lang('marketing.no')')" />
+                                <x-status color="red" :value="__('modules.marketing.no')" />
                             @endif
                         </p>
                     </div>
 
                     <div class="col-6 px-0 pb-3 d-flex">
-                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('@lang('marketing.registered_for_zoom_meeting')') }}</p>
+                        <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('modules.marketing.registered_for_zoom_meeting') }}</p>
                         <p class="mb-0 text-dark-grey f-14">
                             @if($deal->contact->marketing->has_registered_for_the_webinar)
-                                <x-status color="green" :value="__('@lang('marketing.yes')')" />
+                                <x-status color="green" :value="__('modules.marketing.yes')" />
                             @else
-                                <x-status color="red" :value="__('@lang('marketing.no')')" />
+                                <x-status color="red" :value="__('modules.marketing.no')" />
                             @endif
                         </p>
                     </div>
@@ -126,13 +126,13 @@
                     <div class="col-12 px-0 mt-3 pt-3 border-top">
                         <div class="row">
                             <div class="col-6 px-0 pb-3 d-flex">
-                                <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('@lang('marketing.created_at')') }}</p>
+                                <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('modules.marketing.created_at') }}</p>
                                 <p class="mb-0 text-dark-grey f-14">
                                     {{ $deal->contact->marketing->created_at ? $deal->contact->marketing->created_at->timezone(company()->timezone)->format(company()->date_format . ' ' . company()->time_format) : '--' }}
                                 </p>
                             </div>
                             <div class="col-6 px-0 pb-3 d-flex">
-                                <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('@lang('marketing.updated_at')') }}</p>
+                                <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('modules.marketing.updated_at') }}</p>
                                 <p class="mb-0 text-dark-grey f-14">
                                     {{ $deal->contact->marketing->updated_at ? $deal->contact->marketing->updated_at->timezone(company()->timezone)->format(company()->date_format . ' ' . company()->time_format) : '--' }}
                                 </p>

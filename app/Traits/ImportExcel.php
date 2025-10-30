@@ -98,9 +98,12 @@ trait ImportExcel
 
         Session::put('leads_count', count($excelData));
 
+        // Get pipeline_id from request if provided
+        $pipelineId = $request->pipeline_id ?? null;
+
         foreach ($excelData as $row) {
 
-            $jobs[] = (new $importJobClass($row, $columns, company(), user()?->id))->onQueue($importClassName);
+            $jobs[] = (new $importJobClass($row, $columns, company(), user()?->id, $pipelineId))->onQueue($importClassName);
         }
 
         $batch = Bus::batch($jobs)->onConnection('database')->onQueue($importClassName)->name($importClassName)->dispatch();

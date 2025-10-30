@@ -942,6 +942,11 @@ class DealController extends AccountBaseController
         $this->addPermission = user()->permission('add_deals');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
+        // Get all pipelines for the dropdown
+        $this->pipelines = \App\Models\LeadPipeline::where('company_id', company()->id)
+            ->orderBy('id')
+            ->get();
+
         $this->view = 'deals.ajax.import';
 
         if (request()->ajax()) {

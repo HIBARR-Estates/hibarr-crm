@@ -17,6 +17,16 @@
                                       fieldId="deal_import"/>
                     </div>
                     <div class="col-md-12">
+                        <x-forms.select fieldId="pipeline_id" :fieldLabel="__('Select Pipeline')"
+                                        fieldName="pipeline_id" search="true">
+                            <option value="">Select pipeline for all deals in this import</option>
+                            @foreach($pipelines as $pipeline)
+                                <option value="{{ $pipeline->id }}">{{ $pipeline->name }}</option>
+                            @endforeach
+                        </x-forms.select>
+                        <small class="form-text text-muted">All deals will be imported to this pipeline. Stage names in your file must match stages in this pipeline.</small>
+                    </div>
+                    <div class="col-md-12">
                         <x-forms.toggle-switch class="mr-0 mr-lg-12"
                                                :fieldLabel="__('modules.import.containsHeadings')"
                                                fieldName="heading"
