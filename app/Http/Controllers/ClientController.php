@@ -47,6 +47,7 @@ use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Models\ClientContact;
 use App\Models\Lead;
 use App\Traits\EmployeeActivityTrait;
+use Inertia\Inertia;
 
 class ClientController extends AccountBaseController
 {
@@ -126,6 +127,31 @@ class ClientController extends AccountBaseController
 
         if ($getCustomFieldGroupsWithFields) {
             $this->fields = $getCustomFieldGroupsWithFields->fields;
+        }
+
+        // Check if it's an Inertia request
+        if (request()->inertia()) {
+            return Inertia::render('Clients/Create', [
+                'pageTitle' => $this->pageTitle,
+                'lead' => $this->lead ?? null,
+                'employees' => $this->employees ?? [],
+                'countries' => $this->countries,
+                'categories' => $this->categories,
+                'salutations' => collect($this->salutations)->map(function ($salutation) {
+                    return [
+                        'value' => $salutation->value,
+                        'label' => $salutation->label()
+                    ];
+                }),
+                'languages' => $this->languages,
+                'fields' => $this->fields ?? [],
+                'permissions' => [
+                    'add_clients' => $this->addPermission,
+                    'manage_client_category' => user()->permission('manage_client_category'),
+                    'manage_client_subcategory' => user()->permission('manage_client_subcategory'),
+                    'add_client_note' => user()->permission('add_client_note'),
+                ]
+            ]);
         }
 
         $this->view = 'clients.ajax.create';
@@ -312,6 +338,12 @@ class ClientController extends AccountBaseController
             }
 
             return Reply::successWithData(__('messages.recordSaved'), ['teamData' => $teamData, 'project' => $options, 'redirectUrl' => $redirectUrl]);
+        }
+
+        // Handle Inertia requests
+        if ($request->inertia()) {
+            return redirect()->route('clients.index')
+                ->with('success', __('messages.recordSaved'));
         }
 
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);

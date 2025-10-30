@@ -9,7 +9,7 @@ interface BreadcrumbItem {
 }
 
 interface PageLayoutProps {
-    title: string;
+    title?: string;
     breadcrumbs?: BreadcrumbItem[];
     children: React.ReactNode;
     filterSection?: React.ReactNode;

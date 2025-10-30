@@ -30,6 +30,8 @@ use App\Models\CustomFieldCategory;
 use App\Traits\ImportExcel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
+use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class LeadContactController extends AccountBaseController
 {
@@ -47,25 +49,177 @@ class LeadContactController extends AccountBaseController
         });
     }
 
-    public function index(LeadContactDataTable $dataTable)
+
+
+    public function index(LeadContactDataTable $dataTable, Request $request)
     {
         $this->destroySession();
         $this->viewLeadPermission = $viewPermission = user()->permission('view_lead');
 
         abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
-        if (!request()->ajax()) {
+        if (true) {
+        // if (!request()->ajax()) {
             $this->categories = LeadCategory::get();
             $this->sources = LeadSource::get();
             $this->employees = User::allEmployees(null, 'active');
+            $this->leadContacts = Lead::allLeads();
+            $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
+            $this->leadStages = PipelineStage::all();
+            $this->products = Product::all();
+            
+        }
+        Log::info("request EMployees", $this->employees->toArray());
+
+        // Check if it's an Inertia request
+        if (true) {
+        // if (!$request->inertia()) {
+            // Get the leads data from the DataTable query with relationships
+            $leadsQuery = $dataTable->query(new Lead())
+                ->with([
+                    'leadOwner:id,name,email',
+                    'addedBy:id,name,email',
+                    'leadSource:id,type',
+                    'category:id,category_name',
+                    'client:id,name,email'
+                ]);
+            
+            // Apply filters from request
+            if ($request->filled('search')) {
+                $leadsQuery->where(function($query) use ($request) {
+                    $query->where('client_name', 'like', '%' . $request->search . '%')
+                          ->orWhere('client_email', 'like', '%' . $request->search . '%')
+                          ->orWhere('mobile', 'like', '%' . $request->search . '%');
+                });
+            }
+
+            // Apply additional filters
+            if ($request->filled('lead_source')) {
+                $leadsQuery->where('source_id', $request->lead_source);
+            }
+
+            if ($request->filled('lead_owner_id')) {
+                $leadsQuery->where('lead_owner', $request->lead_owner_id);
+            }
+
+            if ($request->filled('added_by_id')) {
+                $leadsQuery->where('added_by', $request->added_by_id);
+            }
+
+            if ($request->filled('start_date') && $request->filled('end_date')) {
+                $leadsQuery->whereBetween('created_at', [
+                    $request->start_date . ' 00:00:00',
+                    $request->end_date . ' 23:59:59'
+                ]);
+            }
+
+            // Apply permission-based filtering
+            if ($viewPermission == 'owned') {
+                $leadsQuery->where('lead_owner', user()->id);
+            } elseif ($viewPermission == 'added') {
+                $leadsQuery->where('added_by', user()->id);
+            } elseif ($viewPermission == 'both') {
+                $leadsQuery->where(function ($query) {
+                    $query->where('lead_owner', user()->id)
+                          ->orWhere('added_by', user()->id);
+                });
+            }
+            
+            // Paginate the results
+            $leads = $leadsQuery->paginate($request->get('per_page', 15));
+
+            Log::info("leads", $leads->toArray());
+            
+            // Get all the data needed for create/edit modals
+            $leadAgents = LeadAgent::whereHas('user', function ($q) {
+                $q->where('status', 'active');
+            })->with('user')->get();
+
+            $leadContact = new Lead();
+            $getCustomField = $leadContact->getCustomFieldGroupsWithFields();
+            $customFieldCategories = $this->getLeadCustomFieldCategories();
+
+            $salutations = collect(Salutation::cases())->map(function ($salutation) {
+                return [
+                    'value' => $salutation->value,
+                    'label' => $salutation->label()
+                ];
+            });
+
+            return Inertia::render('Leads/Index', [
+                'pageTitle' => 'Lead Contacts',
+                'categories' => $this->categories,
+                'sources' => $this->sources,
+                'employees' => $this->employees,
+                'countries' => countries(),
+                'salutations' => $salutations,
+                'leadAgents' => $leadAgents,
+                'leadPipelines' => $this->leadPipelines,
+                'leadStages' => $this->leadStages,
+                'leadContacts' => $this->leadContacts ? $this->leadContacts->map(function($contact) {
+                    return [
+                        'id' => $contact->id,
+                        'client_name' => $contact->client_name,
+                        'client_name_salutation' => $contact->client_name_salutation,
+                    ];
+                })->toArray() : [],
+                'stages' => $this->leadStages ? $this->leadStages->map(function($stage) {
+                    return [
+                        'id' => $stage->id,
+                        'name' => $stage->name,
+                        'lead_pipeline_id' => $stage->lead_pipeline_id,
+                        'label_color' => $stage->label_color,
+                    ];
+                })->toArray() : [],
+                'products' => $this->products,
+                'customFields' => $getCustomField ? $getCustomField->fields : collect([]),
+                'customFieldCategories' => $customFieldCategories,
+                'permissions' => [
+                    'view_lead_category' => user()->permission('view_lead_category'),
+                    'view_lead_sources' => user()->permission('view_lead_sources'),
+                    'add_lead_sources' => user()->permission('add_lead_sources'),
+                    'add_lead_category' => user()->permission('add_lead_category'),
+                    'add_product' => user()->permission('add_product'),
+                    'add_lead_agent' => user()->permission('add_lead_agent'),
+                    'view_lead_agents' => user()->permission('view_lead_agents'),
+                    'add_deals' => user()->permission('add_deals'),
+                    'add_lead' => user()->permission('add_lead'),
+                ],
+                'filters' => $request->only([
+                    'search',
+                    'lead_type',
+                    'start_date',
+                    'end_date',
+                    'lead_source',
+                    'lead_owner_id',
+                    'added_by_id'
+                ]),
+                'leads' => [
+                    'data' => $leads->items(),
+                    'current_page' => $leads->currentPage(),
+                    'last_page' => $leads->lastPage(),
+                    'per_page' => $leads->perPage(),
+                    'total' => $leads->total(),
+                    'from' => $leads->firstItem(),
+                    'to' => $leads->lastItem(),
+                ]
+            ]);
         }
 
+        // For non-Inertia requests, return the traditional DataTable view
         return $dataTable->render('lead-contact.index', $this->data);
     }
 
-    public function show($id)
+
+    public function show($id, Request $request)
     {
-        $this->leadContact = Lead::findOrFail($id)->withCustomFields();
+        $this->leadContact = Lead::with([
+            'leadOwner:id,name,email,image_url',
+            'addedBy:id,name,email,image_url',
+            'leadSource:id,type',
+            'category:id,category_name',
+            'client:id,name,email'
+        ])->findOrFail($id)->withCustomFields();
 
         $this->viewPermission = user()->permission('view_lead');
 
@@ -89,6 +243,33 @@ class LeadContactController extends AccountBaseController
 
         $this->editLeadPermission = user()->permission('edit_lead');
         $this->deleteLeadPermission = user()->permission('delete_lead');
+
+        // Check if it's an Inertia request
+        // if ($request->inertia()) {
+        if (true) {
+            $this->employees = User::allEmployees(null, true);
+            $this->sources = LeadSource::all();
+            $this->countries = countries();
+            $this->salutations = Salutation::cases();
+
+            return Inertia::render('Leads/Show', [
+                'lead' => $this->leadContact,
+                'categories' => $this->categories,
+                'sources' => $this->sources,
+                'employees' => $this->employees,
+                'countries' => $this->countries,
+                'salutations' => collect($this->salutations)->map(function ($salutation) {
+                    return [
+                        'value' => $salutation->value,
+                        'label' => $salutation->label()
+                    ];
+                }),
+                'customFieldCategories' => $this->customFieldCategories,
+                'fields' => $this->fields ?? [],
+                'editLeadPermission' => $this->editLeadPermission,
+                'deleteLeadPermission' => $this->deleteLeadPermission,
+            ]);
+        }
 
         $tab = request('tab');
 
@@ -153,7 +334,7 @@ class LeadContactController extends AccountBaseController
      *
      * @return \Illuminate\Http\Response
      */
-    public function create()
+    public function create(Request $request)
     {
         $this->pageTitle = __('modules.leadContact.createTitle');
 
@@ -170,7 +351,6 @@ class LeadContactController extends AccountBaseController
         })->with('user')->get();
 
         $this->leadAgentArray = $this->leadAgents->pluck('user_id')->toArray();
-
 
         if ((in_array(user()->id, $this->leadAgentArray))) {
             $this->myAgentId = $this->leadAgents->filter(function ($value, $key) {
@@ -195,12 +375,32 @@ class LeadContactController extends AccountBaseController
         $this->customFieldCategories = $this->getLeadCustomFieldCategories();
 
         // To create deal from lead
-
         $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
         $this->leadStages = PipelineStage::all();
         $this->leadAgentArray = $this->leadAgents->pluck('user_id')->toArray();
         $this->products = Product::all();
 
+        // Check if it's an Inertia request
+        if ($request->inertia()) {
+            return Inertia::render('Leads/Create', [
+                'pageTitle' => $this->pageTitle,
+                'employees' => $this->employees,
+                'sources' => $this->sources,
+                'categories' => $this->categories,
+                'countries' => $this->countries,
+                'salutations' => collect($this->salutations)->map(function ($salutation) {
+                    return [
+                        'value' => $salutation->value,
+                        'label' => $salutation->label()
+                    ];
+                }),
+                'leadPipelines' => $this->leadPipelines,
+                'leadStages' => $this->leadStages,
+                'products' => $this->products,
+                'customFieldCategories' => $this->customFieldCategories,
+                'fields' => $this->fields ?? [],
+            ]);
+        }
 
         $this->view = 'lead-contact.ajax.create';
 
@@ -218,7 +418,9 @@ class LeadContactController extends AccountBaseController
      */
     public function store(StoreRequest $request)
     {
+        Log::info("Create Lead Contact, begins ....");
         $this->addPermission = user()->permission('add_lead');
+
 
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
@@ -266,6 +468,7 @@ class LeadContactController extends AccountBaseController
             Session::put('create_deal_with_lead', true);
             Session::put('deal_name', $request->name);
         }
+        Log::info("Create Lead Contact, b4 save");
 
         $leadContact->save();
 
@@ -290,14 +493,18 @@ class LeadContactController extends AccountBaseController
         if ($request->add_more == 'true') {
             $html = $this->create();
 
-            return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
+            // return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
+
+            return back()->with('success', __('messages.recordSaved'));
         }
 
         if ($redirectUrl == '') {
             $redirectUrl = route('lead-contact.index');
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
+        // return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
+
+        return back()->with('success', __('messages.recordSaved'));
     }
 
     /**
@@ -306,7 +513,7 @@ class LeadContactController extends AccountBaseController
      * @param int $id
      * @return \Illuminate\Http\Response
      */
-    public function edit($id)
+    public function edit($id, Request $request)
     {
         $this->leadContact = Lead::with('leadSource', 'category')->findOrFail($id)->withCustomFields();
         $this->deal = Deal::where('lead_id', $id)->first();
@@ -350,9 +557,29 @@ class LeadContactController extends AccountBaseController
         $this->pageTitle = __('modules.leadContact.updateTitle');
         $this->salutations = Salutation::cases();
 
-
         // Get custom field categories for lead module
         $this->customFieldCategories = $this->getLeadCustomFieldCategories();
+
+        // Check if it's an Inertia request
+        if ($request->inertia()) {
+            return Inertia::render('Leads/Create', [
+                'pageTitle' => $this->pageTitle,
+                'lead' => $this->leadContact,
+                'employees' => $this->employees,
+                'sources' => $this->sources,
+                'categories' => $this->categories,
+                'countries' => $this->countries,
+                'salutations' => collect($this->salutations)->map(function ($salutation) {
+                    return [
+                        'value' => $salutation->value,
+                        'label' => $salutation->label()
+                    ];
+                }),
+                'customFieldCategories' => $this->customFieldCategories,
+                'fields' => $this->fields ?? [],
+                'isEditing' => true,
+            ]);
+        }
 
         if (request()->ajax()) {
             $html = view('lead-contact.ajax.edit', $this->data)->render();
@@ -422,7 +649,9 @@ class LeadContactController extends AccountBaseController
             $leadContact->updateCustomFieldData($request->custom_fields_data);
         }
 
-        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
+        // return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
+
+        return back()->with('success', __('messages.updateSuccess'));
     }
 
     /**
@@ -445,7 +674,8 @@ class LeadContactController extends AccountBaseController
 
         Lead::destroy($id);
 
-        return Reply::success(__('messages.deleteSuccess'));
+        // return Reply::success(__('messages.deleteSuccess'));
+        return back()->with('success', __('messages.deleteSuccess'));
     }
 
     public function applyQuickAction(Request $request)
@@ -478,17 +708,36 @@ class LeadContactController extends AccountBaseController
         $rvalue = $this->importFileProcess($request, LeadImport::class);
 
         if ($rvalue == 'abort') {
+            if ($request->wantsJson() || $request->inertia()) {
+                return response()->json(['error' => __('messages.abortAction')], 400);
+            }
             return Reply::error(__('messages.abortAction'));
         }
 
-        $view = view('leads.ajax.import_progress', $this->data)->render();
+        // For Inertia requests, return a simple success response
+        if ($request->inertia() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => __('messages.importUploadSuccess')
+            ]);
+        }
 
+        // For traditional Ajax requests
+        $view = view('leads.ajax.import_progress', $this->data)->render();
         return Reply::successWithData(__('messages.importUploadSuccess'), ['view' => $view]);
     }
 
     public function importProcess(ImportProcessRequest $request)
     {
         $batch = $this->importJobProcess($request, LeadImport::class, ImportLeadJob::class);
+
+        if ($request->inertia() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => __('messages.importProcessStart'),
+                'batch' => $batch
+            ]);
+        }
 
         return Reply::successWithData(__('messages.importProcessStart'), ['batch' => $batch]);
     }
@@ -584,4 +833,19 @@ class LeadContactController extends AccountBaseController
         }
         return collect();
     }
+
+    /**
+     * Download sample import file for leads
+     */
+    public function downloadSampleImport()
+    {
+        $sampleFilePath = public_path('sample-import/lead-contact-sample.xlsx');
+        
+        if (!file_exists($sampleFilePath)) {
+            return response()->json(['error' => 'Sample file not found'], 404);
+        }
+
+        return response()->download($sampleFilePath, 'lead-contact-sample.xlsx');
+    }
 }
+

@@ -87,6 +87,114 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
     } = theme.useToken();
     const [collapsed, setCollapsed] = useState(false);
 
+    // Get current path and determine active menu items
+    const getCurrentPath = () => {
+        if (typeof window !== "undefined") {
+            return window.location.pathname;
+        }
+        return "";
+    };
+
+    const isPathActive = (routePath: string): boolean => {
+        const currentPath = getCurrentPath();
+        // Handle exact matches and path prefixes
+        return (
+            currentPath === routePath || currentPath.startsWith(routePath + "/")
+        );
+    };
+
+    const getActiveMenuKeys = (): string[] => {
+        const currentPath = getCurrentPath();
+        const activeKeys: string[] = [];
+
+        // Check dashboard routes
+        if (currentPath === "/" || currentPath.includes("/dashboard")) {
+            activeKeys.push("dashboard");
+            if (currentPath.includes("/advanced")) {
+                activeKeys.push("advanced-dashboard");
+            } else {
+                activeKeys.push("private-dashboard");
+            }
+        }
+
+        // Check calendar routes
+        if (currentPath.includes("/my-calendar")) {
+            activeKeys.push("my-calendar");
+        }
+
+        // Check leads routes
+        if (currentPath.includes("/lead-contact")) {
+            activeKeys.push("lead-contact");
+        }
+        if (
+            currentPath.includes("/deals") ||
+            currentPath.includes("/leadboards")
+        ) {
+            activeKeys.push("deals");
+        }
+
+        // Check clients routes
+        if (currentPath.includes("/clients")) {
+            activeKeys.push("clients");
+        }
+
+        // Check HR routes
+        if (currentPath.includes("/employees")) {
+            activeKeys.push("hr", "employees");
+        }
+        if (currentPath.includes("/leaves")) {
+            activeKeys.push("hr", "leaves");
+        }
+        if (currentPath.includes("/attendances")) {
+            activeKeys.push("hr", "attendance");
+        }
+        if (currentPath.includes("/holidays")) {
+            activeKeys.push("hr", "holidays");
+        }
+
+        // Check work routes
+        if (currentPath.includes("/contracts")) {
+            activeKeys.push("work", "contracts");
+        }
+        if (currentPath.includes("/projects")) {
+            activeKeys.push("work", "projects");
+        }
+        if (currentPath.includes("/tasks")) {
+            activeKeys.push("work", "tasks");
+        }
+        if (currentPath.includes("/timelogs")) {
+            activeKeys.push("work", "timelogs");
+        }
+
+        // Check finance routes
+        if (currentPath.includes("/estimates")) {
+            activeKeys.push("finance", "estimates");
+        }
+        if (currentPath.includes("/invoices")) {
+            activeKeys.push("finance", "invoices");
+        }
+        if (currentPath.includes("/payments")) {
+            activeKeys.push("finance", "payments");
+        }
+
+        // Check products routes
+        if (currentPath.includes("/products")) {
+            activeKeys.push("products");
+        }
+
+        // Check properties routes
+        if (currentPath.includes("/properties")) {
+            activeKeys.push("properties");
+        }
+
+        // Check settings routes
+        if (currentPath.includes("/settings")) {
+            activeKeys.push("settings");
+        }
+
+        return activeKeys;
+    };
+
     // Helper functions
     const hasModule = (module: string): boolean => modules.includes(module);
     const hasPermission = (permission: string, level: number = 4): boolean => {
@@ -112,21 +220,38 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         ) {
             items.push({
                 key: "dashboard",
-                label: <a href={route("dashboard")}>Dashboard</a>,
+                label: (
+                    <span
+                        onClick={() => router.visit(route("dashboard"))}
+                        className="cursor-pointer"
+                    >
+                        Dashboard
+                    </span>
+                ),
                 icon: <HouseIcon />,
                 children: [
                     {
                         key: "private-dashboard",
                         label: (
-                            <a href={route("dashboard")}>Private Dashboard</a>
+                            <span
+                                onClick={() => router.visit(route("dashboard"))}
+                                className="cursor-pointer"
+                            >
+                                Private Dashboard
+                            </span>
                         ),
                     },
                     {
                         key: "advanced-dashboard",
                         label: (
-                            <a href={route("dashboard.advanced")}>
+                            <span
+                                onClick={() =>
+                                    router.visit(route("dashboard.advanced"))
+                                }
+                                className="cursor-pointer"
+                            >
                                 Advanced Dashboard
-                            </a>
+                            </span>
                         ),
                     },
                 ],
@@ -143,7 +268,14 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         ) {
             items.push({
                 key: "my-calendar",
-                label: <a href={route("my-calendar.index")}>My Calendar</a>,
+                label: (
+                    <span
+                        onClick={() => router.visit(route("my-calendar.index"))}
+                        className="cursor-pointer"
+                    >
+                        My Calendar
+                    </span>
+                ),
                 icon: <CalendarIcon />,
             });
         }
@@ -160,24 +292,35 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                 leadChildren.push({
                     key: "lead-contact",
                     label: (
-                        <a href={route("lead-contact.index")}>Lead Contact</a>
+                        <span
+                            onClick={() =>
+                                router.visit(route("lead-contact.index"))
+                            }
+                            className="cursor-pointer"
+                        >
+                            Lead Contact
+                        </span>
                     ),
+                    icon: <PersonIcon />,
                 });
             }
 
             if (hasPermission("view_deals")) {
                 leadChildren.push({
                     key: "deals",
-                    label: <a href={route("leadboards.index")}>Deals</a>,
+                    label: (
+                        <span
+                            onClick={() => router.visit(route("deals.index"))}
+                            className="cursor-pointer"
+                        >
+                            Deals
+                        </span>
+                    ),
+                    icon: <BriefcaseIcon />,
                 });
             }
 
-            items.push({
-                key: "leads",
-                label: "Leads",
-                icon: <PersonIcon />,
-                children: leadChildren,
-            });
+            items.push(...leadChildren);
         }
 
         // Clients
@@ -478,7 +621,10 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                     // TODO: Update once work is finished on the dashboard layout
                     theme={"dark"}
                     mode="inline"
-                    selectedKeys={[currentRouteName]}
+                    selectedKeys={getActiveMenuKeys()}
+                    defaultOpenKeys={getActiveMenuKeys().filter((key) =>
+                        ["dashboard", "hr", "work", "finance"].includes(key)
+                    )}
                     items={buildMenuItems()}
                     className="border-none"
                 />

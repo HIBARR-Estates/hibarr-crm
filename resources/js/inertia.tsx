@@ -49,10 +49,57 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
 
         // Lead/Deal routes
         "lead-contact.index": "/account/lead-contact",
+        "lead-contact.create": "/account/lead-contact/create",
+        "lead-contact.show": "/account/lead-contact/{id}",
+        "lead-contact.edit": "/account/lead-contact/{id}/edit",
+        "lead-contact.store": "/account/lead-contact",
+        "lead-contact.update": "/account/lead-contact/{id}",
+        "lead-contact.destroy": "/account/lead-contact/{id}",
+        "lead-contact.import": "/account/lead-contact/import",
+        "lead-contact.import.store": "/account/lead-contact/import",
+        "lead-contact.import.process": "/account/lead-contact/import/process",
+        "lead-contact.sample_import": "/account/lead-contact/sample-import",
+        "lead-contact.apply_quick_action":
+            "/account/lead-contact/apply-quick-action",
         "leadboards.index": "/account/leadboards",
+
+        // Deal routes
+        "deals.get-stage": "/account/deals/get-stage/{id}",
+        "deals.index": "/account/deals",
+        "deals.create": "/account/deals/create",
+        "deals.show": "/account/deals/{id}",
+        "deals.edit": "/account/deals/{id}/edit",
+        "deals.store": "/account/deals",
+        "deals.update": "/account/deals/{id}",
+        "deals.destroy": "/account/deals/{id}",
+        "deals.apply_quick_action": "/account/deals/apply-quick-action",
+        "deals.import": "/account/deals/import",
+        "deals.import.store": "/account/deals/import",
+        "deals.import.process": "/account/deals/import/process",
+        "deals.sample_import": "/account/deals/sample-import",
+        "deals.export": "/account/deals/export",
 
         // Client routes
         "clients.index": "/account/clients",
+        "clients.create": "/account/clients/create",
+        "clients.show": "/account/clients/{id}",
+        "clients.edit": "/account/clients/{id}/edit",
+        "clients.store": "/account/clients",
+        "clients.update": "/account/clients/{id}",
+        "clients.destroy": "/account/clients/{id}",
+        "clients.approve": "/account/clients/approve/{id}",
+        "clients.save_consent_purpose_data":
+            "/account/clients/save-consent-purpose-data/{client}",
+        "clients.gdpr_consent": "/account/clients/gdpr-consent",
+        "clients.save_client_consent":
+            "/account/clients/save-client-consent/{lead}",
+        "clients.ajax_details": "/account/clients/ajax-details/{id}",
+        "clients.client_details": "/account/clients/client-details/{id}",
+        "clients.project_list": "/account/clients/project-list/{id}",
+        "clients.apply_quick_action": "/account/clients/apply-quick-action",
+        "clients.import": "/account/clients/import",
+        "clients.import.store": "/account/clients/import",
+        "clients.import.process": "/account/clients/import/process",
 
         // HR routes
         "employees.index": "/account/employees",
@@ -82,14 +129,6 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         logout: "/logout",
 
         // Resource routes follow standard Laravel resource pattern
-        // Clients
-        "clients.create": "/account/clients/create",
-        "clients.show": "/account/clients/{id}",
-        "clients.edit": "/account/clients/{id}/edit",
-        "clients.store": "/account/clients",
-        "clients.update": "/account/clients/{id}",
-        "clients.destroy": "/account/clients/{id}",
-
         // Employees
         "employees.create": "/account/employees/create",
         "employees.show": "/account/employees/{id}",
@@ -145,15 +184,6 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "leaves.store": "/account/leaves",
         "leaves.update": "/account/leaves/{id}",
         "leaves.destroy": "/account/leaves/{id}",
-
-        // Deals
-        "deals.index": "/account/deals",
-        "deals.create": "/account/deals/create",
-        "deals.show": "/account/deals/{id}",
-        "deals.edit": "/account/deals/{id}/edit",
-        "deals.store": "/account/deals",
-        "deals.update": "/account/deals/{id}",
-        "deals.destroy": "/account/deals/{id}",
 
         //TODO: Add more routes as needed from web.php
     };

@@ -25,6 +25,7 @@ import DeleteProperty from "@/Features/Properties/DeleteProperty";
 import BasicPropertyFilterBox from "@/Features/Properties/Filter/BasicPropertyFilterBox";
 import { TFilter } from "@/Types/common";
 import { filterProperties } from "@/lib/utils";
+import usePageFilter from "@/Hooks/usePageFilter";
 
 interface Project {
     id: number;
@@ -56,23 +57,19 @@ export interface IndexProps extends PageProps {
     properties: PaginationData;
     projects: Project[];
     developers: Developer[];
-    filters: TFilter;
 }
 
 export default function Index({
     pageTitle,
     properties,
     default_currency_code: currencyCode,
-    filters: urlFilters,
 }: IndexProps) {
-    console.log(currencyCode, "CURRENCY CODE ....");
     const {
         handleAction,
         handleClose,
         action,
         selected: property,
     } = useGenericEntityAction<Property>();
-    const [filters, setFilters] = useState(urlFilters);
     // Check URL for create parameter to show drawer
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -91,66 +88,14 @@ export default function Index({
         window.addEventListener("popstate", handlePopState);
         return () => window.removeEventListener("popstate", handlePopState);
     }, []);
-
-    // Handle quick filter changes (for the filter bar)
-    const handleQuickFilter = useCallback(
-        (key: keyof TFilter, value: TFilter[keyof TFilter]) => {
-            setFilters((prev) => {
-                const updated = { ...prev } as TFilter;
-                if (value === "" || value === "all") {
-                    delete (updated as any)[key];
-                } else {
-                    if (typeof value === "string") {
-                        (updated as any)[key] = value;
-                    }
-                }
-                return updated;
-            });
-        },
-        []
-    );
-
-    // Reset filters
-    const handleResetQuickFilters = useCallback(() => {
-        setFilters({});
-    }, []);
-
-    // Handle filter form submission
-    const handleFilterSubmit = useCallback(
-        (values: TFilter) => {
-            const newFilters = { ...filters, ...values };
-            // Remove empty values
-            (Object.keys(newFilters) as (keyof TFilter)[]).forEach((key) => {
-                if (
-                    ["string", "number", "boolean"].includes(
-                        typeof newFilters[key]
-                    ) === false
-                ) {
-                    delete newFilters[key];
-                }
-            });
-
-            router.get(route("properties.index"), newFilters, {
-                preserveState: true,
-                preserveScroll: true,
-            });
-            handleClose();
-        },
-        [filters]
-    );
-
-    // Reset filters
-    const handleResetFilters = useCallback(() => {
-        router.get(
-            route("properties.index"),
-            {},
-            {
-                preserveState: true,
-                preserveScroll: true,
-            }
-        );
-        handleClose();
-    }, []);
+    // filters and filter handlers
+    const {
+        filters,
+        handleQuickFilter,
+        handleResetQuickFilters,
+        handleResetFilters,
+        handleFilterSubmit,
+    } = usePageFilter({ handleClose });
 
     // Table row selection
 
