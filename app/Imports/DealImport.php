@@ -36,6 +36,18 @@ class DealImport implements ToArray
             array('id' => 'registered_for_zoom_meeting', 'name' => 'Registered for Zoom Meeting', 'required' => 'No'),
             array('id' => 'last_webinar_date', 'name' => 'Last Webinar Date', 'required' => 'No'),
             array('id' => 'contact_score', 'name' => 'Contact Score', 'required' => 'No'),
+            
+            // Hibarr Deal Custom Fields
+            array('id' => 'interested_in', 'name' => 'Interested In', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'motivation_comment', 'name' => 'Motivation/Comment', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'purchase_timeline', 'name' => 'Purchase Timeline', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'budget_range', 'name' => 'Budget Range', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'strategy_meeting_booked', 'name' => 'Strategy Meeting Booked', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'downpayment_paid', 'name' => 'Downpayment Paid', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'inspection_trip_date', 'name' => 'Inspection Trip Date', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'deposit_confirmation', 'name' => 'Deposit Confirmation', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'reservation_agreement', 'name' => 'Reservation Agreement', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'sales_contract', 'name' => 'Sales Contract', 'required' => 'No', 'hibarr_field' => true),
         );
 
         // Add custom fields dynamically - ALL custom fields

@@ -161,6 +161,7 @@ class DealController extends AccountBaseController
             'contact',
             'category',
             'communicationActivities',
+            'hibarrFields',
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
                       ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
@@ -416,12 +417,13 @@ class DealController extends AccountBaseController
 
         $redirectUrl = urldecode($request->redirect_url);
 
-        if ($request->add_more == 'true') {
-            \Log::info('Deal saved with add_more=true, deal ID: ' . $deal->id);
+        if ($request->add_more === 'true') {
+            Log::info('Deal saved with add_more=true, deal ID: ' . $deal->id);
             // Return fresh form HTML for add more functionality
             $html = $this->create();
             return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
         }
+
 
         if ($redirectUrl == '') {
             $redirectUrl = route('deals.index');
@@ -558,8 +560,8 @@ class DealController extends AccountBaseController
         $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
         
         // Debug logging
-        \Log::info('Deal update - strategy_accepted: ' . ($deal->strategy_accepted ? 'true' : 'false'));
-        \Log::info('Deal update - downpayment_confirmed: ' . ($deal->downpayment_confirmed ? 'true' : 'false'));
+        Log::info('Deal update - strategy_accepted: ' . ($deal->strategy_accepted ? 'true' : 'false'));
+        Log::info('Deal update - downpayment_confirmed: ' . ($deal->downpayment_confirmed ? 'true' : 'false'));
         
         $deal->save();
 
@@ -1205,7 +1207,7 @@ class DealController extends AccountBaseController
             }
             return companyToYmd($date);
         } catch (\Exception $e) {
-            \Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
+            Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
             return null;
     }
     }
@@ -1215,7 +1217,7 @@ class DealController extends AccountBaseController
      */
     public function generateMeetingLink(Request $request)
     {
-        \Log::info('Generate Meeting Link invoked', [
+        Log::info('Generate Meeting Link invoked', [
             'followup_id' => $request->followup_id,
             'user_id' => auth()->id(),
             'timestamp' => now(),
@@ -1227,19 +1229,19 @@ class DealController extends AccountBaseController
         $followUpId = $request->followup_id;
         $followUp = DealFollowUp::find($followUpId);
 
-        \Log::info('Follow-up found', [
+        Log::info('Follow-up found', [
             'followup_id' => $followUpId,
             'followup_exists' => $followUp ? true : false,
             'followup_location' => $followUp ? $followUp->location : null
         ]);
 
         if (!$followUp) {
-            \Log::error('Follow-up not found', ['followup_id' => $followUpId]);
+            Log::error('Follow-up not found', ['followup_id' => $followUpId]);
             return Reply::error('Follow-up not found');
         }
 
         try {
-            \Log::info('Calling triggerFollowUpAutomation', [
+            Log::info('Calling triggerFollowUpAutomation', [
                 'followup_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
                 'location' => $followUp->location
@@ -1247,14 +1249,14 @@ class DealController extends AccountBaseController
 
             $meetingResponse = $this->triggerFollowUpAutomation($followUp);
             
-            \Log::info('triggerFollowUpAutomation response', [
+            Log::info('triggerFollowUpAutomation response', [
                 'response' => $meetingResponse
             ]);
 
             $meetingLink = $meetingResponse['meeting_link'] ?? null;
             return Reply::successWithData('Meeting link generated successfully', ['meeting_link' => $meetingLink]);
         } catch (\Exception $e) {
-            \Log::error('Error in generateMeetingLink', [
+            Log::error('Error in generateMeetingLink', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

@@ -85,9 +85,12 @@ class ImportDealJob implements ShouldQueue
             
             // Prepare marketing data
             $marketingData = $this->prepareMarketingData();
+            
+            // Prepare Hibarr custom fields data
+            $hibarrFieldsData = $this->prepareHibarrFieldsData();
 
             // Create deal - wrapped in transaction
-            $deal = DB::transaction(function () use ($lead, $stageData, $agentId, $customFieldsData) {
+            $deal = DB::transaction(function () use ($lead, $stageData, $agentId, $customFieldsData, $hibarrFieldsData) {
                 $deal = new Deal();
                 $deal->name = $this->getColumnValue('deal_name');
                 $deal->lead_id = $lead->id;
@@ -107,6 +110,14 @@ class ImportDealJob implements ShouldQueue
                 // Save custom fields in same transaction as deal
                 if (!empty($customFieldsData)) {
                     $deal->updateCustomFieldData($customFieldsData);
+                }
+                
+                // Save Hibarr custom fields in same transaction as deal
+                if (!empty($hibarrFieldsData)) {
+                    \App\Models\HibarrDealFields::updateOrCreate(
+                        ['deal_id' => $deal->id],
+                        $hibarrFieldsData
+                    );
                 }
                 
                 return $deal;
@@ -633,6 +644,77 @@ class ImportDealJob implements ShouldQueue
         }
         
         return $firstName . '.' . $lastNameInitial . '@' . $domain;
+    }
+    
+    /**
+     * Prepare Hibarr custom fields data for the deal
+     *
+     * @return array
+     */
+    private function prepareHibarrFieldsData()
+    {
+        $hibarrFieldsData = [];
+        
+        // Map of column names to Hibarr field names
+        $hibarrFields = [
+            'interested_in' => 'interested_in',
+            'motivation_comment' => 'motivation/comment',
+            'purchase_timeline' => 'purchase_timeline',
+            'budget_range' => 'budget_range',
+            'strategy_meeting_booked' => 'strategy_meeting_booked',
+            'downpayment_paid' => 'downpayment_paid',
+            'inspection_trip_date' => 'inspection_trip_date',
+            'deposit_confirmation' => 'deposit_confirmation',
+            'reservation_agreement' => 'reservation_agreement',
+        ];
+        
+        foreach ($hibarrFields as $columnName => $fieldName) {
+            if ($this->isColumnExists($columnName)) {
+                $value = $this->getColumnValue($columnName);
+                
+                // Skip if value is null or empty
+                if ($value === null || $value === '') {
+                    continue;
+                }
+                
+                // Handle array fields (interested_in, motivation/comment, purchase_timeline, budget_range)
+                if (in_array($fieldName, [
+                    'interested_in',
+                    'motivation/comment',
+                    'purchase_timeline',
+                    'budget_range'
+                ])) {
+                    // Convert string to array if needed
+                    if (is_string($value)) {
+                        // Support comma, semicolon, or pipe separated values
+                        $value = str_replace([';', '|'], ',', $value);
+                        $value = array_map('trim', explode(',', $value));
+                        $value = array_filter($value); // Remove empty values
+                    }
+                }
+                
+                // Handle boolean fields
+                if (in_array($fieldName, [
+                    'strategy_meeting_booked',
+                    'downpayment_paid'
+                ])) {
+                    $value = in_array(strtolower($value), ['yes', '1', 'true', 'on', 'booked', 'paid']) ? 1 : 0;
+                }
+                
+                // Handle date field
+                if ($fieldName === 'inspection_trip_date') {
+                    try {
+                        $value = \Carbon\Carbon::parse($value)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        continue;
+                    }
+                }
+                
+                $hibarrFieldsData[$fieldName] = $value;
+            }
+        }
+        
+        return $hibarrFieldsData;
     }
 
 }
