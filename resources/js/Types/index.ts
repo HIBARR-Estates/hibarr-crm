@@ -187,15 +187,23 @@ export interface PropertyShowProps extends PageProps {
 }
 
 // Common Types
+
 export interface User {
     id: number;
     name: string;
     email: string;
+    image_url: string;
+    modules?: string[];
+    mobile_with_phone_code?: string;
+    name_salutation?: string;
+    phone_number?: string;
+    country_code?: string | null;
+    session?: null;
+    client_contact?: null;
     email_verified_at?: string;
     created_at: string;
     updated_at: string;
 }
-
 export interface FlashMessage {
     type: "success" | "error" | "info" | "warning";
     message: string;

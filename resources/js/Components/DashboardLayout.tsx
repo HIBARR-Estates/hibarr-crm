@@ -298,7 +298,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                             }
                             className="cursor-pointer"
                         >
-                            Lead Contact
+                            Contacts
                         </span>
                     ),
                     icon: <PersonIcon />,

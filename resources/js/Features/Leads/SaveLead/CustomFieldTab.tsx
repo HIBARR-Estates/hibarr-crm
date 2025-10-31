@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { CreateLeadFormData } from "@/Types/api/leads";
 import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
 import { LeadFormProps } from "./LeadForm";
 import { Button, Card, Form, Space } from "antd";

@@ -37,7 +37,7 @@ export const DEAL_TABLE_COLUMNS = (
                         <Tooltip title={record.name}>
                             <Link
                                 href={route("deals.show", record.id)}
-                                className="block text-gray-900 hover:text-blue-600 hover:underline transition-colors duration-200 truncate font-medium text-base"
+                                className="block text-gray-900 hover:text-blue-600 hover:underline transition-colors duration-200 truncate font-medium max-w-full"
                             >
                                 {record.name}
                             </Link>
@@ -55,7 +55,7 @@ export const DEAL_TABLE_COLUMNS = (
                                                 "lead-contact.show",
                                                 record.contact.id
                                             )}
-                                            className="text-gray-700 hover:text-blue-600 hover:underline transition-colors duration-200 truncate text-sm max-w-full"
+                                            className="text-xs text-gray-500 truncate max-w-full"
                                         >
                                             {displayName}
                                         </Link>
@@ -77,7 +77,7 @@ export const DEAL_TABLE_COLUMNS = (
                                 )}
                             </>
                         ) : (
-                            <span className="text-gray-400 text-sm">
+                            <span className="text-gray-400 text-xs">
                                 No lead assigned
                             </span>
                         )}
@@ -253,64 +253,64 @@ export const DEAL_TABLE_COLUMNS = (
             );
         },
     },
-    {
-        title: "Deal Watchers",
-        dataIndex: "deal_watchers",
-        key: "deal_watchers",
-        width: 180,
-        render: (_, record) => {
-            if (!record.deal_watchers || record.deal_watchers.length === 0)
-                return <span className="text-gray-400">--</span>;
+    // {
+    //     title: "Deal Watchers",
+    //     dataIndex: "deal_watchers",
+    //     key: "deal_watchers",
+    //     width: 180,
+    //     render: (_, record) => {
+    //         if (!record.deal_watchers || record.deal_watchers.length === 0)
+    //             return <span className="text-gray-400">--</span>;
 
-            const displayWatchers = record.deal_watchers.slice(0, 2);
-            const remainingCount = record.deal_watchers.length - 2;
+    //         const displayWatchers = record.deal_watchers.slice(0, 2);
+    //         const remainingCount = record.deal_watchers.length - 2;
 
-            return (
-                <div className="space-y-1">
-                    {displayWatchers.map((watcher) => (
-                        <div
-                            key={watcher.id}
-                            className="flex items-center space-x-2"
-                        >
-                            <Avatar
-                                size="small"
-                                src={watcher.image}
-                                icon={<UserOutlined />}
-                                className="flex-shrink-0"
-                            />
-                            <Tooltip title={watcher.name}>
-                                <span className="text-sm text-gray-900 truncate max-w-full">
-                                    {watcher.name}
-                                </span>
-                            </Tooltip>
-                        </div>
-                    ))}
-                    {remainingCount > 0 && (
-                        <div className="text-xs text-gray-500">
-                            +{remainingCount} more
-                        </div>
-                    )}
-                </div>
-            );
-        },
-    },
+    //         return (
+    //             <div className="space-y-1">
+    //                 {displayWatchers.map((watcher) => (
+    //                     <div
+    //                         key={watcher.id}
+    //                         className="flex items-center space-x-2"
+    //                     >
+    //                         <Avatar
+    //                             size="small"
+    //                             src={watcher.image}
+    //                             icon={<UserOutlined />}
+    //                             className="flex-shrink-0"
+    //                         />
+    //                         <Tooltip title={watcher.name}>
+    //                             <span className="text-sm text-gray-900 truncate max-w-full">
+    //                                 {watcher.name}
+    //                             </span>
+    //                         </Tooltip>
+    //                     </div>
+    //                 ))}
+    //                 {remainingCount > 0 && (
+    //                     <div className="text-xs text-gray-500">
+    //                         +{remainingCount} more
+    //                     </div>
+    //                 )}
+    //             </div>
+    //         );
+    //     },
+    // },
 
-    {
-        title: "Close Date",
-        dataIndex: "close_date",
-        key: "close_date",
-        width: 120,
-        render: (_, record) => {
-            if (!record.close_date)
-                return <span className="text-gray-400">--</span>;
+    // {
+    //     title: "Close Date",
+    //     dataIndex: "close_date",
+    //     key: "close_date",
+    //     width: 120,
+    //     render: (_, record) => {
+    //         if (!record.close_date)
+    //             return <span className="text-gray-400">--</span>;
 
-            return (
-                <span className="text-gray-900">
-                    {dayjs(record.close_date).format("MMM DD, YYYY")}
-                </span>
-            );
-        },
-    },
+    //         return (
+    //             <span className="text-gray-900">
+    //                 {dayjs(record.close_date).format("MMM DD, YYYY")}
+    //             </span>
+    //         );
+    //     },
+    // },
 
     {
         title: "Actions",

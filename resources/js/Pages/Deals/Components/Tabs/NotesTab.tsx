@@ -16,68 +16,55 @@ import {
     EditOutlined,
     DeleteOutlined,
 } from "@ant-design/icons";
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
+import { Note } from "@/Types/api/note";
+import { ColumnsType } from "antd/es/table";
+import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import AddNote from "./notes/AddNote";
+import EditNote from "./notes/EditNote";
+import DeleteNote from "./notes/DeleteNote";
 
 const { Paragraph } = Typography;
 
 interface Props {
     deal: Deal;
-    notes: any[];
+    notes: Note[];
     permissions: Record<string, string>;
 }
 
 export default function NotesTab({ deal, notes, permissions }: Props) {
-    const handleDeleteNote = (noteId: number) => {
-        if (confirm("Are you sure you want to delete this note?")) {
-            // Handle deletion
-            window.location.href = route("deal-notes.destroy", noteId);
-        }
-    };
+    const { props } = usePage();
+    const user = props.auth.user;
+    const {
+        action,
+        handleAction,
+        handleClose,
+        selected: note,
+    } = useGenericEntityAction<Note>();
 
-    const columns = [
+    const columns: ColumnsType<Note> = [
         {
             title: "Note Details",
             dataIndex: "details",
             key: "details",
             width: "50%",
-            render: (details: string, record: any) => (
+            render: (_, record) => (
                 <div className="max-w-md">
-                    <Link
-                        href={route("deal-notes.show", record.id)}
-                        className="text-gray-900 hover:text-blue-600"
+                    <Paragraph
+                        onClick={() => handleAction("view")}
+                        ellipsis={{
+                            rows: 3,
+                            expandable: false,
+                        }}
+                        className="mb-0 text-sm"
                     >
-                        <Paragraph
-                            ellipsis={{
-                                rows: 3,
-                                expandable: false,
-                            }}
-                            className="mb-0 text-sm"
-                        >
-                            {details}
-                        </Paragraph>
-                    </Link>
+                        {record.details}
+                    </Paragraph>
                 </div>
             ),
         },
-        {
-            title: "Created By",
-            dataIndex: "added_by",
-            key: "added_by",
-            width: "25%",
-            render: (addedBy: any) => (
-                <div className="flex items-center space-x-2">
-                    <Avatar
-                        size="small"
-                        src={addedBy?.image}
-                        icon={<UserOutlined />}
-                    />
-                    <span className="text-sm">
-                        {addedBy?.name || "Unknown"}
-                    </span>
-                </div>
-            ),
-        },
+
         {
             title: "Created On",
             dataIndex: "created_at",
@@ -97,23 +84,23 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
             title: "Actions",
             key: "actions",
             width: "5%",
-            render: (_, record: any) => {
+            render: (_, record) => {
                 const canView =
                     permissions.view_deal_note === "all" ||
                     (permissions.view_deal_note === "added" &&
-                        record.added_by?.id === window.user?.id) ||
+                        record.added_by === user?.id) ||
                     (permissions.view_deal_note === "both" &&
-                        record.added_by?.id === window.user?.id);
+                        record.added_by === user?.id);
 
                 const canEdit =
                     permissions.edit_deal_note === "all" ||
                     (permissions.edit_deal_note === "added" &&
-                        record.added_by?.id === window.user?.id);
+                        record.added_by === user?.id);
 
                 const canDelete =
                     permissions.delete_deal_note === "all" ||
                     (permissions.delete_deal_note === "added" &&
-                        record.added_by?.id === window.user?.id);
+                        record.added_by === user?.id);
 
                 const menuItems: MenuProps["items"] = [
                     ...(canView
@@ -139,16 +126,12 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                               {
                                   key: "edit",
                                   label: (
-                                      <Link
-                                          href={route(
-                                              "deal-notes.edit",
-                                              record.id
-                                          )}
-                                      >
+                                      <span>
                                           <EditOutlined className="mr-2" />
                                           Edit
-                                      </Link>
+                                      </span>
                                   ),
+                                  onClick: () => handleAction("edit", record),
                               },
                           ]
                         : []),
@@ -156,13 +139,10 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                         ? [
                               {
                                   key: "delete",
+                                  onClick: () => handleAction("delete", record),
+
                                   label: (
-                                      <span
-                                          className="text-red-600"
-                                          onClick={() =>
-                                              handleDeleteNote(record.id)
-                                          }
-                                      >
+                                      <span className="text-red-600">
                                           <DeleteOutlined className="mr-2" />
                                           Delete
                                       </span>
@@ -186,49 +166,70 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
         },
     ];
 
-    if (notes.length === 0) {
-        return (
-            <div className="p-8">
-                <Empty
-                    description={
-                        <div className="text-center">
-                            <p className="text-gray-500 mb-2">No notes found</p>
-                            {(permissions.add_deal_note === "all" ||
-                                permissions.add_deal_note === "added" ||
-                                permissions.add_deal_note === "both") && (
-                                <Button
-                                    type="primary"
-                                    onClick={() => {
-                                        window.location.href = route(
-                                            "deal-notes.create",
-                                            { lead: deal.id }
-                                        );
-                                    }}
-                                >
-                                    Create First Note
-                                </Button>
-                            )}
-                        </div>
-                    }
-                />
-            </div>
-        );
-    }
-
     return (
-        <div className="p-6">
-            <Table
-                columns={columns}
-                dataSource={notes}
-                rowKey="id"
-                pagination={{
-                    pageSize: 10,
-                    showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total) => `Total ${total} notes`,
-                }}
-                className="notes-table"
+        <>
+            {notes.length === 0 && (
+                <div className="p-8">
+                    <Empty
+                        description={
+                            <div className="text-center">
+                                <p className="text-gray-500 mb-2">
+                                    No notes found
+                                </p>
+                                {(permissions.add_deal_note === "all" ||
+                                    permissions.add_deal_note === "added" ||
+                                    permissions.add_deal_note === "both") && (
+                                    <Button
+                                        type="primary"
+                                        onClick={() => handleAction("add")}
+                                    >
+                                        Create First Note
+                                    </Button>
+                                )}
+                            </div>
+                        }
+                    />
+                </div>
+            )}
+            {notes.length > 0 && (
+                <div className="p-6">
+                    <Table
+                        columns={columns}
+                        dataSource={notes}
+                        rowKey="id"
+                        pagination={{
+                            pageSize: 10,
+                            showSizeChanger: true,
+                            showQuickJumper: true,
+                            showTotal: (total) => `Total ${total} notes`,
+                        }}
+                        className="notes-table"
+                    />
+                </div>
+            )}
+            {/* Add Note Modal */}
+            <AddNote
+                open={action === "add"}
+                onClose={() => handleClose()}
+                deal={deal}
             />
-        </div>
+
+            {/* Edit Note Modal */}
+            {note && (
+                <EditNote
+                    open={action === "edit"}
+                    onClose={() => handleClose()}
+                    deal={deal}
+                    note={note}
+                />
+            )}
+
+            {/* Delete Note Modal */}
+            <DeleteNote
+                open={action === "delete"}
+                onClose={() => handleClose()}
+                note={note}
+            />
+        </>
     );
 }

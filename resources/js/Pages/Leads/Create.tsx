@@ -6,8 +6,8 @@ import {
     CreateLeadFormData,
     LeadCategory,
     LeadSource,
-    User,
 } from "@/Types/api/leads";
+import { User } from "@/Types";
 
 const { Title } = Typography;
 

@@ -33,7 +33,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
             dataIndex: "status",
             key: "status",
             width: "15%",
-            render: (_, record: any) => {
+            render: (_: any, record: any) => {
                 const hasConsent = record.lead && record.lead.length > 0;
                 return (
                     <Tag color={hasConsent ? "green" : "red"}>

@@ -78,6 +78,49 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "deals.import.process": "/account/deals/import/process",
         "deals.sample_import": "/account/deals/sample-import",
         "deals.export": "/account/deals/export",
+        "deals.follow_up": "/account/deals/follow-up/{leadID}",
+        "deals.follow_up_store": "/account/deals/follow-up-store",
+        "deals.follow_up_edit": "/account/deals/follow-up-edit/{id}",
+        "deals.follow_up_update": "/account/deals/follow-up-update",
+        "deals.follow_up_delete": "/account/deals/follow-up-delete/{id}",
+
+        // Deal Notes routes
+        "deal-notes.index": "/account/deal-notes",
+        "deal-notes.create": "/account/deal-notes/create",
+        "deal-notes.show": "/account/deal-notes/{id}",
+        "deal-notes.edit": "/account/deal-notes/{id}/edit",
+        "deal-notes.store": "/account/deal-notes",
+        "deal-notes.update": "/account/deal-notes/{id}",
+        "deal-notes.destroy": "/account/deal-notes/{id}",
+        "deal-notes.apply_quick_action":
+            "/account/deal-notes/apply-quick-action",
+
+        // Deal Files routes
+        "deal-files.index": "/account/deal-files",
+        "deal-files.create": "/account/deal-files/create",
+        "deal-files.show": "/account/deal-files/{id}",
+        "deal-files.edit": "/account/deal-files/{id}/edit",
+        "deal-files.store": "/account/deal-files",
+        "deal-files.update": "/account/deal-files/{id}",
+        "deal-files.destroy": "/account/deal-files/{id}",
+        "deal-files.download": "/account/deal-files/download/{id}",
+        "deal-files.layout": "/account/deal-files/layout",
+
+        // Proposals routes
+        "proposals.index": "/account/proposals",
+        "proposals.create": "/account/proposals/create",
+        "proposals.show": "/account/proposals/{id}",
+        "proposals.edit": "/account/proposals/{id}/edit",
+        "proposals.store": "/account/proposals",
+        "proposals.update": "/account/proposals/{id}",
+        "proposals.destroy": "/account/proposals/{id}",
+        "proposals.delete_image": "/account/proposals/delete-image",
+        "proposals.download": "/account/proposals/download/{id}",
+        "proposals.send_proposal": "/account/proposals/send-proposal/{id}",
+        "proposals.add_item": "/account/proposals/add-item",
+
+        // Front routes (public routes)
+        "front.proposal": "/proposal/{hash}",
 
         // Client routes
         "clients.index": "/account/clients",

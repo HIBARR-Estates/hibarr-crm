@@ -1,5 +1,5 @@
 import { Deal } from "@/Types/api/deals";
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import {
     Descriptions,
     Tag,
@@ -20,6 +20,9 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState } from "react";
+import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
+import DeleteDeal from "@/Features/Deals/DeleteDeal";
 
 interface Props {
     deal: Deal;
@@ -36,7 +39,10 @@ export default function DealInfoSection({
     fields,
     permissions,
 }: Props) {
+    const { props } = usePage();
+    const user = props.auth.user;
     const [activeTab, setActiveTab] = useState("overview");
+    const { action, handleAction, handleClose } = useGenericEntityAction();
 
     // Format currency
     const formatCurrency = (value: number, currencySymbol: string = "£") => {
@@ -45,7 +51,7 @@ export default function DealInfoSection({
     };
 
     // Get mobile number from JSON format
-    const getMobileNumber = (mobile: string | null) => {
+    const getMobileNumber = (mobile: string | null | undefined) => {
         if (!mobile) return "--";
 
         if (typeof mobile === "string" && mobile.trim().startsWith("{")) {
@@ -64,24 +70,24 @@ export default function DealInfoSection({
         {
             key: "edit",
             label: (
-                <Link href={route("deals.edit", deal.id)}>
+                <span>
                     <EditOutlined className="mr-2" />
                     Edit Deal
-                </Link>
+                </span>
             ),
+            onClick: () => {
+                handleAction("edit");
+            },
         },
         ...(permissions.delete_deals === "all" ||
-        (permissions.delete_deals === "added" &&
-            deal.added_by === window.user?.id) ||
+        (permissions.delete_deals === "added" && deal.added_by === user?.id) ||
         (permissions.delete_deals === "owned" &&
-            (deal.lead_agent?.user_id === window.user?.id ||
-                deal.deal_watchers?.some(
-                    (w: any) => w.id === window.user?.id
-                ))) ||
+            (deal.lead_agent?.user_id === user?.id ||
+                deal.deal_watchers?.some((w: any) => w.id === user?.id))) ||
         (permissions.delete_deals === "both" &&
-            (deal.added_by === window.user?.id ||
-                deal.lead_agent?.user_id === window.user?.id ||
-                deal.deal_watchers?.some((w: any) => w.id === window.user?.id)))
+            (deal.added_by === user?.id ||
+                deal.lead_agent?.user_id === user?.id ||
+                deal.deal_watchers?.some((w: any) => w.id === user?.id)))
             ? [
                   {
                       key: "delete",
@@ -91,11 +97,15 @@ export default function DealInfoSection({
                               Delete Deal
                           </span>
                       ),
-                      danger: true,
+                      onClick: () => {
+                          handleAction("delete");
+                      },
                   },
               ]
             : []),
     ];
+
+    console.log(deal?.custom_fields_data);
 
     // Tab items for custom field categories
     const tabItems = [
@@ -125,7 +135,7 @@ export default function DealInfoSection({
                                             deal.contact.client_name}
                                     </Link>
                                     {deal.contact.client_id && (
-                                        <Tag color="blue" size="small">
+                                        <Tag color="blue" className="text-xs">
                                             Client
                                         </Tag>
                                     )}
@@ -181,7 +191,7 @@ export default function DealInfoSection({
                                 <div className="flex items-center space-x-2">
                                     <Avatar
                                         size="small"
-                                        src={deal.lead_agent.user?.image}
+                                        src={deal.lead_agent.user?.image_url}
                                         icon={<UserOutlined />}
                                     />
                                     <span>{deal.lead_agent.user?.name}</span>
@@ -224,7 +234,7 @@ export default function DealInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        {deal.lead_status && (
+                        {deal?.lead_status && (
                             <Descriptions.Item label="Status">
                                 <Tag
                                     color={deal.lead_status.label_color}
@@ -245,7 +255,7 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Deal Value">
                             {deal.value ? (
-                                <span className="font-semibold text-lg text-green-600">
+                                <span className="font-semibold">
                                     {formatCurrency(
                                         deal.value,
                                         deal.currency?.currency_symbol
@@ -291,6 +301,7 @@ export default function DealInfoSection({
                                     deal.custom_fields_data?.[
                                         `field_${field.id}`
                                     ];
+                                console.log(value, "on map value");
 
                                 // Handle different field types
                                 if (field.type === "date" && value) {
@@ -333,31 +344,47 @@ export default function DealInfoSection({
     ];
 
     return (
-        <div>
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
-                <h2 className="text-xl font-semibold text-gray-900">
-                    Deal Information
-                </h2>
-                <Dropdown menu={{ items: actionItems }} trigger={["click"]}>
-                    <Button type="text" icon={<MoreOutlined />} />
-                </Dropdown>
-            </div>
-
-            {/* Content */}
-            <Tabs
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                items={tabItems}
-                className="deal-info-tabs"
-                tabBarStyle={{
-                    paddingLeft: 24,
-                    paddingRight: 24,
-                    marginBottom: 0,
-                    backgroundColor: "#fafafa",
-                    borderBottom: "1px solid #f0f0f0",
+        <>
+            <SaveDealModal
+                open={action === "edit"}
+                onClose={handleClose}
+                deal={deal}
+                setDeal={(deal) => {
+                    console.log("Deal updated:", deal);
                 }}
             />
-        </div>
+
+            <DeleteDeal
+                open={action === "delete"}
+                onClose={() => handleClose()}
+                deal={deal}
+            />
+            <div>
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                        Deal Information
+                    </h2>
+                    <Dropdown menu={{ items: actionItems }} trigger={["click"]}>
+                        <Button type="text" icon={<MoreOutlined />} />
+                    </Dropdown>
+                </div>
+
+                {/* Content */}
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    items={tabItems}
+                    className="deal-info-tabs"
+                    tabBarStyle={{
+                        paddingLeft: 24,
+                        paddingRight: 24,
+                        marginBottom: 0,
+                        backgroundColor: "#fafafa",
+                        borderBottom: "1px solid #f0f0f0",
+                    }}
+                />
+            </div>
+        </>
     );
 }

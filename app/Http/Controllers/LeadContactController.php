@@ -14,6 +14,7 @@ use App\Http\Requests\Lead\UpdateRequest;
 use App\Imports\LeadImport;
 use App\Jobs\ImportLeadJob;
 use App\Models\Deal;
+use App\Models\LeadNote;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use App\Models\Lead;
@@ -252,6 +253,36 @@ class LeadContactController extends AccountBaseController
             $this->countries = countries();
             $this->salutations = Salutation::cases();
 
+            // Get deals associated with this lead
+            $deals = Deal::where('lead_id', $id)
+                ->with([
+                    'leadAgent.user:id,name,email,image_url',
+                    'leadStage:id,name',
+                    'pipeline:id,name'
+                ])
+                ->get();
+
+            // Get notes associated with this lead
+            $notes = LeadNote::where('lead_id', $id)
+                ->with('addedBy:id,name,email,image_url')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Get deal and note permissions
+            $dealPermissions = [
+                'add_deals' => user()->permission('add_deals'),
+                'view_deals' => user()->permission('view_deals'),
+                'edit_deals' => user()->permission('edit_deals'),
+                'delete_deals' => user()->permission('delete_deals'),
+            ];
+
+            $notePermissions = [
+                'add_lead_note' => user()->permission('add_lead_note'),
+                'view_lead_note' => user()->permission('view_lead_note'),
+                'edit_lead_note' => user()->permission('edit_lead_note'),
+                'delete_lead_note' => user()->permission('delete_lead_note'),
+            ];
+
             return Inertia::render('Leads/Show', [
                 'lead' => $this->leadContact,
                 'categories' => $this->categories,
@@ -268,6 +299,10 @@ class LeadContactController extends AccountBaseController
                 'fields' => $this->fields ?? [],
                 'editLeadPermission' => $this->editLeadPermission,
                 'deleteLeadPermission' => $this->deleteLeadPermission,
+                'deals' => $deals,
+                'notes' => $notes,
+                'dealPermissions' => $dealPermissions,
+                'notePermissions' => $notePermissions,
             ]);
         }
 

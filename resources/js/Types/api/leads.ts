@@ -1,3 +1,5 @@
+import { User } from "..";
+
 export interface PaginatedLeadResponse {
     current_page: number;
     data: Lead[];
@@ -67,20 +69,6 @@ export interface LeadCategory {
 export interface LeadSource {
     id: number;
     type: string;
-}
-
-export interface User {
-    id: number;
-    name: string;
-    email: string;
-    image_url: string;
-    modules?: string[];
-    mobile_with_phone_code?: string;
-    name_salutation?: string;
-    phone_number?: string;
-    country_code?: string | null;
-    session?: null;
-    client_contact?: null;
 }
 
 // Form data interfaces

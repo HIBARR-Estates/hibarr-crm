@@ -9,7 +9,7 @@ import DeleteLead from "@/Features/Leads/DeleteLead";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageFilter from "@/Hooks/usePageFilter";
-import { Lead, LeadCategory, User, LeadSource } from "@/Types/api/leads";
+import { Lead, LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PaginatedLeadResponse } from "@/Types/api/leads";
 import {
     UserOutlined,
@@ -24,6 +24,7 @@ import { Link, router } from "@inertiajs/react";
 import { Button, MenuProps, Table } from "antd";
 import { useState } from "react";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
+import { User } from "@/Types";
 
 export interface IndexProps extends PageProps {
     pageTitle: string;

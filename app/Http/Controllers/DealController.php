@@ -82,6 +82,7 @@ class DealController extends AccountBaseController
         $this->destroySession();
         abort_403(!in_array($this->viewLeadPermission, ['all', 'added', 'both', 'owned']));
 
+        //TODO: Consider making this just inertia
         if (true) {
             $this->loadDataForView();
             $this->products = Product::all();
@@ -469,7 +470,6 @@ class DealController extends AccountBaseController
             'category',
             'pipeline',
             'leadStage',
-            'leadStatus',
             'currency',
             'products:id,name',
             'communicationActivities',
@@ -480,7 +480,18 @@ class DealController extends AccountBaseController
                       ->where('users.status', '!=', 'deactive')
                       ->orderBy('users.name');
             }
-        ])->findOrFail($id)->withCustomFields();
+        ])->findOrFail($id);
+        
+        // Load custom fields data
+        $deal = $deal->withCustomFields();
+        
+        // Get custom fields data explicitly
+        $customFieldsData = $deal->getCustomFieldsData();
+        
+        Log::info('Showing details for Deal ID: ' . $id, [
+            'deal' => $deal->toArray(),
+            'custom_fields_data' => $customFieldsData
+        ]);
 
         $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
         $viewPermission = user()->permission('view_deals');
@@ -524,10 +535,23 @@ class DealController extends AccountBaseController
             $dealFollowUps = $dealFollowUps->where('added_by', user()->id);
         }
 
+        // Get meeting types for follow-up forms
+        $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)
+            ->select('id', 'name', 'color')
+            ->get();
+
+        // Get files data
+        $files = $deal->files()->orderBy('created_at', 'desc')->get();
+        
+        $viewFilesPermission = user()->permission('view_lead_files');
+        if ($viewFilesPermission == 'added') {
+            $files = $files->where('added_by', user()->id);
+        }
+
         // Get proposals data
         $proposals = [];
         if (in_array(user()->permission('view_lead_proposals'), ['all', 'added'])) {
-            $proposals = Proposal::with('addedBy:id,name,image')
+            $proposals = Proposal::with(['addedBy:id,name,image', 'currency:id,currency_symbol,currency_code', 'signature'])
                 ->where('deal_id', $id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -571,18 +595,27 @@ class DealController extends AccountBaseController
             'delete_lead_follow_up' => user()->permission('delete_lead_follow_up'),
             'view_lead_proposals' => user()->permission('view_lead_proposals'),
             'add_lead_proposals' => user()->permission('add_lead_proposals'),
+            'edit_lead_proposals' => user()->permission('edit_lead_proposals'),
+            'delete_lead_proposals' => user()->permission('delete_lead_proposals'),
+            'add_invoices' => user()->permission('add_invoices'),
             'view_lead_files' => user()->permission('view_lead_files'),
             'add_lead_files' => user()->permission('add_lead_files'),
             'delete_deals' => user()->permission('delete_deals'),
         ];
 
+        // Prepare deal with custom fields data
+        $dealWithCustomFields = $deal->toArray();
+        $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
+
         return inertia('Deals/Show', [
-            'deal' => $deal,
+            'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
             'customFieldCategories' => $customFieldCategories,
             'fields' => $fields,
             'notes' => $notes,
             'dealFollowUps' => $dealFollowUps,
+            'meetingTypes' => $meetingTypes,
+            'files' => $files,
             'proposals' => $proposals,
             'histories' => $histories,
             'activities' => $activities,

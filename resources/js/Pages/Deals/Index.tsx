@@ -5,7 +5,7 @@ import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageFilter from "@/Hooks/usePageFilter";
-import { LeadCategory, User, LeadSource } from "@/Types/api/leads";
+import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import {
     UserOutlined,
     PlusOutlined,
@@ -17,12 +17,12 @@ import {
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import { Button, MenuProps, Table } from "antd";
-import { useState } from "react";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import ImportDeals from "@/Features/Deals/ImportDeals";
 import BasicDealFilterBox from "@/Features/Deals/Filter/BasicDealFilterBox";
+import { User } from "@/Types";
 
 export interface IndexProps extends PageProps {
     pageTitle: string;
@@ -223,16 +223,16 @@ const Index = ({ pageTitle, deals }: IndexProps) => {
                 }}
             />
 
-            {/* Import Deals Modal */}
-            <ImportDeals
-                open={action === "import"}
-                onClose={() => handleClose()}
-            />
-
             <DeleteDeal
                 open={action === "delete"}
                 onClose={() => handleClose()}
                 deal={deal}
+            />
+
+            {/* Import Deals Modal */}
+            <ImportDeals
+                open={action === "import"}
+                onClose={() => handleClose()}
             />
         </DashboardLayout>
     );

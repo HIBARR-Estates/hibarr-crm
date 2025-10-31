@@ -12,11 +12,11 @@ interface SaveDealModalProps extends Omit<IModalProps, "onClose"> {
 }
 
 const constructCustomFieldsData = (
-    customFields: any[],
+    customFields: any[] = [],
     custom_fields_data: Record<string, any> = {}
 ) => {
     const data: Record<string, any> = {};
-    customFields.forEach((field) => {
+    customFields?.forEach((field) => {
         data[`${field?.name}_${field?.id}`] =
             custom_fields_data?.[`field_${field?.id}`];
     });
@@ -32,7 +32,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const { props } = usePage<any>();
 
-    const { customFields } = props;
+    const { customFields = [] } = props;
 
     // Determine if we're editing or creating
     const isEditing = !!deal;

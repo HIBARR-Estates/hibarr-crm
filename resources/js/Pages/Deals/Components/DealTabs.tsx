@@ -1,5 +1,5 @@
 import { Deal } from "@/Types/api/deals";
-import { Tabs, Button, Alert } from "antd";
+import { Tabs, Button, Alert, Drawer } from "antd";
 import { useState } from "react";
 import { PlusOutlined } from "@ant-design/icons";
 import NotesTab from "./Tabs/NotesTab";
@@ -8,12 +8,24 @@ import FilesTab from "./Tabs/FilesTab";
 import ProposalsTab from "./Tabs/ProposalsTab";
 import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
+import { Note } from "@/Types/api/note";
+import { DealFollowup } from "@/Types/api/deal-followup";
+import { DealFile } from "@/Types/api/file";
+import { Proposal } from "@/Types/api/proposal";
+import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import AddNote from "./Tabs/notes/AddNote";
+import AddFollowup from "./Tabs/followup/AddFollowup";
+import FileUpload from "./Tabs/files/FileUpload";
+import AddProposal from "./Tabs/proposals/AddProposal";
+import SaveProposal from "./Tabs/proposals/SaveProposal";
 
 interface Props {
     deal: Deal;
-    notes: any[];
-    dealFollowUps: any[];
-    proposals: any[];
+    notes: Note[];
+    dealFollowUps: DealFollowup[];
+    meetingTypes: Array<{ id: number; name: string; color?: string }>;
+    files: DealFile[];
+    proposals: Proposal[];
     histories: any[];
     consents: any[];
     gdprSetting: any;
@@ -24,6 +36,8 @@ export default function DealTabs({
     deal,
     notes,
     dealFollowUps,
+    meetingTypes,
+    files,
     proposals,
     histories,
     consents,
@@ -31,6 +45,8 @@ export default function DealTabs({
     permissions,
 }: Props) {
     const [activeTab, setActiveTab] = useState("notes");
+
+    const { action, handleAction, handleClose } = useGenericEntityAction();
 
     // Build tab items based on permissions
     const buildTabItems = () => {
@@ -60,6 +76,7 @@ export default function DealTabs({
                     <FollowUpTab
                         deal={deal}
                         followUps={dealFollowUps}
+                        meetingTypes={meetingTypes}
                         permissions={permissions}
                     />
                 ),
@@ -71,7 +88,13 @@ export default function DealTabs({
             items.push({
                 key: "files",
                 label: "Files",
-                children: <FilesTab deal={deal} permissions={permissions} />,
+                children: (
+                    <FilesTab
+                        deal={deal}
+                        files={files}
+                        permissions={permissions}
+                    />
+                ),
             });
         }
 
@@ -129,11 +152,7 @@ export default function DealTabs({
                             type="primary"
                             icon={<PlusOutlined />}
                             onClick={() => {
-                                // Handle note creation
-                                window.location.href = route(
-                                    "deal-notes.create",
-                                    { lead: deal.id }
-                                );
+                                handleAction("add_note");
                             }}
                         >
                             Add Note
@@ -154,11 +173,7 @@ export default function DealTabs({
                             type="primary"
                             icon={<PlusOutlined />}
                             onClick={() => {
-                                // Handle follow-up creation
-                                window.location.href = route(
-                                    "deals.follow_up",
-                                    deal.id
-                                );
+                                handleAction("add_follow_up");
                             }}
                         >
                             Add Follow-up
@@ -175,7 +190,6 @@ export default function DealTabs({
                             message="Cannot add follow-up for completed deals"
                             type="info"
                             showIcon
-                            size="small"
                         />
                     );
                 }
@@ -191,8 +205,7 @@ export default function DealTabs({
                             type="primary"
                             icon={<PlusOutlined />}
                             onClick={() => {
-                                // Handle file upload
-                                // You'll need to implement modal or navigation
+                                handleAction("add_file");
                             }}
                         >
                             Upload File
@@ -211,12 +224,7 @@ export default function DealTabs({
                             type="primary"
                             icon={<PlusOutlined />}
                             onClick={() => {
-                                window.open(
-                                    route("proposals.create", {
-                                        deal_id: deal.id,
-                                    }),
-                                    "_blank"
-                                );
+                                handleAction("add_proposal");
                             }}
                         >
                             Create Proposal
@@ -232,29 +240,59 @@ export default function DealTabs({
     };
 
     return (
-        <div className="bg-white">
-            {/* Tab Header with Action */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-lg font-semibold text-gray-900">
-                    Deal Details
-                </h2>
-                <div className="tab-action">{getTabAction()}</div>
-            </div>
-
-            {/* Tabs */}
-            <Tabs
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                items={buildTabItems()}
-                className="deal-detail-tabs"
-                tabBarStyle={{
-                    paddingLeft: 24,
-                    paddingRight: 24,
-                    marginBottom: 0,
-                    backgroundColor: "#fafafa",
-                    borderBottom: "1px solid #f0f0f0",
-                }}
+        <>
+            <AddNote
+                deal={deal}
+                onClose={() => handleClose()}
+                open={action === "add_note"}
             />
-        </div>
+            <AddFollowup
+                deal={deal}
+                onClose={() => handleClose()}
+                open={action === "add_follow_up"}
+                meetingTypes={meetingTypes}
+            />
+
+            <Drawer
+                open={action === "add_proposal"}
+                onClose={() => handleClose()}
+            >
+                <SaveProposal
+                    visible={action === "add_proposal"}
+                    onClose={() => handleClose()}
+                    deal={deal}
+                    mode="create"
+                />
+            </Drawer>
+            <FileUpload
+                deal={deal}
+                onClose={() => handleClose()}
+                open={action === "add_file"}
+            />
+            <div className="bg-white">
+                {/* Tab Header with Action */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                        Deal Details
+                    </h2>
+                    <div className="tab-action">{getTabAction()}</div>
+                </div>
+
+                {/* Tabs */}
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    items={buildTabItems()}
+                    className="deal-detail-tabs"
+                    tabBarStyle={{
+                        paddingLeft: 24,
+                        paddingRight: 24,
+                        marginBottom: 0,
+                        backgroundColor: "#fafafa",
+                        borderBottom: "1px solid #f0f0f0",
+                    }}
+                />
+            </div>
+        </>
     );
 }

@@ -9,7 +9,11 @@ export type TGenericEntityAction =
     | "change_to_client"
     | "add_follow_up"
     | "change_stage"
-    | "add_deal_agents";
+    | "add_deal_agents"
+    | "add_note"
+    | "upload_file"
+    | "add_proposal"
+    | "add_file";
 
 export interface IModalProps {
     open: boolean;

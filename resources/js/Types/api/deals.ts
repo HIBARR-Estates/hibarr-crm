@@ -1,4 +1,5 @@
-import { Lead, User, LeadCategory, LeadSource } from "./leads";
+import { User } from "..";
+import { Lead, LeadCategory, LeadSource } from "./leads";
 
 export interface PaginatedDealResponse {
     current_page: number;
@@ -57,16 +58,27 @@ export interface Deal {
     currency?: Currency | null;
     deal_watchers: DealWatcher[];
     products?: Product[];
+    lead_status?: LeadStatus | null;
 
     // Custom Fields
     // custom_fields?: Record<string, any>;
     custom_fields_data?: Record<string, any>;
 }
+interface LeadStatus {
+    id: number;
+    company_id: number;
+    status_name: string;
+    label_color: string;
+    type: string;
+    priority: number;
+}
 
 interface LeadAgent {
     id: number;
+    user_id?: number;
     name: string;
     image?: string;
+    user?: Pick<User, "id" | "name" | "email" | "image_url">;
 }
 
 interface DealWatcher {
