@@ -1,8 +1,10 @@
 import { PageProps as InertiaPageProps } from "@inertiajs/core";
-import { Currency } from "@/Types/common";
+import { Currency, TFilter } from "@/Types/common";
 
 declare module "@inertiajs/core" {
     interface PageProps extends InertiaPageProps {
+        filters: TFilter;
+
         auth: {
             user: {
                 id: number;

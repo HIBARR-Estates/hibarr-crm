@@ -1,4 +1,4 @@
-import { ErrorBag, Errors, Page, PageProps } from "@inertiajs/core";
+import { ErrorBag, Errors, PageProps } from "@inertiajs/core";
 
 // Laravel Pagination Interface
 export interface Pagination<T> {
@@ -187,15 +187,23 @@ export interface PropertyShowProps extends PageProps {
 }
 
 // Common Types
+
 export interface User {
     id: number;
     name: string;
     email: string;
+    image_url: string;
+    modules?: string[];
+    mobile_with_phone_code?: string;
+    name_salutation?: string;
+    phone_number?: string;
+    country_code?: string | null;
+    session?: null;
+    client_contact?: null;
     email_verified_at?: string;
     created_at: string;
     updated_at: string;
 }
-
 export interface FlashMessage {
     type: "success" | "error" | "info" | "warning";
     message: string;
@@ -210,4 +218,53 @@ export interface AppProps extends PageProps {
         errors: Errors & ErrorBag;
         deferred?: Record<string, string[] | undefined>;
     };
+}
+
+// Lead Types
+export { type Lead } from "./api/leads";
+// Deal Types
+export { type Deal } from "./api/deals";
+
+// Client Types
+export interface Country {
+    id: number;
+    iso: string;
+    name: string;
+    nicename: string;
+    iso3: string;
+    numcode: number;
+    phonecode: number;
+}
+
+export interface ClientCategory {
+    id: number;
+    category_name: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Salutation {
+    value: string;
+    label: string;
+}
+
+export interface Language {
+    id: number;
+    language_name: string;
+    language_code: string;
+    status: string;
+    flag: string | null;
+}
+
+export interface CustomField {
+    id: number;
+    label: string;
+    name: string;
+    type: string;
+    required: string;
+    values: string | null;
+    custom_field_group_id: number;
+    show_table: string;
+    field_display_name: string;
+    field_order: number;
 }
