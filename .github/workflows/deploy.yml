@@ -19,6 +19,7 @@ jobs:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGIN_SSH_PRIVATE_KEY }}
+          port: 2244
           script: |
             cd ~/hibarr-crm-staging
             git pull origin staging
