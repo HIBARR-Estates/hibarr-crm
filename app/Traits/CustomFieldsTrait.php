@@ -112,6 +112,7 @@ trait CustomFieldsTrait
 
     public function updateCustomFieldData($fields, $company_id = null)
     {
+        \Log::info('Updating custom fields for model: ', $fields);
         foreach ($fields as $key => $value) {
 
             $idarray = explode('_', $key);
@@ -163,6 +164,7 @@ trait CustomFieldsTrait
                     ->update(['value' => $value]);
             }
             else {
+                \Log::info('Inserting new custom field data for field ID: ' . $id);
                 DB::table('custom_fields_data')
                     ->insert([
                         'model' => $this->getModelName(),
@@ -171,6 +173,7 @@ trait CustomFieldsTrait
                         'value' => (!is_null($value)) ? $value : ''
                     ]);
             }
+            \Log::info('Finished updating custom fields for model: ' . $this->getModelName());
         }
     }
 

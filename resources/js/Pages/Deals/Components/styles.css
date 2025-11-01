@@ -1,0 +1,129 @@
+/* Deal Show Page Styles */
+
+/* Custom card styling */
+.deal-info-tabs .ant-tabs-tab {
+    @apply px-6 py-3 font-medium;
+}
+
+.deal-info-tabs .ant-tabs-tab-active {
+    @apply text-blue-600;
+}
+
+.deal-detail-tabs .ant-tabs-tab {
+    @apply px-6 py-3 font-medium;
+}
+
+.deal-detail-tabs .ant-tabs-tab-active {
+    @apply text-blue-600;
+}
+
+/* Table styling improvements */
+.notes-table .ant-table-thead > tr > th {
+    @apply bg-gray-50 font-semibold text-gray-700;
+}
+
+.follow-ups-table .ant-table-thead > tr > th {
+    @apply bg-gray-50 font-semibold text-gray-700;
+}
+
+.proposals-table .ant-table-thead > tr > th {
+    @apply bg-gray-50 font-semibold text-gray-700;
+}
+
+.history-table .ant-table-thead > tr > th {
+    @apply bg-gray-50 font-semibold text-gray-700;
+}
+
+.gdpr-table .ant-table-thead > tr > th {
+    @apply bg-gray-50 font-semibold text-gray-700;
+}
+
+/* Communication timeline styling */
+.communication-timeline .ant-timeline-item-content {
+    @apply min-h-0;
+}
+
+.communication-timeline .ant-timeline-item-tail {
+    @apply border-l-gray-200;
+}
+
+/* Quick actions button hover effects */
+.quick-actions .ant-btn-circle:hover {
+    @apply transform scale-110 transition-transform duration-200;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .deal-info-tabs .ant-tabs-tab {
+        @apply px-3 py-2 text-sm;
+    }
+
+    .deal-detail-tabs .ant-tabs-tab {
+        @apply px-3 py-2 text-sm;
+    }
+}
+
+/* Status badge animations */
+.status-badge {
+    @apply transition-all duration-200 hover:scale-105;
+}
+
+/* Card hover effects */
+.deal-card {
+    @apply transition-shadow duration-200 hover:shadow-lg;
+}
+
+/* Action button group */
+.tab-action .ant-btn {
+    @apply shadow-sm;
+}
+
+/* Timeline item styling */
+.ant-timeline-item-head {
+    @apply bg-white border-2 border-gray-200;
+}
+
+/* Custom scrollbar for timeline */
+.communication-timeline {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.communication-timeline::-webkit-scrollbar {
+    width: 4px;
+}
+
+.communication-timeline::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded;
+}
+
+.communication-timeline::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded;
+}
+
+.communication-timeline::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+}
+
+/* Table row hover effects */
+.ant-table-tbody > tr:hover > td {
+    @apply bg-blue-50;
+}
+
+/* Description item styling */
+.ant-descriptions-item-label {
+    @apply font-semibold text-gray-700;
+}
+
+/* Pipeline status styling */
+.pipeline-status {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+}
+
+/* Mobile responsive quick actions */
+@media (max-width: 640px) {
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+}
