@@ -82,317 +82,146 @@ class DealController extends AccountBaseController
         $this->destroySession();
         abort_403(!in_array($this->viewLeadPermission, ['all', 'added', 'both', 'owned']));
 
-        //TODO: Consider making this just inertia
-        if (true) {
-            $this->loadDataForView();
-            $this->products = Product::all();
-            
-            // Load additional data needed for the deal form
-            $this->employees = User::allEmployees(null, true);
-            $this->leadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
-                $q->where('status', 'active');
-            })->get();
-            $this->leadContacts = Lead::allLeads();
-            $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
-            $this->countries = countries();
-            $this->salutations = Salutation::cases();
-            $this->customFieldCategories = $this->getDealCustomFieldCategories();
-            $this->sources = LeadSource::all();
-            $this->categories = LeadCategory::query();
+        $this->loadDataForView();
 
-            if ($this->viewLeadCategoryPermission == 'added') {
-                $this->categories->where('added_by', user()->id);
-            } elseif ($this->viewLeadCategoryPermission == 'both') {
-                $this->categories->where(function ($query) {
-                    $query->where('added_by', user()->id);
-                });
-            }
-
-            $this->categories = $this->categories->get();
-
-            Log::info('Loaded data for Deal index view. Loaded categories:', $this->categories->toArray());
-            
-            // Get custom fields if any
-            $deal = new Deal();
-            $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
-            if ($getCustomFieldGroupsWithFields) {
-                $this->fields = $getCustomFieldGroupsWithFields->fields;
-            }
-            
-            // For Inertia requests, return structured data
-            if (true) {
-            // if (!request()->header('X-Inertia')) {
-                // Get deals with pagination using relationships that match DataTable
-                $dealsQuery = Deal::with([
-                    'leadAgent',
-                    'products',
-                    'dealWatchers' => function ($query) {
-                        $query->withoutGlobalScope(ActiveScope::class)
-                              ->select('users.id', 'users.name', 'users.image', 'users.email')
-                              ->with('employeeDetail.designation:id,name')
-                              ->where('users.status', '!=', 'deactive')
-                              ->orderBy('users.name');
-                    },
-                    'leadAgent.user',
-                    'category',
-                    'contact',
-                    'pipeline',
-                    'leadStage',
-                    'currency',
-                    'leadSource',
-                    'leadAgent.user.employeeDetail.designation:id,name',
-                    'leadAgent.user.employeeDetail.department:id,team_name'
-                ])
-                ->select(
-                    'deals.id',
-                    'deals.name',
-                    'deals.lead_id',
-                    'deals.lead_pipeline_id',
-                    'deals.agent_id',
-                    'deals.added_by',
-                    'deals.next_follow_up',
-                    'deals.value',
-                    'deals.pipeline_stage_id',
-                    'deals.created_at',
-                    'deals.close_date',
-                    'deals.updated_at',
-                    'deals.currency_id',
-                    'deals.category_id',
-                    DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up = 'yes' and lead_follow_up.status = 'pending' ORDER BY next_follow_up_date asc limit 1) as next_follow_up_date"),
-                    DB::raw("(select lead_follow_up.status from lead_follow_up where deal_id = deals.id and deals.next_follow_up = 'yes' ORDER BY next_follow_up_date asc limit 1) as next_follow_up_status")
-                )
-                ->orderBy('deals.created_at', 'desc');
-                
-                // Apply filters from request
-                if ($request->filled('search')) {
-                    $searchTerm = $request->search;
-                    $dealsQuery->where(function($query) use ($searchTerm) {
-                        $query->where('deals.name', 'like', '%' . $searchTerm . '%')
-                              ->orWhereHas('contact', function($q) use ($searchTerm) {
-                                  $q->where('client_name', 'like', '%' . $searchTerm . '%')
-                                    ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
-                                    ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
-                              });
-                    });
-                }
-
-                // Apply pipeline filter
-                if ($request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all') {
-                    $dealsQuery->where('deals.lead_pipeline_id', $request->lead_pipeline_id);
-                }
-
-                // Apply stage filter
-                if ($request->filled('pipeline_stage_id') && $request->pipeline_stage_id !== 'all') {
-                    $dealsQuery->where('deals.pipeline_stage_id', $request->pipeline_stage_id);
-                }
-
-                // Apply category filter
-                if ($request->filled('category_id') && $request->category_id !== 'all') {
-                    $dealsQuery->where('deals.category_id', $request->category_id);
-                }
-
-                // Apply date range filter
-                if ($request->filled('start_date') && $request->filled('end_date')) {
-                    $startDate = $request->start_date;
-                    $endDate = $request->end_date;
-                    $dealsQuery->whereBetween('deals.created_at', [$startDate, $endDate]);
-                }
-
-                // Apply permission-based filtering
-                if ($this->viewLeadPermission == 'added') {
-                    $dealsQuery->where('deals.added_by', user()->id);
-                } elseif ($this->viewLeadPermission == 'owned') {
-                    $dealsQuery->where(function($query) {
-                        $query->whereHas('leadAgent', function($q) {
-                            $q->where('user_id', user()->id);
-                        })->orWhereHas('dealWatchers', function($q) {
-                            $q->where('users.id', user()->id);
-                        });
-                    });
-                } elseif ($this->viewLeadPermission == 'both') {
-                    $dealsQuery->where(function($query) {
-                        $query->where('deals.added_by', user()->id)
-                              ->orWhereHas('leadAgent', function($q) {
-                                  $q->where('user_id', user()->id);
-                              })
-                              ->orWhereHas('dealWatchers', function($q) {
-                                  $q->where('users.id', user()->id);
-                              });
-                    });
-                }
-                
-                // Apply any additional filters if needed
-                $perPage = request('per_page', 10);
-                $page = request('page', 1);
-                
-                $paginatedDeals = $dealsQuery->paginate($perPage, ['*'], 'page', $page);
-                
-                // Load custom fields for each deal
-                $paginatedDeals->getCollection()->transform(function ($deal) {
-                    return $deal->withCustomFields();
-                });
-                
-                Log::info('Deal index accessed, preparing to paginate deals.', $paginatedDeals->toArray());
-
-                $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
-                $this->leadStages = PipelineStage::all();
-
-                Log::info('Rendering Inertia view for Deal index: Lead Stages', $this->leadStages->toArray());
-
-                Log::info('Rendering Inertia view for Deal index: Lead Contacts', $this->leadContacts->toArray());
-                // Log::info('Rendering Inertia view for Deal index.', $this->leadPipelines->toArray());
-                // Log::info('Rendering Inertia view for Deal index.', $this->leadStages->toArray());
-
-                return Inertia::render('Deals/Index', [
-                    'pageTitle' => $this->pageTitle,
-                    'deals' => [
-                        'data' => $paginatedDeals->items() ? collect($paginatedDeals->items())->map(function($deal) {
-                            return [
-                                'id' => $deal->id,
-                                'name' => $deal->name,
-                                'value' => $deal->value,
-                                'close_date' => $deal->close_date ? $deal->close_date->format('Y-m-d') : null,
-                                'created_at' => $deal->created_at ? $deal->created_at->format('Y-m-d H:i:s') : null,
-                                'next_follow_up_date' => $deal->next_follow_up_date,
-                                'next_follow_up_status' => $deal->next_follow_up_status,
-                                'next_follow_up' => $deal->next_follow_up,
-                                'lead_pipeline_id' => $deal->lead_pipeline_id,
-                                'pipeline_stage_id' => $deal->pipeline_stage_id,
-                                'agent_id' => $deal->agent_id,
-                                'added_by' => $deal->added_by,
-                                'custom_fields' => $deal->custom_fields ?? null,
-                                'custom_fields_data' => $deal->custom_fields_data ?? null,
-                                'contact' => $deal->contact ? [
-                                    'id' => $deal->contact->id,
-                                    'client_name' => $deal->contact->client_name,
-                                    'client_email' => $deal->contact->client_email,
-                                    'mobile' => $deal->contact->mobile,
-                                    'company_name' => $deal->contact->company_name,
-                                    'salutation' => $deal->contact->salutation,
-                                    'client_id' => $deal->contact->client_id,
-                                    'added_by' => $deal->contact->added_by,
-                                ] : null,
-                                'lead_stage' => $deal->leadStage ? [
-                                    'id' => $deal->leadStage->id,
-                                    'name' => $deal->leadStage->name,
-                                    'slug' => $deal->leadStage->slug,
-                                    'label_color' => $deal->leadStage->label_color,
-                                ] : null,
-                                'lead_agent' => $deal->leadAgent && $deal->leadAgent->user ? [
-                                    'id' => $deal->leadAgent->user->id,
-                                    'name' => $deal->leadAgent->user->name,
-                                    'image' => $deal->leadAgent->user->image,
-                                ] : null,
-                                'category' => $deal->category ? [
-                                    'id' => $deal->category->id,
-                                    'category_name' => $deal->category->category_name,
-                                ] : null,
-                                'pipeline' => $deal->pipeline ? [
-                                    'id' => $deal->pipeline->id,
-                                    'name' => $deal->pipeline->name,
-                                ] : null,
-                                'currency' => $deal->currency ? [
-                                    'id' => $deal->currency->id,
-                                    'currency_symbol' => $deal->currency->currency_symbol,
-                                    'currency_code' => $deal->currency->currency_code,
-                                ] : null,
-                                'deal_watchers' => $deal->dealWatchers ? $deal->dealWatchers->map(function($watcher) {
-                                    return [
-                                        'id' => $watcher->id,
-                                        'name' => $watcher->name,
-                                        'image' => $watcher->image,
-                                        'email' => $watcher->email,
-                                    ];
-                                })->toArray() : [],
-                                'products' => $deal->products ? $deal->products->map(function($product) {
-                                    return [
-                                        'id' => $product->id,
-                                        'name' => $product->name,
-                                    ];
-                                })->toArray() : [],
-                            ];
-                        })->toArray() : [],
-                        'current_page' => $paginatedDeals->currentPage(),
-                        'per_page' => $paginatedDeals->perPage(),
-                        'total' => $paginatedDeals->total(),
-                        'last_page' => $paginatedDeals->lastPage(),
-                        'from' => $paginatedDeals->firstItem(),
-                        'to' => $paginatedDeals->lastItem(),
-                    ],
-                    'leadPipelines' => $this->leadPipelines,
-                    'leadStages' => $this->leadStages,
-                    'categories' => $this->categories ? $this->categories->map(function($category) {
-                        return [
-                            'id' => $category->id,
-                            'category_name' => $category->category_name,
-                        ];
-                    })->toArray() : [],
-                    'sources' => $this->sources ? $this->sources->map(function($source) {
-                        return [
-                            'id' => $source->id,
-                            'type' => $source->type,
-                        ];
-                    })->toArray() : [],
-                    'employees' => $this->employees ? $this->employees->map(function($employee) {
-                        return [
-                            'id' => $employee->id,
-                            'name' => $employee->name,
-                        ];
-                    })->toArray() : [],
-                    'countries' => $this->countries ?: [],
-                    'salutations' => $this->salutations ? collect($this->salutations)->map(function($salutation) {
-                        return [
-                            'value' => $salutation->value,
-                            'label' => $salutation->name,
-                        ];
-                    })->toArray() : [],
-                    // Additional data for the SaveDealModal
-                    'leadAgents' => $this->leadAgents ? $this->leadAgents->map(function($agent) {
-                        return [
-                            'id' => $agent->id,
-                            'user_id' => $agent->user_id,
-                            'user' => $agent->user ? [
-                                'id' => $agent->user->id,
-                                'name' => $agent->user->name,
-                            ] : null,
-                        ];
-                    })->toArray() : [],
-                    'leadContacts' => $this->leadContacts ? $this->leadContacts->map(function($contact) {
-                        return [
-                            'id' => $contact->id,
-                            'client_name' => $contact->client_name,
-                            'client_name_salutation' => $contact->client_name_salutation,
-                        ];
-                    })->toArray() : [],
-                    'stages' => $this->leadStages ? $this->leadStages->map(function($stage) {
-                        return [
-                            'id' => $stage->id,
-                            'name' => $stage->name,
-                            'lead_pipeline_id' => $stage->lead_pipeline_id,
-                            'label_color' => $stage->label_color,
-                        ];
-                    })->toArray() : [],
-                    'products' => $this->products ? $this->products->map(function($product) {
-                        return [
-                            'id' => $product->id,
-                            'name' => $product->name,
-                        ];
-                    })->toArray() : [],
-                    'fields' => $this->fields ?: [],
-                    'customFields' => $this->fields ?: [],
-                    'customFieldCategories' => $this->customFieldCategories ?: [],
-                    'filters' => $request->only([
-                        "lead_pipeline_id",
-                        "pipeline_stage_id",
-                        "category_id",
-                        "search",
-                        "start_date",
-                        "end_date",
-                    ]),
-                ]);
-            }
+        // Get deals with pagination using relationships
+        $dealsQuery = Deal::with([
+            'leadAgent.user:id,name,email,image',
+            'category:id,category_name',
+            'contact:id,client_name,client_email,mobile,company_name',
+            'pipeline:id,name',
+            'leadStage:id,name,label_color,slug',
+            'currency:id,currency_symbol,currency_code',
+            'products:id,name'
+        ])
+        ->select(
+            'deals.id',
+            'deals.name',
+            'deals.lead_id',
+            'deals.lead_pipeline_id',
+            'deals.agent_id',
+            'deals.added_by',
+            'deals.next_follow_up',
+            'deals.value',
+            'deals.pipeline_stage_id',
+            'deals.created_at',
+            'deals.close_date',
+            'deals.updated_at',
+            'deals.currency_id',
+            'deals.category_id'
+        )
+        ->orderBy('deals.created_at', 'desc');
+        
+        // Apply filters from request
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $dealsQuery->where(function($query) use ($searchTerm) {
+                $query->where('deals.name', 'like', '%' . $searchTerm . '%')
+                      ->orWhereHas('contact', function($q) use ($searchTerm) {
+                          $q->where('client_name', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                      });
+            });
         }
-        return $dataTable->render('leads.index', $this->data);
+
+        if ($request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all') {
+            $dealsQuery->where('deals.lead_pipeline_id', $request->lead_pipeline_id);
+        }
+
+        if ($request->filled('pipeline_stage_id') && $request->pipeline_stage_id !== 'all') {
+            $dealsQuery->where('deals.pipeline_stage_id', $request->pipeline_stage_id);
+        }
+
+        if ($request->filled('category_id') && $request->category_id !== 'all') {
+            $dealsQuery->where('deals.category_id', $request->category_id);
+        }
+
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $dealsQuery->whereBetween('deals.created_at', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
+            ]);
+        }
+
+        // Apply permission-based filtering
+        if ($this->viewLeadPermission == 'added') {
+            $dealsQuery->where('deals.added_by', user()->id);
+        } elseif ($this->viewLeadPermission == 'owned') {
+            $dealsQuery->where(function($query) {
+                $query->whereHas('leadAgent', function($q) {
+                    $q->where('user_id', user()->id);
+                })->orWhereHas('dealWatchers', function($q) {
+                    $q->where('users.id', user()->id);
+                });
+            });
+        } elseif ($this->viewLeadPermission == 'both') {
+            $dealsQuery->where(function($query) {
+                $query->where('deals.added_by', user()->id)
+                      ->orWhereHas('leadAgent', function($q) {
+                          $q->where('user_id', user()->id);
+                      })
+                      ->orWhereHas('dealWatchers', function($q) {
+                          $q->where('users.id', user()->id);
+                      });
+            });
+        }
+        
+        $paginatedDeals = $dealsQuery->paginate($request->get('per_page', 15));
+
+        // Load additional data needed for the forms
+        $this->employees = User::allEmployees(null, true);
+        $this->leadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
+            $q->where('status', 'active');
+        })->get();
+        $this->leadContacts = Lead::allLeads();
+        $this->products = Product::all();
+        $this->countries = countries();
+        $this->salutations = Salutation::cases();
+        $this->customFieldCategories = $this->getDealCustomFieldCategories();
+
+        // Get custom fields
+        $deal = new Deal();
+        $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
+        $this->fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
+
+        return Inertia::render('Deals/Index', [
+            'pageTitle' => 'Deals',
+            'deals' => [
+                'data' => $paginatedDeals->items(),
+                'current_page' => $paginatedDeals->currentPage(),
+                'per_page' => $paginatedDeals->perPage(),
+                'total' => $paginatedDeals->total(),
+                'last_page' => $paginatedDeals->lastPage(),
+                'from' => $paginatedDeals->firstItem(),
+                'to' => $paginatedDeals->lastItem(),
+            ],
+            'leadPipelines' => $this->pipelines,
+            'stages' => $this->stages,
+            'categories' => $this->categories,
+            'sources' => $this->sources,
+            'employees' => $this->employees,
+            'countries' => $this->countries,
+            'salutations' => collect($this->salutations)->map(function($salutation) {
+                return [
+                    'value' => $salutation->value,
+                    'label' => $salutation->name,
+                ];
+            }),
+            'leadAgents' => $this->leadAgents,
+            'leadContacts' => $this->leadContacts,
+            'products' => $this->products,
+            'customFields' => $this->fields,
+            'customFieldCategories' => $this->customFieldCategories,
+            'filters' => $request->only([
+                'lead_pipeline_id',
+                'pipeline_stage_id',
+                'category_id',
+                'search',
+                'start_date',
+                'end_date',
+            ]),
+        ]);
     }
 
     protected function loadDataForView()
@@ -427,8 +256,6 @@ class DealController extends AccountBaseController
             ->whereHas('user', function ($q) {
                 $q->where('status', 'active');
             })->where('status', 'enabled')->groupBy('user_id')->get();
-        Log::info('Loaded data for Deal index view.', $this->totalDeals->toArray());
-        
     }
 
     protected function loadLeadAgents()
@@ -487,11 +314,6 @@ class DealController extends AccountBaseController
         
         // Get custom fields data explicitly
         $customFieldsData = $deal->getCustomFieldsData();
-        
-        Log::info('Showing details for Deal ID: ' . $id, [
-            'deal' => $deal->toArray(),
-            'custom_fields_data' => $customFieldsData
-        ]);
 
         $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
         $viewPermission = user()->permission('view_deals');
@@ -708,9 +530,9 @@ class DealController extends AccountBaseController
      */
     public function store(StoreRequest $request)
     {
-        Log::info('Storing new deal with request data.', $request->all());
         $this->addPermission = user()->permission('add_deals');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
+
         $agentId = null;
         if (!is_null($request->agent_id)) {
             $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
@@ -763,7 +585,6 @@ class DealController extends AccountBaseController
         $redirectUrl = urldecode($request->redirect_url);
 
         if ($request->add_more == 'true') {
-            \Log::info('Deal saved with add_more=true, deal ID: ' . $deal->id);
             // Return fresh form HTML for add more functionality
             $html = $this->create();
             // return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
@@ -914,9 +735,6 @@ class DealController extends AccountBaseController
         // $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
         
         // Debug logging
-        \Log::info('Deal update - strategy_accepted: ' . ($deal->strategy_accepted ? 'true' : 'false'));
-        \Log::info('Deal update - downpayment_confirmed: ' . ($deal->downpayment_confirmed ? 'true' : 'false'));
-        
         $deal->save();
 
         // Handle deal watchers
@@ -1004,19 +822,35 @@ class DealController extends AccountBaseController
             case 'delete':
                 $this->deleteRecords($request);
 
-                return Reply::success(__('messages.deleteSuccess'));
+                // return Reply::success(__('messages.deleteSuccess'));
+                return back()->with([
+                    'status' => 'success',
+                    'message' => __('messages.deleteSuccess')
+                ]); 
             case 'change-status':
                 $this->changeBulkStatus($request);
 
-                return Reply::success(__('messages.updateSuccess'));
+                // return Reply::success(__('messages.updateSuccess'));
+                return back()->with([
+                    'status' => 'success',
+                    'message' => __('messages.updateSuccess')
+                ]);
 
             case 'change-deal-agents':
                 $this->changeAgentStatus($request);
 
-                return Reply::success(__('messages.updateSuccess'));
+                // return Reply::success(__('messages.updateSuccess'));
+                return back()->with([
+                    'status' => 'success',
+                    'message' => __('messages.updateSuccess')
+                ]);
 
             default:
-                return Reply::error(__('messages.selectAction'));
+                // return Reply::error(__('messages.selectAction'));
+                return back()->with([
+                    'status' => 'error',
+                    'message' => __('messages.selectAction')
+                ]);
         }
     }
 

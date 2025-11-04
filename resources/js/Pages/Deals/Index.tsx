@@ -1,11 +1,14 @@
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
+import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageFilter from "@/Hooks/usePageFilter";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
+import { PipelineStage } from "@/Types/api/deals";
+import FilterDrawer from "@/Components/FilterDrawer";
+import ActiveFilters from "@/Components/ActiveFilters";
 import {
     UserOutlined,
     PlusOutlined,
@@ -14,6 +17,7 @@ import {
     EyeOutlined,
     DeleteOutlined,
     ImportOutlined,
+    FilterOutlined,
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import { Button, MenuProps, Table } from "antd";
@@ -21,20 +25,32 @@ import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import ImportDeals from "@/Features/Deals/ImportDeals";
+import AddDealFollowup from "@/Features/Deals/AddDealFollowup/AddDealFollowup";
 import BasicDealFilterBox from "@/Features/Deals/Filter/BasicDealFilterBox";
+import AdvancedDealFilterForm from "@/Features/Deals/Filter/AdvancedDealFilterForm";
 import { User } from "@/Types";
+
+interface LeadAgent {
+    id: number;
+    user_id?: number;
+    name: string;
+    image?: string;
+    user?: Pick<User, "id" | "name" | "email" | "image_url">;
+}
 
 export interface IndexProps extends PageProps {
     pageTitle: string;
     deals: PaginatedDealResponse;
     categories: LeadCategory[];
     sources: LeadSource[];
+    stages: PipelineStage[];
+    leadAgents: LeadAgent[];
     employees: User[];
     countries: Array<{ iso: string; nicename: string; iso3: string }>;
     salutations: Array<{ value: string; label: string }>;
 }
 
-const Index = ({ pageTitle, deals }: IndexProps) => {
+const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
     const {
         handleAction,
         handleClose,
@@ -45,11 +61,16 @@ const Index = ({ pageTitle, deals }: IndexProps) => {
     // filters and filter handlers
     const {
         filters = {},
+        drawerOpen,
+        openFilterDrawer,
+        closeFilterDrawer,
         handleQuickFilter,
+        removeFilter,
         handleResetQuickFilters,
         handleResetFilters,
         handleFilterSubmit,
-    } = usePageFilter({ handleClose });
+        clearAllFilters,
+    } = usePageFilter({ handleClose, routeName: "deals.index" });
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -138,6 +159,13 @@ const Index = ({ pageTitle, deals }: IndexProps) => {
                 }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Active Filters */}
+                    <ActiveFilters
+                        filters={filters}
+                        onRemoveFilter={removeFilter}
+                        onClearAll={clearAllFilters}
+                    />
+
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <Button
@@ -165,12 +193,22 @@ const Index = ({ pageTitle, deals }: IndexProps) => {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {/* Advanced Filters Button */}
+                            <Button
+                                icon={<FilterOutlined />}
+                                onClick={openFilterDrawer}
+                            >
+                                Advanced Filters
+                            </Button>
+
                             {/* Bulk Actions - Only show when items are selected */}
                             {selectedEntities.length > 0 && (
-                                <BulkLeadActionSelector
+                                <BulkDealActionSelector
                                     selectedEntityIds={selectedEntities?.map(
                                         ({ id }) => id
                                     )}
+                                    stages={stages}
+                                    leadAgents={leadAgents}
                                     clearSelected={clearSelected}
                                 />
                             )}
@@ -229,11 +267,33 @@ const Index = ({ pageTitle, deals }: IndexProps) => {
                 deal={deal}
             />
 
+            {/* Add Follow-up Modal */}
+            <AddDealFollowup
+                open={action === "add_follow_up"}
+                onClose={() => handleClose()}
+                deal={deal}
+            />
+
             {/* Import Deals Modal */}
             <ImportDeals
                 open={action === "import"}
                 onClose={() => handleClose()}
             />
+
+            {/* Filter Drawer */}
+            <FilterDrawer
+                open={drawerOpen}
+                onClose={closeFilterDrawer}
+                title="Advanced Deal Filters"
+                filters={filters}
+                onApplyFilters={handleFilterSubmit}
+                onResetFilters={handleResetFilters}
+            >
+                <AdvancedDealFilterForm
+                    filters={filters}
+                    onFilterChange={handleQuickFilter}
+                />
+            </FilterDrawer>
         </DashboardLayout>
     );
 };

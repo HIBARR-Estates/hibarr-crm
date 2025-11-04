@@ -28,6 +28,8 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\CustomFieldGroup;
 use App\Models\CustomFieldCategory;
+use App\Models\ClientCategory;
+use App\Models\LanguageSetting;
 use App\Traits\ImportExcel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -59,156 +61,149 @@ class LeadContactController extends AccountBaseController
 
         abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
-        if (true) {
-        // if (!request()->ajax()) {
-            $this->categories = LeadCategory::get();
-            $this->sources = LeadSource::get();
-            $this->employees = User::allEmployees(null, 'active');
-            $this->leadContacts = Lead::allLeads();
-            $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
-            $this->leadStages = PipelineStage::all();
-            $this->products = Product::all();
-            
-        }
-        Log::info("request EMployees", $this->employees->toArray());
+        // Load necessary data for the view
+        $this->categories = LeadCategory::get();
+        $this->sources = LeadSource::get();
+        $this->employees = User::allEmployees(null, 'active');
+        $this->leadContacts = Lead::allLeads();
+        $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
+        $this->leadStages = PipelineStage::all();
+        $this->products = Product::all();
 
-        // Check if it's an Inertia request
-        if (true) {
-        // if (!$request->inertia()) {
-            // Get the leads data from the DataTable query with relationships
-            $leadsQuery = $dataTable->query(new Lead())
-                ->with([
-                    'leadOwner:id,name,email',
-                    'addedBy:id,name,email',
-                    'leadSource:id,type',
-                    'category:id,category_name',
-                    'client:id,name,email'
-                ]);
-            
-            // Apply filters from request
-            if ($request->filled('search')) {
-                $leadsQuery->where(function($query) use ($request) {
-                    $query->where('client_name', 'like', '%' . $request->search . '%')
-                          ->orWhere('client_email', 'like', '%' . $request->search . '%')
-                          ->orWhere('mobile', 'like', '%' . $request->search . '%');
-                });
-            }
-
-            // Apply additional filters
-            if ($request->filled('lead_source')) {
-                $leadsQuery->where('source_id', $request->lead_source);
-            }
-
-            if ($request->filled('lead_owner_id')) {
-                $leadsQuery->where('lead_owner', $request->lead_owner_id);
-            }
-
-            if ($request->filled('added_by_id')) {
-                $leadsQuery->where('added_by', $request->added_by_id);
-            }
-
-            if ($request->filled('start_date') && $request->filled('end_date')) {
-                $leadsQuery->whereBetween('created_at', [
-                    $request->start_date . ' 00:00:00',
-                    $request->end_date . ' 23:59:59'
-                ]);
-            }
-
-            // Apply permission-based filtering
-            if ($viewPermission == 'owned') {
-                $leadsQuery->where('lead_owner', user()->id);
-            } elseif ($viewPermission == 'added') {
-                $leadsQuery->where('added_by', user()->id);
-            } elseif ($viewPermission == 'both') {
-                $leadsQuery->where(function ($query) {
-                    $query->where('lead_owner', user()->id)
-                          ->orWhere('added_by', user()->id);
-                });
-            }
-            
-            // Paginate the results
-            $leads = $leadsQuery->paginate($request->get('per_page', 15));
-
-            Log::info("leads", $leads->toArray());
-            
-            // Get all the data needed for create/edit modals
-            $leadAgents = LeadAgent::whereHas('user', function ($q) {
-                $q->where('status', 'active');
-            })->with('user')->get();
-
-            $leadContact = new Lead();
-            $getCustomField = $leadContact->getCustomFieldGroupsWithFields();
-            $customFieldCategories = $this->getLeadCustomFieldCategories();
-
-            $salutations = collect(Salutation::cases())->map(function ($salutation) {
-                return [
-                    'value' => $salutation->value,
-                    'label' => $salutation->label()
-                ];
+        // Get the leads data from the DataTable query with relationships
+        $leadsQuery = $dataTable->query(new Lead())
+            ->with([
+                'leadOwner:id,name,email',
+                'addedBy:id,name,email',
+                'leadSource:id,type',
+                'category:id,category_name',
+                'client:id,name,email'
+            ]);
+        
+        // Apply filters from request
+        if ($request->filled('search')) {
+            $leadsQuery->where(function($query) use ($request) {
+                $query->where('client_name', 'like', '%' . $request->search . '%')
+                      ->orWhere('client_email', 'like', '%' . $request->search . '%')
+                      ->orWhere('mobile', 'like', '%' . $request->search . '%');
             });
+        }
 
-            return Inertia::render('Leads/Index', [
-                'pageTitle' => 'Lead Contacts',
-                'categories' => $this->categories,
-                'sources' => $this->sources,
-                'employees' => $this->employees,
-                'countries' => countries(),
-                'salutations' => $salutations,
-                'leadAgents' => $leadAgents,
-                'leadPipelines' => $this->leadPipelines,
-                'leadStages' => $this->leadStages,
-                'leadContacts' => $this->leadContacts ? $this->leadContacts->map(function($contact) {
-                    return [
-                        'id' => $contact->id,
-                        'client_name' => $contact->client_name,
-                        'client_name_salutation' => $contact->client_name_salutation,
-                    ];
-                })->toArray() : [],
-                'stages' => $this->leadStages ? $this->leadStages->map(function($stage) {
-                    return [
-                        'id' => $stage->id,
-                        'name' => $stage->name,
-                        'lead_pipeline_id' => $stage->lead_pipeline_id,
-                        'label_color' => $stage->label_color,
-                    ];
-                })->toArray() : [],
-                'products' => $this->products,
-                'customFields' => $getCustomField ? $getCustomField->fields : collect([]),
-                'customFieldCategories' => $customFieldCategories,
-                'permissions' => [
-                    'view_lead_category' => user()->permission('view_lead_category'),
-                    'view_lead_sources' => user()->permission('view_lead_sources'),
-                    'add_lead_sources' => user()->permission('add_lead_sources'),
-                    'add_lead_category' => user()->permission('add_lead_category'),
-                    'add_product' => user()->permission('add_product'),
-                    'add_lead_agent' => user()->permission('add_lead_agent'),
-                    'view_lead_agents' => user()->permission('view_lead_agents'),
-                    'add_deals' => user()->permission('add_deals'),
-                    'add_lead' => user()->permission('add_lead'),
-                ],
-                'filters' => $request->only([
-                    'search',
-                    'lead_type',
-                    'start_date',
-                    'end_date',
-                    'lead_source',
-                    'lead_owner_id',
-                    'added_by_id'
-                ]),
-                'leads' => [
-                    'data' => $leads->items(),
-                    'current_page' => $leads->currentPage(),
-                    'last_page' => $leads->lastPage(),
-                    'per_page' => $leads->perPage(),
-                    'total' => $leads->total(),
-                    'from' => $leads->firstItem(),
-                    'to' => $leads->lastItem(),
-                ]
+        // Apply additional filters
+        if ($request->filled('lead_source')) {
+            $leadsQuery->where('source_id', $request->lead_source);
+        }
+
+        if ($request->filled('lead_owner_id')) {
+            $leadsQuery->where('lead_owner', $request->lead_owner_id);
+        }
+
+        if ($request->filled('added_by_id')) {
+            $leadsQuery->where('added_by', $request->added_by_id);
+        }
+
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $leadsQuery->whereBetween('created_at', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
             ]);
         }
 
-        // For non-Inertia requests, return the traditional DataTable view
-        return $dataTable->render('lead-contact.index', $this->data);
+        // Apply permission-based filtering
+        if ($viewPermission == 'owned') {
+            $leadsQuery->where('lead_owner', user()->id);
+        } elseif ($viewPermission == 'added') {
+            $leadsQuery->where('added_by', user()->id);
+        } elseif ($viewPermission == 'both') {
+            $leadsQuery->where(function ($query) {
+                $query->where('lead_owner', user()->id)
+                      ->orWhere('added_by', user()->id);
+            });
+        }
+        
+        // Paginate the results
+        $leads = $leadsQuery->paginate($request->get('per_page', 15));
+        
+        // Get all the data needed for create/edit modals
+        $leadAgents = LeadAgent::whereHas('user', function ($q) {
+            $q->where('status', 'active');
+        })->with('user')->get();
+
+        $leadContact = new Lead();
+        $getCustomField = $leadContact->getCustomFieldGroupsWithFields();
+        $customFieldCategories = $this->getLeadCustomFieldCategories();
+
+        $salutations = collect(Salutation::cases())->map(function ($salutation) {
+            return [
+                'value' => $salutation->value,
+                'label' => $salutation->label()
+            ];
+        });
+
+        // Add client data for lead-to-client conversion
+        $clientCategories = ClientCategory::all();
+        $languages = LanguageSetting::where('status', 'enabled')->get();
+
+        return Inertia::render('Leads/Index', [
+            'pageTitle' => 'Lead Contacts',
+            'categories' => $this->categories,
+            'sources' => $this->sources,
+            'employees' => $this->employees,
+            'countries' => countries(),
+            'salutations' => $salutations,
+            'clientCategories' => $clientCategories,
+            'languages' => $languages,
+            'leadAgents' => $leadAgents,
+            'leadPipelines' => $this->leadPipelines,
+            'leadStages' => $this->leadStages,
+            'leadContacts' => $this->leadContacts ? $this->leadContacts->map(function($contact) {
+                return [
+                    'id' => $contact->id,
+                    'client_name' => $contact->client_name,
+                    'client_name_salutation' => $contact->client_name_salutation,
+                ];
+            })->toArray() : [],
+            'stages' => $this->leadStages ? $this->leadStages->map(function($stage) {
+                return [
+                    'id' => $stage->id,
+                    'name' => $stage->name,
+                    'lead_pipeline_id' => $stage->lead_pipeline_id,
+                    'label_color' => $stage->label_color,
+                ];
+            })->toArray() : [],
+            'products' => $this->products,
+            'customFields' => $getCustomField ? $getCustomField->fields : collect([]),
+            'customFieldCategories' => $customFieldCategories,
+            'permissions' => [
+                'view_lead_category' => user()->permission('view_lead_category'),
+                'view_lead_sources' => user()->permission('view_lead_sources'),
+                'add_lead_sources' => user()->permission('add_lead_sources'),
+                'add_lead_category' => user()->permission('add_lead_category'),
+                'add_product' => user()->permission('add_product'),
+                'add_lead_agent' => user()->permission('add_lead_agent'),
+                'view_lead_agents' => user()->permission('view_lead_agents'),
+                'add_deals' => user()->permission('add_deals'),
+                'add_lead' => user()->permission('add_lead'),
+            ],
+            'filters' => $request->only([
+                'search',
+                'lead_type',
+                'start_date',
+                'end_date',
+                'lead_source',
+                'lead_owner_id',
+                'added_by_id'
+            ]),
+            'leads' => [
+                'data' => $leads->items(),
+                'current_page' => $leads->currentPage(),
+                'last_page' => $leads->lastPage(),
+                'per_page' => $leads->perPage(),
+                'total' => $leads->total(),
+                'from' => $leads->firstItem(),
+                'to' => $leads->lastItem(),
+            ]
+        ]);
     }
 
 
@@ -229,9 +224,7 @@ class LeadContactController extends AccountBaseController
         $this->pageTitle = $this->leadContact->client_name_salutation;
 
         $this->categories = LeadCategory::all();
-
         $this->leadFormFields = LeadCustomForm::with('customField')->where('status', 'active')->where('custom_fields_id', '!=', 'null')->get();
-
         $this->leadId = $id;
 
         // Get custom field categories for lead module
@@ -245,86 +238,62 @@ class LeadContactController extends AccountBaseController
         $this->editLeadPermission = user()->permission('edit_lead');
         $this->deleteLeadPermission = user()->permission('delete_lead');
 
-        // Check if it's an Inertia request
-        // if ($request->inertia()) {
-        if (true) {
-            $this->employees = User::allEmployees(null, true);
-            $this->sources = LeadSource::all();
-            $this->countries = countries();
-            $this->salutations = Salutation::cases();
+        $this->employees = User::allEmployees(null, true);
+        $this->sources = LeadSource::all();
+        $this->countries = countries();
+        $this->salutations = Salutation::cases();
 
-            // Get deals associated with this lead
-            $deals = Deal::where('lead_id', $id)
-                ->with([
-                    'leadAgent.user:id,name,email,image_url',
-                    'leadStage:id,name',
-                    'pipeline:id,name'
-                ])
-                ->get();
+        // Get deals associated with this lead
+        $deals = Deal::where('lead_id', $id)
+            ->with([
+                'leadAgent.user:id,name,email,image_url',
+                'leadStage:id,name',
+                'pipeline:id,name'
+            ])
+            ->get();
 
-            // Get notes associated with this lead
-            $notes = LeadNote::where('lead_id', $id)
-                ->with('addedBy:id,name,email,image_url')
-                ->orderBy('created_at', 'desc')
-                ->get();
+        // Get notes associated with this lead
+        $notes = LeadNote::where('lead_id', $id)
+            ->with('addedBy:id,name,email,image_url')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-            // Get deal and note permissions
-            $dealPermissions = [
-                'add_deals' => user()->permission('add_deals'),
-                'view_deals' => user()->permission('view_deals'),
-                'edit_deals' => user()->permission('edit_deals'),
-                'delete_deals' => user()->permission('delete_deals'),
-            ];
+        // Get deal and note permissions
+        $dealPermissions = [
+            'add_deals' => user()->permission('add_deals'),
+            'view_deals' => user()->permission('view_deals'),
+            'edit_deals' => user()->permission('edit_deals'),
+            'delete_deals' => user()->permission('delete_deals'),
+        ];
 
-            $notePermissions = [
-                'add_lead_note' => user()->permission('add_lead_note'),
-                'view_lead_note' => user()->permission('view_lead_note'),
-                'edit_lead_note' => user()->permission('edit_lead_note'),
-                'delete_lead_note' => user()->permission('delete_lead_note'),
-            ];
+        $notePermissions = [
+            'add_lead_note' => user()->permission('add_lead_note'),
+            'view_lead_note' => user()->permission('view_lead_note'),
+            'edit_lead_note' => user()->permission('edit_lead_note'),
+            'delete_lead_note' => user()->permission('delete_lead_note'),
+        ];
 
-            return Inertia::render('Leads/Show', [
-                'lead' => $this->leadContact,
-                'categories' => $this->categories,
-                'sources' => $this->sources,
-                'employees' => $this->employees,
-                'countries' => $this->countries,
-                'salutations' => collect($this->salutations)->map(function ($salutation) {
-                    return [
-                        'value' => $salutation->value,
-                        'label' => $salutation->label()
-                    ];
-                }),
-                'customFieldCategories' => $this->customFieldCategories,
-                'fields' => $this->fields ?? [],
-                'editLeadPermission' => $this->editLeadPermission,
-                'deleteLeadPermission' => $this->deleteLeadPermission,
-                'deals' => $deals,
-                'notes' => $notes,
-                'dealPermissions' => $dealPermissions,
-                'notePermissions' => $notePermissions,
-            ]);
-        }
-
-        $tab = request('tab');
-
-        switch ($tab) {
-            case 'deal':
-                return $this->deals();
-            case 'notes':
-                return $this->notes();
-            default:
-                $this->view = 'lead-contact.ajax.profile';
-                break;
-        }
-
-        if (request()->ajax()) {
-            return $this->returnAjax($this->view);
-        }
-
-        $this->activeTab = $tab ?: 'profile';
-
-        return view('lead-contact.show', $this->data);
+        return Inertia::render('Leads/Show', [
+            'lead' => $this->leadContact,
+            'categories' => $this->categories,
+            'sources' => $this->sources,
+            'employees' => $this->employees,
+            'countries' => $this->countries,
+            'salutations' => collect($this->salutations)->map(function ($salutation) {
+                return [
+                    'value' => $salutation->value,
+                    'label' => $salutation->label()
+                ];
+            }),
+            'customFieldCategories' => $this->customFieldCategories,
+            'fields' => $this->fields ?? [],
+            'editLeadPermission' => $this->editLeadPermission,
+            'deleteLeadPermission' => $this->deleteLeadPermission,
+            'deals' => $deals,
+            'notes' => $notes,
+            'dealPermissions' => $dealPermissions,
+            'notePermissions' => $notePermissions,
+        ]);
     }
 
     public function notes()
@@ -717,7 +686,8 @@ class LeadContactController extends AccountBaseController
     {
         Lead::whereIn('id', explode(',', $request->row_ids))->delete();
 
-        return Reply::success(__('messages.deleteSuccess'));
+        // return Reply::success(__('messages.deleteSuccess'));
+        return back()->with('success', __('messages.deleteSuccess'));
     }
 
     public function importLead()

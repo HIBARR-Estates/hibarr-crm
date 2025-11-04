@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Lead } from "@/Types/api/leads";
-import { User } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import {
     Descriptions,
@@ -467,6 +466,10 @@ export default function LeadInfoSection({
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={currentLead || lead}
+                countries={[]}
+                categories={[]}
+                salutations={[]}
+                languages={[]}
             />
 
             <div>

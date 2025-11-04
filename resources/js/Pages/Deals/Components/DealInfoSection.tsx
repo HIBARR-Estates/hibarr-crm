@@ -301,6 +301,15 @@ export default function DealInfoSection({
                                     deal.custom_fields_data?.[
                                         `field_${field.id}`
                                     ];
+                                let span = 1;
+                                // ensuure the span is adjusted for field types that may need more space
+                                if (
+                                    ["textarea", "file", "text"].includes(
+                                        field.type
+                                    )
+                                ) {
+                                    span = 2;
+                                }
                                 console.log(value, "on map value");
 
                                 // Handle different field types
@@ -328,6 +337,7 @@ export default function DealInfoSection({
                                     <Descriptions.Item
                                         key={field.id}
                                         label={field.label}
+                                        span={span}
                                     >
                                         {value || (
                                             <span className="text-gray-500">
