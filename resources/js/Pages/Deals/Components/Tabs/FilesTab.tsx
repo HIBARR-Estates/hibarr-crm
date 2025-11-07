@@ -1,9 +1,9 @@
 import { Deal } from "@/Types/api/deals";
 import { DealFile } from "@/Types/api/file";
-import { Empty, Button, Row, Col, Spin } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { Empty, Button, Row, Col, Spin, Skeleton } from "antd";
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useState } from "react";
-import { usePage } from "@inertiajs/react";
+import { usePage, router } from "@inertiajs/react";
 import FileCard from "./files/FileCard";
 import FileUpload from "./files/FileUpload";
 
@@ -27,6 +27,14 @@ export default function FilesTab({ deal, files, permissions }: Props) {
         );
     };
 
+    const canEdit = (file: DealFile) => {
+        return (
+            permissions.edit_lead_files === "all" ||
+            (permissions.edit_lead_files === "added" &&
+                file.added_by === user?.id)
+        );
+    };
+
     const canDelete = (file: DealFile) => {
         return (
             permissions.delete_lead_files === "all" ||
@@ -41,11 +49,26 @@ export default function FilesTab({ deal, files, permissions }: Props) {
 
     const handleFileUploaded = () => {
         setUploadModalOpen(false);
-        // The FileUpload component already reloads the page
+        // Reload the page to get updated file list
+        router.reload({ only: ["files"] });
     };
 
     const handleFileDeleted = () => {
-        // The FileCard component already reloads the page
+        // Reload the page to get updated file list
+        router.reload({ only: ["files"] });
+    };
+
+    const handleFileUpdated = () => {
+        // Reload the page to get updated file list
+        router.reload({ only: ["files"] });
+    };
+
+    const handleRefresh = () => {
+        setLoading(true);
+        router.reload({
+            only: ["files"],
+            onFinish: () => setLoading(false),
+        });
     };
 
     // Filter files based on view permissions
@@ -54,7 +77,19 @@ export default function FilesTab({ deal, files, permissions }: Props) {
     if (loading) {
         return (
             <div className="p-8 flex justify-center">
-                <Spin size="large" />
+                {Array(4)
+                    .fill(0)
+                    .map((_, i) => (
+                        <Skeleton
+                            active
+                            key={i}
+                            style={{
+                                width: 200,
+                                height: 150,
+                                margin: "0 10px",
+                            }}
+                        />
+                    ))}
             </div>
         );
     }
@@ -81,30 +116,22 @@ export default function FilesTab({ deal, files, permissions }: Props) {
                             </div>
                         }
                     />
-
-                    <FileUpload
-                        deal={deal}
-                        open={uploadModalOpen}
-                        onClose={() => setUploadModalOpen(false)}
-                        onFileUploaded={handleFileUploaded}
-                    />
                 </div>
             )}
             {visibleFiles.length > 0 && (
                 <div className="p-6">
                     {/* Header with Upload Button */}
                     {canAdd && (
-                        <div className="mb-6 flex justify-between items-center">
-                            <h3 className="text-lg font-medium text-gray-900">
-                                Files ({visibleFiles.length})
-                            </h3>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => setUploadModalOpen(true)}
-                            >
-                                Upload Files
-                            </Button>
+                        <div className="mb-6 flex justify-end items-center">
+                            <div className="space-x-2">
+                                <Button
+                                    icon={<ReloadOutlined />}
+                                    onClick={handleRefresh}
+                                    loading={loading}
+                                >
+                                    Refresh
+                                </Button>
+                            </div>
                         </div>
                     )}
 
@@ -122,8 +149,10 @@ export default function FilesTab({ deal, files, permissions }: Props) {
                                 <FileCard
                                     file={file}
                                     canView={canView(file)}
+                                    canEdit={canEdit(file)}
                                     canDelete={canDelete(file)}
                                     onFileDeleted={handleFileDeleted}
+                                    onFileUpdated={handleFileUpdated}
                                 />
                             </Col>
                         ))}

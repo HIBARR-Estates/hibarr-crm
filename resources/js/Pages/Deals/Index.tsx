@@ -25,10 +25,10 @@ import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import ImportDeals from "@/Features/Deals/ImportDeals";
-import AddDealFollowup from "@/Features/Deals/AddDealFollowup/AddDealFollowup";
 import BasicDealFilterBox from "@/Features/Deals/Filter/BasicDealFilterBox";
 import AdvancedDealFilterForm from "@/Features/Deals/Filter/AdvancedDealFilterForm";
 import { User } from "@/Types";
+import AddFollowup from "./Components/Tabs/followups/AddFollowup";
 
 interface LeadAgent {
     id: number;
@@ -149,23 +149,24 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
                 title={pageTitle}
                 breadcrumbs={[{ name: "Deals" }]}
                 filterSection={
-                    <BasicDealFilterBox
-                        filters={filters}
-                        handleResetFilters={handleResetFilters}
-                        handleQuickFilter={handleQuickFilter}
-                        handleResetQuickFilters={handleResetQuickFilters}
-                        handleSubmit={handleFilterSubmit}
-                    />
+                    <>
+                        <BasicDealFilterBox
+                            filters={filters}
+                            handleResetFilters={handleResetFilters}
+                            handleQuickFilter={handleQuickFilter}
+                            handleResetQuickFilters={handleResetQuickFilters}
+                            handleSubmit={handleFilterSubmit}
+                        />
+                        {/* Active Filters */}
+                        <ActiveFilters
+                            filters={filters}
+                            onRemoveFilter={removeFilter}
+                            onClearAll={clearAllFilters}
+                        />
+                    </>
                 }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Active Filters */}
-                    <ActiveFilters
-                        filters={filters}
-                        onRemoveFilter={removeFilter}
-                        onClearAll={clearAllFilters}
-                    />
-
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <Button
@@ -198,7 +199,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
                                 icon={<FilterOutlined />}
                                 onClick={openFilterDrawer}
                             >
-                                Advanced Filters
+                                Filters
                             </Button>
 
                             {/* Bulk Actions - Only show when items are selected */}
@@ -268,11 +269,13 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
             />
 
             {/* Add Follow-up Modal */}
-            <AddDealFollowup
-                open={action === "add_follow_up"}
-                onClose={() => handleClose()}
-                deal={deal}
-            />
+            {deal && (
+                <AddFollowup
+                    open={action === "add_follow_up"}
+                    onClose={() => handleClose()}
+                    deal={deal}
+                />
+            )}
 
             {/* Import Deals Modal */}
             <ImportDeals
@@ -284,7 +287,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
             <FilterDrawer
                 open={drawerOpen}
                 onClose={closeFilterDrawer}
-                title="Advanced Deal Filters"
+                title="Deal Filters"
                 filters={filters}
                 onApplyFilters={handleFilterSubmit}
                 onResetFilters={handleResetFilters}

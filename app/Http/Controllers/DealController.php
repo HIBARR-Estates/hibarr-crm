@@ -339,6 +339,7 @@ class DealController extends AccountBaseController
             ->where('deal_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();
+        Log::info('Notes Count: ' . $notes->count());
 
         $viewNotesPermission = user()->permission('view_deal_note');
         if ($viewNotesPermission == 'added') {
@@ -952,8 +953,9 @@ class DealController extends AccountBaseController
             return Reply::error(__('messages.leadFollowUpRestricted'));
         }
 
+        // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
         $next_follow_up_date = Carbon::createFromFormat(
-            $this->company->date_format . ' ' . $this->company->time_format,
+            'd-m-Y H:i:s',
             $request->next_follow_up_date . ' ' . $request->start_time
         );
 
@@ -1028,7 +1030,8 @@ class DealController extends AccountBaseController
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
 
-        $followUp->next_follow_up_date = Carbon::createFromFormat($this->company->date_format . ' ' . $this->company->time_format, $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
+        // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
+        $followUp->next_follow_up_date = Carbon::createFromFormat('d-m-Y H:i:s', $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
 
         $followUp->remark = $request->remark;
         $followUp->status = $request->status;
@@ -1072,6 +1075,113 @@ class DealController extends AccountBaseController
         DealFollowUp::destroy($id);
 
         return Reply::success(__('messages.deleteSuccess'));
+    }
+
+    /**
+     * Apply quick actions to multiple follow-ups
+     *
+     * @param Request $request
+     * @return array
+     */
+    public function applyFollowUpQuickAction(Request $request)
+    {
+        switch ($request->action_type) {
+            case 'delete':
+                $this->deleteFollowUpRecords($request);
+
+                return back()->with([
+                    'status' => 'success',
+                    'message' => __('messages.deleteSuccess')
+                ]);
+
+            case 'change-status':
+                $this->changeBulkFollowUpStatus($request);
+
+                return back()->with([
+                    'status' => 'success',
+                    'message' => __('messages.updateSuccess')
+                ]);
+
+            default:
+                return back()->with([
+                    'status' => 'error',
+                    'message' => __('messages.selectAction')
+                ]);
+        }
+    }
+
+    /**
+     * Delete multiple follow-up records
+     *
+     * @param Request $request
+     * @return void
+     */
+    protected function deleteFollowUpRecords($request)
+    {
+        $this->deletePermission = user()->permission('delete_lead_follow_up');
+        
+        $followUpIds = explode(',', $request->row_ids);
+        
+        // Check permissions for each follow-up
+        if ($this->deletePermission == 'added') {
+            $followUps = DealFollowUp::whereIn('id', $followUpIds)
+                ->where('added_by', user()->id)
+                ->get();
+                
+            if ($followUps->count() !== count($followUpIds)) {
+                abort_403(__('messages.permissionDenied'));
+            }
+        } elseif ($this->deletePermission != 'all') {
+            abort_403(__('messages.permissionDenied'));
+        }
+
+        DealFollowUp::whereIn('id', $followUpIds)->delete();
+    }
+
+    /**
+     * Change status of multiple follow-ups
+     *
+     * @param Request $request
+     * @return void
+     */
+    protected function changeBulkFollowUpStatus($request)
+    {
+        $this->editPermission = user()->permission('edit_lead_follow_up');
+        
+        $followUpIds = explode(',', $request->row_ids);
+        $newStatus = $request->status;
+
+        // Validate status
+        $validStatuses = ['pending', 'completed', 'cancelled'];
+        if (!in_array($newStatus, $validStatuses)) {
+            abort(422, __('Invalid status provided'));
+        }
+        
+        // Check permissions for each follow-up
+        if ($this->editPermission == 'added') {
+            $followUps = DealFollowUp::whereIn('id', $followUpIds)
+                ->where('added_by', user()->id)
+                ->get();
+                
+            if ($followUps->count() !== count($followUpIds)) {
+                abort_403(__('messages.permissionDenied'));
+            }
+        } elseif ($this->editPermission != 'all') {
+            abort_403(__('messages.permissionDenied'));
+        }
+
+        // Update the status
+        DealFollowUp::whereIn('id', $followUpIds)->update([
+            'status' => $newStatus,
+            'updated_at' => now()
+        ]);
+
+        // If status is completed, update completion date
+        if ($newStatus === 'completed') {
+            DealFollowUp::whereIn('id', $followUpIds)->update([
+                'completed_at' => now()
+            ]);
+        }
     }
 
     public function proposals()

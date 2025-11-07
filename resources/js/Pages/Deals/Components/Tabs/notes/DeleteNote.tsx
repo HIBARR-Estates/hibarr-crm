@@ -2,32 +2,34 @@ import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { Note } from "@/Types/api/note";
 import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
-import { message } from "antd";
-import React, { useState } from "react";
+import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
+import { ApiResponse } from "@/lib/api/types";
+import { useApiMutate } from "@/lib/api/client";
+import { isLoading } from "@/lib/utils";
 
 interface Props extends IModalProps {
     note?: Note;
 }
 
 const DeleteNote: React.FC<Props> = ({ note, onClose, open }) => {
-    const [deleteLoading, setDeleteLoading] = useState(false);
+    const handleCancel = () => {
+        onClose();
+    };
 
-    // Handle single note deletion
-    const handleDeleteNote = () => {
-        if (!note) return;
+    const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
+        route("deal-notes.destroy", note?.id),
+        "DELETE",
 
-        setDeleteLoading(true);
-        router.delete(route("deal-notes.destroy", note.id), {
+        () => {
+            handleCancel();
+        }
+    );
+    const onSubmit = () => {
+        mutate(null, {
             onSuccess: () => {
-                message.success("Note deleted successfully");
-                onClose();
-                setDeleteLoading(false);
+                console.log("was deleted note ....");
                 router.reload();
-            },
-            onError: () => {
-                message.error("Failed to delete note");
-                setDeleteLoading(false);
             },
         });
     };
@@ -37,8 +39,8 @@ const DeleteNote: React.FC<Props> = ({ note, onClose, open }) => {
             open={open}
             onClose={onClose}
             onSubmit={{
-                fn: handleDeleteNote,
-                loading: deleteLoading,
+                fn: onSubmit,
+                loading: isLoading({ status }),
             }}
             title="Delete Note"
             description={

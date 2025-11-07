@@ -3,6 +3,7 @@ import { Tag, Space, Typography } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import { TFilter } from "@/Types/common";
 import dayjs from "dayjs";
+import { THEME_COLOR } from "@/providers/antd/utils";
 
 const { Text } = Typography;
 
@@ -120,10 +121,12 @@ const ActiveFilters: React.FC<ActiveFiltersProps> = ({
     };
 
     return (
-        <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+        <div className="mb-4 px-8 py-4 bg-gray-50 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-                <Text strong className="text-sm text-gray-600">
-                    Active Filters ({activeFilterEntries.length})
+                <Text strong className="text-sm text-blue-600">
+                    <span className="text-gray-400">
+                        Active Filters ({activeFilterEntries.length})
+                    </span>
                 </Text>
                 {activeFilterEntries.length > 1 && (
                     <button
@@ -143,6 +146,8 @@ const ActiveFilters: React.FC<ActiveFiltersProps> = ({
                         onClose={() => onRemoveFilter(key as keyof TFilter)}
                         closeIcon={<CloseOutlined className="text-xs" />}
                         className="px-3 py-1 text-sm border-blue-200 bg-blue-50 text-blue-700"
+                        // color={THEME_COLOR.primary}
+                        color="blue"
                     >
                         <span className="font-medium">
                             {getFilterLabel(key)}:

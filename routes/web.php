@@ -503,6 +503,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/follow-up-edit/{id?}', [DealController::class, 'editFollow'])->name('deals.follow_up_edit');
     Route::post('deals/follow-up-update', [DealController::class, 'updateFollow'])->name('deals.follow_up_update');
     Route::post('deals/follow-up-delete/{id}', [DealController::class, 'deleteFollow'])->name('deals.follow_up_delete');
+    Route::post('deals/follow-up-apply-quick-action', [DealController::class, 'applyFollowUpQuickAction'])->name('deals.follow_up_apply_quick_action');
 
     // Change status
     Route::get('stage-change/{id}', [DealController::class, 'stageChange'])->name('deals.stage_change');

@@ -1,15 +1,6 @@
 import { Deal } from "@/Types/api/deals";
 import { Link, usePage } from "@inertiajs/react";
-import {
-    Descriptions,
-    Tag,
-    Avatar,
-    Tooltip,
-    Tabs,
-    Button,
-    Dropdown,
-    MenuProps,
-} from "antd";
+import { Descriptions, Tag, Avatar, Tooltip, Tabs, Button, Space } from "antd";
 import {
     UserOutlined,
     MailOutlined,
@@ -66,15 +57,12 @@ export default function DealInfoSection({
     };
 
     // Action menu items
-    const actionItems: MenuProps["items"] = [
+    const actionItems = [
         {
             key: "edit",
-            label: (
-                <span>
-                    <EditOutlined className="mr-2" />
-                    Edit Deal
-                </span>
-            ),
+            icon: <EditOutlined />,
+            tooltip: "Edit Deal",
+            type: "text" as const,
             onClick: () => {
                 handleAction("edit");
             },
@@ -91,12 +79,10 @@ export default function DealInfoSection({
             ? [
                   {
                       key: "delete",
-                      label: (
-                          <span className="text-red-600">
-                              <DeleteOutlined className="mr-2" />
-                              Delete Deal
-                          </span>
-                      ),
+                      icon: <DeleteOutlined />,
+                      tooltip: "Delete Deal",
+                      type: "text" as const,
+                      danger: true,
                       onClick: () => {
                           handleAction("delete");
                       },
@@ -104,8 +90,6 @@ export default function DealInfoSection({
               ]
             : []),
     ];
-
-    console.log(deal?.custom_fields_data);
 
     // Tab items for custom field categories
     const tabItems = [
@@ -310,7 +294,6 @@ export default function DealInfoSection({
                                 ) {
                                     span = 2;
                                 }
-                                console.log(value, "on map value");
 
                                 // Handle different field types
                                 if (field.type === "date" && value) {
@@ -375,9 +358,19 @@ export default function DealInfoSection({
                     <h2 className="text-lg font-semibold text-gray-900">
                         Deal Information
                     </h2>
-                    <Dropdown menu={{ items: actionItems }} trigger={["click"]}>
-                        <Button type="text" icon={<MoreOutlined />} />
-                    </Dropdown>
+                    <Space size="small">
+                        {actionItems.map((item) => (
+                            <Tooltip key={item.key} title={item.tooltip}>
+                                <Button
+                                    type={item.type}
+                                    icon={item.icon}
+                                    danger={item.danger}
+                                    onClick={item.onClick}
+                                    size="small"
+                                />
+                            </Tooltip>
+                        ))}
+                    </Space>
                 </div>
 
                 {/* Content */}

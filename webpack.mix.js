@@ -76,6 +76,7 @@ mix.js("resources/js/bootstrap.js", "public/js")
     // Inertia React entry point
     .ts("resources/js/inertia.tsx", "public/js")
     .react()
+    // .reactRefresh()
     .sass("resources/scss/main.scss", "public/css")
     .postCss("resources/css/tailwind.css", "public/css/tailwind.css", [
         require("@tailwindcss/postcss"),

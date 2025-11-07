@@ -1,3 +1,5 @@
+import { User } from "..";
+
 export interface Note {
     id: number;
     deal_id: number;
@@ -6,4 +8,5 @@ export interface Note {
     created_at: string;
     updated_at: string;
     added_by?: number;
+    addedBy?: User;
 }

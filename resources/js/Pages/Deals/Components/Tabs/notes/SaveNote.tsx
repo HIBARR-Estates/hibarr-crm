@@ -1,9 +1,9 @@
 import { Deal } from "@/Types/api/deals";
 import { Note } from "@/Types/api/note";
-import { useForm } from "@inertiajs/react";
-import { Form, Input, Button, Card } from "antd";
-import { useState, useEffect } from "react";
-import { SaveOutlined, CloseOutlined } from "@ant-design/icons";
+import { Form, Input, Button } from "antd";
+import { useEffect } from "react";
+import { SaveOutlined } from "@ant-design/icons";
+import HtmlEditor from "@/Components/HtmlEditor";
 
 const { TextArea } = Input;
 
@@ -39,7 +39,7 @@ export default function SaveNote({
         if (note) {
             form.setFieldsValue({
                 title: note.title,
-                details: note.details,
+                details: note.details || "",
             });
         } else {
             form.resetFields();
@@ -53,6 +53,20 @@ export default function SaveNote({
             lead_id: deal.id,
         };
         onSubmit(submitData);
+    };
+
+    // Custom validator for HTML content
+    const validateHtmlContent = (_: any, value: string) => {
+        // Strip HTML tags and check for actual text content
+        const textContent = (value || "")
+            .replace(/<[^>]*>/g, "")
+            .replace(/&nbsp;/g, " ")
+            .trim();
+
+        if (!textContent || textContent === "") {
+            return Promise.reject(new Error("Please enter note details"));
+        }
+        return Promise.resolve();
     };
 
     return (
@@ -94,23 +108,22 @@ export default function SaveNote({
             <Form.Item
                 label="Note Details"
                 name="details"
+                className="mb-6"
                 rules={[
                     {
                         required: true,
-                        message: "Please enter note details",
+                        validator: validateHtmlContent,
                     },
                 ]}
-                className="mb-6"
             >
-                <TextArea
+                <HtmlEditor
                     placeholder="Enter detailed note information..."
-                    rows={8}
                     disabled={loading}
-                    className="resize-none"
+                    height={300}
                 />
             </Form.Item>
 
-            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-end space-x-3 mt-12 mb-4 pt-4 border-t border-gray-200">
                 <Button onClick={onCancel} disabled={loading}>
                     Cancel
                 </Button>

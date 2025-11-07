@@ -47,10 +47,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class DealNote extends BaseModel
 {
+    protected $hidden = ["pivot"];
 
-    public function client(): BelongsTo
+
+    public function deal(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'deal_id');
+        return $this->belongsTo(Deal::class, 'deal_id');
+    }
+
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by');
+    }
+
+    public function lastUpdatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'last_updated_by');
     }
 
     public function members(): HasMany
