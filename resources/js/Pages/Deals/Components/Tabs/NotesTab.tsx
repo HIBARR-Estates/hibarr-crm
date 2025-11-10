@@ -45,29 +45,29 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
     console.log("notes ....", notes);
 
     const columns: ColumnsType<Note> = [
-        {
-            title: "Title",
-            dataIndex: "title",
-            key: "title",
-            width: "25%",
-            render: (text: string, record) => {
-                const truncatedTitle =
-                    text && text.length > 50
-                        ? text.substring(0, 50) + "..."
-                        : text;
+        // {
+        //     title: "Title",
+        //     dataIndex: "title",
+        //     key: "title",
+        //     width: "25%",
+        //     render: (text: string, record) => {
+        //         const truncatedTitle =
+        //             text && text.length > 50
+        //                 ? text.substring(0, 50) + "..."
+        //                 : text;
 
-                return (
-                    <Tooltip title={text.length > 50 ? text : undefined}>
-                        <span
-                            className="cursor-pointer hover:text-blue-600 font-medium"
-                            onClick={() => handleAction("view", record)}
-                        >
-                            {truncatedTitle}
-                        </span>
-                    </Tooltip>
-                );
-            },
-        },
+        //         return (
+        //             <Tooltip title={text.length > 50 ? text : undefined}>
+        //                 <span
+        //                     className="cursor-pointer hover:text-blue-600 font-medium"
+        //                     onClick={() => handleAction("view", record)}
+        //                 >
+        //                     {truncatedTitle}
+        //                 </span>
+        //             </Tooltip>
+        //         );
+        //     },
+        // },
         {
             title: "Details",
             dataIndex: "details",
