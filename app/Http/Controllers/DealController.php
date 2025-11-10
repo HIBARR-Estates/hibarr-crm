@@ -185,10 +185,23 @@ class DealController extends AccountBaseController
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $this->fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
+        // Transform deals to include custom fields data
+        $dealsWithCustomFields = $paginatedDeals->getCollection()->map(function ($deal) {
+            // Load custom fields for each deal
+            $dealWithFields = $deal->withCustomFields();
+            $customFieldsData = $dealWithFields->getCustomFieldsData();
+            
+            // Convert to array and add custom fields data
+            $dealArray = $deal->toArray();
+            $dealArray['custom_fields_data'] = $customFieldsData;
+            
+            return $dealArray;
+        });
+
         return Inertia::render('Deals/Index', [
             'pageTitle' => 'Deals',
             'deals' => [
-                'data' => $paginatedDeals->items(),
+                'data' => $dealsWithCustomFields,
                 'current_page' => $paginatedDeals->currentPage(),
                 'per_page' => $paginatedDeals->perPage(),
                 'total' => $paginatedDeals->total(),
@@ -308,12 +321,17 @@ class DealController extends AccountBaseController
                       ->orderBy('users.name');
             }
         ])->findOrFail($id);
+        $this->loadDataForView();
+
         
         // Load custom fields data
         $deal = $deal->withCustomFields();
         
         // Get custom fields data explicitly
         $customFieldsData = $deal->getCustomFieldsData();
+
+        $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
+        $this->fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
         $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
         $viewPermission = user()->permission('view_deals');
@@ -429,12 +447,32 @@ class DealController extends AccountBaseController
         // Prepare deal with custom fields data
         $dealWithCustomFields = $deal->toArray();
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
+        $this->leadContacts = Lead::allLeads();
+        $this->products = Product::all();
+        $this->countries = countries();
+        $this->salutations = Salutation::cases();
+        $this->employees = User::allEmployees(null, true);
+        $this->leadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
+            $q->where('status', 'active');
+        })->get();
+
+        
+
 
         return inertia('Deals/Show', [
+            'leadPipelines' => $this->pipelines,
+            'stages' => $this->stages,
+            'employees' => $this->employees,
+            'leadAgents' => $this->leadAgents,
+            'leadContacts' => $this->leadContacts,
+            'products' => $this->products,
+            'countries' => $this->countries,
+            'salutations' => $this->salutations,
             'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
             'customFieldCategories' => $customFieldCategories,
             'fields' => $fields,
+            'customFields' => $this->fields,
             'notes' => $notes,
             'dealFollowUps' => $dealFollowUps,
             'meetingTypes' => $meetingTypes,

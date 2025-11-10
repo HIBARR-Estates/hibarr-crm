@@ -171,9 +171,9 @@ export default function QuickActions({ deal, permissions }: Props) {
                         // type="text"
                         shape="circle"
                         icon={<EllipsisOutlined />}
-                        size="large"
+                        size="small"
                         className="border border-gray-200 hover:border-blue-400 hover:shadow-sm transition-all duration-200"
-                        style={{ width: 40, height: 40 }}
+                        // style={{ width: 40, height: 40 }}
                     />
                 </Dropdown>
             </div>

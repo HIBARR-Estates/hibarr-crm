@@ -7,12 +7,12 @@ export interface LeadNote extends Note {
     member_id?: number;
     type: number;
     ask_password: number;
-    addedBy?: {
-        id: number;
-        name: string;
-        email: string;
-        image_url?: string;
-    };
+    // addedBy?: {
+    //     id: number;
+    //     name: string;
+    //     email: string;
+    //     image_url?: string;
+    // };
     added_by_user?: {
         id: number;
         name: string;

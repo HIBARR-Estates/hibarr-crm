@@ -114,7 +114,7 @@ const DealForm: React.FC<DealFormProps> = ({
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 items={tabItems}
-                type="card"
+                type="line"
             />
         </>
     );

@@ -131,7 +131,7 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Email">
                             {deal.contact?.client_email ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <MailOutlined className="text-gray-400" />
                                     <a
                                         href={`mailto:${deal.contact.client_email}`}
@@ -147,7 +147,7 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Mobile">
                             {deal.contact ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <PhoneOutlined className="text-gray-400" />
                                     <span>
                                         {getMobileNumber(deal.contact.mobile)}
@@ -172,7 +172,7 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Deal Agent">
                             {deal.lead_agent ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <Avatar
                                         size="small"
                                         src={deal.lead_agent.user?.image_url}

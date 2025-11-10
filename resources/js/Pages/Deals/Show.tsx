@@ -103,7 +103,7 @@ export default function Show({
                         {/* Main Content */}
                         <Row gutter={[30, 40]} className="">
                             {/* Left Column - Main Content */}
-                            <Col xs={24} lg={18} xl={18}>
+                            <Col xs={24} lg={16} xl={16}>
                                 <div className="flex flex-col gap-y-4 sm:gap-y-6">
                                     {/* Deal Information Card */}
                                     <Card
@@ -145,7 +145,7 @@ export default function Show({
                             </Col>
 
                             {/* Right Column - Activities Sidebar */}
-                            <Col xs={24} lg={6} xl={6}>
+                            <Col xs={24} lg={8} xl={8}>
                                 <div className="lg:sticky lg:top-8">
                                     <ActivitySidebar
                                         deal={deal}

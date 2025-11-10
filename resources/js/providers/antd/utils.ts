@@ -18,6 +18,13 @@ export const antdMainThemeConfig: ThemeConfig = {
         // Input border colors for better contrast on white background
         colorBorder: "#d1d5db", // gray-300 - default border color
         colorBorderSecondary: "#e5e7eb", // gray-200 - lighter border
+        // Increase input heights for better usability
+        controlHeight: 40, // Default height increased from 32px to 40px
+        controlHeightSM: 32, // Small size increased from 24px to 32px
+        controlHeightLG: 48, // Large size increased from 40px to 48px
+        // Adjust padding for better proportions with increased height
+        paddingContentHorizontal: 12, // Horizontal padding
+        paddingContentVertical: 8, // Vertical padding
         // colorBgContainer: "green",
     },
     components: {
@@ -39,6 +46,9 @@ export const antdMainThemeConfig: ThemeConfig = {
             // colorBorderHover: "#9ca3af", // gray-400 - hover state
             // colorBorderFocus: "#2563eb", // blue-600 - focus state
             activeBorderColor: "#2563eb", // blue-600 - active state
+            controlHeight: 40, // Ensure consistent height
+            controlHeightSM: 32,
+            controlHeightLG: 48,
         },
         // Select component styling
         Select: {
@@ -46,6 +56,9 @@ export const antdMainThemeConfig: ThemeConfig = {
             // colorBorderHover: "#9ca3af", // gray-400 - hover state
             // colorBorderFocus: "#2563eb", // blue-600 - focus state
             activeBorderColor: "#2563eb", // blue-600 - active state
+            controlHeight: 40, // Ensure consistent height
+            controlHeightSM: 32,
+            controlHeightLG: 48,
         },
         // TextArea component styling
         // TextArea: {
@@ -60,6 +73,9 @@ export const antdMainThemeConfig: ThemeConfig = {
             // colorBorderHover: "#9ca3af", // gray-400 - hover state
             // colorBorderFocus: "#2563eb", // blue-600 - focus state
             activeBorderColor: "#2563eb", // blue-600 - active state
+            controlHeight: 40, // Ensure consistent height
+            controlHeightSM: 32,
+            controlHeightLG: 48,
         },
         // TimePicker component styling
         // TimePicker: {
@@ -74,6 +90,20 @@ export const antdMainThemeConfig: ThemeConfig = {
             // colorBorderHover: "#9ca3af", // gray-400 - hover state
             // colorBorderFocus: "#2563eb", // blue-600 - focus state
             activeBorderColor: "#2563eb", // blue-600 - active state
+            controlHeight: 40, // Ensure consistent height
+            controlHeightSM: 32,
+            controlHeightLG: 48,
+        },
+        // Button component styling for consistent height
+        Button: {
+            controlHeight: 40, // Match input height for visual consistency
+            controlHeightSM: 32,
+            controlHeightLG: 48,
+            paddingContentHorizontal: 16, // Slightly more padding for buttons
+        },
+        // Form component styling
+        Form: {
+            itemMarginBottom: 20, // Increase spacing between form items
         },
     },
 };

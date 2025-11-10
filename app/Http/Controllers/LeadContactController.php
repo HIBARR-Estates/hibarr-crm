@@ -210,8 +210,8 @@ class LeadContactController extends AccountBaseController
     public function show($id, Request $request)
     {
         $this->leadContact = Lead::with([
-            'leadOwner:id,name,email,image_url',
-            'addedBy:id,name,email,image_url',
+            'leadOwner',
+            'addedBy',
             'leadSource:id,type',
             'category:id,category_name',
             'client:id,name,email'
@@ -246,7 +246,7 @@ class LeadContactController extends AccountBaseController
         // Get deals associated with this lead
         $deals = Deal::where('lead_id', $id)
             ->with([
-                'leadAgent.user:id,name,email,image_url',
+                'leadAgent.user',
                 'leadStage:id,name',
                 'pipeline:id,name'
             ])
@@ -254,7 +254,7 @@ class LeadContactController extends AccountBaseController
 
         // Get notes associated with this lead
         $notes = LeadNote::where('lead_id', $id)
-            ->with('addedBy:id,name,email,image_url')
+            ->with('addedBy')
             ->orderBy('created_at', 'desc')
             ->get();
 
