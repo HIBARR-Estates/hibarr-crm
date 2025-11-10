@@ -3,6 +3,7 @@ import PageLayout from "@/Components/PageLayout";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
 import { LEAD_TABLE_COLUMNS } from "@/Features/Leads/Columns";
 import BasicLeadFilterBox from "@/Features/Leads/Filter/BasicLeadFilterBox";
+import AdvancedLeadFilterForm from "@/Features/Leads/Filter/AdvancedLeadFilterForm";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
 import ImportLeads from "@/Features/Leads/ImportLeads";
 import DeleteLead from "@/Features/Leads/DeleteLead";
@@ -11,6 +12,8 @@ import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageFilter from "@/Hooks/usePageFilter";
 import { Lead, LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PaginatedLeadResponse } from "@/Types/api/leads";
+import FilterDrawer from "@/Components/FilterDrawer";
+import ActiveFilters from "@/Components/ActiveFilters";
 import {
     UserOutlined,
     PlusOutlined,
@@ -19,12 +22,13 @@ import {
     EyeOutlined,
     DeleteOutlined,
     ImportOutlined,
+    FilterOutlined,
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import { Button, MenuProps, Table } from "antd";
 import { useState } from "react";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
-import { User } from "@/Types";
+import { User, Country, ClientCategory, Language } from "@/Types";
 
 export interface IndexProps extends PageProps {
     pageTitle: string;
@@ -32,11 +36,20 @@ export interface IndexProps extends PageProps {
     categories: LeadCategory[];
     sources: LeadSource[];
     employees: User[];
-    countries: Array<{ iso: string; nicename: string; iso3: string }>;
+    countries: Country[];
     salutations: Array<{ value: string; label: string }>;
+    clientCategories?: ClientCategory[];
+    languages?: Language[];
 }
 
-const Index = ({ pageTitle, leads }: IndexProps) => {
+const Index = ({
+    pageTitle,
+    leads,
+    countries,
+    salutations,
+    clientCategories = [],
+    languages = [],
+}: IndexProps) => {
     const [importModalOpen, setImportModalOpen] = useState(false);
 
     const {
@@ -49,11 +62,16 @@ const Index = ({ pageTitle, leads }: IndexProps) => {
     // filters and filter handlers
     const {
         filters,
+        drawerOpen,
+        openFilterDrawer,
+        closeFilterDrawer,
         handleQuickFilter,
+        removeFilter,
         handleResetQuickFilters,
         handleResetFilters,
         handleFilterSubmit,
-    } = usePageFilter({ handleClose });
+        clearAllFilters,
+    } = usePageFilter({ handleClose, routeName: "lead-contact.index" });
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -142,6 +160,13 @@ const Index = ({ pageTitle, leads }: IndexProps) => {
                 }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Active Filters */}
+                    <ActiveFilters
+                        filters={filters}
+                        onRemoveFilter={removeFilter}
+                        onClearAll={clearAllFilters}
+                    />
+
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <Button
@@ -169,6 +194,14 @@ const Index = ({ pageTitle, leads }: IndexProps) => {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {/* Advanced Filters Button */}
+                            <Button
+                                icon={<FilterOutlined />}
+                                onClick={openFilterDrawer}
+                            >
+                                Advanced Filters
+                            </Button>
+
                             {/* Bulk Actions - Only show when items are selected */}
                             {selectedEntities.length > 0 && (
                                 <BulkLeadActionSelector
@@ -242,7 +275,26 @@ const Index = ({ pageTitle, leads }: IndexProps) => {
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={lead}
+                countries={countries}
+                categories={clientCategories}
+                salutations={salutations}
+                languages={languages}
             />
+
+            {/* Filter Drawer */}
+            <FilterDrawer
+                open={drawerOpen}
+                onClose={closeFilterDrawer}
+                title="Advanced Lead Filters"
+                filters={filters}
+                onApplyFilters={handleFilterSubmit}
+                onResetFilters={handleResetFilters}
+            >
+                <AdvancedLeadFilterForm
+                    filters={filters}
+                    onFilterChange={handleQuickFilter}
+                />
+            </FilterDrawer>
         </DashboardLayout>
     );
 };

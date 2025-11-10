@@ -23,7 +23,7 @@ export default function FilterBox({
                 {children}
 
                 {/* Reset Filters */}
-                {showReset && onReset && (
+                {/* {showReset && onReset && (
                     <div className="flex items-center py-2 px-3">
                         <Button
                             size="middle"
@@ -35,9 +35,9 @@ export default function FilterBox({
                             Clear Filters
                         </Button>
                     </div>
-                )}
+                )} */}
                 {/* Apply Filters */}
-                <div className="flex items-center py-2 px-3">
+                {/* <div className="flex items-center py-2 px-3">
                     <Button
                         size="middle"
                         icon={<FilterOutlined />}
@@ -46,7 +46,7 @@ export default function FilterBox({
                     >
                         Apply Filters
                     </Button>
-                </div>
+                </div> */}
             </div>
         </form>
     );
@@ -89,7 +89,7 @@ export function SearchFilter({
     onSearch,
 }: SearchFilterProps) {
     return (
-        <div className="flex items-center py-1 px-3 border-r border-gray-200">
+        <div className="flex items-center py-1.5 px-1 border-r border-gray-200">
             <div className="w-full min-w-0 mx-1">
                 <Search
                     placeholder={placeholder}

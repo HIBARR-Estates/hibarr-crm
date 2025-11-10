@@ -2,6 +2,13 @@ import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
 import { Providers } from "./providers";
 
+// Declare global route function
+declare global {
+    interface Window {
+        route: (name: string, params?: any, absolute?: boolean) => string;
+    }
+}
+
 // require.context is a Webpack-specific feature and not available here.
 // If using Vite or another bundler, dynamic imports will work without this.
 // You can safely remove this line.
@@ -83,6 +90,17 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "deals.follow_up_edit": "/account/deals/follow-up-edit/{id}",
         "deals.follow_up_update": "/account/deals/follow-up-update",
         "deals.follow_up_delete": "/account/deals/follow-up-delete/{id}",
+        "deals.follow_up_apply_quick_action":
+            "/account/deals/follow-up-apply-quick-action",
+
+        // Meeting Types routes
+        "meeting-types.index": "/account/meeting-types",
+        "meeting-types.create": "/account/meeting-types/create",
+        "meeting-types.show": "/account/meeting-types/{id}",
+        "meeting-types.edit": "/account/meeting-types/{id}/edit",
+        "meeting-types.store": "/account/meeting-types",
+        "meeting-types.update": "/account/meeting-types/{id}",
+        "meeting-types.destroy": "/account/meeting-types/{id}",
 
         // Deal Notes routes
         "deal-notes.index": "/account/deal-notes",
@@ -105,6 +123,12 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "deal-files.destroy": "/account/deal-files/{id}",
         "deal-files.download": "/account/deal-files/download/{id}",
         "deal-files.layout": "/account/deal-files/layout",
+
+        // Communication Activities routes
+        "api.communication-activities.store":
+            "/api/v1/internal/communication-activities",
+        "api.deals.communication-activities":
+            "/api/v1/internal/deals/{dealId}/communication-activities",
 
         // Proposals routes
         "proposals.index": "/account/proposals",
@@ -259,48 +283,68 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
 };
 
 createInertiaApp({
-    resolve: (name) => {
-        try {
-            // console.log(
-            //     "Attempting to load page:",
-            //     name,
-            //     "from URL:",
-            //     window.location.href
-            // );
-            const component = require(`./Pages/${name}`).default;
-            // console.log("Successfully loaded component:", component);
-            return component;
-        } catch (e) {
-            // console.error("Could not load page:", name, e);
-            // console.error(
-            //     "Full error details:",
-            //     e instanceof Error ? e.message : "Unknown error",
-            //     e instanceof Error ? e.stack : ""
-            // );
-            throw e;
+    resolve: async (name) => {
+        const pages = import.meta.glob("./Pages/**/*.tsx");
+        const importPage = pages[`./Pages/${name}.tsx`];
+        if (!importPage) {
+            throw new Error(`❌ Page not found: ./Pages/${name}.tsx`);
         }
+        const module = await importPage();
+        return (module as any).default;
     },
-    setup({ App, props, el: og }) {
-        // console.log("Setting up Inertia app with element:", og);
-        // console.log("App props:", props);
-
-        // if (!el) {
-        //     console.error('No element found with id "app"');
-        //     return;
-        // }
-        const el = document.getElementById("app");
-        if (!el) {
-            // console.error("❌ Could not find #app element");
-            return;
-        }
-
+    setup({ el, App, props }) {
         const root = createRoot(el);
-        // console.log("Creating React root and rendering...");
         root.render(
             <Providers>
                 <App {...props} />
             </Providers>
         );
-        // console.log("React app rendered successfully");
     },
 });
+
+// createInertiaApp({
+//     resolve: (name) => {
+//         try {
+//             // console.log(
+//             //     "Attempting to load page:",
+//             //     name,
+//             //     "from URL:",
+//             //     window.location.href
+//             // );
+//             const component = require(`./Pages/${name}`).default;
+//             // console.log("Successfully loaded component:", component);
+//             return component;
+//         } catch (e) {
+//             // console.error("Could not load page:", name, e);
+//             // console.error(
+//             //     "Full error details:",
+//             //     e instanceof Error ? e.message : "Unknown error",
+//             //     e instanceof Error ? e.stack : ""
+//             // );
+//             throw e;
+//         }
+//     },
+//     setup({ App, props, el: og }) {
+//         // console.log("Setting up Inertia app with element:", og);
+//         // console.log("App props:", props);
+
+//         // if (!el) {
+//         //     console.error('No element found with id "app"');
+//         //     return;
+//         // }
+//         const el = document.getElementById("app");
+//         if (!el) {
+//             // console.error("❌ Could not find #app element");
+//             return;
+//         }
+
+//         const root = createRoot(el);
+//         // console.log("Creating React root and rendering...");
+//         root.render(
+//             <Providers>
+//                 <App {...props} />
+//             </Providers>
+//         );
+//         // console.log("React app rendered successfully");
+//     },
+// });

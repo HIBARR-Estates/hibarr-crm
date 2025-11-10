@@ -49,6 +49,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DealFollowUp extends BaseModel
 {
     protected $table = 'lead_follow_up';
+    protected $hidden = ["pivot"];
+
 
     protected $fillable = [
         'deal_id',

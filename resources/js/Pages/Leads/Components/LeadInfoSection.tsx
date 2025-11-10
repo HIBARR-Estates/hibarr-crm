@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Lead } from "@/Types/api/leads";
-import { User } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import {
     Descriptions,
@@ -126,7 +125,7 @@ export default function LeadInfoSection({
             children: (
                 <div className="p-6">
                     {/* Header with Avatar and Basic Info */}
-                    <div className="flex items-start space-x-4 mb-6">
+                    <div className="flex items-start gap-x-4 mb-6">
                         <Avatar
                             size={80}
                             src={currentLead?.image_url || lead.image_url}
@@ -140,7 +139,7 @@ export default function LeadInfoSection({
                             <p className="text-gray-600 mb-2">
                                 {currentLead?.client_email || lead.client_email}
                             </p>
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center gap-x-4">
                                 {(currentLead?.mobile_with_phonecode ||
                                     lead.mobile_with_phonecode) !== "--" && (
                                     <span className="flex items-center">
@@ -174,7 +173,7 @@ export default function LeadInfoSection({
 
                         <Descriptions.Item label="Email">
                             {currentLead?.client_email || lead.client_email ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <MailOutlined className="text-gray-400" />
                                     <a
                                         href={`mailto:${
@@ -193,7 +192,7 @@ export default function LeadInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Mobile">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center gap-x-2">
                                 <PhoneOutlined className="text-gray-400" />
                                 <span>
                                     {getMobileNumber(
@@ -240,7 +239,7 @@ export default function LeadInfoSection({
                         {/* Lead Details */}
                         <Descriptions.Item label="Lead Owner">
                             {currentLead?.lead_owner || lead.lead_owner ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <Avatar
                                         size="small"
                                         src={
@@ -467,6 +466,10 @@ export default function LeadInfoSection({
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={currentLead || lead}
+                countries={[]}
+                categories={[]}
+                salutations={[]}
+                languages={[]}
             />
 
             <div>

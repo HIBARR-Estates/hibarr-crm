@@ -1,15 +1,6 @@
 import { Deal } from "@/Types/api/deals";
 import { Link, usePage } from "@inertiajs/react";
-import {
-    Descriptions,
-    Tag,
-    Avatar,
-    Tooltip,
-    Tabs,
-    Button,
-    Dropdown,
-    MenuProps,
-} from "antd";
+import { Descriptions, Tag, Avatar, Tooltip, Tabs, Button, Space } from "antd";
 import {
     UserOutlined,
     MailOutlined,
@@ -66,15 +57,12 @@ export default function DealInfoSection({
     };
 
     // Action menu items
-    const actionItems: MenuProps["items"] = [
+    const actionItems = [
         {
             key: "edit",
-            label: (
-                <span>
-                    <EditOutlined className="mr-2" />
-                    Edit Deal
-                </span>
-            ),
+            icon: <EditOutlined />,
+            tooltip: "Edit Deal",
+            type: "text" as const,
             onClick: () => {
                 handleAction("edit");
             },
@@ -91,12 +79,10 @@ export default function DealInfoSection({
             ? [
                   {
                       key: "delete",
-                      label: (
-                          <span className="text-red-600">
-                              <DeleteOutlined className="mr-2" />
-                              Delete Deal
-                          </span>
-                      ),
+                      icon: <DeleteOutlined />,
+                      tooltip: "Delete Deal",
+                      type: "text" as const,
+                      danger: true,
                       onClick: () => {
                           handleAction("delete");
                       },
@@ -104,8 +90,6 @@ export default function DealInfoSection({
               ]
             : []),
     ];
-
-    console.log(deal?.custom_fields_data);
 
     // Tab items for custom field categories
     const tabItems = [
@@ -147,7 +131,7 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Email">
                             {deal.contact?.client_email ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <MailOutlined className="text-gray-400" />
                                     <a
                                         href={`mailto:${deal.contact.client_email}`}
@@ -163,7 +147,7 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Mobile">
                             {deal.contact ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <PhoneOutlined className="text-gray-400" />
                                     <span>
                                         {getMobileNumber(deal.contact.mobile)}
@@ -188,7 +172,7 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Deal Agent">
                             {deal.lead_agent ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <Avatar
                                         size="small"
                                         src={deal.lead_agent.user?.image_url}
@@ -301,7 +285,15 @@ export default function DealInfoSection({
                                     deal.custom_fields_data?.[
                                         `field_${field.id}`
                                     ];
-                                console.log(value, "on map value");
+                                let span = 1;
+                                // ensuure the span is adjusted for field types that may need more space
+                                if (
+                                    ["textarea", "file", "text"].includes(
+                                        field.type
+                                    )
+                                ) {
+                                    span = 2;
+                                }
 
                                 // Handle different field types
                                 if (field.type === "date" && value) {
@@ -328,6 +320,7 @@ export default function DealInfoSection({
                                     <Descriptions.Item
                                         key={field.id}
                                         label={field.label}
+                                        span={span}
                                     >
                                         {value || (
                                             <span className="text-gray-500">
@@ -365,9 +358,19 @@ export default function DealInfoSection({
                     <h2 className="text-lg font-semibold text-gray-900">
                         Deal Information
                     </h2>
-                    <Dropdown menu={{ items: actionItems }} trigger={["click"]}>
-                        <Button type="text" icon={<MoreOutlined />} />
-                    </Dropdown>
+                    <Space size="small">
+                        {actionItems.map((item) => (
+                            <Tooltip key={item.key} title={item.tooltip}>
+                                <Button
+                                    type={item.type}
+                                    icon={item.icon}
+                                    danger={item.danger}
+                                    onClick={item.onClick}
+                                    size="small"
+                                />
+                            </Tooltip>
+                        ))}
+                    </Space>
                 </div>
 
                 {/* Content */}

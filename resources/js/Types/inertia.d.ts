@@ -1,17 +1,12 @@
 import { PageProps as InertiaPageProps } from "@inertiajs/core";
 import { Currency, TFilter } from "@/Types/common";
+import { AuthType } from ".";
 
 declare module "@inertiajs/core" {
     interface PageProps extends InertiaPageProps {
         filters: TFilter;
 
-        auth: {
-            user: {
-                id: number;
-                name: string;
-                email: string;
-            };
-        };
+        auth: AuthType;
         flash?: {
             success?: string;
             error?: string;

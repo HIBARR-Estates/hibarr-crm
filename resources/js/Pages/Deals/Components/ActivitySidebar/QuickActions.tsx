@@ -1,5 +1,5 @@
 import { Deal } from "@/Types/api/deals";
-import { Button, Tooltip, Dropdown, App } from "antd";
+import { Button, Dropdown, App, Segmented } from "antd";
 import {
     PhoneOutlined,
     MessageOutlined,
@@ -10,10 +10,10 @@ import {
     CalendarOutlined,
     EllipsisOutlined,
 } from "@ant-design/icons";
-import type { MenuProps } from "antd";
+import type { MenuProps, SegmentedProps } from "antd";
 import { useState } from "react";
-import StartConversationModal from "./modals/StartConversationModal";
-import ScheduleMeetingModal from "./modals/ScheduleMeetingModal";
+import StartConversationDrawer from "./modals/StartConversationDrawer";
+import AddFollowup from "../Tabs/followups/AddFollowup";
 
 interface Props {
     deal: Deal;
@@ -25,6 +25,7 @@ export default function QuickActions({ deal, permissions }: Props) {
     const [conversationModalOpen, setConversationModalOpen] = useState(false);
     const [meetingModalOpen, setMeetingModalOpen] = useState(false);
     const [selectedChannelType, setSelectedChannelType] = useState<string>("");
+    const [selectedAction, setSelectedAction] = useState<string | number>("");
 
     const handleQuickAction = (action: string) => {
         const contact = deal.contact;
@@ -85,36 +86,46 @@ export default function QuickActions({ deal, permissions }: Props) {
 
     const primaryActions = [
         {
-            key: "email",
-            icon: <MailOutlined />,
-            color: "#1890ff",
-            title: "Email",
+            value: "email",
+            icon: <MailOutlined style={{ color: "#aaa" }} />,
+            label: "Email",
         },
         {
-            key: "whatsapp",
-            icon: <WhatsAppOutlined />,
-            color: "#25D366",
-            title: "WhatsApp",
+            value: "whatsapp",
+            icon: <WhatsAppOutlined style={{ color: "#25D366" }} />,
+            label: "WhatsApp",
         },
         {
-            key: "phone",
-            icon: <PhoneOutlined />,
-            color: "#52c41a",
-            title: "Call",
+            value: "phone",
+            icon: <PhoneOutlined style={{ color: "#52c41a" }} />,
+            label: "Call",
         },
         {
-            key: "telegram",
-            icon: <MessageOutlined />,
-            color: "#0088cc",
-            title: "Telegram",
+            value: "telegram",
+            icon: <MessageOutlined style={{ color: "#0088cc" }} />,
+            label: "Telegram",
         },
         {
-            key: "instagram",
-            icon: <InstagramOutlined />,
-            color: "#E4405F",
-            title: "Instagram",
+            value: "instagram",
+            icon: <InstagramOutlined style={{ color: "#E4405F" }} />,
+            label: "Instagram",
         },
     ];
+
+    const segmentedOptions: SegmentedProps["options"] = primaryActions.map(
+        (action) => ({
+            value: action.value,
+            icon: action.icon,
+            title: action.label,
+        })
+    );
+
+    const handleSegmentChange = (value: string | number) => {
+        setSelectedAction(value);
+        handleQuickAction(value as string);
+        // Reset selection after a short delay to avoid visual feedback issues
+        setTimeout(() => setSelectedAction(""), 100);
+    };
 
     const secondaryActions: MenuProps["items"] = [
         {
@@ -133,26 +144,21 @@ export default function QuickActions({ deal, permissions }: Props) {
 
     return (
         <>
-            <div className="flex items-center justify-between gap-2 py-1">
-                {/* Primary quick action buttons */}
-                <div className="flex items-center gap-1.5 flex-1">
-                    {primaryActions.map((action) => (
-                        <Tooltip key={action.key} title={action.title}>
-                            <Button
-                                type="text"
-                                shape="circle"
-                                icon={action.icon}
-                                size="large"
-                                className="flex items-center justify-center border border-gray-200 hover:border-blue-400 hover:shadow-sm transition-all duration-200"
-                                // style={{
-                                //     width: 34,
-                                //     height: 34,
-                                //     color: action.color,
-                                // }}
-                                onClick={() => handleQuickAction(action.key)}
-                            />
-                        </Tooltip>
-                    ))}
+            <div className="flex items-center justify-between gap-3 ">
+                {/* Primary actions using Segmented */}
+                <div className="flex-1">
+                    <Segmented
+                        options={segmentedOptions}
+                        value={selectedAction}
+                        onChange={handleSegmentChange}
+                        size="large"
+                        className="w-full"
+                        style={{
+                            backgroundColor: "#fff",
+                            borderRadius: "8px",
+                            border: "1px solid #d9d9d9",
+                        }}
+                    />
                 </div>
 
                 {/* Dropdown for secondary actions */}
@@ -162,18 +168,18 @@ export default function QuickActions({ deal, permissions }: Props) {
                     placement="bottomRight"
                 >
                     <Button
-                        type="text"
+                        // type="text"
                         shape="circle"
                         icon={<EllipsisOutlined />}
                         size="small"
                         className="border border-gray-200 hover:border-blue-400 hover:shadow-sm transition-all duration-200"
-                        style={{ width: 34, height: 34 }}
+                        // style={{ width: 40, height: 40 }}
                     />
                 </Dropdown>
             </div>
 
             {/* Modals */}
-            <StartConversationModal
+            <StartConversationDrawer
                 open={conversationModalOpen}
                 onClose={() => {
                     setConversationModalOpen(false);
@@ -183,7 +189,7 @@ export default function QuickActions({ deal, permissions }: Props) {
                 channelType={selectedChannelType}
             />
 
-            <ScheduleMeetingModal
+            <AddFollowup
                 open={meetingModalOpen}
                 onClose={() => setMeetingModalOpen(false)}
                 deal={deal}

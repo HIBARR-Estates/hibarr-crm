@@ -11,6 +11,7 @@ import { Note } from "@/Types/api/note";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { DealFile } from "@/Types/api/file";
 import { Proposal } from "@/Types/api/proposal";
+import QuickActions from "./Components/ActivitySidebar/QuickActions";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -23,7 +24,6 @@ interface Props extends PageProps {
     files: DealFile[];
     proposals: Proposal[];
     histories: any[];
-    activities: any[];
     consents: any[];
     gdprSetting: any;
     permissions: Record<string, string>;
@@ -42,7 +42,6 @@ export default function Show({
     files,
     proposals,
     histories,
-    activities,
     consents,
     gdprSetting,
     permissions,
@@ -58,7 +57,7 @@ export default function Show({
                     { name: pageTitle },
                 ]}
             >
-                <div className="min-h-screen bg-gray-50 mx-12">
+                <div className="min-h-screen mx-12">
                     <div className="max-w-10xl mx-auto">
                         {/* Page Header */}
                         <div className="mb-6 sm:mb-8">
@@ -93,18 +92,24 @@ export default function Show({
                                         </div>
                                     </div>
                                 </div>
+
+                                <QuickActions
+                                    deal={deal}
+                                    permissions={permissions}
+                                />
                             </div>
                         </div>
 
                         {/* Main Content */}
-                        <Row gutter={[16, 24]} className="">
+                        <Row gutter={[30, 40]} className="">
                             {/* Left Column - Main Content */}
-                            <Col xs={24} lg={18} xl={18}>
+                            <Col xs={24} lg={16} xl={16}>
                                 <div className="flex flex-col gap-y-4 sm:gap-y-6">
                                     {/* Deal Information Card */}
                                     <Card
-                                        className="shadow-sm border-0 rounded-lg overflow-hidden deal-card"
+                                        className="border-0 rounded-lg overflow-hidden deal-card"
                                         bodyStyle={{ padding: 0 }}
+                                        variant="outlined"
                                     >
                                         <DealInfoSection
                                             deal={deal}
@@ -119,8 +124,9 @@ export default function Show({
 
                                     {/* Tabs Section */}
                                     <Card
-                                        className="shadow-sm border-0 rounded-lg overflow-hidden deal-card"
+                                        className="border-0 rounded-lg overflow-hidden deal-card"
                                         bodyStyle={{ padding: 0 }}
+                                        variant="outlined"
                                     >
                                         <DealTabs
                                             deal={deal}
@@ -139,11 +145,10 @@ export default function Show({
                             </Col>
 
                             {/* Right Column - Activities Sidebar */}
-                            <Col xs={24} lg={6} xl={6}>
+                            <Col xs={24} lg={8} xl={8}>
                                 <div className="lg:sticky lg:top-8">
                                     <ActivitySidebar
                                         deal={deal}
-                                        activities={activities}
                                         permissions={permissions}
                                     />
                                 </div>

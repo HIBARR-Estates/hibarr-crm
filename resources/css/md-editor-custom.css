@@ -1,0 +1,98 @@
+/* Custom MDEditor Styles */
+.w-md-editor {
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.w-md-editor:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.w-md-editor-text-container .w-md-editor-text {
+    background-color: #ffffff !important;
+    color: #374151;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 12px;
+    border: none;
+    outline: none;
+}
+
+.w-md-editor-text-container .w-md-editor-text::placeholder {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.w-md-editor-toolbar {
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px;
+}
+
+.w-md-editor-toolbar ul li button {
+    color: #6b7280;
+    border: none;
+    background: transparent;
+    padding: 4px 6px;
+    border-radius: 3px;
+    margin: 1px;
+}
+
+.w-md-editor-toolbar ul li button:hover {
+    background-color: #e5e7eb;
+    color: #2563eb;
+}
+
+.w-md-editor-toolbar ul li button.active {
+    background-color: #dbeafe;
+    color: #2563eb;
+}
+
+.w-md-editor-toolbar ul li.divider {
+    border-right: 1px solid #e5e7eb;
+    margin: 0 4px;
+}
+
+/* Disabled state */
+.w-md-editor[data-disabled="true"] {
+    background-color: #f5f5f5;
+    opacity: 0.7;
+}
+
+.w-md-editor[data-disabled="true"] .w-md-editor-text {
+    background-color: #f5f5f5 !important;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.w-md-editor[data-disabled="true"] .w-md-editor-toolbar {
+    background-color: #f3f4f6;
+    pointer-events: none;
+}
+
+/* Focus styles */
+.w-md-editor-focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+}
+
+/* Custom scrollbar for editor */
+.w-md-editor-text::-webkit-scrollbar {
+    width: 6px;
+}
+
+.w-md-editor-text::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.w-md-editor-text::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.w-md-editor-text::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}

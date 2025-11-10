@@ -75,6 +75,23 @@ class LeadFileController extends AccountBaseController
     /**
      * @param Request $request
      * @param int $id
+     * @return array
+     */
+    public function update(Request $request, $id)
+    {
+        $editPermission = user()->permission('edit_lead_files');
+        $file = DealFile::findOrFail($id);
+        abort_403(!($editPermission == 'all' || ($editPermission == 'added' && $file->added_by == user()->id)));
+
+        $file->description = $request->description;
+        $file->save();
+
+        return Reply::success(__('messages.updateSuccess'));
+    }
+
+    /**
+     * @param Request $request
+     * @param int $id
      * @return array|void
      */
 

@@ -4,28 +4,28 @@ import {
     Button,
     Dropdown,
     MenuProps,
-    Typography,
     Avatar,
     Tooltip,
     Empty,
 } from "antd";
 import {
     MoreOutlined,
-    UserOutlined,
     EyeOutlined,
     EditOutlined,
     DeleteOutlined,
 } from "@ant-design/icons";
-import { Link, usePage } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { Note } from "@/Types/api/note";
 import { ColumnsType } from "antd/es/table";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import { ContentRenderer } from "@/Components/ContentRenderer";
 import AddNote from "./notes/AddNote";
 import EditNote from "./notes/EditNote";
 import DeleteNote from "./notes/DeleteNote";
-
-const { Paragraph } = Typography;
+import ViewNote from "./notes/ViewNote";
+import BulkDealNoteActionSelector from "./notes/bulk/BulkDealNoteActionSelector";
+import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 
 interface Props {
     deal: Deal;
@@ -42,25 +42,46 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
         handleClose,
         selected: note,
     } = useGenericEntityAction<Note>();
+    console.log("notes ....", notes);
 
     const columns: ColumnsType<Note> = [
+        // {
+        //     title: "Title",
+        //     dataIndex: "title",
+        //     key: "title",
+        //     width: "25%",
+        //     render: (text: string, record) => {
+        //         const truncatedTitle =
+        //             text && text.length > 50
+        //                 ? text.substring(0, 50) + "..."
+        //                 : text;
+
+        //         return (
+        //             <Tooltip title={text.length > 50 ? text : undefined}>
+        //                 <span
+        //                     className="cursor-pointer hover:text-blue-600 font-medium"
+        //                     onClick={() => handleAction("view", record)}
+        //                 >
+        //                     {truncatedTitle}
+        //                 </span>
+        //             </Tooltip>
+        //         );
+        //     },
+        // },
         {
-            title: "Note Details",
+            title: "Details",
             dataIndex: "details",
             key: "details",
             width: "50%",
             render: (_, record) => (
                 <div className="max-w-md">
-                    <Paragraph
-                        onClick={() => handleAction("view")}
-                        ellipsis={{
-                            rows: 3,
-                            expandable: false,
-                        }}
-                        className="mb-0 text-sm"
-                    >
-                        {record.details}
-                    </Paragraph>
+                    <ContentRenderer
+                        content={record.details}
+                        maxLength={200}
+                        showFullContent={false}
+                        onClick={() => handleAction("view", record)}
+                        className="text-sm"
+                    />
                 </div>
             ),
         },
@@ -108,16 +129,12 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                               {
                                   key: "view",
                                   label: (
-                                      <Link
-                                          href={route(
-                                              "deal-notes.show",
-                                              record.id
-                                          )}
-                                      >
+                                      <span>
                                           <EyeOutlined className="mr-2" />
                                           View
-                                      </Link>
+                                      </span>
                                   ),
+                                  onClick: () => handleAction("view", record),
                               },
                           ]
                         : []),
@@ -142,7 +159,7 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                                   onClick: () => handleAction("delete", record),
 
                                   label: (
-                                      <span className="text-red-600">
+                                      <span className="">
                                           <DeleteOutlined className="mr-2" />
                                           Delete
                                       </span>
@@ -165,6 +182,10 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
             },
         },
     ];
+
+    // Table row selection
+    const { selectedEntities, rowSelection, clearSelected } =
+        useGenericTableRowSelection<Note>();
 
     return (
         <>
@@ -192,7 +213,18 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                 </div>
             )}
             {notes.length > 0 && (
-                <div className="p-6">
+                <div className="p-6 flex flex-col gap-y-4">
+                    <div className="flex justify-end">
+                        {selectedEntities.length > 0 && (
+                            <BulkDealNoteActionSelector
+                                selectedEntityIds={selectedEntities.map(
+                                    (e) => e.id
+                                )}
+                                clearSelected={() => clearSelected()}
+                            />
+                        )}
+                    </div>
+
                     <Table
                         columns={columns}
                         dataSource={notes}
@@ -200,10 +232,12 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                         pagination={{
                             pageSize: 10,
                             showSizeChanger: true,
-                            showQuickJumper: true,
+                            showQuickJumper: false,
                             showTotal: (total) => `Total ${total} notes`,
                         }}
                         className="notes-table"
+                        size="small"
+                        rowSelection={rowSelection}
                     />
                 </div>
             )}
@@ -213,6 +247,17 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                 onClose={() => handleClose()}
                 deal={deal}
             />
+
+            {/* View Note Modal */}
+            {note && (
+                <ViewNote
+                    open={action === "view"}
+                    onClose={() => handleClose()}
+                    deal={deal}
+                    note={note}
+                    onEdit={() => handleAction("edit", note)}
+                />
+            )}
 
             {/* Edit Note Modal */}
             {note && (

@@ -1,7 +1,8 @@
 import React from "react";
-import { Breadcrumb } from "antd";
-import { Head, Link } from "@inertiajs/react";
+import { Avatar, Breadcrumb, Dropdown, MenuProps, Switch } from "antd";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import { HomeOutlined } from "@ant-design/icons";
+import { PageProps } from "./DashboardLayout";
 
 interface BreadcrumbItem {
     name: string;
@@ -57,11 +58,65 @@ export default function PageLayout({
         })),
     ];
 
+    const { props } = usePage<PageProps>();
+    const { auth, company, appName, sidebar, currentRouteName } = props;
+    const { user } = auth;
+
+    // User dropdown menu
+    const userMenuItems: MenuProps["items"] = [
+        {
+            key: "profile",
+            label: (
+                <a href={route("profile-settings.index")}>Profile Settings</a>
+            ),
+        },
+        {
+            key: "dark-theme",
+            label: (
+                <div className="flex justify-between items-center">
+                    <span>Dark Theme</span>
+                    <Switch
+                        size="small"
+                        checked={user?.dark_theme}
+                        onChange={(checked) => {
+                            // Implement dark theme toggle
+                            // console.log("Toggle dark theme:", checked);
+                        }}
+                    />
+                </div>
+            ),
+        },
+        {
+            type: "divider",
+        },
+        {
+            key: "logout",
+            label: (
+                <span
+                    onClick={() => {
+                        router.post(
+                            route("logout"),
+                            {},
+                            {
+                                onSuccess: () => {
+                                    window.location.href = route("login");
+                                },
+                            }
+                        );
+                    }}
+                    className="w-full text-left cursor-pointer"
+                >
+                    Logout
+                </span>
+            ),
+        },
+    ];
+
     return (
         <>
             <Head title={title} />
 
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-blue-100/20">
                 {/* Page Header/Topbar */}
                 <div className="bg-white border-b border-gray-200 px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -83,6 +138,31 @@ export default function PageLayout({
                                 </div>
                             </div>
                         </div>
+
+                        <Dropdown
+                            menu={{ items: userMenuItems }}
+                            placement="bottomLeft"
+                        >
+                            <div className="flex items-center justify-between cursor-pointer">
+                                <div className="flex items-center gap-x-2">
+                                    <Avatar
+                                        src={user?.image_url}
+                                        size="small"
+                                        alt={user?.name}
+                                    >
+                                        {user?.name?.charAt(0)}
+                                    </Avatar>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium truncate">
+                                            {appName}
+                                        </span>
+                                        <span className="text-xs text-gray-500 truncate">
+                                            {user?.name}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </Dropdown>
                     </div>
                 </div>
 

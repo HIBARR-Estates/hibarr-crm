@@ -971,9 +971,6 @@ class PropertyController extends AccountBaseController
      */
     public function importStore(ImportRequest $request)
     {
-        // log request data for debugging
-        Log::info('B4 Importing properties with request data:', $request->all());
-        
         // Handle file upload first
         $file = $request->file('import_file');
         if (!$file) {
@@ -1007,8 +1004,6 @@ class PropertyController extends AccountBaseController
             'has_heading' => $request->heading == 1,
             'columns' => $request->columns ?? $defaultColumns
         ]);
-        
-        Log::info('After processing import request:', $request->all());
         
         $this->addPropertyPermission = user()->permission('add_property');
         // abort_403(!in_array($this->addPropertyPermission, ['all', 'added']));

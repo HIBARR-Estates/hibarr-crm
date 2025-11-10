@@ -14,7 +14,7 @@ import { DealFile } from "@/Types/api/file";
 import { Proposal } from "@/Types/api/proposal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import AddNote from "./Tabs/notes/AddNote";
-import AddFollowup from "./Tabs/followup/AddFollowup";
+import AddFollowup from "./Tabs/followups/AddFollowup";
 import FileUpload from "./Tabs/files/FileUpload";
 import AddProposal from "./Tabs/proposals/AddProposal";
 import SaveProposal from "./Tabs/proposals/SaveProposal";
@@ -71,12 +71,11 @@ export default function DealTabs({
         if (permissions.view_lead_follow_up !== "none") {
             items.push({
                 key: "follow-up",
-                label: "Follow-up",
+                label: "Meeting",
                 children: (
                     <FollowUpTab
                         deal={deal}
                         followUps={dealFollowUps}
-                        meetingTypes={meetingTypes}
                         permissions={permissions}
                     />
                 ),
@@ -99,19 +98,20 @@ export default function DealTabs({
         }
 
         // Proposals Tab
-        if (permissions.view_lead_proposals !== "none") {
-            items.push({
-                key: "proposals",
-                label: "Proposals",
-                children: (
-                    <ProposalsTab
-                        deal={deal}
-                        proposals={proposals}
-                        permissions={permissions}
-                    />
-                ),
-            });
-        }
+        // TODO: Enable proposals tab when ready
+        // if (permissions.view_lead_proposals !== "none") {
+        //     items.push({
+        //         key: "proposals",
+        //         label: "Proposals",
+        //         children: (
+        //             <ProposalsTab
+        //                 deal={deal}
+        //                 proposals={proposals}
+        //                 permissions={permissions}
+        //             />
+        //         ),
+        //     });
+        // }
 
         // GDPR Tab
         if (gdprSetting?.enable_gdpr) {
@@ -176,7 +176,7 @@ export default function DealTabs({
                                 handleAction("add_follow_up");
                             }}
                         >
-                            Add Follow-up
+                            Add Meeting
                         </Button>
                     );
                 }
@@ -250,7 +250,6 @@ export default function DealTabs({
                 deal={deal}
                 onClose={() => handleClose()}
                 open={action === "add_follow_up"}
-                meetingTypes={meetingTypes}
             />
 
             <Drawer
