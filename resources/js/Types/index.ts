@@ -190,6 +190,7 @@ export interface PropertyShowProps extends PageProps {
 
 export interface User {
     id: number;
+    company_id: number;
     name: string;
     email: string;
     image_url: string;
@@ -203,17 +204,22 @@ export interface User {
     email_verified_at?: string;
     created_at: string;
     updated_at: string;
+    //
+
+    dark_theme: boolean;
+    designation: string;
+    roles: string[];
 }
 export interface FlashMessage {
     type: "success" | "error" | "info" | "warning";
     message: string;
 }
-
+export interface AuthType {
+    user: User;
+}
 export interface AppProps extends PageProps {
     props: {
-        auth: {
-            user: User;
-        };
+        auth: AuthType;
         flash?: FlashMessage;
         errors: Errors & ErrorBag;
         deferred?: Record<string, string[] | undefined>;

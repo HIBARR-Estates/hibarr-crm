@@ -13,6 +13,7 @@ export type TGenericEntityAction =
     | "add_note"
     | "upload_file"
     | "add_proposal"
+    | "reply"
     | "add_file";
 
 export interface IModalProps {

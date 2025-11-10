@@ -113,7 +113,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 items={tabItems}
-                type="card"
+                // type="card"
             />
         </>
     );

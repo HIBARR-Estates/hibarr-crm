@@ -1,3 +1,5 @@
+import { User } from "..";
+
 export interface DealFollowup {
     id: number;
     deal_id: number;
@@ -8,8 +10,8 @@ export interface DealFollowup {
     created_at: string;
     updated_at: string;
     summary_id?: number;
-    added_by?: number;
-    meetingType?: {
+    added_by?: User;
+    meeting_type?: {
         id: number;
         name: string;
     };

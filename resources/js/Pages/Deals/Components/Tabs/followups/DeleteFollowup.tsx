@@ -2,9 +2,11 @@ import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
-import { message } from "antd";
-import React, { useState } from "react";
+import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
+import { ApiResponse } from "@/lib/api/types";
+import { useApiMutate } from "@/lib/api/client";
+import { isLoading } from "@/lib/utils";
 import dayjs from "dayjs";
 
 interface Props extends IModalProps {
@@ -12,38 +14,33 @@ interface Props extends IModalProps {
 }
 
 const DeleteFollowup: React.FC<Props> = ({ followup, onClose, open }) => {
-    const [deleteLoading, setDeleteLoading] = useState(false);
+    const handleCancel = () => {
+        onClose();
+    };
 
-    // Handle single follow-up deletion
-    const handleDeleteFollowup = () => {
-        if (!followup) return;
+    const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
+        route("deals.follow_up_delete", followup?.id),
+        "POST",
+        () => {
+            handleCancel();
+        }
+    );
 
-        setDeleteLoading(true);
-        router.delete(route("deals.follow_up_delete", followup.id), {
+    const onSubmit = () => {
+        mutate(null, {
             onSuccess: () => {
-                message.success("Follow-up deleted successfully");
-                onClose();
-                setDeleteLoading(false);
+                console.log("Follow-up deleted successfully");
                 router.reload();
-            },
-            onError: () => {
-                message.error("Failed to delete follow-up");
-                setDeleteLoading(false);
             },
         });
     };
 
-    const getFollowupDisplayText = () => {
+    const formatFollowupTitle = (followup: DealFollowup) => {
         if (!followup) return "this follow-up";
 
         const date = dayjs(followup.next_follow_up_date).format("MMM DD, YYYY");
-        const meetingType = followup.meetingType?.name;
-
-        if (meetingType) {
-            return `"${meetingType}" scheduled for ${date}`;
-        }
-
-        return `follow-up scheduled for ${date}`;
+        const meetingType = followup.meeting_type?.name || "Meeting";
+        return `"${meetingType} on ${date}"`;
     };
 
     return (
@@ -51,13 +48,15 @@ const DeleteFollowup: React.FC<Props> = ({ followup, onClose, open }) => {
             open={open}
             onClose={onClose}
             onSubmit={{
-                fn: handleDeleteFollowup,
-                loading: deleteLoading,
+                fn: onSubmit,
+                loading: isLoading({ status }),
             }}
             title="Delete Follow-up"
             description={
                 followup
-                    ? `Are you sure you want to delete ${getFollowupDisplayText()}? This action cannot be undone.`
+                    ? `Are you sure you want to delete ${formatFollowupTitle(
+                          followup
+                      )}? This action cannot be undone.`
                     : "Are you sure you want to delete this follow-up? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}

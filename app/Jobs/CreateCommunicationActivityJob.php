@@ -25,6 +25,9 @@ class CreateCommunicationActivityJob implements ShouldQueue
     {
         $this->normalizedData = $normalizedData;
         $this->can_create_deal = $can_create_deal;
+
+        $this->onQueue('communication_activities');
+
     }
 
     /**

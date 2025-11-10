@@ -1,9 +1,13 @@
 import { Deal } from "@/Types/api/deals";
 import { IModalProps } from "@/Types/common";
-import { router, useForm } from "@inertiajs/react";
-import { Drawer, message, Modal } from "antd";
+import { Drawer } from "antd";
 import { useState } from "react";
 import SaveNote from "./SaveNote";
+import { useApiMutate } from "@/lib/api/client";
+import { isLoading } from "@/lib/utils";
+import { ApiResponse } from "@/lib/api/types";
+import { errorFormatter } from "@/lib/api/utils/common";
+import { router } from "@inertiajs/react";
 
 interface SaveNoteFormData {
     title: string;
@@ -16,67 +20,46 @@ interface Props extends IModalProps {
 }
 
 const AddNote: React.FC<Props> = ({ deal, onClose, open }) => {
-    const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<string[]>([]);
 
-    const {
-        data,
-        setData,
-        post,
-        processing,
-        errors: formErrors,
-        reset,
-    } = useForm<SaveNoteFormData>({
-        title: "",
-        details: "",
-        lead_id: deal.id,
-    });
-
-    const handleSubmit = (formData: SaveNoteFormData) => {
-        setSaving(true);
-        setErrors([]);
-
-        // Update the form data first
-        setData({
-            title: formData.title,
-            details: formData.details,
-            lead_id: deal.id,
-        });
-
-        // Use setTimeout to ensure setData has updated the form
-        post(route("deal-notes.store"), {
-            onSuccess: () => {
-                message.success("Note created successfully");
-                reset();
-                setSaving(false);
-                onClose();
-                // Refresh the page to show the new note
-                router.reload();
-            },
-            onError: (errors: any) => {
-                setSaving(false);
-                const errorMessages = Object.values(errors).flat().map(String);
-                setErrors(errorMessages);
-                message.error("Please check the form for errors");
-            },
-        });
-    };
-
     const handleCancel = () => {
-        reset();
         setErrors([]);
         onClose();
     };
 
-    // Combine form errors with manual errors
-    const allErrors = [
-        ...errors,
-        ...Object.values(formErrors).flat().map(String),
-    ];
+    const { mutate, status } = useApiMutate<
+        SaveNoteFormData,
+        null,
+        ApiResponse<null>
+    >(
+        route("deal-notes.store"),
+        "POST",
+
+        () => {
+            handleCancel();
+        }
+    );
+    const onSubmit = (data: SaveNoteFormData) => {
+        mutate(data, {
+            onSuccess: () => {
+                setErrors([]);
+                console.log("was addded note ....");
+                router.reload();
+            },
+            onError: (errorResponse) => {
+                const responseErrors =
+                    errorFormatter(errorResponse)?.errors || [];
+                setErrors((prev) => [
+                    ...prev,
+                    ...Object.values(responseErrors).flat(),
+                ]);
+            },
+        });
+    };
 
     return (
         <Drawer
-            title="Add Deal Note"
+            title="Add Note"
             placement="right"
             size="large"
             open={open}
@@ -85,10 +68,10 @@ const AddNote: React.FC<Props> = ({ deal, onClose, open }) => {
         >
             <SaveNote
                 deal={deal}
-                onSubmit={handleSubmit}
+                onSubmit={onSubmit}
                 onCancel={handleCancel}
-                loading={processing || saving}
-                errors={allErrors}
+                loading={isLoading({ status })}
+                errors={errors}
             />
         </Drawer>
     );

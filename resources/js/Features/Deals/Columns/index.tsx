@@ -60,11 +60,11 @@ export const DEAL_TABLE_COLUMNS = (
                                             {displayName}
                                         </Link>
                                     </Tooltip>
-                                    {isClient && (
+                                    {/* {isClient && (
                                         <Tag color="blue" className="text-xs">
                                             Client
                                         </Tag>
-                                    )}
+                                    )} */}
                                 </div>
                                 {record.contact.company_name && (
                                     <Tooltip

@@ -43,49 +43,50 @@ const Show: React.FC<LeadShowProps> = ({
             key: "profile",
             label: "Profile",
             children: (
-                <div className="max-w-7xl mx-auto">
-                    <Card
-                        className="shadow-sm border-0 rounded-lg overflow-hidden"
-                        bodyStyle={{ padding: 0 }}
-                    >
-                        <LeadInfoSection
-                            lead={lead}
-                            customFieldCategories={customFieldCategories}
-                            fields={fields}
-                            editLeadPermission={editLeadPermission}
-                            deleteLeadPermission={deleteLeadPermission}
-                        />
-                    </Card>
-                </div>
+                <LeadInfoSection
+                    lead={lead}
+                    customFieldCategories={customFieldCategories}
+                    fields={fields}
+                    editLeadPermission={editLeadPermission}
+                    deleteLeadPermission={deleteLeadPermission}
+                />
             ),
         },
         {
             key: "deals",
             label: "Deals",
             children: (
-                <div className="max-w-7xl mx-auto">
-                    <LeadDealsTab
-                        lead={lead}
-                        deals={deals}
-                        permissions={dealPermissions}
-                    />
-                </div>
+                <LeadDealsTab
+                    lead={lead}
+                    deals={deals}
+                    permissions={dealPermissions}
+                />
             ),
         },
         {
             key: "notes",
             label: "Notes",
             children: (
-                <div className="max-w-7xl mx-auto">
-                    <LeadNotesTab
-                        lead={lead}
-                        notes={notes}
-                        permissions={notePermissions}
-                    />
-                </div>
+                <LeadNotesTab
+                    lead={lead}
+                    notes={notes}
+                    permissions={notePermissions}
+                />
             ),
         },
-    ];
+    ].map((item) => ({
+        ...item,
+        children: (
+            <div className="max-w-7xl mx-auto mt-8 mb-12">
+                <Card
+                    className="shadow-sm border-0 rounded-lg overflow-hidden"
+                    bodyStyle={{ padding: 0 }}
+                >
+                    {item.children}
+                </Card>
+            </div>
+        ),
+    }));
 
     return (
         <DashboardLayout>
@@ -97,17 +98,19 @@ const Show: React.FC<LeadShowProps> = ({
                 ]}
                 mainContentClassName=""
             >
-                <Tabs
-                    items={tabItems}
-                    className="lead-tabs"
-                    tabBarStyle={{
-                        paddingLeft: 24,
-                        paddingRight: 24,
-                        marginBottom: 0,
-                        backgroundColor: "#fafafa",
-                        borderBottom: "1px solid #f0f0f0",
-                    }}
-                />
+                <div>
+                    <Tabs
+                        items={tabItems}
+                        className="lead-tabs"
+                        tabBarStyle={{
+                            paddingLeft: 24,
+                            paddingRight: 24,
+                            marginBottom: 0,
+                            backgroundColor: "#fafafa",
+                            borderBottom: "1px solid #f0f0f0",
+                        }}
+                    />
+                </div>
             </PageLayout>
         </DashboardLayout>
     );

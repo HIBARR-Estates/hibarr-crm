@@ -12,7 +12,7 @@ import {
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { useState } from "react";
-import StartConversationModal from "./modals/StartConversationModal";
+import StartConversationDrawer from "./modals/StartConversationDrawer";
 import ScheduleMeetingModal from "./modals/ScheduleMeetingModal";
 
 interface Props {
@@ -206,7 +206,7 @@ export default function QuickActions2({ deal, permissions }: Props) {
             </Card>
 
             {/* Modals */}
-            <StartConversationModal
+            <StartConversationDrawer
                 open={conversationModalOpen}
                 onClose={() => {
                     setConversationModalOpen(false);

@@ -12,11 +12,13 @@ export default function HistoryTab({ deal, histories }: Props) {
     const columns = [
         {
             title: "Activity",
-            dataIndex: "details",
-            key: "details",
+            dataIndex: "event_type",
+            key: "event_type",
             width: "50%",
-            render: (details: string) => (
-                <div className="text-sm text-gray-900">{details}</div>
+            render: (event_type: string) => (
+                <div className="text-sm text-gray-900 capitalize">
+                    {event_type.split("-").join(" ")}
+                </div>
             ),
         },
         {
@@ -25,7 +27,7 @@ export default function HistoryTab({ deal, histories }: Props) {
             key: "added_by",
             width: "25%",
             render: (addedBy: any) => (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center  gap-x-2">
                     <Avatar
                         size="small"
                         src={addedBy?.image}
@@ -75,6 +77,7 @@ export default function HistoryTab({ deal, histories }: Props) {
                     showTotal: (total) => `Total ${total} activities`,
                 }}
                 className="history-table"
+                size="small"
             />
         </div>
     );

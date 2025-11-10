@@ -1,10 +1,11 @@
 import { Deal } from "@/Types/api/deals";
 import { IModalProps } from "@/Types/common";
-import { router } from "@inertiajs/react";
-import { Modal, message, Upload, Button } from "antd";
+import { useFormDataMutate } from "@/lib/api/client/useFormDataMutate";
+import { Modal, Upload, Button } from "antd";
 import { InboxOutlined, UploadOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import type { UploadProps, UploadFile } from "antd";
+import { ApiResponse } from "@/lib/api/types";
 
 const { Dragger } = Upload;
 
@@ -13,14 +14,30 @@ interface Props extends IModalProps {
     onFileUploaded?: () => void;
 }
 
+interface FileUploadResponse {
+    message: string;
+}
+
 const FileUpload: React.FC<Props> = ({
     deal,
     onClose,
     open,
     onFileUploaded,
 }) => {
-    const [uploading, setUploading] = useState(false);
     const [fileList, setFileList] = useState<UploadFile[]>([]);
+
+    const uploadMutation = useFormDataMutate<
+        FileUploadResponse,
+        ApiResponse<FileUploadResponse>
+    >(route("deal-files.store"), "POST", (response) => {
+        if (response?.status === "success") {
+            setFileList([]);
+            onClose();
+            if (onFileUploaded) {
+                onFileUploaded();
+            }
+        }
+    });
 
     const uploadProps: UploadProps = {
         name: "file",
@@ -42,11 +59,8 @@ const FileUpload: React.FC<Props> = ({
 
     const handleUpload = async () => {
         if (fileList.length === 0) {
-            message.warning("Please select files to upload");
             return;
         }
-
-        setUploading(true);
 
         const formData = new FormData();
         fileList.forEach((file) => {
@@ -54,36 +68,7 @@ const FileUpload: React.FC<Props> = ({
         });
         formData.append("lead_id", deal.id.toString());
 
-        try {
-            const response = await fetch(route("deal-files.store"), {
-                method: "POST",
-                headers: {
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") || "",
-                },
-                body: formData,
-            });
-
-            if (response.ok) {
-                message.success("Files uploaded successfully");
-                setFileList([]);
-                onClose();
-                router.reload(); // Refresh to show new files
-                if (onFileUploaded) {
-                    onFileUploaded();
-                }
-            } else {
-                const error = await response.json();
-                message.error(error.message || "Failed to upload files");
-            }
-        } catch (error) {
-            message.error("Failed to upload files");
-            console.error("Upload error:", error);
-        } finally {
-            setUploading(false);
-        }
+        uploadMutation.mutate(formData);
     };
 
     const handleCancel = () => {
@@ -100,7 +85,7 @@ const FileUpload: React.FC<Props> = ({
                 <Button
                     key="cancel"
                     onClick={handleCancel}
-                    disabled={uploading}
+                    disabled={uploadMutation.isPending}
                 >
                     Cancel
                 </Button>,
@@ -108,11 +93,11 @@ const FileUpload: React.FC<Props> = ({
                     key="upload"
                     type="primary"
                     icon={<UploadOutlined />}
-                    loading={uploading}
+                    loading={uploadMutation.isPending}
                     onClick={handleUpload}
                     disabled={fileList.length === 0}
                 >
-                    {uploading ? "Uploading..." : "Upload Files"}
+                    {uploadMutation.isPending ? "Uploading..." : "Upload Files"}
                 </Button>,
             ]}
             destroyOnClose

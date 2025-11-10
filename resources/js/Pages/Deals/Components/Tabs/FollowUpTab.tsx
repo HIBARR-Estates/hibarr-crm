@@ -15,29 +15,30 @@ import {
     DeleteOutlined,
     VideoCameraOutlined as VideoCallOutlined,
     CalendarOutlined,
+    PlusOutlined,
+    EyeOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { ColumnsType } from "antd/es/table";
 import { usePage } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
-import AddFollowup from "./followup/AddFollowup";
-import EditFollowup from "./followup/EditFollowup";
-import DeleteFollowup from "./followup/DeleteFollowup";
+import { ContentRenderer } from "@/Components/ContentRenderer";
+import AddFollowup from "./followups/AddFollowup";
+import EditFollowup from "./followups/EditFollowup";
+import DeleteFollowup from "./followups/DeleteFollowup";
+import ViewFollowup from "./followups/ViewFollowup";
+import BulkFollowupActionSelector from "./followups/bulk/BulkFollowupActionSelector";
+import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
+import { getStatusColor } from "@/lib/utils";
 
 interface Props {
     deal: Deal;
     followUps: DealFollowup[];
-    meetingTypes: Array<{ id: number; name: string; color?: string }>;
     permissions: Record<string, string>;
 }
 
-export default function FollowUpTab({
-    deal,
-    followUps,
-    meetingTypes,
-    permissions,
-}: Props) {
+export default function FollowUpTab({ deal, followUps, permissions }: Props) {
     const { props } = usePage();
     const user = props.auth.user;
     const {
@@ -102,15 +103,19 @@ export default function FollowUpTab({
             dataIndex: "next_follow_up_date",
             key: "next_follow_up_date",
             width: "20%",
-            render: (_, { next_follow_up_date: date }) => (
-                <div className="flex items-center space-x-2">
-                    <CalendarOutlined className="text-gray-400" />
+            render: (_, record) => (
+                <div
+                    className="flex items-center space-x-2 cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={() => handleAction("view", record)}
+                >
                     <div>
                         <div className="font-medium">
-                            {dayjs(date).format("MMM DD, YYYY")}
+                            {dayjs(record.next_follow_up_date).format(
+                                "MMM DD, YYYY"
+                            )}
                         </div>
                         <div className="text-sm text-gray-500">
-                            {dayjs(date).format("h:mm A")}
+                            {dayjs(record.next_follow_up_date).format("h:mm A")}
                         </div>
                     </div>
                 </div>
@@ -122,8 +127,8 @@ export default function FollowUpTab({
             key: "meeting_type",
             width: "15%",
             render: (_, record) =>
-                record.meetingType?.name ? (
-                    <Tag color="blue">{record.meetingType.name}</Tag>
+                record.meeting_type?.name ? (
+                    <Tag color="blue">{record.meeting_type.name}</Tag>
                 ) : (
                     <span className="text-gray-500">--</span>
                 ),
@@ -135,11 +140,14 @@ export default function FollowUpTab({
             width: "25%",
             render: (_, { remark: summary }) =>
                 summary ? (
-                    <Tooltip title={summary}>
-                        <div className="max-w-xs truncate text-sm">
-                            {summary}
-                        </div>
-                    </Tooltip>
+                    <div className="max-w-xs">
+                        <ContentRenderer
+                            content={summary}
+                            maxLength={150}
+                            showFullContent={false}
+                            className="text-sm"
+                        />
+                    </div>
                 ) : (
                     <span className="text-gray-500">--</span>
                 ),
@@ -157,16 +165,11 @@ export default function FollowUpTab({
             key: "status",
             width: "10%",
             render: (_, { status }) => {
-                const statusConfig = {
-                    completed: { color: "green", text: "Completed" },
-                    incomplete: { color: "orange", text: "Pending" },
-                    cancelled: { color: "red", text: "Cancelled" },
-                };
-                const config = statusConfig[
-                    status as keyof typeof statusConfig
-                ] || { color: "default", text: status };
-
-                return <Tag color={config.color}>{config.text}</Tag>;
+                return (
+                    <Tag color={getStatusColor(status)} className="capitalize">
+                        {status}
+                    </Tag>
+                );
             },
         },
 
@@ -175,17 +178,38 @@ export default function FollowUpTab({
             key: "actions",
             width: "5%",
             render: (_, record) => {
+                if (!record.added_by) {
+                    return null;
+                }
+                const canView =
+                    permissions.view_lead_follow_up === "all" ||
+                    (permissions.view_lead_follow_up === "added" &&
+                        record.added_by?.id === user?.id);
                 const canEdit =
                     permissions.edit_lead_follow_up === "all" ||
                     (permissions.edit_lead_follow_up === "added" &&
-                        record.added_by === user?.id);
+                        record.added_by?.id === user?.id);
 
                 const canDelete =
                     permissions.delete_lead_follow_up === "all" ||
                     (permissions.delete_lead_follow_up === "added" &&
-                        record.added_by === user?.id);
+                        record.added_by?.id === user?.id);
 
                 const menuItems: MenuProps["items"] = [
+                    ...(canView
+                        ? [
+                              {
+                                  key: "view",
+                                  label: (
+                                      <span>
+                                          <EyeOutlined className="mr-2" />
+                                          View
+                                      </span>
+                                  ),
+                                  onClick: () => handleAction("view", record),
+                              },
+                          ]
+                        : []),
                     ...(canEdit
                         ? [
                               {
@@ -208,7 +232,7 @@ export default function FollowUpTab({
                                       handleAction("delete", record);
                                   },
                                   label: (
-                                      <span className="text-red-600">
+                                      <span className="">
                                           <DeleteOutlined className="mr-2" />
                                           Delete
                                       </span>
@@ -232,6 +256,10 @@ export default function FollowUpTab({
         },
     ];
 
+    // Table row selection
+    const { selectedEntities, rowSelection, clearSelected } =
+        useGenericTableRowSelection<DealFollowup>();
+
     return (
         <>
             {followUps.length === 0 && (
@@ -249,9 +277,10 @@ export default function FollowUpTab({
                                     deal.lead_stage?.slug !== "lost" && (
                                         <Button
                                             type="primary"
+                                            icon={<PlusOutlined />}
                                             onClick={() => handleAction("add")}
                                         >
-                                            Create First Follow-up
+                                            Schedule Meeting
                                         </Button>
                                     )}
                             </div>
@@ -260,7 +289,17 @@ export default function FollowUpTab({
                 </div>
             )}
             {followUps.length > 0 && (
-                <div className="p-6">
+                <div className="p-6 flex flex-col gap-y-4">
+                    <div className="flex justify-end">
+                        {selectedEntities.length > 0 && (
+                            <BulkFollowupActionSelector
+                                selectedEntityIds={selectedEntities.map(
+                                    (e) => e.id
+                                )}
+                                clearSelected={() => clearSelected()}
+                            />
+                        )}
+                    </div>
                     <Table
                         columns={columns}
                         dataSource={followUps}
@@ -272,6 +311,8 @@ export default function FollowUpTab({
                             showTotal: (total) => `Total ${total} follow-ups`,
                         }}
                         className="follow-ups-table"
+                        size="small"
+                        rowSelection={rowSelection}
                     />
                 </div>
             )}
@@ -280,7 +321,6 @@ export default function FollowUpTab({
                 open={action === "add"}
                 onClose={() => handleClose()}
                 deal={deal}
-                meetingTypes={meetingTypes}
             />
 
             {/* Edit Follow-up Modal */}
@@ -290,7 +330,6 @@ export default function FollowUpTab({
                     onClose={() => handleClose()}
                     deal={deal}
                     followup={followUp}
-                    meetingTypes={meetingTypes}
                 />
             )}
 
@@ -300,6 +339,16 @@ export default function FollowUpTab({
                 onClose={() => handleClose()}
                 followup={followUp}
             />
+
+            {/* View Follow-up Modal */}
+            {followUp && (
+                <ViewFollowup
+                    open={action === "view"}
+                    onClose={() => handleClose()}
+                    followup={followUp}
+                    deal={deal}
+                />
+            )}
         </>
     );
 }
