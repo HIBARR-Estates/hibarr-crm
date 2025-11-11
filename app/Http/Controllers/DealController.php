@@ -109,8 +109,7 @@ class DealController extends AccountBaseController
             'deals.updated_at',
             'deals.currency_id',
             'deals.category_id'
-        )
-        ->orderBy('deals.created_at', 'desc');
+        );
         
         // Apply filters from request
         if ($request->filled('search')) {
@@ -165,6 +164,36 @@ class DealController extends AccountBaseController
                           $q->where('users.id', user()->id);
                       });
             });
+        }
+        
+        // Apply sorting if specified
+        if ($request->filled('sort_by')) {
+            $sortBy = $request->sort_by;
+            $sortDirection = $request->get('sort_direction', 'asc');
+            
+            // Validate sort direction
+            if (!in_array($sortDirection, ['asc', 'desc'])) {
+                $sortDirection = 'asc';
+            }
+            
+            // Map frontend sort fields to database columns
+            $sortMapping = [
+                'name' => 'deals.name',
+                'value' => 'deals.value',
+                'next_follow_up_date' => 'deals.next_follow_up',
+                'created_at' => 'deals.created_at',
+                'updated_at' => 'deals.updated_at',
+            ];
+            
+            if (isset($sortMapping[$sortBy])) {
+                $dealsQuery->orderBy($sortMapping[$sortBy], $sortDirection);
+            } else {
+                // Default fallback
+                $dealsQuery->orderBy('deals.created_at', 'desc');
+            }
+        } else {
+            // Default sorting when no sort is specified
+            $dealsQuery->orderBy('deals.created_at', 'desc');
         }
         
         $paginatedDeals = $dealsQuery->paginate($request->get('per_page', 15));

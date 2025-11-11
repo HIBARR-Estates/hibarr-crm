@@ -199,7 +199,7 @@ const Index = ({
                                 icon={<FilterOutlined />}
                                 onClick={openFilterDrawer}
                             >
-                                Advanced Filters
+                                Filters
                             </Button>
 
                             {/* Bulk Actions - Only show when items are selected */}
