@@ -32,18 +32,24 @@ const PageDataSorter: React.FC<PageDataSorterProps> = ({
             onClick={handleClick}
         >
             <CaretUpOutlined
-                className={`text-xs -mb-1 ${
-                    isActive && sortDirection === "asc"
-                        ? "text-blue-500"
-                        : "text-gray-400 hover:text-gray-600"
-                }`}
+                className={`text-xs -mb-1 hover:opacity-50`}
+                style={{
+                    color: `${
+                        isActive && sortDirection === "asc"
+                            ? "#3b82f6"
+                            : "#6b7280"
+                    }`,
+                }}
             />
             <CaretDownOutlined
-                className={`text-xs ${
-                    isActive && sortDirection === "desc"
-                        ? "text-blue-500"
-                        : "text-gray-400 hover:text-gray-600"
-                }`}
+                className={`text-xs hover:opacity-50`}
+                style={{
+                    color: `${
+                        isActive && sortDirection === "desc"
+                            ? "#3b82f6"
+                            : "#6b7280"
+                    }`,
+                }}
             />
         </span>
     );
