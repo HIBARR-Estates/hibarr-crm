@@ -9,12 +9,18 @@ import {
 } from "@ant-design/icons";
 import { Deal } from "@/Types/api/deals";
 import dayjs from "dayjs";
+import PageDataSorter from "@/Components/PageDataSorter";
 
 export const DEAL_TABLE_COLUMNS = (
     actionItems?: (item: Deal) => MenuProps["items"]
 ): ColumnsType<Deal> => [
     {
-        title: "Deal & Lead",
+        title: (
+            <span className="flex items-center">
+                Deal & Lead
+                <PageDataSorter field="name" routeName="deals.index" />
+            </span>
+        ),
         dataIndex: "name",
         key: "deal_lead",
         width: 280,
@@ -152,7 +158,12 @@ export const DEAL_TABLE_COLUMNS = (
         },
     },
     {
-        title: "Deal Value",
+        title: (
+            <span className="flex items-center">
+                Deal Value
+                <PageDataSorter field="value" routeName="deals.index" />
+            </span>
+        ),
         dataIndex: "value",
         key: "value",
         width: 120,
@@ -199,7 +210,15 @@ export const DEAL_TABLE_COLUMNS = (
     },
 
     {
-        title: "Next Follow Up",
+        title: (
+            <span className="flex items-center">
+                Next Follow Up
+                <PageDataSorter
+                    field="next_follow_up_date"
+                    routeName="deals.index"
+                />
+            </span>
+        ),
         dataIndex: "next_follow_up_date",
         key: "next_follow_up_date",
         width: 150,

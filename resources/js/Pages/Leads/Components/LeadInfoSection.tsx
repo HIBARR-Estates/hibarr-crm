@@ -10,6 +10,8 @@ import {
     MenuProps,
     Tag,
     Divider,
+    Space,
+    Tooltip,
 } from "antd";
 import {
     EditOutlined,
@@ -27,6 +29,7 @@ import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
 import DeleteLead from "@/Features/Leads/DeleteLead";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import dayjs from "dayjs";
+import { icons } from "antd/es/image/PreviewGroup";
 
 interface Props {
     lead: Lead;
@@ -76,41 +79,36 @@ export default function LeadInfoSection({
     };
 
     // Action menu items
-    const actionItems: MenuProps["items"] = [
+    const actionItems = [
         ...(canEdit
             ? [
                   {
                       key: "edit",
-                      label: (
-                          <span>
-                              <EditOutlined className="mr-2" />
-                              Edit Lead
-                          </span>
-                      ),
+                      tooltip: "Edit Lead",
+                      type: "text" as const,
+                      icon: <EditOutlined />,
+                      label: <span>Edit Lead</span>,
                       onClick: () => handleAction("edit", lead),
                   },
               ]
             : []),
         {
             key: "convert",
-            label: (
-                <span>
-                    <UserOutlined className="mr-2" />
-                    Convert to Client
-                </span>
-            ),
+            tooltip: "Convert to Client",
+            type: "text" as const,
+            icon: <UserOutlined />,
+            label: <span>Convert to Client</span>,
             onClick: () => handleAction("change_to_client", lead),
         },
         ...(canDelete
             ? [
                   {
                       key: "delete",
-                      label: (
-                          <span className="text-red-600">
-                              <DeleteOutlined className="mr-2" />
-                              Delete Lead
-                          </span>
-                      ),
+                      tooltip: "Delete Lead",
+                      type: "text" as const,
+                      icon: <DeleteOutlined />,
+                      danger: true,
+                      label: <span className="text-red-600">Delete Lead</span>,
                       onClick: () => handleAction("delete", lead),
                   },
               ]
@@ -466,10 +464,6 @@ export default function LeadInfoSection({
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={currentLead || lead}
-                countries={[]}
-                categories={[]}
-                salutations={[]}
-                languages={[]}
             />
 
             <div>
@@ -478,9 +472,19 @@ export default function LeadInfoSection({
                     <h2 className="text-lg font-semibold text-gray-900">
                         Lead Information
                     </h2>
-                    <Dropdown menu={{ items: actionItems }} trigger={["click"]}>
-                        <Button type="text" icon={<MoreOutlined />} />
-                    </Dropdown>
+                    <Space size="small">
+                        {actionItems.map((item) => (
+                            <Tooltip key={item.key} title={item.tooltip}>
+                                <Button
+                                    type={item.type}
+                                    icon={item.icon}
+                                    danger={item.danger}
+                                    onClick={item.onClick}
+                                    size="small"
+                                />
+                            </Tooltip>
+                        ))}
+                    </Space>
                 </div>
 
                 {/* Content */}

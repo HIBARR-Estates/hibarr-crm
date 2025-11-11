@@ -20,6 +20,7 @@ import {
 } from "@ant-design/icons";
 import { Lead, Country, ClientCategory, Salutation, Language } from "@/Types";
 import PhoneInput from "@/Components/PhoneInput";
+import { usePage } from "@inertiajs/react";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -28,7 +29,6 @@ interface Props {
     form: any;
     lead?: Lead;
     employees: any[];
-    countries: Country[];
     categories: ClientCategory[];
     salutations: { value: string; label: string }[];
     languages: Language[];
@@ -44,12 +44,14 @@ const AccountDetailsTab: React.FC<Props> = ({
     form,
     lead,
     employees,
-    countries,
     categories,
     salutations,
     languages,
     permissions,
 }) => {
+    const { props } = usePage();
+    const { countries = [] } = props as { countries: Country[] };
+
     const [passwordVisible, setPasswordVisible] = useState(false);
     const [selectedCountry, setSelectedCountry] = useState<Country | null>(
         null
@@ -190,13 +192,11 @@ const AccountDetailsTab: React.FC<Props> = ({
                         </Col>
 
                         <Col span={8}>
-                            <Form.Item name="mobile" label="Mobile">
-                                <PhoneInput
-                                    countries={countries}
-                                    defaultCountry={selectedCountry}
-                                    fieldName="mobile"
-                                />
-                            </Form.Item>
+                            <PhoneInput
+                                fieldName="mobile"
+                                showLabel={true}
+                                label="Mobile"
+                            />
                         </Col>
                     </Row>
                 </Col>
