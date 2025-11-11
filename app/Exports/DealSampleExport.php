@@ -64,6 +64,20 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
             'subscription@example.com',
         ];
         
+        $leadNames = [
+            'Bennie Wunsch',
+            'Dayne Towne V',
+            'Mrs. Willow Keeling',
+            'Freida Veum',
+            'Prof. Maxwell Strosin',
+            'Mr. Alfredo Hirthe III',
+            'Camille Legros DDS',
+            'John Enterprise',
+            'Sarah Marketing',
+            'Mike Consulting',
+            'Anna Subscription',
+        ];
+        
         $values = [46787, 69230, 32044, 38321, 15840, 73958, 71490, 25556, 3185, 76817, 70298];
         
         // Get default pipeline
@@ -91,6 +105,7 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
             $row = [
                 $dealName,                                      // Deal Name
                 $emails[$index],                               // Lead Contact Email
+                $leadNames[$index],                            // Lead Name
                 $pipelineName,                                 // Pipeline
                 number_format($values[$index], 2, '.', ''),   // Value
                 now()->addDays(rand(1, 30))->format('Y-m-d'), // Close Date
@@ -114,6 +129,18 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                 $index % 2 ? 'Yes' : 'No',                   // Registered for Zoom
                 now()->subDays(rand(1, 30))->format('Y-m-d'), // Last Webinar Date
                 rand(50, 100),                               // Contact Score
+                
+                // Hibarr Deal Custom Fields
+                $index % 3 == 0 ? 'Beachfront Property' : ($index % 3 == 1 ? 'Mountain View' : 'City Center'), // Interested In
+                'Looking for investment property',                                                              // Motivation/Comment
+                ['Immediate', '3-6 months', '6-12 months', '12+ months'][$index % 4],                        // Purchase Timeline
+                ['$200k-$300k', '$300k-$500k', '$500k-$1M', '$1M+'][$index % 4],                            // Budget Range
+                $index % 2 ? 'Yes' : 'No',                                                                     // Strategy Meeting Booked
+                $index % 3 ? 'Yes' : 'No',                                                                     // Downpayment Paid
+                $index % 2 ? now()->addDays(rand(5, 20))->format('Y-m-d') : '',                              // Inspection Trip Date
+                '',                                                                                             // Deposit Confirmation
+                '',                                                                                             // Reservation Agreement
+                '',                                                                                             // Sales Contract
             ];
             
             // Add sample data for custom fields
@@ -206,6 +233,7 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
         $headings = [
             'deal_name',
             'lead_contact_email',
+            'lead_name',
             'pipeline',
             'deal_value',
             'close_date',
@@ -229,6 +257,18 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
             'registered_for_zoom_meeting',
             'last_webinar_date',
             'contact_score',
+            
+            // Hibarr Deal Custom Fields
+            'interested_in',
+            'motivation',
+            'purchase_timeline',
+            'budget_range',
+            'strategy_meeting_booked',
+            'downpayment_paid',
+            'inspection_trip_date',
+            'deposit_confirmation',
+            'reservation_agreement',
+            'sales_contract',
         ];
 
         // Add custom field headings using slugified labels (to match import field IDs)
@@ -248,8 +288,8 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
     public function columnFormats(): array
     {
         return [
-            'D' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1, // Deal Value column
-            'E' => NumberFormat::FORMAT_DATE_YYYYMMDD2,          // Close Date column
+            'E' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1, // Deal Value column
+            'F' => NumberFormat::FORMAT_DATE_YYYYMMDD2,          // Close Date column
         ];
     }
 
@@ -287,6 +327,7 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                 $headerLabels = [
                     'deal_name' => 'Deal Name',
                     'lead_contact_email' => 'Lead Contact Email',
+                    'lead_name' => 'Lead Name',
                     'pipeline' => 'Pipeline',
                     'deal_value' => 'Deal Value',
                     'close_date' => 'Close Date',
@@ -310,6 +351,18 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                     'registered_for_zoom_meeting' => 'Registered for Zoom Meeting',
                     'last_webinar_date' => 'Last Webinar Date',
                     'contact_score' => 'Contact Score',
+                    
+                    // Hibarr Deal Custom Field labels
+                    'interested_in' => 'Interested In',
+                    'motivation_comment' => 'Motivation/Comment',
+                    'purchase_timeline' => 'Purchase Timeline',
+                    'budget_range' => 'Budget Range',
+                    'strategy_meeting_booked' => 'Strategy Meeting Booked',
+                    'downpayment_paid' => 'Downpayment Paid',
+                    'inspection_trip_date' => 'Inspection Trip Date',
+                    'deposit_confirmation' => 'Deposit Confirmation',
+                    'reservation_agreement' => 'Reservation Agreement',
+                    'sales_contract' => 'Sales Contract',
                 ];
                 
                 // Add custom field labels

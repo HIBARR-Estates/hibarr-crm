@@ -20,15 +20,18 @@ use Illuminate\Support\Facades\DB;
 class ImportDealJob implements ShouldQueue
 {
 
-    use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels, UniversalSearchTrait;
+    use Batchable, Dispatchable, InteractsWithQueue, Queueable, UniversalSearchTrait;
     use ExcelImportable;
 
-    private $row;
-    private $columns;
-    private $company;
-    private $pipelineId;
+    public $timeout = 300; // 5 minutes per job
+    public $tries = 3;
+
+    public $row;
+    public $columns;
+    private $companyId;
+    public $pipelineId;
     
-    // Cache for common lookups to avoid repeated queries
+    // Static caches - private to prevent serialization
     private static $pipelinesCache = [];
     private static $customFieldsCache = [];
     private static $usersCache = [];
@@ -39,12 +42,28 @@ class ImportDealJob implements ShouldQueue
      *
      * @return void
      */
-    public function __construct($row, $columns, $company = null, $userId = null, $pipelineId = null)
+    public function __construct($row, $columns, $companyId = null, $userId = null, $pipelineId = null)
     {
         $this->row = $row;
         $this->columns = $columns;
-        $this->company = $company;
+        $this->companyId = $companyId;
         $this->pipelineId = $pipelineId;
+    }
+    
+    /**
+     * Get company instance from ID
+     *
+     * @return \App\Models\Company|null
+     */
+    private function getCompany()
+    {
+        static $companyInstance = null;
+        
+        if ($companyInstance === null && $this->companyId) {
+            $companyInstance = \App\Models\Company::find($this->companyId);
+        }
+        
+        return $companyInstance;
     }
 
     /**
@@ -54,6 +73,9 @@ class ImportDealJob implements ShouldQueue
      */
     public function handle()
     {
+        // Clear static caches periodically to prevent memory buildup
+        $this->clearCachesIfNeeded();
+        
         // Validate required columns
         if (
             !$this->isColumnExists('lead_contact_email') ||
@@ -99,7 +121,7 @@ class ImportDealJob implements ShouldQueue
                 $deal->pipeline_stage_id = $stageData['stage_id'];
                 $deal->close_date = Carbon::parse($this->getColumnValue('close_date'))->format('Y-m-d');
                 $deal->value = ($this->getColumnValue('deal_value')) ?: 0;
-                $deal->currency_id = $this->company->currency_id;
+                $deal->currency_id = $this->getCompany()->currency_id;
                 
                 if ($agentId) {
                     $deal->agent_id = $agentId;
@@ -150,16 +172,23 @@ class ImportDealJob implements ShouldQueue
         
         $lead = Lead::withoutGlobalScopes()
             ->where('client_email', $email)
-            ->where('company_id', $this->company?->id)
+            ->where('company_id', $this->companyId)
             ->first();
 
         if (!$lead) {
             // Wrap lead creation in transaction
             $lead = DB::transaction(function () use ($email) {
                 $lead = new Lead();
-                $lead->company_id = $this->company?->id;
+                $lead->company_id = $this->companyId;
                 $lead->client_email = $email;
-                $lead->client_name = $this->getColumnValue('deal_name');
+                
+                // Use lead_name if provided, otherwise fall back to deal_name
+                if ($this->isColumnExists('lead_name') && $this->getColumnValue('lead_name')) {
+                    $lead->client_name = $this->getColumnValue('lead_name');
+                } else {
+                    $lead->client_name = $this->getColumnValue('deal_name');
+                }
+                
                 $lead->status_id = 1;
                 $lead->column_priority = 0;
                 $lead->added_by = user()?->id;
@@ -213,13 +242,13 @@ class ImportDealJob implements ShouldQueue
      */
     private function getStageById($stageId)
     {
-        $cacheKey = $this->company->id . '_stage_id_' . $stageId . '_' . ($this->pipelineId ?? 'all');
+        $cacheKey = $this->companyId . '_stage_id_' . $stageId . '_' . ($this->pipelineId ?? 'all');
 
         if (!isset(self::$pipelinesCache[$cacheKey])) {
             $query = \App\Models\PipelineStage::withoutGlobalScopes()
                 ->select('id', 'name', 'lead_pipeline_id')
                 ->whereHas('pipeline', function ($query) {
-                    $query->where('company_id', $this->company?->id);
+                    $query->where('company_id', $this->companyId);
                 })
                 ->where('id', $stageId);
 
@@ -252,13 +281,13 @@ class ImportDealJob implements ShouldQueue
      */
     private function getStageByName($stageName)
     {
-        $cacheKey = $this->company->id . '_stage_name_' . $stageName . '_' . ($this->pipelineId ?? 'all');
+        $cacheKey = $this->companyId . '_stage_name_' . $stageName . '_' . ($this->pipelineId ?? 'all');
 
         if (!isset(self::$pipelinesCache[$cacheKey])) {
             $query = \App\Models\PipelineStage::withoutGlobalScopes()
                 ->select('id', 'name', 'lead_pipeline_id')
                 ->whereHas('pipeline', function ($query) {
-                    $query->where('company_id', $this->company?->id);
+                    $query->where('company_id', $this->companyId);
                 })
                 ->where('name', $stageName);
 
@@ -290,13 +319,13 @@ class ImportDealJob implements ShouldQueue
      */
     private function getDefaultStage()
     {
-        $cacheKey = $this->company->id . '_default_stage_' . ($this->pipelineId ?? 'all');
+        $cacheKey = $this->companyId . '_default_stage_' . ($this->pipelineId ?? 'all');
 
         if (!isset(self::$pipelinesCache[$cacheKey])) {
             $query = \App\Models\PipelineStage::withoutGlobalScopes()
                 ->select('pipeline_stages.id', 'pipeline_stages.name', 'pipeline_stages.lead_pipeline_id')
                 ->join('lead_pipelines', 'pipeline_stages.lead_pipeline_id', '=', 'lead_pipelines.id')
-                ->where('lead_pipelines.company_id', $this->company?->id);
+                ->where('lead_pipelines.company_id', $this->companyId);
 
             // If pipeline is selected, get first stage of that pipeline
             if ($this->pipelineId) {
@@ -409,11 +438,11 @@ class ImportDealJob implements ShouldQueue
      */
     private function getCustomFields()
     {
-        $cacheKey = 'deal_' . $this->company->id;
+        $cacheKey = 'deal_' . $this->companyId;
 
         if (!isset(self::$customFieldsCache[$cacheKey])) {
             $customFieldsGroupsId = \App\Models\CustomFieldGroup::where('model', 'App\Models\Deal')
-                ->where('company_id', $this->company?->id)
+                ->where('company_id', $this->companyId)
                 ->select('id')
                 ->first();
 
@@ -520,7 +549,7 @@ class ImportDealJob implements ShouldQueue
         $name = trim($name);
         
         // Check cache first
-        $cacheKey = $this->company->id . '_' . strtolower($name);
+        $cacheKey = $this->companyId . '_' . strtolower($name);
         if (isset(self::$leadAgentsCache[$cacheKey])) {
             return self::$leadAgentsCache[$cacheKey];
         }
@@ -539,11 +568,11 @@ class ImportDealJob implements ShouldQueue
         }
         
         // Check user cache
-        $userCacheKey = $this->company->id . '_' . $email;
+        $userCacheKey = $this->companyId . '_' . $email;
         if (!isset(self::$usersCache[$userCacheKey])) {
             $user = \App\Models\User::withoutGlobalScopes()
                 ->where('email', $email)
-                ->where('company_id', $this->company?->id)
+                ->where('company_id', $this->companyId)
                 ->first();
             self::$usersCache[$userCacheKey] = $user;
         } else {
@@ -558,7 +587,7 @@ class ImportDealJob implements ShouldQueue
         // Find or create LeadAgent record
         $leadAgent = \App\Models\LeadAgent::withoutGlobalScopes()
             ->where('user_id', $user->id)
-            ->where('company_id', $this->company?->id)
+            ->where('company_id', $this->companyId)
             ->first();
         
         if (!$leadAgent) {
@@ -566,7 +595,7 @@ class ImportDealJob implements ShouldQueue
             $leadAgent = DB::transaction(function () use ($user) {
                 $leadAgent = new \App\Models\LeadAgent();
                 $leadAgent->user_id = $user->id;
-                $leadAgent->company_id = $this->company?->id;
+                $leadAgent->company_id = $this->companyId;
                 $leadAgent->status = 'active';
                 $leadAgent->added_by = user()?->id;
                 $leadAgent->save();
@@ -658,7 +687,7 @@ class ImportDealJob implements ShouldQueue
         // Map of column names to Hibarr field names
         $hibarrFields = [
             'interested_in' => 'interested_in',
-            'motivation_comment' => 'motivation/comment',
+            'motivation' => 'motivation',
             'purchase_timeline' => 'purchase_timeline',
             'budget_range' => 'budget_range',
             'strategy_meeting_booked' => 'strategy_meeting_booked',
@@ -666,6 +695,7 @@ class ImportDealJob implements ShouldQueue
             'inspection_trip_date' => 'inspection_trip_date',
             'deposit_confirmation' => 'deposit_confirmation',
             'reservation_agreement' => 'reservation_agreement',
+            'sales_contract' => 'sales_contract',
         ];
         
         foreach ($hibarrFields as $columnName => $fieldName) {
@@ -675,22 +705,6 @@ class ImportDealJob implements ShouldQueue
                 // Skip if value is null or empty
                 if ($value === null || $value === '') {
                     continue;
-                }
-                
-                // Handle array fields (interested_in, motivation/comment, purchase_timeline, budget_range)
-                if (in_array($fieldName, [
-                    'interested_in',
-                    'motivation/comment',
-                    'purchase_timeline',
-                    'budget_range'
-                ])) {
-                    // Convert string to array if needed
-                    if (is_string($value)) {
-                        // Support comma, semicolon, or pipe separated values
-                        $value = str_replace([';', '|'], ',', $value);
-                        $value = array_map('trim', explode(',', $value));
-                        $value = array_filter($value); // Remove empty values
-                    }
                 }
                 
                 // Handle boolean fields
@@ -715,6 +729,29 @@ class ImportDealJob implements ShouldQueue
         }
         
         return $hibarrFieldsData;
+    }
+    
+    /**
+     * Clear static caches periodically to prevent memory buildup
+     * Clears every 100 jobs to keep memory usage reasonable
+     *
+     * @return void
+     */
+    private function clearCachesIfNeeded()
+    {
+        static $jobCount = 0;
+        $jobCount++;
+        
+        // Clear caches every 100 jobs
+        if ($jobCount % 100 === 0) {
+            self::$pipelinesCache = [];
+            self::$customFieldsCache = [];
+            self::$usersCache = [];
+            self::$leadAgentsCache = [];
+            
+            // Force garbage collection
+            gc_collect_cycles();
+        }
     }
 
 }

@@ -85,28 +85,81 @@ trait ImportExcel
         $columns = array_filter($request->columns, function ($value) {
             return $value !== null;
         });
+        
+        // Ensure columns contains only string values (no objects)
+        foreach ($columns as $key => $value) {
+            if (is_object($value)) {
+                $columns[$key] = (string) $value;
+            }
+        }
 
+        Log::info('Starting Excel import', ['file' => $request->file, 'memory_before' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
+        
         $importInstance = new $importClass;
         Excel::import($importInstance, public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $request->file));
         $excelData = $importInstance->getProcessedData();
+        
+        Log::info('Excel loaded', ['rows' => count($excelData), 'memory_after' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
 
         if ($request->has_heading) {
             array_shift($excelData);
         }
 
-        $jobs = [];
-
-        Session::put('leads_count', count($excelData));
+        $totalCount = count($excelData);
+        Session::put('leads_count', $totalCount);
+        
+        Log::info('Starting job creation', ['total_rows' => $totalCount, 'memory' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
 
         // Get pipeline_id from request if provided
         $pipelineId = $request->pipeline_id ?? null;
 
-        foreach ($excelData as $row) {
-
-            $jobs[] = (new $importJobClass($row, $columns, company(), user()?->id, $pipelineId))->onQueue($importClassName);
+        // Process in chunks to avoid memory exhaustion
+        $chunkSize = 500; // Process 500 rows at a time
+        $chunks = array_chunk($excelData, $chunkSize);
+        
+        // Clear original data to free memory
+        unset($excelData);
+        gc_collect_cycles();
+        
+        $allBatches = [];
+        
+        $companyId = company()?->id;
+        $userId = user()?->id;
+        
+        foreach ($chunks as $chunkIndex => $chunk) {
+            $jobs = [];
+            
+            foreach ($chunk as $row) {
+                // Ensure row data is primitive values only (no objects)
+                $sanitizedRow = array_map(function($value) {
+                    if ($value instanceof \PhpOffice\PhpSpreadsheet\RichText\RichText) {
+                        return $value->getPlainText();
+                    }
+                    if (is_object($value) && method_exists($value, '__toString')) {
+                        return (string) $value;
+                    }
+                    return $value;
+                }, $row);
+                
+                $jobs[] = (new $importJobClass($sanitizedRow, $columns, $companyId, $userId, $pipelineId))->onQueue($importClassName);
+            }
+            
+            Log::info('Jobs created for chunk', ['chunk' => $chunkIndex, 'job_count' => count($jobs), 'memory' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
+            
+            $batch = Bus::batch($jobs)->onConnection('database')->onQueue($importClassName)->name($importClassName . '_chunk_' . $chunkIndex)->dispatch();
+            $allBatches[] = $batch;
+            
+            Log::info('Batch dispatched', ['chunk' => $chunkIndex, 'memory' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
+            
+            // Clear memory after each chunk
+            unset($jobs);
+            gc_collect_cycles();
         }
-
-        $batch = Bus::batch($jobs)->onConnection('database')->onQueue($importClassName)->name($importClassName)->dispatch();
+        
+        Log::info('All chunks processed', ['total_chunks' => count($allBatches)]);
+        
+        // Return the first batch for tracking
+        $batch = $allBatches[0] ?? null;
 
         Files::deleteFile($request->file, Files::IMPORT_FOLDER);
 

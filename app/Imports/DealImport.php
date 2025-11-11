@@ -13,6 +13,7 @@ class DealImport implements ToArray
         $fields = array(
             array('id' => 'deal_name', 'name' => 'Deal Name', 'required' => 'No', 'db_field' => 'name'),
             array('id' => 'lead_contact_email', 'name' => 'Lead Contact Email', 'required' => 'No', 'db_field' => 'email'),
+            array('id' => 'lead_name', 'name' => 'Lead Name', 'required' => 'No'),
             array('id' => 'pipeline', 'name' => 'Pipeline (Legacy - Ignored)', 'required' => 'No', 'db_field' => 'pipeline'),
             array('id' => 'deal_value', 'name' => 'Deal Value', 'required' => 'No', 'db_field' => 'value'),
             array('id' => 'close_date', 'name' => 'Close Date', 'required' => 'No', 'db_field' => 'close_date'),
@@ -39,7 +40,7 @@ class DealImport implements ToArray
             
             // Hibarr Deal Custom Fields
             array('id' => 'interested_in', 'name' => 'Interested In', 'required' => 'No', 'hibarr_field' => true),
-            array('id' => 'motivation_comment', 'name' => 'Motivation/Comment', 'required' => 'No', 'hibarr_field' => true),
+            array('id' => 'motivation', 'name' => 'Motivation/Comment', 'required' => 'No', 'hibarr_field' => true),
             array('id' => 'purchase_timeline', 'name' => 'Purchase Timeline', 'required' => 'No', 'hibarr_field' => true),
             array('id' => 'budget_range', 'name' => 'Budget Range', 'required' => 'No', 'hibarr_field' => true),
             array('id' => 'strategy_meeting_booked', 'name' => 'Strategy Meeting Booked', 'required' => 'No', 'hibarr_field' => true),

@@ -114,7 +114,7 @@
                     <div class="col-6 px-0 pb-3 d-flex">
                         <p class="mb-0 text-lightest f-14 w-30 d-inline-block">{{ __('modules.marketing.registered_for_zoom_meeting') }}</p>
                         <p class="mb-0 text-dark-grey f-14">
-                            @if($leadContact->marketing->has_registered_for_the_webinar)
+                            @if($leadContact->marketing->registered_for_zoom_meeting)
                                 <x-status color="green" :value="__('modules.marketing.yes')" />
                             @else
                                 <x-status color="red" :value="__('modules.marketing.no')" />

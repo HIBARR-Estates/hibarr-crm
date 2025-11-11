@@ -47,6 +47,19 @@ require __DIR__.'/../vendor/autoload.php';
 
 /*
 |--------------------------------------------------------------------------
+| Set PHP Configuration
+|--------------------------------------------------------------------------
+|
+| Increase memory limit and execution time for imports and large operations
+|
+*/
+
+ini_set('memory_limit', '512M'); // 512MB
+ini_set('max_execution_time', '600'); // 10 minutes
+set_time_limit(600);
+
+/*
+|--------------------------------------------------------------------------
 | Run The Application
 |--------------------------------------------------------------------------
 |

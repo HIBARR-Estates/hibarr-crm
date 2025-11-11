@@ -16,7 +16,7 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('deal_id')->constrained('deals')->onDelete('cascade');
                 $table->string('interested_in')->nullable();
-                $table->string('motivation/comment')->nullable();
+                $table->string('motivation')->nullable();
                 $table->string('purchase_timeline')->nullable();
                 $table->string('budget_range')->nullable();
                 $table->boolean('strategy_meeting_booked')->default(false);
@@ -37,6 +37,11 @@ return new class extends Migration
                 }
                 if (!Schema::hasColumn('hibarr_deal_custom_fields', 'sales_contract')) {
                     $table->string('sales_contract')->nullable();
+                }
+                if (Schema::hasColumn('hibarr_deal_custom_fields', 'motivation/comment') && !Schema::hasColumn('hibarr_deal_custom_fields', 'motivation')) {
+                    $table->renameColumn('motivation/comment', 'motivation');
+                } elseif (!Schema::hasColumn('hibarr_deal_custom_fields', 'motivation')) {
+                    $table->string('motivation')->nullable();
                 }
             });
         }
