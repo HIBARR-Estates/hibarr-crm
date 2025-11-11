@@ -101,7 +101,6 @@ const CreateClient: React.FC<Props> = ({
                     form={form}
                     lead={lead}
                     employees={employees}
-                    countries={countries}
                     categories={categories}
                     salutations={salutations}
                     languages={languages}
@@ -116,7 +115,6 @@ const CreateClient: React.FC<Props> = ({
                 <CompanyDetailsTab
                     form={form}
                     lead={lead}
-                    countries={countries}
                     employees={employees}
                     permissions={permissions}
                 />

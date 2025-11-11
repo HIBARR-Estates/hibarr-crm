@@ -9,14 +9,20 @@ import {
     Select,
     Button,
     Space,
-    message,
     Tabs,
     Card,
+    Alert,
+    App,
+    Switch,
 } from "antd";
 import { Lead, Country, ClientCategory, Salutation, Language } from "@/Types";
 import { IModalProps } from "@/Types/common";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import PhoneInput from "@/Components/PhoneInput";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiResponse } from "@/lib/api/types";
+import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
+import { isLoading as _isLoading } from "@/lib/utils";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -24,24 +30,69 @@ const { Option } = Select;
 
 interface Props extends IModalProps {
     lead?: Lead;
-    countries?: Country[];
-    categories?: ClientCategory[];
-    salutations?: { value: string; label: string }[];
-    languages?: Language[];
 }
 
-const ChangeToClient: React.FC<Props> = ({
-    lead,
-    open,
-    onClose,
-    countries = [],
-    categories = [],
-    salutations = [],
-    languages = [],
-}) => {
+interface ClientFormData {
+    name: string;
+    email: string;
+    mobile?: string | any; // Can be string or phone object
+    company_name?: string;
+    website?: string;
+    address?: string;
+    note?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: number;
+    category_id?: number;
+    salutation?: string;
+    login?: string;
+    locale?: string;
+    email_notifications?: number;
+    password?: string;
+    gender?: string;
+    office?: string | any; // Can be string or phone object
+    country_phonecode_mobile?: string;
+    country_identifier_mobile?: string;
+    country_phonecode_office?: string;
+    country_identifier_office?: string;
+    custom_fields_data?: Record<string, any>;
+    lead?: number; // for lead conversion
+}
+
+interface ClientResponse {
+    message: string;
+    data?: any;
+}
+
+const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
+    const { props } = usePage();
+    const {
+        countries = [],
+        categories = [],
+        salutations = [],
+        languages = [],
+    } = props;
+    const { message: messageApi } = App.useApp();
+    const {
+        props: { customFieldCategories = [], customFields = [] },
+    } = usePage();
     const [form] = Form.useForm();
-    const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("account");
+    const [errors, setErrors] = useState<string[]>([]);
+
+    const clientMutation = useApiMutate<
+        ClientFormData,
+        ClientResponse,
+        ApiResponse<ClientResponse>
+    >(route("clients.store"), "POST", (response) => {
+        if (response?.status === "success") {
+            messageApi.success("Lead successfully converted to client!");
+            form.resetFields();
+            onClose();
+            router.reload();
+        }
+    });
 
     useEffect(() => {
         if (open && lead) {
@@ -67,113 +118,110 @@ const ChangeToClient: React.FC<Props> = ({
 
     const handleCancel = () => {
         form.resetFields();
+        setErrors([]);
         onClose();
     };
 
-    const handleSubmit = async (values: any) => {
-        setLoading(true);
+    const handleSubmit = (values: ClientFormData) => {
+        console.log(values, "TTTTTT.....");
+        setErrors([]);
 
-        try {
-            const formData = new FormData();
+        // Handle phone data transformation
+        const handlePhoneData = (phoneField: any) => {
+            if (!phoneField)
+                return { phone: "", country_code: "", country_identifier: "" };
 
-            // Basic information
-            formData.append("name", values.name || "");
-            formData.append("email", values.email || "");
-            formData.append("login", values.login || "disable");
-            formData.append("locale", values.locale || "en");
-            formData.append(
-                "email_notifications",
-                values.email_notifications ? "1" : "0"
-            );
-
-            // Company details
-            formData.append("company_name", values.company_name || "");
-            formData.append("website", values.website || "");
-            formData.append("address", values.address || "");
-            formData.append("city", values.city || "");
-            formData.append("state", values.state || "");
-            formData.append("postal_code", values.postal_code || "");
-
-            // Phone numbers
-            if (values.mobile) {
-                formData.append("mobile", values.mobile);
-                if (values.country_phonecode_mobile) {
-                    formData.append(
-                        "country_phonecode_mobile",
-                        values.country_phonecode_mobile
-                    );
-                    formData.append(
-                        "country_identifier_mobile",
-                        values.country_identifier_mobile
-                    );
-                }
+            if (typeof phoneField === "object" && phoneField.phone) {
+                // Already in the correct format
+                return {
+                    phone: phoneField.phone,
+                    country_code: phoneField.country_code,
+                    country_identifier: phoneField.country_identifier,
+                };
+            } else if (typeof phoneField === "string") {
+                // Convert string to JSON format if needed
+                return {
+                    phone: phoneField,
+                    country_code: "",
+                    country_identifier: "",
+                };
             }
+            return { phone: "", country_code: "", country_identifier: "" };
+        };
 
-            if (values.office) {
-                formData.append("office", values.office);
-                if (values.country_phonecode_office) {
-                    formData.append(
-                        "country_phonecode_office",
-                        values.country_phonecode_office
-                    );
-                    formData.append(
-                        "country_identifier_office",
-                        values.country_identifier_office
-                    );
-                }
-            }
+        const mobileData = handlePhoneData(values.mobile);
+        const officeData = handlePhoneData(values.office);
 
-            // Other fields
-            if (values.country)
-                formData.append("country", values.country.toString());
-            if (values.category_id)
-                formData.append("category_id", values.category_id.toString());
-            if (values.salutation)
-                formData.append("salutation", values.salutation);
-            if (values.note) formData.append("note", values.note);
-            if (values.password) formData.append("password", values.password);
-            if (values.gender) formData.append("gender", values.gender);
+        const requestData: ClientFormData = {
+            name: values.name || "",
+            email: values.email || "",
+            login: values.login || "disable",
+            locale: values.locale || "en",
+            email_notifications: values.email_notifications ? 1 : 0,
+            company_name: values.company_name || "",
+            website: values.website || "",
+            address: values.address || "",
+            city: values.city || "",
+            state: values.state || "",
+            postal_code: values.postal_code || "",
+            // Send mobile as JSON string if we have proper data
+            mobile: mobileData.phone ? JSON.stringify(mobileData) : "",
+            // Send office as JSON string if we have proper data
+            office: officeData.phone ? JSON.stringify(officeData) : "",
+            country: values.country,
+            category_id: values.category_id,
+            salutation: values.salutation || "",
+            note: values.note || "",
+            password: values.password || "",
+            gender: values.gender || "",
+            // Include the separate fields for backward compatibility
+            country_phonecode_mobile: mobileData.country_code,
+            country_identifier_mobile: mobileData.country_identifier,
+            country_phonecode_office: officeData.country_code,
+            country_identifier_office: officeData.country_identifier,
+            // Custom fields data
+            custom_fields_data: values.custom_fields_data || {},
+            // Mark as conversion from lead
+            lead: lead?.id,
+        };
 
-            // Custom fields if present
-            if (values.custom_fields_data) {
-                Object.keys(values.custom_fields_data).forEach((key) => {
-                    formData.append(
-                        `custom_fields_data[${key}]`,
-                        values.custom_fields_data[key]
-                    );
-                });
-            }
-
-            router.post(route("clients.store"), formData, {
-                onSuccess: () => {
-                    message.success("Lead successfully converted to client!");
-                    handleCancel();
-                },
-                onError: (errors) => {
-                    console.error("Conversion errors:", errors);
-                    message.error(
-                        "Failed to convert lead to client. Please check the form."
-                    );
-                },
-                onFinish: () => {
-                    setLoading(false);
-                },
-            });
-        } catch (error) {
-            console.error("Error converting lead to client:", error);
-            message.error("An unexpected error occurred");
-            setLoading(false);
-        }
+        clientMutation.mutate(requestData);
     };
 
+    const handleErrorsClear = () => {
+        setErrors([]);
+    };
+
+    const isLoading = _isLoading({ status: clientMutation.status });
+
     const accountTab = (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-y-4">
+            {/* Display errors */}
+            {errors.length > 0 && (
+                <div className="mb-4">
+                    <Alert
+                        message="Validation Error"
+                        description={
+                            <ul className="mb-0">
+                                {errors.map((error, index) => (
+                                    <li key={index}>{error}</li>
+                                ))}
+                            </ul>
+                        }
+                        type="error"
+                        showIcon
+                        closable
+                        onClose={handleErrorsClear}
+                    />
+                </div>
+            )}
+
             <Card size="small" title="Basic Information" className="mb-4">
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item name="salutation" label="Salutation">
                             <Select placeholder="Select salutation" allowClear>
-                                {salutations.map((sal) => (
+                                {salutations?.map((sal) => (
                                     <Option key={sal.value} value={sal.value}>
                                         {sal.label}
                                     </Option>
@@ -220,17 +268,12 @@ const ChangeToClient: React.FC<Props> = ({
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="mobile" label="Mobile">
-                            {countries.length > 0 ? (
-                                <PhoneInput
-                                    placeholder="Enter mobile number"
-                                    countries={countries}
-                                    fieldName="mobile"
-                                />
-                            ) : (
-                                <Input placeholder="Enter mobile number" />
-                            )}
-                        </Form.Item>
+                        <PhoneInput
+                            fieldName="mobile"
+                            placeholder="Enter mobile number"
+                            showLabel={true}
+                            label="Mobile"
+                        />
                     </Col>
                 </Row>
 
@@ -247,7 +290,7 @@ const ChangeToClient: React.FC<Props> = ({
                     <Col span={12}>
                         <Form.Item name="category_id" label="Category">
                             <Select placeholder="Select category" allowClear>
-                                {categories.map((cat) => (
+                                {categories?.map((cat) => (
                                     <Option key={cat.id} value={cat.id}>
                                         {cat.category_name}
                                     </Option>
@@ -279,7 +322,7 @@ const ChangeToClient: React.FC<Props> = ({
                             initialValue="en"
                         >
                             <Select>
-                                {languages.map((lang) => (
+                                {languages?.map((lang) => (
                                     <Option
                                         key={lang.language_code}
                                         value={lang.language_code}
@@ -325,7 +368,7 @@ const ChangeToClient: React.FC<Props> = ({
     );
 
     const companyTab = (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-y-4">
             <Card size="small" title="Company Information">
                 <Row gutter={16}>
                     <Col span={12}>
@@ -391,17 +434,12 @@ const ChangeToClient: React.FC<Props> = ({
                     </Select>
                 </Form.Item>
 
-                <Form.Item name="office" label="Office Phone">
-                    {countries.length > 0 ? (
-                        <PhoneInput
-                            placeholder="Enter office phone number"
-                            countries={countries}
-                            fieldName="office"
-                        />
-                    ) : (
-                        <Input placeholder="Enter office phone number" />
-                    )}
-                </Form.Item>
+                <PhoneInput
+                    fieldName="office"
+                    placeholder="Enter office phone number"
+                    showLabel={true}
+                    label="Office Phone"
+                />
             </Card>
         </div>
     );
@@ -433,20 +471,40 @@ const ChangeToClient: React.FC<Props> = ({
             label: "Notes",
             children: noteTab,
         },
+        // Add custom field category tabs
+        ...(customFieldCategories && Array.isArray(customFieldCategories)
+            ? customFieldCategories.map((category: any) => ({
+                  key: `custom_${category.id}`,
+                  label: category.name,
+                  children: (
+                      <Card
+                          size="small"
+                          title={`${category.name} Custom Fields`}
+                      >
+                          <GeneralCustomFieldTab
+                              data={{
+                                  custom_fields_data:
+                                      form.getFieldsValue()
+                                          .custom_fields_data || {},
+                              }}
+                              setData={(key, value) => {
+                                  if (key === "custom_fields_data") {
+                                      form.setFieldsValue({ [key]: value });
+                                  }
+                              }}
+                              errors={{}}
+                              categoryId={category.id}
+                              categoryName={category.name}
+                          />
+                      </Card>
+                  ),
+              }))
+            : []),
     ];
 
     return (
         <Drawer
-            title={
-                <div>
-                    <Title level={4} className="mb-0">
-                        Convert Lead to Client
-                    </Title>
-                    <span className="text-gray-500 text-sm">
-                        Converting: {lead?.client_name}
-                    </span>
-                </div>
-            }
+            title={`Convert Lead to Client`}
             open={open}
             onClose={handleCancel}
             width={800}
@@ -456,7 +514,7 @@ const ChangeToClient: React.FC<Props> = ({
                     <Button
                         type="primary"
                         onClick={() => form.submit()}
-                        loading={loading}
+                        loading={isLoading}
                     >
                         Convert to Client
                     </Button>

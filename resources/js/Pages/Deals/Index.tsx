@@ -5,6 +5,7 @@ import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageFilter from "@/Hooks/usePageFilter";
+import usePageSort from "@/Hooks/usePageSort";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PipelineStage } from "@/Types/api/deals";
 import FilterDrawer from "@/Components/FilterDrawer";
@@ -72,6 +73,9 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
         clearAllFilters,
     } = usePageFilter({ handleClose, routeName: "deals.index" });
 
+    // Sort handlers
+    const { sortParams } = usePageSort({ routeName: "deals.index" });
+
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
         useGenericTableRowSelection<Deal>();
@@ -118,7 +122,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
             label: (
                 <span>
                     <UserOutlined className="mr-2" />
-                    Add Follow Up
+                    Add Follow Up ______
                 </span>
             ),
             onClick: () => {
@@ -235,6 +239,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
                                         route("deals.index"),
                                         {
                                             ...filters,
+                                            ...sortParams,
                                             page,
                                             per_page: pageSize,
                                         },
