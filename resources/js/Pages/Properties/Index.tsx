@@ -11,6 +11,7 @@ import {
     EyeOutlined,
     DeleteOutlined,
     ImportOutlined,
+    FilterOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -23,8 +24,11 @@ import ImportProperties from "@/Features/Properties/ImportProperties";
 import ExportProperties from "@/Features/Properties/ExportProperties";
 import DeleteProperty from "@/Features/Properties/DeleteProperty";
 import BasicPropertyFilterBox from "@/Features/Properties/Filter/BasicPropertyFilterBox";
-import { TFilter } from "@/Types/common";
+import AdvancedPropertyFilterForm from "@/Features/Properties/Filter/AdvancedPropertyFilterForm";
 import { filterProperties } from "@/lib/utils";
+import usePageFilter from "@/Hooks/usePageFilter";
+import FilterDrawer from "@/Components/FilterDrawer";
+import ActiveFilters from "@/Components/ActiveFilters";
 
 interface Project {
     id: number;
@@ -56,23 +60,19 @@ export interface IndexProps extends PageProps {
     properties: PaginationData;
     projects: Project[];
     developers: Developer[];
-    filters: TFilter;
 }
 
 export default function Index({
     pageTitle,
     properties,
     default_currency_code: currencyCode,
-    filters: urlFilters,
 }: IndexProps) {
-    console.log(currencyCode, "CURRENCY CODE ....");
     const {
         handleAction,
         handleClose,
         action,
         selected: property,
     } = useGenericEntityAction<Property>();
-    const [filters, setFilters] = useState(urlFilters);
     // Check URL for create parameter to show drawer
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -91,66 +91,19 @@ export default function Index({
         window.addEventListener("popstate", handlePopState);
         return () => window.removeEventListener("popstate", handlePopState);
     }, []);
-
-    // Handle quick filter changes (for the filter bar)
-    const handleQuickFilter = useCallback(
-        (key: keyof TFilter, value: TFilter[keyof TFilter]) => {
-            setFilters((prev) => {
-                const updated = { ...prev } as TFilter;
-                if (value === "" || value === "all") {
-                    delete (updated as any)[key];
-                } else {
-                    if (typeof value === "string") {
-                        (updated as any)[key] = value;
-                    }
-                }
-                return updated;
-            });
-        },
-        []
-    );
-
-    // Reset filters
-    const handleResetQuickFilters = useCallback(() => {
-        setFilters({});
-    }, []);
-
-    // Handle filter form submission
-    const handleFilterSubmit = useCallback(
-        (values: TFilter) => {
-            const newFilters = { ...filters, ...values };
-            // Remove empty values
-            (Object.keys(newFilters) as (keyof TFilter)[]).forEach((key) => {
-                if (
-                    ["string", "number", "boolean"].includes(
-                        typeof newFilters[key]
-                    ) === false
-                ) {
-                    delete newFilters[key];
-                }
-            });
-
-            router.get(route("properties.index"), newFilters, {
-                preserveState: true,
-                preserveScroll: true,
-            });
-            handleClose();
-        },
-        [filters]
-    );
-
-    // Reset filters
-    const handleResetFilters = useCallback(() => {
-        router.get(
-            route("properties.index"),
-            {},
-            {
-                preserveState: true,
-                preserveScroll: true,
-            }
-        );
-        handleClose();
-    }, []);
+    // filters and filter handlers
+    const {
+        filters,
+        drawerOpen,
+        openFilterDrawer,
+        closeFilterDrawer,
+        handleQuickFilter,
+        removeFilter,
+        handleResetQuickFilters,
+        handleResetFilters,
+        handleFilterSubmit,
+        clearAllFilters,
+    } = usePageFilter({ handleClose, routeName: "properties.index" });
 
     // Table row selection
 
@@ -216,6 +169,13 @@ export default function Index({
                 }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Active Filters */}
+                    <ActiveFilters
+                        filters={filters}
+                        onRemoveFilter={removeFilter}
+                        onClearAll={clearAllFilters}
+                    />
+
                     {/* Header with Actions */}
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
@@ -238,6 +198,14 @@ export default function Index({
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {/* Advanced Filters Button */}
+                            <Button
+                                icon={<FilterOutlined />}
+                                onClick={openFilterDrawer}
+                            >
+                                Advanced Filters
+                            </Button>
+
                             {/* Bulk Actions - Only show when items are selected */}
                             {selectedEntities.length > 0 && (
                                 <BulkActionSelector
@@ -318,6 +286,21 @@ export default function Index({
                 open={action === "export"}
                 onClose={() => handleClose()}
             />
+
+            {/* Filter Drawer */}
+            <FilterDrawer
+                open={drawerOpen}
+                onClose={closeFilterDrawer}
+                title="Advanced Property Filters"
+                filters={filters}
+                onApplyFilters={handleFilterSubmit}
+                onResetFilters={handleResetFilters}
+            >
+                <AdvancedPropertyFilterForm
+                    filters={filters}
+                    onFilterChange={handleQuickFilter}
+                />
+            </FilterDrawer>
         </DashboardLayout>
     );
 }

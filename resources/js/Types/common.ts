@@ -5,7 +5,16 @@ export type TGenericEntityAction =
     | "add"
     | "import"
     | "export"
-    | "filter";
+    | "filter"
+    | "change_to_client"
+    | "add_follow_up"
+    | "change_stage"
+    | "add_deal_agents"
+    | "add_note"
+    | "upload_file"
+    | "add_proposal"
+    | "reply"
+    | "add_file";
 
 export interface IModalProps {
     open: boolean;
@@ -15,11 +24,20 @@ export interface IModalProps {
 export type TFilter = Partial<{
     search: string;
     property_type: string;
+    lead_type: string;
+    start_date: string;
+    end_date: string;
+    lead_source: string;
+    lead_owner_id: number;
+    added_by_id: number;
     sale_type: string;
     status: string;
     city: string;
     min_price: number;
     max_price: number;
+    lead_pipeline_id: number;
+    pipeline_stage_id: number;
+    category_id: number;
 }>;
 
 export type Currency = {

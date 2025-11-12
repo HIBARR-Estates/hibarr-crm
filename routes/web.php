@@ -503,6 +503,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/follow-up-edit/{id?}', [DealController::class, 'editFollow'])->name('deals.follow_up_edit');
     Route::post('deals/follow-up-update', [DealController::class, 'updateFollow'])->name('deals.follow_up_update');
     Route::post('deals/follow-up-delete/{id}', [DealController::class, 'deleteFollow'])->name('deals.follow_up_delete');
+    Route::post('deals/follow-up-apply-quick-action', [DealController::class, 'applyFollowUpQuickAction'])->name('deals.follow_up_apply_quick_action');
 
     // Change status
     Route::get('stage-change/{id}', [DealController::class, 'stageChange'])->name('deals.stage_change');
@@ -551,6 +552,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('import', [LeadContactController::class, 'importLead'])->name('lead-contact.import');
         Route::post('import', [LeadContactController::class, 'importStore'])->name('lead-contact.import.store');
         Route::post('import/process', [LeadContactController::class, 'importProcess'])->name('lead-contact.import.process');
+        Route::get('sample-import', [LeadContactController::class, 'downloadSampleImport'])->name('lead-contact.sample_import');
     });
 
     // deals route

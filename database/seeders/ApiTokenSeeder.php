@@ -19,6 +19,7 @@ class ApiTokenSeeder extends Seeder
             [
                 'token' => hash('sha256', Str::random(60)), 
                 'name' => 'CRM Integration for Communication Activities',
+                'company_id' => 1, //TODO: Ought to be dynamic based on existing companies, ...
                 'revoked' => false,
                 'created_at' => now(),
                 'updated_at' => now(),

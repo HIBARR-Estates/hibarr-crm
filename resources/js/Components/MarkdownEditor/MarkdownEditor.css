@@ -1,0 +1,176 @@
+/* MarkdownEditor Styles */
+.markdown-editor-wrapper {
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    transition: border-color 0.3s ease;
+    overflow: hidden;
+}
+
+.markdown-editor-wrapper:hover {
+    border-color: #4096ff;
+}
+
+.markdown-editor-wrapper:focus-within {
+    border-color: #4096ff;
+    box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
+}
+
+/* Override default MDEditor styles */
+.markdown-editor-wrapper .w-md-editor {
+    border: none;
+    background-color: transparent;
+}
+
+.markdown-editor-wrapper .w-md-editor-text-pre,
+.markdown-editor-wrapper .w-md-editor-text-input,
+.markdown-editor-wrapper .w-md-editor-text {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    font-family: inherit !important;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar {
+    border-bottom: 1px solid #d9d9d9;
+    background-color: #fafafa;
+    padding: 8px;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar ul {
+    margin: 0;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar li button {
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar li button:hover {
+    background-color: #f0f0f0;
+}
+
+.markdown-editor-wrapper .w-md-editor-toolbar li button[data-active="true"] {
+    background-color: #4096ff;
+    color: white;
+}
+
+/* Error state */
+.markdown-editor-wrapper.error {
+    border-color: #ff4d4f;
+}
+
+.markdown-editor-wrapper.error:focus-within {
+    border-color: #ff4d4f;
+    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.1);
+}
+
+/* Disabled state */
+.markdown-editor-wrapper.disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.markdown-editor-wrapper.disabled .w-md-editor {
+    background-color: #f5f5f5;
+}
+
+.markdown-editor-wrapper.disabled .w-md-editor-text-pre,
+.markdown-editor-wrapper.disabled .w-md-editor-text-input {
+    background-color: #f5f5f5 !important;
+    cursor: not-allowed !important;
+}
+
+.markdown-editor-wrapper.disabled .w-md-editor-toolbar {
+    background-color: #f5f5f5;
+}
+
+.markdown-editor-wrapper.disabled .w-md-editor-toolbar li button {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Readonly state */
+.markdown-editor-wrapper.readonly .w-md-editor-text-input {
+    cursor: default;
+}
+
+.markdown-editor-wrapper.readonly .w-md-editor-toolbar {
+    display: none;
+}
+
+/* Custom scrollbar for better appearance */
+.markdown-editor-wrapper .w-md-editor-text-pre,
+.markdown-editor-wrapper .w-md-editor-text-input {
+    scrollbar-width: thin;
+    scrollbar-color: #d9d9d9 transparent;
+}
+
+.markdown-editor-wrapper .w-md-editor-text-pre::-webkit-scrollbar,
+.markdown-editor-wrapper .w-md-editor-text-input::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.markdown-editor-wrapper .w-md-editor-text-pre::-webkit-scrollbar-thumb,
+.markdown-editor-wrapper .w-md-editor-text-input::-webkit-scrollbar-thumb {
+    background-color: #d9d9d9;
+    border-radius: 3px;
+}
+
+.markdown-editor-wrapper .w-md-editor-text-pre::-webkit-scrollbar-track,
+.markdown-editor-wrapper .w-md-editor-text-input::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+
+/* Preview styles */
+.markdown-editor-wrapper .w-md-editor-preview {
+    padding: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.markdown-editor-wrapper .w-md-editor-preview h1,
+.markdown-editor-wrapper .w-md-editor-preview h2,
+.markdown-editor-wrapper .w-md-editor-preview h3,
+.markdown-editor-wrapper .w-md-editor-preview h4,
+.markdown-editor-wrapper .w-md-editor-preview h5,
+.markdown-editor-wrapper .w-md-editor-preview h6 {
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.markdown-editor-wrapper .w-md-editor-preview p {
+    margin-bottom: 8px;
+}
+
+.markdown-editor-wrapper .w-md-editor-preview ul,
+.markdown-editor-wrapper .w-md-editor-preview ol {
+    margin-bottom: 8px;
+    padding-left: 20px;
+}
+
+.markdown-editor-wrapper .w-md-editor-preview blockquote {
+    border-left: 4px solid #4096ff;
+    padding-left: 12px;
+    margin: 16px 0;
+    color: #666;
+}
+
+.markdown-editor-wrapper .w-md-editor-preview code {
+    background-color: #f6f8fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.markdown-editor-wrapper .w-md-editor-preview pre {
+    background-color: #f6f8fa;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 16px 0;
+}
+
+.markdown-editor-wrapper .w-md-editor-preview pre code {
+    background-color: transparent;
+    padding: 0;
+}

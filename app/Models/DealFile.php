@@ -49,6 +49,8 @@ class DealFile extends BaseModel
     use IconTrait;
 
     const FILE_PATH = 'lead-files';
+    protected $hidden = ["pivot"];
+
 
     protected $fillable = [];
 
