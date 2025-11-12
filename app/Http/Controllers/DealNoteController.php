@@ -87,6 +87,8 @@ class DealNoteController extends AccountBaseController
         $note->details = trim_editor($request->details);
         $note->save();
 
+        \Log::info('Deal Note Created: ', ['id' => $note->id, 'deal_id' => $note->deal_id,]);
+
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes']);
     }
 

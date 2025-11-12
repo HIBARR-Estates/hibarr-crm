@@ -2,6 +2,13 @@ import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
 import { Providers } from "./providers";
 
+// Declare global route function
+declare global {
+    interface Window {
+        route: (name: string, params?: any, absolute?: boolean) => string;
+    }
+}
+
 // require.context is a Webpack-specific feature and not available here.
 // If using Vite or another bundler, dynamic imports will work without this.
 // You can safely remove this line.
@@ -49,10 +56,117 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
 
         // Lead/Deal routes
         "lead-contact.index": "/account/lead-contact",
+        "lead-contact.create": "/account/lead-contact/create",
+        "lead-contact.show": "/account/lead-contact/{id}",
+        "lead-contact.edit": "/account/lead-contact/{id}/edit",
+        "lead-contact.store": "/account/lead-contact",
+        "lead-contact.update": "/account/lead-contact/{id}",
+        "lead-contact.destroy": "/account/lead-contact/{id}",
+        "lead-contact.import": "/account/lead-contact/import",
+        "lead-contact.import.store": "/account/lead-contact/import",
+        "lead-contact.import.process": "/account/lead-contact/import/process",
+        "lead-contact.sample_import": "/account/lead-contact/sample-import",
+        "lead-contact.apply_quick_action":
+            "/account/lead-contact/apply-quick-action",
         "leadboards.index": "/account/leadboards",
+
+        // Deal routes
+        "deals.get-stage": "/account/deals/get-stage/{id}",
+        "deals.index": "/account/deals",
+        "deals.create": "/account/deals/create",
+        "deals.show": "/account/deals/{id}",
+        "deals.edit": "/account/deals/{id}/edit",
+        "deals.store": "/account/deals",
+        "deals.update": "/account/deals/{id}",
+        "deals.destroy": "/account/deals/{id}",
+        "deals.apply_quick_action": "/account/deals/apply-quick-action",
+        "deals.import": "/account/deals/import",
+        "deals.import.store": "/account/deals/import",
+        "deals.import.process": "/account/deals/import/process",
+        "deals.sample_import": "/account/deals/sample-import",
+        "deals.export": "/account/deals/export",
+        "deals.follow_up": "/account/deals/follow-up/{leadID}",
+        "deals.follow_up_store": "/account/deals/follow-up-store",
+        "deals.follow_up_edit": "/account/deals/follow-up-edit/{id}",
+        "deals.follow_up_update": "/account/deals/follow-up-update",
+        "deals.follow_up_delete": "/account/deals/follow-up-delete/{id}",
+        "deals.follow_up_apply_quick_action":
+            "/account/deals/follow-up-apply-quick-action",
+
+        // Meeting Types routes
+        "meeting-types.index": "/account/meeting-types",
+        "meeting-types.create": "/account/meeting-types/create",
+        "meeting-types.show": "/account/meeting-types/{id}",
+        "meeting-types.edit": "/account/meeting-types/{id}/edit",
+        "meeting-types.store": "/account/meeting-types",
+        "meeting-types.update": "/account/meeting-types/{id}",
+        "meeting-types.destroy": "/account/meeting-types/{id}",
+
+        // Deal Notes routes
+        "deal-notes.index": "/account/deal-notes",
+        "deal-notes.create": "/account/deal-notes/create",
+        "deal-notes.show": "/account/deal-notes/{id}",
+        "deal-notes.edit": "/account/deal-notes/{id}/edit",
+        "deal-notes.store": "/account/deal-notes",
+        "deal-notes.update": "/account/deal-notes/{id}",
+        "deal-notes.destroy": "/account/deal-notes/{id}",
+        "deal-notes.apply_quick_action":
+            "/account/deal-notes/apply-quick-action",
+
+        // Deal Files routes
+        "deal-files.index": "/account/deal-files",
+        "deal-files.create": "/account/deal-files/create",
+        "deal-files.show": "/account/deal-files/{id}",
+        "deal-files.edit": "/account/deal-files/{id}/edit",
+        "deal-files.store": "/account/deal-files",
+        "deal-files.update": "/account/deal-files/{id}",
+        "deal-files.destroy": "/account/deal-files/{id}",
+        "deal-files.download": "/account/deal-files/download/{id}",
+        "deal-files.layout": "/account/deal-files/layout",
+
+        // Communication Activities routes
+        "api.communication-activities.store":
+            "/api/v1/internal/communication-activities",
+        "api.deals.communication-activities":
+            "/api/v1/internal/deals/{dealId}/communication-activities",
+
+        // Proposals routes
+        "proposals.index": "/account/proposals",
+        "proposals.create": "/account/proposals/create",
+        "proposals.show": "/account/proposals/{id}",
+        "proposals.edit": "/account/proposals/{id}/edit",
+        "proposals.store": "/account/proposals",
+        "proposals.update": "/account/proposals/{id}",
+        "proposals.destroy": "/account/proposals/{id}",
+        "proposals.delete_image": "/account/proposals/delete-image",
+        "proposals.download": "/account/proposals/download/{id}",
+        "proposals.send_proposal": "/account/proposals/send-proposal/{id}",
+        "proposals.add_item": "/account/proposals/add-item",
+
+        // Front routes (public routes)
+        "front.proposal": "/proposal/{hash}",
 
         // Client routes
         "clients.index": "/account/clients",
+        "clients.create": "/account/clients/create",
+        "clients.show": "/account/clients/{id}",
+        "clients.edit": "/account/clients/{id}/edit",
+        "clients.store": "/account/clients",
+        "clients.update": "/account/clients/{id}",
+        "clients.destroy": "/account/clients/{id}",
+        "clients.approve": "/account/clients/approve/{id}",
+        "clients.save_consent_purpose_data":
+            "/account/clients/save-consent-purpose-data/{client}",
+        "clients.gdpr_consent": "/account/clients/gdpr-consent",
+        "clients.save_client_consent":
+            "/account/clients/save-client-consent/{lead}",
+        "clients.ajax_details": "/account/clients/ajax-details/{id}",
+        "clients.client_details": "/account/clients/client-details/{id}",
+        "clients.project_list": "/account/clients/project-list/{id}",
+        "clients.apply_quick_action": "/account/clients/apply-quick-action",
+        "clients.import": "/account/clients/import",
+        "clients.import.store": "/account/clients/import",
+        "clients.import.process": "/account/clients/import/process",
 
         // HR routes
         "employees.index": "/account/employees",
@@ -82,14 +196,6 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         logout: "/logout",
 
         // Resource routes follow standard Laravel resource pattern
-        // Clients
-        "clients.create": "/account/clients/create",
-        "clients.show": "/account/clients/{id}",
-        "clients.edit": "/account/clients/{id}/edit",
-        "clients.store": "/account/clients",
-        "clients.update": "/account/clients/{id}",
-        "clients.destroy": "/account/clients/{id}",
-
         // Employees
         "employees.create": "/account/employees/create",
         "employees.show": "/account/employees/{id}",
@@ -146,15 +252,6 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "leaves.update": "/account/leaves/{id}",
         "leaves.destroy": "/account/leaves/{id}",
 
-        // Deals
-        "deals.index": "/account/deals",
-        "deals.create": "/account/deals/create",
-        "deals.show": "/account/deals/{id}",
-        "deals.edit": "/account/deals/{id}/edit",
-        "deals.store": "/account/deals",
-        "deals.update": "/account/deals/{id}",
-        "deals.destroy": "/account/deals/{id}",
-
         //TODO: Add more routes as needed from web.php
     };
 
@@ -186,48 +283,68 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
 };
 
 createInertiaApp({
-    resolve: (name) => {
-        try {
-            // console.log(
-            //     "Attempting to load page:",
-            //     name,
-            //     "from URL:",
-            //     window.location.href
-            // );
-            const component = require(`./Pages/${name}`).default;
-            // console.log("Successfully loaded component:", component);
-            return component;
-        } catch (e) {
-            // console.error("Could not load page:", name, e);
-            // console.error(
-            //     "Full error details:",
-            //     e instanceof Error ? e.message : "Unknown error",
-            //     e instanceof Error ? e.stack : ""
-            // );
-            throw e;
+    resolve: async (name) => {
+        const pages = import.meta.glob("./Pages/**/*.tsx");
+        const importPage = pages[`./Pages/${name}.tsx`];
+        if (!importPage) {
+            throw new Error(`❌ Page not found: ./Pages/${name}.tsx`);
         }
+        const module = await importPage();
+        return (module as any).default;
     },
-    setup({ App, props, el: og }) {
-        // console.log("Setting up Inertia app with element:", og);
-        // console.log("App props:", props);
-
-        // if (!el) {
-        //     console.error('No element found with id "app"');
-        //     return;
-        // }
-        const el = document.getElementById("app");
-        if (!el) {
-            // console.error("❌ Could not find #app element");
-            return;
-        }
-
+    setup({ el, App, props }) {
         const root = createRoot(el);
-        // console.log("Creating React root and rendering...");
         root.render(
             <Providers>
                 <App {...props} />
             </Providers>
         );
-        // console.log("React app rendered successfully");
     },
 });
+
+// createInertiaApp({
+//     resolve: (name) => {
+//         try {
+//             // console.log(
+//             //     "Attempting to load page:",
+//             //     name,
+//             //     "from URL:",
+//             //     window.location.href
+//             // );
+//             const component = require(`./Pages/${name}`).default;
+//             // console.log("Successfully loaded component:", component);
+//             return component;
+//         } catch (e) {
+//             // console.error("Could not load page:", name, e);
+//             // console.error(
+//             //     "Full error details:",
+//             //     e instanceof Error ? e.message : "Unknown error",
+//             //     e instanceof Error ? e.stack : ""
+//             // );
+//             throw e;
+//         }
+//     },
+//     setup({ App, props, el: og }) {
+//         // console.log("Setting up Inertia app with element:", og);
+//         // console.log("App props:", props);
+
+//         // if (!el) {
+//         //     console.error('No element found with id "app"');
+//         //     return;
+//         // }
+//         const el = document.getElementById("app");
+//         if (!el) {
+//             // console.error("❌ Could not find #app element");
+//             return;
+//         }
+
+//         const root = createRoot(el);
+//         // console.log("Creating React root and rendering...");
+//         root.render(
+//             <Providers>
+//                 <App {...props} />
+//             </Providers>
+//         );
+//         // console.log("React app rendered successfully");
+//     },
+// });

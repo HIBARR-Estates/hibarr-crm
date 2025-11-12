@@ -111,6 +111,9 @@ class Lead extends BaseModel
     use CustomFieldsTrait;
     use HasCompany;
 
+    protected $hidden = ["pivot"];
+
+
     const CUSTOM_FIELD_MODEL = 'App\Models\Lead';
 
     protected $appends = ['image_url', 'client_name_salutation', 'mobile_with_phonecode', 'office_phone_formatted'];

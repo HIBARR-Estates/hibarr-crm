@@ -1,6 +1,19 @@
 import { Property } from "@/Types";
 import { TFilter } from "@/Types/common";
 
+export const isLoading = ({
+    isError,
+    isLoading,
+    status,
+}: Partial<{
+    isLoading: boolean;
+    isError: boolean;
+    status: "idle" | "error" | "success" | "pending";
+}>): boolean => {
+    if (status === "pending") return true;
+    return isLoading === true && isError !== true;
+};
+
 export const pluralOrSingular = (
     count: number,
     singular: string,
@@ -11,11 +24,25 @@ export const pluralOrSingular = (
 
 export const getStatusColor = (status: string): string => {
     const colors: Record<string, string> = {
-        Available: "#bdbec3",
-        "Under offer": "orange",
-        Sold: "red",
-        Rented: "blue",
-        Withdrawn: "default",
+        available: "#bdbec3",
+        under_offer: "orange",
+        sold: "red",
+        rented: "blue",
+        withdrawn: "default",
+        pending: "#faad14",
+        error: "#ff4d4f",
+        success: "#52c41a",
+        idle: "gray",
+        default: "#d9d9d9",
+        completed: "green",
+        cancelled: "red",
+        scheduled: "blue",
+        accepted: "#52c41a",
+        declined: "#ff4d4f",
+        rejected: "#ff4d4f",
+        started: "#1890ff",
+        paused: "#faad14",
+        closed: "#595959",
     };
     return colors[status] || "default";
 };

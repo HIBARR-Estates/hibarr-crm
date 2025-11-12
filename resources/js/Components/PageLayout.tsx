@@ -1,7 +1,8 @@
 import React from "react";
-import { Breadcrumb } from "antd";
-import { Link } from "@inertiajs/react";
+import { Avatar, Breadcrumb, Dropdown, MenuProps, Switch } from "antd";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import { HomeOutlined } from "@ant-design/icons";
+import { PageProps } from "./DashboardLayout";
 
 interface BreadcrumbItem {
     name: string;
@@ -9,13 +10,14 @@ interface BreadcrumbItem {
 }
 
 interface PageLayoutProps {
-    title: string;
+    title?: string;
     breadcrumbs?: BreadcrumbItem[];
     children: React.ReactNode;
     filterSection?: React.ReactNode;
     config?: {
         showTitle?: boolean;
     };
+    mainContentClassName?: string;
 }
 const defaultConfig = {
     showTitle: false,
@@ -27,6 +29,7 @@ export default function PageLayout({
     children,
     filterSection,
     config = defaultConfig,
+    mainContentClassName = "px-6 py-6",
 }: PageLayoutProps) {
     // Generate breadcrumb items
     const breadcrumbItems = [
@@ -55,41 +58,124 @@ export default function PageLayout({
         })),
     ];
 
-    return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Page Header/Topbar */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                            {config.showTitle && (
-                                <h1 className="text-lg font-semibold text-gray-900 truncate max-w-xs">
-                                    {title}
-                                </h1>
-                            )}
+    const { props } = usePage<PageProps>();
+    const { auth, company, appName, sidebar, currentRouteName } = props;
+    const { user } = auth;
 
-                            {/* Breadcrumbs */}
-                            <div className="hidden lg:flex">
-                                <Breadcrumb
-                                    separator="•"
-                                    items={breadcrumbItems}
-                                    className="text-xs text-gray-500"
-                                />
+    // User dropdown menu
+    const userMenuItems: MenuProps["items"] = [
+        {
+            key: "profile",
+            label: (
+                <a href={route("profile-settings.index")}>Profile Settings</a>
+            ),
+        },
+        {
+            key: "dark-theme",
+            label: (
+                <div className="flex justify-between items-center">
+                    <span>Dark Theme</span>
+                    <Switch
+                        size="small"
+                        checked={user?.dark_theme}
+                        onChange={(checked) => {
+                            // Implement dark theme toggle
+                            // console.log("Toggle dark theme:", checked);
+                        }}
+                    />
+                </div>
+            ),
+        },
+        {
+            type: "divider",
+        },
+        {
+            key: "logout",
+            label: (
+                <span
+                    onClick={() => {
+                        router.post(
+                            route("logout"),
+                            {},
+                            {
+                                onSuccess: () => {
+                                    window.location.href = route("login");
+                                },
+                            }
+                        );
+                    }}
+                    className="w-full text-left cursor-pointer"
+                >
+                    Logout
+                </span>
+            ),
+        },
+    ];
+
+    return (
+        <>
+            <Head title={title} />
+
+            <div className="min-h-screen bg-blue-100/20">
+                {/* Page Header/Topbar */}
+                <div className="bg-white border-b border-gray-200 px-6 py-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                                {config.showTitle && (
+                                    <h1 className="text-lg font-semibold text-gray-900 truncate max-w-xs">
+                                        {title}
+                                    </h1>
+                                )}
+
+                                {/* Breadcrumbs */}
+                                <div className="hidden lg:flex">
+                                    <Breadcrumb
+                                        separator="•"
+                                        items={breadcrumbItems}
+                                        className="text-xs text-gray-500"
+                                    />
+                                </div>
                             </div>
                         </div>
+
+                        <Dropdown
+                            menu={{ items: userMenuItems }}
+                            placement="bottomLeft"
+                        >
+                            <div className="flex items-center justify-between cursor-pointer">
+                                <div className="flex items-center gap-x-2">
+                                    <Avatar
+                                        src={user?.image_url}
+                                        size="small"
+                                        alt={user?.name}
+                                    >
+                                        {user?.name?.charAt(0)}
+                                    </Avatar>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium truncate">
+                                            {appName}
+                                        </span>
+                                        <span className="text-xs text-gray-500 truncate">
+                                            {user?.name}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </Dropdown>
                     </div>
                 </div>
+
+                {/* Filter Section */}
+                {filterSection && (
+                    <div className="bg-white border-b border-gray-200">
+                        {filterSection}
+                    </div>
+                )}
+
+                {/* Main Content */}
+                <div className={mainContentClassName}>{children}</div>
             </div>
-
-            {/* Filter Section */}
-            {filterSection && (
-                <div className="bg-white border-b border-gray-200">
-                    {filterSection}
-                </div>
-            )}
-
-            {/* Main Content */}
-            <div className="px-6 py-6">{children}</div>
-        </div>
+        </>
     );
 }

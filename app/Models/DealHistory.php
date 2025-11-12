@@ -25,7 +25,16 @@ class DealHistory extends BaseModel
         'proposal_id'
     ];
 
+    protected $hidden = ["pivot"];
+
+
     protected $with = [];
+
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
 
     public function user(): BelongsTo
     {

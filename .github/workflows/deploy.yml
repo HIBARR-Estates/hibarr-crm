@@ -14,9 +14,9 @@ jobs:
       - name: Deploy on server via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ secrets.REMOTE_HOST_2 }}
+          username: ${{ secrets.REMOTE_USER_2 }}
+          key: ${{ secrets.SSH_PRIVATE_KEY_2 }}
           script: |
             cd ~/hibarr-crm
             git pull origin main

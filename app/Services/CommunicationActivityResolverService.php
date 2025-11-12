@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\CommunicationActivity;
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\LeadPipeline;
+use App\Models\PipelineStage;
 use Illuminate\Support\Facades\Log;
 use App\Jobs\ProcessCommunicationActivityJob;
 
@@ -61,9 +63,20 @@ class CommunicationActivityResolverService
         }else{
             Log::info('No matching Deal or Lead found for activity ID: ' . $activity->id);
             $company = $activity->company;
+            $clientName = trim(($activity->first_name ?? '') . ' ' . ($activity->last_name ?? ''));
+            
+            // If the client name is empty, try to get it from the sender_info column
+            // Note: sender_info is already cast as an array in the model, no need to json_decode
+            if (empty($clientName) && !empty($activity->sender_info)) {
+                $senderInfo = $activity->sender_info;
+                if (is_array($senderInfo) && isset($senderInfo['name']) && !empty($senderInfo['name'])) {
+                    $clientName = trim($senderInfo['name']);
+                    Log::info('Extracted client name from sender_info: ' . $clientName);
+                }
+            }
             // If no deal or lead found, consider creating a new Lead if sufficient info is available
             $newLeadData = [
-                'client_name' => trim(($activity->first_name ?? '') . ' ' . ($activity->last_name ?? '')),
+                'client_name' => $clientName,
                 'client_email' => $activity->email,
                 'client_instagram' => $activity->instagram_username,
                 'client_telegram' => $activity->telegram_username,
@@ -363,14 +376,20 @@ class CommunicationActivityResolverService
             return $existingDeal; // Return existing open deal
         }
 
+        $leadPipeline = LeadPipeline::where('default', '1')->where('company_id', $lead->company_id)->first();
+        $leadStage = PipelineStage::where('default', '1')->where('lead_pipeline_id', $leadPipeline->id)->where('company_id', $lead->company_id)->first();
+
+
+
         // Create a new deal
         $deal = new Deal();
         $deal->name = 'New Deal for ' . $lead->client_name;
         $deal->lead_id = $lead->id;
-        // $deal->lead_pipeline_id = $lead->pipeline_id;
-        // $deal->pipeline_stage_id = $request->stage_id;
+        $deal->lead_pipeline_id = $leadPipeline->id;
+        $deal->pipeline_stage_id = $leadStage->id;
         $deal->close_date =  null;
         $deal->value =  0;
+        $deal->company_id = $lead->company_id;
         $deal->currency_id = $lead->company?->currency_id;
         $deal->save();
 
