@@ -238,6 +238,28 @@ class LeadContactController extends AccountBaseController
         $this->editLeadPermission = user()->permission('edit_lead');
         $this->deleteLeadPermission = user()->permission('delete_lead');
 
+        $tab = request('tab');
+
+        switch ($tab) {
+            case 'deal':
+                return $this->deals();
+            case 'notes':
+                return $this->notes();
+            case 'marketing':
+                // Load marketing data for the lead contact
+                $this->leadContact = $this->leadContact->load('marketing');
+                $this->view = 'lead-contact.ajax.marketing';
+                break;
+            default:
+                $this->view = 'lead-contact.ajax.profile';
+                break;
+        }
+
+        if (request()->ajax()) {
+            return $this->returnAjax($this->view);
+        }
+
+        $this->activeTab = $tab ?: 'profile';
         $this->employees = User::allEmployees(null, true);
         $this->sources = LeadSource::all();
         $this->countries = countries();

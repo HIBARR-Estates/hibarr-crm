@@ -342,6 +342,7 @@ class DealController extends AccountBaseController
             'currency',
             'products:id,name',
             'communicationActivities',
+            'hibarrFields',
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
                       ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
@@ -395,6 +396,30 @@ class DealController extends AccountBaseController
             $notes = $notes->where('added_by', '!=', user()->id);
         }
 
+        $tab = request('tab', 'overview');
+
+        switch ($tab) {
+            case 'files':
+                $this->tab = 'leads.ajax.files';
+                break;
+            case 'follow-up':
+                $this->dealFollowUps = DealFollowUp::where('deal_id', $id)->get();
+
+                if (user()->permission('view_lead_follow_up') == 'added') {
+                    $this->dealFollowUps = $this->dealFollowUps->where('added_by', user()->id);
+                }
+
+                $this->tab = 'leads.ajax.follow-up';
+                break;
+            case 'proposals':
+                abort_403(!in_array(user()->permission('view_lead_proposals'), ['all', 'added']));
+
+                $this->proposals = Proposal::where('deal_id', $id)->get();
+
+
+                if (user()->permission('view_lead_proposals') == 'added') {
+                    $this->proposals = $this->proposals->where('added_by', user()->id);
+                }
         // Get follow-ups data
         $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType'])
             ->where('deal_id', $id)
@@ -431,27 +456,45 @@ class DealController extends AccountBaseController
             }
         }
 
-        // Get history data
-        $histories = DealHistory::with('addedBy:id,name,image')
-            ->where('deal_id', $id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+                $this->tab = 'leads.ajax.proposal';
+                break;
+            case 'notes':
+                $this->prepareNotesTab($id);
+                break;
+            case 'gdpr':
 
-        // Get activities data
-        $activities = CommunicationActivity::where('deal_id', $id)
-            ->with(['deal', 'lead'])
-            ->orderBy('timestamp', 'desc')
-            ->get();
+                $this->consents = PurposeConsent::with(['lead' => function ($query) use ($id) {
+                    $query->where('lead_id', $id)
+                        ->orderByDesc('created_at');
+                }])->get();
 
-        // Get GDPR data
-        $consents = [];
-        $gdprSetting = GdprSetting::first();
-        if ($gdprSetting && $gdprSetting->enable_gdpr) {
-            $consents = PurposeConsent::with(['lead' => function ($query) use ($id) {
-                $query->where('lead_id', $id)
-                    ->orderByDesc('created_at');
-            }])->get();
+                $this->gdpr = GdprSetting::first();
+
+                $this->tab = 'leads.ajax.gdpr';
+                break;
+            case 'history':
+                $this->histories = DealHistory::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
+                $this->tab = 'leads.ajax.history';
+                break;
+            case 'activities':
+                $this->activities = CommunicationActivity::where('deal_id', $id)
+                    ->with(['deal', 'lead'])
+                    ->orderBy('timestamp', 'desc')
+                    ->get();
+                $this->tab = 'leads.ajax.activities';
+                break;
+            case 'marketing':
+                $this->tab = 'leads.ajax.marketing';
+                break;
+            default:
+                $this->prepareNotesTab($id);
+                break;
         }
+
+        $histories = $this->histories ?? collect();
+        $activities = $this->activities ?? collect();
+        $consents = $this->consents ?? collect();
+        $gdprSetting = $this->gdpr ?? null;
 
         // Permission checks
         $permissions = [
@@ -514,6 +557,21 @@ class DealController extends AccountBaseController
             'permissions' => $permissions,
             'pageTitle' => $deal->name,
         ]);
+    }
+
+    private function prepareNotesTab(int $dealId): void
+    {
+        $this->notes = DealNote::where('deal_id', $dealId)->orderBy('created_at', 'desc')->get();
+        $viewNotesPermission = user()->permission('view_deal_note');
+        abort_403(!($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
+
+        if (user()->permission('view_deal_note') == 'added') {
+            $this->notes = $this->notes->where('added_by', user()->id);
+        } elseif (user()->permission('view_deal_note') == 'owned') {
+            $this->notes = $this->notes->where('added_by', '!=', user()->id);
+        }
+
+        $this->tab = 'leads.ajax.notes';
     }
 
     /**
@@ -652,7 +710,8 @@ class DealController extends AccountBaseController
 
         $redirectUrl = urldecode($request->redirect_url);
 
-        if ($request->add_more == 'true') {
+        if ($request->add_more === 'true') {
+            Log::info('Deal saved with add_more=true, deal ID: ' . $deal->id);
             // Return fresh form HTML for add more functionality
             $html = $this->create();
             // return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
@@ -661,6 +720,7 @@ class DealController extends AccountBaseController
                 'message' => __('messages.recordSaved')
             ]);
         }
+
 
         if ($redirectUrl == '') {
             $redirectUrl = route('deals.index');
@@ -803,6 +863,9 @@ class DealController extends AccountBaseController
         // $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
         
         // Debug logging
+        Log::info('Deal update - strategy_accepted: ' . ($deal->strategy_accepted ? 'true' : 'false'));
+        Log::info('Deal update - downpayment_confirmed: ' . ($deal->downpayment_confirmed ? 'true' : 'false'));
+        
         $deal->save();
 
         // Handle deal watchers
@@ -1321,6 +1384,11 @@ class DealController extends AccountBaseController
         $this->addPermission = user()->permission('add_deals');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
+        // Get all pipelines for the dropdown
+        $this->pipelines = \App\Models\LeadPipeline::where('company_id', company()->id)
+            ->orderBy('id')
+            ->get();
+
         $this->view = 'deals.ajax.import';
 
         if (request()->ajax()) {
@@ -1332,6 +1400,7 @@ class DealController extends AccountBaseController
 
     public function importStore(ImportRequest $request)
     {
+        $this->applyImportResourceLimits();
         $rvalue = $this->importFileProcess($request, DealImport::class);
 
         if ($rvalue == 'abort') {
@@ -1344,9 +1413,25 @@ class DealController extends AccountBaseController
 
     public function importProcess(ImportProcessRequest $request)
     {
+        $this->applyImportResourceLimits();
         $batch = $this->importJobProcess($request, DealImport::class, ImportDealJob::class);
 
         return Reply::successWithData(__('messages.importProcessStart'), ['batch' => $batch]);
+    }
+
+    /**
+     * Download sample import template with custom fields
+     */
+    public function downloadSampleImport()
+    {
+        $this->applyImportResourceLimits();
+        $this->addPermission = user()->permission('add_deals');
+        abort_403(!in_array($this->addPermission, ['all', 'added']));
+
+        $export = new \App\Exports\DealSampleExport(company()->id);
+        $filename = 'deal-sample-import-' . now()->format('Y-m-d') . '.xlsx';
+        
+        return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
     }
 
     public function destroySession()
@@ -1587,11 +1672,11 @@ class DealController extends AccountBaseController
             }
             
             // If none of the above formats work, log the error
-            \Log::error('Date conversion error: Unable to parse date in any expected format - Date: ' . $date . ' - Company format: ' . company()->date_format);
+            Log::error('Date conversion error: Unable to parse date in any expected format - Date: ' . $date . ' - Company format: ' . company()->date_format);
             return null;
             
         } catch (\Exception $e) {
-            \Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
+            Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
             return null;
         }
     }
@@ -1601,7 +1686,7 @@ class DealController extends AccountBaseController
      */
     public function generateMeetingLink(Request $request)
     {
-        \Log::info('Generate Meeting Link invoked', [
+        Log::info('Generate Meeting Link invoked', [
             'followup_id' => $request->followup_id,
             'user_id' => auth()->id(),
             'timestamp' => now(),
@@ -1613,19 +1698,19 @@ class DealController extends AccountBaseController
         $followUpId = $request->followup_id;
         $followUp = DealFollowUp::find($followUpId);
 
-        \Log::info('Follow-up found', [
+        Log::info('Follow-up found', [
             'followup_id' => $followUpId,
             'followup_exists' => $followUp ? true : false,
             'followup_location' => $followUp ? $followUp->location : null
         ]);
 
         if (!$followUp) {
-            \Log::error('Follow-up not found', ['followup_id' => $followUpId]);
+            Log::error('Follow-up not found', ['followup_id' => $followUpId]);
             return Reply::error('Follow-up not found');
         }
 
         try {
-            \Log::info('Calling triggerFollowUpAutomation', [
+            Log::info('Calling triggerFollowUpAutomation', [
                 'followup_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
                 'location' => $followUp->location
@@ -1633,14 +1718,14 @@ class DealController extends AccountBaseController
 
             $meetingResponse = $this->triggerFollowUpAutomation($followUp);
             
-            \Log::info('triggerFollowUpAutomation response', [
+            Log::info('triggerFollowUpAutomation response', [
                 'response' => $meetingResponse
             ]);
 
             $meetingLink = $meetingResponse['meeting_link'] ?? null;
             return Reply::successWithData('Meeting link generated successfully', ['meeting_link' => $meetingLink]);
         } catch (\Exception $e) {
-            \Log::error('Error in generateMeetingLink', [
+            Log::error('Error in generateMeetingLink', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
