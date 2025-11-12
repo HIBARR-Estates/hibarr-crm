@@ -361,7 +361,7 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                     
                     // Hibarr Deal Custom Field labels
                     'interested_in' => 'Interested In',
-                    'motivation_comment' => 'Motivation/Comment',
+                    'motivation' => 'Motivation/Comment',
                     'purchase_timeline' => 'Purchase Timeline',
                     'budget_range' => 'Budget Range',
                     'strategy_meeting_booked' => 'Strategy Meeting Booked',
