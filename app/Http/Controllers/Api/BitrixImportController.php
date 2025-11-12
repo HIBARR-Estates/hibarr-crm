@@ -37,7 +37,7 @@ class BitrixImportController extends Controller
             return Reply::error('Deal name is required.');
         }
 
-        $companyId = $this->resolveCompanyId($responsibleData);
+        $companyId = 1;
 
         try {
             $result = DB::transaction(function () use ($dealData, $contactData, $responsibleData, $dealName, $companyId) {
@@ -337,7 +337,7 @@ class BitrixImportController extends Controller
             'deposit_confirmation' => Arr::get($dealData, 'depositConfirmation') ?? '',
             'reservation_agreement' => Arr::get($dealData, 'reservationAgreement') ?? '',
             'sales_contract' => Arr::get($dealData, 'salesContract') ?? '',
-            'motivation' => Arr::get($dealData, 'motivation') ?? '',
+            'motivation/comment' => Arr::get($dealData, 'motivation') ?? '',
         ];
 
         HibarrDealFields::updateOrCreate(
@@ -485,26 +485,5 @@ class BitrixImportController extends Controller
             'remark' => 'Imported from Bitrix',
             'added_by' => optional(auth()->user())->id,
         ]);
-    }
-
-    private function resolveCompanyId(array $responsibleData): int
-    {
-        $companyId = company()?->id;
-
-        if (!$companyId && auth()->check()) {
-            $companyId = auth()->user()->company_id;
-        }
-
-        if (!$companyId) {
-            $email = Arr::get($responsibleData, 'email');
-            if ($email) {
-                $existingUser = User::withoutGlobalScopes()->where('email', $email)->first();
-                if ($existingUser && $existingUser->company_id) {
-                    $companyId = $existingUser->company_id;
-                }
-            }
-        }
-
-        return $companyId ?? (int) config('app.default_company_id', 1);
     }
 }

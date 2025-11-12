@@ -495,6 +495,10 @@ class DealController extends AccountBaseController
         $activities = $this->activities ?? collect();
         $consents = $this->consents ?? collect();
         $gdprSetting = $this->gdpr ?? null;
+        $dealFollowUps = $this->dealFollowUps ?? collect();
+        $meetingTypes = $meetingTypes ?? collect();
+        $files = $files ?? collect();
+        $proposals = $proposals ?? collect();
 
         // Permission checks
         $permissions = [
