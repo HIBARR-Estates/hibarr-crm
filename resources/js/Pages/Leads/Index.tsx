@@ -275,10 +275,7 @@ const Index = ({
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={lead}
-                countries={countries}
-                categories={clientCategories}
-                salutations={salutations}
-                languages={languages}
+               
             />
 
             {/* Filter Drawer */}
