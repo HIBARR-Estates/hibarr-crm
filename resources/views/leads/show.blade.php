@@ -42,6 +42,9 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                 <x-tab :href="route('deals.show', $deal->id).'?tab=gdpr'" :text="__('app.menu.gdpr')" class="gdpr" ajax="false" />
             @endif
 
+            <x-tab :href="route('deals.show', $deal->id).'?tab=marketing'" :text="__('modules.marketing')" class="marketing" ajax="false" />
+
+
             <x-tab :href="route('deals.show', $deal->id).'?tab=history'" :text="__('modules.tasks.history')" class="history" ajax="false" />
         </div>
         <a class="mb-0 d-block d-lg-none text-dark-grey ml-auto mr-2 border-left-grey"
