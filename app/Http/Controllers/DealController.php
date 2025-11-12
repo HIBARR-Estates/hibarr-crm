@@ -470,7 +470,8 @@ class DealController extends AccountBaseController
 
                 $this->gdpr = GdprSetting::first();
 
-                return $this->gdpr();
+                $this->tab = 'leads.ajax.gdpr';
+                break;
             case 'history':
                 $this->histories = DealHistory::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
                 $this->tab = 'leads.ajax.history';

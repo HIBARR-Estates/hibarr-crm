@@ -53,7 +53,7 @@ class DealImport implements ToArray
 
         // Add custom fields dynamically - ALL custom fields
         $customFieldsGroupsId = \App\Models\CustomFieldGroup::where('model', 'App\Models\Deal')
-            ->where('company_id', company()->id)
+            ->where('company_id', 1)
             ->select('id')
             ->first();
 

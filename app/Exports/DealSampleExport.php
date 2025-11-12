@@ -32,6 +32,7 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
     {
         $customFields = $this->getCustomFields();
         $stages = $this->getAllStages();
+        $stageCount = count($stages);
         
         // Generate multiple sample rows with actual data
         $sampleRows = [];
@@ -102,7 +103,11 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
         ];
         
         foreach ($dealNames as $index => $dealName) {
-            $stage = $stages[$index % count($stages)] ?? 'Prospect';
+            if ($stageCount > 0) {
+                $stage = $stages[$index % $stageCount];
+            } else {
+                $stage = 'Prospect';
+            }
             
             $row = [
                 $dealName,                                      // Deal Name
