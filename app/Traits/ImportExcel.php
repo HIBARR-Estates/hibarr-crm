@@ -15,8 +15,15 @@ use ReflectionClass;
 trait ImportExcel
 {
 
+    protected function applyImportResourceLimits(): void
+    {
+        @ini_set('memory_limit', '512M');
+        @ini_set('max_execution_time', '600');
+    }
+
     public function importFileProcess($request, $importClass)
     {
+        $this->applyImportResourceLimits();
         // get class name from $importClass
         $this->importClassName = (new ReflectionClass($importClass))->getShortName();
 
@@ -74,6 +81,7 @@ trait ImportExcel
 
     public function importJobProcess($request, $importClass, $importJobClass)
     {
+        $this->applyImportResourceLimits();
         // get class name from $importClass
         $importClassName = (new ReflectionClass($importClass))->getShortName();
         Log::info('Importing to queue: ' . $importClassName);
@@ -123,9 +131,9 @@ trait ImportExcel
         
         $allBatches = [];
         
-        $companyId = company()?->id;
+        $company = company();
+        $companyId = $company?->id;
         $userId = user()?->id;
-        
         foreach ($chunks as $chunkIndex => $chunk) {
             $jobs = [];
             
@@ -140,8 +148,20 @@ trait ImportExcel
                     }
                     return $value;
                 }, $row);
-                
-                $jobs[] = (new $importJobClass($sanitizedRow, $columns, $companyId, $userId, $pipelineId))->onQueue($importClassName);
+
+                switch ($importJobClass) {
+                    case \App\Jobs\ImportDealJob::class:
+                        $jobInstance = new $importJobClass($sanitizedRow, $columns, $companyId, $pipelineId);
+                        break;
+                    case \App\Jobs\ImportPropertyJob::class:
+                        $jobInstance = new $importJobClass($sanitizedRow, $columns, $company, $userId);
+                        break;
+                    default:
+                        $jobInstance = new $importJobClass($sanitizedRow, $columns, $company);
+                        break;
+                }
+
+                $jobs[] = $jobInstance->onQueue($importClassName);
             }
             
             Log::info('Jobs created for chunk', ['chunk' => $chunkIndex, 'job_count' => count($jobs), 'memory' => memory_get_usage(true) / 1024 / 1024 . 'MB']);

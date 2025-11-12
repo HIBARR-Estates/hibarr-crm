@@ -11,12 +11,12 @@ class DealImport implements ToArray
     public static function fields(): array
     {
         $fields = array(
-            array('id' => 'deal_name', 'name' => 'Deal Name', 'required' => 'No', 'db_field' => 'name'),
-            array('id' => 'lead_contact_email', 'name' => 'Lead Contact Email', 'required' => 'No', 'db_field' => 'email'),
+            array('id' => 'deal_name', 'name' => 'Deal Name', 'required' => 'Yes', 'db_field' => 'name'),
+            array('id' => 'lead_contact_email', 'name' => 'Lead Contact Email', 'required' => 'Yes', 'db_field' => 'email'),
             array('id' => 'lead_name', 'name' => 'Lead Name', 'required' => 'No'),
             array('id' => 'pipeline', 'name' => 'Pipeline (Legacy - Ignored)', 'required' => 'No', 'db_field' => 'pipeline'),
-            array('id' => 'deal_value', 'name' => 'Deal Value', 'required' => 'No', 'db_field' => 'value'),
-            array('id' => 'close_date', 'name' => 'Close Date', 'required' => 'No', 'db_field' => 'close_date'),
+            array('id' => 'deal_value', 'name' => 'Deal Value', 'required' => 'Yes', 'db_field' => 'value'),
+            array('id' => 'close_date', 'name' => 'Close Date', 'required' => 'Yes', 'db_field' => 'close_date'),
             array('id' => 'deal_stage', 'name' => 'Deal Stage', 'required' => 'No', 'db_field' => 'stages'),
             array('id' => 'responsible_name', 'name' => 'Responsible Agent Name', 'required' => 'No'),
             

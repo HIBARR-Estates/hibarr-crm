@@ -81,7 +81,9 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
         $values = [46787, 69230, 32044, 38321, 15840, 73958, 71490, 25556, 3185, 76817, 70298];
         
         // Get default pipeline
-        $pipeline = LeadPipeline::where('default', 1)->first();
+        $pipeline = LeadPipeline::where('default', 1)
+            ->where('company_id', $this->companyId)
+            ->first();
         $pipelineName = $pipeline ? $pipeline->name : 'Sales Pipeline';
         
         // Agent names demonstrating the email convention

@@ -206,21 +206,6 @@ class DealController extends AccountBaseController
 
         $tab = request('tab');
 
-        // Helper to handle notes logic
-        $handleNotes = function() use ($id) {
-            $this->notes = DealNote::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
-            $viewNotesPermission = user()->permission('view_deal_note');
-            abort_403(!($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
-
-            if (user()->permission('view_deal_note') == 'added') {
-                $this->notes = $this->notes->where('added_by', user()->id);
-            }
-            elseif (user()->permission('view_deal_note') == 'owned') {
-                $this->notes = $this->notes->where('added_by', '!=', user()->id);
-            }
-            $this->tab = 'leads.ajax.notes';
-        };
-
         switch ($tab) {
             case 'files':
                 $this->tab = 'leads.ajax.files';
@@ -247,7 +232,7 @@ class DealController extends AccountBaseController
                 $this->tab = 'leads.ajax.proposal';
                 break;
             case 'notes':
-                $handleNotes();
+                $this->prepareNotesTab($id);
                 break;
             case 'gdpr':
 
@@ -274,7 +259,7 @@ class DealController extends AccountBaseController
                 $this->tab = 'leads.ajax.marketing';
                 break;
             default:
-                $handleNotes();
+                $this->prepareNotesTab($id);
                 break;
         }
 
@@ -287,6 +272,21 @@ class DealController extends AccountBaseController
         $this->view = 'leads.ajax.show';
 
         return view('leads.create', $this->data);
+    }
+
+    private function prepareNotesTab(int $dealId): void
+    {
+        $this->notes = DealNote::where('deal_id', $dealId)->orderBy('created_at', 'desc')->get();
+        $viewNotesPermission = user()->permission('view_deal_note');
+        abort_403(!($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
+
+        if (user()->permission('view_deal_note') == 'added') {
+            $this->notes = $this->notes->where('added_by', user()->id);
+        } elseif (user()->permission('view_deal_note') == 'owned') {
+            $this->notes = $this->notes->where('added_by', '!=', user()->id);
+        }
+
+        $this->tab = 'leads.ajax.notes';
     }
 
     /**
@@ -960,6 +960,7 @@ class DealController extends AccountBaseController
 
     public function importStore(ImportRequest $request)
     {
+        $this->applyImportResourceLimits();
         $rvalue = $this->importFileProcess($request, DealImport::class);
 
         if ($rvalue == 'abort') {
@@ -972,6 +973,7 @@ class DealController extends AccountBaseController
 
     public function importProcess(ImportProcessRequest $request)
     {
+        $this->applyImportResourceLimits();
         $batch = $this->importJobProcess($request, DealImport::class, ImportDealJob::class);
 
         return Reply::successWithData(__('messages.importProcessStart'), ['batch' => $batch]);
@@ -982,6 +984,7 @@ class DealController extends AccountBaseController
      */
     public function downloadSampleImport()
     {
+        $this->applyImportResourceLimits();
         $this->addPermission = user()->permission('add_deals');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 

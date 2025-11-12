@@ -37,7 +37,7 @@ class BitrixImportController extends Controller
             return Reply::error('Deal name is required.');
         }
 
-        $companyId = 1;
+        $companyId = $this->resolveCompanyId($responsibleData);
 
         try {
             $result = DB::transaction(function () use ($dealData, $contactData, $responsibleData, $dealName, $companyId) {
@@ -252,7 +252,7 @@ class BitrixImportController extends Controller
         $marketingPayload = [
             'utm_source' => Arr::get($contactData, 'utmSource'),
             'utm_medium' => Arr::get($contactData, 'utmMedium'),
-            'utm_campaign' => Arr::get($contactData, 'utmCampagin'),
+            'utm_campaign' => Arr::get($contactData, 'utmCampaign'),
             'utm_term' => Arr::get($contactData, 'utmTerm'),
             'utm_content' => Arr::get($contactData, 'utmContent'),
             'facebook_click_id' => Arr::get($contactData, 'facebookClickId'),
@@ -484,7 +484,27 @@ class BitrixImportController extends Controller
             'next_follow_up_date' => $date,
             'remark' => 'Imported from Bitrix',
             'added_by' => optional(auth()->user())->id,
-            'last_updated_by' => optional(auth()->user())->id,
         ]);
+    }
+
+    private function resolveCompanyId(array $responsibleData): int
+    {
+        $companyId = company()?->id;
+
+        if (!$companyId && auth()->check()) {
+            $companyId = auth()->user()->company_id;
+        }
+
+        if (!$companyId) {
+            $email = Arr::get($responsibleData, 'email');
+            if ($email) {
+                $existingUser = User::withoutGlobalScopes()->where('email', $email)->first();
+                if ($existingUser && $existingUser->company_id) {
+                    $companyId = $existingUser->company_id;
+                }
+            }
+        }
+
+        return $companyId ?? (int) config('app.default_company_id', 1);
     }
 }

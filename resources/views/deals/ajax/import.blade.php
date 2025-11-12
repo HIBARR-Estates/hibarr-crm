@@ -76,9 +76,6 @@
             const headingChecked = $('#heading').is(':checked');
             formData.set('heading', headingChecked ? '1' : '0');
             
-            console.log('Heading value:', headingChecked ? '1' : '0');
-            console.log('FormData heading:', formData.get('heading'));
-
             $.easyAjax({
                 url: url,
                 container: '#import-deal-data-form',

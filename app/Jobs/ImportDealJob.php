@@ -31,18 +31,18 @@ class ImportDealJob implements ShouldQueue
     private $companyId;
     public $pipelineId;
     
-    // Static caches - private to prevent serialization
-    private static $pipelinesCache = [];
-    private static $customFieldsCache = [];
-    private static $usersCache = [];
-    private static $leadAgentsCache = [];
+    private $pipelinesCache = [];
+    private $customFieldsCache = [];
+    private $usersCache = [];
+    private $leadAgentsCache = [];
+    private ?\App\Models\Company $companyInstance = null;
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($row, $columns, $companyId = null, $userId = null, $pipelineId = null)
+    public function __construct($row, $columns, $companyId = null, $pipelineId = null)
     {
         $this->row = $row;
         $this->columns = $columns;
@@ -57,13 +57,11 @@ class ImportDealJob implements ShouldQueue
      */
     private function getCompany()
     {
-        static $companyInstance = null;
-        
-        if ($companyInstance === null && $this->companyId) {
-            $companyInstance = \App\Models\Company::find($this->companyId);
+        if ($this->companyInstance === null && $this->companyId) {
+            $this->companyInstance = \App\Models\Company::find($this->companyId);
         }
         
-        return $companyInstance;
+        return $this->companyInstance;
     }
 
     /**
@@ -73,8 +71,6 @@ class ImportDealJob implements ShouldQueue
      */
     public function handle()
     {
-        // Clear static caches periodically to prevent memory buildup
-        $this->clearCachesIfNeeded();
         
         // Validate required columns
         if (
@@ -121,7 +117,7 @@ class ImportDealJob implements ShouldQueue
                 $deal->pipeline_stage_id = $stageData['stage_id'];
                 $deal->close_date = Carbon::parse($this->getColumnValue('close_date'))->format('Y-m-d');
                 $deal->value = ($this->getColumnValue('deal_value')) ?: 0;
-                $deal->currency_id = $this->getCompany()->currency_id;
+                $deal->currency_id = $this->getCompany()?->currency_id;
                 
                 if ($agentId) {
                     $deal->agent_id = $agentId;
@@ -244,7 +240,7 @@ class ImportDealJob implements ShouldQueue
     {
         $cacheKey = $this->companyId . '_stage_id_' . $stageId . '_' . ($this->pipelineId ?? 'all');
 
-        if (!isset(self::$pipelinesCache[$cacheKey])) {
+        if (!isset($this->pipelinesCache[$cacheKey])) {
             $query = \App\Models\PipelineStage::withoutGlobalScopes()
                 ->select('id', 'name', 'lead_pipeline_id')
                 ->whereHas('pipeline', function ($query) {
@@ -260,17 +256,17 @@ class ImportDealJob implements ShouldQueue
             $stage = $query->first();
 
             if ($stage) {
-                self::$pipelinesCache[$cacheKey] = [
+                $this->pipelinesCache[$cacheKey] = [
                     'stage_id' => $stage->id,
                     'pipeline_id' => $stage->lead_pipeline_id,
                     'stage_name' => $stage->name,
                 ];
             } else {
-                self::$pipelinesCache[$cacheKey] = null;
+                $this->pipelinesCache[$cacheKey] = null;
             }
         }
 
-        return self::$pipelinesCache[$cacheKey];
+        return $this->pipelinesCache[$cacheKey];
     }
 
     /**
@@ -283,7 +279,7 @@ class ImportDealJob implements ShouldQueue
     {
         $cacheKey = $this->companyId . '_stage_name_' . $stageName . '_' . ($this->pipelineId ?? 'all');
 
-        if (!isset(self::$pipelinesCache[$cacheKey])) {
+        if (!isset($this->pipelinesCache[$cacheKey])) {
             $query = \App\Models\PipelineStage::withoutGlobalScopes()
                 ->select('id', 'name', 'lead_pipeline_id')
                 ->whereHas('pipeline', function ($query) {
@@ -299,17 +295,17 @@ class ImportDealJob implements ShouldQueue
             $stage = $query->first();
 
             if ($stage) {
-                self::$pipelinesCache[$cacheKey] = [
+                $this->pipelinesCache[$cacheKey] = [
                     'stage_id' => $stage->id,
                     'pipeline_id' => $stage->lead_pipeline_id,
                     'stage_name' => $stage->name,
                 ];
             } else {
-                self::$pipelinesCache[$cacheKey] = null;
+                $this->pipelinesCache[$cacheKey] = null;
             }
         }
 
-        return self::$pipelinesCache[$cacheKey];
+        return $this->pipelinesCache[$cacheKey];
     }
 
     /**
@@ -321,7 +317,7 @@ class ImportDealJob implements ShouldQueue
     {
         $cacheKey = $this->companyId . '_default_stage_' . ($this->pipelineId ?? 'all');
 
-        if (!isset(self::$pipelinesCache[$cacheKey])) {
+        if (!isset($this->pipelinesCache[$cacheKey])) {
             $query = \App\Models\PipelineStage::withoutGlobalScopes()
                 ->select('pipeline_stages.id', 'pipeline_stages.name', 'pipeline_stages.lead_pipeline_id')
                 ->join('lead_pipelines', 'pipeline_stages.lead_pipeline_id', '=', 'lead_pipelines.id')
@@ -337,17 +333,17 @@ class ImportDealJob implements ShouldQueue
                 ->first();
 
             if ($stage) {
-                self::$pipelinesCache[$cacheKey] = [
+                $this->pipelinesCache[$cacheKey] = [
                     'stage_id' => $stage->id,
                     'pipeline_id' => $stage->lead_pipeline_id,
                     'stage_name' => $stage->name,
                 ];
             } else {
-                self::$pipelinesCache[$cacheKey] = null;
+                $this->pipelinesCache[$cacheKey] = null;
             }
         }
 
-        return self::$pipelinesCache[$cacheKey];
+        return $this->pipelinesCache[$cacheKey];
     }
 
     /**
@@ -440,14 +436,14 @@ class ImportDealJob implements ShouldQueue
     {
         $cacheKey = 'deal_' . $this->companyId;
 
-        if (!isset(self::$customFieldsCache[$cacheKey])) {
+        if (!isset($this->customFieldsCache[$cacheKey])) {
             $customFieldsGroupsId = \App\Models\CustomFieldGroup::where('model', 'App\Models\Deal')
                 ->where('company_id', $this->companyId)
                 ->select('id')
                 ->first();
 
             if (!$customFieldsGroupsId) {
-                self::$customFieldsCache[$cacheKey] = [];
+                $this->customFieldsCache[$cacheKey] = [];
                 return [];
             }
 
@@ -457,10 +453,10 @@ class ImportDealJob implements ShouldQueue
                 ->get()
                 ->toArray();
 
-            self::$customFieldsCache[$cacheKey] = $customFields;
+            $this->customFieldsCache[$cacheKey] = $customFields;
         }
 
-        return self::$customFieldsCache[$cacheKey];
+        return $this->customFieldsCache[$cacheKey];
     }
     
     /**
@@ -550,8 +546,8 @@ class ImportDealJob implements ShouldQueue
         
         // Check cache first
         $cacheKey = $this->companyId . '_' . strtolower($name);
-        if (isset(self::$leadAgentsCache[$cacheKey])) {
-            return self::$leadAgentsCache[$cacheKey];
+        if (isset($this->leadAgentsCache[$cacheKey])) {
+            return $this->leadAgentsCache[$cacheKey];
         }
         
         // Check if it's already an email
@@ -563,24 +559,24 @@ class ImportDealJob implements ShouldQueue
         }
         
         if (!$email) {
-            self::$leadAgentsCache[$cacheKey] = null;
+            $this->leadAgentsCache[$cacheKey] = null;
             return null;
         }
         
         // Check user cache
         $userCacheKey = $this->companyId . '_' . $email;
-        if (!isset(self::$usersCache[$userCacheKey])) {
+        if (!isset($this->usersCache[$userCacheKey])) {
             $user = \App\Models\User::withoutGlobalScopes()
                 ->where('email', $email)
                 ->where('company_id', $this->companyId)
                 ->first();
-            self::$usersCache[$userCacheKey] = $user;
+            $this->usersCache[$userCacheKey] = $user;
         } else {
-            $user = self::$usersCache[$userCacheKey];
+            $user = $this->usersCache[$userCacheKey];
         }
         
         if (!$user) {
-            self::$leadAgentsCache[$cacheKey] = null;
+            $this->leadAgentsCache[$cacheKey] = null;
             return null;
         }
         
@@ -604,7 +600,7 @@ class ImportDealJob implements ShouldQueue
             });
         }
         
-        self::$leadAgentsCache[$cacheKey] = $leadAgent->id;
+        $this->leadAgentsCache[$cacheKey] = $leadAgent->id;
         return $leadAgent->id;
     }
     
@@ -626,20 +622,29 @@ class ImportDealJob implements ShouldQueue
             return null;
         }
         
-        $domain = 'hibarr.de';
-        
+        $company = $this->getCompany();
+        $domain = $company?->email_domain ?? config('company.email_domain', 'hibarr.de');
+        $domain = trim((string) $domain) !== '' ? trim($domain) : 'hibarr.de';
+
+        $configuredSpecialCases = config('company.email_special_cases', []);
+        $specialCases = [];
+        foreach ($configuredSpecialCases as $caseName => $username) {
+            $normalizedKey = strtolower(trim((string) $caseName));
+            if ($normalizedKey !== '') {
+                $specialCases[$normalizedKey] = $username;
+            }
+        }
+
         // Clean the name
         $name = trim($name);
-        $nameLower = strtolower($name);
-        
-        // Special case: Rabih Rabea
-        if (preg_match('/^rabih\s+rabea$/i', $name)) {
-            return 'r.r@' . $domain;
+        if ($name === '') {
+            return null;
         }
-        
-        // Special case: Shirin (single name)
-        if (preg_match('/^shirin$/i', $name)) {
-            return 'shirin@' . $domain;
+
+        $normalizedName = strtolower(preg_replace('/\s+/', ' ', $name));
+        if (array_key_exists($normalizedName, $specialCases)) {
+            $usernameOverride = trim((string) $specialCases[$normalizedName]);
+            return $usernameOverride !== '' ? $usernameOverride . '@' . $domain : null;
         }
         
         // Split name into parts
@@ -731,28 +736,5 @@ class ImportDealJob implements ShouldQueue
         return $hibarrFieldsData;
     }
     
-    /**
-     * Clear static caches periodically to prevent memory buildup
-     * Clears every 100 jobs to keep memory usage reasonable
-     *
-     * @return void
-     */
-    private function clearCachesIfNeeded()
-    {
-        static $jobCount = 0;
-        $jobCount++;
-        
-        // Clear caches every 100 jobs
-        if ($jobCount % 100 === 0) {
-            self::$pipelinesCache = [];
-            self::$customFieldsCache = [];
-            self::$usersCache = [];
-            self::$leadAgentsCache = [];
-            
-            // Force garbage collection
-            gc_collect_cycles();
-        }
-    }
-
 }
 
