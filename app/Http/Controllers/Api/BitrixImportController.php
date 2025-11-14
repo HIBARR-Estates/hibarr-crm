@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Helper\Reply;
 use App\Http\Controllers\Controller;
 use App\Models\Deal;
+use App\Models\DealFollowUp;
 use App\Models\EmployeeDetails;
 use App\Models\HibarrDealFields;
 use App\Models\Lead;
@@ -14,13 +15,14 @@ use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\DealFollowUp;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class BitrixImportController extends Controller
 {
@@ -127,9 +129,13 @@ class BitrixImportController extends Controller
                     'is_new_deal' => $isNewDeal,
                 ];
             });
-        } finally {
-            auth()->logout();
+        } catch (Throwable $e) {
+            $this->logoutIfAuthenticated();
+
+            return $this->handleBitrixImportFailure($e, $payload);
         }
+
+        $this->logoutIfAuthenticated();
 
         return Reply::successWithData('Bitrix deal synced successfully.', [
             'deal_id' => $result['deal']->id,
@@ -270,6 +276,34 @@ class BitrixImportController extends Controller
         );
 
         return $lead;
+    }
+
+    private function handleBitrixImportFailure(Throwable $e, array $payload)
+    {
+        $contactEmail = Arr::get($payload, 'contact.email');
+        $responsibleEmail = Arr::get($payload, 'responsiblePerson.email');
+
+        Log::error('Bitrix import failed', [
+            'message' => $e->getMessage(),
+            'exception_type' => get_class($e),
+            'exception_code' => $e->getCode(),
+            'exception_trace' => $e->getTraceAsString(),
+            'deal_name' => Arr::get($payload, 'deal.dealName'),
+            'contact_email_present' => !empty($contactEmail),
+            'responsible_email_present' => !empty($responsibleEmail),
+        ]);
+
+        // Always return a generic message to avoid leaking internals even if debug is enabled.
+        $message = 'Unable to sync Bitrix deal. Please verify the payload and try again.';
+
+        return Reply::error($message);
+    }
+
+    private function logoutIfAuthenticated(): void
+    {
+        if (auth()->check()) {
+            auth()->logout();
+        }
     }
 
     private function resolvePipelineAndStage(array $dealData, int $companyId): array
