@@ -280,17 +280,21 @@ class BitrixImportController extends Controller
 
     private function handleBitrixImportFailure(Throwable $e, array $payload)
     {
+        $contactEmail = Arr::get($payload, 'contact.email');
+        $responsibleEmail = Arr::get($payload, 'responsiblePerson.email');
+
         Log::error('Bitrix import failed', [
             'message' => $e->getMessage(),
+            'exception_type' => get_class($e),
+            'exception_code' => $e->getCode(),
+            'exception_trace' => $e->getTraceAsString(),
             'deal_name' => Arr::get($payload, 'deal.dealName'),
-            'contact_email' => Arr::get($payload, 'contact.email'),
-            'responsible_email' => Arr::get($payload, 'responsiblePerson.email'),
-            'exception' => $e,
+            'contact_email_present' => !empty($contactEmail),
+            'responsible_email_present' => !empty($responsibleEmail),
         ]);
 
-        $message = config('app.debug')
-            ? $e->getMessage()
-            : 'Unable to sync Bitrix deal. Please verify the payload and try again.';
+        // Always return a generic message to avoid leaking internals even if debug is enabled.
+        $message = 'Unable to sync Bitrix deal. Please verify the payload and try again.';
 
         return Reply::error($message);
     }
