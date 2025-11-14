@@ -334,7 +334,7 @@ class DealController extends AccountBaseController
     public function show($id)
     {
         $deal = Deal::with([
-            'leadAgent.user:id,name,image',
+            'leadAgent.user',
             'contact',
             'category',
             'pipeline',
@@ -382,7 +382,7 @@ class DealController extends AccountBaseController
         }
 
         // Get notes data
-        $notes = DealNote::with('addedBy:id,name,image')
+        $notes = DealNote::with('addedBy')
             ->where('deal_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -396,7 +396,7 @@ class DealController extends AccountBaseController
         }
 
         // Get follow-ups data
-        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType'])
+        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
             ->where('deal_id', $id)
             ->orderBy('next_follow_up_date', 'desc')
             ->get();
@@ -1026,6 +1026,11 @@ class DealController extends AccountBaseController
             $request->next_follow_up_date . ' ' . $request->start_time
         );
 
+        // Prepare reminders data - combine defaults with custom reminders
+        $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
+        $customReminders = $request->reminders ?? [];
+        $allReminders = array_merge($defaultReminders, $customReminders);
+
         // Create follow-up first, then try meeting generation
         $followUp = new DealFollowUp();
         $followUp->deal_id = $request->deal_id;
@@ -1034,10 +1039,16 @@ class DealController extends AccountBaseController
         $followUp->meeting_link = $request->meeting_link;
         $followUp->next_follow_up_date = $next_follow_up_date->format('Y-m-d H:i:s');
         $followUp->remark = $request->remark;
-        $followUp->send_reminder = $request->send_reminder;
-        $followUp->remind_time = $request->remind_time;
-        $followUp->remind_type = $request->remind_type;
-        $followUp->status = 'pending';
+        
+        // Set traditional reminder fields for backward compatibility (use first custom reminder or defaults)
+        $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
+        $followUp->send_reminder = 'yes'; // Always yes since reminders are mandatory now
+        $followUp->remind_time = $firstCustomReminder['time'];
+        $followUp->remind_type = $firstCustomReminder['type'];
+        
+        // Set the new reminders JSON field with custom reminders only
+        $followUp->setCustomReminders($customReminders);
+        $followUp->status = 'scheduled';
 
         $followUp->save();
 
@@ -1091,6 +1102,10 @@ class DealController extends AccountBaseController
             return Reply::error(__('messages.leadFollowUpRestricted'));
         }
 
+        // Prepare reminders data - combine defaults with custom reminders
+        $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
+        $customReminders = $request->reminders ?? [];
+
         // Update follow-up first, then try meeting generation
         $followUp->deal_id = $request->deal_id;
         $followUp->meeting_type_id = $request->meeting_type_id;
@@ -1101,9 +1116,15 @@ class DealController extends AccountBaseController
         $followUp->next_follow_up_date = Carbon::createFromFormat('d-m-Y H:i:s', $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
 
         $followUp->remark = $request->remark;
-        $followUp->status = $request->status;
-        $followUp->remind_time = $request->remind_time;
-        $followUp->remind_type = $request->remind_type;
+        $followUp->status = $request->status ?? 'scheduled';
+        
+        // Set traditional reminder fields for backward compatibility (use first custom reminder or defaults)
+        $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
+        $followUp->remind_time = $firstCustomReminder['time'];
+        $followUp->remind_type = $firstCustomReminder['type'];
+        
+        // Set the new reminders JSON field with custom reminders only
+        $followUp->setCustomReminders($customReminders);
 
         $followUp->save();
 

@@ -23,6 +23,7 @@ import {
 import { ColumnsType } from "antd/es/table";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import dayjs from "dayjs";
+import UserIndicator from "@/Components/UserIndicator";
 
 const { Paragraph } = Typography;
 
@@ -71,12 +72,17 @@ export default function LeadNotesTab({ lead, notes, permissions }: Props) {
                 <div className="space-y-1">
                     <span className="font-medium text-gray-900">{title}</span>
                     <div className="flex items-center space-x-2 text-xs text-gray-500">
-                        <Avatar
-                            size="small"
-                            src={record.added_by_user?.image_url}
-                            icon={<UserOutlined />}
+                        <UserIndicator
+                            data={{
+                                image_url: record.added_by_user?.image_url,
+                                name: record.added_by_user?.name || "Unknown",
+                            }}
+                            size="xs"
+                            showName={false}
                         />
-                        <span>Added by {record.added_by_user?.name || "Unknown"}</span>
+                        <span>
+                            Added by {record.added_by_user?.name || "Unknown"}
+                        </span>
                     </div>
                 </div>
             ),
@@ -104,19 +110,19 @@ export default function LeadNotesTab({ lead, notes, permissions }: Props) {
                 const canView =
                     permissions.view_lead_note === "all" ||
                     (permissions.view_lead_note === "added" &&
-                        record.added_by === user?.id) ||
+                        record?.added_by?.id === user?.id) ||
                     (permissions.view_lead_note === "both" &&
-                        record.added_by === user?.id);
+                        record?.added_by?.id === user?.id);
 
                 const canEdit =
                     permissions.edit_lead_note === "all" ||
                     (permissions.edit_lead_note === "added" &&
-                        record.added_by === user?.id);
+                        record?.added_by?.id === user?.id);
 
                 const canDelete =
                     permissions.delete_lead_note === "all" ||
                     (permissions.delete_lead_note === "added" &&
-                        record.added_by === user?.id);
+                        record?.added_by?.id === user?.id);
 
                 const menuItems: MenuProps["items"] = [
                     ...(canView
@@ -207,7 +213,7 @@ export default function LeadNotesTab({ lead, notes, permissions }: Props) {
                     />
                 </div>
             )}
-            
+
             {notes.length > 0 && (
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-4">

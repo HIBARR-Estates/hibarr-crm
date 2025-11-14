@@ -2,6 +2,7 @@ import { Deal } from "@/Types/api/deals";
 import { Table, Avatar, Empty } from "antd";
 import { UserOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import UserIndicator from "@/Components/UserIndicator";
 
 interface Props {
     deal: Deal;
@@ -27,14 +28,13 @@ export default function HistoryTab({ deal, histories }: Props) {
             key: "added_by",
             width: "25%",
             render: (addedBy: any) => (
-                <div className="flex items-center  gap-x-2">
-                    <Avatar
-                        size="small"
-                        src={addedBy?.image}
-                        icon={<UserOutlined />}
-                    />
-                    <span className="text-sm">{addedBy?.name || "System"}</span>
-                </div>
+                <UserIndicator
+                    data={{
+                        image_url: addedBy?.image,
+                        name: addedBy?.name || "System",
+                    }}
+                    size="xs"
+                />
             ),
         },
         {

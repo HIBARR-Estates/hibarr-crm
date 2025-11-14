@@ -70,7 +70,7 @@ export default function StartConversationDrawer({
 
         const requestData = {
             deal_id: deal.id,
-            activity_id_being_replied_to: activityIdBeingRepliedTo,
+            parent_activity_id: activityIdBeingRepliedTo,
             channel_type: values.channel_type,
             message_content: values.message_content,
             direction: "outbound",

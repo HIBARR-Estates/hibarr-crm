@@ -13,6 +13,7 @@ import {
     BasketIcon,
     HouseDoorIcon,
     GearIcon,
+    CheckSquareIcon,
 } from "./icons";
 import { PageProps as InertiaPageProps, router } from "@inertiajs/core";
 import { AuthType } from "@/Types";
@@ -148,7 +149,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
             activeKeys.push("work", "projects");
         }
         if (currentPath.includes("/tasks")) {
-            activeKeys.push("work", "tasks");
+            activeKeys.push("tasks");
         }
         if (currentPath.includes("/timelogs")) {
             activeKeys.push("work", "timelogs");
@@ -309,6 +310,22 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
             }
 
             items.push(...leadChildren);
+        }
+
+        // Tasks
+        if (hasModule("tasks") && hasPermission("view_tasks")) {
+            items.push({
+                key: "tasks",
+                label: (
+                    <span
+                        onClick={() => router.visit(route("tasks.index"))}
+                        className="cursor-pointer"
+                    >
+                        Tasks
+                    </span>
+                ),
+                icon: <CheckSquareIcon />,
+            });
         }
 
         // Clients

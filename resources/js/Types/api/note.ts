@@ -7,6 +7,5 @@ export interface Note {
     details: string;
     created_at: string;
     updated_at: string;
-    added_by?: number;
-    addedBy?: User;
+    added_by?: User;
 }

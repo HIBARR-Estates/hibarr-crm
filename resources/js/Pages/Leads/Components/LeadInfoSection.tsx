@@ -13,6 +13,7 @@ import {
     Space,
     Tooltip,
 } from "antd";
+import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import {
     EditOutlined,
     DeleteOutlined,
@@ -264,7 +265,7 @@ export default function LeadInfoSection({
 
                         <Descriptions.Item label="Added By">
                             {currentLead?.added_by || lead.added_by ? (
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-x-2">
                                     <Avatar
                                         size="small"
                                         src={
@@ -390,54 +391,14 @@ export default function LeadInfoSection({
             label: category.name,
             children: (
                 <div className="p-6">
-                    <Descriptions column={2} bordered size="middle">
-                        {fields
-                            ?.filter(
-                                (field) =>
-                                    field.custom_field_category_id ===
-                                    category.id
-                            )
-                            .map((field) => {
-                                let value = (currentLead?.custom_fields_data ||
-                                    lead.custom_fields_data)?.[
-                                    `field_${field.id}`
-                                ];
-
-                                // Handle different field types
-                                if (field.type === "date" && value) {
-                                    value = dayjs(value).format("MMM DD, YYYY");
-                                } else if (
-                                    field.type === "select" &&
-                                    value &&
-                                    field.values
-                                ) {
-                                    value = field.values[value] || value;
-                                } else if (field.type === "file" && value) {
-                                    value = (
-                                        <a
-                                            href={`/storage/custom_fields/${value}`}
-                                            className="text-blue-600 hover:text-blue-800"
-                                            download
-                                        >
-                                            Download File
-                                        </a>
-                                    );
-                                }
-
-                                return (
-                                    <Descriptions.Item
-                                        key={field.id}
-                                        label={field.label}
-                                    >
-                                        {value || (
-                                            <span className="text-gray-500">
-                                                --
-                                            </span>
-                                        )}
-                                    </Descriptions.Item>
-                                );
-                            })}
-                    </Descriptions>
+                    <CustomFieldDisplay
+                        fields={fields}
+                        customFieldsData={
+                            (currentLead || lead).custom_fields_data || {}
+                        }
+                        categoryId={category.id}
+                        column={2}
+                    />
                 </div>
             ),
         })),

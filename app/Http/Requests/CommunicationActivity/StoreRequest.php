@@ -25,6 +25,7 @@ class StoreRequest extends FormRequest
         return [
             'deal_id' => 'nullable|exists:deals,id',
             'lead_id' => 'nullable|exists:leads,id',
+            'parent_activity_id' => 'nullable|exists:communication_activities,id',
             'chat_id' => 'nullable|string|max:255', 
             'channel_type' => 'required|in:email,whatsapp,instagram,telegram',
             'message_content' => 'required|string|max:10000',
