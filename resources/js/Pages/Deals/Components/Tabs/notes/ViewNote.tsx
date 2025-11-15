@@ -82,15 +82,15 @@ const ViewNote: React.FC<Props> = ({ deal, note, onClose, open, onEdit }) => {
                                 </div>
                             )}
 
-                        {note.addedBy && (
+                        {note.added_by && (
                             <div className="flex items-center gap-x-2">
                                 <Avatar
                                     size="small"
                                     icon={<UserOutlined />}
-                                    src={note.addedBy?.image_url}
+                                    src={note.added_by?.image_url}
                                 />
                                 <Text type="secondary">
-                                    Created by {note.addedBy?.name}
+                                    Created by {note.added_by?.name}
                                 </Text>
                             </div>
                         )}
