@@ -313,20 +313,20 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         }
 
         // Tasks
-        if (hasModule("tasks") && hasPermission("view_tasks")) {
-            items.push({
-                key: "tasks",
-                label: (
-                    <span
-                        onClick={() => router.visit(route("tasks.index"))}
-                        className="cursor-pointer"
-                    >
-                        Tasks
-                    </span>
-                ),
-                icon: <CheckSquareIcon />,
-            });
-        }
+        // if (hasModule("tasks") && hasPermission("view_tasks")) {
+        //     items.push({
+        //         key: "tasks",
+        //         label: (
+        //             <span
+        //                 onClick={() => router.visit(route("tasks.index"))}
+        //                 className="cursor-pointer"
+        //             >
+        //                 Tasks
+        //             </span>
+        //         ),
+        //         icon: <CheckSquareIcon />,
+        //     });
+        // }
 
         // Clients
         if (
