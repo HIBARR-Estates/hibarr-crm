@@ -1,4 +1,4 @@
-import { Timeline, Empty, Button, Skeleton } from "antd";
+import { Timeline, Empty, Button, Skeleton, Modal } from "antd";
 import {
     PhoneOutlined,
     MessageOutlined,
@@ -6,6 +6,7 @@ import {
     InstagramOutlined,
     WhatsAppOutlined,
     ReloadOutlined,
+    ExpandAltOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { Deal } from "@/Types/api/deals";
@@ -13,14 +14,16 @@ import ActivityItem from "./ActivityItem";
 import { Activity } from "@/Types/api/activity";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
-import ViewActivity from "./modals/ViewActivity";
 import { isLoading as _isLoading } from "@/lib/utils";
+import { useState } from "react";
 
 interface Props {
     deal: Deal;
+    compact?: boolean;
 }
 
-export default function CommunicationTimeline({ deal }: Props) {
+export default function CommunicationTimeline({ deal, compact = true }: Props) {
+    const [isExpandedView, setIsExpandedView] = useState(false);
     const {
         action,
         handleAction,
@@ -55,18 +58,29 @@ export default function CommunicationTimeline({ deal }: Props) {
         .custom-timeline .ant-timeline-item-head {
             background: white;
             border: 2px solid #e5e7eb;
-            width: 40px;
-            height: 40px;
+            width: ${compact ? "32px" : "40px"};
+            height: ${compact ? "32px" : "40px"};
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
         }
         .custom-timeline .ant-timeline-item-content {
-            margin-left: 16px;
+            margin-left: ${compact ? "12px" : "16px"};
             min-height: auto;
         }
+        .expanded-timeline {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .compact-timeline {
+            max-height: 400px;
+            overflow-y: auto;
+        }
     `;
+
+    const displayLimit = compact ? 5 : 50;
+    const containerHeight = compact ? "max-h-[400px]" : "max-h-[80vh]";
 
     const getActivityIcon = (type: string) => {
         const iconProps = { className: "text-sm" };
@@ -127,45 +141,118 @@ export default function CommunicationTimeline({ deal }: Props) {
         handleAction("reply", activity);
     };
 
-    const handleShowFullMessage = (activity: Activity) => {
-        handleAction("view", activity);
-    };
     const isLoading = _isLoading({ status });
+
+    const TimelineContent = ({ isModal = false }: { isModal?: boolean }) => (
+        <div
+            className={`${
+                isModal ? "expanded-timeline" : "compact-timeline"
+            } ${containerHeight} overflow-y-auto pr-2`}
+        >
+            <Timeline
+                mode="left"
+                className="communication-timeline custom-timeline"
+                items={activities
+                    .slice(0, isModal ? 50 : displayLimit)
+                    .map((activity, index) => ({
+                        dot: getActivityIcon(
+                            activity.type || activity.channel_type || "message"
+                        ),
+                        children: (
+                            <ActivityItem
+                                key={index}
+                                activity={activity}
+                                deal={deal}
+                                formatActivityDate={formatActivityDate}
+                                handleReplyToMessage={handleReply}
+                                compact={compact && !isModal}
+                            />
+                        ),
+                    }))}
+            />
+            {activities.length > displayLimit && !isModal && compact && (
+                <div className="text-center mt-4">
+                    <Button
+                        type="link"
+                        onClick={() => setIsExpandedView(true)}
+                        className="text-sm text-blue-600"
+                    >
+                        View {activities.length - displayLimit} more
+                        communications
+                    </Button>
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <>
-            <ViewActivity
-                open={action === "view"}
-                onClose={handleClose}
-                activity={activity}
-            />
+            {/* Expanded Timeline Modal */}
+            <Modal
+                title={
+                    <div className="flex items-center gap-2">
+                        <MessageOutlined className="text-blue-600" />
+                        <span>
+                            Communication Timeline - {deal.name || "Deal"}
+                        </span>
+                    </div>
+                }
+                open={isExpandedView}
+                onCancel={() => setIsExpandedView(false)}
+                footer={null}
+                width={800}
+                centered
+                className="communication-modal"
+            >
+                <div className="pt-4">
+                    <TimelineContent isModal={true} />
+                </div>
+            </Modal>
+
             <style dangerouslySetInnerHTML={{ __html: timelineStyles }} />
             <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <div className="mb-6 flex items-center justify-between gap-x-4">
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        <h3
+                            className={`font-semibold text-gray-900 mb-1 ${
+                                compact ? "text-base" : "text-lg"
+                            }`}
+                        >
                             Communication Timeline
                         </h3>
                         <p className="text-sm text-gray-600">
                             Recent conversations and interactions
                         </p>
                     </div>
-                    <Button
-                        icon={<ReloadOutlined />}
-                        loading={isRefetching}
-                        onClick={() => refetch()}
-                        disabled={isLoading || isRefetching}
-                    />
+                    <div className="flex items-center gap-2">
+                        <Button
+                            icon={<ReloadOutlined />}
+                            loading={isRefetching}
+                            onClick={() => refetch()}
+                            disabled={isLoading || isRefetching}
+                            size={compact ? "small" : "middle"}
+                        />
+                        {compact && activities.length > 0 && (
+                            <Button
+                                icon={<ExpandAltOutlined />}
+                                onClick={() => setIsExpandedView(true)}
+                                disabled={isLoading}
+                                size="small"
+                                title="Expand timeline view"
+                                type="text"
+                            />
+                        )}
+                    </div>
                 </div>
 
                 {isLoading ? (
                     <div className="flex flex-col gap-y-4">
-                        {Array(5)
+                        {Array(compact ? 3 : 5)
                             .fill(0)
                             .map((_, i) => (
                                 <Skeleton
                                     key={i}
-                                    paragraph={{ rows: 5 }}
+                                    paragraph={{ rows: compact ? 3 : 5 }}
                                     active
                                 />
                             ))}
@@ -189,31 +276,7 @@ export default function CommunicationTimeline({ deal }: Props) {
                         />
                     </div>
                 ) : activities.length > 0 ? (
-                    // <div className="max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pt-4">
-                    <Timeline
-                        mode="left"
-                        className="communication-timeline custom-timeline"
-                        items={activities
-                            .slice(0, 50) // Increased from 10 to 50 since we have scrolling
-                            .map((activity, index) => ({
-                                dot: getActivityIcon(
-                                    activity.type ||
-                                        activity.channel_type ||
-                                        "message"
-                                ),
-                                children: (
-                                    <ActivityItem
-                                        key={index}
-                                        activity={activity}
-                                        formatActivityDate={formatActivityDate}
-                                        handleShowFullMessage={
-                                            handleShowFullMessage
-                                        }
-                                        handleReplyToMessage={handleReply}
-                                    />
-                                ),
-                            }))}
-                    />
+                    <TimelineContent />
                 ) : (
                     <div className="text-center py-12">
                         <Empty

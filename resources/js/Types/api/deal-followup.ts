@@ -1,5 +1,20 @@
 import { User } from "..";
 
+export interface Reminder {
+    time: number;
+    type: 'minute' | 'hour' | 'day';
+    is_default?: boolean;
+}
+
+export interface MeetingSummary {
+    id: number;
+    deal_id: number;
+    meeting_type_id?: number;
+    summary_object: Record<string, string>;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface DealFollowup {
     id: number;
     deal_id: number;
@@ -16,4 +31,6 @@ export interface DealFollowup {
         name: string;
     };
     remark?: string;
+    reminders?: Reminder[];
+    meeting_summary?: MeetingSummary;
 }

@@ -12,6 +12,7 @@ import {
     TeamOutlined,
     GoogleOutlined,
     PhoneOutlined,
+    FileTextOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { ContentRenderer } from "@/Components/ContentRenderer";
@@ -166,6 +167,42 @@ const ViewFollowup: React.FC<Props> = ({
                         )}
                     </div>
                 </div>
+
+                {/* Meeting Summary */}
+                {followup?.meeting_summary && (
+                    <div>
+                        <Title level={4} className="mb-3 flex items-center">
+                            <FileTextOutlined className="mr-2 text-green-600" />
+                            Meeting Summary
+                        </Title>
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-lg p-4">
+                            {Object.keys(followup.meeting_summary.summary_object).length > 0 ? (
+                                <div className="space-y-4">
+                                    {Object.entries(followup.meeting_summary.summary_object).map(([key, value]) => (
+                                        <div key={key} className="border-b border-green-100 pb-3 last:border-b-0 last:pb-0">
+                                            <Title level={5} className="mb-2 text-green-800 capitalize">
+                                                {key.replace(/[_-]/g, ' ')}
+                                            </Title>
+                                            <div className="text-gray-700">
+                                                {value}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="mt-4 pt-3 border-t border-green-100">
+                                        <Text type="secondary" className="text-sm">
+                                            Summary generated on{" "}
+                                            {dayjs(followup.meeting_summary.created_at).format("MMMM DD, YYYY [at] h:mm A")}
+                                        </Text>
+                                    </div>
+                                </div>
+                            ) : (
+                                <Text type="secondary" italic>
+                                    Meeting summary is available but contains no data
+                                </Text>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Follow-up Metadata */}
                 <div className="bg-gray-50 p-4 rounded-lg">

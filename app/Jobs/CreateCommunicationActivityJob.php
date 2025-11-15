@@ -35,6 +35,22 @@ class CreateCommunicationActivityJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Handle reply logic for email subjects
+        if (isset($this->normalizedData['parent_activity_id'])) {
+            $parentActivity = CommunicationActivity::find($this->normalizedData['parent_activity_id']);
+            
+            if ($parentActivity && $this->normalizedData['channel_type'] === 'email') {
+                $originalSubject = $parentActivity->subject ?? '';
+                
+                // Add Re: prefix if not already present
+                if (!empty($originalSubject) && !str_starts_with($originalSubject, 'Re: ')) {
+                    $this->normalizedData['subject'] = 'Re: ' . $originalSubject;
+                } else if (!empty($originalSubject)) {
+                    $this->normalizedData['subject'] = $originalSubject;
+                }
+            }
+        }
+
         // Normalize email content (strip HTML if email)
         if ($this->normalizedData['channel_type'] === 'email') {
             $this->normalizedData['message_content'] = strip_tags($this->normalizedData['message_content']);

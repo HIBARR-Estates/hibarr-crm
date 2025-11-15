@@ -47,6 +47,7 @@ class CommunicationActivityController extends Controller
     {
         $perPage = $request->get('per_page', $this->defaultPageSize);
         $activities = CommunicationActivity::where('deal_id', $dealId)
+            ->with(['replies', 'parentActivity'])
             ->orderByDesc('timestamp')
             ->paginate($perPage);
 
@@ -62,6 +63,7 @@ class CommunicationActivityController extends Controller
     {
         $perPage = $request->get('per_page', $this->defaultPageSize);
         $activities = CommunicationActivity::where('lead_id', $leadId)
+            ->with(['replies', 'parentActivity'])
             ->orderByDesc('timestamp')
             ->paginate($perPage);
 

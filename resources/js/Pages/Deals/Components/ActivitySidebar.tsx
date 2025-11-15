@@ -9,7 +9,7 @@ interface Props {
 export default function ActivitySidebar({ deal, permissions }: Props) {
     return (
         <div className="flex flex-col gap-y-4">
-            <CommunicationTimeline deal={deal} />
+            <CommunicationTimeline deal={deal} compact={true} />
         </div>
     );
 }

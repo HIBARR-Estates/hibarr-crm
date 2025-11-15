@@ -10,6 +10,7 @@ import {
 import { Deal } from "@/Types/api/deals";
 import dayjs from "dayjs";
 import PageDataSorter from "@/Components/PageDataSorter";
+import UserIndicator from "@/Components/UserIndicator";
 
 export const DEAL_TABLE_COLUMNS = (
     actionItems?: (item: Deal) => MenuProps["items"]
@@ -212,7 +213,7 @@ export const DEAL_TABLE_COLUMNS = (
     {
         title: (
             <span className="flex items-center">
-                Next Follow Up
+                Next Meeting
                 <PageDataSorter
                     field="next_follow_up_date"
                     routeName="deals.index"
@@ -256,19 +257,14 @@ export const DEAL_TABLE_COLUMNS = (
                 return <span className="text-gray-400">--</span>;
 
             return (
-                <div className="flex items-center space-x-2">
-                    <Avatar
-                        size="small"
-                        src={record.lead_agent.image}
-                        icon={<UserOutlined />}
-                        className="flex-shrink-0"
-                    />
-                    <Tooltip title={record.lead_agent.name}>
-                        <span className="text-sm text-gray-900 truncate max-w-full">
-                            {record.lead_agent.name}
-                        </span>
-                    </Tooltip>
-                </div>
+                <UserIndicator
+                    data={{
+                        image_url: record.lead_agent.image,
+                        name: record.lead_agent.name,
+                    }}
+                    size="xs"
+                    maxNameLength={15}
+                />
             );
         },
     },
@@ -330,6 +326,27 @@ export const DEAL_TABLE_COLUMNS = (
     //         );
     //     },
     // },
+
+    {
+        title: (
+            <span className="flex items-center">
+                Created
+                <PageDataSorter field="created_at" routeName="deals.index" />
+            </span>
+        ),
+        key: "created_at",
+        width: 120,
+        render: (_, record) => {
+            if (!record.created_at)
+                return <span className="text-gray-400">--</span>;
+
+            return (
+                <span className="text-gray-900">
+                    {dayjs(record.created_at).format("MMM DD, YYYY")}
+                </span>
+            );
+        },
+    },
 
     {
         title: "Actions",

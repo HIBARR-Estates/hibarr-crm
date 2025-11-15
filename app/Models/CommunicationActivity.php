@@ -33,6 +33,7 @@ class CommunicationActivity extends Model
     protected $fillable = [
         'deal_id',
         'lead_id',
+        'parent_activity_id',
         'channel_type',
         'message_content',
         'sender_info',
@@ -81,6 +82,22 @@ class CommunicationActivity extends Model
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
+    }
+
+    /**
+     * Get the parent activity if this is a reply.
+     */
+    public function parentActivity(): BelongsTo
+    {
+        return $this->belongsTo(CommunicationActivity::class, 'parent_activity_id');
+    }
+
+    /**
+     * Get the children replies to this activity.
+     */
+    public function replies(): HasMany
+    {
+        return $this->hasMany(CommunicationActivity::class, 'parent_activity_id');
     }
 
     /**

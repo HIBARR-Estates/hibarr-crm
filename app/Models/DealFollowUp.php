@@ -54,6 +54,7 @@ class DealFollowUp extends BaseModel
 
     protected $fillable = [
         'deal_id',
+        'lead_id',  // Keep for backward compatibility
         'meeting_type_id',
         'location',
         'meeting_link',
@@ -68,13 +69,46 @@ class DealFollowUp extends BaseModel
         'send_reminder',
         'remind_time',
         'remind_type',
+        'reminders',  // New JSON field for multiple reminders
         'status',
     ];
 
     protected $casts = [
         'next_follow_up_date' => 'datetime',
         'created_at' => 'datetime',
+        'reminders' => 'array',  // Cast JSON to array
     ];
+
+    // Default reminders that cannot be edited or deleted
+    public const DEFAULT_REMINDERS = [
+        ['time' => 1, 'type' => 'hour', 'is_default' => true],
+        ['time' => 30, 'type' => 'minute', 'is_default' => true],
+        ['time' => 15, 'type' => 'minute', 'is_default' => true],
+        ['time' => 5, 'type' => 'minute', 'is_default' => true],
+    ];
+
+    /**
+     * Get all reminders including defaults
+     */
+    public function getAllReminders()
+    {
+        $customReminders = $this->reminders ?? [];
+        return array_merge(self::DEFAULT_REMINDERS, $customReminders);
+    }
+
+    /**
+     * Set custom reminders (defaults are always included)
+     */
+    public function setCustomReminders(array $customReminders)
+    {
+        // Filter out any attempts to set is_default = true
+        $customReminders = array_map(function ($reminder) {
+            unset($reminder['is_default']);
+            return $reminder;
+        }, $customReminders);
+        
+        $this->reminders = $customReminders;
+    }
 
     public function deal(): BelongsTo
     {
@@ -89,6 +123,11 @@ class DealFollowUp extends BaseModel
     public function meetingType(): BelongsTo
     {
         return $this->belongsTo(MeetingType::class);
+    }
+
+    public function meetingSummary(): BelongsTo
+    {
+        return $this->belongsTo(MeetingSummary::class, 'summary_id');
     }
 
 }
