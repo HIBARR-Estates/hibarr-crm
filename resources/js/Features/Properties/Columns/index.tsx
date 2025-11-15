@@ -9,13 +9,20 @@ import { Link } from "@inertiajs/react";
 import { Button, Dropdown, MenuProps, Tag } from "antd";
 import { ColumnsType } from "antd/lib/table";
 import { MoreOutlined } from "@ant-design/icons";
+import PageDataSorter from "@/Components/PageDataSorter";
+import dayjs from "dayjs";
 
 export const PROPERTY_TABLE_COLUMNS = (
     actionItems?: (item: Property) => MenuProps["items"],
     currencyCode: string | null | undefined = "GBP"
 ): ColumnsType<Property> => [
     {
-        title: "Title",
+        title: (
+            <span className="flex items-center">
+                Title
+                <PageDataSorter field="title" routeName="properties.index" />
+            </span>
+        ),
         dataIndex: "title",
         key: "title",
         width: 250,
@@ -58,7 +65,12 @@ export const PROPERTY_TABLE_COLUMNS = (
         ),
     },
     {
-        title: "Price",
+        title: (
+            <span className="flex items-center">
+                Price
+                <PageDataSorter field="price" routeName="properties.index" />
+            </span>
+        ),
         dataIndex: "price",
         key: "price",
         width: 120,
@@ -100,6 +112,24 @@ export const PROPERTY_TABLE_COLUMNS = (
         width: 120,
         render: (status: string) => (
             <Tag color={getStatusColor(status)}>{status}</Tag>
+        ),
+    },
+    {
+        title: (
+            <span className="flex items-center">
+                Created
+                <PageDataSorter
+                    field="created_at"
+                    routeName="properties.index"
+                />
+            </span>
+        ),
+        key: "created_at",
+        width: 120,
+        render: (_, record: Property) => (
+            <span className="text-gray-900">
+                {dayjs(record.created_at).format("MMM DD, YYYY")}
+            </span>
         ),
     },
     {

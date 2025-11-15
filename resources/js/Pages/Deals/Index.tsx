@@ -30,6 +30,7 @@ import BasicDealFilterBox from "@/Features/Deals/Filter/BasicDealFilterBox";
 import AdvancedDealFilterForm from "@/Features/Deals/Filter/AdvancedDealFilterForm";
 import { User } from "@/Types";
 import AddFollowup from "./Components/Tabs/followups/AddFollowup";
+import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
 
 interface LeadAgent {
     id: number;
@@ -122,7 +123,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
             label: (
                 <span>
                     <UserOutlined className="mr-2" />
-                    Add Follow Up ______
+                    Add Follow Up
                 </span>
             ),
             onClick: () => {
@@ -199,12 +200,15 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
 
                         <div className="flex items-center gap-3">
                             {/* Advanced Filters Button */}
-                            <Button
-                                icon={<FilterOutlined />}
-                                onClick={openFilterDrawer}
-                            >
-                                Filters
-                            </Button>
+                            <div className="flex items-center gap-x-2">
+                                <Button
+                                    icon={<FilterOutlined />}
+                                    onClick={openFilterDrawer}
+                                >
+                                    Filters
+                                </Button>
+                                <DealsModeSwitcher />
+                            </div>
 
                             {/* Bulk Actions - Only show when items are selected */}
                             {selectedEntities.length > 0 && (

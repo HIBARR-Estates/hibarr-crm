@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\UserLeadboardSetting;
 use App\Helper\Common;
 use App\Traits\DealAutomationTrait;
+use Inertia\Inertia;
 
 class LeadBoardController extends AccountBaseController
 {
@@ -52,18 +53,6 @@ class LeadBoardController extends AccountBaseController
         $this->pipelines = LeadPipeline::has('stages')->get();
 
         $this->dealWatcher = User::allEmployees(null, 'active');
-        $this->dealWatcher->where(function ($query) {
-            if ($this->viewEmployeePermission == 'added') {
-                $query->where('employee_details.added_by', user()->id);
-            } elseif ($this->viewEmployeePermission == 'owned') {
-                $query->where('employee_details.user_id', user()->id);
-            } elseif ($this->viewEmployeePermission == 'both') {
-                $query->where(function ($q) {
-                    $q->where('employee_details.user_id', user()->id)
-                        ->orWhere('employee_details.added_by', user()->id);
-                });
-            }
-        });
 
         $this->dealLeads = Lead::select('id', 'client_name')->get();
 
@@ -445,9 +434,246 @@ class LeadBoardController extends AccountBaseController
             }
         }
 
-        $this->data['currentPipelineName'] = $currentPipelineName;
+        // For non-AJAX requests, we need to load the board data initially
+        if (!request()->ajax()) {
+            $pipelineId = request('pipeline', $this->defaultPipeline->id);
+            $startDate = request('startDate') ? companyToDateString(request('startDate')) : null;
+            $endDate = request('endDate') ? companyToDateString(request('endDate')) : null;
+            
+            // Load board data using the same logic as AJAX requests
+            $result = $this->getBoardData($request, $pipelineId, $startDate, $endDate);
+            $this->result = $result;
+        }
 
+        // Check if this should be an Inertia response
+        // if (request()->header('X-Inertia')) {
+        if (true) {
+            return Inertia::render('LeadBoards/Index', [
+                'pageTitle' => $this->pageTitle,
+                'result' => $this->result ?? ['boardColumns' => []],
+                'categories' => $this->categories,
+                'sources' => $this->sources,
+                'stages' => $this->stages,
+                'pipelines' => $this->pipelines,
+                'leadAgents' => $this->leadAgents,
+                'dealWatcher' => $this->dealWatcher,
+                'dealLeads' => $this->dealLeads,
+                'products' => $this->products,
+                'currentPipelineName' => $currentPipelineName,
+                'addLeadPermission' => user()->permission('add_deals'),
+                'viewLeadPermission' => $this->viewLeadPermission,
+                'defaultPipeline' => $this->defaultPipeline,
+                'startDate' => $this->startDate,
+                'endDate' => $this->endDate,
+                'filters' => request()->only(['searchText', 'pipeline', 'category_id', 'product', 'agent', 'startDate', 'endDate', 'min', 'max']),
+            ]);
+        }
+
+        // For blade template (backward compatibility)
+        $this->data['currentPipelineName'] = $currentPipelineName;
         return view('leads.board.index', $this->data);
+    }
+
+    /**
+     * Extract board data loading logic into a separate method
+     */
+    protected function getBoardData(Request $request, $pipelineId, $startDate, $endDate)
+    {
+        $boardColumns = PipelineStage::withCount(['deals as deals_count' => function ($q) use ($startDate, $endDate, $request, $pipelineId) {
+            $this->dateFilter($q, $startDate, $endDate, $request);
+            $q->leftJoin('leads as lead1', 'lead1.id', 'deals.lead_id');
+
+            if ($request->product != 'all' && $request->product != '') {
+                $q->leftJoin('lead_products', 'lead_products.deal_id', '=', 'deals.id')
+                    ->where('lead_products.product_id', $request->product);
+            }
+
+            if ($pipelineId != 'all' && $pipelineId != '' && $pipelineId != null) {
+                $q->where('deals.lead_pipeline_id', $pipelineId);
+            }
+
+            if ($request->deal_watcher_id !== null && $request->deal_watcher_id != 'all' && $request->deal_watcher_id != '') {
+                $q = $q->whereExists(function ($query) use ($request) {
+                    $query->select(DB::raw(1))
+                          ->from('deal_watchers')
+                          ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                          ->where('deal_watchers.user_id', $request->deal_watcher_id);
+                });
+            }
+
+            if ($request->lead_agent_id !== null && $request->lead_agent_id != 'null' && $request->lead_agent_id != '' && $request->lead_agent_id != 'all') {
+                $q = $q->where('deals.lead_id', $request->lead_agent_id);
+            }
+
+            if ($request->category_id !== null && $request->category_id != 'null' && $request->category_id != '' && $request->category_id != 'all') {
+                $q = $q->where('deals.category_id', $request->category_id);
+            }
+
+            if ($request->searchText != '') {
+                $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
+                $q->where(function ($query) {
+                    $safeTerm = Common::safeString(request('searchText'));
+                    $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
+                });
+            }
+
+            if (($request->agent != 'all' && $request->agent != 'undefined' && $request->agent != '') || $this->viewLeadPermission == 'added') {
+                $q->where(function ($query) use ($request) {
+                    if ($request->agent != 'all' && $request->agent != '') {
+                        $query->whereHas('leadAgent', function ($q) use ($request) {
+                            $q->where('user_id', $request->agent);
+                        });
+                    }
+
+                    if ($this->viewLeadPermission == 'added') {
+                        $query->orWhere('deals.added_by', user()->id);
+                    }
+                });
+            }
+
+            if ($this->viewLeadPermission == 'owned') {
+                $q->where(function ($query) {
+                    if (!empty($this->myAgentId)) {
+                        $query->whereIn('agent_id', $this->myAgentId);
+                    }
+
+                    $query->orWhereExists(function ($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                                ->from('deal_watchers')
+                                ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                ->where('deal_watchers.user_id', user()->id);
+                    });
+                });
+            }
+
+            if ($this->viewLeadPermission == 'both') {
+                $q->where(function ($query) {
+                    $query->where('deals.added_by', user()->id);
+
+                    if (!empty($this->myAgentId)) {
+                        $query->orWhereIn('agent_id', $this->myAgentId);
+                    }
+
+                    $query->orWhereExists(function ($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                                ->from('deal_watchers')
+                                ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                ->where('deal_watchers.user_id', user()->id);
+                    });
+                });
+            }
+
+            $q->select(DB::raw('count(distinct deals.id)'));
+        }])
+        ->with(['deals' => function ($q) use ($startDate, $endDate, $request, $pipelineId) {
+            $q->with(['leadAgent', 'leadAgent.user', 'currency', 'dealWatchers'])
+                ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+                ->orderBy('leads.column_priority', 'asc')
+                ->groupBy('deals.id');
+
+            // Apply same filters as count query
+            if (($request->agent != 'all' && $request->agent != '' && $request->agent != 'undefined') || $this->viewLeadPermission == 'added') {
+                $q->where(function ($query) use ($request) {
+                    if ($request->agent != 'all' && $request->agent != '') {
+                        $query->whereHas('leadAgent', function ($subQ) use ($request) {
+                            $subQ->where('user_id', $request->agent);
+                        });
+                    }
+
+                    if ($this->viewLeadPermission == 'added') {
+                        $query->orWhere('deals.added_by', user()->id);
+                    }
+                });
+            }
+
+            // Add other filters...
+            $this->dateFilter($q, $startDate, $endDate, $request);
+
+            if ($pipelineId != 'all' && $pipelineId != '' && $pipelineId != null) {
+                $q->where('deals.lead_pipeline_id', $pipelineId);
+            }
+
+            if ($request->category_id !== null && $request->category_id != 'null' && $request->category_id != '' && $request->category_id != 'all') {
+                $q->where('deals.category_id', $request->category_id);
+            }
+
+        }])->where(function ($query) use ($request, $pipelineId) {
+            if ($pipelineId != 'all' && $pipelineId != '' && $pipelineId != null) {
+                $query->where('lead_pipeline_id', $pipelineId);
+            }
+        });
+
+        if ($pipelineId != 'all' && $pipelineId != '') {
+            $boardColumns->where('lead_pipeline_id', $pipelineId);
+        }
+
+        $boardColumns = $boardColumns->with('userSetting')->orderBy('priority', 'asc')->get();
+
+        $result = array();
+
+        foreach ($boardColumns as $key => $boardColumn) {
+            $result['boardColumns'][] = $boardColumn;
+
+            $leads = Deal::select('deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
+                ->with(['contact', 'leadStage', 'leadAgent', 'leadAgent.user', 'currency'])
+                ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+                ->where('deals.pipeline_stage_id', $boardColumn->id)
+                ->orderBy('leads.column_priority', 'asc')
+                ->groupBy('deals.id');
+
+            $this->dateFilter($leads, $startDate, $endDate, $request);
+
+            // Apply permission filters
+            if ($this->viewLeadPermission == 'owned') {
+                $leads->where(function ($query) {
+                    if (!empty($this->myAgentId)) {
+                        $query->whereIn('agent_id', $this->myAgentId);
+                    }
+
+                    $query->orWhere('deals.added_by', user()->id)
+                        ->orWhereExists(function ($subQuery) {
+                            $subQuery->select(DB::raw(1))
+                                    ->from('deal_watchers')
+                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                    ->where('deal_watchers.user_id', user()->id);
+                        });
+                });
+            }
+
+            if ($this->viewLeadPermission == 'both') {
+                $leads->where(function ($query) {
+                    if (!empty($this->myAgentId)) {
+                        $query->whereIn('agent_id', $this->myAgentId);
+                    }
+
+                    $query->orWhere('deals.added_by', user()->id)
+                        ->orWhereExists(function ($subQuery) {
+                            $subQuery->select(DB::raw(1))
+                                    ->from('deal_watchers')
+                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                    ->where('deal_watchers.user_id', user()->id);
+                        });
+                });
+            }
+
+            $leads->skip(0)->take($this->taskBoardColumnLength);
+            $leads = $leads->get();
+            $dealIds = $leads->pluck('id')->toArray();
+
+            $result['boardColumns'][$key]['total_value'] = 0;
+
+            if (!empty($dealIds)) {
+                $statusTotalValue = Deal::whereIn('id', $dealIds)->sum('value');
+                $result['boardColumns'][$key]['total_value'] = $statusTotalValue;
+            }
+
+            $result['boardColumns'][$key]['deals'] = $leads;
+        }
+
+        return $result;
     }
 
     public function dateFilter($query, $startDate, $endDate, $request)

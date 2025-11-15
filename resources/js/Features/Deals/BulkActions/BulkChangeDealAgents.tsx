@@ -5,6 +5,7 @@ import { message, Select, Modal, Button, Avatar } from "antd";
 import { useState } from "react";
 import { UserOutlined } from "@ant-design/icons";
 import { pluralOrSingular } from "@/lib/utils";
+import UserIndicator from "@/Components/UserIndicator";
 
 interface LeadAgent {
     id: number;
@@ -115,17 +116,18 @@ const BulkChangeDealAgents: React.FC<Props> = ({
                                 value={agent.id}
                                 label={agent.user?.name || agent.name}
                             >
-                                <div className="flex items-center space-x-2">
-                                    <Avatar
-                                        size="small"
-                                        src={
-                                            agent.user?.image_url || agent.image
-                                        }
-                                        icon={<UserOutlined />}
+                                <div className="flex items-center gap-x-2">
+                                    <UserIndicator
+                                        data={{
+                                            image_url:
+                                                agent.user?.image_url ||
+                                                agent.image,
+                                            name:
+                                                agent.user?.name || agent.name,
+                                        }}
+                                        size="xs"
+                                        showTooltip={false}
                                     />
-                                    <span>
-                                        {agent.user?.name || agent.name}
-                                    </span>
                                     {agent.user?.email && (
                                         <span className="text-gray-500 text-xs">
                                             ({agent.user.email})
@@ -139,13 +141,17 @@ const BulkChangeDealAgents: React.FC<Props> = ({
                 {selectedAgent && (
                     <div className="p-3 bg-gray-50 rounded">
                         <div className="flex items-center space-x-2">
-                            <Avatar
-                                size="small"
-                                src={
-                                    selectedAgent.user?.image_url ||
-                                    selectedAgent.image
-                                }
-                                icon={<UserOutlined />}
+                            <UserIndicator
+                                data={{
+                                    image_url:
+                                        selectedAgent.user?.image_url ||
+                                        selectedAgent.image,
+                                    name:
+                                        selectedAgent.user?.name ||
+                                        selectedAgent.name,
+                                }}
+                                size="xs"
+                                showName={false}
                             />
                             <span className="text-sm text-gray-600">
                                 Assigning to:{" "}

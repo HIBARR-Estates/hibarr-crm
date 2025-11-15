@@ -56,49 +56,183 @@ class TaskController extends AccountBaseController
         );
     }
 
-    public function index(TasksDataTable $dataTable)
+    public function index()
     {
         $viewPermission = user()->permission('view_tasks');
 
         abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
-        if (!request()->ajax()) {
-            $this->assignedTo = request()->assignedTo;
+        // Fetch tasks based on permission
+        $tasksQuery = Task::with(['project:id,project_name,project_short_code', 'users:id,name,image', 'category:id,category_name', 'labels', 'boardColumn:id,column_name,slug,label_color']);
 
-            if (request()->has('assignee') && request()->assignee == 'me') {
-                $this->assignedTo = user()->id;
-            }
+        // Apply permission-based filtering
+        if ($viewPermission === 'added') {
+            $tasksQuery->where('added_by', user()->id);
+        } elseif ($viewPermission === 'owned') {
+            $tasksQuery->whereHas('users', function ($query) {
+                $query->where('user_id', user()->id);
+            });
+        } elseif ($viewPermission === 'both') {
+            $tasksQuery->where(function ($query) {
+                $query->where('added_by', user()->id)
+                      ->orWhereHas('users', function ($subQuery) {
+                          $subQuery->where('user_id', user()->id);
+                      });
+            });
+        }
+        // For 'all' permission, no additional filtering needed
 
-            $this->projects = Project::allProjects();
-
-            if (in_array('client', user_roles())) {
-                $this->clients = User::client();
-            }
-            else {
-                $this->clients = User::allClients();
-            }
-
-            $this->employees = User::allEmployees(null, true, ($viewPermission == 'all' ? 'all' : null));
-            $this->taskBoardStatus = TaskboardColumn::all();
-            $this->taskCategories = TaskCategory::all();
-            $this->taskLabels = TaskLabelList::all();
-            $this->milestones = ProjectMilestone::all();
-
-            $taskBoardColumn = TaskboardColumn::waitingForApprovalColumn();
-
-            $projectIds = Project::where('project_admin', user()->id)->pluck('id');
-
-            if (!in_array('admin', user_roles()) && (in_array('employee', user_roles()) && $projectIds->isEmpty())) {
-                $user = User::findOrFail(user()->id);
-                $this->waitingApprovalCount = $user->tasks()->where('board_column_id', $taskBoardColumn->id)->where('company_id', company()->id)->count();
-            }elseif(!in_array('admin', user_roles()) && (in_array('employee', user_roles()) && !$projectIds->isEmpty())) {
-                $this->waitingApprovalCount = Task::whereIn('project_id', $projectIds)->where('board_column_id', $taskBoardColumn->id)->where('company_id', company()->id)->count();
-            }else{
-                $this->waitingApprovalCount = Task::where('board_column_id', $taskBoardColumn->id)->where('company_id', company()->id)->count();
-            }
+        // Apply filters if present
+        if (request()->filled('status')) {
+            $tasksQuery->whereHas('boardColumn', function ($query) {
+                $query->where('slug', request('status'));
+            });
         }
 
-        return $dataTable->render('tasks.index', $this->data);
+        if (request()->filled('priority')) {
+            $tasksQuery->where('priority', request('priority'));
+        }
+
+        if (request()->filled('project_id')) {
+            $tasksQuery->where('project_id', request('project_id'));
+        }
+
+        if (request()->filled('category_id')) {
+            $tasksQuery->where('task_category_id', request('category_id'));
+        }
+
+        if (request()->filled('assigned_to')) {
+            $tasksQuery->whereHas('users', function ($query) {
+                $query->where('user_id', request('assigned_to'));
+            });
+        }
+
+        if (request()->filled('search')) {
+            $searchTerm = request('search');
+            $tasksQuery->where(function ($query) use ($searchTerm) {
+                $query->where('heading', 'like', "%{$searchTerm}%")
+                      ->orWhere('description', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $tasks = $tasksQuery->orderBy('created_at', 'desc')->get();
+
+        // Transform tasks for frontend
+        $tasks = $tasks->map(function ($task) {
+            return [
+                'id' => $task->id,
+                'heading' => $task->heading,
+                'description' => $task->description,
+                'due_date' => $task->due_date?->format('Y-m-d'),
+                'start_date' => $task->start_date?->format('Y-m-d'),
+                'priority' => $task->priority,
+                'status' => $task->boardColumn->slug ?? 'incomplete',
+                'board_column_id' => $task->board_column_id,
+                'completed_on' => $task->completed_on?->format('Y-m-d'),
+                'project' => $task->project ? [
+                    'id' => $task->project->id,
+                    'project_name' => $task->project->project_name,
+                    'project_short_code' => $task->project->project_short_code,
+                ] : null,
+                'category' => $task->category ? [
+                    'id' => $task->category->id,
+                    'category_name' => $task->category->category_name,
+                ] : null,
+                'users' => $task->users->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'image' => $user->image,
+                    ];
+                })->toArray(),
+                'labels' => $task->labels->map(function ($label) {
+                    return [
+                        'id' => $label->label->id,
+                        'label_name' => $label->label->label_name,
+                        'label_color' => $label->label->label_color,
+                    ];
+                })->toArray(),
+                'files_count' => $task->files->count(),
+                'notes_count' => $task->notes->count(),
+                'comments_count' => $task->comments->count(),
+                'subtasks_count' => $task->subtasks->count(),
+                'completed_subtasks_count' => $task->completedSubtasks->count(),
+                'created_at' => $task->created_at->toISOString(),
+                'updated_at' => $task->updated_at->toISOString(),
+            ];
+        });
+
+        // Fetch supporting data
+        $projects = Project::allProjects()->map(function ($project) {
+            return [
+                'id' => $project->id,
+                'project_name' => $project->project_name,
+                'project_short_code' => $project->project_short_code,
+            ];
+        });
+
+        $employees = User::allEmployees(null, true, ($viewPermission == 'all' ? 'all' : null))->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'image' => $user->image,
+                'designation_name' => $user->designation_name ?? null,
+            ];
+        });
+
+        $taskBoardColumns = TaskboardColumn::orderBy('priority', 'asc')->get()->map(function ($column) {
+            return [
+                'id' => $column->id,
+                'column_name' => $column->column_name,
+                'slug' => $column->slug,
+                'label_color' => $column->label_color,
+                'priority' => $column->priority,
+            ];
+        });
+
+        $categories = TaskCategory::all()->map(function ($category) {
+            return [
+                'id' => $category->id,
+                'category_name' => $category->category_name,
+            ];
+        });
+
+        $labels = TaskLabelList::all()->map(function ($label) {
+            return [
+                'id' => $label->id,
+                'label_name' => $label->label_name,
+                'label_color' => $label->label_color,
+            ];
+        });
+
+        // Get user permissions
+        $permissions = [
+            'add_tasks' => in_array(user()->permission('add_tasks'), ['all', 'added']),
+            'edit_tasks' => in_array(user()->permission('edit_tasks'), ['all', 'added', 'owned', 'both']),
+            'delete_tasks' => user()->permission('delete_tasks') === 'all',
+            'view_tasks' => $viewPermission,
+        ];
+
+        // Build filters from request
+        $filters = [
+            'status' => request('status'),
+            'priority' => request('priority'),
+            'assigned_to' => request('assigned_to') ? (int) request('assigned_to') : null,
+            'project_id' => request('project_id') ? (int) request('project_id') : null,
+            'category_id' => request('category_id') ? (int) request('category_id') : null,
+            'search' => request('search'),
+        ];
+
+        return inertia('Tasks/Index', [
+            'tasks' => $tasks,
+            'categories' => $categories,
+            'labels' => $labels,
+            'columns' => $taskBoardColumns,
+            'users' => $employees,
+            'projects' => $projects,
+            'filters' => $filters,
+            'permissions' => $permissions,
+        ]);
     }
 
     /**
