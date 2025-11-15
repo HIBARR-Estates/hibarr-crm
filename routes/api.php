@@ -13,6 +13,7 @@
 */
 
 use App\Http\Controllers\CommunicationActivityController;
+use App\Http\Controllers\Api\BitrixImportController;
 use Illuminate\Support\Facades\Route;
 
 ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
@@ -34,6 +35,8 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('meeting-summary/{summaryId}', ['as' => 'api.meeting-summary.show', 'uses' => 'MeetingSummaryController@show']);
         ApiRoute::post('meeting-summary', ['as' => 'api.meeting-summary.store', 'uses' => 'MeetingSummaryApiController@getMeetingSummary']);
 
+        //Import routes
+        ApiRoute::post('bitrix/import', ['as' => 'api.bitrix.import', 'uses' => 'Api\BitrixImportController@store']);
  
     });
 

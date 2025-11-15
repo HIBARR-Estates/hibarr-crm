@@ -275,6 +275,7 @@ const Index = ({
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={lead}
+               
             />
 
             {/* Filter Drawer */}

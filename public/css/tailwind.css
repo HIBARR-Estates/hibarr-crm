@@ -918,6 +918,9 @@
   .\!mb-3 {
     margin-bottom: calc(var(--spacing) * 3) !important;
   }
+  .-mb-1 {
+    margin-bottom: calc(var(--spacing) * -1);
+  }
   .mb-0 {
     margin-bottom: calc(var(--spacing) * 0);
   }
@@ -2441,6 +2444,20 @@
     &:hover {
       @media (hover: hover) {
         text-decoration-line: underline;
+      }
+    }
+  }
+  .hover\:opacity-80 {
+    &:hover {
+      @media (hover: hover) {
+        opacity: 80%;
+      }
+    }
+  }
+  .hover\:opacity-50 {
+    &:hover {
+      @media (hover: hover) {
+        opacity: 50%;
       }
     }
   }
