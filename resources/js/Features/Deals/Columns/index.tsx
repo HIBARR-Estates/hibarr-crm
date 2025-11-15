@@ -328,6 +328,27 @@ export const DEAL_TABLE_COLUMNS = (
     // },
 
     {
+        title: (
+            <span className="flex items-center">
+                Created
+                <PageDataSorter field="created_at" routeName="deals.index" />
+            </span>
+        ),
+        key: "created_at",
+        width: 120,
+        render: (_, record) => {
+            if (!record.created_at)
+                return <span className="text-gray-400">--</span>;
+
+            return (
+                <span className="text-gray-900">
+                    {dayjs(record.created_at).format("MMM DD, YYYY")}
+                </span>
+            );
+        },
+    },
+
+    {
         title: "Actions",
         key: "actions",
         width: 80,

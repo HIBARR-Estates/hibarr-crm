@@ -9,12 +9,22 @@ import {
 } from "@ant-design/icons";
 import { Lead } from "@/Types/api/leads";
 import dayjs from "dayjs";
+import UserIndicator from "@/Components/UserIndicator";
+import PageDataSorter from "@/Components/PageDataSorter";
 
 export const LEAD_TABLE_COLUMNS = (
     actionItems?: (item: Lead) => MenuProps["items"]
 ): ColumnsType<Lead> => [
     {
-        title: "Contact Name",
+        title: (
+            <span className="flex items-center">
+                Contact Name
+                <PageDataSorter
+                    field="client_name"
+                    routeName="lead-contact.index"
+                />
+            </span>
+        ),
         dataIndex: "name",
         key: "name",
         width: 250,
@@ -122,7 +132,15 @@ export const LEAD_TABLE_COLUMNS = (
         },
     },
     {
-        title: "Lead Owner",
+        title: (
+            <span className="flex items-center">
+                Lead Owner
+                <PageDataSorter
+                    field="lead_owner"
+                    routeName="lead-contact.index"
+                />
+            </span>
+        ),
         dataIndex: "lead_owner",
         key: "lead_owner",
         width: 150,
@@ -131,19 +149,14 @@ export const LEAD_TABLE_COLUMNS = (
                 return <span className="text-gray-400">--</span>;
 
             return (
-                <div className="flex items-center space-x-2">
-                    <Avatar
-                        size="small"
-                        src={record.lead_owner.image_url}
-                        icon={<UserOutlined />}
-                        className="flex-shrink-0"
-                    />
-                    <Tooltip title={record.lead_owner.name}>
-                        <span className="text-sm text-gray-900 truncate max-w-full">
-                            {record.lead_owner.name}
-                        </span>
-                    </Tooltip>
-                </div>
+                <UserIndicator
+                    data={{
+                        image_url: record.lead_owner.image_url,
+                        name: record.lead_owner.name,
+                    }}
+                    size="xs"
+                    maxNameLength={15}
+                />
             );
         },
     },
@@ -193,7 +206,15 @@ export const LEAD_TABLE_COLUMNS = (
     //     },
     // },
     {
-        title: "Created",
+        title: (
+            <span className="flex items-center">
+                Created
+                <PageDataSorter
+                    field="created_at"
+                    routeName="lead-contact.index"
+                />
+            </span>
+        ),
         key: "created_at",
         width: 120,
         render: (_, record) => {
