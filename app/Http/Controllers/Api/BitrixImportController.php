@@ -184,8 +184,7 @@ class BitrixImportController extends Controller
 
         // Create EmployeeDetails first (before attaching roles)
         // This matches the pattern in EmployeeController and may be expected by observers/events
-        // Create a local $employee variable as attachRole or observers may expect it in scope
-        $employee = EmployeeDetails::firstOrCreate(
+        EmployeeDetails::firstOrCreate(
             [
                 'user_id' => $user->id,
                 'company_id' => $companyId,
