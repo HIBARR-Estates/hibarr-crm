@@ -182,6 +182,19 @@ class BitrixImportController extends Controller
         $user->status = 'active';
         $user->save();
 
+        // Create EmployeeDetails first (before attaching roles)
+        // This matches the pattern in EmployeeController and may be expected by observers/events
+        // Create a local $employee variable as attachRole or observers may expect it in scope
+        $employee = EmployeeDetails::firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+            ],
+            [
+                'joining_date' => now(),
+            ]
+        );
+
         $employeeRole = Role::withoutGlobalScopes()
             ->where('company_id', $companyId)
             ->where('name', 'employee')
@@ -205,21 +218,12 @@ class BitrixImportController extends Controller
         } else {
             foreach ($rolesToAttach as $role) {
                 if ($role && $role->id) {
-                    $user->attachRole($role->id);
+                    // attachRole expects a Role object, not an ID
+                    $user->attachRole($role);
                     $user->assignUserRolePermission($role->id);
                 }
             }
         }
-
-        EmployeeDetails::firstOrCreate(
-            [
-                'user_id' => $user->id,
-                'company_id' => $companyId,
-            ],
-            [
-                'joining_date' => now(),
-            ]
-        );
 
         return $user;
     }
