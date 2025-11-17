@@ -389,15 +389,13 @@ class BitrixImportController extends Controller
         }
 
         if (!$pipeline) {
-            // Safely access pipeline relationship - it might not exist
-            try {
-                $pipeline = $stage->pipeline;
-            } catch (\Exception $e) {
+            $pipeline = $stage->pipeline;
+            
+            if ($pipeline === null) {
                 Log::warning('Bitrix import: Failed to load pipeline from stage', [
                     'stage_id' => $stage->id,
                     'company_id' => $companyId,
                 ]);
-                $pipeline = null;
             }
         }
 
