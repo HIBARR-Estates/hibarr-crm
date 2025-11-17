@@ -158,7 +158,10 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
                         <x-tab-item data-tab="history" class="ajax-tab history" :active="request('tab') === 'history'"
                                     :link="route('deals.show', $deal->id).'?tab=history'">@lang('modules.tasks.history')</x-tab-item>
-                        
+
+
+                        <x-tab-item data-tab="marketing" class="ajax-tab marketing" :active="request('tab') === 'marketing'"
+                                    :link="route('deals.show', $deal->id).'?tab=marketing'">@lang('modules.marketing')</x-tab-item>
                         @php
                             $addLeadFilePermission = user()->permission('add_lead_files');
                             $addLeadFollowUpPermission = user()->permission('add_lead_follow_up');

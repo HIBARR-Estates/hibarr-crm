@@ -273,4 +273,10 @@ class Deal extends BaseModel
 
     }
 
+    // Hibarr custom fields relation
+    public function hibarrFields(): HasOne
+    {
+        return $this->hasOne(HibarrDealFields::class, 'deal_id');
+    }
+
 }
