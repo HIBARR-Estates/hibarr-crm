@@ -18,6 +18,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -115,7 +116,15 @@ class BitrixImportController extends Controller
                 $deal->save();
 
                 if ($responsibleUser) {
-                    $deal->dealWatchers()->syncWithoutDetaching([$responsibleUser->id]);
+                    try {
+                        $deal->dealWatchers()->syncWithoutDetaching([$responsibleUser->id]);
+                    } catch (\Exception $e) {
+                        // Log but don't fail the import if watcher sync fails
+                        Log::warning('Bitrix import: Failed to sync deal watchers', [
+                            'deal_id' => $deal->id,
+                            'user_id' => $responsibleUser->id,
+                        ]);
+                    }
                 }
 
                 $this->scheduleFollowUpIfNeeded($deal, Arr::get($dealData, 'nextMeeting'));
@@ -183,16 +192,34 @@ class BitrixImportController extends Controller
             ->where('name', 'sales agent')
             ->first();
 
-        foreach (array_filter([$employeeRole, $salesRole]) as $role) {
-            $user->attachRole($role->id);
-            $user->assignUserRolePermission($role->id);
+        // Only attach roles that exist
+        $rolesToAttach = array_filter([$employeeRole, $salesRole]);
+        
+        if (empty($rolesToAttach)) {
+            // If no roles exist, try to find any role or skip role assignment
+            // This prevents errors when roles haven't been set up yet
+            Log::warning('Bitrix import: No employee or sales agent roles found for company', [
+                'company_id' => $companyId,
+                'user_email' => $user->email,
+            ]);
+        } else {
+            foreach ($rolesToAttach as $role) {
+                if ($role && $role->id) {
+                    $user->attachRole($role->id);
+                    $user->assignUserRolePermission($role->id);
+                }
+            }
         }
 
-        EmployeeDetails::create([
-            'user_id' => $user->id,
-            'company_id' => $companyId,
-            'joining_date' => now(),
-        ]);
+        EmployeeDetails::firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+            ],
+            [
+                'joining_date' => now(),
+            ]
+        );
 
         return $user;
     }
@@ -270,10 +297,17 @@ class BitrixImportController extends Controller
             'has_downloaded_the_ebook' => $this->toBoolean(Arr::get($contactData, 'hasDownloadedEbook')) ?? false,
         ];
 
-        $lead->marketing()->updateOrCreate(
-            ['lead_id' => $lead->id],
-            $marketingPayload
-        );
+        try {
+            $lead->marketing()->updateOrCreate(
+                ['lead_id' => $lead->id],
+                $marketingPayload
+            );
+        } catch (\Exception $e) {
+            // Log but don't fail the import if marketing data fails
+            Log::warning('Bitrix import: Failed to upsert lead marketing data', [
+                'lead_id' => $lead->id,
+            ]);
+        }
 
         return $lead;
     }
@@ -356,6 +390,13 @@ class BitrixImportController extends Controller
 
         if (!$pipeline) {
             $pipeline = $stage->pipeline;
+            
+            if ($pipeline === null) {
+                Log::warning('Bitrix import: Failed to load pipeline from stage', [
+                    'stage_id' => $stage->id,
+                    'company_id' => $companyId,
+                ]);
+            }
         }
 
         return [$pipeline, $stage];
@@ -513,11 +554,19 @@ class BitrixImportController extends Controller
             return;
         }
 
-        DealFollowUp::create([
-            'deal_id' => $deal->id,
-            'next_follow_up_date' => $date,
-            'remark' => 'Imported from Bitrix',
-            'added_by' => optional(auth()->user())->id,
-        ]);
+        try {
+            DealFollowUp::create([
+                'deal_id' => $deal->id,
+                'next_follow_up_date' => $date,
+                'remark' => 'Imported from Bitrix',
+                'added_by' => optional(auth()->user())->id,
+            ]);
+        } catch (\Exception $e) {
+            // Log but don't fail the import if follow-up creation fails
+            Log::warning('Bitrix import: Failed to create deal follow-up', [
+                'deal_id' => $deal->id,
+                'next_meeting' => $nextMeeting,
+            ]);
+        }
     }
 }
