@@ -183,16 +183,34 @@ class BitrixImportController extends Controller
             ->where('name', 'sales agent')
             ->first();
 
-        foreach (array_filter([$employeeRole, $salesRole]) as $role) {
-            $user->attachRole($role->id);
-            $user->assignUserRolePermission($role->id);
+        // Only attach roles that exist
+        $rolesToAttach = array_filter([$employeeRole, $salesRole]);
+        
+        if (empty($rolesToAttach)) {
+            // If no roles exist, try to find any role or skip role assignment
+            // This prevents errors when roles haven't been set up yet
+            Log::warning('Bitrix import: No employee or sales agent roles found for company', [
+                'company_id' => $companyId,
+                'user_email' => $user->email,
+            ]);
+        } else {
+            foreach ($rolesToAttach as $role) {
+                if ($role && $role->id) {
+                    $user->attachRole($role->id);
+                    $user->assignUserRolePermission($role->id);
+                }
+            }
         }
 
-        EmployeeDetails::create([
-            'user_id' => $user->id,
-            'company_id' => $companyId,
-            'joining_date' => now(),
-        ]);
+        EmployeeDetails::firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+            ],
+            [
+                'joining_date' => now(),
+            ]
+        );
 
         return $user;
     }
