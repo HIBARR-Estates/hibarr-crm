@@ -2,18 +2,19 @@ import { Deal } from "@/Types/api/deals";
 import { Link, usePage } from "@inertiajs/react";
 import { Descriptions, Tag, Avatar, Tooltip, Tabs, Button, Space } from "antd";
 import {
-    UserOutlined,
     MailOutlined,
     PhoneOutlined,
     EditOutlined,
     DeleteOutlined,
-    MoreOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
+import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
+import UserIndicator from "@/Components/UserIndicator";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 
 interface Props {
     deal: Deal;
@@ -171,15 +172,11 @@ export default function DealInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Deal Agent">
-                            {deal.lead_agent ? (
-                                <div className="flex items-center gap-x-2">
-                                    <Avatar
-                                        size="small"
-                                        src={deal.lead_agent.user?.image_url}
-                                        icon={<UserOutlined />}
-                                    />
-                                    <span>{deal.lead_agent.user?.name}</span>
-                                </div>
+                            {deal.lead_agent?.user ? (
+                                <UserIndicator
+                                    data={deal.lead_agent.user}
+                                    size="sm"
+                                />
                             ) : (
                                 <span className="text-gray-500">--</span>
                             )}
@@ -188,31 +185,18 @@ export default function DealInfoSection({
                         <Descriptions.Item label="Deal Watchers">
                             {deal.deal_watchers &&
                             deal.deal_watchers.length > 0 ? (
-                                <div className="space-y-1">
-                                    {deal.deal_watchers
-                                        .slice(0, 3)
-                                        .map((watcher: any) => (
-                                            <div
-                                                key={watcher.id}
-                                                className="flex items-center space-x-2"
-                                            >
-                                                <Avatar
-                                                    size="small"
-                                                    src={watcher.image}
-                                                    icon={<UserOutlined />}
-                                                />
-                                                <span className="text-sm">
-                                                    {watcher.name}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    {deal.deal_watchers.length > 3 && (
-                                        <span className="text-xs text-gray-500">
-                                            +{deal.deal_watchers.length - 3}{" "}
-                                            more
-                                        </span>
+                                <MultiUserIndicator
+                                    users={deal.deal_watchers.map(
+                                        (watcher: any) => ({
+                                            id: watcher.id,
+                                            image_url: watcher.image,
+                                            name: watcher.name,
+                                        })
                                     )}
-                                </div>
+                                    size="sm"
+                                    maxCount={4}
+                                    showTooltip={true}
+                                />
                             ) : (
                                 <span className="text-gray-500">--</span>
                             )}
@@ -273,64 +257,12 @@ export default function DealInfoSection({
             label: category.name,
             children: (
                 <div className="p-6">
-                    <Descriptions column={2} bordered size="middle">
-                        {fields
-                            ?.filter(
-                                (field) =>
-                                    field.custom_field_category_id ===
-                                    category.id
-                            )
-                            .map((field) => {
-                                let value =
-                                    deal.custom_fields_data?.[
-                                        `field_${field.id}`
-                                    ];
-                                let span = 1;
-                                // ensuure the span is adjusted for field types that may need more space
-                                if (
-                                    ["textarea", "file", "text"].includes(
-                                        field.type
-                                    )
-                                ) {
-                                    span = 2;
-                                }
-
-                                // Handle different field types
-                                if (field.type === "date" && value) {
-                                    value = dayjs(value).format("MMM DD, YYYY");
-                                } else if (
-                                    field.type === "select" &&
-                                    value &&
-                                    field.values
-                                ) {
-                                    value = field.values[value] || value;
-                                } else if (field.type === "file" && value) {
-                                    value = (
-                                        <a
-                                            href={`/storage/custom_fields/${value}`}
-                                            className="text-blue-600 hover:text-blue-800"
-                                            download
-                                        >
-                                            Download File
-                                        </a>
-                                    );
-                                }
-
-                                return (
-                                    <Descriptions.Item
-                                        key={field.id}
-                                        label={field.label}
-                                        span={span}
-                                    >
-                                        {value || (
-                                            <span className="text-gray-500">
-                                                --
-                                            </span>
-                                        )}
-                                    </Descriptions.Item>
-                                );
-                            })}
-                    </Descriptions>
+                    <CustomFieldDisplay
+                        fields={fields}
+                        customFieldsData={deal.custom_fields_data || {}}
+                        categoryId={category.id}
+                        column={2}
+                    />
                 </div>
             ),
         })),

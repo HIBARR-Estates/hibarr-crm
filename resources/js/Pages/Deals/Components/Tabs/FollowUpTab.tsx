@@ -102,7 +102,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             title: "Meeting Date",
             dataIndex: "next_follow_up_date",
             key: "next_follow_up_date",
-            width: "20%",
+            width: "18%",
             render: (_, record) => (
                 <div
                     className="flex items-center space-x-2 cursor-pointer hover:text-blue-600 transition-colors"
@@ -125,7 +125,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             title: "Meeting Type",
             dataIndex: "meeting_type",
             key: "meeting_type",
-            width: "15%",
+            width: "13%",
             render: (_, record) =>
                 record.meeting_type?.name ? (
                     <Tag color="blue">{record.meeting_type.name}</Tag>
@@ -134,10 +134,10 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                 ),
         },
         {
-            title: "Summary",
-            dataIndex: "summary",
-            key: "summary",
-            width: "25%",
+            title: "Remarks",
+            dataIndex: "remark",
+            key: "remark",
+            width: "22%",
             render: (_, { remark: summary }) =>
                 summary ? (
                     <div className="max-w-xs">
@@ -156,18 +156,42 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             title: "Meeting Link",
             dataIndex: "meeting_link",
             key: "meeting_link",
-            width: "15%",
+            width: "12%",
             render: (_, record) => renderMeetingLink(record),
         },
         {
             title: "Status",
             dataIndex: "status",
             key: "status",
-            width: "10%",
+            width: "8%",
             render: (_, { status }) => {
                 return (
                     <Tag color={getStatusColor(status)} className="capitalize">
                         {status}
+                    </Tag>
+                );
+            },
+        },
+        {
+            title: "Summary Status",
+            key: "summary_status",
+            width: "12%",
+            render: (_, record) => {
+                if (record.meeting_summary) {
+                    return (
+                        <Button
+                            type="link"
+                            size="small"
+                            className="text-green-600 hover:text-green-800 p-0 h-auto"
+                            onClick={() => handleAction("view", record)}
+                        >
+                            View Summary
+                        </Button>
+                    );
+                }
+                return (
+                    <Tag color="orange" className="text-xs">
+                        Pending
                     </Tag>
                 );
             },

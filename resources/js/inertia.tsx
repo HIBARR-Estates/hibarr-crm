@@ -69,6 +69,31 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "lead-contact.apply_quick_action":
             "/account/lead-contact/apply-quick-action",
         "leadboards.index": "/account/leadboards",
+        "leadboards.create": "/account/leadboards/create",
+        "leadboards.show": "/account/leadboards/{id}",
+        "leadboards.edit": "/account/leadboards/{id}/edit",
+        "leadboards.store": "/account/leadboards",
+        "leadboards.update": "/account/leadboards/{id}",
+        "leadboards.destroy": "/account/leadboards/{id}",
+        "leadboards.get_stage_slug": "/account/leadboards/get-stage-slug",
+        "leadboards.collapse_column": "/account/leadboards/collapseColumn",
+        "leadboards.update_index": "/account/leadboards/updateIndex",
+        "leadboards.load_more": "/account/leadboards/loadMore",
+
+        // Lead Stage Settings routes
+        "lead-stage-setting.index": "/account/settings/lead-stage-setting",
+        "lead-stage-setting.create":
+            "/account/settings/lead-stage-setting/create",
+        "lead-stage-setting.show": "/account/settings/lead-stage-setting/{id}",
+        "lead-stage-setting.edit":
+            "/account/settings/lead-stage-setting/{id}/edit",
+        "lead-stage-setting.store": "/account/settings/lead-stage-setting",
+        "lead-stage-setting.update":
+            "/account/settings/lead-stage-setting/{id}",
+        "lead-stage-setting.destroy":
+            "/account/settings/lead-stage-setting/{id}",
+        "lead-stage-setting.stageUpdate":
+            "/account/settings/lead-stage-update/{statusId}",
 
         // Deal routes
         "deals.get-stage": "/account/deals/get-stage/{id}",

@@ -39,6 +39,9 @@
         "webpack": "^5.23.0"
     },
     "dependencies": {
+        "@dnd-kit/core": "^6.3.1",
+        "@dnd-kit/sortable": "^10.0.0",
+        "@dnd-kit/utilities": "^3.2.2",
         "@inertiajs/progress": "^0.2.7",
         "@inertiajs/react": "^2.2.7",
         "@popperjs/core": "^2.5.4",

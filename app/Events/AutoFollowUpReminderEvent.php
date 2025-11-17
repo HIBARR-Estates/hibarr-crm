@@ -14,11 +14,13 @@ class AutoFollowUpReminderEvent
 
     public $followup;
     public $subject;
+    public $reminder;
 
-    public function __construct(DealFollowUp $followup, $subject)
+    public function __construct(DealFollowUp $followup, $subject, $reminder = null)
     {
         $this->followup = $followup;
         $this->subject = $subject;
+        $this->reminder = $reminder; // Optional reminder details for multiple reminders
     }
 
 }
