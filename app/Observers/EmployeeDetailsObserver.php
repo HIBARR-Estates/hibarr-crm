@@ -49,12 +49,11 @@ class EmployeeDetailsObserver
         // TODO: Call Zoho API to create/link employee and populate zoho_id, if not already linked
   
         // create a referral code for the employee
-         if (!ReferralCode::where('employee_id', $employee->id)->exists()) {
-            ReferralCode::create([
-                'employee_id' => $employee->id,
-                'code' => ReferralCode::generateCode($employee->company?->name ?? null),
-            ]);
-        }
+        // Use firstOrCreate to avoid race conditions and duplicate key errors
+        ReferralCode::firstOrCreate(
+            ['employee_id' => $detail->id],
+            ['referral_code' => ReferralCode::generateCode($detail->company?->name ?? null)]
+        );
     }
 
     public function updated(EmployeeDetails $detail)
