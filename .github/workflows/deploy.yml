@@ -22,6 +22,11 @@ jobs:
           port: 2244
           script: |
             cd ~/hibarr-crm-staging
+            # RESET repo safely
+            git restore --staged .
+            git restore .
+            git clean -fd
+            
             git pull origin staging
 
             # Sync files to server while excluding generated assets
@@ -57,6 +62,11 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY_2 }}
           script: |
             cd ~/hibarr-crm
+            # RESET repo safely
+            git restore --staged .
+            git restore .
+            git clean -fd
+            
             git pull origin main
 
             # Sync files to server while excluding generated assets
