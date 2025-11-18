@@ -92,7 +92,8 @@ const FilterDrawer: React.FC<FilterDrawerProps> = ({
                 </div>
             }
             placement="right"
-            width={width}
+            // width={width}
+            size="large"
             onClose={onClose}
             open={open}
             styles={{
@@ -106,7 +107,9 @@ const FilterDrawer: React.FC<FilterDrawerProps> = ({
                         {hasActiveFilters && (
                             <span className="text-sm text-gray-500">
                                 {Object.keys(filters).length} filter
-                                {Object.keys(filters).length !== 1 ? "s" : ""}{" "}
+                                {Object.keys(filters).length !== 1
+                                    ? "s"
+                                    : ""}{" "}
                                 active
                             </span>
                         )}

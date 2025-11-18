@@ -6,9 +6,11 @@ interface PageDataSorterProps {
     field: string;
     routeName?: string;
     className?: string;
+    label?: string;
 }
 
 const PageDataSorter: React.FC<PageDataSorterProps> = ({
+    label,
     field,
     routeName,
     className = "",
@@ -30,6 +32,7 @@ const PageDataSorter: React.FC<PageDataSorterProps> = ({
         <span
             className={`inline-flex flex-col ml-1 cursor-pointer transition-colors ${className}`}
             onClick={handleClick}
+            title={label}
         >
             <CaretUpOutlined
                 className={`text-xs -mb-1 hover:opacity-50`}

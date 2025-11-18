@@ -148,6 +148,8 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
     ];
 
     const columns = DEAL_TABLE_COLUMNS(getActionItems);
+
+    console.log("Rendering Deals Index with deals:", deals);
     return (
         <DashboardLayout>
             <PageLayout

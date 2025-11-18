@@ -12,25 +12,27 @@ export interface ApiSuccessResponse<T = any> extends BaseApiResponse {
 }
 
 // Error response
-export interface ApiErrorResponse extends BaseApiResponse {
+export interface ApiErrorResponse<T = any> extends BaseApiResponse {
     status: "fail";
     message: string;
     error_name?: string;
-    data?: any;
+    data?: T;
 }
 
 // Form validation error response
-export interface ApiFormErrorResponse extends BaseApiResponse {
+export interface ApiFormErrorResponse<T = any> extends BaseApiResponse {
     status: "fail";
     errors: Record<string, string[]>;
+    data?: T;
 }
 
 // Redirect response
-export interface ApiRedirectResponse extends BaseApiResponse {
+export interface ApiRedirectResponse<T = any> extends BaseApiResponse {
     status: "success";
     message?: string;
     action: "redirect";
     url: string;
+    data?: T;
 }
 
 // Union type for all possible API responses

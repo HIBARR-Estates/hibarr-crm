@@ -63,7 +63,13 @@ class TaskController extends AccountBaseController
         abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
         // Fetch tasks based on permission
-        $tasksQuery = Task::with(['project:id,project_name,project_short_code', 'users:id,name,image', 'category:id,category_name', 'labels', 'boardColumn:id,column_name,slug,label_color']);
+        $tasksQuery = Task::with([
+            'project:id,project_name,project_short_code', 
+            'users:id,name,image', 
+            'category:id,category_name', 
+            'labels', 
+            'boardColumn:id,column_name,slug,label_color'
+        ]);
 
         // Apply permission-based filtering
         if ($viewPermission === 'added') {
@@ -82,31 +88,7 @@ class TaskController extends AccountBaseController
         }
         // For 'all' permission, no additional filtering needed
 
-        // Apply filters if present
-        if (request()->filled('status')) {
-            $tasksQuery->whereHas('boardColumn', function ($query) {
-                $query->where('slug', request('status'));
-            });
-        }
-
-        if (request()->filled('priority')) {
-            $tasksQuery->where('priority', request('priority'));
-        }
-
-        if (request()->filled('project_id')) {
-            $tasksQuery->where('project_id', request('project_id'));
-        }
-
-        if (request()->filled('category_id')) {
-            $tasksQuery->where('task_category_id', request('category_id'));
-        }
-
-        if (request()->filled('assigned_to')) {
-            $tasksQuery->whereHas('users', function ($query) {
-                $query->where('user_id', request('assigned_to'));
-            });
-        }
-
+        // Apply search filter
         if (request()->filled('search')) {
             $searchTerm = request('search');
             $tasksQuery->where(function ($query) use ($searchTerm) {
@@ -115,7 +97,78 @@ class TaskController extends AccountBaseController
             });
         }
 
-        $tasks = $tasksQuery->orderBy('created_at', 'desc')->get();
+        // Apply status filter
+        if (request()->filled('status') && request('status') !== 'all') {
+            $tasksQuery->whereHas('boardColumn', function ($query) {
+                $query->where('slug', request('status'));
+            });
+        }
+
+        // Apply priority filter
+        if (request()->filled('priority') && request('priority') !== 'all') {
+            $tasksQuery->where('priority', request('priority'));
+        }
+
+        // Apply project filter
+        if (request()->filled('project_id') && request('project_id') !== 'all') {
+            $tasksQuery->where('project_id', request('project_id'));
+        }
+
+        // Apply category filter
+        if (request()->filled('category_id') && request('category_id') !== 'all') {
+            $tasksQuery->where('task_category_id', request('category_id'));
+        }
+
+        // Apply assignee filter
+        if (request()->filled('assigned_to') && request('assigned_to') !== 'all') {
+            $tasksQuery->whereHas('users', function ($query) {
+                $query->where('user_id', request('assigned_to'));
+            });
+        }
+
+        // Apply labels filter
+        if (request()->filled('labels') && is_array(request('labels'))) {
+            $tasksQuery->whereHas('labels', function ($query) {
+                $query->whereIn('task_label_id', request('labels'));
+            });
+        }
+
+        // Apply due date range filter
+        if (request()->filled('due_date_range') && is_array(request('due_date_range'))) {
+            $dates = request('due_date_range');
+            if (count($dates) === 2 && $dates[0] && $dates[1]) {
+                $tasksQuery->whereBetween('due_date', [$dates[0], $dates[1]]);
+            }
+        }
+
+        // Apply created date range filter
+        if (request()->filled('created_date_range') && is_array(request('created_date_range'))) {
+            $dates = request('created_date_range');
+            if (count($dates) === 2 && $dates[0] && $dates[1]) {
+                $tasksQuery->whereBetween('created_at', [$dates[0] . ' 00:00:00', $dates[1] . ' 23:59:59']);
+            }
+        }
+
+        // Apply sorting
+        $sortField = request('sort_by', 'created_at');
+        $sortDirection = request('sort_direction', 'desc');
+        
+        // Map frontend field names to database field names
+        $fieldMapping = [
+            'heading' => 'heading',
+            'priority' => 'priority',
+            'due_date' => 'due_date',
+            'created_at' => 'created_at',
+            'board_column_id' => 'board_column_id',
+        ];
+
+        if (isset($fieldMapping[$sortField])) {
+            $tasksQuery->orderBy($fieldMapping[$sortField], $sortDirection);
+        } else {
+            $tasksQuery->orderBy('created_at', 'desc');
+        }
+
+        $tasks = $tasksQuery->get();
 
         // Transform tasks for frontend
         $tasks = $tasks->map(function ($task) {
@@ -220,6 +273,9 @@ class TaskController extends AccountBaseController
             'assigned_to' => request('assigned_to') ? (int) request('assigned_to') : null,
             'project_id' => request('project_id') ? (int) request('project_id') : null,
             'category_id' => request('category_id') ? (int) request('category_id') : null,
+            'labels' => request('labels', []),
+            'due_date_range' => request('due_date_range'),
+            'created_date_range' => request('created_date_range'),
             'search' => request('search'),
         ];
 
@@ -747,7 +803,7 @@ class TaskController extends AccountBaseController
             $redirectUrl = route('tasks.index');
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id]);
+        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
 
     }
 
