@@ -105,5 +105,34 @@ export const antdMainThemeConfig: ThemeConfig = {
         Form: {
             itemMarginBottom: 20, // Increase spacing between form items
         },
+        // Card component styling for better content spacing
+        Card: {
+            paddingLG: 24, // Large card padding
+            padding: 20, // Default card padding
+            paddingSM: 16, // Small card padding
+            paddingXS: 12, // Extra small card padding
+
+            // increase card content padding
+            bodyPaddingSM: 20,
+            bodyPadding: 26,
+            // increase card content padding
+            // headerBg: "#aaa", // gray-50 for header background
+        },
+        Collapse: {
+            paddingLG: 24, // Large card padding
+            padding: 20, // Default card padding
+            paddingSM: 16, // Small card padding
+            paddingXS: 12, // Extra small card padding
+
+            contentPadding: 26,
+
+            // increase card content padding
+            // bodyPaddingSM: 20,
+            // bodyPadding: 26,
+            // increase card content padding
+            headerBg: "#fff", // gray-50 for header background
+            // contentPaddingHorizontal: 16,
+            // contentPaddingVertical: 12,
+        },
     },
 };

@@ -252,16 +252,13 @@ export const DEAL_TABLE_COLUMNS = (
         dataIndex: "agent_name",
         key: "agent_name",
         width: 150,
-        render: (_, record) => {
-            if (!record.lead_agent)
+        render: (_, deal) => {
+            if (!deal?.lead_agent?.user)
                 return <span className="text-gray-400">--</span>;
 
             return (
                 <UserIndicator
-                    data={{
-                        image_url: record.lead_agent.image,
-                        name: record.lead_agent.name,
-                    }}
+                    data={deal.lead_agent.user}
                     size="xs"
                     maxNameLength={15}
                 />

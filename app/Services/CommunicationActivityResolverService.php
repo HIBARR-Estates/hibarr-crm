@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\CommunicationActivity;
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\LeadAgent;
 use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use App\Jobs\ProcessCommunicationActivityJob;
 
@@ -19,6 +21,17 @@ class CommunicationActivityResolverService
     public function resolve(CommunicationActivity $activity): ?CommunicationActivity
     {
         $dealOrLead = null;
+
+        $senderInfo = $activity->sender_info;
+        // Attach Deal Agent based on sender_info contact details
+        // Check for a LeadAgent that is a user matching the email of the sender_info
+        // This can be found in $senderInfo['contact'] if available
+        // once found we attach the agent to the deal
+        $leadAgentLocated = $this->findLeadAgentByContactDetails($senderInfo, $activity->channel_type);
+        if ($leadAgentLocated) {
+            Log::info('Located LeadAgent with ID: ' . $leadAgentLocated->id . ' for user: ' . $leadAgentLocated->user->name);
+        } 
+
 
         // General rule of thumb:
         // 1. Try to find a Lead or Deal based on the channel type and associated
@@ -36,21 +49,18 @@ class CommunicationActivityResolverService
         // Try to find deal or lead by channel type
         $dealOrLead = $this->findDealOrLeadByChannelType($activity);
 
+    
         if ($dealOrLead) {
             Log::info('Resolved activity to ' . ( $dealOrLead instanceof Deal ? 'Deal' : 'Lead') . ' ID: ' . $dealOrLead->id);
             if ($dealOrLead instanceof Deal) {
                 $activity->deal_id = $dealOrLead->id;
-            } elseif ($dealOrLead instanceof Lead) {
-                $activity->lead_id = $dealOrLead->id;
-            }
-
-            $activity->save();
-
-        }
-        if ($dealOrLead) {
-            Log::info('Resolved activity to ' . ( $dealOrLead instanceof Deal ? 'Deal' : 'Lead') . ' ID: ' . $dealOrLead->id);
-            if ($dealOrLead instanceof Deal) {
-                $activity->deal_id = $dealOrLead->id;
+                
+                // Attach the located agent to the deal if found and deal doesn't have an agent
+                if ($leadAgentLocated && !$dealOrLead->agent_id) {
+                    $dealOrLead->agent_id = $leadAgentLocated->id;
+                    $dealOrLead->save();
+                    Log::info('Attached LeadAgent ID: ' . $leadAgentLocated->id . ' to Deal ID: ' . $dealOrLead->id);
+                }
             } elseif ($dealOrLead instanceof Lead) {
                 $activity->lead_id = $dealOrLead->id;
             }
@@ -68,7 +78,8 @@ class CommunicationActivityResolverService
             // If the client name is empty, try to get it from the sender_info column
             // Note: sender_info is already cast as an array in the model, no need to json_decode
             if (empty($clientName) && !empty($activity->sender_info)) {
-                $senderInfo = $activity->sender_info;
+                
+                
                 if (is_array($senderInfo) && isset($senderInfo['name']) && !empty($senderInfo['name'])) {
                     $clientName = trim($senderInfo['name']);
                     Log::info('Extracted client name from sender_info: ' . $clientName);
@@ -353,7 +364,7 @@ class CommunicationActivityResolverService
             ->first();
     }
 
-    public function createDealIfNeeded(CommunicationActivity $activity): ?Deal
+    public function createDealIfNeeded(CommunicationActivity $activity, ?LeadAgent $leadAgent = null): ?Deal
     {
         // Only create a deal if there is a lead associated with the activity
         if (empty($activity->lead_id)) {
@@ -391,6 +402,13 @@ class CommunicationActivityResolverService
         $deal->value =  0;
         $deal->company_id = $lead->company_id;
         $deal->currency_id = $lead->company?->currency_id;
+        
+        // Attach the agent if provided
+        if ($leadAgent) {
+            $deal->agent_id = $leadAgent->id;
+            Log::info('Assigned LeadAgent ID: ' . $leadAgent->id . ' to new Deal for lead ID: ' . $lead->id);
+        }
+        
         $deal->save();
 
         // Link the activity to the newly created deal
@@ -400,6 +418,90 @@ class CommunicationActivityResolverService
         Log::info('Created new deal with ID ' . $deal->id . ' for lead ID ' . $lead->id);
 
         return $deal;
+    }
+
+    /**
+     * Find a LeadAgent based on sender contact details
+     * 
+     * @param array $senderInfo
+     * @param string $channelType
+     * @return LeadAgent|null
+     */
+    private function findLeadAgentByContactDetails(array $senderInfo, string $channelType): ?LeadAgent
+    {
+        if (empty($senderInfo)) {
+            Log::info('No sender_info provided for agent lookup');
+            return null;
+        }
+
+        $contactInfo = $senderInfo['contact'] ?? null;
+        
+        if (empty($contactInfo)) {
+            Log::info('No contact information found in sender_info: ' . json_encode($senderInfo));
+            return null;
+        }
+
+        Log::info('Searching for LeadAgent with contact: ' . $contactInfo . ' for channel: ' . $channelType);
+
+        $user = null;
+
+        try {
+            // Try to find user based on channel type and contact info
+            switch ($channelType) {
+                case 'email':
+                    // For email, the contact should be an email address
+                    if (filter_var($contactInfo, FILTER_VALIDATE_EMAIL)) {
+                        $user = User::where('email', $contactInfo)->first();
+                    } else {
+                        Log::info('Invalid email format for contact: ' . $contactInfo);
+                    }
+                    break;
+                    
+                case 'whatsapp':
+                    // For WhatsApp, contact might be phone number or username
+                    $user = User::where('mobile', $contactInfo)
+                        ->orWhere('phone', $contactInfo)
+                        ->first();
+                    break;
+                    
+                case 'telegram':
+                case 'instagram':
+                    // For social platforms, we might need to check custom fields or additional tables
+                    // This could be extended based on how contact details are stored
+                    $user = User::where('email', $contactInfo)->first();
+                    break;
+                    
+                default:
+                    // Fallback: try email format first, then phone
+                    if (filter_var($contactInfo, FILTER_VALIDATE_EMAIL)) {
+                        $user = User::where('email', $contactInfo)->first();
+                    } else {
+                        $user = User::where('mobile', $contactInfo)
+                            ->orWhere('phone', $contactInfo)
+                            ->first();
+                    }
+            }
+
+            if (!$user) {
+                Log::info('No user found with contact: ' . $contactInfo . ' for channel: ' . $channelType);
+                return null;
+            }
+
+            // Find LeadAgent for this user
+            $leadAgent = LeadAgent::where('user_id', $user->id)->first();
+
+            if ($leadAgent) {
+                Log::info('Found LeadAgent ID: ' . $leadAgent->id . ' for user: ' . $user->name . ' (email: ' . $user->email . ')');
+            } else {
+                Log::info('No active LeadAgent found for user: ' . $user->name . ' (ID: ' . $user->id . ')');
+            }
+
+            return $leadAgent;
+
+        } catch (\Exception $e) {
+            Log::error('Error finding LeadAgent by contact details: ' . $e->getMessage());
+            return null;
+        }
     }
 
 

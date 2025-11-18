@@ -198,54 +198,31 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         const items: MenuProps["items"] = [];
 
         // Dashboard
-        // if (
-        //     isInRole("admin") ||
-        //     hasPermission("view_overview_dashboard") ||
-        //     hasPermission("view_project_dashboard") ||
-        //     hasPermission("view_client_dashboard") ||
-        //     hasPermission("view_hr_dashboard") ||
-        //     hasPermission("view_ticket_dashboard") ||
-        //     hasPermission("view_finance_dashboard")
-        // ) {
-        //     items.push({
-        //         key: "dashboard",
-        //         label: (
-        //             <span
-        //                 onClick={() => router.visit(route("dashboard"))}
-        //                 className="cursor-pointer"
-        //             >
-        //                 Dashboard
-        //             </span>
-        //         ),
-        //         icon: <HouseIcon />,
-        //         children: [
-        //             {
-        //                 key: "private-dashboard",
-        //                 label: (
-        //                     <span
-        //                         onClick={() => router.visit(route("dashboard"))}
-        //                         className="cursor-pointer"
-        //                     >
-        //                         Private Dashboard
-        //                     </span>
-        //                 ),
-        //             },
-        //             {
-        //                 key: "advanced-dashboard",
-        //                 label: (
-        //                     <span
-        //                         onClick={() =>
-        //                             router.visit(route("dashboard.advanced"))
-        //                         }
-        //                         className="cursor-pointer"
-        //                     >
-        //                         Advanced Dashboard
-        //                     </span>
-        //                 ),
-        //             },
-        //         ],
-        //     });
-        // }
+        if (
+            isInRole("admin") ||
+            hasPermission("view_overview_dashboard") ||
+            hasPermission("view_project_dashboard") ||
+            hasPermission("view_client_dashboard") ||
+            hasPermission("view_hr_dashboard") ||
+            hasPermission("view_ticket_dashboard") ||
+            hasPermission("view_finance_dashboard")
+        ) {
+            items.push({
+                key: "dashboard",
+                label: (
+                    <a
+                        href={route("dashboard")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("dashboard"));
+                        }}
+                    >
+                        Dashboard
+                    </a>
+                ),
+                icon: <HouseIcon />,
+            });
+        }
 
         // My Calendar
         // if (
@@ -281,14 +258,15 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                 leadChildren.push({
                     key: "lead-contact",
                     label: (
-                        <span
-                            onClick={() =>
-                                router.visit(route("lead-contact.index"))
-                            }
-                            className="cursor-pointer"
+                        <a
+                            href={route("lead-contact.index")}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.visit(route("lead-contact.index"));
+                            }}
                         >
                             Contacts
-                        </span>
+                        </a>
                     ),
                     icon: <PersonIcon />,
                 });
@@ -298,12 +276,15 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                 leadChildren.push({
                     key: "deals",
                     label: (
-                        <span
-                            onClick={() => router.visit(route("deals.index"))}
-                            className="cursor-pointer"
+                        <a
+                            href={route("deals.index")}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.visit(route("deals.index"));
+                            }}
                         >
                             Deals
-                        </span>
+                        </a>
                     ),
                     icon: <BriefcaseIcon />,
                 });
@@ -313,20 +294,23 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         }
 
         // Tasks
-        // if (hasModule("tasks") && hasPermission("view_tasks")) {
-        //     items.push({
-        //         key: "tasks",
-        //         label: (
-        //             <span
-        //                 onClick={() => router.visit(route("tasks.index"))}
-        //                 className="cursor-pointer"
-        //             >
-        //                 Tasks
-        //             </span>
-        //         ),
-        //         icon: <CheckSquareIcon />,
-        //     });
-        // }
+        if (hasModule("tasks") && hasPermission("view_tasks")) {
+            items.push({
+                key: "tasks",
+                label: (
+                    <a
+                        href={route("tasks.index")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("tasks.index"));
+                        }}
+                    >
+                        Tasks
+                    </a>
+                ),
+                icon: <CheckSquareIcon />,
+            });
+        }
 
         // Clients
         if (
@@ -336,7 +320,17 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         ) {
             items.push({
                 key: "clients",
-                label: <a href={route("clients.index")}>Clients</a>,
+                label: (
+                    <a
+                        href={route("clients.index")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("clients.index"));
+                        }}
+                    >
+                        Clients
+                    </a>
+                ),
                 icon: <BuildingIcon />,
             });
         }
@@ -497,7 +491,17 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         if (hasModule("products") && hasPermission("view_product")) {
             items.push({
                 key: "properties",
-                label: <a href={route("properties.index")}>Properties</a>,
+                label: (
+                    <a
+                        href={route("properties.index")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("properties.index"));
+                        }}
+                    >
+                        Properties
+                    </a>
+                ),
                 icon: <HouseDoorIcon />,
             });
         }
@@ -561,6 +565,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                     )}
                     items={buildMenuItems()}
                     className="border-none"
+                    style={{ paddingLeft: 8 }}
                 />
             </Sider>
 

@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { router, useForm, usePage } from "@inertiajs/react";
-import { Drawer, message, Form } from "antd";
+import { router, usePage } from "@inertiajs/react";
+import { Drawer, message } from "antd";
 import { Lead, CreateLeadFormData } from "@/Types/api/leads";
 import { IModalProps } from "@/Types/common";
+import { useApiMutate } from "@/lib/api/client";
+import { ApiResponse } from "@/lib/api/types";
+import { isLoading as getLoadingStatus } from "@/lib/utils";
+import { errorFormatter } from "@/lib/api/utils/common";
 import LeadForm from "./LeadForm";
 
 interface SaveLeadModalProps extends Omit<IModalProps, "onClose"> {
@@ -29,8 +33,8 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     open,
     setLead,
 }) => {
-    const [form] = Form.useForm();
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [errors, setErrors] = useState<string[]>([]);
+    const [formData, setFormData] = useState<CreateLeadFormData | null>(null);
     const { props } = usePage<any>();
 
     const { customFields = [] } = props;
@@ -39,7 +43,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     const submitText = isEditing ? "Update Lead" : "Create Lead";
 
     // Initialize form data
-    const initialData: CreateLeadFormData = {
+    const getInitialData = (): CreateLeadFormData => ({
         salutation: lead?.salutation || "",
         client_name: lead?.client_name || "",
         client_email: lead?.client_email || "",
@@ -63,127 +67,65 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         custom_fields_data:
             constructCustomFieldsData(customFields, lead?.custom_fields_data) ||
             {},
-    };
+    });
 
-    // Use Inertia's useForm hook for better CSRF and error handling
-    const {
-        data,
-        setData,
-        submit,
-        processing,
-        errors: formErrors,
-        reset,
-    } = useForm(initialData);
+    // Setup API mutation
+    const { mutate: createLead, status: createStatus } = useApiMutate<
+        CreateLeadFormData,
+        Lead,
+        ApiResponse<Lead>
+    >(route("lead-contact.store"), "POST");
 
-    const [pushing, setPushing] = useState(false);
+    const { mutate: updateLead, status: updateStatus } = useApiMutate<
+        CreateLeadFormData,
+        Lead,
+        ApiResponse<Lead>
+    >(isEditing ? route("lead-contact.update", lead!.id) : "", "PUT");
 
-    // Update form data when lead changes
+    // Update form data when lead or modal opens
     useEffect(() => {
-        if (lead) {
-            const updatedData: CreateLeadFormData = {
-                salutation: lead.salutation || "",
-                client_name: lead.client_name || "",
-                client_email: lead.client_email || "",
-                mobile: lead.mobile || "",
-                company_name: lead.company_name || "",
-                website: lead.website || "",
-                address: lead.address || "",
-                cell: lead.cell || "",
-                office: lead.office || "",
-                city: lead.city || "",
-                state: lead.state || "",
-                country: lead.country || "",
-                postal_code: lead.postal_code || "",
-                note: lead.note || "",
-                source_id: lead.source_id || undefined,
-                category_id: lead.category_id || undefined,
-                lead_owner: lead.lead_owner?.id || undefined,
-                added_by: lead.added_by?.id || undefined,
-                create_deal: false,
-                create_client: false,
-                custom_fields_data:
-                    constructCustomFieldsData(
-                        customFields,
-                        lead?.custom_fields_data
-                    ) || {},
-            };
-
-            // Update the form data
-            // Set all fields at once to avoid deep-instantiation TypeScript errors
-            setData(updatedData);
+        if (open) {
+            const initialData = getInitialData();
+            setFormData(initialData);
         }
-    }, [lead]);
+    }, [lead, open, customFields]);
 
-    useEffect(() => {
-        if (pushing) {
-            if (isEditing) {
-                submit("put", route("lead-contact.update", lead!.id), {
-                    onSuccess: (res) => {
-                        setPushing(false);
-                        const successMessage = "Lead updated successfully";
-                        message.success(successMessage);
-                        onClose();
-                        // Refresh the leads list
-                        router.reload();
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-                        const errorMessages = Object.values(errors).flat();
-                        setErrors(errors as Record<string, string>);
-                        message.error("Please check the form for errors");
-                    },
-                });
-            } else {
-                submit("post", route("lead-contact.store"), {
-                    onSuccess: (page) => {
-                        setPushing(false);
-                        const successMessage = "Lead created successfully";
-                        message.success(successMessage);
-                        reset();
-                        onClose();
-                        // Refresh the leads list
-                        router.reload();
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-                        const errorMessages = Object.values(errors).flat();
-                        setErrors(errors as Record<string, string>);
-                        message.error("Please check the form for errors");
-                    },
-                });
-            }
-        }
-    }, [pushing]);
-
-    const handleSubmit = (formData: any) => {
+    const handleSubmit = (data: CreateLeadFormData) => {
         // Clear previous errors
-        setErrors({});
-        // Transform the values to match the API expectations
-        const submitData = {
-            ...formData,
-        };
+        setErrors([]);
 
-        // Update the form data
-        setData(submitData);
-        setPushing(true);
+        const mutation = isEditing ? updateLead : createLead;
+
+        mutation(data, {
+            onSuccess: () => {
+                setErrors([]);
+                handleCancel();
+                router.reload();
+            },
+            onError: (errorResponse) => {
+                const responseErrors =
+                    errorFormatter(errorResponse)?.errors || [];
+                setErrors((prev) => [
+                    ...prev,
+                    ...Object.values(responseErrors).flat(),
+                ]);
+            },
+        });
     };
 
     const handleCancel = () => {
-        reset();
-        setErrors({});
+        setFormData(null);
+        setErrors([]);
         onClose();
     };
+
     const handleErrorsClear = () => {
-        setErrors({});
+        setErrors([]);
     };
 
-    // Combine form errors with manual errors
-    const allErrors = [
-        ...Object.values(errors).flat().map(String),
-        ...Object.values(formErrors).flat().map(String),
-    ];
-
-    console.log(lead, "lead in SaveLeadModal");
+    const isLoading =
+        getLoadingStatus({ status: createStatus }) ||
+        getLoadingStatus({ status: updateStatus });
 
     return (
         <Drawer
@@ -197,21 +139,21 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             destroyOnHidden
         >
             <LeadForm
-                data={lead ? data : undefined}
+                data={formData || undefined}
                 visible={open}
                 onCancel={handleCancel}
                 onSubmit={handleSubmit}
                 submitText={submitText}
                 cancelText={"Cancel"}
-                errors={allErrors}
-                setErrors={(errors) =>
-                    errors.forEach((error, field) =>
-                        setErrors((prev) => ({ ...prev, [field]: error }))
-                    )
-                }
+                errors={errors}
+                setErrors={(newErrors) => {
+                    if (Array.isArray(newErrors)) {
+                        setErrors(newErrors);
+                    }
+                }}
                 onErrorsClear={handleErrorsClear}
                 setLead={setLead}
-                loading={processing || pushing}
+                loading={isLoading}
             />
         </Drawer>
     );

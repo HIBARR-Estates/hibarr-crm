@@ -10,6 +10,7 @@ import DeleteLead from "@/Features/Leads/DeleteLead";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageFilter from "@/Hooks/usePageFilter";
+import usePageSort from "@/Hooks/usePageSort";
 import { Lead, LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PaginatedLeadResponse } from "@/Types/api/leads";
 import FilterDrawer from "@/Components/FilterDrawer";
@@ -72,6 +73,9 @@ const Index = ({
         handleFilterSubmit,
         clearAllFilters,
     } = usePageFilter({ handleClose, routeName: "lead-contact.index" });
+
+    // Sort handlers
+    const { sortParams } = usePageSort({ routeName: "lead-contact.index" });
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -233,6 +237,7 @@ const Index = ({
                                         route("lead-contact.index"),
                                         {
                                             ...filters,
+                                            ...sortParams,
                                             page,
                                             per_page: pageSize,
                                         },
