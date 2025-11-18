@@ -56,6 +56,13 @@ class DashboardController extends AccountBaseController
 
         $this->isCheckScript();
         session()->forget(['qr_clock_in']);
+        
+        // Check if the request wants the new dashboard overview
+        // if (request()->header('X-Inertia') || request()->wantsJson()) {
+        if (true) {
+            return $this->dashboardOverview();
+        }
+        
         if (in_array('employee', user_roles())) {
 
             $this->viewOverviewDashboard = user()->permission('view_overview_dashboard');
@@ -71,6 +78,643 @@ class DashboardController extends AccountBaseController
         if (in_array('client', user_roles())) {
             return $this->clientPanelDashboard();
         }
+    }
+
+    /**
+     * Dashboard Overview with widgets
+     */
+    public function dashboardOverview()
+    {
+        $userId = user()->id;
+        $viewTaskPermission = user()->permission('view_tasks');
+        $viewDealPermission = user()->permission('view_deals');
+        $viewLeadPermission = user()->permission('view_lead');
+        
+        // Get upcoming tasks ordered by due date
+        $tasksQuery = Task::with([
+            'project:id,project_name,project_short_code', 
+            'users:id,name,image', 
+            'boardColumn:id,column_name,slug', 
+            'category:id,category_name',
+            'labels'  // Remove column specification to let the model handle the accessor
+        ])
+            ->where('board_column_id', '!=', function($query) {
+                $query->select('id')->from('taskboard_columns')->where('slug', 'completed');
+            });
+
+        // Apply permission-based filtering for tasks
+        if ($viewTaskPermission == 'added') {
+            $tasksQuery->where('added_by', $userId);
+        } elseif ($viewTaskPermission == 'owned') {
+            $tasksQuery->whereHas('users', function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            });
+        } elseif ($viewTaskPermission == 'both') {
+            $tasksQuery->where(function ($query) use ($userId) {
+                $query->where('added_by', $userId)
+                      ->orWhereHas('users', function ($subQuery) use ($userId) {
+                          $subQuery->where('user_id', $userId);
+                      });
+            });
+        }
+
+        $tasks = $tasksQuery->orderBy(
+                \DB::raw("CASE 
+                    WHEN due_date IS NOT NULL AND due_date < NOW() THEN 1
+                    WHEN due_date IS NOT NULL AND DATE(due_date) = CURDATE() THEN 2
+                    ELSE 3
+                END")
+            )
+            ->orderBy('due_date', 'asc')
+            ->limit(20)
+            ->get()
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'heading' => $task->heading,
+                    'description' => $task->description,
+                    'due_date' => $task->due_date?->toDateString(),
+                    'start_date' => $task->start_date?->toDateString(),
+                    'priority' => $task->priority,
+                    'status' => $task->boardColumn->slug ?? 'incomplete',
+                    'board_column_id' => $task->board_column_id,
+                    'project' => $task->project ? [
+                        'id' => $task->project->id,
+                        'project_name' => $task->project->project_name,
+                        'project_short_code' => $task->project->project_short_code,
+                    ] : null,
+                    'category' => $task->category ? [
+                        'id' => $task->category->id,
+                        'category_name' => $task->category->category_name,
+                    ] : null,
+                    'users' => $task->users->map(function ($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'image' => $user->image_url,
+                        ];
+                    })->toArray(),
+                    'labels' => $task->labels->map(function ($label) {
+                        return [
+                            'id' => $label->id,
+                            'label_name' => $label->label_name,
+                            'label_color' => $label->label_color,
+                        ];
+                    })->toArray(),
+                    'estimate_hours' => $task->estimate_hours,
+                    'estimate_minutes' => $task->estimate_minutes,
+                    'is_private' => $task->is_private,
+                    'billable' => $task->billable,
+                    'without_duedate' => $task->without_duedate,
+                ];
+            });
+
+        // Get pipeline stages for deals tracker
+        $pipelineStages = \App\Models\PipelineStage::orderBy('priority', 'asc')
+            ->get()
+            ->map(function ($stage) {
+                return [
+                    'id' => $stage->id,
+                    'name' => $stage->name,
+                    'label_color' => $stage->label_color,
+                    'priority' => $stage->priority,
+                ];
+            });
+
+        // Get deals for pipeline view
+        $dealsQuery = \App\Models\Deal::with([
+            'contact:id,client_name,client_email,mobile',
+            'leadStage:id,name,label_color,priority',
+            'currency:id,currency_symbol',
+            'category:id,category_name',
+            'leadAgent.user:id,name,image'
+        ])->orderBy('updated_at', 'desc');
+
+        // Apply permission-based filtering for deals
+        if ($viewDealPermission == 'added') {
+            $dealsQuery->where('added_by', $userId);
+        } elseif ($viewDealPermission == 'owned') {
+            $dealsQuery->where(function($query) use ($userId) {
+                $query->whereHas('leadAgent', function($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                })->orWhereHas('dealWatchers', function($q) use ($userId) {
+                    $q->where('users.id', $userId);
+                });
+            });
+        } elseif ($viewDealPermission == 'both') {
+            $dealsQuery->where(function($query) use ($userId) {
+                $query->where('added_by', $userId)
+                      ->orWhereHas('leadAgent', function($q) use ($userId) {
+                          $q->where('user_id', $userId);
+                      })
+                      ->orWhereHas('dealWatchers', function($q) use ($userId) {
+                          $q->where('users.id', $userId);
+                      });
+            });
+        }
+
+        $allDeals = $dealsQuery->get()
+            ->map(function ($deal) {
+                return [
+                    'id' => $deal->id,
+                    'name' => $deal->name,
+                    'value' => $deal->value,
+                    'close_date' => $deal->close_date,
+                    'pipeline_stage_id' => $deal->pipeline_stage_id,
+                    'probability' => $deal->probability,
+                    'contact' => $deal->contact ? [
+                        'id' => $deal->contact->id,
+                        'client_name' => $deal->contact->client_name,
+                        'client_email' => $deal->contact->client_email,
+                        'mobile' => $deal->contact->mobile,
+                    ] : null,
+                    'lead_stage' => $deal->leadStage ? [
+                        'id' => $deal->leadStage->id,
+                        'name' => $deal->leadStage->name,
+                        'label_color' => $deal->leadStage->label_color,
+                        'priority' => $deal->leadStage->priority,
+                    ] : null,
+                    'category' => $deal->category ? [
+                        'id' => $deal->category->id,
+                        'category_name' => $deal->category->category_name,
+                    ] : null,
+                    'agent' => $deal->leadAgent && $deal->leadAgent->user ? [
+                        'id' => $deal->leadAgent->user->id,
+                        'name' => $deal->leadAgent->user->name,
+                        'image' => $deal->leadAgent->user->image_url,
+                    ] : null,
+                    'currency' => $deal->currency ? [
+                        'currency_symbol' => $deal->currency->currency_symbol,
+                    ] : null,
+                    'updated_at' => $deal->updated_at->toISOString(),
+                ];
+            });
+
+        $recentDeals = $allDeals->take(10);
+
+        // Enhanced data quality analysis
+        $dataQualityRecords = collect();
+        
+        // Analyze deals for data quality
+        $poorDataQualityDeals = $allDeals->map(function ($deal) {
+            $missingFields = [];
+            $dataIssues = [];
+            $totalFields = 0;
+            $filledFields = 0;
+
+            // Essential deal fields
+            $dealFields = [
+                'value' => 'Deal Value',
+                'close_date' => 'Close Date',
+                'probability' => 'Probability'
+            ];
+
+            foreach ($dealFields as $field => $label) {
+                $totalFields++;
+                $value = data_get($deal, $field);
+                if (!empty($value)) {
+                    $filledFields++;
+                    // Additional validation
+                    if ($field === 'probability' && ($value < 0 || $value > 100)) {
+                        $dataIssues[] = [
+                            'field' => $field,
+                            'issue' => 'Probability should be between 0-100%',
+                            'severity' => 'medium',
+                            'suggestion' => 'Update probability to reflect realistic chance of closing'
+                        ];
+                    }
+                } else {
+                    $missingFields[] = $label;
+                    $dataIssues[] = [
+                        'field' => $field,
+                        'issue' => $label . ' is missing',
+                        'severity' => $field === 'value' ? 'high' : 'medium',
+                        'suggestion' => 'Please provide ' . strtolower($label) . ' information'
+                    ];
+                }
+            }
+
+            // Contact information validation
+            if ($deal['contact']) {
+                $contactFields = [
+                    'client_email' => 'Email',
+                    'mobile' => 'Phone'
+                ];
+                
+                foreach ($contactFields as $field => $label) {
+                    $totalFields++;
+                    $value = data_get($deal, 'contact.' . $field);
+                    if (!empty($value)) {
+                        $filledFields++;
+                        // Email validation
+                        if ($field === 'client_email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                            $dataIssues[] = [
+                                'field' => 'contact_email',
+                                'issue' => 'Invalid email format',
+                                'severity' => 'high',
+                                'suggestion' => 'Please provide a valid email address'
+                            ];
+                        }
+                    } else {
+                        $missingFields[] = 'Contact ' . $label;
+                        $dataIssues[] = [
+                            'field' => 'contact_' . $field,
+                            'issue' => 'Contact ' . strtolower($label) . ' is missing',
+                            'severity' => 'medium',
+                            'suggestion' => 'Add contact ' . strtolower($label) . ' for better communication'
+                        ];
+                    }
+                }
+            } else {
+                $totalFields += 2;
+                $missingFields = array_merge($missingFields, ['Contact Email', 'Contact Phone']);
+                $dataIssues[] = [
+                    'field' => 'contact',
+                    'issue' => 'No contact information available',
+                    'severity' => 'high',
+                    'suggestion' => 'Associate a contact with this deal'
+                ];
+            }
+
+            // Category and agent validation
+            if (!$deal['category']) {
+                $totalFields++;
+                $missingFields[] = 'Category';
+                $dataIssues[] = [
+                    'field' => 'category',
+                    'issue' => 'Deal category not specified',
+                    'severity' => 'low',
+                    'suggestion' => 'Categorize deal for better reporting'
+                ];
+            } else {
+                $totalFields++;
+                $filledFields++;
+            }
+
+            if (!$deal['agent']) {
+                $totalFields++;
+                $missingFields[] = 'Agent';
+                $dataIssues[] = [
+                    'field' => 'agent',
+                    'issue' => 'No agent assigned',
+                    'severity' => 'high',
+                    'suggestion' => 'Assign an agent to manage this deal'
+                ];
+            } else {
+                $totalFields++;
+                $filledFields++;
+            }
+
+            $dataQualityScore = $totalFields > 0 ? round(($filledFields / $totalFields) * 100) : 0;
+            
+            // Calculate priority score based on value and data quality
+            $priorityScore = 0;
+            if ($deal['value']) {
+                $priorityScore += min(50, ($deal['value'] / 100000) * 30); // Value impact
+            }
+            $priorityScore += max(0, (100 - $dataQualityScore) * 0.5); // Data quality impact
+            $priorityScore = min(100, $priorityScore);
+
+            return [
+                'id' => $deal['id'],
+                'type' => 'deal',
+                'name' => $deal['name'],
+                'data_quality_score' => $dataQualityScore,
+                'missing_fields' => $missingFields,
+                'data_issues' => $dataIssues,
+                'contact' => $deal['contact'],
+                'value' => $deal['value'],
+                'stage' => $deal['lead_stage']['name'] ?? null,
+                'agent' => $deal['agent'],
+                'updated_at' => $deal['updated_at'],
+                'priority_score' => round($priorityScore),
+            ];
+        })->filter(function ($deal) {
+            return $deal['data_quality_score'] < 80; // Only show records that need improvement
+        })->sortByDesc('priority_score')->take(10)->values();
+
+        // Get recent communication activities
+        $recentActivities = \App\Models\CommunicationActivity::with(['deal:id,name'])
+            ->when($viewDealPermission != 'all', function ($query) use ($userId, $viewDealPermission) {
+                $query->whereHas('deal', function ($q) use ($userId, $viewDealPermission) {
+                    if ($viewDealPermission == 'added') {
+                        $q->where('added_by', $userId);
+                    } elseif ($viewDealPermission == 'owned') {
+                        $q->where(function($subQ) use ($userId) {
+                            $subQ->whereHas('leadAgent', function($agentQ) use ($userId) {
+                                $agentQ->where('user_id', $userId);
+                            })->orWhereHas('dealWatchers', function($watcherQ) use ($userId) {
+                                $watcherQ->where('users.id', $userId);
+                            });
+                        });
+                    } elseif ($viewDealPermission == 'both') {
+                        $q->where(function($subQ) use ($userId) {
+                            $subQ->where('added_by', $userId)
+                                  ->orWhereHas('leadAgent', function($agentQ) use ($userId) {
+                                      $agentQ->where('user_id', $userId);
+                                  })
+                                  ->orWhereHas('dealWatchers', function($watcherQ) use ($userId) {
+                                      $watcherQ->where('users.id', $userId);
+                                  });
+                        });
+                    }
+                });
+            })
+            ->orderBy('timestamp', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($activity) {
+                return [
+                    'id' => $activity->id,
+                    'channel_type' => $activity->channel_type,
+                    'message_content' => $activity->message_content,
+                    'timestamp' => $activity->timestamp->toISOString(),
+                    'sender_info' => $activity->sender_info,
+                    'deal' => $activity->deal ? [
+                        'id' => $activity->deal->id,
+                        'name' => $activity->deal->name,
+                    ] : null,
+                ];
+            });
+
+        // Calculate comprehensive overview metrics
+        $completedColumn = TaskboardColumn::where('slug', 'completed')->first();
+        
+        $currentMonthDealsCount = $allDeals->filter(function ($deal) {
+            return \Carbon\Carbon::parse($deal['updated_at'])->isCurrentMonth();
+        })->count();
+        
+        $lastMonthDealsCount = \App\Models\Deal::whereMonth('created_at', now()->subMonth()->month)
+            ->whereYear('created_at', now()->subMonth()->year)
+            ->when($viewDealPermission == 'added', function ($query) use ($userId) {
+                $query->where('added_by', $userId);
+            })
+            ->when($viewDealPermission == 'owned', function ($query) use ($userId) {
+                $query->where(function($q) use ($userId) {
+                    $q->whereHas('leadAgent', function($subQ) use ($userId) {
+                        $subQ->where('user_id', $userId);
+                    })->orWhereHas('dealWatchers', function($subQ) use ($userId) {
+                        $subQ->where('users.id', $userId);
+                    });
+                });
+            })
+            ->when($viewDealPermission == 'both', function ($query) use ($userId) {
+                $query->where(function($q) use ($userId) {
+                    $q->where('added_by', $userId)
+                      ->orWhereHas('leadAgent', function($subQ) use ($userId) {
+                          $subQ->where('user_id', $userId);
+                      })
+                      ->orWhereHas('dealWatchers', function($subQ) use ($userId) {
+                          $subQ->where('users.id', $userId);
+                      });
+                });
+            })
+            ->count();
+
+        $dealsTrend = $lastMonthDealsCount > 0 
+            ? round((($currentMonthDealsCount - $lastMonthDealsCount) / $lastMonthDealsCount) * 100)
+            : ($currentMonthDealsCount > 0 ? 100 : 0);
+
+        // Lead metrics (you may need to adjust based on your Lead model structure)
+        $activeLeadsCount = \App\Models\Lead::when($viewLeadPermission == 'added', function ($query) use ($userId) {
+                $query->where('added_by', $userId);
+            })
+            ->when($viewLeadPermission == 'owned', function ($query) use ($userId) {
+                $query->where('lead_owner', $userId);
+            })
+            ->when($viewLeadPermission == 'both', function ($query) use ($userId) {
+                $query->where(function($q) use ($userId) {
+                    $q->where('added_by', $userId)
+                      ->orWhere('lead_owner', $userId);
+                });
+            })
+            ->count();
+
+        $openDealsCount = $allDeals->filter(function ($deal) {
+            $closedStages = ['won', 'lost', 'closed']; // Adjust based on your stage names
+            $stageSlug = strtolower($deal['lead_stage']['name'] ?? '');
+            return !in_array($stageSlug, $closedStages);
+        })->count();
+
+        $closedDealsCount = $allDeals->filter(function ($deal) {
+            $closedStages = ['won', 'closed']; // Adjust based on your stage names
+            $stageSlug = strtolower($deal['lead_stage']['name'] ?? '');
+            return in_array($stageSlug, $closedStages);
+        })->count();
+
+        // Calculate quota progress (you may need to adjust based on your quota system)
+        $currentMonthValue = $allDeals->filter(function ($deal) {
+            return \Carbon\Carbon::parse($deal['updated_at'])->isCurrentMonth();
+        })->sum('value');
+        
+        $monthlyQuota = 1000000; // You should get this from user settings or company settings
+        
+        // Conversion rate calculation
+        $totalLeads = \App\Models\Lead::when($viewLeadPermission == 'added', function ($query) use ($userId) {
+                $query->where('added_by', $userId);
+            })
+            ->when($viewLeadPermission == 'owned', function ($query) use ($userId) {
+                $query->where('lead_owner', $userId);
+            })
+            ->when($viewLeadPermission == 'both', function ($query) use ($userId) {
+                $query->where(function($q) use ($userId) {
+                    $q->where('added_by', $userId)
+                      ->orWhere('lead_owner', $userId);
+                });
+            })
+            ->count();
+        
+        $conversionRate = $totalLeads > 0 ? round(($allDeals->count() / $totalLeads) * 100, 1) : 0;
+
+        $overviewMetrics = [
+            'activeLeads' => $activeLeadsCount,
+            'openDeals' => $openDealsCount,
+            'closedDeals' => $closedDealsCount,
+            'quotaProgress' => [
+                'current' => $currentMonthValue,
+                'target' => $monthlyQuota,
+            ],
+            'conversionRate' => $conversionRate,
+            'trends' => [
+                'openDeals' => [
+                    'value' => abs($dealsTrend),
+                    'isPositive' => $dealsTrend >= 0,
+                ],
+                'conversionRate' => [
+                    'value' => 5, // You would calculate this based on historical data
+                    'isPositive' => true,
+                ],
+            ],
+        ];
+
+        // Calculate basic stats for backwards compatibility  
+        $pendingTasksCount = Task::where('board_column_id', '!=', $completedColumn?->id)
+            ->when($viewTaskPermission == 'added', function ($query) use ($userId) {
+                $query->where('added_by', $userId);
+            })
+            ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
+                $query->whereHas('users', function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                });
+            })
+            ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
+                $query->where(function ($q) use ($userId) {
+                    $q->where('added_by', $userId)
+                      ->orWhereHas('users', function ($subQ) use ($userId) {
+                          $subQ->where('user_id', $userId);
+                      });
+                });
+            })
+            ->count();
+            
+        // Update overview metrics to use calculated pending activities
+        $overviewMetrics['pendingActivities'] = $pendingTasksCount;
+        
+        $stats = [
+            'total_tasks' => Task::when($viewTaskPermission == 'added', function ($query) use ($userId) {
+                $query->where('added_by', $userId);
+            })
+            ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
+                $query->whereHas('users', function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                });
+            })
+            ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
+                $query->where(function ($q) use ($userId) {
+                    $q->where('added_by', $userId)
+                      ->orWhereHas('users', function ($subQ) use ($userId) {
+                          $subQ->where('user_id', $userId);
+                      });
+                });
+            })
+            ->count(),
+            
+            'completed_tasks' => Task::where('board_column_id', $completedColumn?->id)
+                ->when($viewTaskPermission == 'added', function ($query) use ($userId) {
+                    $query->where('added_by', $userId);
+                })
+                ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
+                    $query->whereHas('users', function ($q) use ($userId) {
+                        $q->where('user_id', $userId);
+                    });
+                })
+                ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
+                    $query->where(function ($q) use ($userId) {
+                        $q->where('added_by', $userId)
+                          ->orWhereHas('users', function ($subQ) use ($userId) {
+                              $subQ->where('user_id', $userId);
+                          });
+                    });
+                })
+                ->count(),
+            
+            'pending_tasks' => Task::where('board_column_id', '!=', $completedColumn?->id)
+                ->when($viewTaskPermission == 'added', function ($query) use ($userId) {
+                    $query->where('added_by', $userId);
+                })
+                ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
+                    $query->whereHas('users', function ($q) use ($userId) {
+                        $q->where('user_id', $userId);
+                    });
+                })
+                ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
+                    $query->where(function ($q) use ($userId) {
+                        $q->where('added_by', $userId)
+                          ->orWhereHas('users', function ($subQ) use ($userId) {
+                              $subQ->where('user_id', $userId);
+                          });
+                    });
+                })
+                ->count(),
+            
+            'overdue_tasks' => Task::where('due_date', '<', now())
+                ->where('board_column_id', '!=', $completedColumn?->id)
+                ->when($viewTaskPermission == 'added', function ($query) use ($userId) {
+                    $query->where('added_by', $userId);
+                })
+                ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
+                    $query->whereHas('users', function ($q) use ($userId) {
+                        $q->where('user_id', $userId);
+                    });
+                })
+                ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
+                    $query->where(function ($q) use ($userId) {
+                        $q->where('added_by', $userId)
+                          ->orWhereHas('users', function ($subQ) use ($userId) {
+                              $subQ->where('user_id', $userId);
+                          });
+                    });
+                })
+                ->count(),
+            
+            'total_deals' => \App\Models\Deal::when($viewDealPermission == 'added', function ($query) use ($userId) {
+                $query->where('added_by', $userId);
+            })
+            ->when($viewDealPermission == 'owned', function ($query) use ($userId) {
+                $query->where(function($q) use ($userId) {
+                    $q->whereHas('leadAgent', function($subQ) use ($userId) {
+                        $subQ->where('user_id', $userId);
+                    })->orWhereHas('dealWatchers', function($subQ) use ($userId) {
+                        $subQ->where('users.id', $userId);
+                    });
+                });
+            })
+            ->when($viewDealPermission == 'both', function ($query) use ($userId) {
+                $query->where(function($q) use ($userId) {
+                    $q->where('added_by', $userId)
+                      ->orWhereHas('leadAgent', function($subQ) use ($userId) {
+                          $subQ->where('user_id', $userId);
+                      })
+                      ->orWhereHas('dealWatchers', function($subQ) use ($userId) {
+                          $subQ->where('users.id', $userId);
+                      });
+                });
+            })
+            ->count(),
+            
+            'deals_this_month' => \App\Models\Deal::whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->when($viewDealPermission == 'added', function ($query) use ($userId) {
+                    $query->where('added_by', $userId);
+                })
+                ->when($viewDealPermission == 'owned', function ($query) use ($userId) {
+                    $query->where(function($q) use ($userId) {
+                        $q->whereHas('leadAgent', function($subQ) use ($userId) {
+                            $subQ->where('user_id', $userId);
+                        })->orWhereHas('dealWatchers', function($subQ) use ($userId) {
+                            $subQ->where('users.id', $userId);
+                        });
+                    });
+                })
+                ->when($viewDealPermission == 'both', function ($query) use ($userId) {
+                    $query->where(function($q) use ($userId) {
+                        $q->where('added_by', $userId)
+                          ->orWhereHas('leadAgent', function($subQ) use ($userId) {
+                              $subQ->where('user_id', $userId);
+                          })
+                          ->orWhereHas('dealWatchers', function($subQ) use ($userId) {
+                              $subQ->where('users.id', $userId);
+                          });
+                    });
+                })
+                ->count(),
+            
+            'total_activities' => \App\Models\CommunicationActivity::count(),
+            
+            'activities_this_week' => \App\Models\CommunicationActivity::where('timestamp', '>=', now()->startOfWeek())
+                ->count(),
+        ];
+
+        return inertia('Dashboard/ComprehensiveDashboard', [
+            'tasks' => $tasks,
+            'deals' => $allDeals,
+            'recentDeals' => $recentDeals,
+            'poorDataQualityDeals' => $poorDataQualityDeals,
+            'recentActivities' => $recentActivities,
+            'pipelineStages' => $pipelineStages,
+            'overviewMetrics' => $overviewMetrics,
+            'stats' => $stats,
+        ]);
     }
 
     public function widget(Request $request, $dashboardType)

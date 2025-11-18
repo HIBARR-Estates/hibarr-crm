@@ -2,34 +2,29 @@ import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { Lead } from "@/Types";
 import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
-import { message } from "antd";
-import React, { useState } from "react";
+import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiResponse } from "@/lib/api/types";
 
 interface Props extends IModalProps {
     lead?: Lead;
 }
 
 const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
-    const [deleteLoading, setDeleteLoading] = useState(false);
+    const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
+        lead ? `/lead-contact/${lead.id}` : "",
+        "DELETE",
+        () => {
+            onClose();
+            router.visit(route("lead-contact.index"));
+        }
+    );
 
     // Handle single lead deletion
     const handleDeleteLead = () => {
         if (!lead) return;
-
-        setDeleteLoading(true);
-        router.delete(route("lead-contact.destroy", lead.id), {
-            onSuccess: () => {
-                message.success("Lead deleted successfully");
-                onClose();
-                setDeleteLoading(false);
-                router.reload();
-            },
-            onError: () => {
-                message.error("Failed to delete property");
-                setDeleteLoading(false);
-            },
-        });
+        deleteMutation.mutate({});
     };
     return (
         <ConfirmationModal
@@ -37,7 +32,7 @@ const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
             onClose={onClose}
             onSubmit={{
                 fn: handleDeleteLead,
-                loading: deleteLoading,
+                loading: deleteMutation.isPending,
             }}
             title="Delete Lead"
             description={

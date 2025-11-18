@@ -1,30 +1,28 @@
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
-import { Lead } from "@/Types";
 import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
 import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
-import { Deal } from "@/Types/api/deals";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 
 interface Props extends IModalProps {
-    deal?: Deal;
+    task?: { id: number; heading: string };
 }
 
-const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
+const DeleteTask: React.FC<Props> = ({ task, onClose, open }) => {
     const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
-        deal ? `/deals/${deal.id}` : "",
+        task ? `/account/tasks/${task.id}` : "",
         "DELETE",
         () => {
             onClose();
-            router.visit(route("deals.index"));
+            router.visit(route("tasks.index"));
         }
     );
 
-    // Handle single deal deletion
+    // Handle single task deletion
     const handleDeleteDeal = () => {
-        if (!deal) return;
+        if (!task) return;
         deleteMutation.mutate({});
     };
     return (
@@ -35,11 +33,11 @@ const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
                 fn: handleDeleteDeal,
                 loading: deleteMutation.isPending,
             }}
-            title="Delete Deal"
+            title="Delete Task"
             description={
-                deal
-                    ? `Are you sure you want to delete "${deal?.name}"? This action cannot be undone.`
-                    : "Are you sure you want to delete this deal? This action cannot be undone."
+                task?.heading
+                    ? `Are you sure you want to delete "${task?.heading}"? This action cannot be undone.`
+                    : "Are you sure you want to delete this task? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
             confirmText="Yes, Delete"
@@ -50,4 +48,4 @@ const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
     );
 };
 
-export default DeleteDeal;
+export default DeleteTask;

@@ -47,6 +47,7 @@ export default function Show({
     permissions,
     pageTitle,
 }: Props) {
+    console.log(deal, "DEAL DATA");
     return (
         <DashboardLayout>
             <PageLayout

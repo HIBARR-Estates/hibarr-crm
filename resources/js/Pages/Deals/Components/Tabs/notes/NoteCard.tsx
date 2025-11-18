@@ -133,7 +133,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                 )}
             </div>
 
-            <div className="mb-4">
+            <div className="mb-4 h-16 overflow-hidden">
                 <ContentRenderer
                     content={note.details}
                     maxLength={120}

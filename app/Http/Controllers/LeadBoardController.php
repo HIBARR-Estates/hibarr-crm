@@ -76,11 +76,11 @@ class LeadBoardController extends AccountBaseController
 
         $this->viewStageFilter = false;
 
-        if (request()->ajax()) {
+        // if (request()->ajax()) {
             $this->pipelineId = ($request->pipeline) ? $request->pipeline : $this->defaultPipeline->id;
 
-            $startDate = ($request->startDate != 'null') ? companyToDateString($request->startDate) : null;
-            $endDate = ($request->endDate != 'null') ? companyToDateString($request->endDate) : null;
+            $startDate = ($request->startDate && $request->startDate != 'null' && $request->startDate != '') ? companyToDateString($request->startDate) : null;
+            $endDate = ($request->endDate && $request->endDate != 'null' && $request->endDate != '') ? companyToDateString($request->endDate) : null;
 
             $this->boardEdit = (request()->has('boardEdit') && request('boardEdit') == 'false') ? false : true;
             $this->boardDelete = (request()->has('boardDelete') && request('boardDelete') == 'false') ? false : true;
@@ -418,10 +418,10 @@ class LeadBoardController extends AccountBaseController
             $this->startDate = $startDate;
             $this->endDate = $endDate;
 
-            $view = view('leads.board.board_data', $this->data)->render();
+            // $view = view('leads.board.board_data', $this->data)->render();
 
-            return Reply::dataOnly(['view' => $view]);
-        }
+            // return Reply::dataOnly(['view' => $view]);
+        // }
 
         $this->leads = Deal::get();
 
@@ -435,15 +435,15 @@ class LeadBoardController extends AccountBaseController
         }
 
         // For non-AJAX requests, we need to load the board data initially
-        if (!request()->ajax()) {
+        // if (!request()->ajax()) {
             $pipelineId = request('pipeline', $this->defaultPipeline->id);
-            $startDate = request('startDate') ? companyToDateString(request('startDate')) : null;
-            $endDate = request('endDate') ? companyToDateString(request('endDate')) : null;
+            $startDate = (request('startDate') && request('startDate') != 'null' && request('startDate') != '') ? companyToDateString(request('startDate')) : null;
+            $endDate = (request('endDate') && request('endDate') != 'null' && request('endDate') != '') ? companyToDateString(request('endDate')) : null;
             
             // Load board data using the same logic as AJAX requests
             $result = $this->getBoardData($request, $pipelineId, $startDate, $endDate);
             $this->result = $result;
-        }
+        // }
 
         // Check if this should be an Inertia response
         // if (request()->header('X-Inertia')) {
@@ -692,11 +692,12 @@ class LeadBoardController extends AccountBaseController
             });
         }
     }
+    
 
     public function loadMore(Request $request)
     {
-        $startDate = ($request->startDate != 'null') ? companyToDateString($request->startDate) : null;
-        $endDate = ($request->endDate != 'null') ? companyToDateString($request->endDate) : null;
+        $startDate = ($request->startDate && $request->startDate != 'null' && $request->startDate != '') ? companyToDateString($request->startDate) : null;
+        $endDate = ($request->endDate && $request->endDate != 'null' && $request->endDate != '') ? companyToDateString($request->endDate) : null;
         $skip = $request->currentTotalTasks;
         $totalTasks = $request->totalTasks;
 

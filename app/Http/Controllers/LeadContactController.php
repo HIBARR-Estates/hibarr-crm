@@ -121,6 +121,36 @@ class LeadContactController extends AccountBaseController
             });
         }
         
+        // Apply sorting if specified
+        if ($request->filled('sort_by')) {
+            $sortBy = $request->sort_by;
+            $sortDirection = $request->get('sort_direction', 'asc');
+            
+            // Validate sort direction
+            if (!in_array($sortDirection, ['asc', 'desc'])) {
+                $sortDirection = 'asc';
+            }
+            
+            // Map frontend sort fields to database columns
+            $sortMapping = [
+                'client_name' => 'leads.client_name',
+                'lead_owner' => 'lead_owner_user.name',
+                'created_at' => 'leads.created_at',
+                'updated_at' => 'leads.updated_at',
+                'company_name' => 'leads.company_name',
+            ];
+            
+            if (isset($sortMapping[$sortBy])) {
+                $leadsQuery->orderBy($sortMapping[$sortBy], $sortDirection);
+            } else {
+                // Default fallback
+                $leadsQuery->orderBy('leads.created_at', 'desc');
+            }
+        } else {
+            // Default sorting when no sort is specified
+            $leadsQuery->orderBy('leads.created_at', 'desc');
+        }
+        
         // Paginate the results
         $leads = $leadsQuery->paginate($request->get('per_page', 15));
         

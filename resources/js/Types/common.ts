@@ -14,6 +14,7 @@ export type TGenericEntityAction =
     | "upload_file"
     | "add_proposal"
     | "reply"
+    | "duplicate"
     | "add_file";
 
 export interface IModalProps {
@@ -38,6 +39,7 @@ export type TFilter = Partial<{
     lead_pipeline_id: number;
     pipeline_stage_id: number;
     category_id: number;
+    [key: string]: string | number | undefined;
 }>;
 
 export type Currency = {
