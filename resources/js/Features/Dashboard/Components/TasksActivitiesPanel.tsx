@@ -12,6 +12,8 @@ import {
     DatePicker,
     message,
     Modal,
+    MenuProps,
+    Drawer,
 } from "antd";
 import {
     CheckOutlined,
@@ -22,11 +24,18 @@ import {
     MoreOutlined,
     UserOutlined,
     ProjectOutlined,
+    CopyOutlined,
+    DeleteOutlined,
+    EyeOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
+import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
+import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
+import { TasksIndexProps } from "@/Pages/Tasks/Index";
 
 dayjs.extend(relativeTime);
 
@@ -63,28 +72,36 @@ interface Task {
     is_private?: boolean;
     billable?: boolean;
     without_duedate?: boolean;
+    created_at?: string;
+    updated_at?: string;
 }
 
 interface TasksActivitiesPanelProps {
     tasks: Task[];
-    onTaskUpdate?: (taskId: number, updates: Partial<Task>) => Promise<void>;
-    onTaskComplete?: (taskId: number) => Promise<void>;
-    onTaskReschedule?: (taskId: number, newDueDate: string) => Promise<void>;
-    loading?: boolean;
 }
 
 const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     tasks = [],
-    onTaskUpdate,
-    onTaskComplete,
-    onTaskReschedule,
-    loading = false,
 }) => {
     const [processingTasks, setProcessingTasks] = useState<Set<number>>(
         new Set()
     );
-    const [rescheduleTask, setRescheduleTask] = useState<Task | null>(null);
-    const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
+    const {
+        props: {
+            tasks: initialTasks = [],
+            categories = [],
+            labels = [],
+            columns = [],
+            users = [],
+            projects = [],
+            permissions = {
+                add_tasks: true,
+                edit_tasks: true,
+                delete_tasks: true,
+                view_tasks: "all",
+            },
+        },
+    } = usePage<TasksIndexProps>();
 
     const isOverdue = (dueDate?: string) => {
         if (!dueDate) return false;
@@ -94,19 +111,6 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     const isDueToday = (dueDate?: string) => {
         if (!dueDate) return false;
         return dayjs(dueDate).isSame(dayjs(), "day");
-    };
-
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case "high":
-                return "#ef4444";
-            case "medium":
-                return "#f59e0b";
-            case "low":
-                return "#10b981";
-            default:
-                return "#6b7280";
-        }
     };
 
     const getPriorityIcon = (priority: string) => {
@@ -122,79 +126,61 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
         }
     };
 
-    const handleTaskComplete = useCallback(
-        async (task: Task) => {
-            if (!onTaskComplete) return;
+    const {
+        action,
+        selected: selectedTask,
+        handleAction,
+        handleClose,
+    } = useGenericEntityAction<Task>();
 
-            setProcessingTasks((prev) => new Set(prev).add(task.id));
-
-            try {
-                await onTaskComplete(task.id);
-                message.success(`Task "${task.heading}" marked as completed!`);
-            } catch (error) {
-                message.error("Failed to complete task");
-            } finally {
-                setProcessingTasks((prev) => {
-                    const newSet = new Set(prev);
-                    newSet.delete(task.id);
-                    return newSet;
-                });
-            }
-        },
-        [onTaskComplete]
-    );
-
-    const handleReschedule = useCallback(async () => {
-        if (!rescheduleTask || !selectedDate || !onTaskReschedule) return;
-
-        setProcessingTasks((prev) => new Set(prev).add(rescheduleTask.id));
-
-        try {
-            await onTaskReschedule(
-                rescheduleTask.id,
-                selectedDate.format("YYYY-MM-DD")
-            );
-            message.success(
-                `Task rescheduled to ${selectedDate.format("MMM DD, YYYY")}`
-            );
-            setRescheduleTask(null);
-            setSelectedDate(null);
-        } catch (error) {
-            message.error("Failed to reschedule task");
-        } finally {
-            setProcessingTasks((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(rescheduleTask.id);
-                return newSet;
-            });
-        }
-    }, [rescheduleTask, selectedDate, onTaskReschedule]);
-
-    const openRescheduleModal = (task: Task) => {
-        setRescheduleTask(task);
-        setSelectedDate(task.due_date ? dayjs(task.due_date) : null);
+    const handleEditTask = (task: Task) => {
+        handleAction("edit", task);
     };
 
-    const getTaskActions = (task: Task) => [
+    const handleViewTask = (task: Task) => {
+        handleAction("view", task);
+    };
+
+    const handleDuplicateTask = (task: Task) => {
+        // Use the SaveTaskModal with isDuplicate flag
+        handleAction("duplicate", task);
+    };
+
+    const handleDeleteTask = (task: Task) => {
+        handleAction("delete", task);
+    };
+
+    const getTaskActions = (task: Task): MenuProps["items"] => [
+        // view, edit, duplicate, delete
         {
-            key: "complete",
-            label: "Mark as Complete",
-            icon: <CheckOutlined />,
-            onClick: () => handleTaskComplete(task),
-            disabled: processingTasks.has(task.id),
-        },
-        {
-            key: "reschedule",
-            label: "Reschedule",
-            icon: <CalendarOutlined />,
-            onClick: () => openRescheduleModal(task),
-            disabled: processingTasks.has(task.id),
+            key: "view",
+            label: "View Task",
+            icon: <EyeOutlined />,
+            onClick: () => handleViewTask(task),
         },
         {
             key: "edit",
             label: "Edit Task",
             icon: <EditOutlined />,
-            onClick: () => router.visit(route("tasks.show", task.id)),
+            onClick: () => handleEditTask(task),
+        },
+        {
+            key: "duplicate",
+            label: "Duplicate Task",
+            icon: <CopyOutlined />,
+            onClick: () => handleDuplicateTask(task),
+        },
+        // divider
+        {
+            type: "divider",
+        },
+        {
+            key: "delete",
+            label: "Delete Task",
+            danger: true,
+
+            icon: <DeleteOutlined className="" />,
+            onClick: () => handleDeleteTask(task),
         },
     ];
 
@@ -237,8 +223,8 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 >
                     <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-2">
-                                <span className="text-lg">
+                            <div className="flex items-center gap-x-1 mb-2">
+                                <span className="text-xs">
                                     {getPriorityIcon(task.priority)}
                                 </span>
                                 <div className="font-medium text-gray-900 truncate">
@@ -262,7 +248,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                 )}
                             </div>
 
-                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                            <div className="flex items-center gap-x-4 text-sm text-gray-600">
                                 {task.due_date && (
                                     <span className="flex items-center">
                                         <CalendarOutlined className="mr-1" />
@@ -326,18 +312,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                             )}
                         </div>
 
-                        <div className="flex items-center space-x-2 ml-4">
-                            <Button
-                                type="primary"
-                                size="small"
-                                icon={<CheckOutlined />}
-                                onClick={() => handleTaskComplete(task)}
-                                loading={isProcessing}
-                                className="shrink-0"
-                            >
-                                Complete
-                            </Button>
-
+                        <div className="flex items-center gap-x-2 ml-4">
                             <Dropdown
                                 menu={{ items: getTaskActions(task) }}
                                 trigger={["click"]}
@@ -347,6 +322,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                     size="small"
                                     icon={<MoreOutlined />}
                                     className="shrink-0"
+                                    type="text"
                                 />
                             </Dropdown>
                         </div>
@@ -371,7 +347,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 title={
                     <div className="flex items-center justify-between">
                         <span>Tasks & Activities</span>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center gap-x-4">
                             <div className="text-sm font-normal">
                                 <Progress
                                     percent={completionRate}
@@ -385,9 +361,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                         </div>
                     </div>
                 }
-                loading={loading}
                 className="h-full"
-                bodyStyle={{ padding: "0" }}
             >
                 <div className="max-h-96 overflow-y-auto p-4">
                     {overdueTasks.length > 0 && (
@@ -444,39 +418,63 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 </div>
             </Card>
 
-            {/* Reschedule Modal */}
-            <Modal
-                title={`Reschedule: ${rescheduleTask?.heading}`}
-                open={!!rescheduleTask}
-                onOk={handleReschedule}
-                onCancel={() => {
-                    setRescheduleTask(null);
-                    setSelectedDate(null);
-                }}
-                confirmLoading={
-                    rescheduleTask
-                        ? processingTasks.has(rescheduleTask.id)
-                        : false
-                }
-                width={400}
-            >
-                <div className="py-4">
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            New Due Date
-                        </label>
-                        <DatePicker
-                            value={selectedDate}
-                            onChange={setSelectedDate}
-                            style={{ width: "100%" }}
-                            placeholder="Select new due date"
-                            disabledDate={(current) =>
-                                current && current < dayjs().startOf("day")
-                            }
-                        />
-                    </div>
-                </div>
-            </Modal>
+            {/* Save Task Modal - handles both create and edit */}
+            <SaveTaskModal
+                key="add"
+                open={action === "add"}
+                isDuplicate={false}
+                onClose={handleClose}
+                categories={categories}
+                labels={labels}
+                columns={columns}
+                users={users}
+                projects={projects}
+            />
+            <SaveTaskModal
+                key="edit"
+                open={action === "edit"}
+                task={selectedTask}
+                isDuplicate={false}
+                onClose={handleClose}
+                categories={categories}
+                labels={labels}
+                columns={columns}
+                users={users}
+                projects={projects}
+            />
+            <SaveTaskModal
+                key="duplicate"
+                open={action === "duplicate"}
+                task={selectedTask}
+                isDuplicate={true}
+                onClose={handleClose}
+                categories={categories}
+                labels={labels}
+                columns={columns}
+                users={users}
+                projects={projects}
+            />
+
+            {/* Task Details Drawer */}
+            {selectedTask && (
+                <Drawer
+                    title={`Task: ${selectedTask?.heading || ""}`}
+                    placement="right"
+                    size="large"
+                    open={action === "view"}
+                    onClose={() => handleClose()}
+                    destroyOnClose
+                >
+                    <TaskDetailsDrawer task={selectedTask} loading={false} />
+                </Drawer>
+            )}
+
+            {/* Delete Task Modal */}
+            <DeleteTask
+                open={action === "delete"}
+                task={selectedTask}
+                onClose={() => handleClose()}
+            />
         </>
     );
 };

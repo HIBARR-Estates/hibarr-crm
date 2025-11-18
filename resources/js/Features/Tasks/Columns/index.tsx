@@ -116,7 +116,12 @@ export const useTasksTableColumns = ({
                 <div className="space-y-2 max-w-full">
                     <div>
                         <Tooltip title={record.heading}>
-                            {record.heading}
+                            <span
+                                className="cursor-pointer hover:underline"
+                                onClick={() => onView(record)}
+                            >
+                                {record.heading}
+                            </span>
                         </Tooltip>
                     </div>
                     {record.labels && record.labels.length > 0 && (

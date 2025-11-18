@@ -67,8 +67,8 @@ interface Task {
     comments_count?: number;
     subtasks_count?: number;
     completed_subtasks_count?: number;
-    created_at: string;
-    updated_at: string;
+    created_at?: string;
+    updated_at?: string;
     estimate_hours?: number;
     estimate_minutes?: number;
     is_private?: boolean;

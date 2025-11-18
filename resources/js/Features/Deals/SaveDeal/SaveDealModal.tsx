@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { router, useForm, usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { Drawer, message, Form } from "antd";
 import { Deal, CreateDealFormData } from "@/Types/api/deals";
 import { IModalProps } from "@/Types/common";
+import { useApiMutate } from "@/lib/api/client";
+import { ApiResponse } from "@/lib/api/types";
+import { isLoading as getLoadingStatus } from "@/lib/utils";
+import { errorFormatter } from "@/lib/api/utils/common";
 import DealForm from "./DealForm";
 
 interface SaveDealModalProps extends Omit<IModalProps, "onClose"> {
@@ -29,7 +33,8 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     open,
     setDeal,
 }) => {
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [errors, setErrors] = useState<string[]>([]);
+    const [formData, setFormData] = useState<CreateDealFormData | null>(null);
     const { props } = usePage<any>();
 
     const { customFields = [] } = props;
@@ -39,7 +44,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     const submitText = isEditing ? "Update Deal" : "Create Deal";
 
     // Initialize form data
-    const initialData: CreateDealFormData = {
+    const getInitialData = (): CreateDealFormData => ({
         name: deal?.name || "",
         lead_contact: deal?.contact.id || undefined,
         pipeline: deal?.lead_pipeline_id || undefined,
@@ -55,119 +60,65 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         custom_fields_data:
             constructCustomFieldsData(customFields, deal?.custom_fields_data) ||
             {},
-    };
+    });
 
-    // Use Inertia's useForm hook for better CSRF and error handling
-    const {
-        data,
-        setData,
-        submit,
-        processing,
-        errors: formErrors,
-        reset,
-    } = useForm(initialData);
-    const [pushing, setPushing] = useState(false);
+    // Setup API mutation
+    const { mutate: createDeal, status: createStatus } = useApiMutate<
+        CreateDealFormData,
+        Deal,
+        ApiResponse<Deal>
+    >(route("deals.store"), "POST");
 
-    // Update form data when deal changes
+    const { mutate: updateDeal, status: updateStatus } = useApiMutate<
+        CreateDealFormData,
+        Deal,
+        ApiResponse<Deal>
+    >(isEditing ? route("deals.update", deal!.id) : "", "PUT");
+
+    // Update form data when deal or modal opens
     useEffect(() => {
-        if (deal) {
-            const updatedData: CreateDealFormData = {
-                name: deal.name || "",
-                lead_contact: deal?.contact.id || undefined,
-                pipeline: deal.lead_pipeline_id || undefined,
-                stage_id: deal.pipeline_stage_id || undefined,
-                value: deal.value || 0,
-                close_date: deal.close_date || "",
-                category_id: deal.category_id || undefined,
-                agent_id: deal.agent_id || undefined,
-                product_id: deal.products?.map((p) => p.id) || [],
-                deal_watcher: deal.deal_watchers?.map((w) => w.id) || [],
-                strategy_accepted: !!deal.strategy_accepted,
-                downpayment_confirmed: !!deal.downpayment_confirmed,
-                custom_fields_data:
-                    constructCustomFieldsData(
-                        customFields,
-                        deal?.custom_fields_data
-                    ) || {},
-            };
-
-            // Update the form data
-            // Set all fields at once to avoid deep-instantiation TypeScript errors
-            setData(updatedData);
+        if (open) {
+            const initialData = getInitialData();
+            setFormData(initialData);
         }
-    }, [deal]);
+    }, [deal, open, customFields]);
 
-    useEffect(() => {
-        if (pushing) {
-            if (isEditing) {
-                submit("put", route("deals.update", deal!.id), {
-                    onSuccess: (res) => {
-                        setPushing(false);
-                        const successMessage = "Deal updated successfully";
-                        message.success(successMessage);
-                        onClose();
-                        // Refresh the deals list
-                        router.reload();
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-                        const errorMessages = Object.values(errors).flat();
-                        setErrors(errors as Record<string, string>);
-                        message.error("Please check the form for errors");
-                    },
-                });
-            } else {
-                submit("post", route("deals.store"), {
-                    onSuccess: (page) => {
-                        setPushing(false);
-                        const successMessage = "Deal created successfully";
-                        message.success(successMessage);
-                        reset();
-                        onClose();
-                        // Refresh the deals list
-                        router.reload();
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-                        const errorMessages = Object.values(errors).flat();
-                        setErrors(errors as Record<string, string>);
-                        message.error("Please check the form for errors");
-                    },
-                });
-            }
-        }
-    }, [pushing]);
-
-    const handleSubmit = (formData: any) => {
+    const handleSubmit = (data: CreateDealFormData) => {
         // Clear previous errors
-        setErrors({});
-        // Transform the values to match the API expectations
-        const submitData = {
-            ...formData,
-        };
+        setErrors([]);
 
-        // Update the form data
-        setData(submitData);
-        setPushing(true);
+        const mutation = isEditing ? updateDeal : createDeal;
+
+        mutation(data, {
+            onSuccess: () => {
+                setErrors([]);
+                handleCancel();
+                router.reload();
+            },
+            onError: (errorResponse) => {
+                const responseErrors =
+                    errorFormatter(errorResponse)?.errors || [];
+                setErrors((prev) => [
+                    ...prev,
+                    ...Object.values(responseErrors).flat(),
+                ]);
+            },
+        });
     };
 
     const handleCancel = () => {
-        reset();
-        setErrors({});
+        setFormData(null);
+        setErrors([]);
         onClose();
     };
 
     const handleErrorsClear = () => {
-        setErrors({});
+        setErrors([]);
     };
 
-    // Combine form errors with manual errors
-    const allErrors = [
-        ...Object.values(errors).flat().map(String),
-        ...Object.values(formErrors).flat().map(String),
-    ];
-
-    console.log(deal, "deal in SaveDealModal");
+    const isLoading =
+        getLoadingStatus({ status: createStatus }) ||
+        getLoadingStatus({ status: updateStatus });
 
     return (
         <Drawer
@@ -179,21 +130,21 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
             destroyOnHidden
         >
             <DealForm
-                data={deal ? data : undefined}
+                data={formData || undefined}
                 visible={open}
                 onCancel={handleCancel}
                 onSubmit={handleSubmit}
                 submitText={submitText}
                 cancelText={"Cancel"}
-                errors={allErrors}
-                setErrors={(errors) =>
-                    errors.forEach((error, field) =>
-                        setErrors((prev) => ({ ...prev, [field]: error }))
-                    )
-                }
+                errors={errors}
+                setErrors={(newErrors) => {
+                    if (Array.isArray(newErrors)) {
+                        setErrors(newErrors);
+                    }
+                }}
                 onErrorsClear={handleErrorsClear}
                 setDeal={setDeal}
-                loading={processing || pushing}
+                loading={isLoading}
             />
         </Drawer>
     );

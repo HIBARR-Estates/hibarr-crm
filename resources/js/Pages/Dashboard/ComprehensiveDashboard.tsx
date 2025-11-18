@@ -12,6 +12,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import { Activity, CheckCircle, Trophy } from "lucide-react";
 
 dayjs.extend(relativeTime);
 
@@ -188,123 +189,165 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     const [activeMetric, setActiveMetric] = useState<string | null>(null);
 
     // Handle metric click for filtering
-    const handleMetricClick = useCallback((metricType: string) => {
-        setActiveMetric(activeMetric === metricType ? null : metricType);
-        
-        // Navigate to appropriate page with filters
-        switch (metricType) {
-            case "activeLeads":
-                router.visit(route("leads.index"));
-                break;
-            case "openDeals":
-                router.visit(route("deals.index", { status: "open" }));
-                break;
-            case "closedDeals":
-                router.visit(route("deals.index", { status: "closed" }));
-                break;
-            case "pendingActivities":
-                router.visit(route("tasks.index", { status: "pending" }));
-                break;
-            default:
-                break;
-        }
-    }, [activeMetric]);
+    const handleMetricClick = useCallback(
+        (metricType: string) => {
+            setActiveMetric(activeMetric === metricType ? null : metricType);
+
+            // Navigate to appropriate page with filters
+            switch (metricType) {
+                case "activeLeads":
+                    router.visit(route("leads.index"));
+                    break;
+                case "openDeals":
+                    router.visit(route("deals.index", { status: "open" }));
+                    break;
+                case "closedDeals":
+                    router.visit(route("deals.index", { status: "closed" }));
+                    break;
+                case "pendingActivities":
+                    router.visit(route("tasks.index", { status: "pending" }));
+                    break;
+                default:
+                    break;
+            }
+        },
+        [activeMetric]
+    );
 
     // Handle task operations
     const handleTaskComplete = useCallback(async (taskId: number) => {
         try {
-            await router.put(route("tasks.update", taskId), {
-                board_column_id: "completed", // You may need to get the completed column ID
-            }, {
-                preserveState: true,
-                onSuccess: () => {
-                    message.success("Task completed successfully!");
+            await router.put(
+                route("tasks.update", taskId),
+                {
+                    board_column_id: "completed", // You may need to get the completed column ID
                 },
-            });
+                {
+                    preserveState: true,
+                    onSuccess: () => {
+                        message.success("Task completed successfully!");
+                    },
+                }
+            );
         } catch (error) {
             throw new Error("Failed to complete task");
         }
     }, []);
 
-    const handleTaskReschedule = useCallback(async (taskId: number, newDueDate: string) => {
-        try {
-            await router.put(route("tasks.update", taskId), {
-                due_date: newDueDate,
-            }, {
-                preserveState: true,
-                onSuccess: () => {
-                    message.success("Task rescheduled successfully!");
-                },
-            });
-        } catch (error) {
-            throw new Error("Failed to reschedule task");
-        }
-    }, []);
+    const handleTaskReschedule = useCallback(
+        async (taskId: number, newDueDate: string) => {
+            try {
+                await router.put(
+                    route("tasks.update", taskId),
+                    {
+                        due_date: newDueDate,
+                    },
+                    {
+                        preserveState: true,
+                        onSuccess: () => {
+                            message.success("Task rescheduled successfully!");
+                        },
+                    }
+                );
+            } catch (error) {
+                throw new Error("Failed to reschedule task");
+            }
+        },
+        []
+    );
 
     // Handle deal operations
-    const handleDealStageChange = useCallback(async (dealId: number, newStageId: number) => {
-        try {
-            await router.put(route("deals.update", dealId), {
-                pipeline_stage_id: newStageId,
-            }, {
-                preserveState: true,
-                onSuccess: () => {
-                    message.success("Deal stage updated successfully!");
-                },
-            });
-        } catch (error) {
-            throw new Error("Failed to update deal stage");
-        }
-    }, []);
+    const handleDealStageChange = useCallback(
+        async (dealId: number, newStageId: number) => {
+            try {
+                await router.put(
+                    route("deals.update", dealId),
+                    {
+                        pipeline_stage_id: newStageId,
+                    },
+                    {
+                        preserveState: true,
+                        onSuccess: () => {
+                            message.success("Deal stage updated successfully!");
+                        },
+                    }
+                );
+            } catch (error) {
+                throw new Error("Failed to update deal stage");
+            }
+        },
+        []
+    );
 
-    const handleDealUpdate = useCallback(async (dealId: number, updates: Partial<Deal>) => {
-        try {
-            await router.put(route("deals.update", dealId), updates, {
-                preserveState: true,
-                onSuccess: () => {
-                    message.success("Deal updated successfully!");
-                },
-            });
-        } catch (error) {
-            throw new Error("Failed to update deal");
-        }
-    }, []);
+    const handleDealUpdate = useCallback(
+        async (dealId: number, updates: Partial<Deal>) => {
+            try {
+                await router.put(route("deals.update", dealId), updates, {
+                    preserveState: true,
+                    onSuccess: () => {
+                        message.success("Deal updated successfully!");
+                    },
+                });
+            } catch (error) {
+                throw new Error("Failed to update deal");
+            }
+        },
+        []
+    );
 
     // Handle data quality operations
-    const handleRecordUpdate = useCallback(async (recordId: number, recordType: "deal" | "lead", updates: any) => {
-        try {
-            const routeName = recordType === "deal" ? "deals.update" : "leads.update";
-            await router.put(route(routeName, recordId), updates, {
-                preserveState: true,
-                onSuccess: () => {
-                    message.success(`${recordType === "deal" ? "Deal" : "Lead"} updated successfully!`);
-                },
-            });
-        } catch (error) {
-            throw new Error(`Failed to update ${recordType}`);
-        }
-    }, []);
-
-    const handleBulkFix = useCallback(async (recordIds: number[], recordType: "deal" | "lead") => {
-        try {
-            // For now, we'll update records individually since bulk routes may not exist
-            const promises = recordIds.map(async (id) => {
-                const routeName = recordType === "deal" ? "deals.update" : "leads.update";
-                return router.put(route(routeName, id), {
-                    // Basic data quality fixes - you might want to customize this
-                    updated_at: new Date().toISOString(),
-                }, {
+    const handleRecordUpdate = useCallback(
+        async (recordId: number, recordType: "deal" | "lead", updates: any) => {
+            try {
+                const routeName =
+                    recordType === "deal" ? "deals.update" : "leads.update";
+                await router.put(route(routeName, recordId), updates, {
                     preserveState: true,
-                    preserveScroll: true,
+                    onSuccess: () => {
+                        message.success(
+                            `${
+                                recordType === "deal" ? "Deal" : "Lead"
+                            } updated successfully!`
+                        );
+                    },
                 });
-            });
-            
-            await Promise.all(promises);
-            message.success(`${recordIds.length} ${recordType}s updated successfully!`);
-        } catch (error) {
-            throw new Error(`Failed to bulk update ${recordType}s`);
-        }
-    }, []);
+            } catch (error) {
+                throw new Error(`Failed to update ${recordType}`);
+            }
+        },
+        []
+    );
+
+    const handleBulkFix = useCallback(
+        async (recordIds: number[], recordType: "deal" | "lead") => {
+            try {
+                // For now, we'll update records individually since bulk routes may not exist
+                const promises = recordIds.map(async (id) => {
+                    const routeName =
+                        recordType === "deal" ? "deals.update" : "leads.update";
+                    return router.put(
+                        route(routeName, id),
+                        {
+                            // Basic data quality fixes - you might want to customize this
+                            updated_at: new Date().toISOString(),
+                        },
+                        {
+                            preserveState: true,
+                            preserveScroll: true,
+                        }
+                    );
+                });
+
+                await Promise.all(promises);
+                message.success(
+                    `${recordIds.length} ${recordType}s updated successfully!`
+                );
+            } catch (error) {
+                throw new Error(`Failed to bulk update ${recordType}s`);
+            }
+        },
+        []
+    );
 
     return (
         <DashboardLayout>
@@ -313,101 +356,186 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                 breadcrumbs={[{ name: "Dashboard" }]}
                 mainContentClassName=""
             >
-                <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-25 p-6">
+                <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-25">
                     {/* Overview Metrics Bar */}
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6 }}
-                        className="mb-8"
+                        className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 text-white"
                     >
-                        <OverviewMetricsBar
-                            metrics={overviewMetrics}
-                            onMetricClick={handleMetricClick}
-                        />
-                    </motion.div>
+                        {/* Background Pattern */}
+                        <div className="absolute inset-0 bg-blue-900 bg-opacity-20" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10" />
 
-                    {/* Main Workflow Panels */}
-                    <Row gutter={[24, 24]} className="mb-8">
-                        {/* Tasks & Activities Panel */}
-                        <Col xs={24} lg={8}>
-                            <motion.div
-                                initial={{ opacity: 0, x: -50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.7, delay: 0.2 }}
-                                className="h-full"
-                            >
-                                <TasksActivitiesPanel
-                                    tasks={tasks}
-                                    onTaskComplete={handleTaskComplete}
-                                    onTaskReschedule={handleTaskReschedule}
-                                />
-                            </motion.div>
-                        </Col>
+                        <div className="relative px-8 py-16">
+                            <div className="max-w-7xl mx-auto">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.6, delay: 0.2 }}
+                                >
+                                    <h1 className="text-4xl font-bold mb-4">
+                                        Good{" "}
+                                        {new Date().getHours() < 12
+                                            ? "morning"
+                                            : new Date().getHours() < 17
+                                            ? "afternoon"
+                                            : "evening"}
+                                        ! 👋
+                                    </h1>
+                                    <p className="text-xl text-blue-100 max-w-2xl">
+                                        Welcome back to your dashboard. Here's
+                                        what's happening with your business
+                                        today.
+                                    </p>
+                                </motion.div>
 
-                        {/* Data Quality Panel */}
-                        <Col xs={24} lg={16}>
-                            <motion.div
-                                initial={{ opacity: 0, x: 50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.7, delay: 0.3 }}
-                                className="h-full"
-                            >
-                                <DataQualityPanel
-                                    records={poorDataQualityDeals}
-                                    onRecordUpdate={handleRecordUpdate}
-                                    onBulkFix={handleBulkFix}
-                                />
-                            </motion.div>
-                        </Col>
-                    </Row>
-
-                    {/* Deals Tracker */}
-                    <Row gutter={[24, 24]}>
-                        <Col span={24}>
-                            <motion.div
-                                initial={{ opacity: 0, y: 50 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.7, delay: 0.4 }}
-                                className="h-full"
-                            >
-                                <DealsTracker
-                                    deals={deals}
-                                    stages={pipelineStages}
-                                    onStageChange={handleDealStageChange}
-                                    onDealUpdate={handleDealUpdate}
-                                    canEdit={true}
-                                />
-                            </motion.div>
-                        </Col>
-                    </Row>
-
-                    {/* Quick Stats Footer */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.8, delay: 0.6 }}
-                        className="mt-8 text-center text-gray-600"
-                    >
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                                <div className="font-semibold text-gray-900">{stats.total_tasks}</div>
-                                <div>Total Tasks</div>
-                            </div>
-                            <div>
-                                <div className="font-semibold text-gray-900">{stats.overdue_tasks}</div>
-                                <div>Overdue Tasks</div>
-                            </div>
-                            <div>
-                                <div className="font-semibold text-gray-900">{stats.total_deals}</div>
-                                <div>Total Deals</div>
-                            </div>
-                            <div>
-                                <div className="font-semibold text-gray-900">{stats.activities_this_week}</div>
-                                <div>Weekly Activities</div>
+                                {/* Floating Stats Preview */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.6, delay: 0.4 }}
+                                    className="mt-8 flex items-center gap-8 text-sm"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle
+                                            size={16}
+                                            className="text-green-300"
+                                        />
+                                        <span>
+                                            {stats.completed_tasks} tasks
+                                            completed
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Trophy
+                                            size={16}
+                                            className="text-yellow-300"
+                                        />
+                                        <span>
+                                            {stats.total_deals} active deals
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Activity
+                                            size={16}
+                                            className="text-purple-300"
+                                        />
+                                        <span>
+                                            {stats.activities_this_week}{" "}
+                                            activities this week
+                                        </span>
+                                    </div>
+                                </motion.div>
                             </div>
                         </div>
                     </motion.div>
+
+                    {/* Main Content */}
+                    <div className="relative -mt-8 px-8 pb-8">
+                        <div className="max-w-7xl mx-auto">
+                            <OverviewMetricsBar
+                                metrics={overviewMetrics}
+                                onMetricClick={handleMetricClick}
+                            />
+
+                            {/* Main Workflow Panels */}
+                            <Row gutter={[24, 24]} className="mb-8">
+                                {/* Tasks & Activities Panel */}
+                                <Col xs={24} lg={8}>
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{
+                                            duration: 0.7,
+                                            delay: 0.2,
+                                        }}
+                                        className="h-full"
+                                    >
+                                        <TasksActivitiesPanel tasks={tasks} />
+                                    </motion.div>
+                                </Col>
+
+                                {/* Data Quality Panel */}
+                                <Col xs={24} lg={16}>
+                                    <motion.div
+                                        initial={{ opacity: 0, x: 50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{
+                                            duration: 0.7,
+                                            delay: 0.3,
+                                        }}
+                                        className="h-full"
+                                    >
+                                        <DataQualityPanel
+                                            records={poorDataQualityDeals}
+                                        />
+                                    </motion.div>
+                                </Col>
+                            </Row>
+
+                            {/* Deals Tracker */}
+                            <Row gutter={[24, 24]}>
+                                <Col span={24}>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 50 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{
+                                            duration: 0.7,
+                                            delay: 0.4,
+                                        }}
+                                        className="h-full"
+                                    >
+                                        <DealsTracker
+                                            deals={deals}
+                                            stages={pipelineStages}
+                                            onStageChange={
+                                                handleDealStageChange
+                                            }
+                                            onDealUpdate={handleDealUpdate}
+                                            canEdit={true}
+                                        />
+                                    </motion.div>
+                                </Col>
+                            </Row>
+
+                            {/* Quick Stats Footer */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.8, delay: 0.6 }}
+                                className="mt-8 text-center text-gray-600"
+                            >
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                        <div className="font-semibold text-gray-900">
+                                            {stats.total_tasks}
+                                        </div>
+                                        <div>Total Tasks</div>
+                                    </div>
+                                    <div>
+                                        <div className="font-semibold text-gray-900">
+                                            {stats.overdue_tasks}
+                                        </div>
+                                        <div>Overdue Tasks</div>
+                                    </div>
+                                    <div>
+                                        <div className="font-semibold text-gray-900">
+                                            {stats.total_deals}
+                                        </div>
+                                        <div>Total Deals</div>
+                                    </div>
+                                    <div>
+                                        <div className="font-semibold text-gray-900">
+                                            {stats.activities_this_week}
+                                        </div>
+                                        <div>Weekly Activities</div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    </div>
                 </div>
             </PageLayout>
         </DashboardLayout>

@@ -703,6 +703,7 @@ class DashboardController extends AccountBaseController
             
             'activities_this_week' => \App\Models\CommunicationActivity::where('timestamp', '>=', now()->startOfWeek())
                 ->count(),
+            // TODO: Refactor this to be a service that calculates all this data and passes it to the dashboard controller, also the entities ought to be tied explicitly to the authenticated user
         ];
 
         return inertia('Dashboard/ComprehensiveDashboard', [

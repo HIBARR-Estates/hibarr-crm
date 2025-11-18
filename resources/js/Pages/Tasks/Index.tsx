@@ -11,7 +11,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
-import DashboardLayout from "@/Components/DashboardLayout";
+import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import { useTasksTableColumns } from "@/Features/Tasks/Columns";
 import { TasksStats } from "@/Features/Tasks/Components/TasksStats";
 import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
@@ -107,21 +107,14 @@ interface Project {
     project_short_code: string;
 }
 
-interface TasksIndexProps {
+export interface TasksIndexProps extends PageProps {
     tasks: Task[];
     categories: TaskCategory[];
     labels: TaskLabel[];
     columns: TaskboardColumn[];
     users: User[];
     projects: Project[];
-    filters?: {
-        status?: string;
-        priority?: string;
-        assigned_to?: number;
-        project_id?: number;
-        category_id?: number;
-        due_date_range?: [string, string];
-    };
+
     permissions: {
         add_tasks: boolean;
         edit_tasks: boolean;

@@ -1,14 +1,16 @@
 import React from "react";
 import { Card, Row, Col, Progress } from "antd";
 import { motion } from "framer-motion";
+import StatCard from "@/Components/Dashboard/StatCard";
 import {
-    UserAddOutlined,
-    DollarOutlined,
-    CheckCircleOutlined,
-    ClockCircleOutlined,
-    TrophyOutlined,
-    PercentageOutlined,
-} from "@ant-design/icons";
+    LucideIcon,
+    User2Icon as UserAddOutlined,
+    DollarSign as DollarOutlined,
+    CheckCircle2Icon as CheckCircleOutlined,
+    Clock2Icon as ClockCircleOutlined,
+    LucideTrophy as TrophyOutlined,
+    PercentCircle as PercentageOutlined,
+} from "lucide-react";
 
 interface MetricCardProps {
     title: string;
@@ -90,12 +92,15 @@ const MetricCard: React.FC<MetricCardProps> = ({
                                 ? `${(value / 1000).toFixed(1)}k`
                                 : value}
                         </div>
-                        
+
                         {/* Progress Bar for Quota */}
                         {progress && (
                             <div className="mb-2">
                                 <Progress
-                                    percent={Math.round((progress.current / progress.target) * 100)}
+                                    percent={Math.round(
+                                        (progress.current / progress.target) *
+                                            100
+                                    )}
                                     size="small"
                                     strokeColor="#fff"
                                     trailColor="rgba(255,255,255,0.3)"
@@ -137,51 +142,62 @@ const OverviewMetricsBar: React.FC<OverviewMetricsBarProps> = ({
     metrics,
     onMetricClick,
 }) => {
-    const metricsData = [
+    const metricsData: Array<{
+        title: string;
+        value: number | string;
+        icon: LucideIcon;
+        gradient: string;
+        trend?: { value: number; isPositive: boolean };
+        progress?: { current: number; target: number };
+        key: string;
+    }> = [
         {
             title: "Active Leads",
             value: metrics.activeLeads,
-            icon: <UserAddOutlined />,
-            color: "#3b82f6", // Blue
+            icon: UserAddOutlined,
+            gradient: "bg-gradient-to-br from-blue-400 to-blue-600", // Blue
             trend: metrics.trends?.activeLeads,
             key: "activeLeads",
         },
         {
             title: "Open Deals",
             value: metrics.openDeals,
-            icon: <DollarOutlined />,
-            color: "#f59e0b", // Amber
+            icon: DollarOutlined,
+            gradient: "bg-gradient-to-br from-yellow-400 to-yellow-600", // Amber
             trend: metrics.trends?.openDeals,
             key: "openDeals",
         },
         {
             title: "Closed Deals",
             value: metrics.closedDeals,
-            icon: <CheckCircleOutlined />,
-            color: "#10b981", // Emerald
+            icon: CheckCircleOutlined,
+            gradient: "bg-gradient-to-br from-emerald-400 to-emerald-600", // Emerald
             trend: metrics.trends?.closedDeals,
             key: "closedDeals",
         },
         {
             title: "Quota Progress",
-            value: `${Math.round((metrics.quotaProgress.current / metrics.quotaProgress.target) * 100)}%`,
-            icon: <TrophyOutlined />,
-            color: "#8b5cf6", // Purple
+            value: `${Math.round(
+                (metrics.quotaProgress.current / metrics.quotaProgress.target) *
+                    100
+            )}%`,
+            icon: TrophyOutlined,
+            gradient: "bg-gradient-to-br from-purple-400 to-purple-600", // Purple
             progress: metrics.quotaProgress,
             key: "quotaProgress",
         },
         {
-            title: "Pending Activities",
+            title: "Pending Tasks",
             value: metrics.pendingActivities,
-            icon: <ClockCircleOutlined />,
-            color: "#ef4444", // Red
+            icon: ClockCircleOutlined,
+            gradient: "bg-gradient-to-br from-red-400 to-red-600", // Red
             key: "pendingActivities",
         },
         {
             title: "Conversion Rate",
             value: `${metrics.conversionRate}%`,
-            icon: <PercentageOutlined />,
-            color: "#06b6d4", // Cyan
+            icon: PercentageOutlined,
+            gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600", // Cyan
             trend: metrics.trends?.conversionRate,
             key: "conversionRate",
         },
@@ -192,13 +208,13 @@ const OverviewMetricsBar: React.FC<OverviewMetricsBarProps> = ({
             <Row gutter={[16, 16]}>
                 {metricsData.map((metric, index) => (
                     <Col xs={24} sm={12} lg={8} xl={4} key={metric.key}>
-                        <MetricCard
+                        <StatCard
                             title={metric.title}
                             value={metric.value}
-                            icon={metric.icon}
-                            color={metric.color}
-                            trend={metric.trend}
-                            progress={metric.progress}
+                            // icon={metric.icon}
+                            gradient={metric.gradient}
+                            // trend={metric.trend}
+                            // progress={metric.progress}
                             onClick={() => onMetricClick?.(metric.key)}
                             delay={index * 0.1}
                         />

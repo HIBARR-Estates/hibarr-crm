@@ -16,6 +16,7 @@ import {
     Alert,
     Badge,
 } from "antd";
+import QuickFixModal from "./QuickFixModal";
 import {
     ExclamationCircleOutlined,
     EditOutlined,
@@ -30,7 +31,8 @@ import {
     InfoCircleOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
+import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 
 interface DataQualityIssue {
     field: string;
@@ -65,38 +67,31 @@ interface DataQualityRecord {
 
 interface DataQualityPanelProps {
     records: DataQualityRecord[];
-    onRecordUpdate?: (
-        recordId: number,
-        recordType: "deal" | "lead",
-        updates: any
-    ) => Promise<void>;
-    onBulkFix?: (
-        recordIds: number[],
-        recordType: "deal" | "lead"
-    ) => Promise<void>;
+
     loading?: boolean;
 }
 
 interface QuickFixFormData {
     [key: string]: any;
 }
-
+const determineAppropriateRecordRoute = (record: DataQualityRecord): string => {
+    if (record.type === "deal") {
+        return route("deals.show", record.id);
+    } else {
+        return route("leads.show", record.id);
+    }
+};
 const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
     records = [],
-    onRecordUpdate,
-    onBulkFix,
+
     loading = false,
 }) => {
-    const [selectedRecord, setSelectedRecord] =
-        useState<DataQualityRecord | null>(null);
-    const [form] = Form.useForm<QuickFixFormData>();
-    const [processingRecords, setProcessingRecords] = useState<Set<number>>(
-        new Set()
-    );
-    const [selectedRecords, setSelectedRecords] = useState<Set<number>>(
-        new Set()
-    );
-
+    const {
+        action,
+        handleAction,
+        handleClose,
+        selected: selectedRecord,
+    } = useGenericEntityAction<DataQualityRecord>();
     const getScoreColor = (score: number) => {
         if (score >= 80) return "#10b981"; // Green
         if (score >= 60) return "#f59e0b"; // Amber
@@ -135,94 +130,8 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
         return <InfoCircleOutlined />;
     };
 
-    const handleQuickFix = useCallback(
-        async (values: QuickFixFormData) => {
-            if (!selectedRecord || !onRecordUpdate) return;
-
-            setProcessingRecords((prev) =>
-                new Set(prev).add(selectedRecord.id)
-            );
-
-            try {
-                await onRecordUpdate(
-                    selectedRecord.id,
-                    selectedRecord.type,
-                    values
-                );
-                message.success(
-                    `${
-                        selectedRecord.type === "deal" ? "Deal" : "Lead"
-                    } updated successfully`
-                );
-                setSelectedRecord(null);
-                form.resetFields();
-            } catch (error) {
-                message.error("Failed to update record");
-            } finally {
-                setProcessingRecords((prev) => {
-                    const newSet = new Set(prev);
-                    newSet.delete(selectedRecord.id);
-                    return newSet;
-                });
-            }
-        },
-        [selectedRecord, onRecordUpdate, form]
-    );
-
-    const handleBulkFix = useCallback(
-        async (recordType: "deal" | "lead") => {
-            if (selectedRecords.size === 0 || !onBulkFix) return;
-
-            const recordsOfType = Array.from(selectedRecords).filter(
-                (id) => records.find((r) => r.id === id)?.type === recordType
-            );
-
-            if (recordsOfType.length === 0) return;
-
-            try {
-                await onBulkFix(recordsOfType, recordType);
-                message.success(
-                    `${recordsOfType.length} ${recordType}s updated successfully`
-                );
-                setSelectedRecords(new Set());
-            } catch (error) {
-                message.error("Failed to bulk update records");
-            }
-        },
-        [selectedRecords, records, onBulkFix]
-    );
-
-    const openQuickFix = (record: DataQualityRecord) => {
-        setSelectedRecord(record);
-
-        // Pre-fill form with existing data
-        const initialValues: QuickFixFormData = {};
-
-        // Add existing contact data
-        if (record.contact) {
-            initialValues.client_name = record.contact.client_name;
-            initialValues.client_email = record.contact.client_email;
-            initialValues.mobile = record.contact.mobile;
-        }
-
-        // Add deal-specific data
-        if (record.type === "deal" && record.value) {
-            initialValues.value = record.value;
-        }
-
-        form.setFieldsValue(initialValues);
-    };
-
-    const toggleRecordSelection = (recordId: number) => {
-        setSelectedRecords((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(recordId)) {
-                newSet.delete(recordId);
-            } else {
-                newSet.add(recordId);
-            }
-            return newSet;
-        });
+    const handleQuickFix = (record: DataQualityRecord) => {
+        handleAction("quick_update", record);
     };
 
     const renderDataIssue = (issue: DataQualityIssue, index: number) => (
@@ -231,11 +140,11 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="flex items-start space-x-2 p-2 rounded-lg bg-gray-50 mb-2"
+            className="flex items-start gap-x-2 p-2 rounded-lg bg-gray-50 mb-2"
         >
             <div className="text-lg">{getFieldIcon(issue.field)}</div>
             <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
+                <div className="flex items-center gap-x-2 mb-1">
                     <span className="font-medium text-sm capitalize">
                         {issue.field.replace(/_/g, " ")}
                     </span>
@@ -254,8 +163,6 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
     );
 
     const renderRecord = (record: DataQualityRecord, index: number) => {
-        const isProcessing = processingRecords.has(record.id);
-        const isSelected = selectedRecords.has(record.id);
         const highPriorityIssues =
             record.data_issues?.filter((issue) => issue.severity === "high")
                 .length || 0;
@@ -270,25 +177,19 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
             >
                 <Card
                     size="small"
-                    loading={isProcessing}
-                    className={`transition-all duration-200 cursor-pointer ${
-                        isSelected
-                            ? "border-blue-400 bg-blue-50"
-                            : "border-gray-200 hover:border-blue-300 hover:shadow-md"
-                    } ${
+                    className={`transition-all duration-200 ${
                         record.data_quality_score < 40
                             ? "border-l-4 border-l-red-500"
                             : record.data_quality_score < 60
                             ? "border-l-4 border-l-amber-500"
                             : ""
                     }`}
-                    onClick={() => toggleRecordSelection(record.id)}
                 >
-                    <div className="space-y-3">
+                    <div className="flex flex-col gap-y-3">
                         {/* Header */}
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-1">
+                                <div className="flex items-center gap-x-2 mb-1">
                                     <Badge
                                         count={highPriorityIssues}
                                         color="red"
@@ -305,9 +206,14 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                             {record.type.toUpperCase()}
                                         </Tag>
                                     </Badge>
-                                    <span className="font-medium text-gray-900">
+                                    <Link
+                                        href={determineAppropriateRecordRoute(
+                                            record
+                                        )}
+                                        className="hover:underline"
+                                    >
                                         {record.name}
-                                    </span>
+                                    </Link>
                                 </div>
 
                                 {record.contact && (
@@ -321,7 +227,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                     </div>
                                 )}
 
-                                <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                                <div className="flex items-center gap-x-4 mt-2 text-xs text-gray-500">
                                     {record.value && (
                                         <span className="flex items-center">
                                             <DollarOutlined className="mr-1" />$
@@ -346,7 +252,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                             </div>
 
                             <div className="text-right">
-                                <div className="flex items-center space-x-2 mb-2">
+                                <div className="flex items-center gap-x-2 mb-2">
                                     <Tooltip
                                         title={`Data Quality: ${getScoreLabel(
                                             record.data_quality_score
@@ -395,7 +301,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                         <ExclamationCircleOutlined className="mr-1" />
                                         Data Quality Issues:
                                     </div>
-                                    <div className="space-y-1">
+                                    <div className="flex flex-col gap-y-1">
                                         {record.data_issues
                                             .slice(0, 3)
                                             .map(renderDataIssue)}
@@ -419,10 +325,8 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                 <Button
                                     size="small"
                                     type="primary"
-                                    icon={<EditOutlined />}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        openQuickFix(record);
+                                    onClick={() => {
+                                        handleQuickFix(record);
                                     }}
                                     className="text-xs"
                                 >
@@ -434,12 +338,11 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                     type="text"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        const route_name =
-                                            record.type === "deal"
-                                                ? "deals.show"
-                                                : "leads.show";
+
                                         router.visit(
-                                            route(route_name, record.id)
+                                            determineAppropriateRecordRoute(
+                                                record
+                                            )
                                         );
                                     }}
                                     className="text-xs"
@@ -488,7 +391,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                 title={
                     <div className="flex items-center justify-between">
                         <span>Data Quality Monitor</span>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center gap-x-4">
                             <div className="text-sm font-normal">
                                 <span className="text-gray-600">
                                     Average Score:{" "}
@@ -515,31 +418,8 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                 }
                 loading={loading}
                 className="h-full"
-                extra={
-                    selectedRecords.size > 0 && (
-                        <Space>
-                            <span className="text-sm text-gray-600">
-                                {selectedRecords.size} selected
-                            </span>
-                            <Button
-                                size="small"
-                                type="primary"
-                                onClick={() => handleBulkFix("deal")}
-                            >
-                                Bulk Fix Deals
-                            </Button>
-                            <Button
-                                size="small"
-                                type="primary"
-                                onClick={() => handleBulkFix("lead")}
-                            >
-                                Bulk Fix Leads
-                            </Button>
-                        </Space>
-                    )
-                }
             >
-                <div className="space-y-4">
+                <div className="flex flex-col gap-y-4">
                     {/* Summary Alert */}
                     {criticalRecords.length > 0 && (
                         <Alert
@@ -552,7 +432,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                     )}
 
                     {/* Records List */}
-                    <div className="max-h-96 overflow-y-auto space-y-2">
+                    <div className="max-h-96 overflow-y-auto flex flex-col gap-y-2">
                         {sortedRecords.length > 0 ? (
                             sortedRecords.map((record, index) =>
                                 renderRecord(record, index)
@@ -572,158 +452,11 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
             </Card>
 
             {/* Quick Fix Modal */}
-            <Modal
-                title={`Quick Fix: ${selectedRecord?.name}`}
-                open={!!selectedRecord}
-                onCancel={() => {
-                    setSelectedRecord(null);
-                    form.resetFields();
-                }}
-                footer={null}
-                width={600}
-            >
-                {selectedRecord && (
-                    <Form
-                        form={form}
-                        layout="vertical"
-                        onFinish={handleQuickFix}
-                        className="pt-4"
-                    >
-                        {/* Contact Information */}
-                        <div className="mb-4">
-                            <h4 className="font-medium mb-3">
-                                Contact Information
-                            </h4>
-
-                            <Form.Item name="client_name" label="Contact Name">
-                                <Input placeholder="Enter contact name" />
-                            </Form.Item>
-
-                            <Form.Item
-                                name="client_email"
-                                label="Email Address"
-                                rules={[
-                                    {
-                                        type: "email",
-                                        message: "Please enter a valid email",
-                                    },
-                                ]}
-                            >
-                                <Input placeholder="Enter email address" />
-                            </Form.Item>
-
-                            <Form.Item name="mobile" label="Phone Number">
-                                <Input placeholder="Enter phone number" />
-                            </Form.Item>
-                        </div>
-
-                        {/* Deal-specific fields */}
-                        {selectedRecord.type === "deal" && (
-                            <div className="mb-4">
-                                <h4 className="font-medium mb-3">
-                                    Deal Information
-                                </h4>
-
-                                <Form.Item name="value" label="Deal Value">
-                                    <Input
-                                        type="number"
-                                        placeholder="Enter deal value"
-                                        prefix="$"
-                                    />
-                                </Form.Item>
-
-                                <Form.Item
-                                    name="close_date"
-                                    label="Expected Close Date"
-                                >
-                                    <Input type="date" />
-                                </Form.Item>
-
-                                <Form.Item
-                                    name="probability"
-                                    label="Probability (%)"
-                                >
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        max={100}
-                                        placeholder="Enter probability"
-                                        suffix="%"
-                                    />
-                                </Form.Item>
-                            </div>
-                        )}
-
-                        {/* Lead-specific fields */}
-                        {selectedRecord.type === "lead" && (
-                            <div className="mb-4">
-                                <h4 className="font-medium mb-3">
-                                    Lead Information
-                                </h4>
-
-                                <Form.Item
-                                    name="company_name"
-                                    label="Company Name"
-                                >
-                                    <Input placeholder="Enter company name" />
-                                </Form.Item>
-
-                                <Form.Item name="website" label="Website">
-                                    <Input placeholder="Enter website URL" />
-                                </Form.Item>
-
-                                <Form.Item name="city" label="City">
-                                    <Input placeholder="Enter city" />
-                                </Form.Item>
-
-                                <Form.Item name="source" label="Lead Source">
-                                    <Select placeholder="Select lead source">
-                                        <Select.Option value="website">
-                                            Website
-                                        </Select.Option>
-                                        <Select.Option value="referral">
-                                            Referral
-                                        </Select.Option>
-                                        <Select.Option value="social_media">
-                                            Social Media
-                                        </Select.Option>
-                                        <Select.Option value="cold_call">
-                                            Cold Call
-                                        </Select.Option>
-                                        <Select.Option value="email">
-                                            Email Campaign
-                                        </Select.Option>
-                                    </Select>
-                                </Form.Item>
-                            </div>
-                        )}
-
-                        <div className="flex justify-end space-x-2 pt-4 border-t">
-                            <Button
-                                onClick={() => {
-                                    setSelectedRecord(null);
-                                    form.resetFields();
-                                }}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="primary"
-                                htmlType="submit"
-                                loading={
-                                    selectedRecord
-                                        ? processingRecords.has(
-                                              selectedRecord.id
-                                          )
-                                        : false
-                                }
-                            >
-                                Update Record
-                            </Button>
-                        </div>
-                    </Form>
-                )}
-            </Modal>
+            <QuickFixModal
+                record={selectedRecord}
+                open={action === "quick_update"}
+                onClose={() => handleClose()}
+            />
         </>
     );
 };

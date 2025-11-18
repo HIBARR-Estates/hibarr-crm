@@ -5,13 +5,14 @@ import { LucideIcon } from "lucide-react";
 interface StatCardProps {
     title: string;
     value: string | number;
-    icon: LucideIcon;
+    icon?: LucideIcon;
     gradient: string;
     change?: {
         value: number;
         type: "increase" | "decrease";
     };
     delay?: number;
+    onClick?: () => void;
 }
 
 export default function StatCard({
@@ -21,20 +22,26 @@ export default function StatCard({
     gradient,
     change,
     delay = 0,
+    onClick,
 }: StatCardProps) {
     return (
         <motion.div
+            onClick={onClick}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay }}
-            className="group relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300"
+            className={`h-full group relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 ${
+                onClick ? " cursor-pointer" : ""
+            }   `}
         >
             {/* Gradient Background */}
             <div className={`absolute inset-0 opacity-5 ${gradient}`} />
-            
+
             {/* Hover Gradient Effect */}
-            <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 ${gradient} transition-opacity duration-300`} />
-            
+            <div
+                className={`absolute inset-0 opacity-0 group-hover:opacity-10 ${gradient} transition-opacity duration-300`}
+            />
+
             <div className="relative p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -42,9 +49,11 @@ export default function StatCard({
                             {title}
                         </p>
                         <p className="text-3xl font-bold text-gray-900 mb-2">
-                            {typeof value === 'number' ? value.toLocaleString() : value}
+                            {typeof value === "number"
+                                ? value.toLocaleString()
+                                : value}
                         </p>
-                        
+
                         {change && (
                             <div className="flex items-center gap-1">
                                 <span
@@ -63,15 +72,21 @@ export default function StatCard({
                             </div>
                         )}
                     </div>
-                    
-                    <div className={`p-3 rounded-xl ${gradient} bg-opacity-10`}>
-                        <Icon size={24} className="text-gray-700" />
-                    </div>
+
+                    {Icon ? (
+                        <div
+                            className={`p-3 rounded-xl ${gradient} bg-opacity-10`}
+                        >
+                            <Icon size={24} className="text-gray-700" />
+                        </div>
+                    ) : null}
                 </div>
             </div>
-            
+
             {/* Bottom border accent */}
-            <div className={`h-1 ${gradient}`} />
+            <div
+                className={`h-1 ${gradient} mt-auto absolute bottom-0 left-0 right-0 rounded-b-2xl`}
+            />
         </motion.div>
     );
 }
