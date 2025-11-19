@@ -285,9 +285,9 @@ class LeadContactController extends AccountBaseController
                 break;
         }
 
-        if (request()->ajax()) {
-            return $this->returnAjax($this->view);
-        }
+        // if (request()->ajax()) {
+        //     return $this->returnAjax($this->view);
+        // }
 
         $this->activeTab = $tab ?: 'profile';
         $this->employees = User::allEmployees(null, true);
