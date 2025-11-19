@@ -60,6 +60,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         columnId = null,
         company = {},
         stages = [],
+        packages = [],
     } = props;
 
     const [pipelineId, setPipelineId] = useState<number>();
@@ -349,6 +350,24 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                         </Form.Item>
                     </Col>
 
+                    <Col span={24}>
+                        <Form.Item name="package_id" label="Package">
+                            <Select
+                                placeholder="Select Package"
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
+                            >
+                                {packages.map(
+                                    (p: { id: number; name: string }) => (
+                                        <Select.Option key={p.id} value={p.id}>
+                                            {p.name}
+                                        </Select.Option>
+                                    )
+                                )}
+                            </Select>
+                        </Form.Item>
+                    </Col>
                     <Col span={24}>
                         <Form.Item name="product_id" label="Products">
                             <Select
