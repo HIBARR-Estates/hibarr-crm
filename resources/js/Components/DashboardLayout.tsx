@@ -565,7 +565,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                     )}
                     items={buildMenuItems()}
                     className="border-none"
-                    style={{ paddingLeft: 8 }}
+                    style={{ paddingLeft: 8, paddingRight: 8 }}
                 />
             </Sider>
 

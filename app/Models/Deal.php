@@ -199,6 +199,11 @@ class Deal extends BaseModel
         return $this->belongsTo(LeadPipeline::class, 'lead_pipeline_id');
     }
 
+    public function package(): BelongsTo
+    {
+        return $this->belongsTo(Package::class, 'package_id');
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id');
