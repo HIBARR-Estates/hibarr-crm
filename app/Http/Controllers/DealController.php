@@ -44,6 +44,7 @@ use App\Models\Proposal;
 use App\Models\PurposeConsent;
 use App\Models\PurposeConsentLead;
 use App\Models\User;
+use App\Models\Package;
 use App\Models\CommunicationActivity;
 use App\Traits\ImportExcel;
 use App\Traits\DealAutomationTrait;
@@ -253,6 +254,7 @@ class DealController extends AccountBaseController
             'leadAgents' => $this->leadAgents,
             'leadContacts' => $this->leadContacts,
             'products' => $this->products,
+            'packages' => $this->packages,
             'customFields' => $this->fields,
             'customFieldCategories' => $this->customFieldCategories,
             'filters' => $request->only([
@@ -273,6 +275,7 @@ class DealController extends AccountBaseController
         $this->loadLeadAgents();
         $this->loadDealWatcher();
         $this->loadDealLeads();
+        $this->loadPackages();
     }
 
     protected function loadPipelineData()
@@ -329,6 +332,11 @@ class DealController extends AccountBaseController
     protected function loadDealLeads()
     {
         $this->dealLeads = Lead::select(['id', 'client_name'])->get();
+    }
+
+    protected function loadPackages()
+    {
+        $this->packages = Package::all();
     }
 
     public function show($id)
@@ -542,6 +550,7 @@ class DealController extends AccountBaseController
             'leadAgents' => $this->leadAgents,
             'leadContacts' => $this->leadContacts,
             'products' => $this->products,
+            'packages' => $this->packages,
             'countries' => $this->countries,
             'salutations' => $this->salutations,
             'deal' => $dealWithCustomFields,
@@ -676,6 +685,7 @@ class DealController extends AccountBaseController
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->agent_id = $agentId;
+        $deal->package_id = $request->package_id;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
@@ -858,6 +868,7 @@ class DealController extends AccountBaseController
         $deal->next_follow_up = $request->next_follow_up;
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
+        $deal->package_id = $request->package_id;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;

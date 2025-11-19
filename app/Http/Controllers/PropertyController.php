@@ -80,8 +80,33 @@ class PropertyController extends AccountBaseController
             });
         }
 
-        // Order by creation date (newest first)
-        $query->orderBy('created_at', 'desc');
+        // Apply sorting if specified
+        if ($request->filled('sort_by')) {
+            $sortBy = $request->sort_by;
+            $sortDirection = $request->get('sort_direction', 'asc');
+            
+            // Validate sort direction
+            if (!in_array($sortDirection, ['asc', 'desc'])) {
+                $sortDirection = 'asc';
+            }
+            
+            // Map frontend sort fields to database columns
+            $sortMapping = [
+                'title' => 'title',
+                'price' => 'price',
+                'created_at' => 'created_at',
+            ];
+            
+            if (isset($sortMapping[$sortBy])) {
+                $query->orderBy($sortMapping[$sortBy], $sortDirection);
+            } else {
+                // Default fallback
+                $query->orderBy('created_at', 'desc');
+            }
+        } else {
+            // Default sorting when no sort is specified
+            $query->orderBy('created_at', 'desc');
+        }
 
         $properties = $query->paginate(15);
 

@@ -10,7 +10,20 @@ class HandleInertiaRequests extends Middleware
     /**
      * The root template that's loaded on the first page visit.
      */
-    protected $rootView = 'layouts.inertia_alt';
+    protected $rootView = 'layouts.inertia_vite';
+    // protected $rootView = 'layouts.inertia_alt';
+
+    /**
+     * Get the root view based on the bundler configuration.
+     */
+    // public function rootView(Request $request): string
+    // {
+    //     $bundler = config('app.bundler', env('APP_BUNDLER'));
+        
+    //     return $bundler === 'vite' 
+    //         ? 'layouts.inertia_vite'
+    //         : 'layouts.inertia_alt';
+    // }
 
     /**
      * Determines the current asset version.
