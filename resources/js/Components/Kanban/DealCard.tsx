@@ -88,15 +88,18 @@ const DealCard: React.FC<DealCardProps> = ({
             )}
 
             {/* Deal Value */}
-            {deal.value && (
-                <div className="flex items-center mb-3">
-                    <DollarOutlined className="text-gray-500 text-xs mr-1" />
+
+            <div className="flex items-center mb-3">
+                <DollarOutlined className="text-gray-500 text-xs mr-1" />
+                {deal.value ? (
                     <span className="text-xs text-gray-600">
-                        {deal.currency?.currency_symbol || "$"}
-                        {deal.value.toLocaleString()}
+                        {deal?.currency?.currency_symbol || "€"}
+                        {deal?.value.toLocaleString()}
                     </span>
-                </div>
-            )}
+                ) : (
+                    0
+                )}
+            </div>
 
             <hr className="my-2 border-gray-100" />
 
