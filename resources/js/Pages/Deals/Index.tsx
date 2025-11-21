@@ -125,7 +125,7 @@ const Index = ({
             label: (
                 <span>
                     <UserOutlined className="mr-2" />
-                    Add Follow Up
+                    Schedule Meeting
                 </span>
             ),
             onClick: () => {
@@ -181,14 +181,6 @@ const Index = ({
                                 onClick={handleImportDeals}
                             >
                                 Import
-                            </Button>
-                            <Button
-                                icon={<DownloadOutlined />}
-                                onClick={() => {
-                                    handleAction("export");
-                                }}
-                            >
-                                Export
                             </Button>
                         </div>
 

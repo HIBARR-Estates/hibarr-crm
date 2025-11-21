@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
 use App\Http\Requests\Lead\StoreRequest;
 use App\Http\Requests\Lead\UpdateRequest;
+use App\Http\Requests\Lead\PatchRequest;
 use App\Imports\LeadImport;
 use App\Jobs\ImportLeadJob;
 use App\Models\Deal;
@@ -708,6 +709,201 @@ class LeadContactController extends AccountBaseController
         // return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
 
         return back()->with('success', __('messages.updateSuccess'));
+    }
+
+    /**
+     * Partially update the specified lead contact.
+     * Allows for quick updates with optional fields.
+     *
+     * @param PatchRequest $request
+     * @param int $id
+     * @return \Illuminate\Http\Response
+     */
+    public function patch(PatchRequest $request, $id)
+    {
+        $leadContact = Lead::findOrFail($id);
+        $this->editPermission = user()->permission('edit_lead');
+
+        // Check edit permissions
+        abort_403(
+            !($this->editPermission == 'all'
+                || ($this->editPermission == 'added' && $leadContact->added_by == user()->id)
+                || ($this->editPermission == 'owned' && $leadContact->lead_owner == user()->id)
+                || ($this->editPermission == 'both' && ($leadContact->added_by == user()->id || user()->id == $leadContact->lead_owner)))
+        );
+
+        try {
+            // Start database transaction
+            \DB::beginTransaction();
+
+            // Update only the fields that are present in the request
+            $fieldsToUpdate = $request->validated();
+            
+            // Handle basic contact information
+            if ($request->has('salutation')) {
+                $leadContact->salutation = $request->salutation;
+            }
+            if ($request->has('client_name')) {
+                $leadContact->client_name = $request->client_name;
+            }
+            if ($request->has('client_email')) {
+                $leadContact->client_email = $request->client_email;
+            }
+            if ($request->has('company_name')) {
+                $leadContact->company_name = $request->company_name;
+            }
+            if ($request->has('website')) {
+                $leadContact->website = $request->website;
+            }
+            
+            // Handle address information
+            if ($request->has('address')) {
+                $leadContact->address = $request->address;
+            }
+            if ($request->has('city')) {
+                $leadContact->city = $request->city;
+            }
+            if ($request->has('state')) {
+                $leadContact->state = $request->state;
+            }
+            if ($request->has('country')) {
+                $leadContact->country = $request->country;
+            }
+            if ($request->has('postal_code')) {
+                $leadContact->postal_code = $request->postal_code;
+            }
+            
+            // Handle phone numbers
+            if ($request->has('cell')) {
+                $leadContact->cell = $request->cell;
+            }
+            if ($request->has('office')) {
+                $leadContact->office = $request->office;
+            }
+            
+            // Handle mobile with special formatting if needed
+            if ($request->has('mobile')) {
+                if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+                    $countryIdentifier = $request->input('country_identifier_mobile');
+                    $phoneData = [
+                        'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                        'country_code' => $request->country_phonecode_mobile,
+                        'country_identifier' => $countryIdentifier
+                    ];
+                    $leadContact->mobile = json_encode($phoneData);
+                } else {
+                    $leadContact->mobile = $request->mobile;
+                }
+            }
+            
+            // Handle lead-specific information
+            if ($request->has('note')) {
+                $leadContact->note = trim_editor($request->note);
+            }
+            if ($request->has('value')) {
+                $leadContact->value = $request->value;
+            }
+            if ($request->has('currency_id')) {
+                $leadContact->currency_id = $request->currency_id;
+            }
+            if ($request->has('next_follow_up')) {
+                $leadContact->next_follow_up = $request->next_follow_up;
+            }
+            
+            // Handle assignment fields
+            if ($request->has('agent_id')) {
+                $leadContact->agent_id = $request->agent_id;
+            }
+            if ($request->has('lead_owner')) {
+                $leadContact->lead_owner = $request->lead_owner;
+            }
+            if ($request->has('added_by')) {
+                $leadContact->added_by = $request->added_by;
+            }
+            
+            // Handle categorization
+            if ($request->has('category_id')) {
+                $leadContact->category_id = $request->category_id;
+            }
+            if ($request->has('source_id')) {
+                $leadContact->source_id = $request->source_id;
+            }
+            if ($request->has('status_id')) {
+                $leadContact->status_id = $request->status_id;
+            }
+            
+            // Handle other fields
+            if ($request->has('column_priority')) {
+                $leadContact->column_priority = $request->column_priority;
+            }
+            if ($request->has('total_value')) {
+                $leadContact->total_value = $request->total_value;
+            }
+            if ($request->has('client_id')) {
+                $leadContact->client_id = $request->client_id;
+            }
+            if ($request->has('hash')) {
+                $leadContact->hash = $request->hash;
+            }
+
+            // Save the lead contact
+            $leadContact->save();
+
+            // Handle products relationship
+            if ($request->has('products')) {
+                // Remove existing products
+                LeadProduct::where('lead_id', $leadContact->id)->delete();
+                
+                // Add new products
+                foreach ($request->products as $productId) {
+                    LeadProduct::create([
+                        'lead_id' => $leadContact->id,
+                        'product_id' => $productId
+                    ]);
+                }
+            }
+
+            // Handle custom fields
+            if ($request->has('custom_fields')) {
+                $leadContact->updateCustomFieldData($request->custom_fields);
+            }
+
+            // Handle tags (if your system supports them)
+            if ($request->has('tags')) {
+                // Assuming you have a tags relationship
+                // $leadContact->syncTags($request->tags);
+            }
+
+            // Commit transaction
+            \DB::commit();
+
+            // Return success response for API calls or redirect for web
+            if ($request->expectsJson()) {
+                return Reply::successWithData(__('messages.updateSuccess'), [
+                    'lead' => $leadContact->fresh(),
+                    'redirectUrl' => route('lead-contact.show', $leadContact->id)
+                ]);
+            }
+
+            return back()->with('success', __('messages.updateSuccess'));
+
+        } catch (\Exception $e) {
+            // Rollback transaction on error
+            \DB::rollback();
+            
+            // Log the error
+            Log::error('Lead patch update failed: ' . $e->getMessage(), [
+                'lead_id' => $id,
+                'user_id' => user()->id,
+                'request_data' => $request->all()
+            ]);
+
+            if ($request->expectsJson()) {
+                return Reply::error('An error occurred while updating the lead contact: ' . $e->getMessage());
+            }
+
+            return back()->withErrors(['error' => 'An error occurred while updating the lead contact.']);
+        }
     }
 
     /**

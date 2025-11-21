@@ -218,15 +218,6 @@ export default function Index({
                                     clearSelected={clearSelected}
                                 />
                             )}
-
-                            <Button
-                                icon={<DownloadOutlined />}
-                                onClick={() => {
-                                    handleAction("export");
-                                }}
-                            >
-                                Export
-                            </Button>
                         </div>
                     </div>
 

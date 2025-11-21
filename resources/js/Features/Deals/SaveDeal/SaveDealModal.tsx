@@ -46,7 +46,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     // Initialize form data
     const getInitialData = (): CreateDealFormData => ({
         name: deal?.name || "",
-        lead_contact: deal?.contact.id || undefined,
+        lead_contact: deal?.contact?.id || undefined,
         pipeline: deal?.lead_pipeline_id || undefined,
         stage_id: deal?.pipeline_stage_id || undefined,
         value: deal?.value || 0,

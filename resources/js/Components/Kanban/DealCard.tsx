@@ -119,10 +119,9 @@ const DealCard: React.FC<DealCardProps> = ({
 
                 {/* Agent */}
                 {deal.lead_agent?.user ? (
-                    <Link
+                    <a
                         href={route("employees.show", deal.lead_agent.user_id)}
                         className="flex items-center gap-1 hover:text-blue-600"
-                        onClick={(e) => e.stopPropagation()}
                     >
                         <span className="text-gray-600">
                             {deal.lead_agent.user.name}
@@ -133,15 +132,14 @@ const DealCard: React.FC<DealCardProps> = ({
                             icon={<UserOutlined />}
                             className="w-6 h-6"
                         />
-                    </Link>
+                    </a>
                 ) : (
-                    <Link
-                        href={route("deals.edit", deal.id)}
-                        className="text-blue-600 hover:text-blue-800 text-xs"
-                        onClick={(e) => e.stopPropagation()}
+                    <span
+                        className="text-blue-600 hover:text-blue-800 text-xs cursor-pointer"
+                        onClick={() => onEdit?.(deal)}
                     >
                         Assign Agent
-                    </Link>
+                    </span>
                 )}
             </div>
         </div>

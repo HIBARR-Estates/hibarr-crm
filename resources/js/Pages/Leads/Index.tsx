@@ -191,14 +191,6 @@ const Index = ({
                             >
                                 Import
                             </Button>
-                            <Button
-                                icon={<DownloadOutlined />}
-                                onClick={() => {
-                                    handleAction("export");
-                                }}
-                            >
-                                Export
-                            </Button>
                         </div>
 
                         <div className="flex items-center gap-3">
