@@ -175,17 +175,17 @@ const OverviewMetricsBar: React.FC<OverviewMetricsBarProps> = ({
             trend: metrics.trends?.closedDeals,
             key: "closedDeals",
         },
-        {
-            title: "Quota Progress",
-            value: `${Math.round(
-                (metrics.quotaProgress.current / metrics.quotaProgress.target) *
-                    100
-            )}%`,
-            icon: TrophyOutlined,
-            gradient: "bg-gradient-to-br from-purple-400 to-purple-600", // Purple
-            progress: metrics.quotaProgress,
-            key: "quotaProgress",
-        },
+        // {
+        //     title: "Quota Progress",
+        //     value: `${Math.round(
+        //         (metrics.quotaProgress.current / metrics.quotaProgress.target) *
+        //             100
+        //     )}%`,
+        //     icon: TrophyOutlined,
+        //     gradient: "bg-gradient-to-br from-purple-400 to-purple-600", // Purple
+        //     progress: metrics.quotaProgress,
+        //     key: "quotaProgress",
+        // },
         {
             title: "Pending Tasks",
             value: metrics.pendingActivities,
@@ -193,14 +193,14 @@ const OverviewMetricsBar: React.FC<OverviewMetricsBarProps> = ({
             gradient: "bg-gradient-to-br from-red-400 to-red-600", // Red
             key: "pendingActivities",
         },
-        {
-            title: "Conversion Rate",
-            value: `${metrics.conversionRate}%`,
-            icon: PercentageOutlined,
-            gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600", // Cyan
-            trend: metrics.trends?.conversionRate,
-            key: "conversionRate",
-        },
+        // {
+        //     title: "Conversion Rate",
+        //     value: `${metrics.conversionRate}%`,
+        //     icon: PercentageOutlined,
+        //     gradient: "bg-gradient-to-br from-cyan-400 to-cyan-600", // Cyan
+        //     trend: metrics.trends?.conversionRate,
+        //     key: "conversionRate",
+        // },
     ];
 
     return (

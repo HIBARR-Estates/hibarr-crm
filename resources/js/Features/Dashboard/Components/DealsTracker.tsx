@@ -26,43 +26,17 @@ import {
     PlusOutlined,
 } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import {
+    DragDropContext,
+    Droppable,
+    Draggable,
+    DropResult,
+} from "@hello-pangea/dnd";
 import dayjs from "dayjs";
 import { router } from "@inertiajs/react";
-
-interface Deal {
-    id: number;
-    name: string;
-    value: number;
-    close_date?: string;
-    pipeline_stage_id: number;
-    contact?: {
-        id: number;
-        client_name: string;
-        client_email: string;
-        mobile?: string;
-    };
-    lead_stage?: {
-        id: number;
-        name: string;
-        label_color: string;
-        priority: number;
-    };
-    category?: {
-        id: number;
-        category_name: string;
-    };
-    agent?: {
-        id: number;
-        name: string;
-        image?: string;
-    };
-    currency?: {
-        currency_symbol: string;
-    };
-    next_follow_up?: string;
-    probability?: number;
-}
+import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
+import { Deal } from "@/Types";
 
 interface PipelineStage {
     id: number;
@@ -99,90 +73,109 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
 }) => {
     const [quickEditDeal, setQuickEditDeal] = useState<Deal | null>(null);
     const [form] = Form.useForm<QuickEditFormData>();
-    const [processingDeals, setProcessingDeals] = useState<Set<number>>(new Set());
+    const [processingDeals, setProcessingDeals] = useState<Set<number>>(
+        new Set()
+    );
 
     // Organize deals by stage
     const dealsByStage = stages.reduce((acc, stage) => {
-        acc[stage.id] = deals.filter(deal => deal.pipeline_stage_id === stage.id);
+        acc[stage.id] = deals.filter(
+            (deal) => deal.pipeline_stage_id === stage.id
+        );
         return acc;
     }, {} as Record<number, Deal[]>);
 
-    const handleDragEnd = useCallback(async (result: DropResult) => {
-        if (!result.destination || !onStageChange || !canEdit) return;
+    const handleDragEnd = useCallback(
+        async (result: DropResult) => {
+            if (!result.destination || !onStageChange || !canEdit) return;
 
-        const { source, destination, draggableId } = result;
-        
-        // If dropped in the same position, do nothing
-        if (source.droppableId === destination.droppableId && source.index === destination.index) {
-            return;
-        }
+            const { source, destination, draggableId } = result;
 
-        const dealId = parseInt(draggableId);
-        const newStageId = parseInt(destination.droppableId);
+            // If dropped in the same position, do nothing
+            if (
+                source.droppableId === destination.droppableId &&
+                source.index === destination.index
+            ) {
+                return;
+            }
 
-        setProcessingDeals(prev => new Set(prev).add(dealId));
+            const dealId = parseInt(draggableId);
+            const newStageId = parseInt(destination.droppableId);
 
-        try {
-            await onStageChange(dealId, newStageId);
-            const deal = deals.find(d => d.id === dealId);
-            const newStage = stages.find(s => s.id === newStageId);
-            message.success(`${deal?.name} moved to ${newStage?.name}`);
-        } catch (error) {
-            message.error("Failed to update deal stage");
-        } finally {
-            setProcessingDeals(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(dealId);
-                return newSet;
-            });
-        }
-    }, [deals, stages, onStageChange, canEdit]);
+            setProcessingDeals((prev) => new Set(prev).add(dealId));
 
-    const handleQuickEdit = useCallback(async (values: QuickEditFormData) => {
-        if (!quickEditDeal || !onDealUpdate) return;
+            try {
+                await onStageChange(dealId, newStageId);
+                const deal = deals.find((d) => d.id === dealId);
+                const newStage = stages.find((s) => s.id === newStageId);
+                message.success(`${deal?.name} moved to ${newStage?.name}`);
+            } catch (error) {
+                message.error("Failed to update deal stage");
+            } finally {
+                setProcessingDeals((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.delete(dealId);
+                    return newSet;
+                });
+            }
+        },
+        [deals, stages, onStageChange, canEdit]
+    );
 
-        setProcessingDeals(prev => new Set(prev).add(quickEditDeal.id));
+    const handleQuickEdit = useCallback(
+        async (values: QuickEditFormData) => {
+            if (!quickEditDeal || !onDealUpdate) return;
 
-        try {
-            await onDealUpdate(quickEditDeal.id, {
-                value: values.value,
-                probability: values.probability,
-                close_date: values.close_date,
-                // Note: next_action might need to be handled differently based on your API
-            });
-            message.success("Deal updated successfully");
-            setQuickEditDeal(null);
-            form.resetFields();
-        } catch (error) {
-            message.error("Failed to update deal");
-        } finally {
-            setProcessingDeals(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(quickEditDeal.id);
-                return newSet;
-            });
-        }
-    }, [quickEditDeal, onDealUpdate, form]);
+            setProcessingDeals((prev) => new Set(prev).add(quickEditDeal.id));
+
+            try {
+                await onDealUpdate(quickEditDeal.id, {
+                    value: values.value,
+                    probability: values.probability,
+                    close_date: values.close_date,
+                    // Note: next_action might need to be handled differently based on your API
+                });
+                message.success("Deal updated successfully");
+                setQuickEditDeal(null);
+                form.resetFields();
+            } catch (error) {
+                message.error("Failed to update deal");
+            } finally {
+                setProcessingDeals((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.delete(quickEditDeal.id);
+                    return newSet;
+                });
+            }
+        },
+        [quickEditDeal, onDealUpdate, form]
+    );
 
     const openQuickEdit = (deal: Deal) => {
         setQuickEditDeal(deal);
         form.setFieldsValue({
             value: deal.value,
             probability: deal.probability || 50,
-            close_date: deal.close_date,
+            close_date: deal.close_date || undefined,
             next_action: "", // This would need to be fetched from deal data
         });
     };
 
-    const formatCurrency = (value: number, currency?: { currency_symbol: string }) => {
+    const formatCurrency = (
+        value: number,
+        currency?: { currency_symbol: string }
+    ) => {
         const symbol = currency?.currency_symbol || "$";
         return `${symbol}${value.toLocaleString()}`;
     };
 
     const renderDeal = (deal: Deal, index: number) => {
         const isProcessing = processingDeals.has(deal.id);
-        const isOverdue = deal.close_date && dayjs(deal.close_date).isBefore(dayjs(), 'day');
-        const isDueSoon = deal.close_date && dayjs(deal.close_date).diff(dayjs(), 'days') <= 7;
+        const isOverdue =
+            deal.close_date && dayjs(deal.close_date).isBefore(dayjs(), "day");
+        const isDueSoon =
+            deal.close_date &&
+            dayjs(deal.close_date).diff(dayjs(), "days") <= 7;
 
         return (
             <Draggable
@@ -239,7 +232,10 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                             </div>
                                         </Tooltip>
                                         <div className="text-lg font-bold text-green-600 shrink-0">
-                                            {formatCurrency(deal.value, deal.currency)}
+                                            {formatCurrency(
+                                                deal.value,
+                                                deal.currency
+                                            )}
                                         </div>
                                     </div>
 
@@ -247,23 +243,43 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                     {deal.contact && (
                                         <div className="flex items-center space-x-2 text-xs text-gray-600">
                                             <UserOutlined />
-                                            <span className="truncate">{deal.contact.client_name}</span>
+                                            <span className="truncate">
+                                                {deal.contact.client_name}
+                                            </span>
                                         </div>
                                     )}
 
                                     {/* Close Date and Probability */}
                                     <div className="flex items-center justify-between text-xs">
                                         {deal.close_date && (
-                                            <div className={`flex items-center space-x-1 ${
-                                                isOverdue ? "text-red-600" : isDueSoon ? "text-amber-600" : "text-gray-600"
-                                            }`}>
+                                            <div
+                                                className={`flex items-center space-x-1 ${
+                                                    isOverdue
+                                                        ? "text-red-600"
+                                                        : isDueSoon
+                                                        ? "text-amber-600"
+                                                        : "text-gray-600"
+                                                }`}
+                                            >
                                                 <CalendarOutlined />
-                                                <span>{dayjs(deal.close_date).format("MMM DD")}</span>
-                                                {isOverdue && <Tag color="error" >Overdue</Tag>}
-                                                {isDueSoon && !isOverdue && <Tag color="warning" >Due Soon</Tag>}
+                                                <span>
+                                                    {dayjs(
+                                                        deal.close_date
+                                                    ).format("MMM DD")}
+                                                </span>
+                                                {isOverdue && (
+                                                    <Tag color="error">
+                                                        Overdue
+                                                    </Tag>
+                                                )}
+                                                {isDueSoon && !isOverdue && (
+                                                    <Tag color="warning">
+                                                        Due Soon
+                                                    </Tag>
+                                                )}
                                             </div>
                                         )}
-                                        
+
                                         {deal.probability && (
                                             <div className="flex items-center space-x-1 text-gray-600">
                                                 <TrophyOutlined />
@@ -280,7 +296,8 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                                 src={deal.agent.image}
                                                 icon={<UserOutlined />}
                                             >
-                                                {!deal.agent.image && deal.agent.name?.charAt(0)}
+                                                {!deal.agent.image &&
+                                                    deal.agent.name?.charAt(0)}
                                             </Avatar>
                                             <span className="text-xs text-gray-600 truncate">
                                                 {deal.agent.name}
@@ -293,7 +310,13 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                         <Progress
                                             percent={deal.probability}
                                             size="small"
-                                            strokeColor={deal.probability > 70 ? "#10b981" : deal.probability > 40 ? "#f59e0b" : "#ef4444"}
+                                            strokeColor={
+                                                deal.probability > 70
+                                                    ? "#10b981"
+                                                    : deal.probability > 40
+                                                    ? "#f59e0b"
+                                                    : "#ef4444"
+                                            }
                                             trailColor="#e5e7eb"
                                             showInfo={false}
                                         />
@@ -307,9 +330,11 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                                     size="small"
                                                     type="text"
                                                     icon={<EditOutlined />}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        openQuickEdit(deal);
+                                                    onClick={() => {
+                                                        handleAction(
+                                                            "edit",
+                                                            deal
+                                                        );
                                                     }}
                                                     className="text-xs"
                                                 >
@@ -322,7 +347,12 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                                 icon={<EyeOutlined />}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    router.visit(route("deals.show", deal.id));
+                                                    router.visit(
+                                                        route(
+                                                            "deals.show",
+                                                            deal.id
+                                                        )
+                                                    );
                                                 }}
                                                 className="text-xs"
                                             >
@@ -341,7 +371,10 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
 
     const renderStage = (stage: PipelineStage) => {
         const stageDeals = dealsByStage[stage.id] || [];
-        const stageTotalValue = stageDeals.reduce((sum, deal) => sum + deal.value, 0);
+        const stageTotalValue = stageDeals.reduce(
+            (sum, deal) => sum + deal.value,
+            0
+        );
 
         return (
             <div key={stage.id} className="flex-1 min-w-80">
@@ -351,9 +384,13 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                             <div className="flex items-center space-x-2">
                                 <div
                                     className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: stage.label_color }}
+                                    style={{
+                                        backgroundColor: stage.label_color,
+                                    }}
                                 />
-                                <span className="font-medium">{stage.name}</span>
+                                <span className="font-medium">
+                                    {stage.name}
+                                </span>
                             </div>
                             <div className="flex items-center space-x-2 text-sm font-normal">
                                 <Tag color="blue">{stageDeals.length}</Tag>
@@ -372,7 +409,13 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                 size="small"
                                 type="text"
                                 icon={<PlusOutlined />}
-                                onClick={() => router.visit(route("deals.create", { stage: stage.id }))}
+                                onClick={() =>
+                                    router.visit(
+                                        route("deals.create", {
+                                            stage: stage.id,
+                                        })
+                                    )
+                                }
                             >
                                 Add
                             </Button>
@@ -392,9 +435,11 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                 style={{ padding: "4px" }}
                             >
                                 <AnimatePresence>
-                                    {stageDeals.map((deal, index) => renderDeal(deal, index))}
+                                    {stageDeals.map((deal, index) =>
+                                        renderDeal(deal, index)
+                                    )}
                                 </AnimatePresence>
-                                
+
                                 {stageDeals.length === 0 && (
                                     <div className="flex items-center justify-center h-48 text-gray-400">
                                         <Empty
@@ -403,7 +448,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                         />
                                     </div>
                                 )}
-                                
+
                                 {provided.placeholder}
                             </div>
                         )}
@@ -414,25 +459,45 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
     };
 
     const totalDealsValue = deals.reduce((sum, deal) => sum + deal.value, 0);
-    const averageDealValue = deals.length > 0 ? totalDealsValue / deals.length : 0;
+    const averageDealValue =
+        deals.length > 0 ? totalDealsValue / deals.length : 0;
+
+    const {
+        action,
+        handleAction,
+        handleClose,
+        selected: deal,
+    } = useGenericEntityAction<Deal>();
 
     return (
         <>
+            <SaveDealModal
+                onClose={() => handleClose()}
+                open={["add", "edit"].includes(action || "")}
+                deal={deal}
+            />
             <Card
                 title={
                     <div className="flex items-center justify-between">
                         <span>Deals Pipeline</span>
                         <Space>
                             <div className="text-sm font-normal">
-                                <span className="text-gray-600">Total Pipeline: </span>
+                                <span className="text-gray-600">
+                                    Total Pipeline:{" "}
+                                </span>
                                 <span className="font-bold text-green-600">
                                     ${totalDealsValue.toLocaleString()}
                                 </span>
                             </div>
                             <div className="text-sm font-normal">
-                                <span className="text-gray-600">Avg Deal: </span>
+                                <span className="text-gray-600">
+                                    Avg Deal:{" "}
+                                </span>
                                 <span className="font-medium">
-                                    ${Math.round(averageDealValue).toLocaleString()}
+                                    $
+                                    {Math.round(
+                                        averageDealValue
+                                    ).toLocaleString()}
                                 </span>
                             </div>
                         </Space>
@@ -448,84 +513,6 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                     </div>
                 </DragDropContext>
             </Card>
-
-            {/* Quick Edit Modal */}
-            <Modal
-                title={`Quick Edit: ${quickEditDeal?.name}`}
-                open={!!quickEditDeal}
-                onCancel={() => {
-                    setQuickEditDeal(null);
-                    form.resetFields();
-                }}
-                footer={null}
-                width={500}
-            >
-                {quickEditDeal && (
-                    <Form
-                        form={form}
-                        layout="vertical"
-                        onFinish={handleQuickEdit}
-                        className="pt-4"
-                    >
-                        <Form.Item
-                            name="value"
-                            label="Deal Value"
-                            rules={[{ required: true, message: "Please enter deal value" }]}
-                        >
-                            <InputNumber
-                                style={{ width: "100%" }}
-                                formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-                                placeholder="Enter deal value"
-                            />
-                        </Form.Item>
-
-                        <Form.Item
-                            name="probability"
-                            label="Probability (%)"
-                            rules={[{ required: true, message: "Please enter probability" }]}
-                        >
-                            <InputNumber
-                                style={{ width: "100%" }}
-                                min={0}
-                                max={100}
-                                formatter={(value) => `${value}%`}
-                                // parser={(value) => value!.replace('%', '')}
-                                placeholder="Enter probability"
-                            />
-                        </Form.Item>
-
-                        <Form.Item name="close_date" label="Expected Close Date">
-                            <Input type="date" />
-                        </Form.Item>
-
-                        <Form.Item name="next_action" label="Next Action">
-                            <Input.TextArea
-                                rows={3}
-                                placeholder="Describe the next action to be taken..."
-                            />
-                        </Form.Item>
-
-                        <div className="flex justify-end space-x-2 pt-4">
-                            <Button
-                                onClick={() => {
-                                    setQuickEditDeal(null);
-                                    form.resetFields();
-                                }}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="primary"
-                                htmlType="submit"
-                                loading={quickEditDeal ? processingDeals.has(quickEditDeal.id) : false}
-                            >
-                                Update Deal
-                            </Button>
-                        </div>
-                    </Form>
-                )}
-            </Modal>
         </>
     );
 };

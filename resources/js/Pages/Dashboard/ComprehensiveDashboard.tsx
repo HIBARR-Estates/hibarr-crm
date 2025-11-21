@@ -13,6 +13,7 @@ import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Activity, CheckCircle, Trophy } from "lucide-react";
+import { Deal } from "@/Types";
 
 dayjs.extend(relativeTime);
 
@@ -49,40 +50,6 @@ interface Task {
     is_private?: boolean;
     billable?: boolean;
     without_duedate?: boolean;
-}
-
-interface Deal {
-    id: number;
-    name: string;
-    value: number;
-    close_date?: string;
-    pipeline_stage_id: number;
-    probability?: number;
-    contact?: {
-        id: number;
-        client_name: string;
-        client_email: string;
-        mobile?: string;
-    };
-    lead_stage?: {
-        id: number;
-        name: string;
-        label_color: string;
-        priority: number;
-    };
-    category?: {
-        id: number;
-        category_name: string;
-    };
-    agent?: {
-        id: number;
-        name: string;
-        image?: string;
-    };
-    currency?: {
-        currency_symbol: string;
-    };
-    updated_at: string;
 }
 
 interface PipelineStage {
@@ -280,7 +247,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     );
 
     const handleDealUpdate = useCallback(
-        async (dealId: number, updates: Partial<Deal>) => {
+        async (dealId: number, updates: any) => {
             try {
                 await router.put(route("deals.update", dealId), updates, {
                     preserveState: true,
