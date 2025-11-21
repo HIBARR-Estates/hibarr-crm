@@ -13,6 +13,7 @@ import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Activity, CheckCircle, Trophy } from "lucide-react";
+import { Deal } from "@/Types";
 
 dayjs.extend(relativeTime);
 
@@ -49,40 +50,6 @@ interface Task {
     is_private?: boolean;
     billable?: boolean;
     without_duedate?: boolean;
-}
-
-interface Deal {
-    id: number;
-    name: string;
-    value: number;
-    close_date?: string;
-    pipeline_stage_id: number;
-    probability?: number;
-    contact?: {
-        id: number;
-        client_name: string;
-        client_email: string;
-        mobile?: string;
-    };
-    lead_stage?: {
-        id: number;
-        name: string;
-        label_color: string;
-        priority: number;
-    };
-    category?: {
-        id: number;
-        category_name: string;
-    };
-    agent?: {
-        id: number;
-        name: string;
-        image?: string;
-    };
-    currency?: {
-        currency_symbol: string;
-    };
-    updated_at: string;
 }
 
 interface PipelineStage {
@@ -196,7 +163,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
             // Navigate to appropriate page with filters
             switch (metricType) {
                 case "activeLeads":
-                    router.visit(route("leads.index"));
+                    router.visit(route("lead-contact.index"));
                     break;
                 case "openDeals":
                     router.visit(route("deals.index", { status: "open" }));
@@ -212,48 +179,6 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
             }
         },
         [activeMetric]
-    );
-
-    // Handle task operations
-    const handleTaskComplete = useCallback(async (taskId: number) => {
-        try {
-            await router.put(
-                route("tasks.update", taskId),
-                {
-                    board_column_id: "completed", // You may need to get the completed column ID
-                },
-                {
-                    preserveState: true,
-                    onSuccess: () => {
-                        message.success("Task completed successfully!");
-                    },
-                }
-            );
-        } catch (error) {
-            throw new Error("Failed to complete task");
-        }
-    }, []);
-
-    const handleTaskReschedule = useCallback(
-        async (taskId: number, newDueDate: string) => {
-            try {
-                await router.put(
-                    route("tasks.update", taskId),
-                    {
-                        due_date: newDueDate,
-                    },
-                    {
-                        preserveState: true,
-                        onSuccess: () => {
-                            message.success("Task rescheduled successfully!");
-                        },
-                    }
-                );
-            } catch (error) {
-                throw new Error("Failed to reschedule task");
-            }
-        },
-        []
     );
 
     // Handle deal operations
@@ -274,76 +199,6 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                 );
             } catch (error) {
                 throw new Error("Failed to update deal stage");
-            }
-        },
-        []
-    );
-
-    const handleDealUpdate = useCallback(
-        async (dealId: number, updates: Partial<Deal>) => {
-            try {
-                await router.put(route("deals.update", dealId), updates, {
-                    preserveState: true,
-                    onSuccess: () => {
-                        message.success("Deal updated successfully!");
-                    },
-                });
-            } catch (error) {
-                throw new Error("Failed to update deal");
-            }
-        },
-        []
-    );
-
-    // Handle data quality operations
-    const handleRecordUpdate = useCallback(
-        async (recordId: number, recordType: "deal" | "lead", updates: any) => {
-            try {
-                const routeName =
-                    recordType === "deal" ? "deals.update" : "leads.update";
-                await router.put(route(routeName, recordId), updates, {
-                    preserveState: true,
-                    onSuccess: () => {
-                        message.success(
-                            `${
-                                recordType === "deal" ? "Deal" : "Lead"
-                            } updated successfully!`
-                        );
-                    },
-                });
-            } catch (error) {
-                throw new Error(`Failed to update ${recordType}`);
-            }
-        },
-        []
-    );
-
-    const handleBulkFix = useCallback(
-        async (recordIds: number[], recordType: "deal" | "lead") => {
-            try {
-                // For now, we'll update records individually since bulk routes may not exist
-                const promises = recordIds.map(async (id) => {
-                    const routeName =
-                        recordType === "deal" ? "deals.update" : "leads.update";
-                    return router.put(
-                        route(routeName, id),
-                        {
-                            // Basic data quality fixes - you might want to customize this
-                            updated_at: new Date().toISOString(),
-                        },
-                        {
-                            preserveState: true,
-                            preserveScroll: true,
-                        }
-                    );
-                });
-
-                await Promise.all(promises);
-                message.success(
-                    `${recordIds.length} ${recordType}s updated successfully!`
-                );
-            } catch (error) {
-                throw new Error(`Failed to bulk update ${recordType}s`);
             }
         },
         []
@@ -493,7 +348,6 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                             onStageChange={
                                                 handleDealStageChange
                                             }
-                                            onDealUpdate={handleDealUpdate}
                                             canEdit={true}
                                         />
                                     </motion.div>

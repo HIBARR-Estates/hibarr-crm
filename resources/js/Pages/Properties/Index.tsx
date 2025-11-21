@@ -158,7 +158,7 @@ export default function Index({
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Properties" }]}
-                filterSection={
+                searchComp={
                     <BasicPropertyFilterBox
                         filters={filters}
                         handleResetFilters={handleResetFilters}
@@ -167,15 +167,18 @@ export default function Index({
                         handleSubmit={handleFilterSubmit}
                     />
                 }
+                filterSection={
+                    <>
+                        {/* Active Filters */}
+                        <ActiveFilters
+                            filters={filters}
+                            onRemoveFilter={removeFilter}
+                            onClearAll={clearAllFilters}
+                        />
+                    </>
+                }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Active Filters */}
-                    <ActiveFilters
-                        filters={filters}
-                        onRemoveFilter={removeFilter}
-                        onClearAll={clearAllFilters}
-                    />
-
                     {/* Header with Actions */}
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
@@ -215,20 +218,11 @@ export default function Index({
                                     clearSelected={clearSelected}
                                 />
                             )}
-
-                            <Button
-                                icon={<DownloadOutlined />}
-                                onClick={() => {
-                                    handleAction("export");
-                                }}
-                            >
-                                Export
-                            </Button>
                         </div>
                     </div>
 
                     {/* Properties Table */}
-                    <div className="bg-white rounded-lg shadow">
+                    <div className="bg-white rounded-lg border border-gray-200 px-3">
                         <Table
                             columns={columns}
                             dataSource={filterProperties(

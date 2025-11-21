@@ -1,3 +1,4 @@
+import React from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
@@ -30,6 +31,12 @@ import { Button, MenuProps, Table } from "antd";
 import { useState } from "react";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import { User, Country, ClientCategory, Language } from "@/Types";
+import UniversalSearchBox from "@/Components/UniversalSearchBox";
+import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
+import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
+import { createLeadSearchConfig } from "@/configs/searchConfigs";
+import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
+import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 
 export interface IndexProps extends PageProps {
     pageTitle: string;
@@ -46,10 +53,14 @@ export interface IndexProps extends PageProps {
 const Index = ({
     pageTitle,
     leads,
+    categories,
+    sources,
+    employees,
     countries,
     salutations,
     clientCategories = [],
     languages = [],
+    ...props
 }: IndexProps) => {
     const [importModalOpen, setImportModalOpen] = useState(false);
 
@@ -60,19 +71,21 @@ const Index = ({
         selected: lead,
     } = useGenericEntityAction<Lead>();
 
-    // filters and filter handlers
-    const {
-        filters,
-        drawerOpen,
-        openFilterDrawer,
-        closeFilterDrawer,
-        handleQuickFilter,
-        removeFilter,
-        handleResetQuickFilters,
-        handleResetFilters,
-        handleFilterSubmit,
-        clearAllFilters,
-    } = usePageFilter({ handleClose, routeName: "lead-contact.index" });
+    // Setup search and filter contexts
+    const { filter, search } = usePageSearchAndFilter({
+        filterConfig: createLeadFilterConfig({
+            sources,
+            categories,
+            employees,
+            countries,
+            clientCategories,
+            languages,
+        }),
+        searchConfig: createLeadSearchConfig(),
+    });
+
+    // Extract commonly used values
+    const { openDrawer, filters } = filter;
 
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "lead-contact.index" });
@@ -153,24 +166,15 @@ const Index = ({
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Leads" }]}
-                filterSection={
-                    <BasicLeadFilterBox
-                        filters={filters}
-                        handleResetFilters={handleResetFilters}
-                        handleQuickFilter={handleQuickFilter}
-                        handleResetQuickFilters={handleResetQuickFilters}
-                        handleSubmit={handleFilterSubmit}
+                searchComp={
+                    <UniversalSearchBox
+                        placeholder="Search leads by contact name, email, company..."
+                        className="w-full"
                     />
                 }
+                filterSection={<ContextualActiveFilters />}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Active Filters */}
-                    <ActiveFilters
-                        filters={filters}
-                        onRemoveFilter={removeFilter}
-                        onClearAll={clearAllFilters}
-                    />
-
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <Button
@@ -187,21 +191,13 @@ const Index = ({
                             >
                                 Import
                             </Button>
-                            <Button
-                                icon={<DownloadOutlined />}
-                                onClick={() => {
-                                    handleAction("export");
-                                }}
-                            >
-                                Export
-                            </Button>
                         </div>
 
                         <div className="flex items-center gap-3">
                             {/* Advanced Filters Button */}
                             <Button
                                 icon={<FilterOutlined />}
-                                onClick={openFilterDrawer}
+                                onClick={openDrawer}
                             >
                                 Filters
                             </Button>
@@ -218,7 +214,7 @@ const Index = ({
                         </div>
                     </div>
                     {/* Properties Table */}
-                    <div className="bg-white rounded-lg shadow">
+                    <div className="bg-white rounded-lg border border-gray-200 px-3">
                         <Table
                             columns={columns}
                             dataSource={leads.data}
@@ -237,6 +233,7 @@ const Index = ({
                                         route("lead-contact.index"),
                                         {
                                             ...filters,
+                                            search: search.query,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
@@ -280,23 +277,20 @@ const Index = ({
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={lead}
-               
             />
 
-            {/* Filter Drawer */}
-            <FilterDrawer
-                open={drawerOpen}
-                onClose={closeFilterDrawer}
-                title="Advanced Lead Filters"
-                filters={filters}
-                onApplyFilters={handleFilterSubmit}
-                onResetFilters={handleResetFilters}
-            >
-                <AdvancedLeadFilterForm
-                    filters={filters}
-                    onFilterChange={handleQuickFilter}
-                />
-            </FilterDrawer>
+            {/* Universal Filter Drawer */}
+            <UniversalFilterDrawer
+                config={createLeadFilterConfig({
+                    sources,
+                    categories,
+                    employees,
+                    countries,
+                    clientCategories,
+                    languages,
+                    ...props,
+                })}
+            />
         </DashboardLayout>
     );
 };

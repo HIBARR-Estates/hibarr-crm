@@ -14,7 +14,7 @@ interface Props extends IModalProps {
 
 const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
     const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
-        deal ? `/deals/${deal.id}` : "",
+        deal ? route("deals.destroy", deal.id) : "",
         "DELETE",
         () => {
             onClose();

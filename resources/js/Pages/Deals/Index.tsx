@@ -4,12 +4,15 @@ import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionS
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
-import usePageFilter from "@/Hooks/usePageFilter";
 import usePageSort from "@/Hooks/usePageSort";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PipelineStage } from "@/Types/api/deals";
-import FilterDrawer from "@/Components/FilterDrawer";
-import ActiveFilters from "@/Components/ActiveFilters";
+import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
+import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import UniversalSearchBox from "@/Components/UniversalSearchBox";
+import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
+import createDealFilterConfig from "@/configs/dealFilterConfig";
+import { createDealSearchConfig } from "@/configs/searchConfigs";
 import {
     UserOutlined,
     PlusOutlined,
@@ -26,8 +29,6 @@ import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import ImportDeals from "@/Features/Deals/ImportDeals";
-import BasicDealFilterBox from "@/Features/Deals/Filter/BasicDealFilterBox";
-import AdvancedDealFilterForm from "@/Features/Deals/Filter/AdvancedDealFilterForm";
 import { User } from "@/Types";
 import AddFollowup from "./Components/Tabs/followups/AddFollowup";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
@@ -52,7 +53,13 @@ export interface IndexProps extends PageProps {
     salutations: Array<{ value: string; label: string }>;
 }
 
-const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
+const Index = ({
+    pageTitle,
+    deals,
+    stages,
+    leadAgents,
+    ...props
+}: IndexProps) => {
     const {
         handleAction,
         handleClose,
@@ -60,19 +67,14 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
         selected: deal,
     } = useGenericEntityAction<Deal>();
 
-    // filters and filter handlers
-    const {
-        filters = {},
-        drawerOpen,
-        openFilterDrawer,
-        closeFilterDrawer,
-        handleQuickFilter,
-        removeFilter,
-        handleResetQuickFilters,
-        handleResetFilters,
-        handleFilterSubmit,
-        clearAllFilters,
-    } = usePageFilter({ handleClose, routeName: "deals.index" });
+    // Setup search and filter contexts
+    const { filter, search } = usePageSearchAndFilter({
+        filterConfig: createDealFilterConfig(props),
+        searchConfig: createDealSearchConfig(),
+    });
+
+    // Extract commonly used values
+    const { openDrawer, filters } = filter;
 
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "deals.index" });
@@ -123,7 +125,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
             label: (
                 <span>
                     <UserOutlined className="mr-2" />
-                    Add Follow Up
+                    Schedule Meeting
                 </span>
             ),
             onClick: () => {
@@ -155,23 +157,13 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Deals" }]}
-                filterSection={
-                    <>
-                        <BasicDealFilterBox
-                            filters={filters}
-                            handleResetFilters={handleResetFilters}
-                            handleQuickFilter={handleQuickFilter}
-                            handleResetQuickFilters={handleResetQuickFilters}
-                            handleSubmit={handleFilterSubmit}
-                        />
-                        {/* Active Filters */}
-                        <ActiveFilters
-                            filters={filters}
-                            onRemoveFilter={removeFilter}
-                            onClearAll={clearAllFilters}
-                        />
-                    </>
+                searchComp={
+                    <UniversalSearchBox
+                        placeholder="Search deals by title, contact name, email..."
+                        className="w-full"
+                    />
                 }
+                filterSection={<ContextualActiveFilters />}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -190,14 +182,6 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
                             >
                                 Import
                             </Button>
-                            <Button
-                                icon={<DownloadOutlined />}
-                                onClick={() => {
-                                    handleAction("export");
-                                }}
-                            >
-                                Export
-                            </Button>
                         </div>
 
                         <div className="flex items-center gap-3">
@@ -205,7 +189,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
                             <div className="flex items-center gap-x-2">
                                 <Button
                                     icon={<FilterOutlined />}
-                                    onClick={openFilterDrawer}
+                                    onClick={openDrawer}
                                 >
                                     Filters
                                 </Button>
@@ -226,7 +210,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
                         </div>
                     </div>
                     {/* Properties Table */}
-                    <div className="bg-white rounded-lg shadow">
+                    <div className="bg-white rounded-lg border border-gray-200 px-3">
                         <Table
                             columns={columns}
                             dataSource={deals.data}
@@ -245,6 +229,7 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
                                         route("deals.index"),
                                         {
                                             ...filters,
+                                            search: search.query,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
@@ -294,20 +279,8 @@ const Index = ({ pageTitle, deals, stages, leadAgents }: IndexProps) => {
                 onClose={() => handleClose()}
             />
 
-            {/* Filter Drawer */}
-            <FilterDrawer
-                open={drawerOpen}
-                onClose={closeFilterDrawer}
-                title="Deal Filters"
-                filters={filters}
-                onApplyFilters={handleFilterSubmit}
-                onResetFilters={handleResetFilters}
-            >
-                <AdvancedDealFilterForm
-                    filters={filters}
-                    onFilterChange={handleQuickFilter}
-                />
-            </FilterDrawer>
+            {/* Universal Filter Drawer */}
+            <UniversalFilterDrawer config={createDealFilterConfig(props)} />
         </DashboardLayout>
     );
 };

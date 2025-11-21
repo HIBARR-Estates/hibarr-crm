@@ -25,6 +25,7 @@ interface Link {
 
 export interface Deal {
     id: number;
+    probability?: number;
     company_id?: number;
     name: string;
     column_priority?: number;
@@ -53,9 +54,10 @@ export interface Deal {
     contact: Contact;
     lead_stage: LeadStage;
     lead_agent: LeadAgent | null;
+    agent: LeadAgent | null;
     category?: LeadCategory | null;
     pipeline?: Pipeline | null;
-    currency?: Currency | null;
+    currency?: Currency;
     deal_watchers: DealWatcher[];
     products?: Product[];
     lead_status?: LeadStatus | null;
