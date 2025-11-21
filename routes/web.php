@@ -557,12 +557,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     // deals route
 
+    Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
     Route::resource('lead-contact', LeadContactController::class);
     Route::post('lead-contact/apply-quick-action', [LeadContactController::class, 'applyQuickAction'])->name('lead-contact.apply_quick_action');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
+    Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
     Route::resource('deals', DealController::class);
     
 // Meeting Summary Routes

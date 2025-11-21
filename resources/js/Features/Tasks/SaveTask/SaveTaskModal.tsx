@@ -230,14 +230,16 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         // Clear previous errors
         setErrors({});
 
+        // dates should be d-m-Y
+
         // Transform the values to match the API expectations
         const submitData = {
             ...formData,
             start_date: formData.start_date?.format
-                ? formData.start_date.format("YYYY-MM-DD")
+                ? formData.start_date.format("DD-MM-YYYY")
                 : formData.start_date,
             due_date: formData.due_date?.format
-                ? formData.due_date.format("YYYY-MM-DD")
+                ? formData.due_date.format("DD-MM-YYYY")
                 : formData.due_date,
         };
 
@@ -271,6 +273,16 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
             onClose={handleCancel}
             destroyOnHidden
         >
+            {/* show errors */}
+            {allErrors.length > 0 && (
+                <div className="mb-4">
+                    {allErrors.map((error, index) => (
+                        <div key={index} className="text-red-600">
+                            {error}
+                        </div>
+                    ))}
+                </div>
+            )}
             <TaskForm
                 data={data}
                 visible={open}

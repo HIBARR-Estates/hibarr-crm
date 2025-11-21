@@ -12,12 +12,14 @@ import {
     Space,
     Card,
     Divider,
+    Tag,
 } from "antd";
 import { Deal } from "@/Types/api/deals";
 import { usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { SaveOutlined } from "@ant-design/icons";
 import { DealFormProps } from "./DealForm";
+import { formatCurrency } from "@/lib/utils";
 
 interface DealDetailsTabProps
     extends Pick<
@@ -359,9 +361,18 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 optionFilterProp="children"
                             >
                                 {packages.map(
-                                    (p: { id: number; name: string }) => (
+                                    (p: {
+                                        id: number;
+                                        name: string;
+                                        value: number;
+                                    }) => (
                                         <Select.Option key={p.id} value={p.id}>
-                                            {p.name}
+                                            <div className="flex gap-x-4">
+                                                <span>{p.name}</span>
+                                                <Tag color={"blue"}>
+                                                    {formatCurrency(p.value)}
+                                                </Tag>
+                                            </div>
                                         </Select.Option>
                                     )
                                 )}

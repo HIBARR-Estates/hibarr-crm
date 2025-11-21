@@ -18,6 +18,7 @@ use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
 use App\Http\Requests\CommonRequest;
 use App\Http\Requests\FollowUp\StoreRequest as FollowUpStoreRequest;
+use App\Http\Requests\Deal\PatchRequest;
 use App\Http\Requests\Deal\StoreRequest;
 use App\Http\Requests\Deal\UpdateRequest;
 use App\Http\Requests\Deal\StageChangeRequest;
@@ -543,7 +544,7 @@ class DealController extends AccountBaseController
         
 
 
-        return inertia('Deals/Show', [
+        return Inertia::render('Deals/Show', [
             'leadPipelines' => $this->pipelines,
             'stages' => $this->stages,
             'employees' => $this->employees,
@@ -907,6 +908,157 @@ class DealController extends AccountBaseController
             'message' => __('messages.updateSuccess'),
             'redirectUrl' => $redirectTo
         ]);
+    }
+
+    /**
+     * Patch (partial update) a deal record.
+     * Allows updating any subset of deal fields.
+     */
+    public function patch(PatchRequest $request, $id)
+    {
+        $deal = Deal::findOrFail($id);
+        
+        // Check permissions
+        $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
+        $editPermission = user()->permission('edit_deals');
+        
+        abort_403(!(
+            $editPermission == 'all'
+            || ($editPermission == 'added' && $deal->added_by == user()->id)
+            || ($editPermission == 'owned' && $leadAgentId == user()->id)
+            || ($editPermission == 'both' && ($deal->added_by == user()->id || $leadAgentId == user()->id))
+        ));
+
+        // Get validated data
+        $validatedData = $request->validated();
+        
+        // Start database transaction
+        DB::beginTransaction();
+        
+        try {
+            // Update only the fields that were provided
+            $fieldsToUpdate = [];
+            
+            // Contact information fields
+            $contactFields = [
+                'client_name', 'client_email', 'mobile', 'company_name', 
+                'website', 'address', 'city', 'state', 'country_id', 'postal_code'
+            ];
+            
+            foreach ($contactFields as $field) {
+                if (array_key_exists($field, $validatedData)) {
+                    $fieldsToUpdate[$field] = $validatedData[$field];
+                }
+            }
+            
+            // Deal information fields
+            $dealFields = [
+                'deal_name', 'value', 'currency_id', 'pipeline_stage_id', 
+                'lead_pipeline_id', 'close_date', 'probability', 'note',
+                'agent_id', 'lead_id', 'category_id', 'source_id', 'status', 'priority',
+                'next_follow_up_date', 'next_follow_up_time'
+            ];
+            
+            foreach ($dealFields as $field) {
+                if (array_key_exists($field, $validatedData)) {
+                    $fieldsToUpdate[$field] = $validatedData[$field];
+                }
+            }
+            
+            // Handle special date formatting if needed
+            if (isset($fieldsToUpdate['close_date'])) {
+                $fieldsToUpdate['close_date'] = Carbon::parse($fieldsToUpdate['close_date'])->format('Y-m-d');
+            }
+            
+            if (isset($fieldsToUpdate['next_follow_up_date'])) {
+                $fieldsToUpdate['next_follow_up_date'] = Carbon::parse($fieldsToUpdate['next_follow_up_date'])->format('Y-m-d');
+            }
+            
+            // Update the deal
+            if (!empty($fieldsToUpdate)) {
+                $deal->update($fieldsToUpdate);
+            }
+            
+            // Handle products if provided
+            if (array_key_exists('products', $validatedData) && is_array($validatedData['products'])) {
+                // Detach all existing products and attach new ones
+                $deal->products()->detach();
+                if (!empty($validatedData['products'])) {
+                    $deal->products()->attach($validatedData['products']);
+                }
+            }
+            
+            // Handle custom fields if provided
+            if (array_key_exists('custom_fields', $validatedData) && is_array($validatedData['custom_fields'])) {
+                foreach ($validatedData['custom_fields'] as $fieldId => $value) {
+                    $deal->updateCustomField($fieldId, $value);
+                }
+            }
+            
+            // Handle tags if provided
+            if (array_key_exists('tags', $validatedData)) {
+                // This assumes you have a tags relationship and tagging system
+                // You might need to implement this based on your tagging system
+                // $deal->syncTags($validatedData['tags']);
+            }
+            
+            // Log the update in deal history if you have that feature
+            $this->logDealHistory($deal, 'Deal updated via quick fix', $fieldsToUpdate);
+            
+            DB::commit();
+            
+            // Return JSON response for AJAX requests (like QuickFixModal)
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => __('messages.recordUpdated'),
+                    'data' => $deal->fresh()->load(['leadAgent.user', 'contact', 'pipeline', 'stage', 'category', 'products'])
+                ]);
+            }
+            
+            return back()->with([
+                'status' => 'success',
+                'message' => __('messages.recordUpdated')
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An error occurred while updating the deal.',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+            
+            return back()->with([
+                'status' => 'error',
+                'message' => __('messages.errorOccurred')
+            ]);
+        }
+    }
+    
+    /**
+     * Log deal history for tracking changes
+     */
+    private function logDealHistory($deal, $action, $changes = [])
+    {
+        try {
+            DealHistory::create([
+                'deal_id' => $deal->id,
+                'user_id' => user()->id,
+                'action' => $action,
+                'details' => json_encode([
+                    'changed_fields' => array_keys($changes),
+                    'timestamp' => now(),
+                    'user_name' => user()->name
+                ])
+            ]);
+        } catch (\Exception $e) {
+            // Log the error but don't fail the main operation
+            Log::warning('Failed to log deal history: ' . $e->getMessage());
+        }
     }
 
     /**

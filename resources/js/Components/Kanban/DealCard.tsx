@@ -88,15 +88,18 @@ const DealCard: React.FC<DealCardProps> = ({
             )}
 
             {/* Deal Value */}
-            {deal.value && (
-                <div className="flex items-center mb-3">
-                    <DollarOutlined className="text-gray-500 text-xs mr-1" />
+
+            <div className="flex items-center mb-3">
+                <DollarOutlined className="text-gray-500 text-xs mr-1" />
+                {deal.value ? (
                     <span className="text-xs text-gray-600">
-                        {deal.currency?.currency_symbol || "$"}
-                        {deal.value.toLocaleString()}
+                        {deal?.currency?.currency_symbol || "€"}
+                        {deal?.value.toLocaleString()}
                     </span>
-                </div>
-            )}
+                ) : (
+                    0
+                )}
+            </div>
 
             <hr className="my-2 border-gray-100" />
 
@@ -116,10 +119,9 @@ const DealCard: React.FC<DealCardProps> = ({
 
                 {/* Agent */}
                 {deal.lead_agent?.user ? (
-                    <Link
+                    <a
                         href={route("employees.show", deal.lead_agent.user_id)}
                         className="flex items-center gap-1 hover:text-blue-600"
-                        onClick={(e) => e.stopPropagation()}
                     >
                         <span className="text-gray-600">
                             {deal.lead_agent.user.name}
@@ -130,15 +132,14 @@ const DealCard: React.FC<DealCardProps> = ({
                             icon={<UserOutlined />}
                             className="w-6 h-6"
                         />
-                    </Link>
+                    </a>
                 ) : (
-                    <Link
-                        href={route("deals.edit", deal.id)}
-                        className="text-blue-600 hover:text-blue-800 text-xs"
-                        onClick={(e) => e.stopPropagation()}
+                    <span
+                        className="text-blue-600 hover:text-blue-800 text-xs cursor-pointer"
+                        onClick={() => onEdit?.(deal)}
                     >
                         Assign Agent
-                    </Link>
+                    </span>
                 )}
             </div>
         </div>

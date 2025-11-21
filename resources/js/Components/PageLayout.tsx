@@ -13,6 +13,7 @@ interface PageLayoutProps {
     title?: string;
     breadcrumbs?: BreadcrumbItem[];
     children: React.ReactNode;
+    searchComp?: React.ReactNode;
     filterSection?: React.ReactNode;
     config?: {
         showTitle?: boolean;
@@ -27,6 +28,7 @@ export default function PageLayout({
     title,
     breadcrumbs = [],
     children,
+    searchComp,
     filterSection,
     config = defaultConfig,
     mainContentClassName = "px-6 py-6",
@@ -119,8 +121,8 @@ export default function PageLayout({
             <div className="min-h-screen bg-blue-100/20">
                 {/* Page Header/Topbar */}
                 <div className="bg-white border-b border-gray-200 px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex-1">
+                    <div className="flex items-center gap-x-6">
+                        <div className="">
                             <div className="flex items-center space-x-3">
                                 {config.showTitle && (
                                     <h1 className="text-lg font-semibold text-gray-900 truncate max-w-xs">
@@ -138,6 +140,16 @@ export default function PageLayout({
                                 </div>
                             </div>
                         </div>
+
+                        {/* Search Component */}
+                        {searchComp && (
+                            <div className="flex-1">
+                                {/* set a max width so it doesn't stretch too far */}
+                                <div className="max-w-lg mx-auto">
+                                    {searchComp}
+                                </div>
+                            </div>
+                        )}
 
                         <Dropdown
                             menu={{ items: userMenuItems }}

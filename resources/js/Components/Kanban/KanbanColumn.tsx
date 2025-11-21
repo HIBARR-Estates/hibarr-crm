@@ -113,14 +113,14 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         return (
             <div className="bg-gray-50 rounded-xl mr-3 w-16">
                 <div className="flex flex-col items-center mt-4 mx-1 p-2">
-                    <Button
+                    {/* <Button
                         type="text"
                         size="small"
                         icon={<ExpandAltOutlined />}
                         onClick={() => onCollapse(column.id, "maximize")}
                         className="mb-3"
                         title="Expand"
-                    />
+                    /> */}
 
                     <div className="flex items-center mb-3">
                         <div

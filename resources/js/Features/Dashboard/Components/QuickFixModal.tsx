@@ -61,7 +61,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
         QuickFixFormData,
         any,
         ApiResponse<any>
-    >(record?.type === "deal" ? route("deals.update", record.id) : "", "PUT");
+    >(record?.type === "deal" ? route("deals.patch", record.id) : "", "PATCH");
 
     // Setup API mutations for leads
     const { mutate: updateLead, status: leadStatus } = useApiMutate<
@@ -69,8 +69,8 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
         any,
         ApiResponse<any>
     >(
-        record?.type === "lead" ? route("lead-contact.update", record.id) : "",
-        "PUT"
+        record?.type === "lead" ? route("lead-contact.patch", record.id) : "",
+        "PATCH"
     );
 
     const isLoading =

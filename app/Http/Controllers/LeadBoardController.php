@@ -176,7 +176,7 @@ class LeadBoardController extends AccountBaseController
                 $q->select(DB::raw('count(distinct deals.id)'));
             }])
                 ->with(['deals' => function ($q) use ($startDate, $endDate, $request) {
-                    $q->with(['leadAgent', 'leadAgent.user', 'currency', 'dealWatchers'])
+                    $q->with(['contact','leadAgent', 'leadAgent.user', 'currency', 'dealWatchers'])
                         ->leftJoin('leads', 'leads.id', 'deals.lead_id')
                         ->groupBy('deals.id');
 

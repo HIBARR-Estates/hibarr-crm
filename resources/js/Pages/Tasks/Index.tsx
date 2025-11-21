@@ -310,18 +310,16 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         </Col>
                         <Col>
                             <Space>
-                                <Button
+                                {/* <Button
                                     icon={<ReloadOutlined />}
                                     onClick={() => router.reload()}
                                 >
                                     Refresh
                                 </Button>
-                                <Button icon={<ExportOutlined />}>
-                                    Export
-                                </Button>
+                            
                                 <Button icon={<ImportOutlined />}>
                                     Import
-                                </Button>
+                                </Button> */}
                                 {permissions.add_tasks && (
                                     <Button
                                         type="primary"
