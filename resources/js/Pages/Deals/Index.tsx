@@ -9,8 +9,10 @@ import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PipelineStage } from "@/Types/api/deals";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
-import { useFilter } from "@/contexts/FilterContext";
+import UniversalSearchBox from "@/Components/UniversalSearchBox";
+import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createDealFilterConfig from "@/configs/dealFilterConfig";
+import { createDealSearchConfig } from "@/configs/searchConfigs";
 import {
     UserOutlined,
     PlusOutlined,
@@ -65,11 +67,14 @@ const Index = ({
         selected: deal,
     } = useGenericEntityAction<Deal>();
 
-    // Use the new filter context
-    const { openDrawer, filters } = useFilter();
+    // Setup search and filter contexts
+    const { filter, search } = usePageSearchAndFilter({
+        filterConfig: createDealFilterConfig(props),
+        searchConfig: createDealSearchConfig(),
+    });
 
-    // Create filter configuration
-    const filterConfig = createDealFilterConfig(props);
+    // Extract commonly used values
+    const { openDrawer, filters } = filter;
 
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "deals.index" });
@@ -153,16 +158,12 @@ const Index = ({
                 title={pageTitle}
                 breadcrumbs={[{ name: "Deals" }]}
                 searchComp={
-                    <div className="w-full">
-                        {/* You can replace this with a simple search input if needed */}
-                    </div>
+                    <UniversalSearchBox
+                        placeholder="Search deals by title, contact name, email..."
+                        className="w-full"
+                    />
                 }
-                filterSection={
-                    <>
-                        {/* Active Filters using new context */}
-                        <ContextualActiveFilters />
-                    </>
-                }
+                filterSection={<ContextualActiveFilters />}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -236,6 +237,7 @@ const Index = ({
                                         route("deals.index"),
                                         {
                                             ...filters,
+                                            search: search.query,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
@@ -286,7 +288,7 @@ const Index = ({
             />
 
             {/* Universal Filter Drawer */}
-            <UniversalFilterDrawer config={filterConfig} />
+            <UniversalFilterDrawer config={createDealFilterConfig(props)} />
         </DashboardLayout>
     );
 };

@@ -1,3 +1,4 @@
+import React from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
@@ -30,6 +31,12 @@ import { Button, MenuProps, Table } from "antd";
 import { useState } from "react";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import { User, Country, ClientCategory, Language } from "@/Types";
+import UniversalSearchBox from "@/Components/UniversalSearchBox";
+import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
+import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
+import { createLeadSearchConfig } from "@/configs/searchConfigs";
+import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
+import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 
 export interface IndexProps extends PageProps {
     pageTitle: string;
@@ -46,10 +53,14 @@ export interface IndexProps extends PageProps {
 const Index = ({
     pageTitle,
     leads,
+    categories,
+    sources,
+    employees,
     countries,
     salutations,
     clientCategories = [],
     languages = [],
+    ...props
 }: IndexProps) => {
     const [importModalOpen, setImportModalOpen] = useState(false);
 
@@ -60,19 +71,21 @@ const Index = ({
         selected: lead,
     } = useGenericEntityAction<Lead>();
 
-    // filters and filter handlers
-    const {
-        filters,
-        drawerOpen,
-        openFilterDrawer,
-        closeFilterDrawer,
-        handleQuickFilter,
-        removeFilter,
-        handleResetQuickFilters,
-        handleResetFilters,
-        handleFilterSubmit,
-        clearAllFilters,
-    } = usePageFilter({ handleClose, routeName: "lead-contact.index" });
+    // Setup search and filter contexts
+    const { filter, search } = usePageSearchAndFilter({
+        filterConfig: createLeadFilterConfig({
+            sources,
+            categories,
+            employees,
+            countries,
+            clientCategories,
+            languages,
+        }),
+        searchConfig: createLeadSearchConfig(),
+    });
+
+    // Extract commonly used values
+    const { openDrawer, filters } = filter;
 
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "lead-contact.index" });
@@ -154,24 +167,12 @@ const Index = ({
                 title={pageTitle}
                 breadcrumbs={[{ name: "Leads" }]}
                 searchComp={
-                    <BasicLeadFilterBox
-                        filters={filters}
-                        handleResetFilters={handleResetFilters}
-                        handleQuickFilter={handleQuickFilter}
-                        handleResetQuickFilters={handleResetQuickFilters}
-                        handleSubmit={handleFilterSubmit}
+                    <UniversalSearchBox
+                        placeholder="Search leads by contact name, email, company..."
+                        className="w-full"
                     />
                 }
-                filterSection={
-                    <>
-                        {/* Active Filters */}
-                        <ActiveFilters
-                            filters={filters}
-                            onRemoveFilter={removeFilter}
-                            onClearAll={clearAllFilters}
-                        />
-                    </>
-                }
+                filterSection={<ContextualActiveFilters />}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -204,7 +205,7 @@ const Index = ({
                             {/* Advanced Filters Button */}
                             <Button
                                 icon={<FilterOutlined />}
-                                onClick={openFilterDrawer}
+                                onClick={openDrawer}
                             >
                                 Filters
                             </Button>
@@ -240,6 +241,7 @@ const Index = ({
                                         route("lead-contact.index"),
                                         {
                                             ...filters,
+                                            search: search.query,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
@@ -285,20 +287,18 @@ const Index = ({
                 lead={lead}
             />
 
-            {/* Filter Drawer */}
-            <FilterDrawer
-                open={drawerOpen}
-                onClose={closeFilterDrawer}
-                title="Advanced Lead Filters"
-                filters={filters}
-                onApplyFilters={handleFilterSubmit}
-                onResetFilters={handleResetFilters}
-            >
-                <AdvancedLeadFilterForm
-                    filters={filters}
-                    onFilterChange={handleQuickFilter}
-                />
-            </FilterDrawer>
+            {/* Universal Filter Drawer */}
+            <UniversalFilterDrawer
+                config={createLeadFilterConfig({
+                    sources,
+                    categories,
+                    employees,
+                    countries,
+                    clientCategories,
+                    languages,
+                    ...props,
+                })}
+            />
         </DashboardLayout>
     );
 };

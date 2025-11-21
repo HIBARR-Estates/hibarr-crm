@@ -145,7 +145,9 @@ export default function PageLayout({
                         {searchComp && (
                             <div className="flex-1">
                                 {/* set a max width so it doesn't stretch too far */}
-                                <div className="max-w-xs">{searchComp}</div>
+                                <div className="max-w-lg mx-auto">
+                                    {searchComp}
+                                </div>
                             </div>
                         )}
 

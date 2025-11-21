@@ -1,32 +1,96 @@
-import React from "react";
-import { Input } from "antd";
-import { useFilter } from "@/contexts/FilterContext";
+import React, { useState, useEffect } from "react";
+import { Input, Spin } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
+import { useSearch } from "@/contexts/SearchContext";
 
 interface UniversalSearchBoxProps {
     placeholder?: string;
-    searchKey?: string;
+    className?: string;
+    size?: "small" | "middle" | "large";
+    allowClear?: boolean;
+    disabled?: boolean;
+    onSearch?: (value: string) => void;
+    enterButton?: boolean;
 }
 
 const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
-    placeholder = "Search...",
-    searchKey = "search",
+    placeholder,
+    className = "w-full max-w-md",
+    size = "middle",
+    allowClear = true,
+    disabled = false,
+    onSearch,
+    enterButton = true,
 }) => {
-    const { filters, setFilter } = useFilter();
-    const searchValue = filters[searchKey] || "";
+    const {
+        query,
+        isSearching,
+        searchConfig,
+        setQuery,
+        clearSearch,
+        performSearch,
+    } = useSearch();
+
+    const [localValue, setLocalValue] = useState<string>("");
+
+    // Sync local value with search context
+    useEffect(() => {
+        setLocalValue(query);
+    }, [query]);
+
+    // Use config placeholder if not provided as prop
+    const effectivePlaceholder =
+        placeholder || searchConfig?.placeholder || "Search...";
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setLocalValue(value);
+
+        // Update search context - let it handle auto search if enabled
+        setQuery(value);
+    };
 
     const handleSearch = (value: string) => {
-        setFilter(searchKey, value, "Search", value);
+        setLocalValue(value);
+        setQuery(value, true); // Immediate search
+
+        // Call optional callback
+        if (onSearch) {
+            onSearch(value);
+        }
+    };
+
+    const handleClear = () => {
+        setLocalValue("");
+        clearSearch();
+
+        // Call optional callback
+        if (onSearch) {
+            onSearch("");
+        }
+    };
+
+    const handlePressEnter = () => {
+        if (!searchConfig?.autoSearch) {
+            performSearch(localValue);
+        }
     };
 
     return (
-        <div className="w-full max-w-md">
+        <div className={className}>
             <Input.Search
-                placeholder={placeholder}
-                value={searchValue}
-                onChange={(e) => handleSearch(e.target.value)}
+                placeholder={effectivePlaceholder}
+                value={localValue}
+                onChange={handleInputChange}
                 onSearch={handleSearch}
-                allowClear
-                className="w-full"
+                onPressEnter={handlePressEnter}
+                onClear={handleClear}
+                allowClear={allowClear}
+                disabled={disabled || isSearching}
+                size={size}
+                loading={isSearching}
+                // enterButton={enterButton ? <SearchOutlined /> : false}
+                style={{ width: "100%" }}
             />
         </div>
     );

@@ -128,6 +128,9 @@ class Deal extends BaseModel
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Deal';
 
+    protected $hidden = ["pivot"];
+
+
     protected $appends = ['image_url'];
 
     protected $casts = [
