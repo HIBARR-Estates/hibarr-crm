@@ -63,9 +63,9 @@ const siderStyle: React.CSSProperties = {
     scrollbarGutter: "stable",
 };
 
-const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
-    children,
-}) => {
+const DashboardLayout: React.FC<{
+    children: React.ReactNode;
+}> = ({ children }) => {
     const { props } = usePage<PageProps>();
     const { auth, company, appName, sidebar, currentRouteName } = props;
     const { user } = auth;
@@ -313,27 +313,27 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         }
 
         // Clients
-        if (
-            !isInRole("client") &&
-            hasModule("clients") &&
-            hasPermission("view_clients")
-        ) {
-            items.push({
-                key: "clients",
-                label: (
-                    <a
-                        href={route("clients.index")}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            router.visit(route("clients.index"));
-                        }}
-                    >
-                        Clients
-                    </a>
-                ),
-                icon: <BuildingIcon />,
-            });
-        }
+        // if (
+        //     !isInRole("client") &&
+        //     hasModule("clients") &&
+        //     hasPermission("view_clients")
+        // ) {
+        //     items.push({
+        //         key: "clients",
+        //         label: (
+        //             <a
+        //                 href={route("clients.index")}
+        //                 onClick={(e) => {
+        //                     e.preventDefault();
+        //                     router.visit(route("clients.index"));
+        //                 }}
+        //             >
+        //                 Clients
+        //             </a>
+        //         ),
+        //         icon: <BuildingIcon />,
+        //     });
+        // }
 
         // HR
         // if (

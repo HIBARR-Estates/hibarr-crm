@@ -153,7 +153,7 @@ const Index = ({
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Leads" }]}
-                filterSection={
+                searchComp={
                     <BasicLeadFilterBox
                         filters={filters}
                         handleResetFilters={handleResetFilters}
@@ -162,15 +162,18 @@ const Index = ({
                         handleSubmit={handleFilterSubmit}
                     />
                 }
+                filterSection={
+                    <>
+                        {/* Active Filters */}
+                        <ActiveFilters
+                            filters={filters}
+                            onRemoveFilter={removeFilter}
+                            onClearAll={clearAllFilters}
+                        />
+                    </>
+                }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Active Filters */}
-                    <ActiveFilters
-                        filters={filters}
-                        onRemoveFilter={removeFilter}
-                        onClearAll={clearAllFilters}
-                    />
-
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <Button
@@ -280,7 +283,6 @@ const Index = ({
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={lead}
-               
             />
 
             {/* Filter Drawer */}

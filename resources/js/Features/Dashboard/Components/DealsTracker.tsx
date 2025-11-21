@@ -51,7 +51,6 @@ interface DealsTrackerProps {
     deals: Deal[];
     stages: PipelineStage[];
     onStageChange?: (dealId: number, newStageId: number) => Promise<void>;
-    onDealUpdate?: (dealId: number, updates: Partial<Deal>) => Promise<void>;
     loading?: boolean;
     canEdit?: boolean;
 }
@@ -67,7 +66,6 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
     deals = [],
     stages = [],
     onStageChange,
-    onDealUpdate,
     loading = false,
     canEdit = true,
 }) => {
@@ -122,50 +120,11 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
         [deals, stages, onStageChange, canEdit]
     );
 
-    const handleQuickEdit = useCallback(
-        async (values: QuickEditFormData) => {
-            if (!quickEditDeal || !onDealUpdate) return;
-
-            setProcessingDeals((prev) => new Set(prev).add(quickEditDeal.id));
-
-            try {
-                await onDealUpdate(quickEditDeal.id, {
-                    value: values.value,
-                    probability: values.probability,
-                    close_date: values.close_date,
-                    // Note: next_action might need to be handled differently based on your API
-                });
-                message.success("Deal updated successfully");
-                setQuickEditDeal(null);
-                form.resetFields();
-            } catch (error) {
-                message.error("Failed to update deal");
-            } finally {
-                setProcessingDeals((prev) => {
-                    const newSet = new Set(prev);
-                    newSet.delete(quickEditDeal.id);
-                    return newSet;
-                });
-            }
-        },
-        [quickEditDeal, onDealUpdate, form]
-    );
-
-    const openQuickEdit = (deal: Deal) => {
-        setQuickEditDeal(deal);
-        form.setFieldsValue({
-            value: deal.value,
-            probability: deal.probability || 50,
-            close_date: deal.close_date || undefined,
-            next_action: "", // This would need to be fetched from deal data
-        });
-    };
-
     const formatCurrency = (
         value: number,
         currency?: { currency_symbol: string }
     ) => {
-        const symbol = currency?.currency_symbol || "$";
+        const symbol = currency?.currency_symbol || "€";
         return `${symbol}${value.toLocaleString()}`;
     };
 
@@ -395,7 +354,10 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                             <div className="flex items-center space-x-2 text-sm font-normal">
                                 <Tag color="blue">{stageDeals.length}</Tag>
                                 <span className="text-green-600 font-medium">
-                                    ${stageTotalValue.toLocaleString()}
+                                    {formatCurrency(
+                                        stageTotalValue,
+                                        stageDeals[0]?.currency
+                                    )}
                                 </span>
                             </div>
                         </div>
