@@ -56,7 +56,9 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({ children }) => {
     const [searchConfig, setSearchConfigState] = useState<SearchConfig | null>(
         null
     );
-    const [debounceTimer, setDebounceTimer] = useState<number | null>(null);
+    const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(
+        null
+    );
 
     // Initialize search query from URL params
     useEffect(() => {

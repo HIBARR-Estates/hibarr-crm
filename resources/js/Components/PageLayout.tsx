@@ -155,7 +155,8 @@ export default function PageLayout({
                             menu={{ items: userMenuItems }}
                             placement="bottomLeft"
                         >
-                            <div className="flex items-center justify-between cursor-pointer">
+                            {/* ensure this always at the end */}
+                            <div className="flex items-center justify-between cursor-pointer ml-auto">
                                 <div className="flex items-center gap-x-2">
                                     <Avatar
                                         src={user?.image_url}
