@@ -75,6 +75,11 @@ class BitrixImportController extends Controller
                     $deal->column_priority = 0;
                     $deal->value = 0;
                     $isNewDeal = true;
+                    
+                    // Set created_at from payload if provided
+                    if ($createdDate = $this->parseDate(Arr::get($dealData, 'createdDate'))) {
+                        $deal->created_at = $createdDate;
+                    }
                 }
 
                 $deal->lead_id = $lead->id;
@@ -113,7 +118,9 @@ class BitrixImportController extends Controller
                     $deal->note = $note;
                 }
 
-                $deal->save();
+                // Use saveQuietly to prevent DealObserver from triggering automation
+                // This ensures the deal stays at the stage specified in the payload
+                $deal->saveQuietly();
 
                 if ($responsibleUser) {
                     try {
@@ -268,6 +275,12 @@ class BitrixImportController extends Controller
                 $lead->lead_owner = $responsibleUser->id;
             }
             $lead->column_priority = 0;
+            
+            // Set created_at from payload if provided
+            if ($createdDate = $this->parseDate(Arr::get($contactData, 'createdDate'))) {
+                $lead->created_at = $createdDate;
+            }
+            
             $lead->save();
         } else {
             $lead->client_name = $name !== '' ? $name : $lead->client_name;
@@ -359,17 +372,61 @@ class BitrixImportController extends Controller
         $stage = null;
 
         if ($stageIdentifier !== null && $stageIdentifier !== '') {
-            $stage = PipelineStage::withoutGlobalScopes()
-                ->where('company_id', $companyId)
-                ->when($pipeline, function ($query) use ($pipeline) {
-                    $query->where('lead_pipeline_id', $pipeline->id);
-                })
-                ->where(function ($query) use ($stageIdentifier) {
-                    $query->where('id', $stageIdentifier)
-                        ->orWhere('name', $stageIdentifier)
-                        ->orWhere('slug', $stageIdentifier);
-                })
-                ->first();
+            // If stageIdentifier is numeric, prioritize ID matching
+            if (is_numeric($stageIdentifier)) {
+                $stageId = (int) $stageIdentifier;
+                
+                // First, try to find the stage in the specified pipeline (if pipeline was found)
+                if ($pipeline) {
+                    $stage = PipelineStage::withoutGlobalScopes()
+                        ->where('company_id', $companyId)
+                        ->where('lead_pipeline_id', $pipeline->id)
+                        ->where('id', $stageId)
+                        ->first();
+                }
+                
+                // If not found in the pipeline, try finding by ID globally (stage might exist in another pipeline)
+                if (!$stage) {
+                    $stage = PipelineStage::withoutGlobalScopes()
+                        ->where('company_id', $companyId)
+                        ->where('id', $stageId)
+                        ->first();
+                    
+                    // Log a warning if stage was found but in a different pipeline
+                    if ($stage && $pipeline && $stage->lead_pipeline_id !== $pipeline->id) {
+                        Log::warning('Bitrix import: Stage found in different pipeline than specified', [
+                            'stage_id' => $stageId,
+                            'found_pipeline_id' => $stage->lead_pipeline_id,
+                            'specified_pipeline_id' => $pipeline->id,
+                            'specified_pipeline_name' => $pipeline->name,
+                        ]);
+                    }
+                }
+                
+                // If still not found by ID, log an error
+                if (!$stage) {
+                    Log::warning('Bitrix import: Stage ID not found', [
+                        'stage_id' => $stageId,
+                        'company_id' => $companyId,
+                        'pipeline_id' => $pipeline?->id,
+                        'pipeline_name' => $pipeline?->name,
+                    ]);
+                }
+            }
+            
+            // If not found by ID (or not numeric), try name and slug
+            if (!$stage) {
+                $stage = PipelineStage::withoutGlobalScopes()
+                    ->where('company_id', $companyId)
+                    ->when($pipeline, function ($query) use ($pipeline) {
+                        $query->where('lead_pipeline_id', $pipeline->id);
+                    })
+                    ->where(function ($query) use ($stageIdentifier) {
+                        $query->where('name', $stageIdentifier)
+                            ->orWhere('slug', $stageIdentifier);
+                    })
+                    ->first();
+            }
         }
 
         if (!$stage && $pipeline) {
