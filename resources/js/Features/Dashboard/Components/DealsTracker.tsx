@@ -371,13 +371,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                 size="small"
                                 type="text"
                                 icon={<PlusOutlined />}
-                                onClick={() =>
-                                    router.visit(
-                                        route("deals.create", {
-                                            stage: stage.id,
-                                        })
-                                    )
-                                }
+                                onClick={() => handleAction("add", deal)}
                             >
                                 Add
                             </Button>

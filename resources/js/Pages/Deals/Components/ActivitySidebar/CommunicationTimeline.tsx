@@ -64,6 +64,9 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
             align-items: center;
             justify-content: center;
             border-radius: 50%;
+            inset-block-start: calc(40px / 2);
+            inset-inline-start: calc(35px / 2);
+            z-index: 20;
         }
         .custom-timeline .ant-timeline-item-content {
             margin-left: ${compact ? "12px" : "16px"};
