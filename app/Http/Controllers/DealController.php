@@ -49,17 +49,20 @@ use App\Models\Package;
 use App\Models\CommunicationActivity;
 use App\Traits\ImportExcel;
 use App\Traits\DealAutomationTrait;
+use App\Traits\DealFormDataTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Services\PermissionService;
 
 class DealController extends AccountBaseController
 {
 
     use ImportExcel;
     use DealAutomationTrait;
+    use \App\Traits\DealFormDataTrait;
 
     public function __construct()
     {
@@ -146,27 +149,19 @@ class DealController extends AccountBaseController
         }
 
         // Apply permission-based filtering
-        if ($this->viewLeadPermission == 'added') {
-            $dealsQuery->where('deals.added_by', user()->id);
-        } elseif ($this->viewLeadPermission == 'owned') {
-            $dealsQuery->where(function($query) {
-                $query->whereHas('leadAgent', function($q) {
-                    $q->where('user_id', user()->id);
-                })->orWhereHas('dealWatchers', function($q) {
-                    $q->where('users.id', user()->id);
+        $dealRules = [
+            'added' => 'deals.added_by',
+            'owned' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $query->whereHas('leadAgent', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    })->orWhereHas('dealWatchers', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    });
                 });
-            });
-        } elseif ($this->viewLeadPermission == 'both') {
-            $dealsQuery->where(function($query) {
-                $query->where('deals.added_by', user()->id)
-                      ->orWhereHas('leadAgent', function($q) {
-                          $q->where('user_id', user()->id);
-                      })
-                      ->orWhereHas('dealWatchers', function($q) {
-                          $q->where('users.id', user()->id);
-                      });
-            });
-        }
+            }
+        ];
+        PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
         
         // Apply sorting if specified
         if ($request->filled('sort_by')) {
@@ -201,20 +196,7 @@ class DealController extends AccountBaseController
         $paginatedDeals = $dealsQuery->paginate($request->get('per_page', 15));
 
         // Load additional data needed for the forms
-        $this->employees = User::allEmployees(null, true);
-        $this->leadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
-            $q->where('status', 'active');
-        })->get();
-        $this->leadContacts = Lead::allLeads();
-        $this->products = Product::all();
-        $this->countries = countries();
-        $this->salutations = Salutation::cases();
-        $this->customFieldCategories = $this->getDealCustomFieldCategories();
-
-        // Get custom fields
-        $deal = new Deal();
-        $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
-        $this->fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
+        $formData = $this->getDealFormData();
 
         // Transform deals to include custom fields data
         $dealsWithCustomFields = $paginatedDeals->getCollection()->map(function ($deal) {
@@ -229,7 +211,7 @@ class DealController extends AccountBaseController
             return $dealArray;
         });
 
-        return Inertia::render('Deals/Index', [
+        return Inertia::render('Deals/Index', array_merge([
             'pageTitle' => 'Deals',
             'deals' => [
                 'data' => $dealsWithCustomFields,
@@ -240,24 +222,6 @@ class DealController extends AccountBaseController
                 'from' => $paginatedDeals->firstItem(),
                 'to' => $paginatedDeals->lastItem(),
             ],
-            'leadPipelines' => $this->pipelines,
-            'stages' => $this->stages,
-            'categories' => $this->categories,
-            'sources' => $this->sources,
-            'employees' => $this->employees,
-            'countries' => $this->countries,
-            'salutations' => collect($this->salutations)->map(function($salutation) {
-                return [
-                    'value' => $salutation->value,
-                    'label' => $salutation->name,
-                ];
-            }),
-            'leadAgents' => $this->leadAgents,
-            'leadContacts' => $this->leadContacts,
-            'products' => $this->products,
-            'packages' => $this->packages,
-            'customFields' => $this->fields,
-            'customFieldCategories' => $this->customFieldCategories,
             'filters' => $request->only([
                 'lead_pipeline_id',
                 'pipeline_stage_id',
@@ -266,7 +230,7 @@ class DealController extends AccountBaseController
                 'start_date',
                 'end_date',
             ]),
-        ]);
+        ], $formData));
     }
 
     protected function loadDataForView()
@@ -532,33 +496,13 @@ class DealController extends AccountBaseController
         // Prepare deal with custom fields data
         $dealWithCustomFields = $deal->toArray();
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
-        $this->leadContacts = Lead::allLeads();
-        $this->products = Product::all();
-        $this->countries = countries();
-        $this->salutations = Salutation::cases();
-        $this->employees = User::allEmployees(null, true);
-        $this->leadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
-            $q->where('status', 'active');
-        })->get();
-
         
+        $formData = $this->getDealFormData();
 
-
-        return Inertia::render('Deals/Show', [
-            'leadPipelines' => $this->pipelines,
-            'stages' => $this->stages,
-            'employees' => $this->employees,
-            'leadAgents' => $this->leadAgents,
-            'leadContacts' => $this->leadContacts,
-            'products' => $this->products,
-            'packages' => $this->packages,
-            'countries' => $this->countries,
-            'salutations' => $this->salutations,
+        return Inertia::render('Deals/Show', array_merge([
             'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
-            'customFieldCategories' => $customFieldCategories,
-            'fields' => $fields,
-            'customFields' => $this->fields,
+            'fields' => $formData['customFields'], // Map customFields to fields as well
             'notes' => $notes,
             'dealFollowUps' => $dealFollowUps,
             'meetingTypes' => $meetingTypes,
@@ -570,7 +514,7 @@ class DealController extends AccountBaseController
             'gdprSetting' => $gdprSetting,
             'permissions' => $permissions,
             'pageTitle' => $deal->name,
-        ]);
+        ], $formData));
     }
 
     private function prepareNotesTab(int $dealId): void
@@ -1893,7 +1837,7 @@ class DealController extends AccountBaseController
         ]);
 
         if (!$followUp) {
-            Log::error('Follow-up not found', ['followup_id' => $followUpId]);
+            Log::error('Follow-up not found', ['followupId' => $followUpId]);
             return Reply::error('Follow-up not found');
         }
 

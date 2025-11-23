@@ -29,13 +29,17 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Froiden\Envato\Traits\AppBoot;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use App\Services\PermissionService;
 
 
 class DashboardController extends AccountBaseController
 {
 
     use AppBoot, CurrencyExchange, OverviewDashboard, EmployeeDashboard, ProjectDashboard, ClientDashboard, HRDashboard, TicketDashboard, FinanceDashboard, ClientPanelDashboard;
+    use \App\Traits\DealFormDataTrait;
+    use \App\Traits\LeadFormDataTrait;
 
     public function __construct()
     {
@@ -59,25 +63,25 @@ class DashboardController extends AccountBaseController
         
         // Check if the request wants the new dashboard overview
         // if (request()->header('X-Inertia') || request()->wantsJson()) {
-        if (true) {
-            return $this->dashboardOverview();
-        }
+        // if (true) {
+        return $this->dashboardOverview();
+        // }
         
-        if (in_array('employee', user_roles())) {
+        // if (in_array('employee', user_roles())) {
 
-            $this->viewOverviewDashboard = user()->permission('view_overview_dashboard');
-            $this->viewProjectDashboard = user()->permission('view_project_dashboard');
-            $this->viewClientDashboard = user()->permission('view_client_dashboard');
-            $this->viewHRDashboard = user()->permission('view_hr_dashboard');
-            $this->viewTicketDashboard = user()->permission('view_ticket_dashboard');
-            $this->viewFinanceDashboard = user()->permission('view_finance_dashboard');
+        //     $this->viewOverviewDashboard = user()->permission('view_overview_dashboard');
+        //     $this->viewProjectDashboard = user()->permission('view_project_dashboard');
+        //     $this->viewClientDashboard = user()->permission('view_client_dashboard');
+        //     $this->viewHRDashboard = user()->permission('view_hr_dashboard');
+        //     $this->viewTicketDashboard = user()->permission('view_ticket_dashboard');
+        //     $this->viewFinanceDashboard = user()->permission('view_finance_dashboard');
 
-            return $this->employeeDashboard();
-        }
+        //     return $this->employeeDashboard();
+        // }
 
-        if (in_array('client', user_roles())) {
-            return $this->clientPanelDashboard();
-        }
+        // if (in_array('client', user_roles())) {
+        //     return $this->clientPanelDashboard();
+        // }
     }
 
     /**
@@ -89,6 +93,34 @@ class DashboardController extends AccountBaseController
         $viewTaskPermission = user()->permission('view_tasks');
         $viewDealPermission = user()->permission('view_deals');
         $viewLeadPermission = user()->permission('view_lead');
+
+        // Define permission rules
+        $taskRules = [
+            'added' => 'added_by',
+            'owned' => function($q, $user) {
+                $q->whereHas('users', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                });
+            }
+        ];
+
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $query->whereHas('leadAgent', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    })->orWhereHas('dealWatchers', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    });
+                });
+            }
+        ];
+
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner'
+        ];
         
         // Get upcoming tasks ordered by due date
         $tasksQuery = Task::with([
@@ -103,20 +135,7 @@ class DashboardController extends AccountBaseController
             });
 
         // Apply permission-based filtering for tasks
-        if ($viewTaskPermission == 'added') {
-            $tasksQuery->where('added_by', $userId);
-        } elseif ($viewTaskPermission == 'owned') {
-            $tasksQuery->whereHas('users', function ($query) use ($userId) {
-                $query->where('user_id', $userId);
-            });
-        } elseif ($viewTaskPermission == 'both') {
-            $tasksQuery->where(function ($query) use ($userId) {
-                $query->where('added_by', $userId)
-                      ->orWhereHas('users', function ($subQuery) use ($userId) {
-                          $subQuery->where('user_id', $userId);
-                      });
-            });
-        }
+        PermissionService::applyScope($tasksQuery, user(), 'view_tasks', $taskRules);
 
         $tasks = $tasksQuery->orderBy(
                 \DB::raw("CASE 
@@ -191,27 +210,7 @@ class DashboardController extends AccountBaseController
         ])->orderBy('updated_at', 'desc');
 
         // Apply permission-based filtering for deals
-        if ($viewDealPermission == 'added') {
-            $dealsQuery->where('added_by', $userId);
-        } elseif ($viewDealPermission == 'owned') {
-            $dealsQuery->where(function($query) use ($userId) {
-                $query->whereHas('leadAgent', function($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                })->orWhereHas('dealWatchers', function($q) use ($userId) {
-                    $q->where('users.id', $userId);
-                });
-            });
-        } elseif ($viewDealPermission == 'both') {
-            $dealsQuery->where(function($query) use ($userId) {
-                $query->where('added_by', $userId)
-                      ->orWhereHas('leadAgent', function($q) use ($userId) {
-                          $q->where('user_id', $userId);
-                      })
-                      ->orWhereHas('dealWatchers', function($q) use ($userId) {
-                          $q->where('users.id', $userId);
-                      });
-            });
-        }
+        PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
 
         $allDeals = $dealsQuery->get()
             ->map(function ($deal) {
@@ -395,29 +394,9 @@ class DashboardController extends AccountBaseController
 
         // Get recent communication activities
         $recentActivities = \App\Models\CommunicationActivity::with(['deal:id,name'])
-            ->when($viewDealPermission != 'all', function ($query) use ($userId, $viewDealPermission) {
-                $query->whereHas('deal', function ($q) use ($userId, $viewDealPermission) {
-                    if ($viewDealPermission == 'added') {
-                        $q->where('added_by', $userId);
-                    } elseif ($viewDealPermission == 'owned') {
-                        $q->where(function($subQ) use ($userId) {
-                            $subQ->whereHas('leadAgent', function($agentQ) use ($userId) {
-                                $agentQ->where('user_id', $userId);
-                            })->orWhereHas('dealWatchers', function($watcherQ) use ($userId) {
-                                $watcherQ->where('users.id', $userId);
-                            });
-                        });
-                    } elseif ($viewDealPermission == 'both') {
-                        $q->where(function($subQ) use ($userId) {
-                            $subQ->where('added_by', $userId)
-                                  ->orWhereHas('leadAgent', function($agentQ) use ($userId) {
-                                      $agentQ->where('user_id', $userId);
-                                  })
-                                  ->orWhereHas('dealWatchers', function($watcherQ) use ($userId) {
-                                      $watcherQ->where('users.id', $userId);
-                                  });
-                        });
-                    }
+            ->when($viewDealPermission != 'all', function ($query) use ($userId, $viewDealPermission, $dealRules) {
+                $query->whereHas('deal', function ($q) use ($userId, $viewDealPermission, $dealRules) {
+                    PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
                 });
             })
             ->orderBy('timestamp', 'desc')
@@ -445,50 +424,20 @@ class DashboardController extends AccountBaseController
         })->count();
         
         $lastMonthDealsCount = \App\Models\Deal::whereMonth('created_at', now()->subMonth()->month)
-            ->whereYear('created_at', now()->subMonth()->year)
-            ->when($viewDealPermission == 'added', function ($query) use ($userId) {
-                $query->where('added_by', $userId);
-            })
-            ->when($viewDealPermission == 'owned', function ($query) use ($userId) {
-                $query->where(function($q) use ($userId) {
-                    $q->whereHas('leadAgent', function($subQ) use ($userId) {
-                        $subQ->where('user_id', $userId);
-                    })->orWhereHas('dealWatchers', function($subQ) use ($userId) {
-                        $subQ->where('users.id', $userId);
-                    });
-                });
-            })
-            ->when($viewDealPermission == 'both', function ($query) use ($userId) {
-                $query->where(function($q) use ($userId) {
-                    $q->where('added_by', $userId)
-                      ->orWhereHas('leadAgent', function($subQ) use ($userId) {
-                          $subQ->where('user_id', $userId);
-                      })
-                      ->orWhereHas('dealWatchers', function($subQ) use ($userId) {
-                          $subQ->where('users.id', $userId);
-                      });
-                });
-            })
-            ->count();
+            ->whereYear('created_at', now()->subMonth()->year);
+            
+        PermissionService::applyScope($lastMonthDealsCount, user(), 'view_deals', $dealRules);
+        
+        $lastMonthDealsCount = $lastMonthDealsCount->count();
 
         $dealsTrend = $lastMonthDealsCount > 0 
             ? round((($currentMonthDealsCount - $lastMonthDealsCount) / $lastMonthDealsCount) * 100)
             : ($currentMonthDealsCount > 0 ? 100 : 0);
 
         // Lead metrics (you may need to adjust based on your Lead model structure)
-        $activeLeadsCount = \App\Models\Lead::when($viewLeadPermission == 'added', function ($query) use ($userId) {
-                $query->where('added_by', $userId);
-            })
-            ->when($viewLeadPermission == 'owned', function ($query) use ($userId) {
-                $query->where('lead_owner', $userId);
-            })
-            ->when($viewLeadPermission == 'both', function ($query) use ($userId) {
-                $query->where(function($q) use ($userId) {
-                    $q->where('added_by', $userId)
-                      ->orWhere('lead_owner', $userId);
-                });
-            })
-            ->count();
+        $activeLeadsQuery = \App\Models\Lead::query();
+        PermissionService::applyScope($activeLeadsQuery, user(), 'view_lead', $leadRules);
+        $activeLeadsCount = $activeLeadsQuery->count();
 
         $openDealsCount = $allDeals->filter(function ($deal) {
             $closedStages = ['won', 'lost', 'closed']; // Adjust based on your stage names
@@ -510,19 +459,9 @@ class DashboardController extends AccountBaseController
         $monthlyQuota = 1000000; // You should get this from user settings or company settings
         
         // Conversion rate calculation
-        $totalLeads = \App\Models\Lead::when($viewLeadPermission == 'added', function ($query) use ($userId) {
-                $query->where('added_by', $userId);
-            })
-            ->when($viewLeadPermission == 'owned', function ($query) use ($userId) {
-                $query->where('lead_owner', $userId);
-            })
-            ->when($viewLeadPermission == 'both', function ($query) use ($userId) {
-                $query->where(function($q) use ($userId) {
-                    $q->where('added_by', $userId)
-                      ->orWhere('lead_owner', $userId);
-                });
-            })
-            ->count();
+        $totalLeadsQuery = \App\Models\Lead::query();
+        PermissionService::applyScope($totalLeadsQuery, user(), 'view_lead', $leadRules);
+        $totalLeads = $totalLeadsQuery->count();
         
         $conversionRate = $totalLeads > 0 ? round(($allDeals->count() / $totalLeads) * 100, 1) : 0;
 
@@ -548,165 +487,55 @@ class DashboardController extends AccountBaseController
         ];
 
         // Calculate basic stats for backwards compatibility  
-        $pendingTasksCount = Task::where('board_column_id', '!=', $completedColumn?->id)
-            ->when($viewTaskPermission == 'added', function ($query) use ($userId) {
-                $query->where('added_by', $userId);
-            })
-            ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
-                $query->whereHas('users', function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                });
-            })
-            ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
-                $query->where(function ($q) use ($userId) {
-                    $q->where('added_by', $userId)
-                      ->orWhereHas('users', function ($subQ) use ($userId) {
-                          $subQ->where('user_id', $userId);
-                      });
-                });
-            })
-            ->count();
+        $pendingTasksQuery = Task::where('board_column_id', '!=', $completedColumn?->id);
+        PermissionService::applyScope($pendingTasksQuery, user(), 'view_tasks', $taskRules);
+        $pendingTasksCount = $pendingTasksQuery->count();
             
         // Update overview metrics to use calculated pending activities
         $overviewMetrics['pendingActivities'] = $pendingTasksCount;
         
+        $totalTasksQuery = Task::query();
+        PermissionService::applyScope($totalTasksQuery, user(), 'view_tasks', $taskRules);
+
+        $completedTasksQuery = Task::where('board_column_id', $completedColumn?->id);
+        PermissionService::applyScope($completedTasksQuery, user(), 'view_tasks', $taskRules);
+
+        $pendingTasksQuery2 = Task::where('board_column_id', '!=', $completedColumn?->id);
+        PermissionService::applyScope($pendingTasksQuery2, user(), 'view_tasks', $taskRules);
+
+        $overdueTasksQuery = Task::where('due_date', '<', now())
+            ->where('board_column_id', '!=', $completedColumn?->id);
+        PermissionService::applyScope($overdueTasksQuery, user(), 'view_tasks', $taskRules);
+
+        $totalDealsQuery = \App\Models\Deal::query();
+        PermissionService::applyScope($totalDealsQuery, user(), 'view_deals', $dealRules);
+
+        $dealsThisMonthQuery = \App\Models\Deal::whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year);
+        PermissionService::applyScope($dealsThisMonthQuery, user(), 'view_deals', $dealRules);
+
         $stats = [
-            'total_tasks' => Task::when($viewTaskPermission == 'added', function ($query) use ($userId) {
-                $query->where('added_by', $userId);
-            })
-            ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
-                $query->whereHas('users', function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                });
-            })
-            ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
-                $query->where(function ($q) use ($userId) {
-                    $q->where('added_by', $userId)
-                      ->orWhereHas('users', function ($subQ) use ($userId) {
-                          $subQ->where('user_id', $userId);
-                      });
-                });
-            })
-            ->count(),
-            
-            'completed_tasks' => Task::where('board_column_id', $completedColumn?->id)
-                ->when($viewTaskPermission == 'added', function ($query) use ($userId) {
-                    $query->where('added_by', $userId);
-                })
-                ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
-                    $query->whereHas('users', function ($q) use ($userId) {
-                        $q->where('user_id', $userId);
-                    });
-                })
-                ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
-                    $query->where(function ($q) use ($userId) {
-                        $q->where('added_by', $userId)
-                          ->orWhereHas('users', function ($subQ) use ($userId) {
-                              $subQ->where('user_id', $userId);
-                          });
-                    });
-                })
-                ->count(),
-            
-            'pending_tasks' => Task::where('board_column_id', '!=', $completedColumn?->id)
-                ->when($viewTaskPermission == 'added', function ($query) use ($userId) {
-                    $query->where('added_by', $userId);
-                })
-                ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
-                    $query->whereHas('users', function ($q) use ($userId) {
-                        $q->where('user_id', $userId);
-                    });
-                })
-                ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
-                    $query->where(function ($q) use ($userId) {
-                        $q->where('added_by', $userId)
-                          ->orWhereHas('users', function ($subQ) use ($userId) {
-                              $subQ->where('user_id', $userId);
-                          });
-                    });
-                })
-                ->count(),
-            
-            'overdue_tasks' => Task::where('due_date', '<', now())
-                ->where('board_column_id', '!=', $completedColumn?->id)
-                ->when($viewTaskPermission == 'added', function ($query) use ($userId) {
-                    $query->where('added_by', $userId);
-                })
-                ->when($viewTaskPermission == 'owned', function ($query) use ($userId) {
-                    $query->whereHas('users', function ($q) use ($userId) {
-                        $q->where('user_id', $userId);
-                    });
-                })
-                ->when($viewTaskPermission == 'both', function ($query) use ($userId) {
-                    $query->where(function ($q) use ($userId) {
-                        $q->where('added_by', $userId)
-                          ->orWhereHas('users', function ($subQ) use ($userId) {
-                              $subQ->where('user_id', $userId);
-                          });
-                    });
-                })
-                ->count(),
-            
-            'total_deals' => \App\Models\Deal::when($viewDealPermission == 'added', function ($query) use ($userId) {
-                $query->where('added_by', $userId);
-            })
-            ->when($viewDealPermission == 'owned', function ($query) use ($userId) {
-                $query->where(function($q) use ($userId) {
-                    $q->whereHas('leadAgent', function($subQ) use ($userId) {
-                        $subQ->where('user_id', $userId);
-                    })->orWhereHas('dealWatchers', function($subQ) use ($userId) {
-                        $subQ->where('users.id', $userId);
-                    });
-                });
-            })
-            ->when($viewDealPermission == 'both', function ($query) use ($userId) {
-                $query->where(function($q) use ($userId) {
-                    $q->where('added_by', $userId)
-                      ->orWhereHas('leadAgent', function($subQ) use ($userId) {
-                          $subQ->where('user_id', $userId);
-                      })
-                      ->orWhereHas('dealWatchers', function($subQ) use ($userId) {
-                          $subQ->where('users.id', $userId);
-                      });
-                });
-            })
-            ->count(),
-            
-            'deals_this_month' => \App\Models\Deal::whereMonth('created_at', now()->month)
-                ->whereYear('created_at', now()->year)
-                ->when($viewDealPermission == 'added', function ($query) use ($userId) {
-                    $query->where('added_by', $userId);
-                })
-                ->when($viewDealPermission == 'owned', function ($query) use ($userId) {
-                    $query->where(function($q) use ($userId) {
-                        $q->whereHas('leadAgent', function($subQ) use ($userId) {
-                            $subQ->where('user_id', $userId);
-                        })->orWhereHas('dealWatchers', function($subQ) use ($userId) {
-                            $subQ->where('users.id', $userId);
-                        });
-                    });
-                })
-                ->when($viewDealPermission == 'both', function ($query) use ($userId) {
-                    $query->where(function($q) use ($userId) {
-                        $q->where('added_by', $userId)
-                          ->orWhereHas('leadAgent', function($subQ) use ($userId) {
-                              $subQ->where('user_id', $userId);
-                          })
-                          ->orWhereHas('dealWatchers', function($subQ) use ($userId) {
-                              $subQ->where('users.id', $userId);
-                          });
-                    });
-                })
-                ->count(),
-            
+            'total_tasks' => $totalTasksQuery->count(),
+            'completed_tasks' => $completedTasksQuery->count(),
+            'pending_tasks' => $pendingTasksQuery2->count(),
+            'overdue_tasks' => $overdueTasksQuery->count(),
+            'total_deals' => $totalDealsQuery->count(),
+            'deals_this_month' => $dealsThisMonthQuery->count(),
             'total_activities' => \App\Models\CommunicationActivity::count(),
-            
             'activities_this_week' => \App\Models\CommunicationActivity::where('timestamp', '>=', now()->startOfWeek())
                 ->count(),
             // TODO: Refactor this to be a service that calculates all this data and passes it to the dashboard controller, also the entities ought to be tied explicitly to the authenticated user
         ];
 
-        return inertia('Dashboard/ComprehensiveDashboard', [
+        $dealFormData = $this->getDealFormData();
+        $dealFormData['dealCustomFields'] = $dealFormData['customFields'];
+        $dealFormData['dealCustomFieldCategories'] = $dealFormData['customFieldCategories'];
+
+        $leadFormData = $this->getLeadFormData();
+        $leadFormData['leadCustomFields'] = $leadFormData['customFields'];
+        $leadFormData['leadCustomFieldCategories'] = $leadFormData['customFieldCategories'];
+
+        return Inertia::render('Dashboard/ComprehensiveDashboard', array_merge([
             'tasks' => $tasks,
             'deals' => $allDeals,
             'recentDeals' => $recentDeals,
@@ -715,7 +544,7 @@ class DashboardController extends AccountBaseController
             'pipelineStages' => $pipelineStages,
             'overviewMetrics' => $overviewMetrics,
             'stats' => $stats,
-        ]);
+        ], $dealFormData, $leadFormData));
     }
 
     public function widget(Request $request, $dashboardType)

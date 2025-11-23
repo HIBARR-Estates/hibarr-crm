@@ -37,7 +37,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     const [formData, setFormData] = useState<CreateDealFormData | null>(null);
     const { props } = usePage<any>();
 
-    const { customFields = [] } = props;
+    const customFields = props.dealCustomFields || props.customFields || [];
 
     // Determine if we're editing or creating
     const isEditing = !!deal;

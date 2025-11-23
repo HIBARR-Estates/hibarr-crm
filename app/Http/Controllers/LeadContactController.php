@@ -32,15 +32,20 @@ use App\Models\CustomFieldCategory;
 use App\Models\ClientCategory;
 use App\Models\LanguageSetting;
 use App\Traits\ImportExcel;
+use App\Traits\LeadFormDataTrait;
+use App\Traits\DealFormDataTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use App\Services\PermissionService;
 
 class LeadContactController extends AccountBaseController
 {
 
     use ImportExcel;
+    use \App\Traits\LeadFormDataTrait;
+    use \App\Traits\DealFormDataTrait;
 
     public function __construct()
     {
@@ -63,13 +68,16 @@ class LeadContactController extends AccountBaseController
         abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
         // Load necessary data for the view
-        $this->categories = LeadCategory::get();
-        $this->sources = LeadSource::get();
-        $this->employees = User::allEmployees(null, 'active');
         $this->leadContacts = Lead::allLeads();
-        $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
-        $this->leadStages = PipelineStage::all();
-        $this->products = Product::all();
+        $formData = $this->getLeadFormData();
+        
+        // Assign trait data to class properties for backward compatibility if needed
+        $this->categories = $formData['categories'];
+        $this->sources = $formData['sources'];
+        $this->employees = $formData['employees'];
+        $this->leadPipelines = $formData['leadPipelines'];
+        $this->leadStages = $formData['leadStages'];
+        $this->products = $formData['products'];
 
         // Get the leads data from the DataTable query with relationships
         $leadsQuery = $dataTable->query(new Lead())
@@ -111,16 +119,11 @@ class LeadContactController extends AccountBaseController
         }
 
         // Apply permission-based filtering
-        if ($viewPermission == 'owned') {
-            $leadsQuery->where('lead_owner', user()->id);
-        } elseif ($viewPermission == 'added') {
-            $leadsQuery->where('added_by', user()->id);
-        } elseif ($viewPermission == 'both') {
-            $leadsQuery->where(function ($query) {
-                $query->where('lead_owner', user()->id)
-                      ->orWhere('added_by', user()->id);
-            });
-        }
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner'
+        ];
+        PermissionService::applyScope($leadsQuery, user(), 'view_lead', $leadRules);
         
         // Apply sorting if specified
         if ($request->filled('sort_by')) {
@@ -156,37 +159,10 @@ class LeadContactController extends AccountBaseController
         $leads = $leadsQuery->paginate($request->get('per_page', 15));
         
         // Get all the data needed for create/edit modals
-        $leadAgents = LeadAgent::whereHas('user', function ($q) {
-            $q->where('status', 'active');
-        })->with('user')->get();
+        // Data is already loaded via getLeadFormData()
 
-        $leadContact = new Lead();
-        $getCustomField = $leadContact->getCustomFieldGroupsWithFields();
-        $customFieldCategories = $this->getLeadCustomFieldCategories();
-
-        $salutations = collect(Salutation::cases())->map(function ($salutation) {
-            return [
-                'value' => $salutation->value,
-                'label' => $salutation->label()
-            ];
-        });
-
-        // Add client data for lead-to-client conversion
-        $clientCategories = ClientCategory::all();
-        $languages = LanguageSetting::where('status', 'enabled')->get();
-
-        return Inertia::render('Leads/Index', [
+        return Inertia::render('Leads/Index', array_merge([
             'pageTitle' => 'Lead Contacts',
-            'categories' => $this->categories,
-            'sources' => $this->sources,
-            'employees' => $this->employees,
-            'countries' => countries(),
-            'salutations' => $salutations,
-            'clientCategories' => $clientCategories,
-            'languages' => $languages,
-            'leadAgents' => $leadAgents,
-            'leadPipelines' => $this->leadPipelines,
-            'leadStages' => $this->leadStages,
             'leadContacts' => $this->leadContacts ? $this->leadContacts->map(function($contact) {
                 return [
                     'id' => $contact->id,
@@ -202,9 +178,6 @@ class LeadContactController extends AccountBaseController
                     'label_color' => $stage->label_color,
                 ];
             })->toArray() : [],
-            'products' => $this->products,
-            'customFields' => $getCustomField ? $getCustomField->fields : collect([]),
-            'customFieldCategories' => $customFieldCategories,
             'permissions' => [
                 'view_lead_category' => user()->permission('view_lead_category'),
                 'view_lead_sources' => user()->permission('view_lead_sources'),
@@ -234,7 +207,7 @@ class LeadContactController extends AccountBaseController
                 'from' => $leads->firstItem(),
                 'to' => $leads->lastItem(),
             ]
-        ]);
+        ], $formData));
     }
 
 
@@ -254,17 +227,27 @@ class LeadContactController extends AccountBaseController
 
         $this->pageTitle = $this->leadContact->client_name_salutation;
 
-        $this->categories = LeadCategory::all();
         $this->leadFormFields = LeadCustomForm::with('customField')->where('status', 'active')->where('custom_fields_id', '!=', 'null')->get();
         $this->leadId = $id;
 
-        // Get custom field categories for lead module
-        $this->customFieldCategories = $this->getLeadCustomFieldCategories();
+        $formData = $this->getLeadFormData();
+        $dealFormData = $this->getDealFormData();
 
-        $getCustomFieldGroupsWithFields = $this->leadContact->getCustomFieldGroupsWithFields();
-        if ($getCustomFieldGroupsWithFields) {
-            $this->fields = $getCustomFieldGroupsWithFields->fields;
-        }
+        // Prepare Deal specific data with namespaced custom fields to avoid collision with Lead custom fields
+        $dealFormData['dealCustomFields'] = $dealFormData['customFields'];
+        $dealFormData['dealCustomFieldCategories'] = $dealFormData['customFieldCategories'];
+        
+        // Remove colliding keys that we want to preserve from LeadFormData (or that are duplicates)
+        // We keep Lead's custom fields as 'customFields' for the main Lead view
+        unset($dealFormData['customFields']);
+        unset($dealFormData['customFieldCategories']);
+        
+        // Assign trait data to class properties for backward compatibility if needed
+        $this->categories = $formData['categories'];
+        $this->sources = $formData['sources'];
+        $this->employees = $formData['employees'];
+        $this->customFieldCategories = $formData['customFieldCategories'];
+        $this->fields = $formData['customFields'];
 
         $this->editLeadPermission = user()->permission('edit_lead');
         $this->deleteLeadPermission = user()->permission('delete_lead');
@@ -291,10 +274,6 @@ class LeadContactController extends AccountBaseController
         // }
 
         $this->activeTab = $tab ?: 'profile';
-        $this->employees = User::allEmployees(null, true);
-        $this->sources = LeadSource::all();
-        $this->countries = countries();
-        $this->salutations = Salutation::cases();
 
         // Get deals associated with this lead
         $deals = Deal::where('lead_id', $id)
@@ -326,27 +305,16 @@ class LeadContactController extends AccountBaseController
             'delete_lead_note' => user()->permission('delete_lead_note'),
         ];
 
-        return Inertia::render('Leads/Show', [
+        return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
-            'categories' => $this->categories,
-            'sources' => $this->sources,
-            'employees' => $this->employees,
-            'countries' => $this->countries,
-            'salutations' => collect($this->salutations)->map(function ($salutation) {
-                return [
-                    'value' => $salutation->value,
-                    'label' => $salutation->label()
-                ];
-            }),
-            'customFieldCategories' => $this->customFieldCategories,
-            'fields' => $this->fields ?? [],
+            'fields' => $formData['customFields'],
             'editLeadPermission' => $this->editLeadPermission,
             'deleteLeadPermission' => $this->deleteLeadPermission,
             'deals' => $deals,
             'notes' => $notes,
             'dealPermissions' => $dealPermissions,
             'notePermissions' => $notePermissions,
-        ]);
+        ], $formData, $dealFormData));
     }
 
     public function notes()
@@ -398,14 +366,13 @@ class LeadContactController extends AccountBaseController
         $this->addPermission = user()->permission('add_lead');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
-        $this->employees = User::allEmployees(null, true);
+        $formData = $this->getLeadFormData();
+        $this->employees = $formData['employees'];
+        $this->leadAgents = $formData['leadAgents'];
+        $this->fields = $formData['customFields'];
 
         $defaultStatus = LeadStatus::where('default', '1')->first();
         $this->columnId = request('column_id') ?: $defaultStatus->id;
-
-        $this->leadAgents = LeadAgent::whereHas('user', function ($q) {
-            $q->where('status', 'active');
-        })->with('user')->get();
 
         $this->leadAgentArray = $this->leadAgents->pluck('user_id')->toArray();
 
@@ -415,48 +382,20 @@ class LeadContactController extends AccountBaseController
             })->first()->id;
         }
 
-        $leadContact = new Lead();
-
-        $getCustomField = $leadContact->getCustomFieldGroupsWithFields();
-
-        if ($getCustomField) {
-            $this->fields = $getCustomField->fields;
-        }
-
-        $this->sources = LeadSource::all();
-        $this->categories = LeadCategory::all();
-        $this->countries = countries();
-        $this->salutations = Salutation::cases();
-
-        // Get custom field categories for lead module
-        $this->customFieldCategories = $this->getLeadCustomFieldCategories();
-
-        // To create deal from lead
-        $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
-        $this->leadStages = PipelineStage::all();
-        $this->leadAgentArray = $this->leadAgents->pluck('user_id')->toArray();
-        $this->products = Product::all();
+        $this->sources = $formData['sources'];
+        $this->categories = $formData['categories'];
+        $this->countries = $formData['countries'];
+        $this->customFieldCategories = $formData['customFieldCategories'];
+        $this->leadPipelines = $formData['leadPipelines'];
+        $this->leadStages = $formData['leadStages'];
+        $this->products = $formData['products'];
 
         // Check if it's an Inertia request
         if ($request->inertia()) {
-            return Inertia::render('Leads/Create', [
+            return Inertia::render('Leads/Create', array_merge([
                 'pageTitle' => $this->pageTitle,
-                'employees' => $this->employees,
-                'sources' => $this->sources,
-                'categories' => $this->categories,
-                'countries' => $this->countries,
-                'salutations' => collect($this->salutations)->map(function ($salutation) {
-                    return [
-                        'value' => $salutation->value,
-                        'label' => $salutation->label()
-                    ];
-                }),
-                'leadPipelines' => $this->leadPipelines,
-                'leadStages' => $this->leadStages,
-                'products' => $this->products,
-                'customFieldCategories' => $this->customFieldCategories,
                 'fields' => $this->fields ?? [],
-            ]);
+            ], $formData));
         }
 
         $this->view = 'lead-contact.ajax.create';
@@ -584,58 +523,41 @@ class LeadContactController extends AccountBaseController
                 || ($this->editPermission == 'both' && $this->leadContact->added_by == user()->id) || user()->id == $this->leadContact->lead_owner)
         );
 
-        $this->leadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
-            $q->where('status', 'active');
-        })->get();
+        $formData = $this->getLeadFormData();
+        $this->leadAgents = $formData['leadAgents'];
+        $this->fields = $formData['customFields'];
+        $this->sources = $formData['sources'];
+        $this->categories = $formData['categories'];
+        $this->countries = $formData['countries'];
+        $this->customFieldCategories = $formData['customFieldCategories'];
 
-        $getCustomFieldGroupsWithFields = $this->leadContact->getCustomFieldGroupsWithFields();
-        $this->employees = User::allEmployees();
-
-        $activeEmployees = $this->employees->filter(function ($employee) {
+        // Handle employees specifically for edit to include inactive owner
+        $allEmployees = User::allEmployees();
+        $activeEmployees = $allEmployees->filter(function ($employee) {
             return $employee->status !== 'deactive';
         });
 
-        $selectedEmployee = $this->employees->firstWhere('id', $this->leadContact->lead_owner);
+        $selectedEmployee = $allEmployees->firstWhere('id', $this->leadContact->lead_owner);
 
         if ($selectedEmployee && $selectedEmployee->status === 'deactive') {
             $this->employees = $activeEmployees->push($selectedEmployee);
         } else {
             $this->employees = $activeEmployees;
         }
-
-        if ($getCustomFieldGroupsWithFields) {
-            $this->fields = $getCustomFieldGroupsWithFields->fields;
-        }
-
-        $this->sources = LeadSource::all();
-        $this->categories = LeadCategory::all();
-        $this->countries = countries();
+        
+        // Update formData with the correct employees list
+        $formData['employees'] = $this->employees;
 
         $this->pageTitle = __('modules.leadContact.updateTitle');
-        $this->salutations = Salutation::cases();
-
-        // Get custom field categories for lead module
-        $this->customFieldCategories = $this->getLeadCustomFieldCategories();
 
         // Check if it's an Inertia request
         if ($request->inertia()) {
-            return Inertia::render('Leads/Create', [
+            return Inertia::render('Leads/Create', array_merge([
                 'pageTitle' => $this->pageTitle,
                 'lead' => $this->leadContact,
-                'employees' => $this->employees,
-                'sources' => $this->sources,
-                'categories' => $this->categories,
-                'countries' => $this->countries,
-                'salutations' => collect($this->salutations)->map(function ($salutation) {
-                    return [
-                        'value' => $salutation->value,
-                        'label' => $salutation->label()
-                    ];
-                }),
-                'customFieldCategories' => $this->customFieldCategories,
-                'fields' => $this->fields ?? [],
                 'isEditing' => true,
-            ]);
+                'fields' => $this->fields ?? [],
+            ], $formData));
         }
 
         if (request()->ajax()) {
@@ -651,7 +573,6 @@ class LeadContactController extends AccountBaseController
 
     /**
      * @param UpdateRequest $request
-     * @param int $id
      * @return array|void
      * @throws \Froiden\RestAPI\Exceptions\RelatedResourceNotFoundException
      */

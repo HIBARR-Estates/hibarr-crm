@@ -159,13 +159,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1">
-                        <Button
+                        {/* <Button
                             type="text"
                             size="small"
                             icon={<MinusOutlined />}
                             onClick={() => onCollapse(column.id, "minimize")}
                             title="Collapse"
-                        />
+                        /> */}
 
                         {addLeadPermission !== "none" && (
                             <Dropdown
