@@ -565,6 +565,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    Route::get('deals/kanban', [LeadBoardController::class, 'index'])->name('deals.kanban_index');
+    
     Route::resource('deals', DealController::class);
     
 // Meeting Summary Routes

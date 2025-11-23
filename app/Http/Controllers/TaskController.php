@@ -37,6 +37,7 @@ use App\Http\Requests\Tasks\UpdateTask;
 use App\Events\TaskEvent;
 use App\Helper\UserService;
 use App\Models\ClientContact;
+use App\Services\PermissionService;
 
 class TaskController extends AccountBaseController
 {
@@ -72,20 +73,15 @@ class TaskController extends AccountBaseController
         ]);
 
         // Apply permission-based filtering
-        if ($viewPermission === 'added') {
-            $tasksQuery->where('added_by', user()->id);
-        } elseif ($viewPermission === 'owned') {
-            $tasksQuery->whereHas('users', function ($query) {
-                $query->where('user_id', user()->id);
-            });
-        } elseif ($viewPermission === 'both') {
-            $tasksQuery->where(function ($query) {
-                $query->where('added_by', user()->id)
-                      ->orWhereHas('users', function ($subQuery) {
-                          $subQuery->where('user_id', user()->id);
-                      });
-            });
-        }
+        $taskRules = [
+            'added' => 'added_by',
+            'owned' => function($q, $user) {
+                $q->whereHas('users', function ($query) use ($user) {
+                    $query->where('created_by', $user->id);
+                });
+            }
+        ];
+        PermissionService::applyScope($tasksQuery, user(), 'view_tasks', $taskRules);
         // For 'all' permission, no additional filtering needed
 
         // Apply search filter

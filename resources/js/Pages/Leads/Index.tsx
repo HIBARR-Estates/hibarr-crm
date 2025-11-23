@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
@@ -71,17 +71,26 @@ const Index = ({
         selected: lead,
     } = useGenericEntityAction<Lead>();
 
+    // Memoize configs to prevent unnecessary re-renders and filter resets
+    const filterConfig = useMemo(
+        () =>
+            createLeadFilterConfig({
+                sources,
+                categories,
+                employees,
+                countries,
+                clientCategories,
+                languages,
+            }),
+        [sources, categories, employees, countries, clientCategories, languages]
+    );
+
+    const searchConfig = useMemo(() => createLeadSearchConfig(), []);
+
     // Setup search and filter contexts
     const { filter, search } = usePageSearchAndFilter({
-        filterConfig: createLeadFilterConfig({
-            sources,
-            categories,
-            employees,
-            countries,
-            clientCategories,
-            languages,
-        }),
-        searchConfig: createLeadSearchConfig(),
+        filterConfig,
+        searchConfig,
     });
 
     // Extract commonly used values

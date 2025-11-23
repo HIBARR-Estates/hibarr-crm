@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Button, Select, DatePicker } from "antd";
@@ -8,17 +8,18 @@ import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import { Deal, PipelineStage, Product } from "@/Types/api/deals";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { User } from "@/Types";
-import usePageFilter from "@/Hooks/usePageFilter";
-import ActiveFilters from "@/Components/ActiveFilters";
 import dayjs, { Dayjs } from "dayjs";
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
-import FilterDrawer from "@/Components/FilterDrawer";
-import AdvancedDealFilterForm from "@/Features/Deals/Filter/AdvancedDealFilterForm";
-import BasicDealFilterBox from "@/Features/Deals/Filter/BasicDealFilterBox";
 import DeleteColumn from "./Components/DeleteColumn";
 import EditColumn from "./Components/EditColumn";
+import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
+import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import UniversalSearchBox from "@/Components/UniversalSearchBox";
+import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
+import { createDealFilterConfig } from "@/configs/dealFilterConfig";
+import { createDealSearchConfig } from "@/configs/searchConfigs";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -85,6 +86,7 @@ const LeadBoardIndex = ({
     defaultPipeline,
     startDate,
     endDate,
+    ...props
 }: LeadBoardIndexProps) => {
     const [result, setResult] = useState(initialResult);
 
@@ -99,18 +101,38 @@ const LeadBoardIndex = ({
             boardColumns: updatedColumns,
         }));
     };
-    const {
-        filters = {},
-        drawerOpen,
-        openFilterDrawer,
-        closeFilterDrawer,
-        handleQuickFilter,
-        removeFilter,
-        handleResetQuickFilters,
-        handleResetFilters,
-        handleFilterSubmit,
-        clearAllFilters,
-    } = usePageFilter({ routeName: "leadboards.index" });
+
+    // Memoize configs to prevent unnecessary re-renders and filter resets
+    const filterConfig = useMemo(
+        () => ({
+            ...createDealFilterConfig({
+                ...props,
+                categories,
+                leadPipelines: pipelines,
+                stages: props.stages,
+                leadAgents,
+            }),
+            routeName: "leadboards.index",
+        }),
+        [categories, pipelines, props.stages, leadAgents]
+    );
+
+    const searchConfig = useMemo(
+        () => ({
+            ...createDealSearchConfig(),
+            routeName: "leadboards.index",
+        }),
+        []
+    );
+
+    // Setup search and filter contexts
+    const { filter, search } = usePageSearchAndFilter({
+        filterConfig,
+        searchConfig,
+    });
+
+    // Extract commonly used values
+    const { openDrawer, filters } = filter;
 
     const {
         action,
@@ -162,26 +184,17 @@ const LeadBoardIndex = ({
                 <div className="bg-gray-50 min-h-screen">
                     <PageLayout
                         title={pageTitle}
-                        breadcrumbs={[{ name: "Lead Boards" }]}
-                        filterSection={
-                            <>
-                                <BasicDealFilterBox
-                                    filters={filters}
-                                    handleResetFilters={handleResetFilters}
-                                    handleQuickFilter={handleQuickFilter}
-                                    handleResetQuickFilters={
-                                        handleResetQuickFilters
-                                    }
-                                    handleSubmit={handleFilterSubmit}
-                                />
-                                {/* Active Filters */}
-                                <ActiveFilters
-                                    filters={filters}
-                                    onRemoveFilter={removeFilter}
-                                    onClearAll={clearAllFilters}
-                                />
-                            </>
+                        breadcrumbs={[
+                            { name: "Deals", url: route("deals.index") },
+                            { name: "Kanban" },
+                        ]}
+                        searchComp={
+                            <UniversalSearchBox
+                                placeholder="Search deals by title, contact name, email..."
+                                className="w-full"
+                            />
                         }
+                        filterSection={<ContextualActiveFilters />}
                     >
                         <div className="bg-white rounded-lg shadow-sm">
                             {/* Header Actions */}
@@ -224,7 +237,7 @@ const LeadBoardIndex = ({
                                     <div className="flex items-center gap-x-2">
                                         <Button
                                             icon={<FilterOutlined />}
-                                            onClick={openFilterDrawer}
+                                            onClick={openDrawer}
                                         >
                                             Filters
                                         </Button>
@@ -249,19 +262,7 @@ const LeadBoardIndex = ({
                     </PageLayout>
                 </div>
                 {/* Filter Drawer */}
-                <FilterDrawer
-                    open={drawerOpen}
-                    onClose={closeFilterDrawer}
-                    title="Deal Filters"
-                    filters={filters}
-                    onApplyFilters={handleFilterSubmit}
-                    onResetFilters={handleResetFilters}
-                >
-                    <AdvancedDealFilterForm
-                        filters={filters}
-                        onFilterChange={handleQuickFilter}
-                    />
-                </FilterDrawer>
+                <UniversalFilterDrawer config={filterConfig} />
 
                 {/* Column Management Modals */}
                 <EditColumn

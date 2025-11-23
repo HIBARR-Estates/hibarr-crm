@@ -60,6 +60,7 @@ export interface Deal {
     currency?: Currency;
     deal_watchers: DealWatcher[];
     products?: Product[];
+    services?: any[];
     lead_status?: LeadStatus | null;
 
     // Custom Fields
@@ -241,6 +242,7 @@ export interface CreateDealFormData {
     category_id?: number;
     agent_id?: number;
     product_id?: number[];
+    services?: number[];
     deal_watcher?: number[];
     strategy_accepted?: boolean;
     downpayment_confirmed?: boolean;

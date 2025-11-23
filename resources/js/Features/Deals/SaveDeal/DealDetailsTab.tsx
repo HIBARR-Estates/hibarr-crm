@@ -63,6 +63,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         company = {},
         stages = [],
         packages = [],
+        services = {},
     } = props;
 
     const [pipelineId, setPipelineId] = useState<number>();
@@ -124,6 +125,53 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         } catch (error) {
             console.error("Error fetching agents:", error);
         }
+    };
+
+    const calculateTotalValue = (
+        currentPackageId?: number,
+        currentServiceIds?: number[]
+    ) => {
+        let total = 0;
+
+        // Package value
+        const packageId =
+            currentPackageId !== undefined
+                ? currentPackageId
+                : form.getFieldValue("package_id");
+        if (packageId) {
+            const selectedPackage = packages.find(
+                (p: any) => p.id === packageId
+            );
+            if (selectedPackage) {
+                total += parseFloat(selectedPackage.value);
+            }
+        }
+
+        // Services value
+        const selectedServiceIds =
+            currentServiceIds !== undefined
+                ? currentServiceIds
+                : form.getFieldValue("services");
+        if (selectedServiceIds && selectedServiceIds.length > 0) {
+            // Flatten services
+            const allServices = Object.values(services).flat();
+            // @ts-ignore
+            allServices.forEach((service: any) => {
+                if (selectedServiceIds.includes(service.id)) {
+                    total += parseFloat(service.value);
+                }
+            });
+        }
+
+        form.setFieldValue("value", total);
+    };
+
+    const handlePackageChange = (packageId: number) => {
+        calculateTotalValue(packageId, undefined);
+    };
+
+    const handleServicesChange = (serviceIds: number[]) => {
+        calculateTotalValue(undefined, serviceIds);
     };
 
     const handleSubmit = (values: any) => {
@@ -300,7 +348,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             label="Close Date"
                             rules={[
                                 {
-                                    required: true,
+                                    required: false,
                                     message: "Please select close date",
                                 },
                             ]}
@@ -359,6 +407,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
+                                onChange={handlePackageChange}
                             >
                                 {packages.map(
                                     (p: {
@@ -367,11 +416,13 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                         value: number;
                                     }) => (
                                         <Select.Option key={p.id} value={p.id}>
-                                            <div className="flex gap-x-4">
-                                                <span>{p.name}</span>
-                                                <Tag color={"blue"}>
+                                            <div className="flex justify-between items-center w-full">
+                                                <span className="text-gray-900">
+                                                    {p.name}
+                                                </span>
+                                                <span className="text-gray-500 font-medium">
                                                     {formatCurrency(p.value)}
-                                                </Tag>
+                                                </span>
                                             </div>
                                         </Select.Option>
                                     )
@@ -395,6 +446,47 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                     >
                                         {product.name}
                                     </Select.Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    </Col>
+
+                    <Col span={24}>
+                        <Form.Item name="services" label="Services">
+                            <Select
+                                mode="multiple"
+                                placeholder="Select Services"
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
+                                onChange={handleServicesChange}
+                            >
+                                {Object.keys(services).map((category) => (
+                                    <Select.OptGroup
+                                        key={category}
+                                        label={category}
+                                    >
+                                        {services[category].map(
+                                            (service: any) => (
+                                                <Select.Option
+                                                    key={service.id}
+                                                    value={service.id}
+                                                    data-value={service.value}
+                                                >
+                                                    <div className="flex justify-between gap-x-2 items-center w-full">
+                                                        <span className="text-gray-900">
+                                                            {service.name}
+                                                        </span>
+                                                        <span className="text-gray-500 font-medium">
+                                                            {formatCurrency(
+                                                                service.value
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </Select.Option>
+                                            )
+                                        )}
+                                    </Select.OptGroup>
                                 ))}
                             </Select>
                         </Form.Item>

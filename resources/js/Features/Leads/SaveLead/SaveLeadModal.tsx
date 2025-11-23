@@ -37,7 +37,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     const [formData, setFormData] = useState<CreateLeadFormData | null>(null);
     const { props } = usePage<any>();
 
-    const { customFields = [] } = props;
+    const customFields = props.leadCustomFields || props.customFields || [];
     // Determine if we're editing or creating
     const isEditing = !!lead;
     const submitText = isEditing ? "Update Lead" : "Create Lead";

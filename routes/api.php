@@ -37,6 +37,12 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
         //Import routes
         ApiRoute::post('bitrix/import', ['as' => 'api.bitrix.import', 'uses' => 'Api\BitrixImportController@store']);
+
+        
+        // External Events Routes
+        ApiRoute::post('external-events', ['as' => 'api.external-events.store', 'uses' => 'ExternalEventController@store']);
+        ApiRoute::get('external-events', ['as' => 'api.external-events.index', 'uses' => 'ExternalEventController@index']);
+        ApiRoute::get('external-events/{id}', ['as' => 'api.external-events.show', 'uses' => 'ExternalEventController@show']);
  
     });
 
@@ -49,8 +55,5 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
     //     'deal_id' => 'required|exists:deals,id',
     //     'new_stage_id' => 'required|exists:pipeline_stages,id',
     // ]);
-
-
-  
 
 });

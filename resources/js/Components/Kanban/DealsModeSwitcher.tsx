@@ -17,7 +17,7 @@ const DealsModeSwitcher = () => {
         <div className="flex items-center gap-2">
             {/* View Toggle */}
             <div className="flex bg-gray-100 rounded-md p-1">
-                <Link href={route("leadboards.index")}>
+                <Link href={`/account/deals/kanban`}>
                     <Button
                         type="text"
                         icon={<AppstoreOutlined />}
