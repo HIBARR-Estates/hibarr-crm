@@ -17,12 +17,14 @@ use Illuminate\Support\Facades\DB;
 use App\Models\UserLeadboardSetting;
 use App\Helper\Common;
 use App\Traits\DealAutomationTrait;
+use App\Traits\DealFormDataTrait;
 use Inertia\Inertia;
 use App\Services\PermissionService;
 
 class LeadBoardController extends AccountBaseController
 {
     use DealAutomationTrait;
+    use DealFormDataTrait;
 
     public function __construct()
     {
@@ -61,7 +63,7 @@ class LeadBoardController extends AccountBaseController
             return $value->default == 1;
         })->first();
 
-        $this->stages = PipelineStage::where('lead_pipeline_id', $this->defaultPipeline->id)->get();
+        $this->stages = PipelineStage::all();
         $this->startDate = now()->subDays(15)->format($this->company->date_format);
         $this->endDate = now()->addDays(15)->format($this->company->date_format);
         $this->leadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
@@ -78,10 +80,10 @@ class LeadBoardController extends AccountBaseController
         $this->viewStageFilter = false;
 
         // if (request()->ajax()) {
-            $this->pipelineId = ($request->pipeline) ? $request->pipeline : $this->defaultPipeline->id;
+            $this->pipelineId = ($request->lead_pipeline_id) ? $request->lead_pipeline_id : $this->defaultPipeline->id;
 
-            $startDate = ($request->startDate && $request->startDate != 'null' && $request->startDate != '') ? companyToDateString($request->startDate) : null;
-            $endDate = ($request->endDate && $request->endDate != 'null' && $request->endDate != '') ? companyToDateString($request->endDate) : null;
+            $startDate = ($request->start_date && $request->start_date != 'null' && $request->start_date != '') ? companyToDateString($request->start_date) : null;
+            $endDate = ($request->end_date && $request->end_date != 'null' && $request->end_date != '') ? companyToDateString($request->end_date) : null;
 
             $this->boardEdit = (request()->has('boardEdit') && request('boardEdit') == 'false') ? false : true;
             $this->boardDelete = (request()->has('boardDelete') && request('boardDelete') == 'false') ? false : true;
@@ -96,8 +98,8 @@ class LeadBoardController extends AccountBaseController
                         ->where('lead_products.product_id', $request->product);
                 }
 
-                if ($request->pipeline != 'all' && $request->pipeline != '') {
-                    $q->where('deals.lead_pipeline_id', $request->pipeline);
+                if ($request->lead_pipeline_id != 'all' && $request->lead_pipeline_id != '') {
+                    $q->where('deals.lead_pipeline_id', $request->lead_pipeline_id);
                 }
 
                 if ($request->deal_watcher_id !== null && $request->deal_watcher_id != 'all' && $request->deal_watcher_id != '') {
@@ -117,10 +119,10 @@ class LeadBoardController extends AccountBaseController
                     $q = $q->where('deals.category_id', $request->category_id);
                 }
 
-                if ($request->searchText != '') {
+                if ($request->search != '') {
                     $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
                     $q->where(function ($query) {
-                        $safeTerm = Common::safeString(request('searchText'));
+                        $safeTerm = Common::safeString(request('search'));
                         $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                             ->orWhere('leads.client_name', 'like', '%' . $safeTerm . '%')
                             ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
@@ -129,12 +131,12 @@ class LeadBoardController extends AccountBaseController
                     });
                 }
 
-                if (($request->agent != 'all' && $request->agent != 'undefined' && $request->agent != '') || $this->viewLeadPermission == 'added') {
+                if (($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') || $this->viewLeadPermission == 'added') {
                     $q->where(function ($query) use ($request) {
-                        if ($request->agent != 'all' && $request->agent != '') {
+                        if ($request->agent_id != 'all' && $request->agent_id != '') {
 
                             $query->whereHas('leadAgent', function ($q) use ($request) {
-                                $q->where('user_id', $request->agent);
+                                $q->where('user_id', $request->agent_id);
                             });
                         }
 
@@ -181,12 +183,12 @@ class LeadBoardController extends AccountBaseController
                         ->leftJoin('leads', 'leads.id', 'deals.lead_id')
                         ->groupBy('deals.id');
 
-                    if (($request->agent != 'all' && $request->agent != '' && $request->agent != 'undefined') || $this->viewLeadPermission == 'added') {
+                    if (($request->agent_id != 'all' && $request->agent_id != '' && $request->agent_id != 'undefined') || $this->viewLeadPermission == 'added') {
                         $q->where(function ($query) use ($request) {
-                            if ($request->agent != 'all' && $request->agent != '') {
+                            if ($request->agent_id != 'all' && $request->agent_id != '') {
 
                                 $query->whereHas('leadAgent', function ($q) use ($request) {
-                                    $q->where('user_id', $request->agent);
+                                    $q->where('user_id', $request->agent_id);
                                 });
                             }
 
@@ -228,8 +230,11 @@ class LeadBoardController extends AccountBaseController
 
                     $this->dateFilter($q, $startDate, $endDate, $request);
 
-                    if ($request->min == 'undefined' && $request->max == 'undefined' && (!is_null($request->min) || !is_null($request->max))) {
-                        $q->whereBetween('deals.value', [$request->min, $request->max]);
+                    if ($request->filled('min_value_range') && $request->min_value_range != 'undefined') {
+                        $q->where('deals.value', '>=', $request->min_value_range);
+                    }
+                    if ($request->filled('max_value_range') && $request->max_value_range != 'undefined') {
+                        $q->where('deals.value', '<=', $request->max_value_range);
                     }
 
                     if ($request->product != 'all' && $request->product != '') {
@@ -258,9 +263,9 @@ class LeadBoardController extends AccountBaseController
                         $q = $q->where('deals.category_id', $request->category_id);
                     }
 
-                    if ($request->searchText != '') {
+                    if ($request->search != '') {
                         $q->where(function ($query) {
-                            $safeTerm = Common::safeString(request('searchText'));
+                            $safeTerm = Common::safeString(request('search'));
                             $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                                 ->orWhere('leads.client_name', 'like', '%' . $safeTerm . '%')
                                 ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
@@ -274,8 +279,8 @@ class LeadBoardController extends AccountBaseController
                     }
                 });
 
-            if ($request->pipeline != 'all' && $request->pipeline != '') {
-                $boardColumns->where('lead_pipeline_id', $request->pipeline);
+            if ($request->lead_pipeline_id != 'all' && $request->lead_pipeline_id != '') {
+                $boardColumns->where('lead_pipeline_id', $request->lead_pipeline_id);
             }
 
             $boardColumns = $boardColumns->with('userSetting')->orderBy('priority', 'asc')->get();
@@ -296,14 +301,11 @@ class LeadBoardController extends AccountBaseController
                 $this->dateFilter($leads, $startDate, $endDate, $request);
 
 
-                if (!is_null($request->min) || !is_null($request->max)) {
-                    $min = $request->min;
-                    $leads = $leads->where('value', '>=', $min);
+                if ($request->filled('min_value_range') && $request->min_value_range != 'undefined') {
+                    $leads->where('deals.value', '>=', $request->min_value_range);
                 }
-
-                if (!is_null($request->max)) {
-                    $max = $request->max;
-                    $leads = $leads->where('value', '<=', $max);
+                if ($request->filled('max_value_range') && $request->max_value_range != 'undefined') {
+                    $leads->where('deals.value', '<=', $request->max_value_range);
                 }
 
                 if ($request->followUp != 'all' && $request->followUp != '' && $request->followUp != 'undefined') {
@@ -428,8 +430,8 @@ class LeadBoardController extends AccountBaseController
 
         // Determine current pipeline name for display
         $currentPipelineName = $this->defaultPipeline->name;
-        if (request()->has('pipeline') && request('pipeline') != 'all') {
-            $selectedPipeline = $this->pipelines->find(request('pipeline'));
+        if (request()->has('lead_pipeline_id') && request('lead_pipeline_id') != 'all') {
+            $selectedPipeline = $this->pipelines->find(request('lead_pipeline_id'));
             if ($selectedPipeline) {
                 $currentPipelineName = $selectedPipeline->name;
             }
@@ -437,9 +439,9 @@ class LeadBoardController extends AccountBaseController
 
         // For non-AJAX requests, we need to load the board data initially
         // if (!request()->ajax()) {
-            $pipelineId = request('pipeline', $this->defaultPipeline->id);
-            $startDate = (request('startDate') && request('startDate') != 'null' && request('startDate') != '') ? companyToDateString(request('startDate')) : null;
-            $endDate = (request('endDate') && request('endDate') != 'null' && request('endDate') != '') ? companyToDateString(request('endDate')) : null;
+            $pipelineId = request('lead_pipeline_id', $this->defaultPipeline->id);
+            $startDate = (request('start_date') && request('start_date') != 'null' && request('start_date') != '') ? companyToDateString(request('start_date')) : null;
+            $endDate = (request('end_date') && request('end_date') != 'null' && request('end_date') != '') ? companyToDateString(request('end_date')) : null;
             
             // Load board data using the same logic as AJAX requests
             $result = $this->getBoardData($request, $pipelineId, $startDate, $endDate);
@@ -449,7 +451,9 @@ class LeadBoardController extends AccountBaseController
         // Check if this should be an Inertia response
         // if (request()->header('X-Inertia')) {
         // if (true) {
-            return Inertia::render('LeadBoards/Index', [
+            $formData = $this->getDealFormData();
+
+            return Inertia::render('LeadBoards/Index', array_merge([
                 'pageTitle' => $this->pageTitle,
                 'result' => $this->result ?? ['boardColumns' => []],
                 'categories' => $this->categories,
@@ -466,8 +470,8 @@ class LeadBoardController extends AccountBaseController
                 'defaultPipeline' => $this->defaultPipeline,
                 'startDate' => $this->startDate,
                 'endDate' => $this->endDate,
-                'filters' => request()->only(['searchText', 'pipeline', 'category_id', 'product', 'agent', 'startDate', 'endDate', 'min', 'max']),
-            ]);
+                'filters' => request()->only(['search', 'lead_pipeline_id', 'category_id', 'product', 'agent_id', 'start_date', 'end_date', 'min_value_range', 'max_value_range']),
+            ], $formData));
         // }
 
         // For blade template (backward compatibility)
@@ -510,10 +514,10 @@ class LeadBoardController extends AccountBaseController
                 $q = $q->where('deals.category_id', $request->category_id);
             }
 
-            if ($request->searchText != '') {
+            if ($request->search != '') {
                 $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
                 $q->where(function ($query) {
-                    $safeTerm = Common::safeString(request('searchText'));
+                    $safeTerm = Common::safeString(request('search'));
                     $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                         ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
                         ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
@@ -542,9 +546,9 @@ class LeadBoardController extends AccountBaseController
                 }
             ];
 
-            if ($request->agent != 'all' && $request->agent != 'undefined' && $request->agent != '') {
+            if ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
                 $q->whereHas('leadAgent', function ($q) use ($request) {
-                    $q->where('user_id', $request->agent);
+                    $q->where('user_id', $request->agent_id);
                 });
             }
 
@@ -559,9 +563,9 @@ class LeadBoardController extends AccountBaseController
                 ->groupBy('deals.id');
 
             // Apply same filters as count query
-            if ($request->agent != 'all' && $request->agent != '' && $request->agent != 'undefined') {
+            if ($request->agent_id != 'all' && $request->agent_id != '' && $request->agent_id != 'undefined') {
                 $q->whereHas('leadAgent', function ($subQ) use ($request) {
-                    $subQ->where('user_id', $request->agent);
+                    $subQ->where('user_id', $request->agent_id);
                 });
             }
 
@@ -606,6 +610,10 @@ class LeadBoardController extends AccountBaseController
 
         if ($pipelineId != 'all' && $pipelineId != '') {
             $boardColumns->where('lead_pipeline_id', $pipelineId);
+        }
+
+        if ($request->filled('pipeline_stage_id') && $request->pipeline_stage_id != 'all') {
+            $boardColumns->where('id', $request->pipeline_stage_id);
         }
 
         $boardColumns = $boardColumns->with('userSetting')->orderBy('priority', 'asc')->get();
@@ -678,14 +686,14 @@ class LeadBoardController extends AccountBaseController
     {
         if ($startDate && $endDate) {
             $query->where(function ($task) use ($startDate, $endDate, $request) {
-                if ($request->date_filter_on == 'created_at') {
-                    $task->whereBetween(DB::raw('DATE(leads.`created_at`)'), [$startDate, $endDate]);
-                } elseif ($request->date_filter_on == 'updated_at') {
+                if ($request->date_filter_on == 'updated_at') {
                     $task->whereBetween(DB::raw('DATE(leads.`updated_at`)'), [$startDate, $endDate]);
                 } elseif ($request->date_filter_on == 'next_follow_up_date') {
                     $task->whereHas('followup', function ($q) use ($startDate, $endDate) {
                         $q->whereBetween(DB::raw('DATE(lead_follow_up.`next_follow_up_date`)'), [$startDate, $endDate]);
                     });
+                } else {
+                    $task->whereBetween(DB::raw('DATE(leads.`created_at`)'), [$startDate, $endDate]);
                 }
             });
         }
@@ -694,8 +702,8 @@ class LeadBoardController extends AccountBaseController
 
     public function loadMore(Request $request)
     {
-        $startDate = ($request->startDate && $request->startDate != 'null' && $request->startDate != '') ? companyToDateString($request->startDate) : null;
-        $endDate = ($request->endDate && $request->endDate != 'null' && $request->endDate != '') ? companyToDateString($request->endDate) : null;
+        $startDate = ($request->start_date && $request->start_date != 'null' && $request->start_date != '') ? companyToDateString($request->start_date) : null;
+        $endDate = ($request->end_date && $request->end_date != 'null' && $request->end_date != '') ? companyToDateString($request->end_date) : null;
         $skip = $request->currentTotalTasks;
         $totalTasks = $request->totalTasks;
 
@@ -708,13 +716,14 @@ class LeadBoardController extends AccountBaseController
         if ($startDate && $endDate) {
             $leads->where(function ($task) use ($startDate, $endDate) {
                 $task->whereBetween(DB::raw('DATE(leads.`created_at`)'), [$startDate, $endDate]);
-
-                $task->orWhereBetween(DB::raw('DATE(leads.`created_at`)'), [$startDate, $endDate]);
             });
         }
 
-        if (!is_null($request->min) || !is_null($request->max)) {
-            $leads = $leads->whereBetween('value', [$request->min, $request->max]);
+        if ($request->filled('min_value_range') && $request->min_value_range != 'undefined') {
+            $leads->where('deals.value', '>=', $request->min_value_range);
+        }
+        if ($request->filled('max_value_range') && $request->max_value_range != 'undefined') {
+            $leads->where('deals.value', '<=', $request->max_value_range);
         }
 
         if ($request->followUp != 'all' && $request->followUp != '' && $request->followUp != 'undefined') {
@@ -727,10 +736,10 @@ class LeadBoardController extends AccountBaseController
             }
         }
 
-        if ($request->searchText != '') {
+        if ($request->search != '') {
             $leads->leftJoin('leads', 'leads.id', 'deals.lead_id');
             $leads->where(function ($query) {
-                $safeTerm = Common::safeString(request('searchText'));
+                $safeTerm = Common::safeString(request('search'));
                 $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                     ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
                     ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')

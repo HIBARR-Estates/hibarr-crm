@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Link, router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
-import { Table, Button, Form } from "antd";
+import { Table, Button } from "antd";
 import type { MenuProps } from "antd";
 import {
     PlusOutlined,
@@ -23,12 +23,13 @@ import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyMo
 import ImportProperties from "@/Features/Properties/ImportProperties";
 import ExportProperties from "@/Features/Properties/ExportProperties";
 import DeleteProperty from "@/Features/Properties/DeleteProperty";
-import BasicPropertyFilterBox from "@/Features/Properties/Filter/BasicPropertyFilterBox";
-import AdvancedPropertyFilterForm from "@/Features/Properties/Filter/AdvancedPropertyFilterForm";
-import { filterProperties } from "@/lib/utils";
-import usePageFilter from "@/Hooks/usePageFilter";
-import FilterDrawer from "@/Components/FilterDrawer";
-import ActiveFilters from "@/Components/ActiveFilters";
+import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
+import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import UniversalSearchBox from "@/Components/UniversalSearchBox";
+import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
+import { createPropertyFilterConfig } from "@/configs/propertyFilterConfig";
+import { createPropertySearchConfig } from "@/configs/searchConfigs";
+import usePageSort from "@/Hooks/usePageSort";
 
 interface Project {
     id: number;
@@ -66,6 +67,7 @@ export default function Index({
     pageTitle,
     properties,
     default_currency_code: currencyCode,
+    ...props
 }: IndexProps) {
     const {
         handleAction,
@@ -91,19 +93,26 @@ export default function Index({
         window.addEventListener("popstate", handlePopState);
         return () => window.removeEventListener("popstate", handlePopState);
     }, []);
-    // filters and filter handlers
-    const {
-        filters,
-        drawerOpen,
-        openFilterDrawer,
-        closeFilterDrawer,
-        handleQuickFilter,
-        removeFilter,
-        handleResetQuickFilters,
-        handleResetFilters,
-        handleFilterSubmit,
-        clearAllFilters,
-    } = usePageFilter({ handleClose, routeName: "properties.index" });
+
+    // Memoize configs to prevent unnecessary re-renders and filter resets
+    const filterConfig = useMemo(
+        () => createPropertyFilterConfig(props),
+        [props]
+    );
+
+    const searchConfig = useMemo(() => createPropertySearchConfig(), []);
+
+    // Setup search and filter contexts
+    const { filter, search } = usePageSearchAndFilter({
+        filterConfig,
+        searchConfig,
+    });
+
+    // Extract commonly used values
+    const { openDrawer, filters } = filter;
+
+    // Sort handlers
+    const { sortParams } = usePageSort({ routeName: "properties.index" });
 
     // Table row selection
 
@@ -159,24 +168,12 @@ export default function Index({
                 title={pageTitle}
                 breadcrumbs={[{ name: "Properties" }]}
                 searchComp={
-                    <BasicPropertyFilterBox
-                        filters={filters}
-                        handleResetFilters={handleResetFilters}
-                        handleQuickFilter={handleQuickFilter}
-                        handleResetQuickFilters={handleResetQuickFilters}
-                        handleSubmit={handleFilterSubmit}
+                    <UniversalSearchBox
+                        placeholder="Search properties by title, area, description..."
+                        className="w-full"
                     />
                 }
-                filterSection={
-                    <>
-                        {/* Active Filters */}
-                        <ActiveFilters
-                            filters={filters}
-                            onRemoveFilter={removeFilter}
-                            onClearAll={clearAllFilters}
-                        />
-                    </>
-                }
+                filterSection={<ContextualActiveFilters />}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     {/* Header with Actions */}
@@ -204,7 +201,7 @@ export default function Index({
                             {/* Advanced Filters Button */}
                             <Button
                                 icon={<FilterOutlined />}
-                                onClick={openFilterDrawer}
+                                onClick={openDrawer}
                             >
                                 Advanced Filters
                             </Button>
@@ -225,10 +222,7 @@ export default function Index({
                     <div className="bg-white rounded-lg border border-gray-200 px-3">
                         <Table
                             columns={columns}
-                            dataSource={filterProperties(
-                                properties.data,
-                                filters
-                            )}
+                            dataSource={properties.data}
                             rowKey="id"
                             rowSelection={rowSelection}
                             pagination={{
@@ -244,6 +238,8 @@ export default function Index({
                                         route("properties.index"),
                                         {
                                             ...filters,
+                                            search: search.query,
+                                            ...sortParams,
                                             page,
                                             per_page: pageSize,
                                         },
@@ -282,19 +278,7 @@ export default function Index({
             />
 
             {/* Filter Drawer */}
-            <FilterDrawer
-                open={drawerOpen}
-                onClose={closeFilterDrawer}
-                title="Advanced Property Filters"
-                filters={filters}
-                onApplyFilters={handleFilterSubmit}
-                onResetFilters={handleResetFilters}
-            >
-                <AdvancedPropertyFilterForm
-                    filters={filters}
-                    onFilterChange={handleQuickFilter}
-                />
-            </FilterDrawer>
+            <UniversalFilterDrawer config={createPropertyFilterConfig(props)} />
         </DashboardLayout>
     );
 }
