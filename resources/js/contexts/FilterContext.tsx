@@ -107,11 +107,25 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
 
     // Helper function to format display value based on field config
     const formatDisplayValue = useCallback(
-        (key: string, value: any): string => {
-            if (!config || !value) return String(value || "");
+        (
+            key: string,
+            value: any,
+            configOverride?: FilterConfig | null
+        ): string => {
+            const activeConfig = configOverride || config;
+            if (!activeConfig || !value) return String(value || "");
 
-            const fieldConfig = config.fields.find(
-                (field) => field.key === key
+            // Handle range keys which might not match field keys directly
+            let fieldKey = key;
+            if (key.endsWith("_start"))
+                fieldKey = key.substring(0, key.length - 6);
+            else if (key.endsWith("_end"))
+                fieldKey = key.substring(0, key.length - 4);
+            else if (key.startsWith("min_")) fieldKey = key.substring(4);
+            else if (key.startsWith("max_")) fieldKey = key.substring(4);
+
+            const fieldConfig = activeConfig.fields.find(
+                (field) => field.key === fieldKey || field.key === key
             );
 
             if (fieldConfig?.formatDisplayValue) {
@@ -135,23 +149,24 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
                     return value
                         .map((v) => {
                             const option = options.find(
-                                (opt) => opt.value === v
+                                (opt) => opt.value == v
                             );
                             return option ? option.label : String(v);
                         })
                         .join(", ");
                 } else {
-                    const option = options.find((opt) => opt.value === value);
+                    const option = options.find((opt) => opt.value == value);
                     return option ? option.label : String(value);
                 }
             }
 
-            if (fieldConfig?.type === "daterange" && Array.isArray(value)) {
-                return value.join(" to ");
+            if (fieldConfig?.type === "daterange") {
+                // For individual start/end values, just return the date string
+                return String(value);
             }
 
-            if (fieldConfig?.type === "numberrange" && Array.isArray(value)) {
-                return `${value[0]} - ${value[1]}`;
+            if (fieldConfig?.type === "numberrange") {
+                return String(value);
             }
 
             return String(value);
@@ -177,6 +192,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
 
     const setFilter = useCallback(
         (key: string, value: any, label?: string, displayValue?: string) => {
+            console.log(value, "filter applied  ...");
             if (
                 value === null ||
                 value === undefined ||
@@ -232,6 +248,13 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const applyFilters = useCallback(() => {
         if (!config) return;
 
+        // Get current URL parameters to preserve them
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentParams: Record<string, any> = {};
+        urlParams.forEach((value, key) => {
+            currentParams[key] = value;
+        });
+
         // Clean filters - remove empty values
         const cleanFilters = Object.entries(filters).reduce(
             (acc, [key, value]) => {
@@ -248,18 +271,38 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             {} as Record<string, any>
         );
 
-        router.get(
-            route(config.routeName),
-            {
-                ...cleanFilters,
-                page: 1, // Reset to first page when applying filters
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
+        // Identify keys that are managed by the current filter config
+        // We need to remove these from currentParams if they are not in cleanFilters
+        // (meaning they were cleared by the user)
+        const managedKeys = new Set<string>();
+        config.fields.forEach((field) => {
+            managedKeys.add(field.key);
+            if (field.type === "daterange") {
+                managedKeys.add(`${field.key}_start`);
+                managedKeys.add(`${field.key}_end`);
+            } else if (field.type === "numberrange") {
+                managedKeys.add(`min_${field.key}`);
+                managedKeys.add(`max_${field.key}`);
             }
-        );
+        });
+
+        // Remove managed keys from currentParams
+        managedKeys.forEach((key) => {
+            delete currentParams[key];
+        });
+
+        // Merge preserved params with new filters
+        const finalParams = {
+            ...currentParams,
+            ...cleanFilters,
+            page: 1, // Reset to first page
+        };
+
+        router.get(route(config.routeName), finalParams, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
 
         setIsDrawerOpen(false);
     }, [config, filters]);
@@ -288,33 +331,63 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             const initialMetadata: Record<string, FilterValue> = {};
 
             newConfig.fields.forEach((field) => {
-                const value = urlParams.get(field.key);
-                if (value) {
-                    let parsedValue: any = value;
+                // Helper to process a single key
+                const processKey = (
+                    key: string,
+                    label: string,
+                    type: string
+                ) => {
+                    const value = urlParams.get(key);
+                    if (value) {
+                        let parsedValue: any = value;
 
-                    // Parse value based on field type
-                    if (field.type === "multiselect") {
-                        parsedValue = value.split(",");
-                    } else if (field.type === "number") {
-                        parsedValue = Number(value);
-                    } else if (
-                        field.type === "daterange" ||
-                        field.type === "numberrange"
-                    ) {
-                        // For ranges, we might have separate start/end parameters
-                        // This would need to be handled based on your URL structure
+                        if (type === "multiselect") {
+                            parsedValue = value.split(",");
+                        } else if (
+                            type === "number" ||
+                            type === "numberrange"
+                        ) {
+                            parsedValue = Number(value);
+                        }
+
+                        initialFilters[key] = parsedValue;
+                        initialMetadata[key] = {
+                            key: key,
+                            value: parsedValue,
+                            label: label,
+                            displayValue: formatDisplayValue(
+                                key,
+                                parsedValue,
+                                newConfig
+                            ),
+                        };
                     }
+                };
 
-                    initialFilters[field.key] = parsedValue;
-                    initialMetadata[field.key] = {
-                        key: field.key,
-                        value: parsedValue,
-                        label: field.label,
-                        displayValue: formatDisplayValue(
-                            field.key,
-                            parsedValue
-                        ),
-                    };
+                if (field.type === "daterange") {
+                    processKey(
+                        `${field.key}_start`,
+                        `${field.label} Start`,
+                        "date"
+                    );
+                    processKey(
+                        `${field.key}_end`,
+                        `${field.label} End`,
+                        "date"
+                    );
+                } else if (field.type === "numberrange") {
+                    processKey(
+                        `min_${field.key}`,
+                        `Min ${field.label}`,
+                        "numberrange"
+                    );
+                    processKey(
+                        `max_${field.key}`,
+                        `Max ${field.label}`,
+                        "numberrange"
+                    );
+                } else {
+                    processKey(field.key, field.label, field.type);
                 }
             });
 

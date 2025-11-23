@@ -32,6 +32,7 @@ import ImportDeals from "@/Features/Deals/ImportDeals";
 import { User } from "@/Types";
 import AddFollowup from "./Components/Tabs/followups/AddFollowup";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
+import { useMemo } from "react";
 
 interface LeadAgent {
     id: number;
@@ -67,10 +68,29 @@ const Index = ({
         selected: deal,
     } = useGenericEntityAction<Deal>();
 
+    // Memoize configs to prevent unnecessary re-renders and filter resets
+    const filterConfig = useMemo(
+        () =>
+            createDealFilterConfig({
+                ...props,
+                stages,
+                leadAgents,
+            }),
+        [
+            props.categories,
+            (props as any).leadPipelines,
+            stages,
+            leadAgents,
+            props.employees,
+        ]
+    );
+
+    const searchConfig = useMemo(() => createDealSearchConfig(), []);
+
     // Setup search and filter contexts
     const { filter, search } = usePageSearchAndFilter({
-        filterConfig: createDealFilterConfig(props),
-        searchConfig: createDealSearchConfig(),
+        filterConfig,
+        searchConfig,
     });
 
     // Extract commonly used values

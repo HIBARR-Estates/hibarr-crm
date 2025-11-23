@@ -61,6 +61,7 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "lead-contact.edit": "/account/lead-contact/{id}/edit",
         "lead-contact.store": "/account/lead-contact",
         "lead-contact.update": "/account/lead-contact/{id}",
+        "lead-contact.patch": "/account/lead-contact/{id}",
         "lead-contact.destroy": "/account/lead-contact/{id}",
         "lead-contact.import": "/account/lead-contact/import",
         "lead-contact.import.store": "/account/lead-contact/import",
@@ -103,6 +104,7 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "deals.edit": "/account/deals/{id}/edit",
         "deals.store": "/account/deals",
         "deals.update": "/account/deals/{id}",
+        "deals.patch": "/account/deals/{id}",
         "deals.destroy": "/account/deals/{id}",
         "deals.apply_quick_action": "/account/deals/apply-quick-action",
         "deals.import": "/account/deals/import",
@@ -137,6 +139,20 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "deal-notes.destroy": "/account/deal-notes/{id}",
         "deal-notes.apply_quick_action":
             "/account/deal-notes/apply-quick-action",
+
+        // Lead Notes routes
+        "lead-notes.index": "/account/lead-notes",
+        "lead-notes.create": "/account/lead-notes/create",
+        "lead-notes.show": "/account/lead-notes/{id}",
+        "lead-notes.edit": "/account/lead-notes/{id}/edit",
+        "lead-notes.store": "/account/lead-notes",
+        "lead-notes.update": "/account/lead-notes/{id}",
+        "lead-notes.destroy": "/account/lead-notes/{id}",
+        "lead-notes.ask_for_password":
+            "/account/lead-notes/ask-for-password/{id}",
+        "lead-notes.check_password": "/account/lead-notes/check-password",
+        "lead-notes.apply_quick_action":
+            "/account/lead-notes/apply-quick-action",
 
         // Deal Files routes
         "deal-files.index": "/account/deal-files",

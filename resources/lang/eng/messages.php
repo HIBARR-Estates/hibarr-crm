@@ -598,4 +598,11 @@ return array(
     'propertiesDeleted' => ':count properties deleted successfully.',
     'invalidAction' => 'Invalid action selected.',
     'somethingWentWrong' => 'Something went wrong. Please try again.',
+
+    // External Event Messages
+    'eventCreated' => 'External event created successfully.',
+    'eventsRetrieved' => 'External events retrieved successfully.',
+    'eventRetrieved' => 'External event retrieved successfully.',
+    'eventNotFound' => 'External event not found.',
+    'missingCompanyId' => 'Missing Company ID in header.',
 );

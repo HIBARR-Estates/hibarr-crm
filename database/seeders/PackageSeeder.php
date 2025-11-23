@@ -24,7 +24,7 @@ class PackageSeeder extends Seeder
             ],
             [
                 'name' => 'Bank',
-                'value' => 0,
+                'value' => 1400,
                 'company_id' => 1,
                 'description' => 'Banking and financial services package',
                 'customer_type_name' => 'Banking Customer',
@@ -32,7 +32,7 @@ class PackageSeeder extends Seeder
             ],
             [
                 'name' => 'Inspection',
-                'value' => 0,
+                'value' => 5000,
                 'company_id' => 1,
                 'description' => 'Property inspection and assessment package',
                 'customer_type_name' => 'Inspection Customer',
@@ -41,7 +41,13 @@ class PackageSeeder extends Seeder
         ];
 
         foreach ($packages as $packageData) {
-            Package::create($packageData);
+            Package::updateOrCreate(
+                [
+                    'name' => $packageData['name'],
+                    'company_id' => $packageData['company_id'],
+                ],
+                $packageData
+            );
         }
     }
 }

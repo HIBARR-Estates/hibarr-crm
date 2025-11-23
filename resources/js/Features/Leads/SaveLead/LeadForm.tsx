@@ -34,7 +34,8 @@ const LeadForm: React.FC<LeadFormProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState("basic");
     const { props } = usePage<any>();
-    const { customFieldCategories = [] } = props;
+    const customFieldCategories =
+        props.leadCustomFieldCategories || props.customFieldCategories || [];
 
     useEffect(() => {
         if (!visible) {

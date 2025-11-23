@@ -207,7 +207,8 @@ const OverviewMetricsBar: React.FC<OverviewMetricsBarProps> = ({
         <div className="mb-8">
             <Row gutter={[16, 16]}>
                 {metricsData.map((metric, index) => (
-                    <Col xs={24} sm={12} lg={8} xl={4} key={metric.key}>
+                    // <Col xs={24} sm={12} lg={8} xl={4} key={metric.key}>
+                    <Col xs={24} sm={12} lg={8} xl={8} key={metric.key}>
                         <StatCard
                             title={metric.title}
                             value={metric.value}

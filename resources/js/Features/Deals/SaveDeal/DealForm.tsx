@@ -36,7 +36,8 @@ const DealForm: React.FC<DealFormProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
-    const { customFieldCategories = [] } = props;
+    const customFieldCategories =
+        props.dealCustomFieldCategories || props.customFieldCategories || [];
 
     useEffect(() => {
         if (!visible) {
