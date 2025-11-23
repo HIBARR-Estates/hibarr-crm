@@ -54,6 +54,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         category_id: deal?.category_id || undefined,
         agent_id: deal?.agent_id || undefined,
         product_id: deal?.products?.map((p) => p.id) || [],
+        services: deal?.services?.map((s) => s.id) || [],
         deal_watcher: deal?.deal_watchers?.map((w) => w.id) || [],
         strategy_accepted: !!deal?.strategy_accepted,
         downpayment_confirmed: !!deal?.downpayment_confirmed,

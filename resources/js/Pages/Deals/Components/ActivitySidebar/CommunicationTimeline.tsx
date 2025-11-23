@@ -1,4 +1,4 @@
-import { Timeline, Empty, Button, Skeleton, Modal } from "antd";
+import { Timeline, Empty, Button, Skeleton, Modal, Drawer } from "antd";
 import {
     PhoneOutlined,
     MessageOutlined,
@@ -191,7 +191,7 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
     return (
         <>
             {/* Expanded Timeline Modal */}
-            <Modal
+            <Drawer
                 title={
                     <div className="flex items-center gap-2">
                         <MessageOutlined className="text-blue-600" />
@@ -201,16 +201,15 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
                     </div>
                 }
                 open={isExpandedView}
-                onCancel={() => setIsExpandedView(false)}
+                onClose={() => setIsExpandedView(false)}
                 footer={null}
-                width={800}
-                centered
+                size="large"
                 className="communication-modal"
             >
                 <div className="pt-4">
                     <TimelineContent isModal={true} />
                 </div>
-            </Modal>
+            </Drawer>
 
             <style dangerouslySetInnerHTML={{ __html: timelineStyles }} />
             <div className="bg-white border border-gray-200 rounded-lg p-6">

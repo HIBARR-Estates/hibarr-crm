@@ -6,6 +6,7 @@ use App\Enums\Salutation;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
+use App\Models\DealPropertyService;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
@@ -62,6 +63,7 @@ trait DealFormDataTrait
             'leadContacts' => Lead::allLeads(),
             'products' => Product::all(),
             'packages' => Package::all(),
+            'services' => DealPropertyService::all()->groupBy('category'),
             'customFields' => $fields,
             'customFieldCategories' => $customFieldCategories,
         ];
