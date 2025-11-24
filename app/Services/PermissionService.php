@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 class PermissionService
 {
@@ -131,13 +132,13 @@ class PermissionService
     /**
      * Apply permission scope to a query builder.
      * 
-     * @param Builder $query
+     * @param Builder|Relation $query
      * @param User $user
      * @param string $permissionName
      * @param array $rules ['added' => 'added_by', 'owned' => 'lead_owner'] or closures
-     * @return Builder
+     * @return Builder|Relation
      */
-    public static function applyScope(Builder $query, User $user, string $permissionName, array $rules = []): Builder
+    public static function applyScope(Builder|Relation $query, User $user, string $permissionName, array $rules = []): Builder|Relation
     {
         $permissionScope = $user->permission($permissionName);
 
