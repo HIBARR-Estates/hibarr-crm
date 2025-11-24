@@ -219,7 +219,7 @@ export default function Index({
                     </div>
 
                     {/* Properties Table */}
-                    <div className="bg-white rounded-lg border border-gray-200 px-3">
+                    <div className="bg-white rounded-lg border border-gray-200">
                         <Table
                             columns={columns}
                             dataSource={properties.data}

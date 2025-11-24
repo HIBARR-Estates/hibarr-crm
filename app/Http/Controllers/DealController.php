@@ -644,10 +644,6 @@ class DealController extends AccountBaseController
             $deal->dealWatchers()->sync($request->deal_watcher);
         }
 
-        if ($request->has('services')) {
-            $deal->services()->sync($request->services);
-        }
-
         if (!is_null($request->product_id)) {
 
             $products = $request->product_id;
@@ -710,7 +706,6 @@ class DealController extends AccountBaseController
             'leadAgent', 
             'leadAgent.user', 
             'products', 
-            'services',
             'leadStage', 
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
@@ -836,10 +831,6 @@ class DealController extends AccountBaseController
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
             $deal->dealWatchers()->sync($request->deal_watcher);
-        }
-
-        if ($request->has('services')) {
-            $deal->services()->sync($request->services);
         }
 
         $deal->products()->sync($request->product_id);
