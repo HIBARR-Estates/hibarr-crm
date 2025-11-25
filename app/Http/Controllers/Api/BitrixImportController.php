@@ -18,6 +18,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -74,6 +75,11 @@ class BitrixImportController extends Controller
                     $deal->column_priority = 0;
                     $deal->value = 0;
                     $isNewDeal = true;
+                    
+                    // Set created_at from payload if provided
+                    if ($createdDate = $this->parseDate(Arr::get($dealData, 'createdDate'))) {
+                        $deal->created_at = $createdDate;
+                    }
                 }
 
                 $deal->lead_id = $lead->id;
@@ -112,10 +118,20 @@ class BitrixImportController extends Controller
                     $deal->note = $note;
                 }
 
-                $deal->save();
+                // Use saveQuietly to prevent DealObserver from triggering automation
+                // This ensures the deal stays at the stage specified in the payload
+                $deal->saveQuietly();
 
                 if ($responsibleUser) {
-                    $deal->dealWatchers()->syncWithoutDetaching([$responsibleUser->id]);
+                    try {
+                        $deal->dealWatchers()->syncWithoutDetaching([$responsibleUser->id]);
+                    } catch (\Exception $e) {
+                        // Log but don't fail the import if watcher sync fails
+                        Log::warning('Bitrix import: Failed to sync deal watchers', [
+                            'deal_id' => $deal->id,
+                            'user_id' => $responsibleUser->id,
+                        ]);
+                    }
                 }
 
                 $this->scheduleFollowUpIfNeeded($deal, Arr::get($dealData, 'nextMeeting'));
@@ -173,6 +189,18 @@ class BitrixImportController extends Controller
         $user->status = 'active';
         $user->save();
 
+        // Create EmployeeDetails first (before attaching roles)
+        // This matches the pattern in EmployeeController and may be expected by observers/events
+        EmployeeDetails::firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+            ],
+            [
+                'joining_date' => now(),
+            ]
+        );
+
         $employeeRole = Role::withoutGlobalScopes()
             ->where('company_id', $companyId)
             ->where('name', 'employee')
@@ -183,16 +211,25 @@ class BitrixImportController extends Controller
             ->where('name', 'sales agent')
             ->first();
 
-        foreach (array_filter([$employeeRole, $salesRole]) as $role) {
-            $user->attachRole($role->id);
-            $user->assignUserRolePermission($role->id);
+        // Only attach roles that exist
+        $rolesToAttach = array_filter([$employeeRole, $salesRole]);
+        
+        if (empty($rolesToAttach)) {
+            // If no roles exist, try to find any role or skip role assignment
+            // This prevents errors when roles haven't been set up yet
+            Log::warning('Bitrix import: No employee or sales agent roles found for company', [
+                'company_id' => $companyId,
+                'user_email' => $user->email,
+            ]);
+        } else {
+            foreach ($rolesToAttach as $role) {
+                if ($role && $role->id) {
+                    // attachRole expects a Role object, not an ID
+                    $user->attachRole($role);
+                    $user->assignUserRolePermission($role->id);
+                }
+            }
         }
-
-        EmployeeDetails::create([
-            'user_id' => $user->id,
-            'company_id' => $companyId,
-            'joining_date' => now(),
-        ]);
 
         return $user;
     }
@@ -238,6 +275,12 @@ class BitrixImportController extends Controller
                 $lead->lead_owner = $responsibleUser->id;
             }
             $lead->column_priority = 0;
+            
+            // Set created_at from payload if provided
+            if ($createdDate = $this->parseDate(Arr::get($contactData, 'createdDate'))) {
+                $lead->created_at = $createdDate;
+            }
+            
             $lead->save();
         } else {
             $lead->client_name = $name !== '' ? $name : $lead->client_name;
@@ -270,10 +313,17 @@ class BitrixImportController extends Controller
             'has_downloaded_the_ebook' => $this->toBoolean(Arr::get($contactData, 'hasDownloadedEbook')) ?? false,
         ];
 
-        $lead->marketing()->updateOrCreate(
-            ['lead_id' => $lead->id],
-            $marketingPayload
-        );
+        try {
+            $lead->marketing()->updateOrCreate(
+                ['lead_id' => $lead->id],
+                $marketingPayload
+            );
+        } catch (\Exception $e) {
+            // Log but don't fail the import if marketing data fails
+            Log::warning('Bitrix import: Failed to upsert lead marketing data', [
+                'lead_id' => $lead->id,
+            ]);
+        }
 
         return $lead;
     }
@@ -322,17 +372,61 @@ class BitrixImportController extends Controller
         $stage = null;
 
         if ($stageIdentifier !== null && $stageIdentifier !== '') {
-            $stage = PipelineStage::withoutGlobalScopes()
-                ->where('company_id', $companyId)
-                ->when($pipeline, function ($query) use ($pipeline) {
-                    $query->where('lead_pipeline_id', $pipeline->id);
-                })
-                ->where(function ($query) use ($stageIdentifier) {
-                    $query->where('id', $stageIdentifier)
-                        ->orWhere('name', $stageIdentifier)
-                        ->orWhere('slug', $stageIdentifier);
-                })
-                ->first();
+            // If stageIdentifier is numeric, prioritize ID matching
+            if (is_numeric($stageIdentifier)) {
+                $stageId = (int) $stageIdentifier;
+                
+                // First, try to find the stage in the specified pipeline (if pipeline was found)
+                if ($pipeline) {
+                    $stage = PipelineStage::withoutGlobalScopes()
+                        ->where('company_id', $companyId)
+                        ->where('lead_pipeline_id', $pipeline->id)
+                        ->where('id', $stageId)
+                        ->first();
+                }
+                
+                // If not found in the pipeline, try finding by ID globally (stage might exist in another pipeline)
+                if (!$stage) {
+                    $stage = PipelineStage::withoutGlobalScopes()
+                        ->where('company_id', $companyId)
+                        ->where('id', $stageId)
+                        ->first();
+                    
+                    // Log a warning if stage was found but in a different pipeline
+                    if ($stage && $pipeline && $stage->lead_pipeline_id !== $pipeline->id) {
+                        Log::warning('Bitrix import: Stage found in different pipeline than specified', [
+                            'stage_id' => $stageId,
+                            'found_pipeline_id' => $stage->lead_pipeline_id,
+                            'specified_pipeline_id' => $pipeline->id,
+                            'specified_pipeline_name' => $pipeline->name,
+                        ]);
+                    }
+                }
+                
+                // If still not found by ID, log an error
+                if (!$stage) {
+                    Log::warning('Bitrix import: Stage ID not found', [
+                        'stage_id' => $stageId,
+                        'company_id' => $companyId,
+                        'pipeline_id' => $pipeline?->id,
+                        'pipeline_name' => $pipeline?->name,
+                    ]);
+                }
+            }
+            
+            // If not found by ID (or not numeric), try name and slug
+            if (!$stage) {
+                $stage = PipelineStage::withoutGlobalScopes()
+                    ->where('company_id', $companyId)
+                    ->when($pipeline, function ($query) use ($pipeline) {
+                        $query->where('lead_pipeline_id', $pipeline->id);
+                    })
+                    ->where(function ($query) use ($stageIdentifier) {
+                        $query->where('name', $stageIdentifier)
+                            ->orWhere('slug', $stageIdentifier);
+                    })
+                    ->first();
+            }
         }
 
         if (!$stage && $pipeline) {
@@ -356,6 +450,13 @@ class BitrixImportController extends Controller
 
         if (!$pipeline) {
             $pipeline = $stage->pipeline;
+            
+            if ($pipeline === null) {
+                Log::warning('Bitrix import: Failed to load pipeline from stage', [
+                    'stage_id' => $stage->id,
+                    'company_id' => $companyId,
+                ]);
+            }
         }
 
         return [$pipeline, $stage];
@@ -513,11 +614,19 @@ class BitrixImportController extends Controller
             return;
         }
 
-        DealFollowUp::create([
-            'deal_id' => $deal->id,
-            'next_follow_up_date' => $date,
-            'remark' => 'Imported from Bitrix',
-            'added_by' => optional(auth()->user())->id,
-        ]);
+        try {
+            DealFollowUp::create([
+                'deal_id' => $deal->id,
+                'next_follow_up_date' => $date,
+                'remark' => 'Imported from Bitrix',
+                'added_by' => optional(auth()->user())->id,
+            ]);
+        } catch (\Exception $e) {
+            // Log but don't fail the import if follow-up creation fails
+            Log::warning('Bitrix import: Failed to create deal follow-up', [
+                'deal_id' => $deal->id,
+                'next_meeting' => $nextMeeting,
+            ]);
+        }
     }
 }

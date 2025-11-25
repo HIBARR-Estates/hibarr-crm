@@ -44,3 +44,8 @@ IMPORT_STAGE_CONFIGURATION.md
 
 # docker
 docker-compose.override.yml
+
+public/js/
+public/css/
+public/build/
+public/mix-manifest.json
