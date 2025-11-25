@@ -65,6 +65,13 @@
                         fieldValue="1"  />
                     </div>
                 </div>
+                <div class="col-lg-4">
+                    <div class="form-group my-5">
+                        <x-forms.checkbox fieldId="important"
+                            :fieldLabel="__('modules.customFields.important')" fieldName="important"
+                            fieldValue="1"  />
+                    </div>
+                </div>
 
             </div>
             <div class="form-group mt-repeater d-none">

@@ -73,6 +73,7 @@ class CustomFieldController extends AccountBaseController
                     'values' => $request->get('value'),
                     'export' => $request->get('export'),
                     'visible' => $request->get('visible'),
+                    'important' => $request->get('important'),
                 ]
             ],
 
@@ -92,7 +93,8 @@ class CustomFieldController extends AccountBaseController
     public function edit($id)
     {
         $this->field = CustomField::findOrFail($id);
-        $this->field->values = json_decode($this->field->values);
+        $decodedValues = json_decode($this->field->values);
+        $this->field->values = is_array($decodedValues) ? $decodedValues : [];
         $this->customFieldGroups = CustomFieldGroup::all();
         $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
         // Categories will be loaded dynamically based on the selected module
@@ -118,6 +120,7 @@ class CustomFieldController extends AccountBaseController
         $field->required = $request->required;
         $field->export = $request->export;
         $field->visible = $request->visible;
+        $field->important = $request->important;
         $field->save();
 
         return Reply::success('messages.updateSuccess');
@@ -155,7 +158,8 @@ class CustomFieldController extends AccountBaseController
                 'name' => $field['name'],
                 'type' => $field['type'],
                 'export' => $field['export'],
-                'visible' => $field['visible']
+                'visible' => $field['visible'],
+                'important' => $field['important'] ?? 0
             ];
 
             if (isset($field['required']) && (in_array($field['required'], ['yes', 'on', 1]))) {
