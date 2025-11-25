@@ -287,9 +287,4 @@ class Deal extends BaseModel
         return $this->hasOne(HibarrDealFields::class, 'deal_id');
     }
 
-    public function services(): BelongsToMany
-    {
-        return $this->belongsToMany(DealPropertyService::class, 'deal_service');
-    }
-
 }

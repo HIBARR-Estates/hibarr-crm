@@ -1,13 +1,22 @@
 import { FilterConfig } from "@/contexts/FilterContext";
 
-export const createDealFilterConfig = (props: any): FilterConfig => ({
-    routeName: "deals.index",
-    title: "Deal Filters",
-    fields: [
+interface DealFilterProps {
+    leadPipelines?: any[];
+    stages?: any[];
+    categories?: any[];
+    leadAgents?: any[];
+    excludeFields?: string[];
+    [key: string]: any;
+}
+
+export const createDealFilterConfig = (
+    props: DealFilterProps
+): FilterConfig => {
+    const fields = [
         {
             key: "search",
             label: "Search",
-            type: "text",
+            type: "text" as const,
             placeholder: "Search deals by contact name, company, deal name...",
             section: "Search & General",
             span: 24,
@@ -15,7 +24,7 @@ export const createDealFilterConfig = (props: any): FilterConfig => ({
         {
             key: "lead_pipeline_id",
             label: "Pipeline",
-            type: "select",
+            type: "select" as const,
             placeholder: "Select pipeline",
             section: "Pipeline & Stage",
             span: 12,
@@ -28,7 +37,7 @@ export const createDealFilterConfig = (props: any): FilterConfig => ({
         {
             key: "pipeline_stage_id",
             label: "Stage",
-            type: "select",
+            type: "select" as const,
             placeholder: "Select stage",
             section: "Pipeline & Stage",
             span: 12,
@@ -50,7 +59,7 @@ export const createDealFilterConfig = (props: any): FilterConfig => ({
         {
             key: "category_id",
             label: "Category",
-            type: "select",
+            type: "select" as const,
             placeholder: "Select category",
             section: "Categorization",
             span: 24,
@@ -63,7 +72,7 @@ export const createDealFilterConfig = (props: any): FilterConfig => ({
         {
             key: "start_date",
             label: "Created Date Range",
-            type: "daterange",
+            type: "daterange" as const,
             section: "Date Range",
             span: 24,
             formatDisplayValue: (value: any, options?: any) => {
@@ -74,7 +83,7 @@ export const createDealFilterConfig = (props: any): FilterConfig => ({
         {
             key: "agent_id",
             label: "Assigned Agent",
-            type: "select",
+            type: "select" as const,
             placeholder: "Select agent",
             section: "Assignment",
             span: 24,
@@ -87,15 +96,26 @@ export const createDealFilterConfig = (props: any): FilterConfig => ({
         {
             key: "value_range",
             label: "Deal Value",
-            type: "numberrange",
+            type: "numberrange" as const,
             section: "Financial",
             span: 24,
             formatDisplayValue: (value: any) => {
                 return `$${value.toLocaleString()}`;
             },
         },
-    ],
-    defaultValues: {},
-});
+    ];
+
+    // Filter out excluded fields
+    const filteredFields = props.excludeFields
+        ? fields.filter((field) => !props.excludeFields?.includes(field.key))
+        : fields;
+
+    return {
+        routeName: "deals.index",
+        title: "Deal Filters",
+        fields: filteredFields,
+        defaultValues: {},
+    };
+};
 
 export default createDealFilterConfig;

@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { router, useForm, usePage } from "@inertiajs/react";
-import { Drawer, message, Form } from "antd";
+import { router } from "@inertiajs/react";
+import { Drawer } from "antd";
 import { IModalProps } from "@/Types/common";
 import TaskForm from "./TaskForm";
+import { useApiMutate } from "@/lib/api/client";
+import { ApiResponse } from "@/lib/api/types";
+import { isLoading as getLoadingStatus } from "@/lib/utils";
+import { errorFormatter } from "@/lib/api/utils/common";
 
 interface Task {
     id: number;
@@ -113,7 +117,8 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     users,
     projects,
 }) => {
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [errors, setErrors] = useState<string[]>([]);
+    const [formData, setFormData] = useState<CreateTaskFormData | null>(null);
 
     // Determine the operation type
     const isEditing = !!task && !isDuplicate;
@@ -129,7 +134,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     const submitText = isEditing ? "Update Task" : "Create Task";
 
     // Initialize form data
-    const initialData: CreateTaskFormData = {
+    const getInitialData = (): CreateTaskFormData => ({
         heading: isDuplicating
             ? `${task?.heading} (Copy)`
             : task?.heading || "",
@@ -149,120 +154,78 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         is_private: task?.is_private || false,
         billable: task?.billable || false,
         without_duedate: task?.without_duedate || false,
-    };
+    });
 
-    // Use Inertia's useForm hook for better CSRF and error handling
-    const {
-        data,
-        setData,
-        submit,
-        processing,
-        errors: formErrors,
-        reset,
-    } = useForm(initialData);
-    const [pushing, setPushing] = useState(false);
+    // Setup API mutation
+    const { mutate: createTask, status: createStatus } = useApiMutate<
+        CreateTaskFormData,
+        Task,
+        ApiResponse<Task>
+    >(route("tasks.store"), "POST");
+
+    const { mutate: updateTask, status: updateStatus } = useApiMutate<
+        CreateTaskFormData,
+        Task,
+        ApiResponse<Task>
+    >(isEditing ? route("tasks.update", task!.id) : "", "PUT");
 
     // Update form data when task changes
     useEffect(() => {
-        if (task) {
-            const updatedData: CreateTaskFormData = {
-                heading: isDuplicating
-                    ? `${task.heading} (Copy)`
-                    : task.heading,
-                description: task.description || "",
-                start_date: task.start_date || "",
-                due_date: isDuplicating ? "" : task.due_date || "",
-                priority: task.priority || "medium",
-                project_id: task.project?.id,
-                user_ids: task.users?.map((u) => u.id) || [],
-                category_id: task.category?.id,
-                task_labels: task.labels?.map((l) => l.id) || [],
-                estimate_hours: task.estimate_hours || 0,
-                estimate_minutes: task.estimate_minutes || 0,
-                board_column_id:
-                    task.board_column_id ||
-                    columns.find((col) => col.slug === "incomplete")?.id,
-                is_private: task.is_private || false,
-                billable: task.billable || false,
-                without_duedate: task.without_duedate || false,
-            };
-
-            setData(updatedData);
+        if (open) {
+            const initialData = getInitialData();
+            setFormData(initialData);
         }
-    }, [task, isDuplicate]);
+    }, [task, isDuplicate, open]);
 
-    useEffect(() => {
-        if (pushing) {
-            if (isEditing) {
-                submit("put", route("tasks.update", task!.id), {
-                    onSuccess: () => {
-                        setPushing(false);
-                        message.success("Task updated successfully");
-                        onClose();
-                        router.reload();
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-                        setErrors(errors as Record<string, string>);
-                        message.error("Please check the form for errors");
-                    },
-                });
-            } else {
-                submit("post", route("tasks.store"), {
-                    onSuccess: () => {
-                        setPushing(false);
-                        message.success("Task created successfully");
-                        reset();
-                        onClose();
-                        router.reload();
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-                        setErrors(errors as Record<string, string>);
-                        message.error("Please check the form for errors");
-                    },
-                });
-            }
-        }
-    }, [pushing]);
-
-    const handleSubmit = (formData: any) => {
+    const handleSubmit = (values: any) => {
         // Clear previous errors
-        setErrors({});
+        setErrors([]);
 
         // dates should be d-m-Y
-
-        // Transform the values to match the API expectations
         const submitData = {
-            ...formData,
-            start_date: formData.start_date?.format
-                ? formData.start_date.format("DD-MM-YYYY")
-                : formData.start_date,
-            due_date: formData.due_date?.format
-                ? formData.due_date.format("DD-MM-YYYY")
-                : formData.due_date,
+            ...values,
+            start_date: values.start_date?.format
+                ? values.start_date.format("DD-MM-YYYY")
+                : values.start_date,
+            due_date: values.due_date?.format
+                ? values.due_date.format("DD-MM-YYYY")
+                : values.due_date,
+            estimate_hours: values.estimate_hours || 0,
+            estimate_minutes: values.estimate_minutes || 0,
         };
 
-        // Update the form data
-        setData(submitData);
-        setPushing(true);
+        const mutation = isEditing ? updateTask : createTask;
+
+        mutation(submitData, {
+            onSuccess: () => {
+                setErrors([]);
+                handleCancel();
+                router.reload();
+            },
+            onError: (errorResponse) => {
+                const responseErrors =
+                    errorFormatter(errorResponse)?.errors || [];
+                setErrors((prev) => [
+                    ...prev,
+                    ...Object.values(responseErrors).flat(),
+                ]);
+            },
+        });
     };
 
     const handleCancel = () => {
-        reset();
-        setErrors({});
+        setFormData(null);
+        setErrors([]);
         onClose();
     };
 
     const handleErrorsClear = () => {
-        setErrors({});
+        setErrors([]);
     };
 
-    // Combine form errors with manual errors
-    const allErrors = [
-        ...Object.values(errors).flat().map(String),
-        ...Object.values(formErrors).flat().map(String),
-    ];
+    const isLoading =
+        getLoadingStatus({ status: createStatus }) ||
+        getLoadingStatus({ status: updateStatus });
 
     return (
         <Drawer
@@ -274,9 +237,9 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
             destroyOnHidden
         >
             {/* show errors */}
-            {allErrors.length > 0 && (
+            {errors.length > 0 && (
                 <div className="mb-4">
-                    {allErrors.map((error, index) => (
+                    {errors.map((error, index) => (
                         <div key={index} className="text-red-600">
                             {error}
                         </div>
@@ -284,20 +247,20 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                 </div>
             )}
             <TaskForm
-                data={data}
+                data={formData || undefined}
                 visible={open}
                 onCancel={handleCancel}
                 onSubmit={handleSubmit}
                 submitText={submitText}
                 cancelText="Cancel"
-                errors={allErrors}
-                setErrors={(errors) => {
-                    // errors.forEach((error, field) =>
-                    //     setErrors((prev) => ({ ...prev, [field]: error }))
-                    // )
+                errors={errors}
+                setErrors={(newErrors) => {
+                    if (Array.isArray(newErrors)) {
+                        setErrors(newErrors);
+                    }
                 }}
                 onErrorsClear={handleErrorsClear}
-                loading={processing || pushing}
+                loading={isLoading}
                 categories={categories}
                 labels={labels}
                 columns={columns}

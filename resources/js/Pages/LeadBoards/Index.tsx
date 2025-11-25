@@ -111,6 +111,7 @@ const LeadBoardIndex = ({
                 leadPipelines: pipelines,
                 stages: props.stages,
                 leadAgents,
+                excludeFields: ["pipeline_stage_id"],
             }),
             routeName: "leadboards.index",
         }),
@@ -133,6 +134,22 @@ const LeadBoardIndex = ({
 
     // Extract commonly used values
     const { openDrawer, filters } = filter;
+
+    const handlePipelineChange = (value: number) => {
+        // Get current params
+        const urlParams = new URLSearchParams(window.location.search);
+        const params = Object.fromEntries(urlParams.entries());
+
+        // Update pipeline
+        params.lead_pipeline_id = String(value);
+
+        // Navigate
+        router.get(route("leadboards.index"), params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
 
     const {
         action,
@@ -212,6 +229,25 @@ const LeadBoardIndex = ({
                                         <h1 className="text-xl font-semibold text-gray-900">
                                             {currentPipelineName}
                                         </h1>
+
+                                        <Select
+                                            value={
+                                                filters.lead_pipeline_id
+                                                    ? Number(
+                                                          filters.lead_pipeline_id
+                                                      )
+                                                    : defaultPipeline?.id
+                                            }
+                                            onChange={handlePipelineChange}
+                                            style={{ width: 200 }}
+                                            placeholder="Select Pipeline"
+                                            options={pipelines.map(
+                                                (pipeline) => ({
+                                                    value: pipeline.id,
+                                                    label: pipeline.name,
+                                                })
+                                            )}
+                                        />
 
                                         {(addLeadPermission === "all" ||
                                             addLeadPermission === "added") && (
