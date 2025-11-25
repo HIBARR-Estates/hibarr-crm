@@ -11,8 +11,7 @@ services:
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      # - "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory" # Uncomment for testing to avoid rate limits
-      - "--certificatesresolvers.myresolver.acme.email=admin@hibarr.de"
+      - "--certificatesresolvers.myresolver.acme.email=it@hibarr.de"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
@@ -31,7 +30,6 @@ services:
       args:
         user: hibarr
         uid: 1000
-    image: hibarr-crm-app
     container_name: hibarr-crm-app
     restart: unless-stopped
     working_dir: /var/www/html
@@ -55,13 +53,11 @@ services:
       - hibarr-network
     labels:
       - "traefik.enable=true"
-      # Update the Host rule to your actual domain
-      - "traefik.http.routers.hibarr-crm.rule=Host(`crm.hibarr.de`)"
+      - "traefik.http.routers.hibarr-crm.rule=Host(`crm.hibarr.org`)"
       - "traefik.http.routers.hibarr-crm.entrypoints=websecure"
       - "traefik.http.routers.hibarr-crm.tls.certresolver=myresolver"
       - "traefik.http.services.hibarr-crm.loadbalancer.server.port=80"
-      # Middleware to redirect HTTP to HTTPS
-      - "traefik.http.routers.hibarr-crm-http.rule=Host(`crm.hibarr.de`)"
+      - "traefik.http.routers.hibarr-crm-http.rule=Host(`crm.hibarr.org`)"
       - "traefik.http.routers.hibarr-crm-http.entrypoints=web"
       - "traefik.http.routers.hibarr-crm-http.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
