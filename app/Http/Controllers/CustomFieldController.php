@@ -73,7 +73,7 @@ class CustomFieldController extends AccountBaseController
                     'values' => $request->get('value'),
                     'export' => $request->get('export'),
                     'visible' => $request->get('visible'),
-                    'important' => $request->get('important'),
+                    'important' => $request->get('important', 0),
                 ]
             ],
 
@@ -121,7 +121,7 @@ class CustomFieldController extends AccountBaseController
         $field->required = $request->required;
         $field->export = $request->export;
         $field->visible = $request->visible;
-        $field->important = $request->important;
+        $field->important = $request->important ?? 0;
         $field->save();
 
         return Reply::success('messages.updateSuccess');
