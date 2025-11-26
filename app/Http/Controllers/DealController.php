@@ -644,10 +644,6 @@ class DealController extends AccountBaseController
             $deal->dealWatchers()->sync($request->deal_watcher);
         }
 
-        if ($request->has('services')) {
-            $deal->services()->sync($request->services);
-        }
-
         if (!is_null($request->product_id)) {
 
             $products = $request->product_id;
@@ -689,12 +685,7 @@ class DealController extends AccountBaseController
             $redirectUrl = route('deals.index');
         }
 
-        // return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
-        return back()->with([
-            'status' => 'success',
-            'message' => __('messages.recordSaved'),
-            'deal'=> $deal
-        ]);
+        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'deal' => $deal]);
     }
 
     /**
@@ -710,7 +701,6 @@ class DealController extends AccountBaseController
             'leadAgent', 
             'leadAgent.user', 
             'products', 
-            'services',
             'leadStage', 
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
@@ -838,10 +828,6 @@ class DealController extends AccountBaseController
             $deal->dealWatchers()->sync($request->deal_watcher);
         }
 
-        if ($request->has('services')) {
-            $deal->services()->sync($request->services);
-        }
-
         $deal->products()->sync($request->product_id);
 
         // To add custom fields data
@@ -854,13 +840,7 @@ class DealController extends AccountBaseController
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $this->triggerDealUpdateAutomation($request, $deal);
 
-        // return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
-
-        return back()->with([
-            'status' => 'success',
-            'message' => __('messages.updateSuccess'),
-            'redirectUrl' => $redirectTo
-        ]);
+        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
     }
 
     /**
