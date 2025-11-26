@@ -38,6 +38,22 @@ class PackageSeeder extends Seeder
                 'customer_type_name' => 'Inspection Customer',
                 'customer_type_description' => 'Customers requiring property inspection services',
             ],
+            [
+                'name' => 'Asset Protection',
+                'value' => 6500,
+                'company_id' => 1,
+                'description' => 'Comprehensive asset protection package',
+                'customer_type_name' => 'Asset Protection Customer',
+                'customer_type_description' => 'Customers requiring asset protection services',
+            ],
+            [
+                'name' => 'Legal Service',
+                'value' => 2700,
+                'company_id' => 1,
+                'description' => 'Legal services and consultation package',
+                'customer_type_name' => 'Legal Service Customer',
+                'customer_type_description' => 'Customers requiring legal services',
+            ],
         ];
 
         foreach ($packages as $packageData) {

@@ -62,7 +62,6 @@ trait DealFormDataTrait
             'leadContacts' => Lead::allLeads(),
             'products' => Product::all(),
             'packages' => Package::all(),
-            // 'services' => DealPropertyService::all()->groupBy('category'),
             'customFields' => $fields,
             'customFieldCategories' => $customFieldCategories,
         ];
