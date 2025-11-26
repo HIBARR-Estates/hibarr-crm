@@ -1,58 +1,69 @@
-# ───────────────────────────────────────────
-#  Docker Lifecycle
-# ───────────────────────────────────────────
-up:
-	docker compose up -d --build
+# Makefile for deploying WorkSuite CRM
+# ------------------------------------
 
-down:
-	docker compose down
+# Paths
+PROJECT_DIR := $(HOME)/hibarr-crm
+PROJECT_DIR_STAGING := $(HOME)/hibarr-crm-staging
+WEBROOT := /var/www/html
 
-restart:
-	docker compose down && docker compose up -d --build
+# Common excludes for rsync
+RSYNC_EXCLUDES := \
+    --exclude 'public/user-uploads' \
+    --exclude 'public/favicon.ico' \
+    --exclude 'storage/app/modules_statuses.json' \
+    --exclude 'Modules' \
+    --exclude '.env' \
+    --exclude 'public/js' \
+    --exclude 'public/css' \
+    --exclude 'public/build' \
+    --exclude 'public/mix-manifest.json'
 
-bash:
-	docker exec -it hibarr-crm-app bash
+# ------------------------------------
+# Generic tasks
+# ------------------------------------
 
-logs:
-	docker logs -f hibarr-crm-app
+reset-repo:
+	git restore --staged .
+	git restore .
+	git clean -fd
 
-nginx-logs:
-	docker logs -f hibarr-crm-nginx
+sync-to-webroot:
+	rsync -av $(RSYNC_EXCLUDES) ./ $(WEBROOT)
 
-traefik-logs:
-	docker logs -f hibarr-crm-traefik
-
-
-# ───────────────────────────────────────────
-#  Backend Commands (Laravel)
-# ───────────────────────────────────────────
-composer:
-	docker exec -it hibarr-crm-app composer install --no-interaction --prefer-dist --optimize-autoloader
-
-migrate:
-	docker exec -it hibarr-crm-app php artisan migrate
-
-migrate-prod:
-	docker exec -it hibarr-crm-app php artisan migrate --force
-
-seed:
-	docker exec -it hibarr-crm-app php artisan db:seed
-
-key:
-	docker exec -it hibarr-crm-app php artisan key:generate
-
-queue-restart:
-	docker exec -it hibarr-crm-app php artisan queue:restart
-
-
-# ───────────────────────────────────────────
-#  Frontend Commands (NPM Build in Container)
-# ───────────────────────────────────────────
-npm-install:
-	docker exec -it hibarr-crm-app npm install
-
-npm-dev:
-	docker exec -it hibarr-crm-app npm run dev
+composer-install:
+	composer install --no-interaction --prefer-dist --optimize-autoloader
 
 npm-build:
-	docker exec -it hibarr-crm-app npm run production
+	npm install
+	npm run production
+
+migrate:
+	php artisan migrate --force
+
+queue-restart:
+	php artisan queue:restart
+
+# ------------------------------------
+# Deployment targets
+# ------------------------------------
+
+deploy-staging:
+	cd $(PROJECT_DIR_STAGING) && \
+	$(MAKE) reset-repo && \
+	git pull origin staging && \
+	$(MAKE) sync-to-webroot && \
+	cd $(WEBROOT) && \
+	$(MAKE) composer-install && \
+	$(MAKE) npm-build && \
+	$(MAKE) migrate && \
+	$(MAKE) queue-restart
+
+deploy-production:
+	cd $(PROJECT_DIR) && \
+	$(MAKE) reset-repo && \
+	git pull origin main && \
+	$(MAKE) sync-to-webroot && \
+	cd $(WEBROOT) && \
+	$(MAKE) composer-install && \
+	$(MAKE) npm-build && \
+	$(MAKE) migrate

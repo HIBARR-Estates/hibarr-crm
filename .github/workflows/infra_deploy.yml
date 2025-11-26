@@ -2,9 +2,7 @@ name: Deploy WorkSuite CRM
 
 on:
   push:
-    branches:
-      - main
-      - staging
+    branches: [main, staging]
   workflow_dispatch:
 
 jobs:
@@ -13,83 +11,28 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Deploy to Staging Server
+      - name: Run deployment via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.STAGING_USER }}
-          key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
-          port: ${{ secrets.STAGING_PORT }}
+          key: ${{ secrets.STAGIN_SSH_PRIVATE_KEY }}
+          port: 2244
           script: |
-            echo "📁 Switching to staging codebase..."
             cd ~/hibarr-crm-staging
+            make deploy-staging
 
-            echo "🧹 Cleaning old state..."
-            git restore --staged .
-            git restore .
-            git clean -fd
-
-            echo "⬇️ Pulling latest code..."
-            git pull origin staging
-
-            echo "🐳 Restarting containers..."
-            make down || true
-            make up
-
-            echo "📦 Installing Composer deps..."
-            make composer
-
-            echo "⚙️ Running migrations (staging)..."
-            make migrate
-
-            echo "🎨 Building frontend assets..."
-            make npm-install
-            make npm-build
-
-            echo "🔄 Restarting queues..."
-            make queue-restart
-
-            echo "🚀 Staging deployment complete."
-
-  deploy-main:
+  deploy-production:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Deploy to Production Server
+      - name: Run deployment via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.REMOTE_HOST_2 }}
           username: ${{ secrets.REMOTE_USER_2 }}
           key: ${{ secrets.SSH_PRIVATE_KEY_2 }}
-          port: ${{ secrets.PROD_PORT }}
           script: |
-            echo "📁 Switching to production codebase..."
             cd ~/hibarr-crm
-
-            echo "🧹 Cleaning old state..."
-            git restore --staged .
-            git restore .
-            git clean -fd
-
-            echo "⬇️ Pulling latest code..."
-            git pull origin main
-
-            echo "🐳 Restarting containers..."
-            make down || true
-            make up
-
-            echo "📦 Installing Composer deps..."
-            make composer
-
-            echo "⚙️ Running migrations (production)..."
-            make migrate-prod
-
-            echo "🎨 Building frontend assets..."
-            make npm-install
-            make npm-build
-
-            echo "🔄 Restarting queues..."
-            make queue-restart
-
-            echo "🔥 Production deployment complete."
+            make deploy-production
