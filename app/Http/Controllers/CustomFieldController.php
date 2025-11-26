@@ -93,7 +93,8 @@ class CustomFieldController extends AccountBaseController
     public function edit($id)
     {
         $this->field = CustomField::findOrFail($id);
-        $decodedValues = json_decode($this->field->values);
+        // Use json_decode with true to return array instead of stdClass
+        $decodedValues = json_decode($this->field->values, true);
         $this->field->values = is_array($decodedValues) ? $decodedValues : [];
         $this->customFieldGroups = CustomFieldGroup::all();
         $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
