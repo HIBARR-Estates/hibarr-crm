@@ -182,8 +182,17 @@ class DealContactApiController extends Controller
 
                 // Resolve agent_id from deal_owner_id (user_id)
                 $agentId = null;
-                if ($request->has('deal_owner_id')) {
+                if ($request->has('deal_owner_id') && !empty($request->deal_owner_id)) {
                     $agentId = $this->resolveAgentId($request->deal_owner_id, $companyId);
+                    
+                    // If deal_owner_id was provided but couldn't be resolved, log warning
+                    if ($agentId === null) {
+                        Log::warning('Invalid deal_owner_id provided in createDeal API', [
+                            'deal_owner_id' => $request->deal_owner_id,
+                            'company_id' => $companyId,
+                            'contact_email' => $request->email ?? 'unknown'
+                        ]);
+                    }
                 }
 
                 $packageId = $this->resolvePackageId($request);
@@ -502,6 +511,30 @@ class DealContactApiController extends Controller
             }
         }
 
+        // Get engagement tracking fields
+        $engagementFields = [
+            'has_registered_for_the_webinar' => $request->input('has_registered_for_the_webinar'),
+            'has_joined_the_facebook_group' => $request->input('has_joined_the_facebook_group'),
+            'has_downloaded_the_ebook' => $request->input('has_downloaded_the_ebook'),
+            'has_attended_the_webinar' => $request->input('has_attended_the_webinar'),
+            'registered_for_zoom_meeting' => $request->input('registered_for_zoom_meeting'),
+            'last_webinar_date' => $request->input('last_webinar_date'),
+            'contact_score' => $request->input('contact_score'),
+        ];
+
+        // Merge engagement fields into marketing payload
+        foreach ($engagementFields as $key => $value) {
+            if ($value !== null) {
+                // Convert boolean strings to actual booleans
+                if (in_array($key, ['has_registered_for_the_webinar', 'has_joined_the_facebook_group', 
+                    'has_downloaded_the_ebook', 'has_attended_the_webinar', 'registered_for_zoom_meeting'])) {
+                    $marketingPayload[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+                } else {
+                    $marketingPayload[$key] = $value;
+                }
+            }
+        }
+
         // Remove null values to avoid overwriting existing data with null
         $marketingPayload = array_filter($marketingPayload, function($value) {
             return $value !== null;
@@ -596,7 +629,7 @@ class DealContactApiController extends Controller
      *
      * @param int|null $userId
      * @param int $companyId
-     * @return int|null
+     * @return int|null Returns null if user doesn't exist or userId is invalid
      */
     private function resolveAgentId(?int $userId, int $companyId): ?int
     {
@@ -607,6 +640,10 @@ class DealContactApiController extends Controller
         // Check if user exists
         $user = User::find($userId);
         if (!$user) {
+            Log::warning('User not found when resolving agent_id', [
+                'user_id' => $userId,
+                'company_id' => $companyId
+            ]);
             return null;
         }
 

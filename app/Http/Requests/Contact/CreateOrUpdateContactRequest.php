@@ -42,6 +42,15 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'utmInfo.content' => 'nullable|string|max:255',
             'facebook_click_id' => 'nullable|string|max:255',
             'facebook_lead_id' => 'nullable|string|max:255',
+            
+            // Optional engagement tracking fields
+            'has_registered_for_the_webinar' => 'nullable|boolean',
+            'has_joined_the_facebook_group' => 'nullable|boolean',
+            'has_downloaded_the_ebook' => 'nullable|boolean',
+            'has_attended_the_webinar' => 'nullable|boolean',
+            'registered_for_zoom_meeting' => 'nullable|boolean',
+            'last_webinar_date' => 'nullable|date',
+            'contact_score' => 'nullable|integer|min:0',
         ];
     }
 
