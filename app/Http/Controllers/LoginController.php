@@ -22,7 +22,7 @@ class LoginController extends Controller
 
     use AppBoot, SocialAuthSettings;
 
-    protected $redirectTo = 'account/deals';
+    protected $redirectTo = 'account/dashboard';
 
     public function checkEmail(LoginRequest $request)
     {

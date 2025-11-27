@@ -3,6 +3,7 @@ import { Avatar, Breadcrumb, Dropdown, MenuProps, Switch } from "antd";
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import { HomeOutlined } from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
 
 interface BreadcrumbItem {
     name: string;
@@ -64,6 +65,9 @@ export default function PageLayout({
     const { auth, company, appName, sidebar, currentRouteName } = props;
     const { user } = auth;
 
+    // Logout mutation
+    const logoutMutation = useApiMutate<{}, any, any>(route("logout"), "POST");
+
     // User dropdown menu
     const userMenuItems: MenuProps["items"] = [
         {
@@ -96,11 +100,11 @@ export default function PageLayout({
             label: (
                 <span
                     onClick={() => {
-                        router.post(
-                            route("logout"),
+                        logoutMutation.mutate(
                             {},
                             {
                                 onSuccess: () => {
+                                    // Redirect to login page on successful logout
                                     window.location.href = route("login");
                                 },
                             }
