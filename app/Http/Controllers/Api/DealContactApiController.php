@@ -53,7 +53,6 @@ class DealContactApiController extends Controller
             Log::info('API Request Data:', [
                 'deal_id' => $dealId,
                 'new_stage_id' => $newStageId,
-                'request_data' => $request->all()
             ]);
 
             // Check if deal exists
@@ -91,16 +90,14 @@ class DealContactApiController extends Controller
                 ->where('id', $dealId)
                 ->update(['pipeline_stage_id' => $newStageId]);
 
-            // Create deal history manually with the responsible agent's user ID
-            if ($responsibleUserId) {
-                \App\Models\DealHistory::create([
-                    'deal_id' => $dealId,
-                    'event_type' => 'stage-updated',
-                    'created_by' => $responsibleUserId,
-                    'deal_stage_from_id' => $oldStageId,
-                    'deal_stage_to_id' => $newStageId,
-                ]);
-            }
+            // Create deal history manually with the responsible agent's user ID (if available)
+            \App\Models\DealHistory::create([
+                'deal_id' => $dealId,
+                'event_type' => 'stage-updated',
+                'created_by' => $responsibleUserId, // Can be null if no responsible user
+                'deal_stage_from_id' => $oldStageId,
+                'deal_stage_to_id' => $newStageId,
+            ]);
 
             // Reload the deal
             $deal = Deal::find($dealId);
@@ -132,9 +129,10 @@ class DealContactApiController extends Controller
             Log::error('Deal Stage Change Error:', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
+                'deal_id' => $request->input('deal_id'),
+                'new_stage_id' => $request->input('new_stage_id'),
             ]);
-            return Reply::error('An error occurred while changing deal stage: ' . $e->getMessage());
+            return Reply::error('An error occurred while changing deal stage: ');
         }
     }
 
@@ -252,10 +250,11 @@ class DealContactApiController extends Controller
             Log::error('Error creating/updating deal via API', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
+                'email' => $request->input('email'),
+                'name' => $request->input('name'),
             ]);
             
-            return Reply::error('Failed to create/update deal: ' . $e->getMessage());
+            return Reply::error('Failed to create/update deal: ');
         }
     }
 
@@ -353,10 +352,10 @@ class DealContactApiController extends Controller
             Log::error('Error creating/updating contact via API', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
+                'email' => $request->input('email'),
             ]);
             
-            return Reply::error('Failed to create/update contact: ' . $e->getMessage());
+            return Reply::error('Failed to create/update contact: ');
         }
     }
 
