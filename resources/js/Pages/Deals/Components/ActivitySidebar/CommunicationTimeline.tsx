@@ -45,7 +45,9 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
             total: number;
         };
     }>({
-        path: route("api.deals.communication-activities", { dealId: deal.id }),
+        path: route("api.deals.communication-activities.internal", {
+            dealId: deal.id,
+        }),
     });
 
     const activities = activitiesResponse?.data?.data || [];
