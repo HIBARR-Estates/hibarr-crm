@@ -49,3 +49,4 @@ public/js/
 public/css/
 public/build/
 public/mix-manifest.json
+docker-compose.override.yml

@@ -123,6 +123,16 @@ trait CustomFieldsTrait
             $value = ($fieldType == 'date') ? Carbon::createFromFormat($company->date_format, $value)->format('Y-m-d') : $value;
             $value = ($fieldType == 'file' && !is_string($value) && !is_null($value)) ? Files::uploadLocalOrS3($value, 'custom_fields') : $value;
             
+            // Handle checkbox and other array-based fields - convert arrays to comma-separated strings
+            if (is_array($value)) {
+                if ($fieldType == 'checkbox') {
+                    $value = implode(', ', $value);
+                } else {
+                    // For other array types, convert to JSON string
+                    $value = json_encode($value);
+                }
+            }
+            
             // Handle phone field with country code
             if ($fieldType == 'phone' && !empty($value)) {
                 // Check if there's a corresponding country code field
@@ -155,20 +165,23 @@ trait CustomFieldsTrait
                     Files::deleteFile($entry->value, 'custom_fields');
                 }
 
-                // Update entry
+                // Update entry - ensure value is a string
+                $stringValue = is_array($value) ? implode(', ', $value) : (string)($value ?? '');
                 DB::table('custom_fields_data')
                     ->where('model', $this->getModelName())
                     ->where('model_id', $this->id)
                     ->where('custom_field_id', $id)
-                    ->update(['value' => $value]);
+                    ->update(['value' => $stringValue]);
             }
             else {
+                // Insert entry - ensure value is a string
+                $stringValue = is_array($value) ? implode(', ', $value) : (string)($value ?? '');
                 DB::table('custom_fields_data')
                     ->insert([
                         'model' => $this->getModelName(),
                         'model_id' => $this->id,
                         'custom_field_id' => $id,
-                        'value' => (!is_null($value)) ? $value : ''
+                        'value' => $stringValue
                     ]);
             }
         }

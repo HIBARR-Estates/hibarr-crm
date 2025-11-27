@@ -1496,6 +1496,7 @@ return array(
         'addField' => 'Add Field',
         'editField' => 'Edit Field',
         'export' => 'Allow export in table view',
+        'important' => 'Important',
         'fieldType' => 'Field Type',
         'showInTable' => 'Show in table view',
         'fields' => 'Fields',

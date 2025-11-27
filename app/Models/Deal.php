@@ -287,4 +287,5 @@ class Deal extends BaseModel
         return $this->hasOne(HibarrDealFields::class, 'deal_id');
     }
 
+
 }

@@ -47,6 +47,12 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-lg-4">
+                    <div class="form-group my-5">
+                        <x-forms.checkbox fieldId="important" :fieldLabel="__('modules.customFields.important')" fieldName="important" fieldValue="1"
+                            :checked="$field->important == 1" />
+                    </div>
+                </div>
                 <div class="col-lg-6">
                     <div class="form-group my-5">
                         <x-forms.checkbox fieldId="visible" :fieldLabel="__('modules.customFields.showInTable')" fieldName="visible" fieldValue="true"
@@ -59,6 +65,7 @@
                             :checked="$field->export == 1" />
                     </div>
                 </div>
+               
             </div>
             <div class="form-group mt-repeater" @if ($field->type != 'radio' && $field->type != 'select' && $field->type != 'checkbox') style="display: none;" @endif>
 
