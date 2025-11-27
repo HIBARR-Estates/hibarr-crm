@@ -672,7 +672,7 @@ class DealContactApiController extends Controller
     {
         $hibarrFields = [
             'budget_range' => $request->input('customerBudget') ?? '',
-            'motivation/comment' => $request->input('motivation') ?? '',
+            'motivation' => $request->input('motivation') ?? '',
         ];
 
         HibarrDealFields::updateOrCreate(
@@ -691,7 +691,7 @@ class DealContactApiController extends Controller
     {
         // First check if package_id is provided directly
         if ($request->has('package_id') && is_numeric($request->package_id)) {
-            $package = Package::find($request->package_id);
+            $package = Package::where('company_id', $companyId)->where('id', $request->package_id)->first();
             if ($package) {
                 return $package->id;
             }
@@ -699,7 +699,7 @@ class DealContactApiController extends Controller
 
         // Fallback to package_name if provided
         if ($request->has('package_name')) {
-            $package = Package::where('name', $request->input('package_name'))->first();
+            $package = Package::where('company_id', $companyId)->where('name', $request->input('package_name'))->first();
             if ($package) {
                 return $package->id;
             }
