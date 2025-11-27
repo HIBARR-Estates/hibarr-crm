@@ -198,31 +198,21 @@ const DashboardLayout: React.FC<{
         const items: MenuProps["items"] = [];
 
         // Dashboard
-        if (
-            isInRole("admin") ||
-            hasPermission("view_overview_dashboard") ||
-            hasPermission("view_project_dashboard") ||
-            hasPermission("view_client_dashboard") ||
-            hasPermission("view_hr_dashboard") ||
-            hasPermission("view_ticket_dashboard") ||
-            hasPermission("view_finance_dashboard")
-        ) {
-            items.push({
-                key: "dashboard",
-                label: (
-                    <a
-                        href={route("dashboard")}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            router.visit(route("dashboard"));
-                        }}
-                    >
-                        Dashboard
-                    </a>
-                ),
-                icon: <HouseIcon />,
-            });
-        }
+        items.push({
+            key: "dashboard",
+            label: (
+                <a
+                    href={route("dashboard")}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        router.visit(route("dashboard"));
+                    }}
+                >
+                    Dashboard
+                </a>
+            ),
+            icon: <HouseIcon />,
+        });
 
         // My Calendar
         // if (
@@ -247,70 +237,54 @@ const DashboardLayout: React.FC<{
         // }
 
         // Leads
-        if (
-            !isInRole("client") &&
-            hasModule("leads") &&
-            (hasPermission("view_lead") || hasPermission("view_deals"))
-        ) {
-            const leadChildren: MenuProps["items"] = [];
+        items.push({
+            key: "lead-contact",
+            label: (
+                <a
+                    href={route("lead-contact.index")}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        router.visit(route("lead-contact.index"));
+                    }}
+                >
+                    Contacts
+                </a>
+            ),
+            icon: <PersonIcon />,
+        });
 
-            if (hasPermission("view_lead")) {
-                leadChildren.push({
-                    key: "lead-contact",
-                    label: (
-                        <a
-                            href={route("lead-contact.index")}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                router.visit(route("lead-contact.index"));
-                            }}
-                        >
-                            Contacts
-                        </a>
-                    ),
-                    icon: <PersonIcon />,
-                });
-            }
-
-            if (hasPermission("view_deals")) {
-                leadChildren.push({
-                    key: "deals",
-                    label: (
-                        <a
-                            href={route("deals.index")}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                router.visit(route("deals.index"));
-                            }}
-                        >
-                            Deals
-                        </a>
-                    ),
-                    icon: <BriefcaseIcon />,
-                });
-            }
-
-            items.push(...leadChildren);
-        }
+        items.push({
+            key: "deals",
+            label: (
+                <a
+                    href={`/account/deals/kanban`}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        router.visit(`/account/deals/kanban`);
+                    }}
+                >
+                    Deals
+                </a>
+            ),
+            icon: <BriefcaseIcon />,
+        });
 
         // Tasks
-        if (hasModule("tasks") && hasPermission("view_tasks")) {
-            items.push({
-                key: "tasks",
-                label: (
-                    <a
-                        href={route("tasks.index")}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            router.visit(route("tasks.index"));
-                        }}
-                    >
-                        Tasks
-                    </a>
-                ),
-                icon: <CheckSquareIcon />,
-            });
-        }
+        items.push({
+            key: "tasks",
+            label: (
+                <a
+                    href={route("tasks.index")}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        router.visit(route("tasks.index"));
+                    }}
+                >
+                    Tasks
+                </a>
+            ),
+            icon: <CheckSquareIcon />,
+        });
 
         // Clients
         // if (
@@ -488,40 +462,21 @@ const DashboardLayout: React.FC<{
         // }
 
         // Properties
-        if (hasModule("products") && hasPermission("view_product")) {
-            items.push({
-                key: "properties",
-                label: (
-                    <a
-                        href={route("properties.index")}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            router.visit(route("properties.index"));
-                        }}
-                    >
-                        Properties
-                    </a>
-                ),
-                icon: <HouseDoorIcon />,
-            });
-        }
-
-        // Settings
-        // items.push({
-        //     key: "settings",
-        //     label: (
-        //         <a
-        //             href={
-        //                 hasPermission("manage_company_setting", 4)
-        //                     ? route("company-settings.index")
-        //                     : route("profile-settings.index")
-        //             }
-        //         >
-        //             Settings
-        //         </a>
-        //     ),
-        //     icon: <GearIcon />,
-        // });
+        items.push({
+            key: "properties",
+            label: (
+                <a
+                    href={route("properties.index")}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        router.visit(route("properties.index"));
+                    }}
+                >
+                    Properties
+                </a>
+            ),
+            icon: <HouseDoorIcon />,
+        });
 
         return items;
     };

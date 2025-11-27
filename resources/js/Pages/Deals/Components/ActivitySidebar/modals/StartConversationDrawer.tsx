@@ -47,14 +47,18 @@ export default function StartConversationDrawer({
         ConversationFormData,
         ConversationResponse,
         ApiResponse<ConversationResponse>
-    >(route("api.communication-activities.store"), "POST", (response) => {
-        if (response?.status === "success") {
-            messageApi.success("Conversation started successfully!");
-            form.resetFields();
-            onClose();
-            router.reload();
+    >(
+        route("api.communication-activities.store.internal"),
+        "POST",
+        (response) => {
+            if (response?.status === "success") {
+                messageApi.success("Conversation started successfully!");
+                form.resetFields();
+                onClose();
+                router.reload();
+            }
         }
-    });
+    );
 
     const handleSubmit = (values: ConversationFormData) => {
         // Validate HTML content

@@ -42,14 +42,18 @@ export default function QuickReply({ activity, deal, onCancel }: Props) {
         ConversationFormData,
         ConversationResponse,
         ApiResponse<ConversationResponse>
-    >(route("api.communication-activities.store"), "POST", (response) => {
-        if (response?.status === "success") {
-            messageApi.success("Reply sent successfully!");
-            form.resetFields();
-            onCancel();
-            router.reload();
+    >(
+        route("api.communication-activities.store.internal"),
+        "POST",
+        (response) => {
+            if (response?.status === "success") {
+                messageApi.success("Reply sent successfully!");
+                form.resetFields();
+                onCancel();
+                router.reload();
+            }
         }
-    });
+    );
 
     const isLoading = _isLoading({ status: conversationMutation.status });
 

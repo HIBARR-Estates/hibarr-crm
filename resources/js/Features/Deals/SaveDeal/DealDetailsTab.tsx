@@ -63,7 +63,6 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         company = {},
         stages = [],
         packages = [],
-        services = {},
     } = props;
 
     const [pipelineId, setPipelineId] = useState<number>();
@@ -127,10 +126,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         }
     };
 
-    const calculateTotalValue = (
-        currentPackageId?: number,
-        currentServiceIds?: number[]
-    ) => {
+    const calculateTotalValue = (currentPackageId?: number) => {
         let total = 0;
 
         // Package value
@@ -147,31 +143,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             }
         }
 
-        // Services value
-        const selectedServiceIds =
-            currentServiceIds !== undefined
-                ? currentServiceIds
-                : form.getFieldValue("services");
-        if (selectedServiceIds && selectedServiceIds.length > 0) {
-            // Flatten services
-            const allServices = Object.values(services).flat();
-            // @ts-ignore
-            allServices.forEach((service: any) => {
-                if (selectedServiceIds.includes(service.id)) {
-                    total += parseFloat(service.value);
-                }
-            });
-        }
-
         form.setFieldValue("value", total);
     };
 
     const handlePackageChange = (packageId: number) => {
-        calculateTotalValue(packageId, undefined);
-    };
-
-    const handleServicesChange = (serviceIds: number[]) => {
-        calculateTotalValue(undefined, serviceIds);
+        calculateTotalValue(packageId);
     };
 
     const handleSubmit = (values: any) => {
@@ -446,47 +422,6 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                     >
                                         {product.name}
                                     </Select.Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-
-                    <Col span={24}>
-                        <Form.Item name="services" label="Services">
-                            <Select
-                                mode="multiple"
-                                placeholder="Select Services"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                                onChange={handleServicesChange}
-                            >
-                                {Object.keys(services).map((category) => (
-                                    <Select.OptGroup
-                                        key={category}
-                                        label={category}
-                                    >
-                                        {services[category].map(
-                                            (service: any) => (
-                                                <Select.Option
-                                                    key={service.id}
-                                                    value={service.id}
-                                                    data-value={service.value}
-                                                >
-                                                    <div className="flex justify-between gap-x-2 items-center w-full">
-                                                        <span className="text-gray-900">
-                                                            {service.name}
-                                                        </span>
-                                                        <span className="text-gray-500 font-medium">
-                                                            {formatCurrency(
-                                                                service.value
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                </Select.Option>
-                                            )
-                                        )}
-                                    </Select.OptGroup>
                                 ))}
                             </Select>
                         </Form.Item>

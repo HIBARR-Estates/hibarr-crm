@@ -141,9 +141,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     }
 
     return (
-        <div className="bg-gray-50 rounded-xl mr-3 w-80 flex-shrink-0">
+        <div className="bg-gray-50 rounded-xl mr-3 w-80 flex-shrink-0 flex flex-col max-h-full">
             {/* Column Header */}
-            <div className="mx-3 mt-3 mb-1">
+            <div className="mx-3 mt-3 mb-1 flex-shrink-0">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center">
                         <div
@@ -189,7 +189,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             </div>
 
             {/* Column Body */}
-            <div className="pb-3">
+            <div className="pb-3 overflow-y-auto min-h-0">
                 {/* Deals Container */}
                 <div
                     ref={setNodeRef}
