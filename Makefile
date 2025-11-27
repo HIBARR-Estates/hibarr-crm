@@ -66,4 +66,5 @@ deploy-production:
 	cd $(WEBROOT) && \
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
-	$(MAKE) migrate
+	$(MAKE) migrate && \
+	$(MAKE) queue-restart
