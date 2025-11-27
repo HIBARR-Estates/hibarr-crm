@@ -200,7 +200,7 @@ const LeadBoardIndex = ({
             <DashboardLayout>
                 <div className="bg-gray-50 min-h-screen">
                     <PageLayout
-                        title={pageTitle}
+                        title={`Deals | Kanban`}
                         breadcrumbs={[
                             { name: "Deals", url: route("deals.index") },
                             { name: "Kanban" },

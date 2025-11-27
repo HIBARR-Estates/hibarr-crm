@@ -19,8 +19,8 @@ use Illuminate\Support\Facades\Route;
 ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
     ApiRoute::get('purchased-module', ['as' => 'api.purchasedModule', 'uses' => 'HomeController@installedModule']);
 
-    ApiRoute::post('internal/communication-activities', ['as' => 'api.communication-activities.store', 'uses' => 'CommunicationActivityController@store']);
-    ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities', 'uses' => 'CommunicationActivityController@getDealActivities']);
+    ApiRoute::post('internal/communication-activities', ['as' => 'api.communication-activities.store.internal', 'uses' => 'CommunicationActivityController@store']);
+    ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities.internal', 'uses' => 'CommunicationActivityController@getDealActivities']);
   
 
     // External Communications Module Routes

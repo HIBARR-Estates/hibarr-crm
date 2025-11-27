@@ -257,10 +257,10 @@ const DashboardLayout: React.FC<{
             key: "deals",
             label: (
                 <a
-                    href={route("deals.index")}
+                    href={`/account/deals/kanban`}
                     onClick={(e) => {
                         e.preventDefault();
-                        router.visit(route("deals.index"));
+                        router.visit(`/account/deals/kanban`);
                     }}
                 >
                     Deals
