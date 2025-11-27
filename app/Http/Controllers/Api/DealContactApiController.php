@@ -148,7 +148,12 @@ class DealContactApiController extends Controller
     {
         try {
             return DB::transaction(function () use ($request) {
-                $companyId = 1;
+                $companyId = $request->header('X-COMPANY-ID');
+ 
+                if (!$companyId) {
+                    return Reply::error(__('messages.missingCompanyId'));
+                }
+                $companyId = (int) $companyId;
                 $contactId = $this->resolveContact($request, $companyId);
                 
                 // Save UTM information if provided
@@ -269,7 +274,13 @@ class DealContactApiController extends Controller
     {
         try {
             return DB::transaction(function () use ($request) {
-                $companyId = 1;
+                $companyId = $request->header('X-COMPANY-ID');
+ 
+                if (!$companyId) {
+                    return Reply::error(__('messages.missingCompanyId'));
+                }
+                
+                $companyId = (int) $companyId;
                 
                 // Check if contact already exists by email (most reliable identifier)
                 $existingContact = null;
