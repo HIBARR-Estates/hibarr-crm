@@ -166,7 +166,7 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "deal-files.layout": "/account/deal-files/layout",
 
         // Communication Activities routes
-        "api.communication-activities.store":
+        "api.communication-activities.store.internal":
             "/api/v1/internal/communication-activities",
         "api.deals.communication-activities":
             "/api/v1/internal/deals/{dealId}/communication-activities",
