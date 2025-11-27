@@ -845,13 +845,13 @@ class DealController extends AccountBaseController
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $this->triggerDealUpdateAutomation($request, $deal);
 
-        // return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
+        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
 
-        return back()->with([
-            'status' => 'success',
-            'message' => __('messages.updateSuccess'),
-            'redirectUrl' => $redirectTo
-        ]);
+        // return back()->with([
+        //     'status' => 'success',
+        //     'message' => __('messages.updateSuccess'),
+        //     'redirectUrl' => $redirectTo
+        // ]);
     }
 
     /**
