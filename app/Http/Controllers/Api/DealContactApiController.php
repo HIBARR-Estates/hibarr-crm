@@ -148,7 +148,12 @@ class DealContactApiController extends Controller
     {
         try {
             return DB::transaction(function () use ($request) {
-                $companyId = 1;
+                $companyId = $request->header('X-COMPANY-ID');
+ 
+                if (!$companyId) {
+                    return Reply::error(__('messages.missingCompanyId'));
+                }
+                $companyId = (int) $companyId;
                 $contactId = $this->resolveContact($request, $companyId);
                 
                 // Save UTM information if provided
@@ -193,7 +198,7 @@ class DealContactApiController extends Controller
                     }
                 }
 
-                $packageId = $this->resolvePackageId($request);
+                $packageId = $this->resolvePackageId($request, $companyId);
 
                 // Update deal fields
                 $deal->name = $request->name;
@@ -209,7 +214,7 @@ class DealContactApiController extends Controller
 
                 // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
                 if ($request->has('deal_owner_id') && !empty($request->deal_owner_id)) {
-                    $lead = Lead::find($contactId);
+                    $lead = Lead::where('company_id', $companyId)->where('id', $contactId)->first();
                     if ($lead && !$lead->lead_owner) {
                         $lead->lead_owner = $request->deal_owner_id;
                         $lead->saveQuietly();
@@ -269,7 +274,13 @@ class DealContactApiController extends Controller
     {
         try {
             return DB::transaction(function () use ($request) {
-                $companyId = 1;
+                $companyId = $request->header('X-COMPANY-ID');
+ 
+                if (!$companyId) {
+                    return Reply::error(__('messages.missingCompanyId'));
+                }
+                
+                $companyId = (int) $companyId;
                 
                 // Check if contact already exists by email (most reliable identifier)
                 $existingContact = null;
@@ -672,7 +683,7 @@ class DealContactApiController extends Controller
     {
         $hibarrFields = [
             'budget_range' => $request->input('customerBudget') ?? '',
-            'motivation' => $request->input('motivation') ?? '',
+            'motivation/comment' => $request->input('motivation') ?? '',
         ];
 
         HibarrDealFields::updateOrCreate(
@@ -685,9 +696,10 @@ class DealContactApiController extends Controller
      * Resolve package_id from package_id or package_name.
      *
      * @param Request $request
+     * @param int $companyId
      * @return int
      */
-    private function resolvePackageId(Request $request): int
+    private function resolvePackageId(Request $request, int $companyId): int
     {
         // First check if package_id is provided directly
         if ($request->has('package_id') && is_numeric($request->package_id)) {
