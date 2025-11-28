@@ -31,6 +31,8 @@ interface DataQualityRecord {
     };
     value?: number;
     stage?: string;
+    pipeline?: number;
+    stage_id?: number;
     agent?: {
         id: number;
         name: string;
@@ -46,12 +48,18 @@ interface QuickFixFormData {
 
 interface QuickFixModalProps extends IModalProps {
     record?: DataQualityRecord;
+    products?: any[];
+    packages?: any[];
+    countries?: any[];
 }
 
 const QuickFixModal: React.FC<QuickFixModalProps> = ({
     record,
     open: visible,
     onClose: onCancel,
+    products = [],
+    packages = [],
+    countries = [],
 }) => {
     const [form] = Form.useForm<QuickFixFormData>();
     const [errors, setErrors] = useState<string[]>([]);
@@ -61,7 +69,10 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
         QuickFixFormData,
         any,
         ApiResponse<any>
-    >(record?.type === "deal" ?`/account/lead-contact/${record.id}` : "", "PATCH");
+    >(
+        record?.type === "deal" ? `/account/lead-contact/${record.id}` : "",
+        "PATCH"
+    );
 
     // Setup API mutations for leads
     const { mutate: updateLead, status: leadStatus } = useApiMutate<
@@ -85,7 +96,16 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
 
         try {
             if (record.type === "deal") {
-                updateDeal(values, {
+                // Add required fields for deal update
+                const dealData = {
+                    ...values,
+                    name: record.name,
+                    pipeline: record.pipeline,
+                    stage_id: record.stage_id,
+                    value: values.value || record.value || 0,
+                };
+
+                updateDeal(dealData, {
                     onSuccess: () => {
                         setErrors([]);
                         handleCancel();
@@ -216,35 +236,41 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                                 Deal Information
                             </h4>
 
+                            <Form.Item name="package_id" label="Package">
+                                <Select placeholder="Select package">
+                                    {packages.map((pkg) => (
+                                        <Select.Option
+                                            key={pkg.id}
+                                            value={pkg.id}
+                                        >
+                                            {pkg.name}
+                                        </Select.Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+
+                            <Form.Item name="product_id" label="Products">
+                                <Select
+                                    mode="multiple"
+                                    placeholder="Select products"
+                                    optionFilterProp="children"
+                                >
+                                    {products.map((prod) => (
+                                        <Select.Option
+                                            key={prod.id}
+                                            value={prod.id}
+                                        >
+                                            {prod.name}
+                                        </Select.Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+
                             <Form.Item name="value" label="Deal Value">
                                 <Input
                                     type="number"
                                     placeholder="Enter deal value"
                                     prefix="$"
-                                />
-                            </Form.Item>
-
-                            <Form.Item
-                                name="close_date"
-                                label="Expected Close Date"
-                            >
-                                <DatePicker
-                                    style={{ width: "100%" }}
-                                    placeholder="Close Date"
-                                />
-                            </Form.Item>
-
-                            <Form.Item
-                                name="probability"
-                                label="Probability (%)"
-                            >
-                                <InputNumber
-                                    style={{ width: "100%" }}
-                                    min={0}
-                                    max={100}
-                                    placeholder="Enter probability"
-                                    suffix="%"
-                                    className="w-full"
                                 />
                             </Form.Item>
                         </div>
@@ -265,29 +291,52 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                                 <Input placeholder="Enter website URL" />
                             </Form.Item>
 
-                            <Form.Item name="city" label="City">
-                                <Input placeholder="Enter city" />
+                            <h5 className="font-medium mt-4 mb-2 text-gray-600">
+                                Address Information
+                            </h5>
+
+                            <Form.Item name="address" label="Address">
+                                <Input.TextArea
+                                    rows={2}
+                                    placeholder="Enter address"
+                                />
                             </Form.Item>
 
-                            <Form.Item name="source" label="Lead Source">
-                                <Select placeholder="Select lead source">
-                                    <Select.Option value="website">
-                                        Website
-                                    </Select.Option>
-                                    <Select.Option value="referral">
-                                        Referral
-                                    </Select.Option>
-                                    <Select.Option value="social_media">
-                                        Social Media
-                                    </Select.Option>
-                                    <Select.Option value="cold_call">
-                                        Cold Call
-                                    </Select.Option>
-                                    <Select.Option value="email">
-                                        Email Campaign
-                                    </Select.Option>
-                                </Select>
-                            </Form.Item>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Form.Item name="city" label="City">
+                                    <Input placeholder="Enter city" />
+                                </Form.Item>
+
+                                <Form.Item name="state" label="State">
+                                    <Input placeholder="Enter state" />
+                                </Form.Item>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <Form.Item
+                                    name="postal_code"
+                                    label="Postal Code"
+                                >
+                                    <Input placeholder="Enter postal code" />
+                                </Form.Item>
+
+                                <Form.Item name="country" label="Country">
+                                    <Select
+                                        showSearch
+                                        placeholder="Select country"
+                                        optionFilterProp="children"
+                                    >
+                                        {countries.map((country: any) => (
+                                            <Select.Option
+                                                key={country.id}
+                                                value={country.name}
+                                            >
+                                                {country.name}
+                                            </Select.Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            </div>
                         </div>
                     )}
                     <Divider />

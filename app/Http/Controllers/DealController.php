@@ -222,6 +222,8 @@ class DealController extends AccountBaseController
                 'from' => $paginatedDeals->firstItem(),
                 'to' => $paginatedDeals->lastItem(),
             ],
+            'pipelines' => $this->pipelines,
+            'defaultPipeline' => $this->defaultPipeline,
             'filters' => $request->only([
                 'lead_pipeline_id',
                 'pipeline_stage_id',
@@ -247,6 +249,7 @@ class DealController extends AccountBaseController
     {
         $this->pipelines = LeadPipeline::all();
         $defaultPipeline = LeadPipeline::where('default', 1)->first();
+        $this->defaultPipeline = $defaultPipeline;
         $this->stages = PipelineStage::where('lead_pipeline_id', optional($defaultPipeline)->id)->get();
         $this->categories = LeadCategory::all();
         $this->sources = LeadSource::all();
@@ -314,6 +317,7 @@ class DealController extends AccountBaseController
             'leadStage',
             'currency',
             'products:id,name',
+            'package:id,name',
             'communicationActivities',
             'hibarrFields',
             'dealWatchers' => function ($query) {

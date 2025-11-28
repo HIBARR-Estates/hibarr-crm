@@ -25,6 +25,10 @@ import {
     UserOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { usePage } from "@inertiajs/react";
+
+import TaskCategorySelector from "../Components/Selectors/TaskCategorySelector";
+import TaskLabelSelector from "../Components/Selectors/TaskLabelSelector";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -98,6 +102,18 @@ const TaskForm: React.FC<TaskFormProps> = ({
     projects,
 }) => {
     const [form] = Form.useForm();
+    const { props } = usePage();
+    const permissions = props.permissions as {
+        add_tasks: string;
+        edit_tasks: string;
+        delete_tasks: string;
+        view_tasks: string;
+    };
+
+    const isAdmin = permissions.view_tasks === "all";
+
+    console.log(permissions, "this permissions are testable ....");
+    console.log(props, "user ....");
 
     // Set form values when data changes
     React.useEffect(() => {
@@ -124,7 +140,15 @@ const TaskForm: React.FC<TaskFormProps> = ({
         <Form
             form={form}
             layout="vertical"
-            onFinish={onSubmit}
+            onFinish={(vals) =>
+                onSubmit({
+                    ...vals,
+                    without_duedate: !vals.due_date,
+                    user_id: isAdmin
+                        ? vals?.user_ids
+                        : [props?.auth?.user?.id].filter(Boolean), //if not an admin or manager assign to self, TODO: Refactor with the controller in place
+                })
+            }
             preserve={false}
             style={{ marginTop: 16 }}
         >
@@ -174,6 +198,21 @@ const TaskForm: React.FC<TaskFormProps> = ({
                             />
                         </Form.Item>
                     </Col>
+
+                    <Col xs={24} sm={12}>
+                        <Form.Item name="category_id" label="Category">
+                            <TaskCategorySelector placeholder="Select category (optional)" />
+                        </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                        <Form.Item
+                            name="task_labels"
+                            label="Labels"
+                            extra="Add labels to categorize this task"
+                        >
+                            <TaskLabelSelector placeholder="Select labels" />
+                        </Form.Item>
+                    </Col>
                 </Row>
             </Card>
 
@@ -182,19 +221,19 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 title={
                     <Space>
                         <ClockCircleOutlined />
-                        Timeline & Priority
+                        Timelines
                     </Space>
                 }
                 style={{ marginTop: 16 }}
             >
                 <Row gutter={16}>
-                    <Col xs={24} sm={8}>
+                    <Col xs={24} sm={12}>
                         <Form.Item
                             name="start_date"
                             label="Start Date"
                             rules={[
                                 {
-                                    required: true,
+                                    required: false,
                                     message: "Please select start date",
                                 },
                             ]}
@@ -206,7 +245,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                             />
                         </Form.Item>
                     </Col>
-                    <Col xs={24} sm={8}>
+                    <Col xs={24} sm={12}>
                         <Form.Item
                             name="due_date"
                             label="Due Date"
@@ -219,30 +258,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
                             />
                         </Form.Item>
                     </Col>
-                    <Col xs={24} sm={8}>
-                        <Form.Item
-                            name="priority"
-                            label="Priority"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please select priority",
-                                },
-                            ]}
-                        >
-                            <Select placeholder="Select priority">
-                                <Option value="low">
-                                    <Space>🟢 Low Priority</Space>
-                                </Option>
-                                <Option value="medium">
-                                    <Space>🔵 Medium Priority</Space>
-                                </Option>
-                                <Option value="high">
-                                    <Space>🔴 High Priority</Space>
-                                </Option>
-                            </Select>
-                        </Form.Item>
-                    </Col>
                 </Row>
             </Card>
 
@@ -251,7 +266,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     header={
                         <Space>
                             <ProjectOutlined />
-                            Project & Assignment
+                            Priority & Assignment
                         </Space>
                     }
                     key="project-assignment"
@@ -259,46 +274,66 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     <Card size="small" bordered={false}>
                         <Row gutter={16}>
                             <Col xs={24} sm={12}>
-                                <Form.Item name="project_id" label="Project">
-                                    <Select
-                                        placeholder="Select project (optional)"
-                                        allowClear
-                                        showSearch
-                                        filterOption={(input, option) =>
-                                            option?.children
-                                                ?.toString()
-                                                .toLowerCase()
-                                                .includes(
-                                                    input.toLowerCase()
-                                                ) ?? false
-                                        }
-                                    >
-                                        {projects.map((project) => (
+                                <Form.Item
+                                    name="priority"
+                                    label="Priority"
+                                    rules={[
+                                        {
+                                            required: false,
+                                            message: "Please select priority",
+                                        },
+                                    ]}
+                                >
+                                    <Select placeholder="Select priority">
+                                        <Option value="low">
+                                            <Space>🟢 Low Priority</Space>
+                                        </Option>
+                                        <Option value="medium">
+                                            <Space>🔵 Medium Priority</Space>
+                                        </Option>
+                                        <Option value="high">
+                                            <Space>🔴 High Priority</Space>
+                                        </Option>
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={12}>
+                                <Form.Item
+                                    name="board_column_id"
+                                    label="Initial Status"
+                                    extra="Starting status for this task"
+                                >
+                                    <Select>
+                                        {columns.map((column) => (
                                             <Option
-                                                key={project.id}
-                                                value={project.id}
+                                                key={column.id}
+                                                value={column.id}
                                             >
                                                 <Space>
-                                                    <ProjectOutlined />
-                                                    {project.project_name}
-                                                    {project.project_short_code && (
-                                                        <Tag>
-                                                            {
-                                                                project.project_short_code
-                                                            }
-                                                        </Tag>
-                                                    )}
+                                                    <div
+                                                        style={{
+                                                            width: 8,
+                                                            height: 8,
+                                                            borderRadius: "50%",
+                                                            backgroundColor:
+                                                                column.label_color,
+                                                            display:
+                                                                "inline-block",
+                                                        }}
+                                                    />
+                                                    {column.column_name}
                                                 </Space>
                                             </Option>
                                         ))}
                                     </Select>
                                 </Form.Item>
                             </Col>
-                            <Col xs={24} sm={12}>
+                            <Col xs={24} sm={24}>
                                 <Form.Item
                                     name="user_ids"
                                     label="Assignees"
                                     extra="Select team members to assign this task"
+                                    hidden={!isAdmin} // THis currecntly only admins and managers can assign tasks, TOODO: Need to implement permission properly and check and enforce on BE ....
                                 >
                                     <Select
                                         mode="multiple"
@@ -346,75 +381,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 </Collapse.Panel>
             </Collapse>
 
-            <Collapse style={{ marginTop: 16 }}>
-                <Collapse.Panel
-                    header={
-                        <Space>
-                            <TagOutlined />
-                            Categories & Labels
-                        </Space>
-                    }
-                    key="categories-labels"
-                >
-                    <Card size="small" bordered={false}>
-                        <Row gutter={16}>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="category_id" label="Category">
-                                    <Select
-                                        placeholder="Select category (optional)"
-                                        allowClear
-                                    >
-                                        {categories.map((category) => (
-                                            <Option
-                                                key={category.id}
-                                                value={category.id}
-                                            >
-                                                {category.category_name}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={12}>
-                                <Form.Item
-                                    name="task_labels"
-                                    label="Labels"
-                                    extra="Add labels to categorize this task"
-                                >
-                                    <Select
-                                        mode="multiple"
-                                        placeholder="Select labels"
-                                    >
-                                        {labels.map((label) => (
-                                            <Option
-                                                key={label.id}
-                                                value={label.id}
-                                            >
-                                                <Space>
-                                                    <div
-                                                        style={{
-                                                            width: 8,
-                                                            height: 8,
-                                                            borderRadius: "50%",
-                                                            backgroundColor:
-                                                                label.label_color,
-                                                            display:
-                                                                "inline-block",
-                                                        }}
-                                                    />
-                                                    {label.label_name}
-                                                </Space>
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                    </Card>
-                </Collapse.Panel>
-            </Collapse>
-
-            <Collapse style={{ marginTop: 16 }}>
+            {/* <Collapse style={{ marginTop: 16 }}>
                 <Collapse.Panel
                     header={
                         <Space>
@@ -452,37 +419,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                         placeholder="0"
                                         style={{ width: "100%" }}
                                     />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={8}>
-                                <Form.Item
-                                    name="board_column_id"
-                                    label="Initial Status"
-                                    extra="Starting status for this task"
-                                >
-                                    <Select>
-                                        {columns.map((column) => (
-                                            <Option
-                                                key={column.id}
-                                                value={column.id}
-                                            >
-                                                <Space>
-                                                    <div
-                                                        style={{
-                                                            width: 8,
-                                                            height: 8,
-                                                            borderRadius: "50%",
-                                                            backgroundColor:
-                                                                column.label_color,
-                                                            display:
-                                                                "inline-block",
-                                                        }}
-                                                    />
-                                                    {column.column_name}
-                                                </Space>
-                                            </Option>
-                                        ))}
-                                    </Select>
                                 </Form.Item>
                             </Col>
                         </Row>
@@ -523,7 +459,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         </Row>
                     </Card>
                 </Collapse.Panel>
-            </Collapse>
+            </Collapse> */}
 
             <div className="flex items-center justify-end space-x-3 mt-12 mb-4 pt-4 border-t border-gray-200">
                 <Button onClick={onCancel} disabled={loading}>

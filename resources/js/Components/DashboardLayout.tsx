@@ -7,6 +7,7 @@ import {
     PersonIcon,
     BriefcaseIcon,
     HouseDoorIcon,
+    // GearIcon,
     CheckSquareIcon,
 } from "./icons";
 import { PageProps as InertiaPageProps, router } from "@inertiajs/core";

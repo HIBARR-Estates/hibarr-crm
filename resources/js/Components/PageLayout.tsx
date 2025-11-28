@@ -71,31 +71,6 @@ export default function PageLayout({
     // User dropdown menu
     const userMenuItems: MenuProps["items"] = [
         {
-            key: "profile",
-            label: (
-                <a href={route("profile-settings.index")}>Profile Settings</a>
-            ),
-        },
-        {
-            key: "dark-theme",
-            label: (
-                <div className="flex justify-between items-center">
-                    <span>Dark Theme</span>
-                    <Switch
-                        size="small"
-                        checked={user?.dark_theme}
-                        onChange={(checked) => {
-                            // Implement dark theme toggle
-                            // console.log("Toggle dark theme:", checked);
-                        }}
-                    />
-                </div>
-            ),
-        },
-        {
-            type: "divider",
-        },
-        {
             key: "logout",
             label: (
                 <span

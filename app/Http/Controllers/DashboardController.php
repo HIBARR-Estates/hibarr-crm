@@ -206,7 +206,9 @@ class DashboardController extends AccountBaseController
             'leadStage:id,name,label_color,priority',
             'currency:id,currency_symbol',
             'category:id,category_name',
-            'leadAgent.user:id,name,image'
+            'leadAgent.user:id,name,image',
+            'products:id,name',
+            'package:id,name'
         ])->orderBy('updated_at', 'desc');
 
         // Apply permission-based filtering for deals
@@ -221,6 +223,8 @@ class DashboardController extends AccountBaseController
                     'close_date' => $deal->close_date,
                     'pipeline_stage_id' => $deal->pipeline_stage_id,
                     'probability' => $deal->probability,
+                    'products_count' => $deal->products->count(),
+                    'package_id' => $deal->package_id,
                     'contact' => $deal->contact ? [
                         'id' => $deal->contact->id,
                         'client_name' => $deal->contact->client_name,
@@ -254,6 +258,16 @@ class DashboardController extends AccountBaseController
         // Enhanced data quality analysis
         $dataQualityRecords = collect();
         
+        // Get all leads
+        $leadsQuery = \App\Models\Lead::with(['leadStatus', 'leadAgent.user']);
+        PermissionService::applyScope($leadsQuery, user(), 'view_lead', $leadRules);
+        $allLeads = $leadsQuery->get();
+        
+        // Get required custom fields for leads
+        $leadCustomFields = \App\Models\CustomField::where('custom_field_group_id', function($q) {
+            $q->select('id')->from('custom_field_groups')->where('model', 'App\Models\Lead');
+        })->where('required', 'yes')->get();
+
         // Analyze deals for data quality
         $poorDataQualityDeals = $allDeals->map(function ($deal) {
             $missingFields = [];
@@ -261,39 +275,35 @@ class DashboardController extends AccountBaseController
             $totalFields = 0;
             $filledFields = 0;
 
-            // Essential deal fields
-            $dealFields = [
-                'value' => 'Deal Value',
-                'close_date' => 'Close Date',
-                'probability' => 'Probability'
-            ];
-
-            foreach ($dealFields as $field => $label) {
-                $totalFields++;
-                $value = data_get($deal, $field);
-                if (!empty($value)) {
-                    $filledFields++;
-                    // Additional validation
-                    if ($field === 'probability' && ($value < 0 || $value > 100)) {
-                        $dataIssues[] = [
-                            'field' => $field,
-                            'issue' => 'Probability should be between 0-100%',
-                            'severity' => 'medium',
-                            'suggestion' => 'Update probability to reflect realistic chance of closing'
-                        ];
-                    }
-                } else {
-                    $missingFields[] = $label;
-                    $dataIssues[] = [
-                        'field' => $field,
-                        'issue' => $label . ' is missing',
-                        'severity' => $field === 'value' ? 'high' : 'medium',
-                        'suggestion' => 'Please provide ' . strtolower($label) . ' information'
-                    ];
-                }
+            // Check products
+            $totalFields++;
+            if ($deal['products_count'] > 0) {
+                $filledFields++;
+            } else {
+                $missingFields[] = 'Products';
+                $dataIssues[] = [
+                    'field' => 'products',
+                    'issue' => 'No products associated',
+                    'severity' => 'high',
+                    'suggestion' => 'Add products to the deal'
+                ];
             }
 
-            // Contact information validation
+            // Check package
+            $totalFields++;
+            if ($deal['package_id']) {
+                $filledFields++;
+            } else {
+                $missingFields[] = 'Package';
+                $dataIssues[] = [
+                    'field' => 'package_id',
+                    'issue' => 'No package selected',
+                    'severity' => 'high',
+                    'suggestion' => 'Select a package for the deal'
+                ];
+            }
+
+            // Contact information validation (Lead connected to deal)
             if ($deal['contact']) {
                 $contactFields = [
                     'client_email' => 'Email',
@@ -319,7 +329,7 @@ class DashboardController extends AccountBaseController
                         $dataIssues[] = [
                             'field' => 'contact_' . $field,
                             'issue' => 'Contact ' . strtolower($label) . ' is missing',
-                            'severity' => 'medium',
+                            'severity' => 'high',
                             'suggestion' => 'Add contact ' . strtolower($label) . ' for better communication'
                         ];
                     }
@@ -366,13 +376,8 @@ class DashboardController extends AccountBaseController
 
             $dataQualityScore = $totalFields > 0 ? round(($filledFields / $totalFields) * 100) : 0;
             
-            // Calculate priority score based on value and data quality
-            $priorityScore = 0;
-            if ($deal['value']) {
-                $priorityScore += min(50, ($deal['value'] / 100000) * 30); // Value impact
-            }
-            $priorityScore += max(0, (100 - $dataQualityScore) * 0.5); // Data quality impact
-            $priorityScore = min(100, $priorityScore);
+            // Calculate priority score based on data quality (since value is removed)
+            $priorityScore = max(0, (100 - $dataQualityScore)); 
 
             return [
                 'id' => $deal['id'],
@@ -384,11 +389,121 @@ class DashboardController extends AccountBaseController
                 'contact' => $deal['contact'],
                 'value' => $deal['value'],
                 'stage' => $deal['lead_stage']['name'] ?? null,
+                'pipeline' => $deal['lead_pipeline_id'],
+                'stage_id' => $deal['pipeline_stage_id'],
                 'agent' => $deal['agent'],
                 'updated_at' => $deal['updated_at'],
                 'priority_score' => round($priorityScore),
             ];
-        })->filter(function ($deal) {
+        });
+
+        // Analyze leads for data quality
+        $poorDataQualityLeads = $allLeads->map(function ($lead) use ($leadCustomFields) {
+            $missingFields = [];
+            $dataIssues = [];
+            $totalFields = 0;
+            $filledFields = 0;
+
+            // Essential lead fields
+            $leadFields = [
+                'client_email' => 'Email',
+                'mobile' => 'Mobile',
+                'address' => 'Address',
+                'city' => 'City',
+                'postal_code' => 'Postal Code',
+                'country' => 'Country',
+                'state' => 'State'
+            ];
+
+            foreach ($leadFields as $field => $label) {
+                $totalFields++;
+                $value = $lead->{$field};
+                if (!empty($value)) {
+                    $filledFields++;
+                    if ($field === 'client_email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                        $dataIssues[] = [
+                            'field' => $field,
+                            'issue' => 'Invalid email format',
+                            'severity' => 'high',
+                            'suggestion' => 'Please provide a valid email address'
+                        ];
+                    }
+                } else {
+                    $missingFields[] = $label;
+                    $dataIssues[] = [
+                        'field' => $field,
+                        'issue' => $label . ' is missing',
+                        'severity' => 'medium',
+                        'suggestion' => 'Please provide ' . strtolower($label)
+                    ];
+                }
+            }
+
+            // Check required custom fields
+            // We need to fetch custom fields data for this lead
+            // Since we are iterating, this might be N+1 if not eager loaded.
+            // But Lead::allLeads() returns a collection.
+            // We can use the custom_fields_data table or helper.
+            // For performance, we should have eager loaded custom fields data, but Lead::allLeads() doesn't do that by default.
+            // We'll assume we can access it via the model helper or relation if available.
+            // Lead model uses CustomFieldsTrait.
+            
+            // Let's try to get custom fields data.
+            // $lead->custom_fields_data is available if we load it.
+            // Since we didn't eager load, we might need to fetch it or rely on lazy loading (slow).
+            // For now, let's assume we can check it.
+            
+            // To avoid N+1, we should have loaded it. But let's proceed with lazy loading for now as optimization is secondary to functionality.
+            // Actually, let's try to use the trait method if possible.
+            
+            foreach ($leadCustomFields as $customField) {
+                $totalFields++;
+                // Check if value exists in custom_fields_data table
+                $value = DB::table('custom_fields_data')
+                    ->where('model', 'App\Models\Lead')
+                    ->where('model_id', $lead->id)
+                    ->where('custom_field_id', $customField->id)
+                    ->value('value');
+
+                if (!empty($value)) {
+                    $filledFields++;
+                } else {
+                    $missingFields[] = $customField->label;
+                    $dataIssues[] = [
+                        'field' => 'custom_field_' . $customField->id,
+                        'issue' => $customField->label . ' is missing',
+                        'severity' => 'high', // Required fields are high severity
+                        'suggestion' => 'Please provide ' . $customField->label
+                    ];
+                }
+            }
+
+            $dataQualityScore = $totalFields > 0 ? round(($filledFields / $totalFields) * 100) : 0;
+            $priorityScore = max(0, (100 - $dataQualityScore));
+
+            return [
+                'id' => $lead->id,
+                'type' => 'lead',
+                'name' => $lead->client_name,
+                'data_quality_score' => $dataQualityScore,
+                'missing_fields' => $missingFields,
+                'data_issues' => $dataIssues,
+                'contact' => [
+                    'id' => $lead->id,
+                    'client_name' => $lead->client_name,
+                    'client_email' => $lead->client_email,
+                    'mobile' => $lead->mobile,
+                ],
+                'value' => $lead->value,
+                'stage' => $lead->leadStatus ? $lead->leadStatus->type : null,
+                'agent' => $lead->leadAgent ? $lead->leadAgent->user : null,
+                'updated_at' => $lead->updated_at,
+                'priority_score' => round($priorityScore),
+            ];
+        });
+
+        $poorDataQualityDeals = $poorDataQualityDeals->merge($poorDataQualityLeads)
+            ->filter(function ($deal) {
             return $deal['data_quality_score'] < 80; // Only show records that need improvement
         })->sortByDesc('priority_score')->take(10)->values();
 
