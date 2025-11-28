@@ -363,7 +363,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 }
                 className="h-full"
             >
-                <div className="max-h-96 overflow-y-auto p-4">
+                <div className="max-h-96 overflow-y-auto">
                     {overdueTasks.length > 0 && (
                         <div className="mb-4">
                             <div className="text-red-600 font-medium text-sm mb-3 flex items-center">

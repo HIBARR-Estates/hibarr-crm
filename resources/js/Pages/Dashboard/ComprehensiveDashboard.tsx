@@ -331,7 +331,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                             </Row>
 
                             {/* Deals Tracker */}
-                            <Row gutter={[24, 24]}>
+                            {/* <Row gutter={[24, 24]}>
                                 <Col span={24}>
                                     <motion.div
                                         initial={{ opacity: 0, y: 50 }}
@@ -352,7 +352,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         />
                                     </motion.div>
                                 </Col>
-                            </Row>
+                            </Row> */}
 
                             {/* Quick Stats Footer */}
                             <motion.div

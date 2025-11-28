@@ -294,7 +294,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                             )}
 
                         {/* Data Issues */}
-                        {record.data_issues &&
+                        {/* {record.data_issues &&
                             record.data_issues.length > 0 && (
                                 <div>
                                     <div className="text-xs font-medium text-amber-600 mb-2 flex items-center">
@@ -313,7 +313,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                         )}
                                     </div>
                                 </div>
-                            )}
+                            )} */}
 
                         {/* Actions */}
                         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
