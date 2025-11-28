@@ -395,6 +395,36 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                     <TasksStats stats={stats} />
                     <div className="flex items-center gap-3 mb-4 justify-end">
                         {/* Filters */}
+
+                        {/* View Toggle */}
+                        {/* <div className="flex items-center gap-2">
+                            <div className="flex bg-gray-100 rounded-md p-1">
+                                <Button
+                                    type="text"
+                                    icon={<AppstoreOutlined />}
+                                    size="small"
+                                    className={`${isKanbanView
+                                        ? "!bg-white !shadow-sm"
+                                        : "hover:bg-white hover:shadow-sm"
+                                        }`}
+                                    title="Kanban Board"
+                                    onClick={() => setView("kanban")}
+                                />
+
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={<TableOutlined />}
+                                    className={`${isTableView
+                                        ? "!bg-white !shadow-sm"
+                                        : "hover:bg-white hover:shadow-sm"
+                                        }`}
+                                    title="Table View"
+                                    onClick={() => setView("table")}
+                                />
+                            </div>
+                        </div> */}
+
                         <div className="flex  items-center gap-x-2">
                             <Button
                                 icon={<FilterOutlined />}
@@ -416,7 +446,6 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         )}
                     </div>
 
-                    {/* View Toggle */}
                     <Card>
                         <div className="flex justify-end gap-x-2 items-center mb-2">
                             <div className="flex items-center gap-2">

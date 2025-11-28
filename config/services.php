@@ -74,4 +74,10 @@ return [
         'app_id' => 'YOUR-APP-ID-HERE',
         'rest_api_key' => 'YOUR-REST-API-KEY-HERE',
     ],
+
+    'meta' => [
+        'pixel_id' => env('META_PIXEL_ID'),
+        'access_token' => env('META_ACCESS_TOKEN'),
+        'api_version' => env('META_CONVERSIONS_API_VERSION', 'v18.0'),
+    ],
 ];
