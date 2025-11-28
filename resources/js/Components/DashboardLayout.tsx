@@ -1,16 +1,11 @@
 import React, { useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { Layout, Menu, Avatar, Dropdown, Switch, theme } from "antd";
+import { Layout, Menu, Image, theme } from "antd";
 import type { MenuProps } from "antd";
 import {
     HouseIcon,
-    CalendarIcon,
     PersonIcon,
-    BuildingIcon,
-    PeopleIcon,
     BriefcaseIcon,
-    CashCoinIcon,
-    BasketIcon,
     HouseDoorIcon,
     // GearIcon,
     CheckSquareIcon,
@@ -60,7 +55,8 @@ const siderStyle: React.CSSProperties = {
     top: 0,
     bottom: 0,
     scrollbarWidth: "thin",
-    scrollbarGutter: "stable",
+    maxWidth: "250px",
+    // scrollbarGutter: "stable",
 };
 
 const DashboardLayout: React.FC<{
@@ -491,21 +487,8 @@ const DashboardLayout: React.FC<{
                 theme={"dark"}
             >
                 {/* Sidebar Brand */}
-                <div className="p-4 border-b">
-                    <div className="flex items-center gap-x-2 cursor-pointer">
-                        <Avatar
-                            src={company?.logo_url}
-                            size="small"
-                            alt={appName}
-                        >
-                            {appName?.charAt(0)}
-                        </Avatar>
-                        {!collapsed && (
-                            <span className="font-medium text-base text-white truncate">
-                                {appName}
-                            </span>
-                        )}
-                    </div>
+                <div className="px-4 flex items-center justify-center bg-white h-[69px]">
+                    <Image src={company?.logo_url} alt={appName} preview={false} />
                 </div>
 
                 {/* Navigation Menu */}
@@ -520,7 +503,7 @@ const DashboardLayout: React.FC<{
                     )}
                     items={buildMenuItems()}
                     className="border-none"
-                    style={{ paddingLeft: 8, paddingRight: 8 }}
+                    style={{ padding: "12px 8px" }}
                 />
             </Sider>
 

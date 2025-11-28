@@ -689,12 +689,7 @@ class DealController extends AccountBaseController
             $redirectUrl = route('deals.index');
         }
 
-        // return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
-        return back()->with([
-            'status' => 'success',
-            'message' => __('messages.recordSaved'),
-            'deal'=> $deal
-        ]);
+        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'deal' => $deal]);
     }
 
     /**
@@ -849,13 +844,7 @@ class DealController extends AccountBaseController
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $this->triggerDealUpdateAutomation($request, $deal);
 
-        // return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
-
-        return back()->with([
-            'status' => 'success',
-            'message' => __('messages.updateSuccess'),
-            'redirectUrl' => $redirectTo
-        ]);
+        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
     }
 
     /**

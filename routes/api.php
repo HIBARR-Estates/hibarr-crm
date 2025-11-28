@@ -43,6 +43,12 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::post('external-events', ['as' => 'api.external-events.store', 'uses' => 'ExternalEventController@store']);
         ApiRoute::get('external-events', ['as' => 'api.external-events.index', 'uses' => 'ExternalEventController@index']);
         ApiRoute::get('external-events/{id}', ['as' => 'api.external-events.show', 'uses' => 'ExternalEventController@show']);
+
+        // Deal API Routes
+        ApiRoute::post('deal/create', ['as' => 'api.deals.create', 'uses' => 'Api\DealContactApiController@createDeal']);
+        
+        // Contact API Routes
+        ApiRoute::post('contact/create', ['as' => 'api.contacts.createOrUpdate', 'uses' => 'Api\DealContactApiController@createOrUpdateContact']);
  
     });
 
@@ -50,7 +56,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
 // API Routes for external applications
 ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
-    ApiRoute::post('deals/change-stage', ['as' => 'api.deals.changeStage', 'uses' => 'DealApiController@changeStage']);
+    ApiRoute::post('deals/change-stage', ['as' => 'api.deals.changeStage', 'uses' => 'DealContactApiController@changeStage']);
     // ->validate([
     //     'deal_id' => 'required|exists:deals,id',
     //     'new_stage_id' => 'required|exists:pipeline_stages,id',
