@@ -12,7 +12,7 @@ class HibarrDealFields extends Model
     [
         'deal_id',
         'interested_in',
-        'motivation/comment',
+        'motivation',
         'purchase_timeline',
         'budget_range',
         'strategy_meeting_booked',
