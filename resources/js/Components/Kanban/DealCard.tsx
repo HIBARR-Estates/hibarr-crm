@@ -53,7 +53,7 @@ const DealCard: React.FC<DealCardProps> = ({
             style={style}
             {...attributes}
             {...listeners}
-            className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 mx-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
+            className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 mx-3 hover:shadow-sm transition-shadow cursor-pointer ${
                 !draggable ? "move-disable" : ""
             } ${isDragging ? "z-50" : ""}`}
             data-task-id={deal.id}
@@ -118,16 +118,15 @@ const DealCard: React.FC<DealCardProps> = ({
                 {deal.lead_agent?.user ? (
                     <a
                         href={route("employees.show", deal.lead_agent.user_id)}
-                        className="flex items-center gap-1 hover:text-blue-600"
+                        className="flex items-center gap-2 hover:text-blue-600"
                     >
                         <span className="text-gray-600">
                             {deal.lead_agent.user.name}
                         </span>
                         <Avatar
-                            size="small"
+                            size={24}
                             src={deal.lead_agent.user.image_url}
                             icon={<UserOutlined />}
-                            className="w-6 h-6"
                         />
                     </a>
                 ) : (

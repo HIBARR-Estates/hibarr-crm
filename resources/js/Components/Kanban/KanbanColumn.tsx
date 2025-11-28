@@ -183,7 +183,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                     </div>
                 </div>
 
-                <div className="mt-1 text-lg font-semibold text-gray-900">
+                <div className="my-1 text-xl font-semibold text-gray-900">
                     {formatCurrency(column.total_value)}
                 </div>
             </div>
