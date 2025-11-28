@@ -83,6 +83,8 @@ const Index = ({
             createDealFilterConfig({
                 ...props,
                 stages,
+
+                leadPipelines: pipelines,
                 leadAgents,
                 excludeFields: ["pipeline_stage_id", "lead_pipeline_id"],
             }),
@@ -92,6 +94,7 @@ const Index = ({
             stages,
             leadAgents,
             props.employees,
+            pipelines,
         ]
     );
 
@@ -214,7 +217,6 @@ const Index = ({
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            {filters?.lead_pipeline_id} sdsds
                             <Select
                                 value={
                                     filters?.lead_pipeline_id
