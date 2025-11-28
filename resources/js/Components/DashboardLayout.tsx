@@ -54,6 +54,7 @@ const siderStyle: React.CSSProperties = {
     top: 0,
     bottom: 0,
     scrollbarWidth: "thin",
+    maxWidth: "250px",
     // scrollbarGutter: "stable",
 };
 
