@@ -237,7 +237,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                     {record.stage && (
                                         <span>{record.stage}</span>
                                     )}
-                                    {record.agent && (
+                                    {/* {record.agent && (
                                         <div className="flex items-center">
                                             <Avatar
                                                 size="small"
@@ -247,7 +247,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                             />
                                             <span>{record.agent.name}</span>
                                         </div>
-                                    )}
+                                    )} */}
                                 </div>
                             </div>
 
