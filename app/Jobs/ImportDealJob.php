@@ -692,7 +692,7 @@ class ImportDealJob implements ShouldQueue
         // Map of column names to Hibarr field names
         $hibarrFields = [
             'interested_in' => 'interested_in',
-            'motivation' => 'motivation',
+            'motivation/comment' => 'motivation/comment',
             'purchase_timeline' => 'purchase_timeline',
             'budget_range' => 'budget_range',
             'strategy_meeting_booked' => 'strategy_meeting_booked',
