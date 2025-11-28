@@ -683,7 +683,7 @@ class DealContactApiController extends Controller
     {
         $hibarrFields = [
             'budget_range' => $request->input('customerBudget') ?? '',
-            'motivation' => $request->input('motivation') ?? '',
+            'motivation/comment' => $request->input('motivation') ?? '',
         ];
 
         HibarrDealFields::updateOrCreate(
