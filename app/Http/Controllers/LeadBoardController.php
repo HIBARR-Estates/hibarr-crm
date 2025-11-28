@@ -49,7 +49,13 @@ class LeadBoardController extends AccountBaseController
         $this->viewEmployeePermission = user()->permission('view_employees');
         $this->viewDealLeadPermission = user()->permission('view_lead');
         $this->products = Product::all();
-        abort_403(!in_array($viewPermission, ['all', 'added', 'both', 'owned']));
+        
+        if (!in_array($viewPermission, ['all', 'added', 'both', 'owned'])) {
+            if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort_403();
+        }
 
         $this->categories = LeadCategory::get();
         $this->sources = LeadSource::get();
@@ -131,50 +137,34 @@ class LeadBoardController extends AccountBaseController
                     });
                 }
 
-                if (($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') || $this->viewLeadPermission == 'added') {
-                    $q->where(function ($query) use ($request) {
-                        if ($request->agent_id != 'all' && $request->agent_id != '') {
-
-                            $query->whereHas('leadAgent', function ($q) use ($request) {
-                                $q->where('user_id', $request->agent_id);
+                // Apply permission-based filtering
+                $dealRules = [
+                    'added' => 'deals.added_by',
+                    'owned' => function($q, $user) {
+                        $q->where(function($query) use ($user) {
+                            $myAgentId = \App\Models\LeadAgent::where('user_id', $user->id)->pluck('id')->toArray();
+                            
+                            if (!empty($myAgentId)) {
+                                $query->whereIn('agent_id', $myAgentId);
+                            }
+                            
+                            $query->orWhereExists(function ($subQuery) use ($user) {
+                                $subQuery->select(DB::raw(1))
+                                        ->from('deal_watchers')
+                                        ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                        ->where('deal_watchers.user_id', $user->id);
                             });
-                        }
-
-                        if ($this->viewLeadPermission == 'added') {
-                            $query->where('deals.added_by', user()->id);
-                        }
-                    });
-                }
-
-                if ($this->viewLeadPermission == 'owned') {
-                    $q->where(function ($query) {
-                        if (!empty($this->myAgentId)) {
-                            $query->whereIn('agent_id', $this->myAgentId);
-                        }
-                    });
-
-                    $q->orWhereExists(function ($query) {
-                    $query->select(DB::raw(1))
-                          ->from('deal_watchers')
-                          ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                          ->where('deal_watchers.user_id', user()->id);
-                });
-                }
-
-                if ($this->viewLeadPermission == 'both') {
-                    $q->where(function ($query) {
-                        if (!empty($this->myAgentId)) {
-                            $query->whereIn('agent_id', $this->myAgentId);
-                        }
-
-                        $query->orWhere('deals.added_by', user()->id)->orWhereExists(function ($subQuery) {
-                            $subQuery->select(DB::raw(1))
-                                    ->from('deal_watchers')
-                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                    ->where('deal_watchers.user_id', user()->id);
                         });
+                    }
+                ];
+
+                if ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+                    $q->whereHas('leadAgent', function ($q) use ($request) {
+                        $q->where('user_id', $request->agent_id);
                     });
                 }
+
+                PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
 
                 $q->select(DB::raw('count(distinct deals.id)'));
             }])
@@ -183,50 +173,33 @@ class LeadBoardController extends AccountBaseController
                         ->leftJoin('leads', 'leads.id', 'deals.lead_id')
                         ->groupBy('deals.id');
 
-                    if (($request->agent_id != 'all' && $request->agent_id != '' && $request->agent_id != 'undefined') || $this->viewLeadPermission == 'added') {
-                        $q->where(function ($query) use ($request) {
-                            if ($request->agent_id != 'all' && $request->agent_id != '') {
+                    if ($request->agent_id != 'all' && $request->agent_id != '' && $request->agent_id != 'undefined') {
+                        $q->whereHas('leadAgent', function ($q) use ($request) {
+                            $q->where('user_id', $request->agent_id);
+                        });
+                    }
 
-                                $query->whereHas('leadAgent', function ($q) use ($request) {
-                                    $q->where('user_id', $request->agent_id);
+                    // Apply permission-based filtering
+                    $dealRules = [
+                        'added' => 'deals.added_by',
+                        'owned' => function($q, $user) {
+                            $q->where(function($query) use ($user) {
+                                $myAgentId = \App\Models\LeadAgent::where('user_id', $user->id)->pluck('id')->toArray();
+                                
+                                if (!empty($myAgentId)) {
+                                    $query->whereIn('agent_id', $myAgentId);
+                                }
+                                
+                                $query->orWhereExists(function ($subQuery) use ($user) {
+                                    $subQuery->select(DB::raw(1))
+                                            ->from('deal_watchers')
+                                            ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                            ->where('deal_watchers.user_id', $user->id);
                                 });
-                            }
-
-                            if ($this->viewLeadPermission == 'added') {
-                                $query->where('deals.added_by', user()->id);
-                            }
-                        });
-                    }
-
-                    if ($this->viewLeadPermission == 'owned') {
-                        $q->where(function ($query) {
-                            if (!empty($this->myAgentId)) {
-                                $query->whereIn('agent_id', $this->myAgentId);
-                            }
-                            $query->orWhereExists(function ($subQuery) {
-                                $subQuery->select(DB::raw(1))
-                                        ->from('deal_watchers')
-                                        ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                        ->where('deal_watchers.user_id', user()->id);
                             });
-                        });
-                    }
-
-                    if ($this->viewLeadPermission == 'both') {
-                        $q->where(function ($query) {
-                            if (!empty($this->myAgentId)) {
-                                $query->whereIn('agent_id', $this->myAgentId);
-                            }
-
-                            $query->orWhere('deals.added_by', user()->id)
-                                ->orWhereExists(function ($subQuery) {
-                                $subQuery->select(DB::raw(1))
-                                        ->from('deal_watchers')
-                                        ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                        ->where('deal_watchers.user_id', user()->id);
-                            });
-                        });
-                    }
+                        }
+                    ];
+                    PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
 
                     $this->dateFilter($q, $startDate, $endDate, $request);
 
@@ -632,38 +605,27 @@ class LeadBoardController extends AccountBaseController
 
             $this->dateFilter($leads, $startDate, $endDate, $request);
 
-            // Apply permission filters
-            if ($this->viewLeadPermission == 'owned') {
-                $leads->where(function ($query) {
-                    if (!empty($this->myAgentId)) {
-                        $query->whereIn('agent_id', $this->myAgentId);
-                    }
-
-                    $query->orWhere('deals.added_by', user()->id)
-                        ->orWhereExists(function ($subQuery) {
+            // Apply permission-based filtering
+            $dealRules = [
+                'added' => 'deals.added_by',
+                'owned' => function($q, $user) {
+                    $q->where(function($query) use ($user) {
+                        $myAgentId = \App\Models\LeadAgent::where('user_id', $user->id)->pluck('id')->toArray();
+                        
+                        if (!empty($myAgentId)) {
+                            $query->whereIn('agent_id', $myAgentId);
+                        }
+                        
+                        $query->orWhereExists(function ($subQuery) use ($user) {
                             $subQuery->select(DB::raw(1))
                                     ->from('deal_watchers')
                                     ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                    ->where('deal_watchers.user_id', user()->id);
+                                    ->where('deal_watchers.user_id', $user->id);
                         });
-                });
-            }
-
-            if ($this->viewLeadPermission == 'both') {
-                $leads->where(function ($query) {
-                    if (!empty($this->myAgentId)) {
-                        $query->whereIn('agent_id', $this->myAgentId);
-                    }
-
-                    $query->orWhere('deals.added_by', user()->id)
-                        ->orWhereExists(function ($subQuery) {
-                            $subQuery->select(DB::raw(1))
-                                    ->from('deal_watchers')
-                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                    ->where('deal_watchers.user_id', user()->id);
-                        });
-                });
-            }
+                    });
+                }
+            ];
+            PermissionService::applyScope($leads, user(), 'view_deals', $dealRules);
 
             $leads->skip(0)->take($this->taskBoardColumnLength);
             $leads = $leads->get();
