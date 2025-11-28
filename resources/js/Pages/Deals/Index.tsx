@@ -84,6 +84,7 @@ const Index = ({
                 ...props,
                 stages,
                 leadAgents,
+                excludeFields: ["pipeline_stage_id", "lead_pipeline_id"],
             }),
         [
             props.categories,
@@ -196,7 +197,7 @@ const Index = ({
 
     const columns = DEAL_TABLE_COLUMNS(getActionItems);
 
-    console.log("Rendering Deals Index with deals:", deals);
+    console.log("Rendering Deals Index with deals:", deals, filters);
     return (
         <DashboardLayout>
             <PageLayout
@@ -213,6 +214,7 @@ const Index = ({
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
+                            {filters?.lead_pipeline_id} sdsds
                             <Select
                                 value={
                                     filters?.lead_pipeline_id
@@ -227,7 +229,6 @@ const Index = ({
                                     label: pipeline?.name,
                                 }))}
                             />
-
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}

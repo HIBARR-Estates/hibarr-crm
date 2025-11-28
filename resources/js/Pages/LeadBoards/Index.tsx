@@ -111,7 +111,7 @@ const LeadBoardIndex = ({
                 leadPipelines: pipelines,
                 stages: props.stages,
                 leadAgents,
-                excludeFields: ["pipeline_stage_id"],
+                excludeFields: ["pipeline_stage_id", "lead_pipeline_id"],
             }),
             routeName: "leadboards.index",
         }),
