@@ -21,41 +21,41 @@ export const createDealFilterConfig = (
             section: "Search & General",
             span: 24,
         },
-        {
-            key: "lead_pipeline_id",
-            label: "Pipeline",
-            type: "select" as const,
-            placeholder: "Select pipeline",
-            section: "Pipeline & Stage",
-            span: 12,
-            options:
-                props.leadPipelines?.map((pipeline: any) => ({
-                    value: pipeline.id,
-                    label: pipeline.name,
-                })) || [],
-        },
-        {
-            key: "pipeline_stage_id",
-            label: "Stage",
-            type: "select" as const,
-            placeholder: "Select stage",
-            section: "Pipeline & Stage",
-            span: 12,
-            dependsOn: "lead_pipeline_id",
-            filterOptions: (pipelineId: number) => {
-                return (
-                    props.stages
-                        ?.filter(
-                            (stage: any) =>
-                                stage.lead_pipeline_id === pipelineId
-                        )
-                        .map((stage: any) => ({
-                            value: stage.id,
-                            label: stage.name,
-                        })) || []
-                );
-            },
-        },
+        // {
+        //     key: "lead_pipeline_id",
+        //     label: "Pipeline",
+        //     type: "select" as const,
+        //     placeholder: "Select pipeline",
+        //     section: "Pipeline & Stage",
+        //     span: 12,
+        //     options:
+        //         props.leadPipelines?.map((pipeline: any) => ({
+        //             value: pipeline.id,
+        //             label: pipeline.name,
+        //         })) || [],
+        // },
+        // {
+        //     key: "pipeline_stage_id",
+        //     label: "Stage",
+        //     type: "select" as const,
+        //     placeholder: "Select stage",
+        //     section: "Pipeline & Stage",
+        //     span: 12,
+        //     dependsOn: "lead_pipeline_id",
+        //     filterOptions: (pipelineId: number) => {
+        //         return (
+        //             props.stages
+        //                 ?.filter(
+        //                     (stage: any) =>
+        //                         stage.lead_pipeline_id === pipelineId
+        //                 )
+        //                 .map((stage: any) => ({
+        //                     value: stage.id,
+        //                     label: stage.name,
+        //                 })) || []
+        //         );
+        //     },
+        // },
         {
             key: "category_id",
             label: "Category",

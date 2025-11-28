@@ -24,7 +24,7 @@ import {
     FilterOutlined,
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
-import { Button, MenuProps, Table } from "antd";
+import { Button, MenuProps, Select, Table } from "antd";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -42,6 +42,12 @@ interface LeadAgent {
     user?: Pick<User, "id" | "name" | "email" | "image_url">;
 }
 
+interface Pipeline {
+    id: number;
+    name: string;
+    default: number;
+}
+
 export interface IndexProps extends PageProps {
     pageTitle: string;
     deals: PaginatedDealResponse;
@@ -52,6 +58,7 @@ export interface IndexProps extends PageProps {
     employees: User[];
     countries: Array<{ iso: string; nicename: string; iso3: string }>;
     salutations: Array<{ value: string; label: string }>;
+    pipelines: Pipeline[];
 }
 
 const Index = ({
@@ -59,6 +66,8 @@ const Index = ({
     deals,
     stages,
     leadAgents,
+    pipelines,
+    defaultPipeline,
     ...props
 }: IndexProps) => {
     const {
@@ -95,6 +104,22 @@ const Index = ({
 
     // Extract commonly used values
     const { openDrawer, filters } = filter;
+
+    const handlePipelineChange = (value: number) => {
+        // Get current params
+        const urlParams = new URLSearchParams(window.location.search);
+        const params = Object.fromEntries(urlParams.entries());
+
+        // Update pipeline
+        params.lead_pipeline_id = String(value);
+
+        // Navigate
+        router.get(route("deals.index"), params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
 
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "deals.index" });
@@ -188,6 +213,21 @@ const Index = ({
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
+                            <Select
+                                value={
+                                    filters?.lead_pipeline_id
+                                        ? Number(filters?.lead_pipeline_id)
+                                        : defaultPipeline?.id
+                                }
+                                onChange={handlePipelineChange}
+                                style={{ width: 200 }}
+                                placeholder="Select Pipeline"
+                                options={pipelines?.map((pipeline) => ({
+                                    value: pipeline?.id,
+                                    label: pipeline?.name,
+                                }))}
+                            />
+
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
