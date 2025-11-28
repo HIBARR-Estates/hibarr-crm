@@ -317,6 +317,7 @@ class DealController extends AccountBaseController
             'leadStage',
             'currency',
             'products:id,name',
+            'package:id,name',
             'communicationActivities',
             'hibarrFields',
             'dealWatchers' => function ($query) {

@@ -232,9 +232,9 @@ const LeadBoardIndex = ({
 
                                         <Select
                                             value={
-                                                filters.lead_pipeline_id
+                                                filters?.lead_pipeline_id
                                                     ? Number(
-                                                          filters.lead_pipeline_id
+                                                          filters?.lead_pipeline_id
                                                       )
                                                     : defaultPipeline?.id
                                             }

@@ -12,13 +12,13 @@ import {
     CashCoinIcon,
     BasketIcon,
     HouseDoorIcon,
-    GearIcon,
+    // GearIcon,
     CheckSquareIcon,
 } from "./icons";
 import { PageProps as InertiaPageProps, router } from "@inertiajs/core";
 import { AuthType } from "@/Types";
 
-const { Header, Content, Sider } = Layout;
+const { Content, Sider } = Layout;
 
 interface Company {
     app_name: string;

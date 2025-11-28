@@ -28,6 +28,9 @@ import BasicTaskFilterBox from "@/Features/Tasks/Filter/BasicTaskFilterBox";
 import AdvancedTaskFilterForm from "@/Features/Tasks/Filter/AdvancedTaskFilterForm";
 import { router } from "@inertiajs/react";
 
+import TasksKanban from "@/Features/Tasks/Components/TasksKanban";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+
 dayjs.extend(isBetween);
 
 const { Text, Title } = Typography;
@@ -73,6 +76,7 @@ interface Task {
     estimate_minutes?: number;
     is_private?: boolean;
     billable?: boolean;
+    added_by?: number;
 }
 
 interface TaskCategory {
@@ -116,9 +120,9 @@ export interface TasksIndexProps extends PageProps {
     projects: Project[];
 
     permissions: {
-        add_tasks: boolean;
-        edit_tasks: boolean;
-        delete_tasks: boolean;
+        add_tasks: string;
+        edit_tasks: string;
+        delete_tasks: string;
         view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
     };
 }
@@ -131,11 +135,12 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
     users = [],
     projects = [],
     permissions = {
-        add_tasks: true,
-        edit_tasks: true,
-        delete_tasks: true,
+        add_tasks: "all",
+        edit_tasks: "all",
+        delete_tasks: "all",
         view_tasks: "all",
     },
+    auth,
 }) => {
     console.log("Tasks:", initialTasks);
 
@@ -240,13 +245,66 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
         });
         handleClose();
     };
+    // Task status change handler for Kanban
+    const { mutate: updateTaskStatus } = useApiMutate(
+        route("tasks.change_status"),
+        "POST"
+    );
+
+    const handleStatusChange = (
+        taskId: number,
+        newStatus: string,
+        newColumnId: number
+    ) => {
+        // Optimistically update the UI
+        setTasks((prevTasks) =>
+            prevTasks.map((task) =>
+                task.id === taskId
+                    ? {
+                          ...task,
+                          status: newStatus,
+                          board_column_id: newColumnId,
+                      }
+                    : task
+            )
+        );
+
+        updateTaskStatus({
+            taskId: taskId,
+            status: newStatus,
+            boardColumnId: newColumnId,
+        });
+    };
 
     // Enhanced row selection with permissions check
     const enhancedRowSelection = {
         ...rowSelection,
-        getCheckboxProps: (record: Task) => ({
-            disabled: !permissions.edit_tasks && !permissions.delete_tasks,
-        }),
+        getCheckboxProps: (record: Task) => {
+            const userId = auth.user.id;
+            const canEdit =
+                permissions.edit_tasks === "all" ||
+                (permissions.edit_tasks === "added" &&
+                    record.added_by === userId) ||
+                (permissions.edit_tasks === "owned" &&
+                    record.users?.some((u) => u.id === userId)) ||
+                (permissions.edit_tasks === "both" &&
+                    (record.added_by === userId ||
+                        record.users?.some((u) => u.id === userId)));
+
+            const canDelete =
+                permissions.delete_tasks === "all" ||
+                (permissions.delete_tasks === "added" &&
+                    record.added_by === userId) ||
+                (permissions.delete_tasks === "owned" &&
+                    record.users?.some((u) => u.id === userId)) ||
+                (permissions.delete_tasks === "both" &&
+                    (record.added_by === userId ||
+                        record.users?.some((u) => u.id === userId)));
+
+            return {
+                disabled: !canEdit && !canDelete,
+            };
+        },
     };
 
     // Table columns using the hook
@@ -368,11 +426,11 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                                         type="text"
                                         icon={<AppstoreOutlined />}
                                         size="small"
-                                        className={`${
+                                        className={
                                             isKanbanView
                                                 ? "!bg-white !shadow-sm"
                                                 : "hover:bg-white hover:shadow-sm"
-                                        }`}
+                                        }
                                         title="Kanban Board"
                                         onClick={() => setView("kanban")}
                                     />
@@ -381,11 +439,11 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                                         type="text"
                                         size="small"
                                         icon={<TableOutlined />}
-                                        className={`${
+                                        className={
                                             isTableView
                                                 ? "!bg-white !shadow-sm"
                                                 : "hover:bg-white hover:shadow-sm"
-                                        }`}
+                                        }
                                         title="Table View"
                                         onClick={() => setView("table")}
                                     />
@@ -397,38 +455,52 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                             </Text>
                         </div>
 
-                        {/* Table */}
-                        <Table
-                            rowSelection={enhancedRowSelection}
-                            columns={tableColumns}
-                            dataSource={filteredTasks}
-                            rowKey="id"
-                            size="small"
-                            scroll={{ x: 1200 }}
-                            pagination={{
-                                total: filteredTasks.length,
-                                pageSize: 50,
-                                showSizeChanger: true,
-                                showQuickJumper: true,
-                                showTotal: (total, range) =>
-                                    `${range[0]}-${range[1]} of ${total} items`,
-                                onChange: (page, pageSize) => {
-                                    router.get(
-                                        route("tasks.index"),
-                                        {
-                                            ...filters,
-                                            ...sortParams,
-                                            page,
-                                            per_page: pageSize,
-                                        },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                        }
-                                    );
-                                },
-                            }}
-                        />
+                        {/* Table or Kanban View */}
+                        {isTableView ? (
+                            <Table
+                                rowSelection={enhancedRowSelection}
+                                columns={tableColumns}
+                                dataSource={filteredTasks}
+                                rowKey="id"
+                                size="small"
+                                scroll={{ x: 1200 }}
+                                pagination={{
+                                    total: filteredTasks.length,
+                                    pageSize: 50,
+                                    showSizeChanger: true,
+                                    showQuickJumper: true,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}-${range[1]} of ${total} items`,
+                                    onChange: (page, pageSize) => {
+                                        router.get(
+                                            route("tasks.index"),
+                                            {
+                                                ...filters,
+                                                ...sortParams,
+                                                page,
+                                                per_page: pageSize,
+                                            },
+                                            {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                            }
+                                        );
+                                    },
+                                }}
+                            />
+                        ) : (
+                            <TasksKanban
+                                tasks={filteredTasks}
+                                columns={columns}
+                                permissions={permissions}
+                                userId={auth.user.id}
+                                onEdit={handleEditTask}
+                                onView={handleViewTask}
+                                onDuplicate={handleDuplicateTask}
+                                onDelete={handleDeleteTask}
+                                onStatusChange={handleStatusChange}
+                            />
+                        )}
                     </Card>
 
                     {/* Save Task Modal - handles both create and edit */}
