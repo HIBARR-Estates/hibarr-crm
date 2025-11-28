@@ -11,17 +11,24 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('lead_follow_up', function (Blueprint $table) {
-            // Check if location column exists, if not add it
-            if (!Schema::hasColumn('lead_follow_up', 'location')) {
-                $table->string('location')->nullable()->before('deal_id');
-            }
-            
-            // Also check for meeting_link as it's often added together
-            if (!Schema::hasColumn('lead_follow_up', 'meeting_link')) {
-                $table->string('meeting_link')->nullable()->after('location');
-            }
-        });
+        // Check for column existence outside the Schema::table() closure
+        $needsLocation = !Schema::hasColumn('lead_follow_up', 'location');
+        $needsMeetingLink = !Schema::hasColumn('lead_follow_up', 'meeting_link');
+        
+        // Only modify the table if columns need to be added
+        if ($needsLocation || $needsMeetingLink) {
+            Schema::table('lead_follow_up', function (Blueprint $table) use ($needsLocation, $needsMeetingLink) {
+                // Add location column before deal_id if it doesn't exist
+                if ($needsLocation) {
+                    $table->string('location')->nullable()->before('deal_id');
+                }
+                
+                // Add meeting_link column after location if it doesn't exist
+                if ($needsMeetingLink) {
+                    $table->string('meeting_link')->nullable()->after('location');
+                }
+            });
+        }
     }
 
     /**
@@ -29,16 +36,23 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('lead_follow_up', function (Blueprint $table) {
-            // Only drop the columns if they exist
-            if (Schema::hasColumn('lead_follow_up', 'meeting_link')) {
-                $table->dropColumn('meeting_link');
-            }
-            
-            if (Schema::hasColumn('lead_follow_up', 'location')) {
-                $table->dropColumn('location');
-            }
-        });
+        // Check for column existence outside the Schema::table() closure
+        $hasMeetingLink = Schema::hasColumn('lead_follow_up', 'meeting_link');
+        $hasLocation = Schema::hasColumn('lead_follow_up', 'location');
+        
+        // Only modify the table if at least one column needs dropping
+        if ($hasMeetingLink || $hasLocation) {
+            Schema::table('lead_follow_up', function (Blueprint $table) use ($hasMeetingLink, $hasLocation) {
+                // Drop meeting_link first, then location (preserve existing drop order)
+                if ($hasMeetingLink) {
+                    $table->dropColumn('meeting_link');
+                }
+                
+                if ($hasLocation) {
+                    $table->dropColumn('location');
+                }
+            });
+        }
     }
 };
 
