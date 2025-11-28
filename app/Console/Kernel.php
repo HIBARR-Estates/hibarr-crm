@@ -120,7 +120,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('send-auto-followup-reminder')->everyMinute();
         $schedule->command('send-time-tracker')->everyMinute();
         // Retry queue process every 5 minutes
-        $schedule->command('activity:retry-queue process --limit=50')->everyFiveMinutes();
+        // $schedule->command('activity:retry-queue process --limit=50')->everyFiveMinutes();
 
         // Daily added different time to reduce server load
         $schedule->command('send-project-reminder')->dailyAt('01:10');
