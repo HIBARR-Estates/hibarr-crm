@@ -1,5 +1,5 @@
-import React from "react";
-import { Avatar, Breadcrumb, Dropdown, MenuProps, Switch } from "antd";
+import React, { useEffect } from "react";
+import { App, Avatar, Breadcrumb, Dropdown, MenuProps, Switch } from "antd";
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import { HomeOutlined } from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
@@ -61,9 +61,19 @@ export default function PageLayout({
         })),
     ];
 
+    const { message } = App.useApp();
     const { props } = usePage<PageProps>();
-    const { auth, company, appName, sidebar, currentRouteName } = props;
+    const { auth, company, appName, sidebar, currentRouteName, flash } = props;
     const { user } = auth;
+
+    useEffect(() => {
+        if (flash?.success) {
+            message.success(flash.success);
+        }
+        if (flash?.error) {
+            message.error(flash.error);
+        }
+    }, [flash]);
 
     // Logout mutation
     const logoutMutation = useApiMutate<{}, any, any>(route("logout"), "POST");

@@ -85,7 +85,7 @@ class DealController extends AccountBaseController
     public function index(DealsDataTable $dataTable, Request $request)
     {
         $this->destroySession();
-        abort_403(!in_array($this->viewLeadPermission, ['all', 'added', 'both', 'owned']));
+        // abort_403(!in_array($this->viewLeadPermission, ['all', 'added', 'both', 'owned']));
 
         $this->loadDataForView();
 
