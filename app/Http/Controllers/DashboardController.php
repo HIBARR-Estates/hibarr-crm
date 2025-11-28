@@ -222,6 +222,7 @@ class DashboardController extends AccountBaseController
                     'value' => $deal->value,
                     'close_date' => $deal->close_date,
                     'pipeline_stage_id' => $deal->pipeline_stage_id,
+                    'lead_pipeline_id' => $deal->lead_pipeline_id,
                     'probability' => $deal->probability,
                     'products_count' => $deal->products->count(),
                     'package_id' => $deal->package_id,
@@ -259,7 +260,7 @@ class DashboardController extends AccountBaseController
         $dataQualityRecords = collect();
         
         // Get all leads
-        $leadsQuery = \App\Models\Lead::with(['leadStatus', 'leadAgent.user']);
+        $leadsQuery = \App\Models\Lead::query();
         PermissionService::applyScope($leadsQuery, user(), 'view_lead', $leadRules);
         $allLeads = $leadsQuery->get();
         
@@ -388,7 +389,7 @@ class DashboardController extends AccountBaseController
                 'data_issues' => $dataIssues,
                 'contact' => $deal['contact'],
                 'value' => $deal['value'],
-                'stage' => $deal['lead_stage']['name'] ?? null,
+                'stage' => $deal['lead_stage'] ? $deal['lead_stage']['name'] : null,
                 'pipeline' => $deal['lead_pipeline_id'],
                 'stage_id' => $deal['pipeline_stage_id'],
                 'agent' => $deal['agent'],
@@ -495,8 +496,8 @@ class DashboardController extends AccountBaseController
                     'mobile' => $lead->mobile,
                 ],
                 'value' => $lead->value,
-                'stage' => $lead->leadStatus ? $lead->leadStatus->type : null,
-                'agent' => $lead->leadAgent ? $lead->leadAgent->user : null,
+                'stage' => null,
+                'agent' => null,
                 'updated_at' => $lead->updated_at,
                 'priority_score' => round($priorityScore),
             ];

@@ -31,8 +31,16 @@ class LeadBoardController extends AccountBaseController
         parent::__construct();
         $this->pageTitle = 'app.deal';
         $this->middleware(function ($request, $next) {
-            abort_403(!in_array('leads', $this->user->modules));
 
+            $hasLeadsModule = in_array('leads', $this->user->modules);
+            if(!$hasLeadsModule){
+                if($request->ajax() || $request->header('X-Inertia')) {
+                    return redirect()->back()->with('error', __('messages.permissionDenied'));
+                } else {
+                    abort_403(!$hasLeadsModule);
+                }
+            }
+            
             return $next($request);
         });
     }
@@ -50,12 +58,12 @@ class LeadBoardController extends AccountBaseController
         $this->viewDealLeadPermission = user()->permission('view_lead');
         $this->products = Product::all();
         
-        if (!in_array($viewPermission, ['all', 'added', 'both', 'owned'])) {
-            if (request()->header('X-Inertia')) {
-                return redirect()->back()->with('error', __('messages.permissionDenied'));
-            }
-            abort_403();
-        }
+        // if (!in_array($viewPermission, ['all', 'added', 'both', 'owned'])) {
+        //     if (request()->header('X-Inertia')) {
+        //         return redirect()->back()->with('error', __('messages.permissionDenied'));
+        //     }
+        //     abort_403();
+        // }
 
         $this->categories = LeadCategory::get();
         $this->sources = LeadSource::get();

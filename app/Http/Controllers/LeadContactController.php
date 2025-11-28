@@ -221,10 +221,24 @@ class LeadContactController extends AccountBaseController
             'client:id,name,email'
         ])->findOrFail($id)->withCustomFields();
 
-        $this->viewPermission = user()->permission('view_lead');
-
-        abort_403(!in_array($this->viewPermission, ['all', 'added', 'owned', 'both']));
-
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner'
+        ];
+        
+        $access = PermissionService::checkAccess(user(), 'view_lead', $this->leadContact, $leadRules);
+        
+        \Log::info("Checking Lead Contact Access for user ID: " . user()->id . " on Lead ID: " . $id);
+        if (!$access['canAccess']) {
+            \Log::info("Lead Contact Access Denied for user ID: " . user()->id);
+             if ($request->ajax() || $request->header('X-Inertia')) {
+                \Log::info("Lead Contact Access Denied for user ID: " . user()->id);
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            \Log::info("Lead Contact Access Denied for user ID: " . user()->id);
+            abort(403);
+        }
+        \Log::info("Lead Contact Access Granted for user ID: " . user()->id);
         $this->pageTitle = $this->leadContact->client_name_salutation;
 
         $this->leadFormFields = LeadCustomForm::with('customField')->where('status', 'active')->where('custom_fields_id', '!=', 'null')->get();
@@ -322,7 +336,12 @@ class LeadContactController extends AccountBaseController
         $dataTable = new LeadNotesDataTable();
         $viewPermission = user()->permission('view_deals');
 
-        abort_403(!($viewPermission == 'all' || $viewPermission == 'added' || $viewPermission == 'both'));
+        if (!($viewPermission == 'all' || $viewPermission == 'added' || $viewPermission == 'both')) {
+             if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $tab = request('tab');
         $this->activeTab = $tab ?: 'profile';
@@ -336,7 +355,12 @@ class LeadContactController extends AccountBaseController
     {
         $viewPermission = user()->permission('view_deals');
 
-        abort_403(!in_array($viewPermission, ['all', 'added', 'both', 'owned']));
+        if (!in_array($viewPermission, ['all', 'added', 'both', 'owned'])) {
+             if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $tab = request('tab');
         $this->pipelines = LeadPipeline::all();
@@ -364,7 +388,13 @@ class LeadContactController extends AccountBaseController
         $this->pageTitle = __('modules.leadContact.createTitle');
 
         $this->addPermission = user()->permission('add_lead');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        
+        if (!in_array($this->addPermission, ['all', 'added'])) {
+             if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $formData = $this->getLeadFormData();
         $this->employees = $formData['employees'];
@@ -418,7 +448,12 @@ class LeadContactController extends AccountBaseController
         $this->addPermission = user()->permission('add_lead');
 
 
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        if (!in_array($this->addPermission, ['all', 'added'])) {
+             if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $existingUser = User::select('id')
             ->whereHas('roles', function ($q) {
@@ -514,14 +549,19 @@ class LeadContactController extends AccountBaseController
         $this->leadContact = Lead::with('leadSource', 'category')->findOrFail($id)->withCustomFields();
         $this->deal = Deal::where('lead_id', $id)->first();
 
-        $this->editPermission = user()->permission('edit_lead');
-
-        abort_403(
-            !($this->editPermission == 'all'
-                || ($this->editPermission == 'added' && $this->leadContact->added_by == user()->id)
-                || ($this->editPermission == 'owned' && $this->leadContact->lead_owner == user()->id)
-                || ($this->editPermission == 'both' && $this->leadContact->added_by == user()->id) || user()->id == $this->leadContact->lead_owner)
-        );
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner'
+        ];
+        
+        $access = PermissionService::checkAccess(user(), 'edit_lead', $this->leadContact, $leadRules);
+        
+        if (!$access['canAccess']) {
+             if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $formData = $this->getLeadFormData();
         $this->leadAgents = $formData['leadAgents'];
@@ -579,14 +619,20 @@ class LeadContactController extends AccountBaseController
     public function update(UpdateRequest $request, $id)
     {
         $leadContact = Lead::findOrFail($id);
-        $this->editPermission = user()->permission('edit_lead');
-
-        abort_403(
-            !($this->editPermission == 'all'
-                || ($this->editPermission == 'added' && $leadContact->added_by == user()->id)
-                || ($this->editPermission == 'owned' && $leadContact->lead_owner == user()->id)
-                || ($this->editPermission == 'both' && $leadContact->added_by == user()->id) || user()->id == $leadContact->lead_owner)
-        );
+        
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner'
+        ];
+        
+        $access = PermissionService::checkAccess(user(), 'edit_lead', $leadContact, $leadRules);
+        
+        if (!$access['canAccess']) {
+             if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $leadContact->salutation = $request->salutation;
         $leadContact->client_name = $request->client_name;
@@ -643,15 +689,23 @@ class LeadContactController extends AccountBaseController
     public function patch(PatchRequest $request, $id)
     {
         $leadContact = Lead::findOrFail($id);
-        $this->editPermission = user()->permission('edit_lead');
-
-        // Check edit permissions
-        abort_403(
-            !($this->editPermission == 'all'
-                || ($this->editPermission == 'added' && $leadContact->added_by == user()->id)
-                || ($this->editPermission == 'owned' && $leadContact->lead_owner == user()->id)
-                || ($this->editPermission == 'both' && ($leadContact->added_by == user()->id || user()->id == $leadContact->lead_owner)))
-        );
+        
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner'
+        ];
+        
+        $access = PermissionService::checkAccess(user(), 'edit_lead', $leadContact, $leadRules);
+        
+        if (!$access['canAccess']) {
+           
+             if ($request->ajax() || $request->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+           
+            abort(403);
+        }
+    
 
         try {
             // Start database transaction
@@ -836,14 +890,20 @@ class LeadContactController extends AccountBaseController
     public function destroy($id)
     {
         $leadContact = Lead::findOrFail($id);
-        $this->deletePermission = user()->permission('delete_lead');
-
-        abort_403(
-            !($this->deletePermission == 'all'
-                || ($this->deletePermission == 'added' && $leadContact->added_by == user()->id)
-                || ($this->deletePermission == 'owned' && $leadContact->lead_owner == user()->id)
-                || ($this->deletePermission == 'both' && $leadContact->added_by == user()->id) || user()->id == $leadContact->lead_owner)
-        );
+        
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner'
+        ];
+        
+        $access = PermissionService::checkAccess(user(), 'delete_lead', $leadContact, $leadRules);
+        
+        if (!$access['canAccess']) {
+             if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         Lead::destroy($id);
 
