@@ -208,6 +208,7 @@ class TaskController extends AccountBaseController
                 'completed_subtasks_count' => $task->completedSubtasks->count(),
                 'created_at' => $task->created_at->toISOString(),
                 'updated_at' => $task->updated_at->toISOString(),
+                'added_by' => $task->added_by,
             ];
         });
 
@@ -256,9 +257,9 @@ class TaskController extends AccountBaseController
 
         // Get user permissions
         $permissions = [
-            'add_tasks' => in_array(user()->permission('add_tasks'), ['all', 'added']),
-            'edit_tasks' => in_array(user()->permission('edit_tasks'), ['all', 'added', 'owned', 'both']),
-            'delete_tasks' => user()->permission('delete_tasks') === 'all',
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
             'view_tasks' => $viewPermission,
         ];
 
@@ -616,7 +617,7 @@ class TaskController extends AccountBaseController
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
         $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
-        $task->start_date = Carbon::createFromFormat(company()->date_format, $request->start_date);
+        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format, $request->start_date) : null;
         $task->due_date = $dueDate;
         $task->project_id = $request->project_id;
         $task->task_category_id = $request->category_id;
@@ -949,7 +950,7 @@ class TaskController extends AccountBaseController
         $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
-        $task->start_date = Carbon::createFromFormat(company()->date_format, $request->start_date);
+        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format, $request->start_date) : null;
         $task->due_date = $dueDate;
         $task->task_category_id = $request->category_id;
         $task->priority = $request->priority;

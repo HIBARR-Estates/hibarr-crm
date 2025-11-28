@@ -141,6 +141,9 @@ interface ComprehensiveDashboardProps extends PageProps {
     pipelineStages: PipelineStage[];
     overviewMetrics: OverviewMetrics;
     stats: DashboardStats;
+    products: any[];
+    packages: any[];
+    countries: any[];
 }
 
 const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
@@ -152,6 +155,9 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     pipelineStages,
     overviewMetrics,
     stats,
+    products,
+    packages,
+    countries,
 }) => {
     const [activeMetric, setActiveMetric] = useState<string | null>(null);
 
@@ -325,13 +331,16 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                     >
                                         <DataQualityPanel
                                             records={poorDataQualityDeals}
+                                            products={products}
+                                            packages={packages}
+                                            countries={countries}
                                         />
                                     </motion.div>
                                 </Col>
                             </Row>
 
                             {/* Deals Tracker */}
-                            <Row gutter={[24, 24]}>
+                            {/* <Row gutter={[24, 24]}>
                                 <Col span={24}>
                                     <motion.div
                                         initial={{ opacity: 0, y: 50 }}
@@ -352,7 +361,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         />
                                     </motion.div>
                                 </Col>
-                            </Row>
+                            </Row> */}
 
                             {/* Quick Stats Footer */}
                             <motion.div

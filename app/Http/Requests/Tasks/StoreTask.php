@@ -53,7 +53,7 @@ class StoreTask extends CoreRequest
 
         $rules = [
             'heading' => 'required',
-            'start_date' => 'required|date_format:"' . $setting->date_format . '"',
+            'start_date' => 'nullable|date_format:"' . $setting->date_format . '"',
             'priority' => 'required'
         ];
 
@@ -90,12 +90,12 @@ class StoreTask extends CoreRequest
             $rules['start_date'] = 'required|date_format:"' . $setting->date_format . '"|after_or_equal:' . $startDate;
         }
         else {
-            $rules['start_date'] = 'required|date_format:"' . $setting->date_format;
+            $rules['start_date'] = 'nullable|date_format:"' . $setting->date_format;
         }
 
         if ($this->has('dependent') && $this->dependent_task_id != '') {
             $dependentTask = Task::findOrFail($this->dependent_task_id);
-            $rules['start_date'] = 'required|date_format:"' . $setting->date_format . '"|after_or_equal:"' . $dependentTask->due_date->format($setting->date_format) . '"';
+            $rules['start_date'] = 'nullable|date_format:"' . $setting->date_format . '"|after_or_equal:"' . $dependentTask->due_date->format($setting->date_format) . '"';
         }
 
         $rules['user_id.0'] = 'required_with:is_private';

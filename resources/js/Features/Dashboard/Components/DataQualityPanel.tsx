@@ -67,8 +67,10 @@ interface DataQualityRecord {
 
 interface DataQualityPanelProps {
     records: DataQualityRecord[];
-
     loading?: boolean;
+    products?: any[];
+    packages?: any[];
+    countries?: any[];
 }
 
 interface QuickFixFormData {
@@ -83,8 +85,10 @@ const determineAppropriateRecordRoute = (record: DataQualityRecord): string => {
 };
 const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
     records = [],
-
     loading = false,
+    products = [],
+    packages = [],
+    countries = [],
 }) => {
     const {
         action,
@@ -237,7 +241,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                     {record.stage && (
                                         <span>{record.stage}</span>
                                     )}
-                                    {record.agent && (
+                                    {/* {record.agent && (
                                         <div className="flex items-center">
                                             <Avatar
                                                 size="small"
@@ -247,7 +251,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                             />
                                             <span>{record.agent.name}</span>
                                         </div>
-                                    )}
+                                    )} */}
                                 </div>
                             </div>
 
@@ -294,7 +298,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                             )}
 
                         {/* Data Issues */}
-                        {record.data_issues &&
+                        {/* {record.data_issues &&
                             record.data_issues.length > 0 && (
                                 <div>
                                     <div className="text-xs font-medium text-amber-600 mb-2 flex items-center">
@@ -313,7 +317,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                         )}
                                     </div>
                                 </div>
-                            )}
+                            )} */}
 
                         {/* Actions */}
                         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
@@ -456,6 +460,9 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                 record={selectedRecord}
                 open={action === "quick_update"}
                 onClose={() => handleClose()}
+                products={products}
+                packages={packages}
+                countries={countries}
             />
         </>
     );

@@ -10,6 +10,12 @@ use App\Models\TaskCategory;
 class TaskCategoryController extends AccountBaseController
 {
 
+    public function index()
+    {
+        $categories = TaskCategory::allCategories();
+        return Reply::dataOnly(['categories' => $categories]);
+    }
+
     public function create()
     {
         $this->addPermission = user()->permission('add_task_category');

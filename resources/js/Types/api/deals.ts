@@ -48,6 +48,12 @@ export interface Deal {
     next_follow_up_date?: string | null;
     next_follow_up_status?: string | null;
     strategy_accepted?: number;
+    package?: {
+        id: number;
+        name: string;
+    };
+
+    package_id?: number;
     downpayment_confirmed?: number;
 
     // Relationships

@@ -111,7 +111,7 @@ const LeadBoardIndex = ({
                 leadPipelines: pipelines,
                 stages: props.stages,
                 leadAgents,
-                excludeFields: ["pipeline_stage_id"],
+                excludeFields: ["pipeline_stage_id", "lead_pipeline_id"],
             }),
             routeName: "leadboards.index",
         }),
@@ -232,9 +232,9 @@ const LeadBoardIndex = ({
 
                                         <Select
                                             value={
-                                                filters.lead_pipeline_id
+                                                filters?.lead_pipeline_id
                                                     ? Number(
-                                                          filters.lead_pipeline_id
+                                                          filters?.lead_pipeline_id
                                                       )
                                                     : defaultPipeline?.id
                                             }

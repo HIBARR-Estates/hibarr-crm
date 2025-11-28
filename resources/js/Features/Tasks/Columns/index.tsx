@@ -20,7 +20,7 @@ import {
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 
 import PageDataSorter from "@/Components/PageDataSorter";
 
@@ -63,6 +63,7 @@ interface Task {
     completed_subtasks_count?: number;
     created_at: string;
     updated_at: string;
+    added_by?: number;
 }
 
 interface TaskboardColumn {
@@ -76,8 +77,8 @@ interface TaskboardColumn {
 interface TasksTableColumnsProps {
     columns: TaskboardColumn[];
     permissions: {
-        edit_tasks: boolean;
-        delete_tasks: boolean;
+        edit_tasks: string;
+        delete_tasks: string;
         view_tasks: string;
     };
     onEdit: (task: Task) => void;
@@ -94,6 +95,9 @@ export const useTasksTableColumns = ({
     onDuplicate,
     onDelete,
 }: TasksTableColumnsProps): ColumnsType<Task> => {
+    const { props } = usePage();
+    const userId = props.auth.user.id;
+
     // Priority colors and icons
     const priorityConfig = {
         low: { color: "#52c41a", icon: "🟢", bg: "#f6ffed" },
@@ -306,6 +310,26 @@ export const useTasksTableColumns = ({
             key: "actions",
             width: "8%",
             render: (_, record: Task) => {
+                const canEdit =
+                    permissions.edit_tasks === "all" ||
+                    (permissions.edit_tasks === "added" &&
+                        record.added_by === userId) ||
+                    (permissions.edit_tasks === "owned" &&
+                        record.users?.some((u) => u.id === userId)) ||
+                    (permissions.edit_tasks === "both" &&
+                        (record.added_by === userId ||
+                            record.users?.some((u) => u.id === userId)));
+
+                const canDelete =
+                    permissions.delete_tasks === "all" ||
+                    (permissions.delete_tasks === "added" &&
+                        record.added_by === userId) ||
+                    (permissions.delete_tasks === "owned" &&
+                        record.users?.some((u) => u.id === userId)) ||
+                    (permissions.delete_tasks === "both" &&
+                        (record.added_by === userId ||
+                            record.users?.some((u) => u.id === userId)));
+
                 const actionItems: MenuProps["items"] = [
                     {
                         key: "view",
@@ -313,7 +337,7 @@ export const useTasksTableColumns = ({
                         label: "View Details",
                         onClick: () => onView(record),
                     },
-                    permissions.edit_tasks && {
+                    canEdit && {
                         key: "edit",
                         icon: <EditOutlined />,
                         label: "Edit Task",
@@ -325,7 +349,7 @@ export const useTasksTableColumns = ({
                         label: "Duplicate",
                         onClick: () => onDuplicate(record),
                     },
-                    ...(permissions?.delete_tasks
+                    ...(canDelete
                         ? [
                               {
                                   type: "divider",
