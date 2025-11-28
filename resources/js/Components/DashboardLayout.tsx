@@ -488,7 +488,16 @@ const DashboardLayout: React.FC<{
             >
                 {/* Sidebar Brand */}
                 <div className="px-4 flex items-center justify-center bg-white h-[69px]">
-                    <Image src={company?.logo_url} alt={appName} preview={false} />
+                    <Image
+                        src={company?.logo_url}
+                        alt={appName}
+                        preview={false}
+                        style={{
+                            maxHeight: "50px",
+                            maxWidth: "100%",
+                            objectFit: "contain",
+                        }}
+                    />
                 </div>
 
                 {/* Navigation Menu */}

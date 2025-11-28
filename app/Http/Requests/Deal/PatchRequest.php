@@ -25,8 +25,8 @@ class PatchRequest extends CoreRequest
         return [
             // Contact Information (all optional for patch)
             'client_name' => 'sometimes|string|max:255',
-            'client_email' => 'sometimes|email|max:255',
-            'mobile' => 'sometimes|string|max:20',
+            'client_email' => 'nullable|email|max:255',
+            'mobile' => 'nullable|string|max:20',
             'company_name' => 'sometimes|string|max:255',
             'website' => 'sometimes|url|max:255',
             'address' => 'sometimes|string|max:500',
