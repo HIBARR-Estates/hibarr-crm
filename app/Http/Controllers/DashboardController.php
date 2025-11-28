@@ -214,7 +214,7 @@ class DashboardController extends AccountBaseController
         // Apply permission-based filtering for deals
         PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
 
-        $allDeals = $dealsQuery->get()
+        $allDeals = $dealsQuery->get()->toBase()
             ->map(function ($deal) {
                 return [
                     'id' => $deal->id,
@@ -262,7 +262,7 @@ class DashboardController extends AccountBaseController
         // Get all leads
         $leadsQuery = \App\Models\Lead::query();
         PermissionService::applyScope($leadsQuery, user(), 'view_lead', $leadRules);
-        $allLeads = $leadsQuery->get();
+        $allLeads = $leadsQuery->get()->toBase();
         
         // Get required custom fields for leads
         $leadCustomFields = \App\Models\CustomField::where('custom_field_group_id', function($q) {

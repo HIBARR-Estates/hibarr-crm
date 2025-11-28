@@ -79,10 +79,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
         QuickFixFormData,
         any,
         ApiResponse<any>
-    >(
-        record?.type === "lead" ? `/account/lead-contact/${record.id}` : "",
-        "PATCH"
-    );
+    >(record?.type === "lead" ? `/account/deals/${record.id}` : "", "PATCH");
 
     const isLoading =
         getLoadingStatus({ status: dealStatus }) ||
