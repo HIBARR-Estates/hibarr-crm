@@ -853,7 +853,7 @@ class DealController extends AccountBaseController
      */
     public function patch(PatchRequest $request, $id)
     {
-        $deal = Deal::findOrFail($id);
+        $deal = Deal::with('contact')->findOrFail($id);
         
         // Check permissions
         $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
@@ -873,63 +873,92 @@ class DealController extends AccountBaseController
         DB::beginTransaction();
         
         try {
-            // Update only the fields that were provided
-            $fieldsToUpdate = [];
-            
-            // Contact information fields
-            $contactFields = [
-                'client_name', 'client_email', 'mobile', 'company_name', 
-                'website', 'address', 'city', 'state', 'country_id', 'postal_code'
-            ];
-            
-            foreach ($contactFields as $field) {
-                if (array_key_exists($field, $validatedData)) {
-                    $fieldsToUpdate[$field] = $validatedData[$field];
-                }
-            }
-            
-            // Deal information fields
+            // 1. Update Deal Fields
             $dealFields = [
-                'deal_name', 'value', 'currency_id', 'pipeline_stage_id', 
-                'lead_pipeline_id', 'close_date', 'probability', 'note',
-                'agent_id', 'lead_id', 'category_id', 'source_id', 'status', 'priority',
-                'next_follow_up_date', 'next_follow_up_time'
+                'deal_name' => 'name',
+                'value' => 'value',
+                'currency_id' => 'currency_id',
+                'pipeline_stage_id' => 'pipeline_stage_id',
+                'lead_pipeline_id' => 'lead_pipeline_id',
+                'close_date' => 'close_date',
+                'probability' => 'probability',
+                'note' => 'note',
+                'agent_id' => 'agent_id',
+                'lead_id' => 'lead_id',
+                'category_id' => 'category_id',
+                'source_id' => 'source_id',
+                'status' => 'status',
+                'priority' => 'priority',
             ];
-            
-            foreach ($dealFields as $field) {
-                if (array_key_exists($field, $validatedData)) {
-                    $fieldsToUpdate[$field] = $validatedData[$field];
+
+            $dealUpdates = [];
+            foreach ($dealFields as $requestKey => $dbColumn) {
+                if (array_key_exists($requestKey, $validatedData)) {
+                    $dealUpdates[$dbColumn] = $validatedData[$requestKey];
+                }
+            }
+
+            // Handle dates
+            if (isset($dealUpdates['close_date'])) {
+                $dealUpdates['close_date'] = Carbon::parse($dealUpdates['close_date'])->format('Y-m-d');
+            }
+
+            // Handle next_follow_up
+            if ($request->has('next_follow_up_date') || $request->has('next_follow_up_time')) {
+                $date = $request->next_follow_up_date ?? ($deal->next_follow_up ? Carbon::parse($deal->next_follow_up)->format('Y-m-d') : now()->format('Y-m-d'));
+                $time = $request->next_follow_up_time ?? ($deal->next_follow_up ? Carbon::parse($deal->next_follow_up)->format('H:i') : '00:00');
+                $dealUpdates['next_follow_up'] = Carbon::parse("$date $time")->format('Y-m-d H:i:s');
+            }
+
+            if (!empty($dealUpdates)) {
+                $deal->update($dealUpdates);
+            }
+
+            // 2. Update Lead (Contact) Fields
+            if ($deal->lead_id) {
+                $lead = $deal->contact;
+                if ($lead) {
+                    $leadFields = [
+                        'client_name' => 'client_name',
+                        'client_email' => 'client_email',
+                        'mobile' => 'mobile',
+                        'company_name' => 'company_name',
+                        'website' => 'website',
+                        'address' => 'address',
+                        'city' => 'city',
+                        'state' => 'state',
+                        'postal_code' => 'postal_code',
+                    ];
+
+                    $leadUpdates = [];
+                    foreach ($leadFields as $requestKey => $dbColumn) {
+                        if (array_key_exists($requestKey, $validatedData)) {
+                            $leadUpdates[$dbColumn] = $validatedData[$requestKey];
+                        }
+                    }
+
+                    // Handle Country ID -> Name conversion
+                    if (array_key_exists('country_id', $validatedData)) {
+                        $country = DB::table('countries')->where('id', $validatedData['country_id'])->first();
+                        if ($country) {
+                            $leadUpdates['country'] = $country->name;
+                        }
+                    }
+
+                    if (!empty($leadUpdates)) {
+                        $lead->update($leadUpdates);
+                    }
                 }
             }
             
-            // Handle special date formatting if needed
-            if (isset($fieldsToUpdate['close_date'])) {
-                $fieldsToUpdate['close_date'] = Carbon::parse($fieldsToUpdate['close_date'])->format('Y-m-d');
-            }
-            
-            if (isset($fieldsToUpdate['next_follow_up_date'])) {
-                $fieldsToUpdate['next_follow_up_date'] = Carbon::parse($fieldsToUpdate['next_follow_up_date'])->format('Y-m-d');
-            }
-            
-            // Update the deal
-            if (!empty($fieldsToUpdate)) {
-                $deal->update($fieldsToUpdate);
-            }
-            
-            // Handle products if provided
+            // 3. Handle Products
             if (array_key_exists('products', $validatedData) && is_array($validatedData['products'])) {
-                // Detach all existing products and attach new ones
-                $deal->products()->detach();
-                if (!empty($validatedData['products'])) {
-                    $deal->products()->attach($validatedData['products']);
-                }
+                $deal->products()->sync($validatedData['products']);
             }
             
-            // Handle custom fields if provided
+            // 4. Handle Custom Fields
             if (array_key_exists('custom_fields', $validatedData) && is_array($validatedData['custom_fields'])) {
-                foreach ($validatedData['custom_fields'] as $fieldId => $value) {
-                    $deal->updateCustomField($fieldId, $value);
-                }
+                $deal->updateCustomFieldData($validatedData['custom_fields']);
             }
             
             // Handle tags if provided
@@ -939,8 +968,8 @@ class DealController extends AccountBaseController
                 // $deal->syncTags($validatedData['tags']);
             }
             
-            // Log the update in deal history if you have that feature
-            $this->logDealHistory($deal, 'Deal updated via quick fix', $fieldsToUpdate);
+            // Log the update in deal history
+            $this->logDealHistory($deal, 'Deal updated via quick fix', $dealUpdates);
             
             DB::commit();
             
@@ -949,7 +978,7 @@ class DealController extends AccountBaseController
                 return response()->json([
                     'success' => true,
                     'message' => __('messages.recordUpdated'),
-                    'data' => $deal->fresh()->load(['leadAgent.user', 'contact', 'pipeline', 'stage', 'category', 'products'])
+                    'data' => $deal->fresh()->load(['leadAgent.user', 'contact', 'pipeline', 'leadStage', 'category', 'products'])
                 ]);
             }
             
