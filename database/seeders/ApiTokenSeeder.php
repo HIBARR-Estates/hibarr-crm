@@ -24,6 +24,23 @@ class ApiTokenSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'token' => hash('sha256', Str::random(60)), 
+                'name' => 'n8n API Token',
+                'company_id' => 1, 
+                'revoked' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+            [
+                'token' => hash('sha256', Str::random(60)), 
+                'name' => 'Backend API Token',
+                'company_id' => 1, 
+                'revoked' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
           
         ]);
     }
