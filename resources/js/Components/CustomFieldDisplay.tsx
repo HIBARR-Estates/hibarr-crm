@@ -239,7 +239,11 @@ export default function CustomFieldDisplay({
                 return (
                     <Descriptions.Item
                         key={field.id}
-                        label={field.label}
+                        label={
+                            <div className="max-w-[120px] sm:max-w-[150px] whitespace-normal break-words leading-tight">
+                                {field.label}
+                            </div>
+                        }
                         span={span}
                     >
                         {formattedValue}
