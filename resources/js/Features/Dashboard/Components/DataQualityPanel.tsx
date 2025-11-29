@@ -80,7 +80,7 @@ const determineAppropriateRecordRoute = (record: DataQualityRecord): string => {
     if (record.type === "deal") {
         return route("deals.show", record.id);
     } else {
-        return route("leads.show", record.id);
+        return route("lead-contact.show", record.id);
     }
 };
 const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
