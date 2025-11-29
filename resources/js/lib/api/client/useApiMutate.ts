@@ -173,9 +173,10 @@ export const useApiMutate = <
             } else {
                 // Fallback for unknown errors
                 notification.error({
-                    message: "Error",
-                    description:
-                        "An unexpected error occurred. Please try again.",
+                    message:
+                        apiError?.message ||
+                        "An unexpected error occurred! Please try again.",
+                    description: apiError?.status || "",
                     duration: 5,
                 });
             }

@@ -100,12 +100,9 @@ export default function Index({
         [props]
     );
 
-    const searchConfig = useMemo(() => createPropertySearchConfig(), []);
-
     // Setup search and filter contexts
-    const { filter, search } = usePageSearchAndFilter({
+    const { filter } = usePageSearchAndFilter({
         filterConfig,
-        searchConfig,
     });
 
     // Extract commonly used values
@@ -238,7 +235,6 @@ export default function Index({
                                         route("properties.index"),
                                         {
                                             ...filters,
-                                            search: search.query,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,

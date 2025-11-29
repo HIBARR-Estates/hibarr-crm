@@ -1,34 +1,29 @@
 import { useEffect } from "react";
 import { useFilter } from "@/contexts/FilterContext";
-import { useSearch } from "@/contexts/SearchContext";
 import { FilterConfig } from "@/contexts/FilterContext";
-import { SearchConfig } from "@/contexts/SearchContext";
 
 interface UsePageSearchAndFilterProps {
     filterConfig: FilterConfig;
-    searchConfig: SearchConfig;
+    searchConfig?: any; // Deprecated but kept for compatibility
 }
 
 /**
- * Custom hook that sets up both search and filter contexts for a page
- * This simplifies the setup process for pages that need both functionalities
+ * Custom hook that sets up filter context for a page
+ * Search is now handled via FilterContext
  */
 export const usePageSearchAndFilter = ({
     filterConfig,
-    searchConfig,
 }: UsePageSearchAndFilterProps) => {
     const { setConfig: setFilterConfig, ...filterContext } = useFilter();
-    const { setSearchConfig, ...searchContext } = useSearch();
 
-    // Initialize both contexts
+    // Initialize filter context
     useEffect(() => {
         setFilterConfig(filterConfig);
-        setSearchConfig(searchConfig);
-    }, [filterConfig, searchConfig, setFilterConfig, setSearchConfig]);
+    }, [filterConfig, setFilterConfig]);
 
     return {
         filter: filterContext,
-        search: searchContext,
+        search: { query: filterContext.filters.search || "" }, // Mock search context for compatibility
     };
 };
 

@@ -32,11 +32,53 @@ const ContextualActiveFilters: React.FC<ContextualActiveFiltersProps> = ({
         removeFilter,
         clearAllFilters,
         getActiveFilterCount,
+        config,
     } = useFilter();
 
     const activeFilterCount = getActiveFilterCount();
 
     if (activeFilterCount === 0) {
+        return null;
+    }
+
+    // Filter out metadata that corresponds to fields not present in the current config
+    // This effectively handles "excludedFields" because the config passed to FilterContext
+    // should already have those fields removed.
+    const visibleFilters = Object.values(filterMetadata).filter((filter) => {
+        // If no config, show everything (fallback)
+        if (!config) return true;
+
+        // Check if this filter key corresponds to a field in the config
+        // We need to handle range fields specially as their keys in metadata (e.g. start_date_start)
+        // might differ from the field key in config (e.g. start_date)
+
+        // Direct match
+        const directMatch = config.fields.some((f) => f.key === filter.key);
+        if (directMatch) return true;
+
+        // Range match check
+        // If filter key is like "field_start" or "field_end" or "min_field" or "max_field"
+        // we check if "field" exists in config
+        const rangeField = config.fields.find((f) => {
+            if (f.type === "daterange") {
+                return (
+                    filter.key === `${f.key}_start` ||
+                    filter.key === `${f.key}_end`
+                );
+            }
+            if (f.type === "numberrange") {
+                return (
+                    filter.key === `min_${f.key}` ||
+                    filter.key === `max_${f.key}`
+                );
+            }
+            return false;
+        });
+
+        return !!rangeField;
+    });
+
+    if (visibleFilters.length === 0) {
         return null;
     }
 
@@ -56,10 +98,10 @@ const ContextualActiveFilters: React.FC<ContextualActiveFiltersProps> = ({
                     }
                 >
                     <span className="text-gray-400">
-                        Active Filters ({activeFilterCount})
+                        Active Filters ({visibleFilters.length})
                     </span>
                 </Text>
-                {showClearAll && activeFilterCount > 1 && (
+                {showClearAll && visibleFilters.length > 1 && (
                     <button
                         onClick={clearAllFilters}
                         className="text-xs text-blue-600 hover:text-blue-800 underline"
@@ -70,7 +112,7 @@ const ContextualActiveFilters: React.FC<ContextualActiveFiltersProps> = ({
             </div>
 
             <Space size={[8, 8]} wrap>
-                {Object.values(filterMetadata).map((filter) => (
+                {visibleFilters.map((filter) => (
                     <Tag
                         key={filter.key}
                         closable

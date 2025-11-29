@@ -111,25 +111,20 @@ const LeadBoardIndex = ({
                 leadPipelines: pipelines,
                 stages: props.stages,
                 leadAgents,
-                excludeFields: ["pipeline_stage_id", "lead_pipeline_id"],
+                excludeFields: [
+                    "pipeline_stage_id",
+                    "lead_pipeline_id",
+                    "search",
+                ],
             }),
             routeName: "leadboards.index",
         }),
         [categories, pipelines, props.stages, leadAgents]
     );
 
-    const searchConfig = useMemo(
-        () => ({
-            ...createDealSearchConfig(),
-            routeName: "leadboards.index",
-        }),
-        []
-    );
-
     // Setup search and filter contexts
-    const { filter, search } = usePageSearchAndFilter({
+    const { filter } = usePageSearchAndFilter({
         filterConfig,
-        searchConfig,
     });
 
     // Extract commonly used values
@@ -189,6 +184,9 @@ const LeadBoardIndex = ({
             handleColumnAction("delete", column);
         }
     };
+    const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
+        ? Number((props as any).filters?.lead_pipeline_id)
+        : defaultPipeline?.id;
 
     return (
         <>
@@ -231,13 +229,7 @@ const LeadBoardIndex = ({
                                         </h1>
 
                                         <Select
-                                            value={
-                                                filters?.lead_pipeline_id
-                                                    ? Number(
-                                                          filters?.lead_pipeline_id
-                                                      )
-                                                    : defaultPipeline?.id
-                                            }
+                                            value={valueLeadPipelineId}
                                             onChange={handlePipelineChange}
                                             style={{ width: 200 }}
                                             placeholder="Select Pipeline"

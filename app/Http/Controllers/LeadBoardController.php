@@ -502,7 +502,8 @@ class LeadBoardController extends AccountBaseController
                     $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                         ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
                         ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
+                        ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('deals.name', 'like', '%' . $safeTerm . '%');
                 });
             }
 
@@ -575,6 +576,17 @@ class LeadBoardController extends AccountBaseController
             // Add other filters...
             $this->dateFilter($q, $startDate, $endDate, $request);
 
+            if ($request->search != '') {
+                $q->where(function ($query) {
+                    $safeTerm = Common::safeString(request('search'));
+                    $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('deals.name', 'like', '%' . $safeTerm . '%');
+                });
+            }
+
             if ($pipelineId != 'all' && $pipelineId != '' && $pipelineId != null) {
                 $q->where('deals.lead_pipeline_id', $pipelineId);
             }
@@ -612,6 +624,31 @@ class LeadBoardController extends AccountBaseController
                 ->groupBy('deals.id');
 
             $this->dateFilter($leads, $startDate, $endDate, $request);
+
+            if ($request->search != '') {
+                $leads->where(function ($query) {
+                    $safeTerm = Common::safeString(request('search'));
+                    $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%')
+                        ->orWhere('deals.name', 'like', '%' . $safeTerm . '%');
+                });
+            }
+
+            if ($pipelineId != 'all' && $pipelineId != '' && $pipelineId != null) {
+                $leads->where('deals.lead_pipeline_id', $pipelineId);
+            }
+
+            if ($request->category_id !== null && $request->category_id != 'null' && $request->category_id != '' && $request->category_id != 'all') {
+                $leads->where('deals.category_id', $request->category_id);
+            }
+
+            if ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+                $leads->whereHas('leadAgent', function ($q) use ($request) {
+                    $q->where('user_id', $request->agent_id);
+                });
+            }
 
             // Apply permission-based filtering
             $dealRules = [
