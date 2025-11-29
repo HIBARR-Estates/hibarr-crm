@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Input, Spin } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
-import { useSearch } from "@/contexts/SearchContext";
+import { Input } from "antd";
+import { useFilter } from "@/contexts/FilterContext";
+import { router } from "@inertiajs/react";
 
 interface UniversalSearchBoxProps {
     placeholder?: string;
@@ -10,7 +10,6 @@ interface UniversalSearchBoxProps {
     allowClear?: boolean;
     disabled?: boolean;
     onSearch?: (value: string) => void;
-    enterButton?: boolean;
 }
 
 const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
@@ -20,76 +19,74 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
     allowClear = true,
     disabled = false,
     onSearch,
-    enterButton = true,
 }) => {
-    const {
-        query,
-        isSearching,
-        searchConfig,
-        setQuery,
-        clearSearch,
-        performSearch,
-    } = useSearch();
-
+    const { filters, setFilter, config } = useFilter();
     const [localValue, setLocalValue] = useState<string>("");
 
-    // Sync local value with search context
+    // Sync local value with filter context
     useEffect(() => {
-        setLocalValue(query);
-    }, [query]);
-
-    // Use config placeholder if not provided as prop
-    const effectivePlaceholder =
-        placeholder || searchConfig?.placeholder || "Search...";
+        setLocalValue(filters.search || "");
+    }, [filters.search]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setLocalValue(value);
-
-        // Update search context - let it handle auto search if enabled
-        setQuery(value);
+        setLocalValue(e.target.value);
     };
 
     const handleSearch = (value: string) => {
-        setLocalValue(value);
-        setQuery(value, true); // Immediate search
+        setFilter("search", value);
 
-        // Call optional callback
-        if (onSearch) {
-            onSearch(value);
+        if (config) {
+            // Get current URL parameters to preserve them
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentParams: Record<string, any> = {};
+            urlParams.forEach((val, key) => {
+                currentParams[key] = val;
+            });
+
+            // Clean filters - remove empty values
+            const cleanFilters: Record<string, any> = {
+                ...filters,
+                search: value,
+            };
+
+            // Remove empty keys
+            Object.keys(cleanFilters).forEach((key) => {
+                if (
+                    cleanFilters[key] === null ||
+                    cleanFilters[key] === "" ||
+                    cleanFilters[key] === undefined
+                ) {
+                    delete cleanFilters[key];
+                }
+            });
+
+            // Merge
+            const finalParams = {
+                ...currentParams,
+                ...cleanFilters,
+                page: 1,
+            };
+
+            router.get(route(config.routeName), finalParams, {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            });
         }
-    };
 
-    const handleClear = () => {
-        setLocalValue("");
-        clearSearch();
-
-        // Call optional callback
-        if (onSearch) {
-            onSearch("");
-        }
-    };
-
-    const handlePressEnter = () => {
-        if (!searchConfig?.autoSearch) {
-            performSearch(localValue);
-        }
+        onSearch?.(value);
     };
 
     return (
         <div className={className}>
             <Input.Search
-                placeholder={effectivePlaceholder}
+                placeholder={placeholder || "Search..."}
                 value={localValue}
                 onChange={handleInputChange}
                 onSearch={handleSearch}
-                onPressEnter={handlePressEnter}
-                onClear={handleClear}
                 allowClear={allowClear}
-                disabled={disabled || isSearching}
+                disabled={disabled}
                 size={size}
-                loading={isSearching}
-                // enterButton={enterButton ? <SearchOutlined /> : false}
                 style={{ width: "100%" }}
             />
         </div>

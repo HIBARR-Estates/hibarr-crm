@@ -85,12 +85,9 @@ const Index = ({
         [sources, categories, employees, countries, clientCategories, languages]
     );
 
-    const searchConfig = useMemo(() => createLeadSearchConfig(), []);
-
     // Setup search and filter contexts
-    const { filter, search } = usePageSearchAndFilter({
+    const { filter } = usePageSearchAndFilter({
         filterConfig,
-        searchConfig,
     });
 
     // Extract commonly used values
@@ -242,7 +239,6 @@ const Index = ({
                                         route("lead-contact.index"),
                                         {
                                             ...filters,
-                                            search: search.query,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
