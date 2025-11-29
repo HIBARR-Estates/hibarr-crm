@@ -310,7 +310,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
             onDragEnd={handleDragEnd}
         >
             <div
-                className="flex overflow-x-auto pb-4 min-h-[600px] max-h-[calc(100vh-200px)]"
+                className="flex overflow-x-auto pb-4 min-h-[600px] h-[calc(100vh-200px)]"
                 id="taskboard-columns"
             >
                 <SortableContext

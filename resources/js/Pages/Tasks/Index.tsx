@@ -261,10 +261,10 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
             prevTasks.map((task) =>
                 task.id === taskId
                     ? {
-                          ...task,
-                          status: newStatus,
-                          board_column_id: newColumnId,
-                      }
+                        ...task,
+                        status: newStatus,
+                        board_column_id: newColumnId,
+                    }
                     : task
             )
         );
@@ -424,6 +424,34 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                                 />
                             </div>
                         </div> */}
+                        {/* View Toggle */}
+                        <div className="flex bg-gray-100 rounded-md p-1">
+                            <Button
+                                type="text"
+                                icon={<AppstoreOutlined />}
+                                size="small"
+                                className={
+                                    isKanbanView
+                                        ? "!bg-white !shadow-sm"
+                                        : "hover:bg-white hover:shadow-sm"
+                                }
+                                title="Kanban Board"
+                                onClick={() => setView("kanban")}
+                            />
+
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<TableOutlined />}
+                                className={
+                                    isTableView
+                                        ? "!bg-white !shadow-sm"
+                                        : "hover:bg-white hover:shadow-sm"
+                                }
+                                title="Table View"
+                                onClick={() => setView("table")}
+                            />
+                        </div>
 
                         <div className="flex  items-center gap-x-2">
                             <Button
@@ -449,39 +477,7 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                     <Card>
                         <div className="flex justify-end gap-x-2 items-center mb-2">
                             <div className="flex items-center gap-2">
-                                {/* View Toggle */}
-                                <div className="flex bg-gray-100 rounded-md p-1">
-                                    <Button
-                                        type="text"
-                                        icon={<AppstoreOutlined />}
-                                        size="small"
-                                        className={
-                                            isKanbanView
-                                                ? "!bg-white !shadow-sm"
-                                                : "hover:bg-white hover:shadow-sm"
-                                        }
-                                        title="Kanban Board"
-                                        onClick={() => setView("kanban")}
-                                    />
-
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={<TableOutlined />}
-                                        className={
-                                            isTableView
-                                                ? "!bg-white !shadow-sm"
-                                                : "hover:bg-white hover:shadow-sm"
-                                        }
-                                        title="Table View"
-                                        onClick={() => setView("table")}
-                                    />
-                                </div>
                             </div>
-                            <Text type="secondary">
-                                Showing {filteredTasks.length} of {tasks.length}{" "}
-                                tasks
-                            </Text>
                         </div>
 
                         {/* Table or Kanban View */}

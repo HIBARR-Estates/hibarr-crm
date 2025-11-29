@@ -487,7 +487,7 @@ const DashboardLayout: React.FC<{
                 theme={"dark"}
             >
                 {/* Sidebar Brand */}
-                <div className="px-4 flex items-center justify-center bg-white h-[69px]">
+                <div className="px-4 flex items-center justify-center h-[69px]">
                     <Image
                         src={company?.logo_url}
                         alt={appName}

@@ -39,7 +39,7 @@ export default function PageLayout({
         {
             title: (
                 <Link
-                    href="/dashboard"
+                    href="/account/dashboard"
                     className="text-gray-500 hover:text-blue-600"
                 >
                     <HomeOutlined className="mr-1" />
