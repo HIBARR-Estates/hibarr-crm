@@ -96,7 +96,8 @@ export default function Index({
 
     // Memoize configs to prevent unnecessary re-renders and filter resets
     const filterConfig = useMemo(
-        () => createPropertyFilterConfig(props),
+        () =>
+            createPropertyFilterConfig({ ...props, excludeFields: ["search"] }),
         [props]
     );
 
@@ -200,7 +201,7 @@ export default function Index({
                                 icon={<FilterOutlined />}
                                 onClick={openDrawer}
                             >
-                                Advanced Filters
+                                Filters
                             </Button>
 
                             {/* Bulk Actions - Only show when items are selected */}
@@ -274,7 +275,7 @@ export default function Index({
             />
 
             {/* Filter Drawer */}
-            <UniversalFilterDrawer config={createPropertyFilterConfig(props)} />
+            <UniversalFilterDrawer config={filterConfig} />
         </DashboardLayout>
     );
 }

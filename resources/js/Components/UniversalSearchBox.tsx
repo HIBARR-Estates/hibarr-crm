@@ -21,11 +21,26 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
     onSearch,
 }) => {
     const { filters, setFilter, config } = useFilter();
-    const [localValue, setLocalValue] = useState<string>("");
+    const [localValue, setLocalValue] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            return params.get("search") || filters.search || "";
+        }
+        return filters.search || "";
+    });
 
     // Sync local value with filter context
     useEffect(() => {
-        setLocalValue(filters.search || "");
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlSearch = urlParams.get("search");
+
+        if (filters.search !== undefined) {
+            setLocalValue(filters.search);
+        } else if (urlSearch) {
+            setLocalValue(urlSearch);
+        } else {
+            setLocalValue("");
+        }
     }, [filters.search]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
