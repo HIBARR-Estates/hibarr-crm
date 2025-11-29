@@ -136,6 +136,7 @@ class Deal extends BaseModel
     protected $casts = [
         'close_date' => 'datetime',
         'next_follow_up_date' => 'datetime',
+        'bitrix_id' => 'integer',
     ];
 
     public function getImageUrlAttribute()
