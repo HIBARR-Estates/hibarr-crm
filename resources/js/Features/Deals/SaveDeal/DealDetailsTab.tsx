@@ -407,10 +407,10 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                         </Form.Item>
                     </Col>
                     <Col span={24}>
-                        <Form.Item name="product_id" label="Products">
+                        <Form.Item name="product_id" label="Properties">
                             <Select
                                 mode="multiple"
-                                placeholder="Select Products"
+                                placeholder="Select Properties"
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"

@@ -271,113 +271,111 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     }
                     key="project-assignment"
                 >
-                    <Card size="small" bordered={false}>
-                        <Row gutter={16}>
-                            <Col xs={24} sm={12}>
-                                <Form.Item
-                                    name="priority"
-                                    label="Priority"
-                                    rules={[
-                                        {
-                                            required: false,
-                                            message: "Please select priority",
-                                        },
-                                    ]}
+                    <Row gutter={16}>
+                        <Col xs={24} sm={12}>
+                            <Form.Item
+                                name="priority"
+                                label="Priority"
+                                rules={[
+                                    {
+                                        required: false,
+                                        message: "Please select priority",
+                                    },
+                                ]}
+                            >
+                                <Select placeholder="Select priority">
+                                    <Option value="low">
+                                        <Space>🟢 Low Priority</Space>
+                                    </Option>
+                                    <Option value="medium">
+                                        <Space>🔵 Medium Priority</Space>
+                                    </Option>
+                                    <Option value="high">
+                                        <Space>🔴 High Priority</Space>
+                                    </Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12}>
+                            <Form.Item
+                                name="board_column_id"
+                                label="Initial Status"
+                                extra="Starting status for this task"
+                            >
+                                <Select>
+                                    {columns.map((column) => (
+                                        <Option
+                                            key={column.id}
+                                            value={column.id}
+                                        >
+                                            <Space>
+                                                <div
+                                                    style={{
+                                                        width: 8,
+                                                        height: 8,
+                                                        borderRadius: "50%",
+                                                        backgroundColor:
+                                                            column.label_color,
+                                                        display:
+                                                            "inline-block",
+                                                    }}
+                                                />
+                                                {column.column_name}
+                                            </Space>
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={24}>
+                            <Form.Item
+                                name="user_ids"
+                                label="Assignees"
+                                extra="Select team members to assign this task"
+                                hidden={!isAdmin} // THis currecntly only admins and managers can assign tasks, TOODO: Need to implement permission properly and check and enforce on BE ....
+                            >
+                                <Select
+                                    mode="multiple"
+                                    placeholder="Select assignees"
+                                    showSearch
+                                    filterOption={(input, option) =>
+                                        option?.children
+                                            ?.toString()
+                                            .toLowerCase()
+                                            .includes(
+                                                input.toLowerCase()
+                                            ) ?? false
+                                    }
                                 >
-                                    <Select placeholder="Select priority">
-                                        <Option value="low">
-                                            <Space>🟢 Low Priority</Space>
-                                        </Option>
-                                        <Option value="medium">
-                                            <Space>🔵 Medium Priority</Space>
-                                        </Option>
-                                        <Option value="high">
-                                            <Space>🔴 High Priority</Space>
-                                        </Option>
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={12}>
-                                <Form.Item
-                                    name="board_column_id"
-                                    label="Initial Status"
-                                    extra="Starting status for this task"
-                                >
-                                    <Select>
-                                        {columns.map((column) => (
-                                            <Option
-                                                key={column.id}
-                                                value={column.id}
-                                            >
-                                                <Space>
-                                                    <div
+                                    {users.map((user) => (
+                                        <Option
+                                            key={user.id}
+                                            value={user.id}
+                                        >
+                                            <Space>
+                                                <UserOutlined />
+                                                {user.name}
+                                                {user.designation_name && (
+                                                    <Text
+                                                        type="secondary"
                                                         style={{
-                                                            width: 8,
-                                                            height: 8,
-                                                            borderRadius: "50%",
-                                                            backgroundColor:
-                                                                column.label_color,
-                                                            display:
-                                                                "inline-block",
+                                                            fontSize: 12,
                                                         }}
-                                                    />
-                                                    {column.column_name}
-                                                </Space>
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={24}>
-                                <Form.Item
-                                    name="user_ids"
-                                    label="Assignees"
-                                    extra="Select team members to assign this task"
-                                    hidden={!isAdmin} // THis currecntly only admins and managers can assign tasks, TOODO: Need to implement permission properly and check and enforce on BE ....
-                                >
-                                    <Select
-                                        mode="multiple"
-                                        placeholder="Select assignees"
-                                        showSearch
-                                        filterOption={(input, option) =>
-                                            option?.children
-                                                ?.toString()
-                                                .toLowerCase()
-                                                .includes(
-                                                    input.toLowerCase()
-                                                ) ?? false
-                                        }
-                                    >
-                                        {users.map((user) => (
-                                            <Option
-                                                key={user.id}
-                                                value={user.id}
-                                            >
-                                                <Space>
-                                                    <UserOutlined />
-                                                    {user.name}
-                                                    {user.designation_name && (
-                                                        <Text
-                                                            type="secondary"
-                                                            style={{
-                                                                fontSize: 12,
-                                                            }}
-                                                        >
-                                                            (
-                                                            {
-                                                                user.designation_name
-                                                            }
-                                                            )
-                                                        </Text>
-                                                    )}
-                                                </Space>
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                    </Card>
+                                                    >
+                                                        (
+                                                        {
+                                                            user.designation_name
+                                                        }
+                                                        )
+                                                    </Text>
+                                                )}
+                                            </Space>
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                    </Row>
                 </Collapse.Panel>
             </Collapse>
 

@@ -206,7 +206,7 @@ export default function DealInfoSection({
                                         })
                                     )}
                                     size="sm"
-                                    maxCount={4}
+                                    maxCount={2}
                                     showTooltip={true}
                                 />
                             ) : (
@@ -246,7 +246,7 @@ export default function DealInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Products" span={2}>
+                        <Descriptions.Item label="Properties" span={2}>
                             {productNames.length > 0 ? (
                                 <div className="flex flex-wrap gap-1">
                                     {productNames.map((product, index) => (
