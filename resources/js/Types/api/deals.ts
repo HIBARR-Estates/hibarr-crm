@@ -102,6 +102,7 @@ interface LeadStage {
     id: number;
     name: string;
     slug?: string;
+    priority?: number;
     label_color?: string;
 }
 
@@ -151,6 +152,7 @@ interface Pipeline {
     label_color: string;
     default: number;
     added_by: null;
+    stages?: PipelineStage[];
 }
 
 interface Currency {
@@ -228,6 +230,8 @@ export interface LeadPipeline {
     id: number;
     name: string;
     default: number;
+    label_color?: string;
+    stages?: PipelineStage[];
 }
 
 export interface PipelineStage {
@@ -235,7 +239,7 @@ export interface PipelineStage {
     name: string;
     lead_pipeline_id: number;
     label_color: string;
-    priority: number;
+    priority?: number;
 }
 
 export interface CreateDealFormData {

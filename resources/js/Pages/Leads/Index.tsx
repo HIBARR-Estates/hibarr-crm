@@ -174,7 +174,7 @@ const Index = ({
         <DashboardLayout>
             <PageLayout
                 title={pageTitle}
-                breadcrumbs={[{ name: "Leads" }]}
+                breadcrumbs={[{ name: "Contacts" }]}
                 searchComp={
                     <UniversalSearchBox
                         placeholder="Search leads by contact name, email, company..."

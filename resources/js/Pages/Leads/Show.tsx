@@ -93,7 +93,7 @@ const Show: React.FC<LeadShowProps> = ({
             <PageLayout
                 title={lead?.client_name_salutation}
                 breadcrumbs={[
-                    { name: "Leads", url: route("lead-contact.index") },
+                    { name: "Contacts", url: route("lead-contact.index") },
                     { name: lead?.client_name || "" },
                 ]}
                 mainContentClassName=""
