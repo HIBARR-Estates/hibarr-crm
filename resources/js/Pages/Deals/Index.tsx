@@ -86,7 +86,11 @@ const Index = ({
 
                 leadPipelines: pipelines,
                 leadAgents,
-                excludeFields: ["pipeline_stage_id", "lead_pipeline_id"],
+                excludeFields: [
+                    "pipeline_stage_id",
+                    "lead_pipeline_id",
+                    "search",
+                ],
             }),
         [
             props.categories,
@@ -98,12 +102,9 @@ const Index = ({
         ]
     );
 
-    const searchConfig = useMemo(() => createDealSearchConfig(), []);
-
     // Setup search and filter contexts
-    const { filter, search } = usePageSearchAndFilter({
+    const { filter } = usePageSearchAndFilter({
         filterConfig,
-        searchConfig,
     });
 
     // Extract commonly used values
@@ -200,7 +201,9 @@ const Index = ({
 
     const columns = DEAL_TABLE_COLUMNS(getActionItems);
 
-    console.log("Rendering Deals Index with deals:", deals, filters);
+    const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
+        ? Number((props as any).filters?.lead_pipeline_id)
+        : defaultPipeline?.id;
     return (
         <DashboardLayout>
             <PageLayout
@@ -218,11 +221,7 @@ const Index = ({
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <Select
-                                value={
-                                    filters?.lead_pipeline_id
-                                        ? Number(filters?.lead_pipeline_id)
-                                        : defaultPipeline?.id
-                                }
+                                value={valueLeadPipelineId}
                                 onChange={handlePipelineChange}
                                 style={{ width: 200 }}
                                 placeholder="Select Pipeline"
@@ -292,7 +291,6 @@ const Index = ({
                                         route("deals.index"),
                                         {
                                             ...filters,
-                                            search: search.query,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
@@ -343,7 +341,7 @@ const Index = ({
             />
 
             {/* Universal Filter Drawer */}
-            <UniversalFilterDrawer config={createDealFilterConfig(props)} />
+            <UniversalFilterDrawer config={filterConfig} />
         </DashboardLayout>
     );
 };
