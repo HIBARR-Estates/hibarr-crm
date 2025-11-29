@@ -53,9 +53,8 @@ const DealCard: React.FC<DealCardProps> = ({
             style={style}
             {...attributes}
             {...listeners}
-            className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 mx-3 hover:shadow-sm transition-shadow cursor-pointer ${
-                !draggable ? "move-disable" : ""
-            } ${isDragging ? "z-50" : ""}`}
+            className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 mx-3 hover:shadow-sm transition-shadow cursor-pointer ${!draggable ? "move-disable" : ""
+                } ${isDragging ? "z-50" : ""}`}
             data-task-id={deal.id}
             id={`drag-task-${deal.id}`}
             onClick={handleCardClick}
@@ -89,10 +88,10 @@ const DealCard: React.FC<DealCardProps> = ({
 
             {/* Deal Value */}
 
-            <div className="flex items-center mb-3">
-                <DollarOutlined className="text-gray-500 text-xs mr-1" />
+            <div className="flex items-center mb-3 gap-1">
+                <DollarOutlined className="text-gray-500 text-xs" />
 
-                <span className="text-xs text-gray-600">
+                <span className="text-sm text-gray-800 font-semibold">
                     {deal?.currency?.currency_symbol || "€"}
                     {deal?.value?.toLocaleString() || "0"}
                 </span>
@@ -113,30 +112,32 @@ const DealCard: React.FC<DealCardProps> = ({
                         </span>
                     </div>
                 )}
-
-                {/* Agent */}
-                {deal.lead_agent?.user ? (
-                    <a
-                        href={route("employees.show", deal.lead_agent.user_id)}
-                        className="flex items-center gap-2 hover:text-blue-600"
-                    >
-                        <span className="text-gray-600">
-                            {deal.lead_agent.user.name}
+                <div className="flex items-center gap-2 ml-auto">
+                    {/* Agent */}
+                    {deal.lead_agent?.user ? (
+                        <a
+                            href={route("employees.show", deal.lead_agent.user_id)}
+                            className="flex items-center gap-2 hover:text-blue-600"
+                        >
+                            <span className="text-gray-600">
+                                {deal.lead_agent.user.name}
+                            </span>
+                            <Avatar
+                                size={24}
+                                src={deal.lead_agent.user.image_url}
+                                icon={<UserOutlined />}
+                            />
+                        </a>
+                    ) : (
+                        <span
+                            className="text-blue-900 font-semibold hover:text-blue-800 text-xs cursor-pointer"
+                            onClick={() => onEdit?.(deal)}
+                        >
+                            Assign Agent
                         </span>
-                        <Avatar
-                            size={24}
-                            src={deal.lead_agent.user.image_url}
-                            icon={<UserOutlined />}
-                        />
-                    </a>
-                ) : (
-                    <span
-                        className="text-blue-600 hover:text-blue-800 text-xs cursor-pointer"
-                        onClick={() => onEdit?.(deal)}
-                    >
-                        Assign Agent
-                    </span>
-                )}
+                    )}
+                </div>
+
             </div>
         </div>
     );
