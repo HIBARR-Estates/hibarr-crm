@@ -313,7 +313,7 @@ class DealController extends AccountBaseController
             'leadAgent.user',
             'contact',
             'category',
-            'pipeline',
+            'pipeline.stages',
             'leadStage',
             'currency',
             'products:id,name',
@@ -340,15 +340,22 @@ class DealController extends AccountBaseController
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $this->fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
-        $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
-        $viewPermission = user()->permission('view_deals');
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => function($user, $deal) {
+                $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
+                return ($leadAgentId == $user->id) || $deal->dealWatchers->contains('id', $user->id);
+            }
+        ];
 
-        abort_403(!(
-            $viewPermission == 'all'
-            || ($viewPermission == 'added' && $deal->added_by == user()->id)
-            || ($viewPermission == 'owned' && (($leadAgentId == user()->id) || $deal->dealWatchers->contains('id', user()->id)))
-            || ($viewPermission == 'both' && ($deal->added_by == user()->id || $leadAgentId == user()->id || $deal->dealWatchers->contains('id', user()->id)))
-        ));
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+
+        if (!$access['canAccess']) {
+            if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $productNames = $deal->products->pluck('name')->toArray();
         $customFieldCategories = $this->getDealCustomFieldCategories();
@@ -716,15 +723,24 @@ class DealController extends AccountBaseController
 
         $this->productIds = $this->deal->products->pluck('id')->toArray();
 
-        $this->editPermission = user()->permission('edit_deals');
-
         $this->employees = User::allEmployees(null, false);
 
-        abort_403(!($this->editPermission == 'all'
-            || ($this->editPermission == 'added' && $this->deal->added_by == user()->id)
-            || ($this->editPermission == 'owned' && ((!is_null($this->deal->agent_id) && !is_null($this->deal->leadAgent) && user()->id == $this->deal->leadAgent->user->id) || $this->deal->dealWatchers->contains('id', user()->id)))
-            || ($this->editPermission == 'both' && (((!is_null($this->deal->agent_id) && !is_null($this->deal->leadAgent) && user()->id == $this->deal->leadAgent->user->id) || $this->deal->dealWatchers->contains('id', user()->id)) || user()->id == $this->deal->added_by))
-        ));
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => function($user, $deal) {
+                $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
+                return ($leadAgentId == $user->id) || $deal->dealWatchers->contains('id', $user->id);
+            }
+        ];
+
+        $access = PermissionService::checkAccess(user(), 'edit_deals', $this->deal, $dealRules);
+
+        if (!$access['canAccess']) {
+            if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $this->tab = (!is_null(request('tab'))) ? request('tab') : null;
         // Filter out active employees
@@ -793,13 +809,22 @@ class DealController extends AccountBaseController
     public function update(UpdateRequest $request, $id)
     {
         $deal = Deal::with('leadAgent', 'leadAgent.user')->findOrFail($id);
-        $this->editPermission = user()->permission('edit_deals');
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => function($user, $deal) {
+                $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
+                return ($leadAgentId == $user->id) || $deal->dealWatchers->contains('id', $user->id);
+            }
+        ];
 
-        abort_403(!($this->editPermission == 'all'
-            || ($this->editPermission == 'added' && $deal->added_by == user()->id)
-            || ($this->editPermission == 'owned' && ((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)))
-            || ($this->editPermission == 'both' && (((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)) || user()->id == $deal->added_by))
-        ));
+        $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
+
+        if (!$access['canAccess']) {
+            if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         if (!is_null($request->agent_id)) {
             $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
@@ -1036,13 +1061,22 @@ class DealController extends AccountBaseController
     public function destroy($id)
     {
         $deal = Deal::with('leadAgent', 'leadAgent.user')->findOrFail($id);
-        $this->deletePermission = user()->permission('delete_deals');
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => function($user, $deal) {
+                $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
+                return ($leadAgentId == $user->id) || $deal->dealWatchers->contains('id', $user->id);
+            }
+        ];
 
-        abort_403(!($this->deletePermission == 'all'
-            || ($this->deletePermission == 'added' && $deal->added_by == user()->id)
-            || ($this->deletePermission == 'owned' && ((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)))
-            || ($this->deletePermission == 'both' && (((!is_null($deal->agent_id) && !is_null($deal->leadAgent) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)) || user()->id == $deal->added_by))
-        ));
+        $access = PermissionService::checkAccess(user(), 'delete_deals', $deal, $dealRules);
+
+        if (!$access['canAccess']) {
+            if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         $model = new ReflectionClass('App\Models\Deal');
 

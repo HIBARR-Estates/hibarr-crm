@@ -64,32 +64,95 @@ export default function Show({
                         <div className="mb-6 sm:mb-8">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="min-w-0 flex-1">
-                                    <Title level={4} className="mb-0">
+                                    <Title level={4} className="mb-2">
                                         {deal.name}
                                     </Title>
-                                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                                        <div
-                                            className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium"
-                                            style={{
-                                                backgroundColor: `${deal.pipeline?.label_color}20`,
-                                                color: deal.pipeline
-                                                    ?.label_color,
-                                            }}
-                                        >
+                                    <div className="flex flex-col gap-3">
+                                        <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
                                             {deal.pipeline?.name}
                                         </div>
-                                        <span className="text-gray-400 hidden sm:inline">
-                                            →
-                                        </span>
-                                        <div
-                                            className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium"
-                                            style={{
-                                                backgroundColor: `${deal.lead_stage?.label_color}20`,
-                                                color: deal.lead_stage
-                                                    ?.label_color,
-                                            }}
-                                        >
-                                            {deal.lead_stage?.name}
+
+                                        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar mask-linear-fade">
+                                            {deal.pipeline?.stages?.map(
+                                                (stage, index) => {
+                                                    const currentPriority =
+                                                        deal.lead_stage
+                                                            ?.priority || 0;
+                                                    const isCompleted =
+                                                        (stage?.priority || 0) <
+                                                        currentPriority;
+                                                    const isCurrent =
+                                                        stage.id ===
+                                                        deal.lead_stage?.id;
+
+                                                    return (
+                                                        <div
+                                                            key={stage.id}
+                                                            className="flex items-center shrink-0"
+                                                        >
+                                                            <div
+                                                                className={`
+                                                                flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border
+                                                                ${
+                                                                    isCurrent
+                                                                        ? "shadow-sm scale-105 font-bold"
+                                                                        : isCompleted
+                                                                        ? "opacity-80"
+                                                                        : "opacity-50 grayscale"
+                                                                }
+                                                            `}
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        isCurrent ||
+                                                                        isCompleted
+                                                                            ? `${stage.label_color}15`
+                                                                            : "#f3f4f6",
+                                                                    color:
+                                                                        isCurrent ||
+                                                                        isCompleted
+                                                                            ? stage.label_color
+                                                                            : "#6b7280",
+                                                                    borderColor:
+                                                                        isCurrent
+                                                                            ? stage.label_color
+                                                                            : "transparent",
+                                                                }}
+                                                            >
+                                                                {stage.name}
+                                                            </div>
+                                                            {index <
+                                                                (deal.pipeline
+                                                                    ?.stages
+                                                                    ?.length ||
+                                                                    0) -
+                                                                    1 && (
+                                                                <div
+                                                                    className={`w-4 h-0.5 mx-1 rounded-full shrink-0 ${
+                                                                        isCompleted
+                                                                            ? "bg-gray-300"
+                                                                            : "bg-gray-100"
+                                                                    }`}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+                                            )}
+
+                                            {(!deal.pipeline?.stages ||
+                                                deal.pipeline.stages.length ===
+                                                    0) && (
+                                                <div
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+                                                    style={{
+                                                        backgroundColor: `${deal.lead_stage?.label_color}20`,
+                                                        color: deal.lead_stage
+                                                            ?.label_color,
+                                                    }}
+                                                >
+                                                    {deal.lead_stage?.name}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
