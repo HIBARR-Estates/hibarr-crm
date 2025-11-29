@@ -60,17 +60,28 @@ class BitrixImportController extends Controller
                 if (!$stage) {
                     throw new \RuntimeException('No matching pipeline stage could be resolved for the payload.');
                 }
+                $bitrixId = $this->toInt(Arr::get($dealData, 'bitrixId'));
 
                 // Create or update deal
-                $deal = Deal::withoutGlobalScopes()
-                    ->where('company_id', $companyId)
-                    ->where('name', $dealName)
-                    ->first();
+                // Use bitrix_id for lookup if provided, otherwise fallback to name-based lookup
+                $dealQuery = Deal::withoutGlobalScopes()
+                    ->where('company_id', $companyId);
+                
+                if ($bitrixId !== null) {
+                    $dealQuery->where('bitrix_id', $bitrixId);
+                } else {
+                    
+                }
+                
+                $deal = $dealQuery->first();
 
                 $isNewDeal = false;
                 if (!$deal) {
                     $deal = new Deal();
                     $deal->company_id = $companyId;
+                    if ($bitrixId !== null) {
+                        $deal->bitrix_id = $bitrixId;
+                    }
                     $deal->name = $dealName;
                     $deal->column_priority = 0;
                     $deal->value = 0;
