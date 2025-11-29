@@ -52,7 +52,12 @@ class LeadContactController extends AccountBaseController
         parent::__construct();
         $this->pageTitle = 'modules.leadContact.leadContacts';
         $this->middleware(function ($request, $next) {
-            abort_403(!in_array('leads', $this->user->modules));
+            if (!in_array('leads', $this->user->modules)) {
+                if ($request->ajax() || $request->header('X-Inertia')) {
+                    return redirect()->back()->with('error', __('messages.permissionDenied'));
+                }
+                abort(403);
+            }
 
             return $next($request);
         });
@@ -65,7 +70,12 @@ class LeadContactController extends AccountBaseController
         $this->destroySession();
         $this->viewLeadPermission = $viewPermission = user()->permission('view_lead');
 
-        abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
+        if (!in_array($viewPermission, ['all', 'added', 'owned', 'both'])) {
+            if ($request->ajax() || $request->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         // Load necessary data for the view
         $this->leadContacts = Lead::allLeads();
@@ -337,7 +347,7 @@ class LeadContactController extends AccountBaseController
         $viewPermission = user()->permission('view_deals');
 
         if (!($viewPermission == 'all' || $viewPermission == 'added' || $viewPermission == 'both')) {
-             if (request()->header('X-Inertia')) {
+             if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -356,7 +366,7 @@ class LeadContactController extends AccountBaseController
         $viewPermission = user()->permission('view_deals');
 
         if (!in_array($viewPermission, ['all', 'added', 'both', 'owned'])) {
-             if (request()->header('X-Inertia')) {
+             if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -390,7 +400,7 @@ class LeadContactController extends AccountBaseController
         $this->addPermission = user()->permission('add_lead');
         
         if (!in_array($this->addPermission, ['all', 'added'])) {
-             if (request()->header('X-Inertia')) {
+             if ($request->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -449,7 +459,7 @@ class LeadContactController extends AccountBaseController
 
 
         if (!in_array($this->addPermission, ['all', 'added'])) {
-             if (request()->header('X-Inertia')) {
+             if ($request->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -924,7 +934,13 @@ class LeadContactController extends AccountBaseController
         $this->pageTitle = __('app.importExcel') . ' ' . __('app.menu.lead');
 
         $this->addPermission = user()->permission('add_lead');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        
+        if (!in_array($this->addPermission, ['all', 'added'])) {
+            if (request()->ajax() || request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
 
         if (request()->ajax()) {
             $html = view('leads.ajax.import', $this->data)->render();
@@ -1011,7 +1027,13 @@ class LeadContactController extends AccountBaseController
     public function storeDeal($request, $leadContact)
     {
         $this->addPermission = user()->permission('add_deals');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        
+        if (!in_array($this->addPermission, ['all', 'added'])) {
+            if (request()->ajax() || request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.permissionDenied'));
+            }
+            abort(403);
+        }
         $agentId = null;
 
         if (!is_null($request->agent_id)) {
