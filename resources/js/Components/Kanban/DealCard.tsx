@@ -1,6 +1,6 @@
 import React from "react";
 import { Deal } from "@/Types/api/deals";
-import { Avatar, Tag } from "antd";
+import { Avatar } from "antd";
 import {
     UserOutlined,
     CalendarOutlined,
