@@ -567,7 +567,7 @@ class LeadContactController extends AccountBaseController
         $access = PermissionService::checkAccess(user(), 'edit_lead', $this->leadContact, $leadRules);
         
         if (!$access['canAccess']) {
-             if (request()->header('X-Inertia')) {
+             if ($request->ajax() || $request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -638,7 +638,7 @@ class LeadContactController extends AccountBaseController
         $access = PermissionService::checkAccess(user(), 'edit_lead', $leadContact, $leadRules);
         
         if (!$access['canAccess']) {
-             if (request()->header('X-Inertia')) {
+             if ($request->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -909,7 +909,7 @@ class LeadContactController extends AccountBaseController
         $access = PermissionService::checkAccess(user(), 'delete_lead', $leadContact, $leadRules);
         
         if (!$access['canAccess']) {
-             if (request()->header('X-Inertia')) {
+             if ($request->ajax() || $request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);

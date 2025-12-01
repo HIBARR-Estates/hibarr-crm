@@ -27,7 +27,7 @@ trait DealFormDataTrait
     {
         $pipelines = LeadPipeline::all();
         $defaultPipeline = LeadPipeline::where('default', 1)->first();
-        $stages = PipelineStage::where('lead_pipeline_id', optional($defaultPipeline)->id)->get();
+        $stages = PipelineStage::all();
         
         // Get custom fields
         $deal = new Deal();

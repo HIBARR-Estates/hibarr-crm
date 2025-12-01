@@ -9,10 +9,8 @@ import {
     Switch,
     Form,
     Button,
-    Space,
     Card,
     Divider,
-    Tag,
 } from "antd";
 import { Deal } from "@/Types/api/deals";
 import { usePage } from "@inertiajs/react";
@@ -74,11 +72,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         if (data) {
             const formData = {
                 ...data,
+                pipeline: data.pipeline,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
                 deal_watcher: data.deal_watcher || [],
                 product_id: data.product_id || [],
             };
-            setPipelineId(data.pipeline);
+            setPipelineId(formData.pipeline);
             form.setFieldsValue(formData);
         }
     }, [data, form]);
@@ -90,8 +89,17 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         }
         if (stage && stage.lead_pipeline_id && !data?.pipeline) {
             form.setFieldValue("pipeline", stage.lead_pipeline_id);
+            setPipelineId(stage.lead_pipeline_id);
+        } else if (!data?.pipeline && !pipelineId && leadPipelines.length > 0) {
+            const defaultPipeline =
+                leadPipelines.find((p: any) => p.default === 1) ||
+                leadPipelines[0];
+            if (defaultPipeline) {
+                form.setFieldValue("pipeline", defaultPipeline.id);
+                setPipelineId(defaultPipeline.id);
+            }
         }
-    }, [contactID, columnId, stage, data, form]);
+    }, [contactID, columnId, stage, data, form, leadPipelines, pipelineId]);
 
     // Fetch stages when pipeline changes
     const handlePipelineChange = (pipelineId: number) => {
