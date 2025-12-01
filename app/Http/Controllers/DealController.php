@@ -784,7 +784,7 @@ class DealController extends AccountBaseController
         $this->products = Product::all();
         $this->leadPipelines = LeadPipeline::all();
 
-        $this->stages = PipelineStage::where('lead_pipeline_id', $this->deal->lead_pipeline_id)->get();
+        $this->stages = PipelineStage::all();
 
         $this->pageTitle = __('modules.deal.updateDeal');
         $this->salutations = Salutation::cases();
