@@ -9,10 +9,8 @@ import {
     Switch,
     Form,
     Button,
-    Space,
     Card,
     Divider,
-    Tag,
 } from "antd";
 import { Deal } from "@/Types/api/deals";
 import { usePage } from "@inertiajs/react";
