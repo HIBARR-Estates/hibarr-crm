@@ -5,6 +5,7 @@ import {
     UserOutlined,
     CalendarOutlined,
     DollarOutlined,
+    EditOutlined,
 } from "@ant-design/icons";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
@@ -40,24 +41,17 @@ const DealCard: React.FC<DealCardProps> = ({
         opacity: isDragging ? 0.5 : 1,
     };
 
-    const handleCardClick = (e: React.MouseEvent) => {
-        if (onEdit && !isDragging) {
-            e.preventDefault();
-            onEdit(deal);
-        }
-    };
-
     return (
         <div
             ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
-            className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 mx-3 hover:shadow-sm transition-shadow cursor-pointer ${!draggable ? "move-disable" : ""
-                } ${isDragging ? "z-50" : ""}`}
+            className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 mx-3 hover:shadow-sm transition-shadow cursor-pointer ${
+                !draggable ? "move-disable" : ""
+            } ${isDragging ? "z-50" : ""}`}
             data-task-id={deal.id}
             id={`drag-task-${deal.id}`}
-            onClick={handleCardClick}
         >
             {/* Deal Title */}
             <div className="flex justify-between items-start mb-2">
@@ -73,6 +67,16 @@ const DealCard: React.FC<DealCardProps> = ({
                         />
                     )}
                 </Link>
+                {onEdit && (
+                    <EditOutlined
+                        className="text-gray-400 hover:text-blue-600 cursor-pointer ml-2"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onEdit(deal);
+                        }}
+                    />
+                )}
             </div>
 
             {/* Client Name */}
@@ -116,7 +120,10 @@ const DealCard: React.FC<DealCardProps> = ({
                     {/* Agent */}
                     {deal.lead_agent?.user ? (
                         <a
-                            href={route("employees.show", deal.lead_agent.user_id)}
+                            href={route(
+                                "employees.show",
+                                deal.lead_agent.user_id
+                            )}
                             className="flex items-center gap-2 hover:text-blue-600"
                         >
                             <span className="text-gray-600">
@@ -137,7 +144,6 @@ const DealCard: React.FC<DealCardProps> = ({
                         </span>
                     )}
                 </div>
-
             </div>
         </div>
     );
