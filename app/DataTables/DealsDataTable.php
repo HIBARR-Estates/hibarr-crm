@@ -400,6 +400,22 @@ class DealsDataTable extends BaseDataTable
             $lead = $lead->having(DB::raw('DATE(deals.`updated_at`)'), '<=', $endDate);
         }
 
+        if ($this->request()->agent_status == 'unassigned') {
+            $lead = $lead->whereNull('deals.agent_id');
+        } elseif ($this->request()->filled('agent_id') && $this->request()->agent_id != 'all') {
+            $lead = $lead->whereHas('leadAgent', function ($q) {
+                $q->where('user_id', $this->request()->agent_id);
+            });
+        } elseif ($this->request()->agent_status == 'active') {
+            $lead = $lead->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', 'active');
+            });
+        } elseif ($this->request()->agent_status == 'inactive') {
+            $lead = $lead->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', '!=', 'active');
+            });
+        }
+
         if (($this->request()->agent != 'all' && $this->request()->agent != '') || $this->viewLeadPermission == 'added') {
             $lead = $lead->where(function ($query) {
                 if ($this->request()->agent != 'all' && $this->request()->agent != '') {

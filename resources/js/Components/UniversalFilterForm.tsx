@@ -87,6 +87,13 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                             selectedOption?.name ||
                             String(val);
                         setFilter(key, val, label, displayValue);
+
+                        // Check for dependent fields and clear them
+                        config.fields.forEach((field) => {
+                            if (field.dependsOn === key) {
+                                setFilter(field.key, null);
+                            }
+                        });
                     }}
                     placeholder={placeholder || `Select ${label.toLowerCase()}`}
                     style={{ width: "100%" }}

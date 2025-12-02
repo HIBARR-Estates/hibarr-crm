@@ -148,6 +148,22 @@ class DealController extends AccountBaseController
             ]);
         }
 
+        if ($request->agent_status == 'unassigned') {
+            $dealsQuery->whereNull('deals.agent_id');
+        } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
+            $dealsQuery->whereHas('leadAgent', function ($q) use ($request) {
+                $q->where('user_id', $request->agent_id);
+            });
+        } elseif ($request->agent_status == 'active') {
+            $dealsQuery->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', 'active');
+            });
+        } elseif ($request->agent_status == 'inactive') {
+            $dealsQuery->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', '!=', 'active');
+            });
+        }
+
         // Apply permission-based filtering
         $dealRules = [
             'added' => 'deals.added_by',
@@ -276,6 +292,11 @@ class DealController extends AccountBaseController
         $this->leadAgents = LeadAgent::with('user')
             ->whereHas('user', function ($q) {
                 $q->where('status', 'active');
+            })->groupBy('user_id')->get();
+
+        $this->nonActiveLeadAgents = LeadAgent::with('user')
+            ->whereHas('user', function ($q) {
+                $q->where('status', '!=', 'active');
             })->groupBy('user_id')->get();
     }
 
