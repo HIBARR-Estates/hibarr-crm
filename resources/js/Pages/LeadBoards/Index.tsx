@@ -211,7 +211,7 @@ const LeadBoardIndex = ({
                         }
                         filterSection={<ContextualActiveFilters />}
                     >
-                        <div className="bg-white rounded-lg shadow-sm">
+                        <div className="bg-white rounded-lg shadow-sm max-w-7xl mx-auto">
                             {/* Header Actions */}
                             <div className="p-4 border-b border-gray-200">
                                 {/* Mobile Warning */}
