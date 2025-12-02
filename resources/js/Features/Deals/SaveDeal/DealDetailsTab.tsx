@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
     Row,
     Col,
@@ -64,8 +64,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     } = props;
 
     const [pipelineId, setPipelineId] = useState<number>();
-
-    const [agents, setAgents] = useState([]);
+    const [selectedCategoryId, setSelectedCategoryId] = useState<number>();
 
     // Populate form when data changes
     useEffect(() => {
@@ -78,6 +77,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 product_id: data.product_id || [],
             };
             setPipelineId(formData.pipeline);
+            setSelectedCategoryId(formData.category_id);
             form.setFieldsValue(formData);
         }
     }, [data, form]);
@@ -111,28 +111,27 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     // Fetch agents when category changes
     const handleCategoryChange = (categoryId: number) => {
         form.setFieldValue("category_id", categoryId);
-        if (categoryId) {
-            fetchAgents(categoryId);
-        }
+        setSelectedCategoryId(categoryId);
     };
 
-    useEffect(() => {
-        if (data?.category_id) {
-            fetchAgents(data.category_id);
-        }
-    }, [data?.category_id]);
-
-    const fetchAgents = async (categoryId: number) => {
-        try {
-            const response = await fetch(route("deals.get_agents", categoryId));
-            const result = await response.json();
-            if (result.status === "success") {
-                setAgents(result.data);
+    const uniqueAgents = useMemo(() => {
+        const unique = new Map();
+        leadAgents.forEach((agent: any) => {
+            if (agent.user && !unique.has(agent.user_id)) {
+                unique.set(agent.user_id, agent);
             }
-        } catch (error) {
-            console.error("Error fetching agents:", error);
+        });
+        return Array.from(unique.values());
+    }, [leadAgents]);
+
+    const displayedAgents = useMemo(() => {
+        if (selectedCategoryId) {
+            return leadAgents.filter(
+                (agent: any) => agent.lead_category_id === selectedCategoryId
+            );
         }
-    };
+        return uniqueAgents;
+    }, [selectedCategoryId, leadAgents, uniqueAgents]);
 
     const calculateTotalValue = (currentPackageId?: number) => {
         let total = 0;
@@ -372,12 +371,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 showSearch
                                 optionFilterProp="children"
                             >
-                                {agents.map((agent: any) => (
+                                {displayedAgents.map((agent: any) => (
                                     <Select.Option
                                         key={agent.id}
-                                        value={agent.id}
+                                        value={agent?.id}
                                     >
-                                        {agent.name}
+                                        {agent.user?.name}
                                     </Select.Option>
                                 ))}
                             </Select>
