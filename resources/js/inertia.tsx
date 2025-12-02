@@ -264,6 +264,24 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "tasks.change_status": "/account/tasks/change-status",
         "tasks.change_milestone": "/account/tasks/milestone-change",
 
+        // Task Categories
+        "taskCategory.index": "/account/tasks/taskCategory",
+        "taskCategory.create": "/account/tasks/taskCategory/create",
+        "taskCategory.store": "/account/tasks/taskCategory",
+        "taskCategory.show": "/account/tasks/taskCategory/{id}",
+        "taskCategory.edit": "/account/tasks/taskCategory/{id}/edit",
+        "taskCategory.update": "/account/tasks/taskCategory/{id}",
+        "taskCategory.destroy": "/account/tasks/taskCategory/{id}",
+
+        // Task Labels
+        "task-label.index": "/account/tasks/task-label",
+        "task-label.create": "/account/tasks/task-label/create",
+        "task-label.store": "/account/tasks/task-label",
+        "task-label.show": "/account/tasks/task-label/{id}",
+        "task-label.edit": "/account/tasks/task-label/{id}/edit",
+        "task-label.update": "/account/tasks/task-label/{id}",
+        "task-label.destroy": "/account/tasks/task-label/{id}",
+
         // Products
         "products.create": "/account/products/create",
         "products.show": "/account/products/{id}",
