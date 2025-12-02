@@ -150,7 +150,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             }
         }
 
-        form.setFieldValue("value", total);
+        // form.setFieldValue("value", total);
     };
 
     const handlePackageChange = (packageId: number) => {
