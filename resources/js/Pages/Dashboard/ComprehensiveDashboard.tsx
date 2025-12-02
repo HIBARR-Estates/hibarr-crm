@@ -5,7 +5,6 @@ import { Row, Col, message } from "antd";
 
 import OverviewMetricsBar from "@/Features/Dashboard/Components/OverviewMetricsBar";
 import TasksActivitiesPanel from "@/Features/Dashboard/Components/TasksActivitiesPanel";
-import DealsTracker from "@/Features/Dashboard/Components/DealsTracker";
 import DataQualityPanel from "@/Features/Dashboard/Components/DataQualityPanel";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -340,7 +339,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                             </Row>
 
                             {/* Deals Tracker */}
-                            <Row gutter={[24, 24]}>
+                            {/* <Row gutter={[24, 24]}>
                                 <Col span={24}>
                                     <motion.div
                                         initial={{ opacity: 0, y: 50 }}
@@ -361,7 +360,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         />
                                     </motion.div>
                                 </Col>
-                            </Row>
+                            </Row> */}
 
                             {/* Quick Stats Footer */}
                             <motion.div
