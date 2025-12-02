@@ -143,6 +143,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
             onFinish={(vals) =>
                 onSubmit({
                     ...vals,
+                    priority: vals.priority || "medium",
                     without_duedate: !vals.due_date,
                     user_id: isAdmin
                         ? vals?.user_ids
@@ -316,8 +317,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                                         borderRadius: "50%",
                                                         backgroundColor:
                                                             column.label_color,
-                                                        display:
-                                                            "inline-block",
+                                                        display: "inline-block",
                                                     }}
                                                 />
                                                 {column.column_name}
@@ -342,16 +342,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                         option?.children
                                             ?.toString()
                                             .toLowerCase()
-                                            .includes(
-                                                input.toLowerCase()
-                                            ) ?? false
+                                            .includes(input.toLowerCase()) ??
+                                        false
                                     }
                                 >
                                     {users.map((user) => (
-                                        <Option
-                                            key={user.id}
-                                            value={user.id}
-                                        >
+                                        <Option key={user.id} value={user.id}>
                                             <Space>
                                                 <UserOutlined />
                                                 {user.name}
@@ -362,10 +358,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                                             fontSize: 12,
                                                         }}
                                                     >
-                                                        (
-                                                        {
-                                                            user.designation_name
-                                                        }
+                                                        ({user.designation_name}
                                                         )
                                                     </Text>
                                                 )}
