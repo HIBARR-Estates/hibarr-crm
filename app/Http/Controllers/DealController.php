@@ -277,6 +277,11 @@ class DealController extends AccountBaseController
             ->whereHas('user', function ($q) {
                 $q->where('status', 'active');
             })->groupBy('user_id')->get();
+
+        $this->nonActiveLeadAgents = LeadAgent::with('user')
+            ->whereHas('user', function ($q) {
+                $q->where('status', '!=', 'active');
+            })->groupBy('user_id')->get();
     }
 
     protected function loadDealWatcher()

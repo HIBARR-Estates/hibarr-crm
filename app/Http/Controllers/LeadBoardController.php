@@ -84,6 +84,10 @@ class LeadBoardController extends AccountBaseController
             $q->where('status', 'active');
         })->groupBy('user_id');
 
+        $this->nonActiveLeadAgents = LeadAgent::with('user')->whereHas('user', function ($q) {
+            $q->where('status', '!=', 'active');
+        })->groupBy('user_id')->get();
+
         if ($this->viewLeadAgentPermission != 'all') {
             $this->leadAgents = $this->leadAgents->where('user_id', user()->id);
         }
@@ -528,9 +532,19 @@ class LeadBoardController extends AccountBaseController
                 }
             ];
 
-            if ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+            if ($request->agent_status == 'unassigned') {
+                $q->whereNull('deals.agent_id');
+            } elseif ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
                 $q->whereHas('leadAgent', function ($q) use ($request) {
                     $q->where('user_id', $request->agent_id);
+                });
+            } elseif ($request->agent_status == 'active') {
+                $q->whereHas('leadAgent.user', function ($q) {
+                    $q->where('status', 'active');
+                });
+            } elseif ($request->agent_status == 'inactive') {
+                $q->whereHas('leadAgent.user', function ($q) {
+                    $q->where('status', '!=', 'active');
                 });
             }
 
@@ -545,9 +559,19 @@ class LeadBoardController extends AccountBaseController
                 ->groupBy('deals.id');
 
             // Apply same filters as count query
-            if ($request->agent_id != 'all' && $request->agent_id != '' && $request->agent_id != 'undefined') {
+            if ($request->agent_status == 'unassigned') {
+                $q->whereNull('deals.agent_id');
+            } elseif ($request->agent_id != 'all' && $request->agent_id != '' && $request->agent_id != 'undefined') {
                 $q->whereHas('leadAgent', function ($subQ) use ($request) {
                     $subQ->where('user_id', $request->agent_id);
+                });
+            } elseif ($request->agent_status == 'active') {
+                $q->whereHas('leadAgent.user', function ($q) {
+                    $q->where('status', 'active');
+                });
+            } elseif ($request->agent_status == 'inactive') {
+                $q->whereHas('leadAgent.user', function ($q) {
+                    $q->where('status', '!=', 'active');
                 });
             }
 
@@ -644,9 +668,19 @@ class LeadBoardController extends AccountBaseController
                 $leads->where('deals.category_id', $request->category_id);
             }
 
-            if ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+            if ($request->agent_status == 'unassigned') {
+                $leads->whereNull('deals.agent_id');
+            } elseif ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
                 $leads->whereHas('leadAgent', function ($q) use ($request) {
                     $q->where('user_id', $request->agent_id);
+                });
+            } elseif ($request->agent_status == 'active') {
+                $leads->whereHas('leadAgent.user', function ($q) {
+                    $q->where('status', 'active');
+                });
+            } elseif ($request->agent_status == 'inactive') {
+                $leads->whereHas('leadAgent.user', function ($q) {
+                    $q->where('status', '!=', 'active');
                 });
             }
 
@@ -731,6 +765,22 @@ class LeadBoardController extends AccountBaseController
         }
         if ($request->filled('max_value_range') && $request->max_value_range != 'undefined') {
             $leads->where('deals.value', '<=', $request->max_value_range);
+        }
+
+        if ($request->agent_status == 'unassigned') {
+            $leads->whereNull('deals.agent_id');
+        } elseif ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+            $leads->whereHas('leadAgent', function ($q) use ($request) {
+                $q->where('user_id', $request->agent_id);
+            });
+        } elseif ($request->agent_status == 'active') {
+            $leads->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', 'active');
+            });
+        } elseif ($request->agent_status == 'inactive') {
+            $leads->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', '!=', 'active');
+            });
         }
 
         if ($request->followUp != 'all' && $request->followUp != '' && $request->followUp != 'undefined') {

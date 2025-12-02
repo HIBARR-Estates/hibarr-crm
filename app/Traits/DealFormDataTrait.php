@@ -59,6 +59,9 @@ trait DealFormDataTrait
             'leadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', 'active');
             })->get(),
+            'nonActiveLeadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', '!=', 'active');
+            })->get(),
             'leadContacts' => Lead::allLeads(),
             'products' => Product::all(),
             'packages' => Package::all(),

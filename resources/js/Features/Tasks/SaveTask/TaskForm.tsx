@@ -103,14 +103,14 @@ const TaskForm: React.FC<TaskFormProps> = ({
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage();
-    const permissions = props.permissions as {
+    const permissions = props.permissions as Partial<{
         add_tasks: string;
         edit_tasks: string;
         delete_tasks: string;
         view_tasks: string;
-    };
+    }>;
 
-    const isAdmin = permissions.view_tasks === "all";
+    const isAdmin = permissions?.view_tasks === "all";
 
     console.log(permissions, "this permissions are testable ....");
     console.log(props, "user ....");
