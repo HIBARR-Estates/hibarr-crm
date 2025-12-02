@@ -364,8 +364,13 @@ class DealController extends AccountBaseController
         $dealRules = [
             'added' => 'added_by',
             'owned' => function($user, $deal) {
-                $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
-                return ($leadAgentId == $user->id) || $deal->dealWatchers->contains('id', $user->id);
+                // Check if user is the assigned agent
+                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
+                
+                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
+                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
+                
+                return $isAgent || $isWatcher;
             }
         ];
 
@@ -749,8 +754,13 @@ class DealController extends AccountBaseController
         $dealRules = [
             'added' => 'added_by',
             'owned' => function($user, $deal) {
-                $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
-                return ($leadAgentId == $user->id) || $deal->dealWatchers->contains('id', $user->id);
+                // Check if user is the assigned agent
+                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
+                
+                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
+                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
+                
+                return $isAgent || $isWatcher;
             }
         ];
 
@@ -833,8 +843,13 @@ class DealController extends AccountBaseController
         $dealRules = [
             'added' => 'added_by',
             'owned' => function($user, $deal) {
-                $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
-                return ($leadAgentId == $user->id) || $deal->dealWatchers->contains('id', $user->id);
+                // Check if user is the assigned agent
+                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
+                
+                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
+                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
+                
+                return $isAgent || $isWatcher;
             }
         ];
 
@@ -1085,8 +1100,13 @@ class DealController extends AccountBaseController
         $dealRules = [
             'added' => 'added_by',
             'owned' => function($user, $deal) {
-                $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
-                return ($leadAgentId == $user->id) || $deal->dealWatchers->contains('id', $user->id);
+                // Check if user is the assigned agent
+                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
+                
+                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
+                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
+                
+                return $isAgent || $isWatcher;
             }
         ];
 
