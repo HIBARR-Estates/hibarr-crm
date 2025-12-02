@@ -110,19 +110,19 @@ class LeadContactController extends AccountBaseController
 
         // Apply additional filters
         if ($request->filled('lead_source')) {
-            $leadsQuery->where('source_id', $request->lead_source);
+            $leadsQuery->where('leads.source_id', $request->lead_source);
         }
 
         if ($request->filled('lead_owner_id')) {
-            $leadsQuery->where('lead_owner', $request->lead_owner_id);
+            $leadsQuery->where('leads.lead_owner', $request->lead_owner_id);
         }
 
         if ($request->filled('added_by_id')) {
-            $leadsQuery->where('added_by', $request->added_by_id);
+            $leadsQuery->where('leads.added_by', $request->added_by_id);
         }
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
-            $leadsQuery->whereBetween('created_at', [
+            $leadsQuery->whereBetween('leads.created_at', [
                 $request->start_date . ' 00:00:00',
                 $request->end_date . ' 23:59:59'
             ]);
@@ -130,8 +130,8 @@ class LeadContactController extends AccountBaseController
 
         // Apply permission-based filtering
         $leadRules = [
-            'added' => 'added_by',
-            'owned' => 'lead_owner'
+            'added' => 'leads.added_by',
+            'owned' => 'leads.lead_owner'
         ];
         PermissionService::applyScope($leadsQuery, user(), 'view_lead', $leadRules);
         
