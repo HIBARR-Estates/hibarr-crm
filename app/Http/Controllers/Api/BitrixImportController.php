@@ -172,6 +172,31 @@ class BitrixImportController extends Controller
         ]);
     }
 
+    public function contactStore(Request $request)
+    {
+    $companyId = $request->header('X-COMPANY-ID');
+    $responsible = Arr::get($request->all(), 'responsible', []);
+    $responsibleUser = $this->resolveResponsibleUser($responsible, $companyId);
+    if ($responsibleUser) {
+        auth()->setUser($responsibleUser);
+    }
+    try{ return DB::transaction(function () use ($request, $companyId, $responsibleUser) {
+        $lead = $this->upsertLead($request->all(), $companyId, $responsibleUser);
+        $lead->added_by = $responsibleUser->id;
+        $lead->saveQuietly();
+        return Reply::success('Contact synced successfully.');
+    });} catch (\Exception $e) {
+        Log::error('Bitrix import: Failed to upsert lead', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'request' => $request->all(),
+        ]);
+        return Reply::error('Contact Creation Failed.');
+    }
+    $this->logoutIfAuthenticated();
+    return Reply::success('Contact synced successfully.');
+    }
+
     private function resolveResponsibleUser(array $responsibleData, int $companyId): ?User
     {
         $email = trim((string) Arr::get($responsibleData, 'email'));
@@ -292,7 +317,7 @@ class BitrixImportController extends Controller
                 $lead->created_at = $createdDate;
             }
             
-            $lead->save();
+            $lead->saveQuietly();
         } else {
             $lead->client_name = $name !== '' ? $name : $lead->client_name;
             if ($email !== '' && $lead->client_email !== $email) {
