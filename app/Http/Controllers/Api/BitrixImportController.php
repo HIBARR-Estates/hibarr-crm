@@ -174,7 +174,7 @@ class BitrixImportController extends Controller
 
     public function contactStore(Request $request)
     {
-        $companyId = $request->header('X-COMPANY-ID');
+        $companyId = (int) $request->header('X-COMPANY-ID');
         $responsible = Arr::get($request->all(), 'responsible', []);
         
         try {
@@ -200,8 +200,9 @@ class BitrixImportController extends Controller
             
             Log::error('Bitrix import: Failed to upsert lead', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
+                'trace' => $e->getTraceAsString(),                
+                'contact_email_present' => !empty(Arr::get($request->all(), 'email')),
+                'responsible_email_present' => !empty(Arr::get($responsible, 'email')),
             ]);
             
             return Reply::error('Contact Creation Failed.');
