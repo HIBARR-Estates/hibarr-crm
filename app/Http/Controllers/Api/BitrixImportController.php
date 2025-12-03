@@ -176,14 +176,16 @@ class BitrixImportController extends Controller
     {
         $companyId = $request->header('X-COMPANY-ID');
         $responsible = Arr::get($request->all(), 'responsible', []);
-        $responsibleUser = $this->resolveResponsibleUser($responsible, $companyId);
-        
-        if ($responsibleUser) {
-            auth()->setUser($responsibleUser);
-        }
         
         try {
-            $result = DB::transaction(function () use ($request, $companyId, $responsibleUser) {
+            $result = DB::transaction(function () use ($request, $companyId, $responsible) {
+                // Ensure responsible user exists (inside transaction for rollback consistency)
+                $responsibleUser = $this->resolveResponsibleUser($responsible, $companyId);
+                
+                if ($responsibleUser) {
+                    auth()->setUser($responsibleUser);
+                }
+                
                 $lead = $this->upsertLead($request->all(), $companyId, $responsibleUser);
                 
                 if ($responsibleUser) {
