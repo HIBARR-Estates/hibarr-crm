@@ -67,10 +67,13 @@ class CustomFieldsObserver
         if ($customField->custom_field_group_id == $lead->id) {
             $id = $customField->id;
             $leadField = LeadCustomForm::firstWhere('custom_fields_id', $id);
-            $leadField->required = ($customField->required == 'yes') ? 1 : 0;
-            $leadField->field_display_name = str($customField->label);
-            $leadField->field_name = $customField->name;
-            $leadField->save();
+            
+            if ($leadField) {
+                $leadField->required = ($customField->required == 'yes') ? 1 : 0;
+                $leadField->field_display_name = str($customField->label);
+                $leadField->field_name = $customField->name;
+                $leadField->save();
+            }
         }
 
         $ticket = CustomFieldGroup::where('name', 'Ticket')->first();
@@ -79,12 +82,14 @@ class CustomFieldsObserver
             $id = $customField->id;
             $ticketField = TicketCustomForm::firstWhere('custom_fields_id', $id);
 
-            $ticketField->required = ($customField->required == 'yes') ? 1 : 0;
-            $ticketField->field_display_name = str($customField->label);
-            $ticketField->custom_fields_id = $customField->id;
-            $ticketField->field_name = $customField->name;
-            $ticketField->field_type = $customField->type;
-            $ticketField->save();
+            if ($ticketField) {
+                $ticketField->required = ($customField->required == 'yes') ? 1 : 0;
+                $ticketField->field_display_name = str($customField->label);
+                $ticketField->custom_fields_id = $customField->id;
+                $ticketField->field_name = $customField->name;
+                $ticketField->field_type = $customField->type;
+                $ticketField->save();
+            }
         }
 
         // remove select values that is deleted from custom field
