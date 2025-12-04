@@ -13,17 +13,22 @@ interface Props extends IModalProps {
 const DeleteTask: React.FC<Props> = ({ task, onClose, open }) => {
     const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
         task ? `/account/tasks/${task.id}` : "",
-        "DELETE",
-        () => {
-            onClose();
-            router.reload();
-        }
+        "DELETE"
     );
 
     // Handle single task deletion
     const handleDeleteDeal = () => {
         if (!task) return;
-        deleteMutation.mutate({});
+        deleteMutation.mutate(
+            {},
+            {
+                onSuccess: () => {
+                    onClose();
+                    // refreshes data on the current page
+                    router.reload();
+                },
+            }
+        );
     };
     return (
         <ConfirmationModal
