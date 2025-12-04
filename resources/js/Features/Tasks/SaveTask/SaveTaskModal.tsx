@@ -103,6 +103,10 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
     columns: TaskboardColumn[];
     users: User[];
     projects: Project[];
+    relatedEntity?: {
+        type: "deal" | "lead" | "property";
+        id: number;
+    };
 }
 
 const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
@@ -116,6 +120,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     columns,
     users,
     projects,
+    relatedEntity,
 }) => {
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateTaskFormData | null>(null);
@@ -192,6 +197,8 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                 : values.due_date,
             estimate_hours: values.estimate_hours || 0,
             estimate_minutes: values.estimate_minutes || 0,
+            taskable_type: relatedEntity?.type,
+            taskable_id: relatedEntity?.id,
         };
 
         const mutation = isEditing ? updateTask : createTask;

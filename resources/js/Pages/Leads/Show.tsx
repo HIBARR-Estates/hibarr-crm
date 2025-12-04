@@ -10,6 +10,8 @@ import LeadInfoSection from "./Components/LeadInfoSection";
 import LeadNotesTab from "./Components/LeadNotesTab";
 import LeadDealsTab from "./Components/LeadDealsTab";
 import LeadMarketingTab from "./Components/LeadMarketingTab";
+import { Task } from "@/Types/api/tasks";
+import TasksTab from "@/Components/TasksTab";
 
 export interface LeadShowProps {
     lead: Lead;
@@ -26,6 +28,11 @@ export interface LeadShowProps {
     notes: LeadNote[];
     dealPermissions: Record<string, string>;
     notePermissions: Record<string, string>;
+    tasks: Task[];
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    projects: any[];
 }
 
 const Show: React.FC<LeadShowProps> = ({
@@ -38,6 +45,12 @@ const Show: React.FC<LeadShowProps> = ({
     notes,
     dealPermissions,
     notePermissions,
+    employees,
+    tasks,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    projects,
 }) => {
     const tabItems = [
         {
@@ -79,6 +92,21 @@ const Show: React.FC<LeadShowProps> = ({
             key: "marketing",
             label: "Marketing",
             children: <LeadMarketingTab lead={lead} />,
+        },
+        {
+            key: "tasks",
+            label: "Tasks",
+            children: (
+                <TasksTab
+                    tasks={tasks}
+                    relatedEntity={{ type: "lead", id: lead.id }}
+                    taskCategories={taskCategories}
+                    taskLabels={taskLabels}
+                    taskBoardColumns={taskBoardColumns}
+                    employees={employees}
+                    projects={projects}
+                />
+            ),
         },
     ].map((item) => ({
         ...item,

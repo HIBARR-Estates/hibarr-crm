@@ -261,4 +261,8 @@ class Lead extends BaseModel
         return $this->hasMany(CommunicationActivity::class, 'lead_id')->orderByDesc('timestamp');
     }
 
+    public function tasks()
+    {
+        return $this->morphToMany(Task::class, 'taskable');
+    }
 }

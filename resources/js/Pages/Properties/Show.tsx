@@ -7,16 +7,30 @@ import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import { message } from "antd";
 import PropertyView from "@/Features/Properties/PropertyView/PropertyView";
+import { Task } from "@/Types/api/tasks";
+
 interface ShowProps {
     pageTitle: string;
     property: Property;
     canEdit?: boolean;
+    tasks: Task[];
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    employees: any[];
+    projects: any[];
 }
 
 export default function Show({
     pageTitle,
     property,
     canEdit = false,
+    tasks,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    employees,
+    projects,
 }: ShowProps) {
     // Breadcrumbs for the page
     const breadcrumbs = [
@@ -64,6 +78,12 @@ export default function Show({
                         onEdit={canEdit ? handleEdit : undefined}
                         onShare={handleShare}
                         canEdit={canEdit}
+                        tasks={tasks}
+                        taskCategories={taskCategories}
+                        taskLabels={taskLabels}
+                        taskBoardColumns={taskBoardColumns}
+                        employees={employees}
+                        projects={projects}
                     />
                 </div>
             </PageLayout>

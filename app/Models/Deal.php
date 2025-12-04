@@ -288,5 +288,8 @@ class Deal extends BaseModel
         return $this->hasOne(HibarrDealFields::class, 'deal_id');
     }
 
-
+    public function tasks()
+    {
+        return $this->morphToMany(Task::class, 'taskable');
+    }
 }
