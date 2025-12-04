@@ -228,7 +228,8 @@ class LeadContactController extends AccountBaseController
             'addedBy',
             'leadSource:id,type',
             'category:id,category_name',
-            'client:id,name,email'
+            'client:id,name,email',
+            'marketing'
         ])->findOrFail($id)->withCustomFields();
 
         $leadRules = [

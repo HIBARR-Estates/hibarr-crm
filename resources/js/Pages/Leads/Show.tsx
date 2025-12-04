@@ -9,6 +9,7 @@ import { User } from "@/Types";
 import LeadInfoSection from "./Components/LeadInfoSection";
 import LeadNotesTab from "./Components/LeadNotesTab";
 import LeadDealsTab from "./Components/LeadDealsTab";
+import LeadMarketingTab from "./Components/LeadMarketingTab";
 
 export interface LeadShowProps {
     lead: Lead;
@@ -73,6 +74,11 @@ const Show: React.FC<LeadShowProps> = ({
                     permissions={notePermissions}
                 />
             ),
+        },
+        {
+            key: "marketing",
+            label: "Marketing",
+            children: <LeadMarketingTab lead={lead} />,
         },
     ].map((item) => ({
         ...item,
