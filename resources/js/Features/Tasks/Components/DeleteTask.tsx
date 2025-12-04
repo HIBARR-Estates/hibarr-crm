@@ -16,7 +16,7 @@ const DeleteTask: React.FC<Props> = ({ task, onClose, open }) => {
         "DELETE",
         () => {
             onClose();
-            router.visit(route("tasks.index"));
+            router.reload();
         }
     );
 
