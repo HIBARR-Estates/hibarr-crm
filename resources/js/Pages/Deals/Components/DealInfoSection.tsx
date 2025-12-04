@@ -15,6 +15,7 @@ import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import UserIndicator from "@/Components/UserIndicator";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import DealDetailsTab from "./DealDetailsTab";
 
 interface Props {
     deal: Deal;
@@ -262,6 +263,11 @@ export default function DealInfoSection({
                     </Descriptions>
                 </div>
             ),
+        },
+        {
+            key: "details",
+            label: "Details",
+            children: <DealDetailsTab deal={deal} />,
         },
         // Custom field categories as tabs
         ...(customFieldCategories || []).map((category) => ({
