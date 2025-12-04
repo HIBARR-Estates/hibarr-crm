@@ -32,7 +32,7 @@ class LeadBoardController extends AccountBaseController
         $this->pageTitle = 'app.deal';
         $this->middleware(function ($request, $next) {
 
-            $hasLeadsModule = in_array('leads', $this->user->modules);
+            $hasLeadsModule = in_array('leads', user_modules());
             if(!$hasLeadsModule){
                 if($request->ajax() || $request->header('X-Inertia')) {
                     return redirect()->back()->with('error', __('messages.permissionDenied'));
