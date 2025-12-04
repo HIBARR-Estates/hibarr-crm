@@ -535,6 +535,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('leadboards/get-stage-slug', [LeadBoardController::class, 'getStageSlug'])->name('leadboards.get_stage_slug');
     Route::post('leadboards/collapseColumn', [LeadBoardController::class, 'collapseColumn'])->name('leadboards.collapse_column');
     Route::post('leadboards/updateIndex', [LeadBoardController::class, 'updateIndex'])->name('leadboards.update_index');
+    Route::get('leadboards/deals', [LeadBoardController::class, 'getBoardDeals'])->name('leadboards.deals');
     Route::get('leadboards/loadMore', [LeadBoardController::class, 'loadMore'])->name('leadboards.load_more');
     Route::resource('leadboards', LeadBoardController::class);
 

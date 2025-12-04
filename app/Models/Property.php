@@ -323,4 +323,9 @@ class Property extends BaseModel
 
         return true;
     }
+
+    public function tasks()
+    {
+        return $this->morphToMany(Task::class, 'taskable');
+    }
 }

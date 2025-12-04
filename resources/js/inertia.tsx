@@ -76,6 +76,7 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "leadboards.store": "/account/leadboards",
         "leadboards.update": "/account/leadboards/{id}",
         "leadboards.destroy": "/account/leadboards/{id}",
+        "leadboards.deals": "/account/leadboards/deals",
         "leadboards.get_stage_slug": "/account/leadboards/get-stage-slug",
         "leadboards.collapse_column": "/account/leadboards/collapseColumn",
         "leadboards.update_index": "/account/leadboards/updateIndex",

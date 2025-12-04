@@ -12,15 +12,9 @@ import {
 } from "./icons";
 import { PageProps as InertiaPageProps, router } from "@inertiajs/core";
 import { AuthType } from "@/Types";
+import SupportWidget from "./SupportWidget";
 
 const { Content, Sider } = Layout;
-
-interface Company {
-    app_name: string;
-    logo_url: string;
-    favicon_url: string;
-    currency_id: number;
-}
 
 interface SidebarPermissions {
     [key: string]: number | string;
@@ -535,6 +529,7 @@ const DashboardLayout: React.FC<{
                     </div>
                 </Content>
             </Layout>
+            <SupportWidget />
         </Layout>
     );
 };

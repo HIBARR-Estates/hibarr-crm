@@ -68,11 +68,30 @@ export interface Deal {
     products?: Product[];
     services?: any[];
     lead_status?: LeadStatus | null;
+    hibarr_fields?: HibarrDealFields | null;
 
     // Custom Fields
     // custom_fields?: Record<string, any>;
     custom_fields_data?: Record<string, any>;
 }
+
+export interface HibarrDealFields {
+    id: number;
+    deal_id: number;
+    interested_in?: string | null;
+    motivation?: string | null;
+    purchase_timeline?: string | null;
+    budget_range?: string | null;
+    strategy_meeting_booked: boolean;
+    downpayment_paid: boolean;
+    inspection_trip_date?: string | null;
+    deposit_confirmation?: string | null;
+    reservation_agreement?: string | null;
+    sales_contract?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
 interface LeadStatus {
     id: number;
     company_id: number;

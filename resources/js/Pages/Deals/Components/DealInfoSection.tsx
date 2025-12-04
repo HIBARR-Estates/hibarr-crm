@@ -15,6 +15,9 @@ import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import UserIndicator from "@/Components/UserIndicator";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import DealDetailsTab from "./DealDetailsTab";
+import TasksTab from "@/Components/TasksTab";
+import { Task } from "@/Types/api/tasks";
 
 interface Props {
     deal: Deal;
@@ -22,6 +25,12 @@ interface Props {
     customFieldCategories: any[];
     fields: any[];
     permissions: Record<string, string>;
+    tasks: Task[];
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    employees: any[];
+    projects: any[];
 }
 
 export default function DealInfoSection({
@@ -30,6 +39,12 @@ export default function DealInfoSection({
     customFieldCategories,
     fields,
     permissions,
+    tasks,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    employees,
+    projects,
 }: Props) {
     const { props } = usePage();
     const user = props.auth.user;
@@ -261,6 +276,26 @@ export default function DealInfoSection({
                         </Descriptions.Item>
                     </Descriptions>
                 </div>
+            ),
+        },
+        {
+            key: "details",
+            label: "Details",
+            children: <DealDetailsTab deal={deal} />,
+        },
+        {
+            key: "tasks",
+            label: "Tasks",
+            children: (
+                <TasksTab
+                    tasks={tasks}
+                    relatedEntity={{ type: "deal", id: deal.id }}
+                    taskCategories={taskCategories}
+                    taskLabels={taskLabels}
+                    taskBoardColumns={taskBoardColumns}
+                    employees={employees}
+                    projects={projects}
+                />
             ),
         },
         // Custom field categories as tabs

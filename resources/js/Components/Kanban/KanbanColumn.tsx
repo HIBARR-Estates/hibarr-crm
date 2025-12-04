@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Deal, PipelineStage } from "@/Types/api/deals";
-import { Button, Dropdown, MenuProps } from "antd";
+import { Button, Dropdown, MenuProps, Spin } from "antd";
 import {
     PlusOutlined,
     MoreOutlined,
@@ -8,6 +8,7 @@ import {
     DeleteOutlined,
     MinusOutlined,
     ExpandAltOutlined,
+    LoadingOutlined,
 } from "@ant-design/icons";
 import DealCard from "./DealCard";
 import { Link } from "@inertiajs/react";
@@ -16,6 +17,8 @@ import {
     SortableContext,
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useApiInfiniteQuery } from "@/lib/api/client/useApiQuery";
+import { useIntersectionObserver } from "@/lib/hooks/useIntersectionObserver";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -39,6 +42,8 @@ interface KanbanColumnProps {
     addLeadPermission: string;
     canDelete?: boolean;
     draggingEnabled?: boolean;
+    filters?: Record<string, any>;
+    onDealsLoaded?: (columnId: number, deals: Deal[]) => void;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -52,6 +57,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     addLeadPermission,
     canDelete = true,
     draggingEnabled = true,
+    filters,
+    onDealsLoaded,
 }) => {
     const isCollapsed = column.userSetting?.collapsed || false;
 
@@ -59,6 +66,45 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     const { setNodeRef, isOver } = useDroppable({
         id: column.id.toString(),
     });
+
+    const { ref: loadMoreRef, isIntersecting } = useIntersectionObserver();
+
+    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+        useApiInfiniteQuery<{
+            status: string;
+            data: {
+                deals: {
+                    data: Deal[];
+                    next_page_url: string | null;
+                    current_page: number;
+                };
+            };
+        }>({
+            path: route("leadboards.deals"),
+            params: {
+                pipeline_stage_id: column.id,
+                ...filters,
+            },
+            getNextPageParam: (lastPage) => {
+                if (lastPage?.data?.deals?.next_page_url) {
+                    return lastPage.data.deals.current_page + 1;
+                }
+                return undefined;
+            },
+        });
+
+    useEffect(() => {
+        if (isIntersecting && hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+        }
+    }, [isIntersecting, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+    useEffect(() => {
+        if (data && onDealsLoaded) {
+            const allDeals = data.pages.flatMap((page) => page.data.deals.data);
+            onDealsLoaded(column.id, allDeals);
+        }
+    }, [data, column.id, onDealsLoaded]);
 
     const formatCurrency = (amount: number) => {
         return `$${amount.toLocaleString()}`;
@@ -237,18 +283,23 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                     </SortableContext>
                 </div>
 
-                {/* Load More */}
-                {column.deals_count > column.deals.length && onLoadMore && (
-                    <div className="flex justify-center m-3">
-                        <Button
-                            type="link"
-                            onClick={() => onLoadMore(column.id)}
-                            className="text-sm text-gray-600"
-                        >
-                            Load More
-                        </Button>
-                    </div>
-                )}
+                {/* Load More / Infinite Scroll Sentinel */}
+                <div
+                    ref={loadMoreRef}
+                    className="h-4 flex justify-center items-center mt-2"
+                >
+                    {(isFetchingNextPage ||
+                        (isLoading && column.deals.length === 0)) && (
+                        <Spin
+                            indicator={
+                                <LoadingOutlined
+                                    style={{ fontSize: 24 }}
+                                    spin
+                                />
+                            }
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );

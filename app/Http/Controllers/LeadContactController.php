@@ -228,7 +228,8 @@ class LeadContactController extends AccountBaseController
             'addedBy',
             'leadSource:id,type',
             'category:id,category_name',
-            'client:id,name,email'
+            'client:id,name,email',
+            'marketing'
         ])->findOrFail($id)->withCustomFields();
 
         $leadRules = [
@@ -329,6 +330,18 @@ class LeadContactController extends AccountBaseController
             'delete_lead_note' => user()->permission('delete_lead_note'),
         ];
 
+        // Get tasks
+        $tasks = $this->leadContact->tasks()
+            ->with(['users', 'category', 'boardColumn', 'labels'])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        // Get task metadata for modal
+        $taskCategories = \App\Models\TaskCategory::all();
+        $taskLabels = \App\Models\TaskLabelList::all();
+        $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
+        $projects = \App\Models\Project::all();
+
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
             'fields' => $formData['customFields'],
@@ -338,6 +351,11 @@ class LeadContactController extends AccountBaseController
             'notes' => $notes,
             'dealPermissions' => $dealPermissions,
             'notePermissions' => $notePermissions,
+            'tasks' => $tasks,
+            'taskCategories' => $taskCategories,
+            'taskLabels' => $taskLabels,
+            'taskBoardColumns' => $taskBoardColumns,
+            'projects' => $projects,
         ], $formData, $dealFormData));
     }
 
