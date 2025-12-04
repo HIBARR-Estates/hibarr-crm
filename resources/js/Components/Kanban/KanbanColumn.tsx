@@ -70,19 +70,23 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     const { ref: loadMoreRef, isIntersecting } = useIntersectionObserver();
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-        useApiInfiniteQuery<{
-            status: string;
-            data: {
-                deals: {
-                    data: Deal[];
-                    next_page_url: string | null;
-                    current_page: number;
+        useApiInfiniteQuery<
+            {
+                status: string;
+                data: {
+                    deals: {
+                        data: Deal[];
+                        next_page_url: string | null;
+                        current_page: number;
+                    };
                 };
-            };
-        }>({
+            },
+            { pipeline_stage_id?: number; page: number }
+        >({
             path: route("leadboards.deals"),
             params: {
                 pipeline_stage_id: column.id,
+                page: 1,
                 ...filters,
             },
             getNextPageParam: (lastPage) => {
