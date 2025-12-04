@@ -63,6 +63,11 @@ const Show: React.FC<LeadShowProps> = ({
                     fields={fields}
                     editLeadPermission={editLeadPermission}
                     deleteLeadPermission={deleteLeadPermission}
+                    taskCategories={taskCategories}
+                    taskLabels={taskLabels}
+                    taskBoardColumns={taskBoardColumns}
+                    employees={employees}
+                    projects={projects}
                 />
             ),
         },

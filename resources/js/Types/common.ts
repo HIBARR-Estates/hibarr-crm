@@ -17,7 +17,8 @@ export type TGenericEntityAction =
     | "duplicate"
     | "quick_update"
     | "update"
-    | "add_file";
+    | "add_file"
+    | "add_task";
 
 export interface IModalProps {
     open: boolean;
