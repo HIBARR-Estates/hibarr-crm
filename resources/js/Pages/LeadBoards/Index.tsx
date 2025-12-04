@@ -284,6 +284,7 @@ const LeadBoardIndex = ({
                                     onEditColumn={handleEditColumn}
                                     onDeleteColumn={handleDeleteColumn}
                                     onColumnsUpdate={handleColumnsUpdate}
+                                    filters={filters}
                                 />
                             </div>
                         </div>

@@ -44,6 +44,7 @@ interface KanbanBoardProps {
     onLoadMore?: (columnId: number) => void;
     onColumnsUpdate?: (columns: BoardColumn[]) => void;
     draggingEnabled?: boolean;
+    filters?: Record<string, any>;
 }
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -56,6 +57,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     onLoadMore,
     onColumnsUpdate,
     draggingEnabled = false,
+    filters,
 }) => {
     const [columns, setColumns] = useState<BoardColumn[]>(initialColumns);
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -65,6 +67,27 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     React.useEffect(() => {
         setColumns(initialColumns);
     }, [initialColumns]);
+
+    const handleDealsLoaded = useCallback((columnId: number, deals: Deal[]) => {
+        setColumns((prev) =>
+            prev.map((col) => {
+                if (col.id === columnId) {
+                    // Simple check to avoid infinite loops if the deals are identical
+                    if (
+                        col.deals.length === deals.length &&
+                        col.deals.every((d, i) => d.id === deals[i].id)
+                    ) {
+                        return col;
+                    }
+                    return {
+                        ...col,
+                        deals: deals,
+                    };
+                }
+                return col;
+            })
+        );
+    }, []);
 
     // API Mutations
     const { mutate: updateDealPosition } = useApiMutate(
@@ -329,6 +352,8 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             onLoadMore={onLoadMore}
                             addLeadPermission={addLeadPermission}
                             draggingEnabled={draggingEnabled}
+                            filters={filters}
+                            onDealsLoaded={handleDealsLoaded}
                             canDelete={
                                 !column.default &&
                                 column.slug !== "generated" &&
