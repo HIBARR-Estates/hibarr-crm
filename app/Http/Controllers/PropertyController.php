@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Property;
 use App\Models\Product;
+use App\Models\User;
 use App\Http\Requests\Property\StoreRequest;
 use App\Http\Requests\Property\UpdateRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
