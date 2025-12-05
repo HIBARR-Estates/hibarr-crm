@@ -52,7 +52,7 @@ class LeadContactController extends AccountBaseController
         parent::__construct();
         $this->pageTitle = 'modules.leadContact.leadContacts';
         $this->middleware(function ($request, $next) {
-            if (!in_array('leads', $this->user->modules)) {
+            if (!in_array('leads', user_modules())) {
                 if ($request->ajax() || $request->header('X-Inertia')) {
                     return redirect()->back()->with('error', __('messages.permissionDenied'));
                 }
