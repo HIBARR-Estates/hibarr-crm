@@ -222,6 +222,12 @@ export default function Show({
                                             consents={consents}
                                             gdprSetting={gdprSetting}
                                             permissions={permissions}
+                                            tasks={tasks}
+                                            taskCategories={taskCategories}
+                                            taskLabels={taskLabels}
+                                            taskBoardColumns={taskBoardColumns}
+                                            employees={employees}
+                                            projects={projects}
                                         />
                                     </Card>
                                 </div>

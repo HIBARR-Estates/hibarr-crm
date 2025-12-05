@@ -18,6 +18,8 @@ import AddFollowup from "./Tabs/followups/AddFollowup";
 import FileUpload from "./Tabs/files/FileUpload";
 import AddProposal from "./Tabs/proposals/AddProposal";
 import SaveProposal from "./Tabs/proposals/SaveProposal";
+import TasksTab from "@/Components/TasksTab";
+import { Task } from "@/Types/api/tasks";
 
 interface Props {
     deal: Deal;
@@ -30,6 +32,12 @@ interface Props {
     consents: any[];
     gdprSetting: any;
     permissions: Record<string, string>;
+    tasks: Task[];
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    employees: any[];
+    projects: any[];
 }
 
 export default function DealTabs({
@@ -43,6 +51,12 @@ export default function DealTabs({
     consents,
     gdprSetting,
     permissions,
+    tasks,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    employees,
+    projects,
 }: Props) {
     const [activeTab, setActiveTab] = useState("notes");
 
@@ -66,6 +80,23 @@ export default function DealTabs({
                 ),
             });
         }
+
+        // Tasks Tab
+        items.push({
+            key: "tasks",
+            label: "Tasks",
+            children: (
+                <TasksTab
+                    tasks={tasks}
+                    relatedEntity={{ type: "deal", id: deal.id }}
+                    taskCategories={taskCategories}
+                    taskLabels={taskLabels}
+                    taskBoardColumns={taskBoardColumns}
+                    employees={employees}
+                    projects={projects}
+                />
+            ),
+        });
 
         // Follow-up Tab
         if (permissions.view_lead_follow_up !== "none") {

@@ -6,6 +6,7 @@ import {
     PhoneOutlined,
     EditOutlined,
     DeleteOutlined,
+    CheckSquareOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -16,7 +17,7 @@ import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import UserIndicator from "@/Components/UserIndicator";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import DealDetailsTab from "./DealDetailsTab";
-import TasksTab from "@/Components/TasksTab";
+import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import { Task } from "@/Types/api/tasks";
 
 interface Props {
@@ -74,6 +75,14 @@ export default function DealInfoSection({
 
     // Action menu items
     const actionItems = [
+        {
+            key: "add_task",
+            tooltip: "Add Task",
+            type: "text" as const,
+            icon: <CheckSquareOutlined />,
+            label: <span>Add Task</span>,
+            onClick: () => handleAction("add_task"),
+        },
         {
             key: "edit",
             icon: <EditOutlined />,
@@ -283,21 +292,6 @@ export default function DealInfoSection({
             label: "Details",
             children: <DealDetailsTab deal={deal} />,
         },
-        {
-            key: "tasks",
-            label: "Tasks",
-            children: (
-                <TasksTab
-                    tasks={tasks}
-                    relatedEntity={{ type: "deal", id: deal.id }}
-                    taskCategories={taskCategories}
-                    taskLabels={taskLabels}
-                    taskBoardColumns={taskBoardColumns}
-                    employees={employees}
-                    projects={projects}
-                />
-            ),
-        },
         // Custom field categories as tabs
         ...(customFieldCategories || []).map((category) => ({
             key: `category-${category.id}`,
@@ -324,6 +318,16 @@ export default function DealInfoSection({
                 setDeal={(deal) => {
                     console.log("Deal updated:", deal);
                 }}
+            />
+            <SaveTaskModal
+                open={action === "add_task"}
+                onClose={handleClose}
+                categories={taskCategories}
+                labels={taskLabels}
+                columns={taskBoardColumns}
+                users={employees}
+                projects={projects}
+                relatedEntity={{ type: "deal", id: deal.id }}
             />
 
             <DeleteDeal
