@@ -640,7 +640,7 @@ class LeadBoardController extends AccountBaseController
             PermissionService::applyScope($leads, user(), 'view_deals', $dealRules);
 
             // Calculate total value for the stage (all pages)
-            $statusTotalValue = Deal::query()->fromSub($leads, 'sub_deals')->sum('value');
+            $statusTotalValue = Deal::withoutGlobalScopes()->fromSub($leads, 'sub_deals')->sum('value');
             $result['boardColumns'][$key]['total_value'] = $statusTotalValue;
 
             // Return empty deals to force client-side fetch (Infinite Scroll)
