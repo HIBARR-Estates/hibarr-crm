@@ -92,6 +92,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 }
                 return undefined;
             },
+            options: {
+                staleTime: 1000 * 60 * 5, // 5 minutes
+            },
         });
 
     useEffect(() => {
@@ -105,7 +108,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             const allDeals = data?.pages?.flatMap((page) => page?.deals?.data);
             onDealsLoaded(column.id, allDeals);
         }
-    }, [data, column.id, onDealsLoaded]);
+    }, [data, column, onDealsLoaded]);
 
     const formatCurrency = (amount: number) => {
         return `$${amount.toLocaleString()}`;
