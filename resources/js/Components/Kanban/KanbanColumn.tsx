@@ -72,13 +72,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
         useApiInfiniteQuery<
             {
-                status: string;
-                data: {
-                    deals: {
-                        data: Deal[];
-                        next_page_url: string | null;
-                        current_page: number;
-                    };
+                deals: {
+                    data: Deal[];
+                    next_page_url: string | null;
+                    current_page: number;
                 };
             },
             { pipeline_stage_id?: number; page: number }
@@ -90,8 +87,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 ...filters,
             },
             getNextPageParam: (lastPage) => {
-                if (lastPage?.data?.deals?.next_page_url) {
-                    return lastPage.data.deals.current_page + 1;
+                if (lastPage?.deals?.next_page_url) {
+                    return lastPage.deals.current_page + 1;
                 }
                 return undefined;
             },
@@ -105,7 +102,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
     useEffect(() => {
         if (data && onDealsLoaded) {
-            const allDeals = data.pages.flatMap((page) => page.data.deals.data);
+            const allDeals = data?.pages?.flatMap((page) => page?.deals?.data);
             onDealsLoaded(column.id, allDeals);
         }
     }, [data, column.id, onDealsLoaded]);
