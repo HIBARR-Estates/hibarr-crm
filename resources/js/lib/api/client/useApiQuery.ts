@@ -70,11 +70,22 @@ export const useApiInfiniteQuery = <
         allPages: QueryResponse[]
     ) => unknown;
     initialPageParam?: number;
+    options?: Partial<{
+        staleTime: number;
+        cacheTime: number;
+        refetchOnWindowFocus: boolean;
+    }>;
 }) => {
     const { props } = usePage();
     const { auth } = props;
 
-    const { params, path, getNextPageParam, initialPageParam = 1 } = input;
+    const {
+        params,
+        path,
+        getNextPageParam,
+        initialPageParam = 1,
+        options,
+    } = input;
 
     const queryData = useInfiniteQuery({
         queryKey: [path, params],
@@ -88,6 +99,8 @@ export const useApiInfiniteQuery = <
         },
         getNextPageParam,
         initialPageParam,
+
+        ...options,
     });
 
     return queryData;
