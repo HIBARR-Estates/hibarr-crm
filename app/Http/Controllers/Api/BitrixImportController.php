@@ -226,8 +226,12 @@ class BitrixImportController extends Controller
                     }
                     
                     // Set authenticated user for the observer to work properly
+                    // Always reset auth state for each comment to prevent cross-contamination
                     if ($authorUser) {
                         auth()->setUser($authorUser);
+                    } else {
+                        // Clear auth state if no author found to prevent using previous iteration's user
+                        auth()->logout();
                     }
                     
                     // Build the comment details with attachments as rich text links
