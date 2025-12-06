@@ -675,6 +675,26 @@ class TaskController extends AccountBaseController
 
         $task->labels()->sync($request->task_labels);
 
+        // Attach polymorphic relation if provided
+        if ($request->has('taskable_type') && $request->has('taskable_id')) {
+            $type = $request->taskable_type;
+            $id = $request->taskable_id;
+            
+            $modelClass = null;
+            switch(strtolower($type)) {
+                case 'deal': $modelClass = \App\Models\Deal::class; break;
+                case 'lead': $modelClass = \App\Models\Lead::class; break;
+                case 'property': $modelClass = \App\Models\Property::class; break;
+            }
+            
+            if ($modelClass) {
+                $entity = $modelClass::find($id);
+                if ($entity) {
+                    $entity->tasks()->syncWithoutDetaching([$task->id]);
+                }
+            }
+        }
+
 
         if (!is_null($request->taskId)) {
 

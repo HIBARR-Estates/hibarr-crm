@@ -6,6 +6,7 @@ import {
     PhoneOutlined,
     EditOutlined,
     DeleteOutlined,
+    CheckSquareOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -15,6 +16,9 @@ import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import UserIndicator from "@/Components/UserIndicator";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import DealDetailsTab from "./DealDetailsTab";
+import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
+import { Task } from "@/Types/api/tasks";
 
 interface Props {
     deal: Deal;
@@ -22,6 +26,12 @@ interface Props {
     customFieldCategories: any[];
     fields: any[];
     permissions: Record<string, string>;
+    tasks: Task[];
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    employees: any[];
+    projects: any[];
 }
 
 export default function DealInfoSection({
@@ -30,6 +40,12 @@ export default function DealInfoSection({
     customFieldCategories,
     fields,
     permissions,
+    tasks,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    employees,
+    projects,
 }: Props) {
     const { props } = usePage();
     const user = props.auth.user;
@@ -59,6 +75,14 @@ export default function DealInfoSection({
 
     // Action menu items
     const actionItems = [
+        {
+            key: "add_task",
+            tooltip: "Add Task",
+            type: "text" as const,
+            icon: <CheckSquareOutlined />,
+            label: <span>Add Task</span>,
+            onClick: () => handleAction("add_task"),
+        },
         {
             key: "edit",
             icon: <EditOutlined />,
@@ -263,6 +287,11 @@ export default function DealInfoSection({
                 </div>
             ),
         },
+        {
+            key: "details",
+            label: "Details",
+            children: <DealDetailsTab deal={deal} />,
+        },
         // Custom field categories as tabs
         ...(customFieldCategories || []).map((category) => ({
             key: `category-${category.id}`,
@@ -289,6 +318,16 @@ export default function DealInfoSection({
                 setDeal={(deal) => {
                     console.log("Deal updated:", deal);
                 }}
+            />
+            <SaveTaskModal
+                open={action === "add_task"}
+                onClose={handleClose}
+                categories={taskCategories}
+                labels={taskLabels}
+                columns={taskBoardColumns}
+                users={employees}
+                projects={projects}
+                relatedEntity={{ type: "deal", id: deal.id }}
             />
 
             <DeleteDeal
