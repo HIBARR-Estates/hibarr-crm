@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Http\Controllers\Controller;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
+use App\Models\DealNote;
 use App\Models\EmployeeDetails;
 use App\Models\HibarrDealFields;
 use App\Models\Lead;
@@ -169,6 +170,192 @@ class BitrixImportController extends Controller
             'contact_id' => $result['lead']->id,
             'responsible_user_id' => optional($result['responsible_user'])->id,
             'is_new_deal' => $result['is_new_deal'],
+        ]);
+    }
+
+    public function commentStore(Request $request)
+    {
+        $companyId = $request->header('X-COMPANY-ID');
+        $bitrixDealId = $request->input('deal_id');
+        $comments = $request->input('comments', []);
+        
+        if (!$bitrixDealId) {
+            return Reply::error('Deal ID is required.');
+        }
+        
+        try {
+            $result = DB::transaction(function () use ($bitrixDealId, $comments, $companyId) {
+                // Find the deal by bitrix_id
+                $deal = Deal::withoutGlobalScopes()
+                    ->where('company_id', $companyId)
+                    ->where('bitrix_id', $bitrixDealId)
+                    ->first();
+                
+                if (!$deal) {
+                    throw new \RuntimeException('Deal not found with Bitrix ID: ' . $bitrixDealId);
+                }
+                
+                $notesCreated = 0;
+                
+                // Create a note for each comment
+                foreach ($comments as $commentData) {
+                    $authorEmail = trim((string) Arr::get($commentData, 'author_email', ''));
+                    $title = trim((string) Arr::get($commentData, 'title', 'Bitrix Comment'));
+                    $comment = Arr::get($commentData, 'comment', '');
+                    $createdDate = Arr::get($commentData, 'created_date');
+                    $attachments = Arr::get($commentData, 'attachments', []);
+                    
+                    // Convert comment to string and trim
+                    if (is_string($comment)) {
+                        $comment = trim($comment);
+                    } else {
+                        $comment = '';
+                    }
+                    
+                    if ($comment === '') {
+                        continue; // Skip empty comments
+                    }
+                    
+                    // Resolve the author user if email is provided
+                    $authorUser = null;
+                    if ($authorEmail !== '') {
+                        $authorUser = User::withoutGlobalScopes()
+                            ->where('company_id', $companyId)
+                            ->where('email', $authorEmail)
+                            ->first();
+                    }
+                    
+                    // Set authenticated user for the observer to work properly
+                    // Always reset auth state for each comment to prevent cross-contamination
+                    if ($authorUser) {
+                        auth()->setUser($authorUser);
+                    } else {
+                        // Clear auth state if no author found to prevent using previous iteration's user
+                        auth()->logout();
+                    }
+                    
+                    // Build the comment details with attachments as rich text links
+                    $details = nl2br(htmlspecialchars($comment, ENT_QUOTES, 'UTF-8'), false);
+                    if (!empty($attachments) && is_array($attachments)) {
+                        foreach ($attachments as $attachment) {
+                            $attachmentUrl = '';
+                            $linkText = '';
+                            
+                            // Handle object/array attachments with url and filename
+                            if (is_array($attachment) || is_object($attachment)) {
+                                $attachmentArray = (array) $attachment;
+                                $attachmentUrl = Arr::get($attachmentArray, 'url', '');
+                                $linkText = Arr::get($attachmentArray, 'filename', '');
+                                
+                                // If no filename provided, try to extract from URL
+                                if (empty($linkText) && !empty($attachmentUrl)) {
+                                    $parsedUrl = parse_url($attachmentUrl);
+                                    if (isset($parsedUrl['path'])) {
+                                        $filename = basename($parsedUrl['path']);
+                                        if ($filename && $filename !== '/') {
+                                            $linkText = $filename;
+                                        }
+                                    }
+                                }
+                                
+                                // Fallback to URL if no filename found
+                                if (empty($linkText)) {
+                                    $linkText = $attachmentUrl;
+                                }
+                            } 
+                            // Handle string attachments (backward compatibility)
+                            elseif (is_string($attachment)) {
+                                $attachmentUrl = $attachment;
+                                $linkText = $attachmentUrl;
+                                
+                                // Try to extract filename from URL
+                                $parsedUrl = parse_url($attachment);
+                                if (isset($parsedUrl['path'])) {
+                                    $filename = basename($parsedUrl['path']);
+                                    if ($filename && $filename !== '/') {
+                                        $linkText = $filename;
+                                    }
+                                }
+                            } else {
+                                // Skip invalid attachment types
+                                continue;
+                            }
+                            
+                            // Only add link if we have a valid URL
+                            if (!empty($attachmentUrl)) {
+                                $attachmentUrl = htmlspecialchars($attachmentUrl, ENT_QUOTES, 'UTF-8');
+                                $linkText = htmlspecialchars($linkText, ENT_QUOTES, 'UTF-8');
+                                $details .= "<br><a href=\"{$attachmentUrl}\" target=\"_blank\" rel=\"noopener noreferrer\">{$linkText}</a>";
+                            }
+                        }
+                    }
+
+                    $details = "<p>" . $details . "</p>";
+                    
+                    // Check if a note with the same title and details already exists for this deal
+                    $existingNote = DealNote::withoutGlobalScopes()
+                        ->where('deal_id', $deal->id)
+                        ->where('title', $title)
+                        ->where('details', $details)
+                        ->first();
+                    
+                    if ($existingNote) {
+                        // Note already exists, skip creation
+                        continue;
+                    }
+                    
+                    $note = new DealNote();
+                    $note->deal_id = $deal->id;
+                    $note->title = $title;
+                    $note->details = $details;
+                    
+                    // Override added_by if we have an author
+                    if ($authorUser) {
+                        $note->added_by = $authorUser->id;
+                        $note->last_updated_by = $authorUser->id;
+                    }
+                    
+                    $note->saveQuietly();
+                    
+                    // Set the created_at timestamp if provided
+                    if ($createdDate) {
+                        try {
+                            $parsedDate = Carbon::parse($createdDate);
+                            $note->created_at = $parsedDate;
+                            $note->saveQuietly();
+                        } catch (\Exception $e) {
+                            Log::warning('Bitrix import: Invalid date format for comment', [
+                                'created_date' => $createdDate,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+                    
+                    $notesCreated++;
+                }
+                
+                return [
+                    'deal_id' => $deal->id,
+                    'notes_created' => $notesCreated,
+                ];
+            });
+        } catch (\Exception $e) {
+            $this->logoutIfAuthenticated();
+            
+            Log::error('Bitrix import: Failed to create comments', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+            ]);
+            
+            return Reply::error('Comment creation failed: ' . $e->getMessage());
+        }
+        
+        $this->logoutIfAuthenticated();
+        
+        return Reply::successWithData('Comments synced successfully.', [
+            'deal_id' => $result['deal_id'],
+            'notes_created' => $result['notes_created'],
         ]);
     }
 
