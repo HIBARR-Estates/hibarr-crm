@@ -22,6 +22,7 @@ interface PropertyViewProps {
     property: Property;
     onEdit?: () => void;
     onShare?: () => void;
+    onGenerateExpose?: () => void;
     canEdit?: boolean;
     tasks: Task[];
     taskCategories: any[];
@@ -35,6 +36,7 @@ export default function PropertyView({
     property,
     onEdit,
     onShare,
+    onGenerateExpose,
     canEdit = false,
     tasks,
     taskCategories,
@@ -60,6 +62,7 @@ export default function PropertyView({
                 property={property}
                 onEdit={onEdit}
                 onShare={onShare}
+                onGenerateExpose={onGenerateExpose}
                 canEdit={canEdit}
             />
 

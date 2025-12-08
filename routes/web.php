@@ -949,10 +949,11 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::post('properties/{property}/video', [App\Http\Controllers\PropertyController::class, 'updateVideo'])->name('properties.update_video');
     Route::post('properties/{property}/360-tour', [App\Http\Controllers\PropertyController::class, 'update360Tour'])->name('properties.update_360_tour');
     Route::delete('properties/{property}/assets', [App\Http\Controllers\PropertyController::class, 'deleteAssets'])->name('properties.delete_assets');
-    
-    Route::resource('properties', App\Http\Controllers\PropertyController::class);
 
-    Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
+    Route::post('properties/{id}/expose/validate', [App\Http\Controllers\PropertyController::class, 'validateExpose'])->name('properties.expose.validate');
+    Route::post('properties/{id}/expose/generate', [App\Http\Controllers\PropertyController::class, 'generateExpose'])->name('properties.expose.generate');
+
+    Route::resource('properties', App\Http\Controllers\PropertyController::class);    Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);
 
     // Test Activity Response Trait Routes

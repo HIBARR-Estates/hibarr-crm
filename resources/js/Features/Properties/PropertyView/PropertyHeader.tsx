@@ -6,6 +6,7 @@ import {
     EnvironmentOutlined,
     HomeOutlined,
     DollarOutlined,
+    FilePdfOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { getStatusColor, formatCurrency } from "@/lib/utils";
@@ -16,6 +17,7 @@ interface PropertyHeaderProps {
     property: Property;
     onEdit?: () => void;
     onShare?: () => void;
+    onGenerateExpose?: () => void;
     canEdit?: boolean;
 }
 
@@ -23,6 +25,7 @@ function PropertyHeader({
     property,
     onEdit,
     onShare,
+    onGenerateExpose,
     canEdit = false,
 }: PropertyHeaderProps) {
     return (
@@ -71,6 +74,14 @@ function PropertyHeader({
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {onGenerateExpose && (
+                        <Button
+                            icon={<FilePdfOutlined />}
+                            onClick={onGenerateExpose}
+                        >
+                            Generate Expose
+                        </Button>
+                    )}
                     {canEdit && (
                         <Button
                             type="primary"

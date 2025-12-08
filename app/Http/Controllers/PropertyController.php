@@ -20,6 +20,8 @@ use Maatwebsite\Excel\Excel;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Helper\Files;
+use App\Services\PdfExpose\ExposeGeneratorService;
+use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 
 
 class PropertyController extends AccountBaseController
@@ -32,7 +34,7 @@ class PropertyController extends AccountBaseController
     private $editPropertyPermission;
     private $deletePropertyPermission;
 
-    public function __construct(Excel $excel)
+    public function __construct(Excel $excel, private ExposeGeneratorService $exposeService)
     {
         $this->excel = $excel;
         parent::__construct();
@@ -1121,5 +1123,29 @@ class PropertyController extends AccountBaseController
         $filename = 'properties-export-' . now()->format('Y-m-d-H-i-s') . '.xlsx';
         
         return $this->excel->download($export, $filename);
+    }
+
+    public function validateExpose($id)
+    {
+        $property = Property::with(['product.addedBy'])->findOrFail($id);
+        
+        // Create default config for validation
+        $config = ExposeConfiguration::fromProperty($property, 'vertical_standard');
+        
+        $warnings = $this->exposeService->checkWarnings($config);
+        
+        return Reply::dataOnly(['warnings' => $warnings]);
+    }
+
+    public function generateExpose(Request $request, $id)
+    {
+        $property = Property::with(['product.addedBy'])->findOrFail($id);
+        $layout = $request->input('layout', 'vertical_standard');
+        
+        $config = ExposeConfiguration::fromProperty($property, $layout);
+        
+        $result = $this->exposeService->generate($config);
+        
+        return response()->download(storage_path('app/' . $result['pdf']));
     }
 }
