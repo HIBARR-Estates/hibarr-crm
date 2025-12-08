@@ -37,6 +37,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
         //Import routes
         ApiRoute::post('bitrix/import', ['as' => 'api.bitrix.import', 'uses' => 'Api\BitrixImportController@store']);
+        ApiRoute::post('bitrix/comments/import', ['as' => 'api.bitrix.comments.import', 'uses' => 'Api\BitrixImportController@commentStore']);
 
         
         // External Events Routes
