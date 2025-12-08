@@ -1,86 +1,38 @@
-# Makefile for deploying WorkSuite CRM
-# ------------------------------------
+name: Deploy WorkSuite CRM
 
-# Paths
-PROJECT_DIR := $(HOME)/hibarr-crm
-PROJECT_DIR_STAGING := $(HOME)/hibarr-crm-staging
-WEBROOT := /var/www/html
+on:
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
 
-# Common excludes for rsync
-RSYNC_EXCLUDES := \
-    --exclude 'public/user-uploads' \
-    --exclude 'public/favicon.ico' \
-    --exclude 'storage/app/modules_statuses.json' \
-    --exclude 'Modules' \
-    --exclude '.env' \
-    --exclude 'public/js' \
-    --exclude 'public/css' \
-    --exclude 'public/build' \
-    --exclude 'public/mix-manifest.json'
+jobs:
+  deploy-staging:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-22.04
 
-# ------------------------------------
-# Branch management helpers
-# ------------------------------------
+    steps:
+      - name: Run deployment via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGIN_SSH_PRIVATE_KEY }}
+          port: 2244
+          script: |
+            cd ~/hibarr-crm-staging
+            make deploy-staging
 
-checkout-branch:
-	@echo "Switching to branch: $(BRANCH)"
-	git fetch origin
-	git checkout -f $(BRANCH) || git checkout -b $(BRANCH) origin/$(BRANCH)
-	git clean -fd
+  deploy-production:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
 
-reset-and-pull:
-	@echo "Resetting and pulling latest changes from $(BRANCH)"
-	git fetch origin
-	git reset --hard origin/$(BRANCH)
-	git clean -fd
-
-reset-repo:
-	git restore --staged .
-	git restore .
-	git clean -fd
-
-
-
-# ------------------------------------
-# Generic tasks
-# ------------------------------------
-
-sync-to-webroot:
-	rsync -av $(RSYNC_EXCLUDES) ./ $(WEBROOT)
-
-composer-install:
-	composer install --no-interaction --prefer-dist --optimize-autoloader
-
-npm-build:
-	npm install
-	npm run production
-
-migrate:
-	php artisan migrate --force
-
-queue-restart:
-	php artisan queue:restart
-
-# ------------------------------------
-# Deployment targets
-# ------------------------------------
-
-deploy-staging:
-	cd $(PROJECT_DIR_STAGING) && \
-	$(MAKE) reset-repo && \
-	git pull origin staging && \
-	$(MAKE) sync-to-webroot && \
-	cd $(WEBROOT) && \
-	$(MAKE) composer-install && \
-	$(MAKE) npm-build && \
-	$(MAKE) migrate && \
-	$(MAKE) queue-restart
-
-deploy-production:
-	cd $(WEBROOT) && \
-	$(MAKE) checkout-branch BRANCH=main && \
-	$(MAKE) reset-and-pull BRANCH=main && \
-	$(MAKE) composer-install && \
-	$(MAKE) npm-build && \
-	$(MAKE) migrate && \
-	$(MAKE) queue-restart
+    steps:
+      - name: Run deployment via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST_2 }}
+          username: ${{ secrets.REMOTE_USER_2 }}
+          key: ${{ secrets.SSH_PRIVATE_KEY_2 }}
+          script: |
+            cd ~/hibarr-crm
+            make deploy-production
