@@ -51,6 +51,7 @@ class DatabaseSeeder extends Seeder
                 $this->call(LeadSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(TaxTableSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(ProductTableSeeder::class, false, ['companyId' => $company->id]);
+                $this->call(PropertySeeder::class, false, ['companyId' => $company->id]);
                 $this->call(ContractTypeTableSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(ContractTableSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(LeadsTableSeeder::class, false, ['companyId' => $company->id]);
@@ -61,6 +62,10 @@ class DatabaseSeeder extends Seeder
             }
 
             $this->call(EmployeePermissionSeeder::class, false, ['companyId' => $company->id]);
+            $this->call(MeetingTypeSeeder::class, false, ['companyId' => $company->id]);
+            // property fixes
+            $this->call(PackageSeeder::class, false, ['companyId' => $company->id]);
+            $this->call(PropertyProductSeeder::class, false, ['companyId' => $company->id]);
         }
 
         if (!App::environment('codecanyon')) {

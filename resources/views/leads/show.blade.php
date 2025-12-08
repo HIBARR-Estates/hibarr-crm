@@ -24,22 +24,26 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                 <i class="fa fa-times"></i>
             </a>
             <x-tab :href="route('deals.show', $deal->id)" :text="__('modules.projects.overview')" class="profile" />
-            @if($viewLeadFilePermission != 'none')
-                <x-tab :href="route('deals.show', $deal->id).'?tab=files'" :text="__('modules.lead.file')" class="files" ajax="false"/>
+            @if ($viewClientNote != 'none')
+                <x-tab :href="route('deals.show', $deal->id).'?tab=notes'" ajax="false" :text="__('app.notes')" class="notes" />
             @endif
+
             @if($viewLeadFollowupPermission != 'none')
                 <x-tab :href="route('deals.show', $deal->id).'?tab=follow-up'" :text="__('modules.lead.followUp')" class="follow-up" ajax="false" />
             @endif
+            @if($viewLeadFilePermission != 'none')
+                <x-tab :href="route('deals.show', $deal->id).'?tab=files'" :text="__('modules.lead.file')" class="files" ajax="false"/>
+            @endif
             @if($viewProposalPermission != 'none')
                 <x-tab :href="route('deals.show', $deal->id).'?tab=proposals'" :text="__('modules.lead.proposal')" class="proposals" ajax="false" />
-            @endif
-            @if ($viewClientNote != 'none')
-                <x-tab :href="route('deals.show', $deal->id).'?tab=notes'" ajax="false" :text="__('app.notes')" class="notes" />
             @endif
 
             @if ($gdpr->enable_gdpr)
                 <x-tab :href="route('deals.show', $deal->id).'?tab=gdpr'" :text="__('app.menu.gdpr')" class="gdpr" ajax="false" />
             @endif
+
+            <x-tab :href="route('deals.show', $deal->id).'?tab=marketing'" :text="__('modules.marketing')" class="marketing" ajax="false" />
+
 
             <x-tab :href="route('deals.show', $deal->id).'?tab=history'" :text="__('modules.tasks.history')" class="history" ajax="false" />
         </div>
@@ -89,6 +93,11 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         $('.project-menu .' + activeTab).addClass('active');
 
         $('body').on('click', '#add-files', function() {
+            const url = "{{ route('deal-files.create') }}";
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+        $('body').on('click', '#add-files-no-record', function() {
             const url = "{{ route('deal-files.create') }}";
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);

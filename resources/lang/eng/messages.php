@@ -1,6 +1,8 @@
 <?php
 
 return array(
+    'unsupportedChannel' => 'Unsupported channel type provided.',
+    'invalidChannelRequestSignature' => 'Invalid channel request signature.',
     'attendanceIsMarked' => 'Attendance is marked for the date',
     'autoClockOut' => 'Enter no of hours from the end time after which employee will be auto clocked out. <br><br><b>Example:</b> If shift end time is 6 PM and auto clockout value is 1 then employee will be auto clocked out at 7 PM.<br><br><b>Note</b>: Auto clock out will not work if allow clock-in outside shift hours is checked in attendance settings.',
     'flexibleAutoClockOut' => 'Enter no of hours after which employee will be auto clocked out. <br><br><b>Example:</b> If total shift hours are 8 hours and auto clockout value is 1 then employee will be auto clocked out after 9 Hours.',
@@ -57,6 +59,7 @@ return array(
     'reasonForLeaveRejection' => 'Reason for leave rejection',
     'reasonForLeaveApproval' => 'Reason for leave approval',
     'importSuccess' => 'File imported successfully.',
+    'importError' => 'Issue in importing file. Please check the file and try again. Ensure its populated and not empty.',
     'newFileUploadedToTheProject' => 'New file uploaded to the project.',
     'isAddedAsProjectMember' => 'is added as a project member.',
     'memberRemovedFromProject' => 'Member removed from project successfully.',
@@ -78,6 +81,12 @@ return array(
     'notAnValidLocation' => 'Your current location is not with in the clock-in range',
     'qrDisabled' => 'QR Clock-in feature is disabled for this company.',
     'unAuthorisedUser' => 'You are not a authorised user.',
+    'tokenRevoked' => 'This token has been revoked.',
+    'missingCompanyId' => 'Missing company id.',
+    'processingCommunicationActivity' => 'Communication activity being processed',
+    'communicationActivitiesByChannel' => 'Communication activities by channel',
+    'leadCommunicationActities' => 'Lead communication activities',
+    'dealCommunicationActities' => 'Deal communication activities',
     'updatedProfile' => 'Updated profile.',
     'taskUpdated' => 'Marked the task as ',
     'timerStartedTask' => 'Started the timer for task ',
@@ -569,4 +578,31 @@ return array(
     'SelectaDepartment' => 'Select a current department.',
     'changeWeeklyTimesheetStatusConfirmation' => 'Are you sure you want to change the status of this weekly timesheet?',
     'submitWeeklyTimesheetConfirmation' => 'Are you sure you want to submit this weekly timesheet? You will not be able to edit it later.',
+    
+    // Property-related error messages
+    'fieldCannotBeUpdatedInCurrentStatus' => 'The :field field cannot be updated when the property status is :status.',
+    'cannotUpdatePriceWhenSoldOrUnderOffer' => 'Price cannot be updated when the property is sold or under offer.',
+    'cannotUpdateSaleTypeWhenSoldOrUnderOffer' => 'Sale type cannot be updated when the property is sold or under offer.',
+    'cannotUpdateStatusWhenSold' => 'Status cannot be updated when the property is sold.',
+    // Meeting Link Generation Failed
+    'meetingLinkGenerationFailed' => [
+        'subject' => 'Meeting Link Generation Failed',
+        'error' => 'Error Details',
+        'actionRequired' => 'Please manually generate the meeting link or contact the system administrator.',
+        'action' => 'View Deal'
+    ],
+
+    // Property bulk actions
+    'propertiesAssignedToProject' => ':count properties assigned to project :project successfully.',
+    'propertiesStatusChanged' => ':count properties status changed to :status successfully.',
+    'propertiesDeleted' => ':count properties deleted successfully.',
+    'invalidAction' => 'Invalid action selected.',
+    'somethingWentWrong' => 'Something went wrong. Please try again.',
+
+    // External Event Messages
+    'eventCreated' => 'External event created successfully.',
+    'eventsRetrieved' => 'External events retrieved successfully.',
+    'eventRetrieved' => 'External event retrieved successfully.',
+    'eventNotFound' => 'External event not found.',
+    'missingCompanyId' => 'Missing Company ID in header.',
 );

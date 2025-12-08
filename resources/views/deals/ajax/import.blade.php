@@ -11,16 +11,27 @@
                 </div>
                 <div class="row py-20">
                     <div class="col-md-12">
-                        <x-forms.link-secondary :link="asset('sample-import/deal-sample.xlsx')" icon="download">@lang('app.downloadSampleImport')</x-forms.link-secondary>
+                        <x-forms.link-secondary :link="route('deals.import.download-sample')" icon="download">@lang('app.downloadSampleImport')</x-forms.link-secondary>
 
                         <x-forms.file :fieldLabel="__('modules.import.file')" fieldName="import_file"
                                       fieldId="deal_import"/>
                     </div>
                     <div class="col-md-12">
+                        <x-forms.select fieldId="pipeline_id" :fieldLabel="__('Select Pipeline')"
+                                        fieldName="pipeline_id" search="true">
+                            <option value="">Select pipeline for all deals in this import</option>
+                            @foreach($pipelines as $pipeline)
+                                <option value="{{ $pipeline->id }}">{{ $pipeline->name }}</option>
+                            @endforeach
+                        </x-forms.select>
+                        <small class="form-text text-muted">All deals will be imported to this pipeline. Stage names in your file must match stages in this pipeline.</small>
+                    </div>
+                    <div class="col-md-12">
                         <x-forms.toggle-switch class="mr-0 mr-lg-12"
                                                :fieldLabel="__('modules.import.containsHeadings')"
                                                fieldName="heading"
-                                               fieldId="heading"/>
+                                               fieldId="heading"
+                                               :checked="true"/>
                     </div>
                 </div>
                 <x-form-actions>
@@ -45,9 +56,26 @@
             messages: dropifyMessages
         });
 
-        $('body').on('click', '#import-deal-form', function () {
+        $('#import-deal-form').click(function (e) {
+            e.preventDefault();
+            
+            const $btn = $(this);
+            
+            // Prevent double submission
+            if ($btn.data('loading')) {
+                return false;
+            }
+            
+            $btn.data('loading', true);
             const url = "{{ route('deals.import.store') }}";
-
+            
+            // Get form data
+            let formData = new FormData($('#import-deal-data-form')[0]);
+            
+            // Ensure heading is sent as 1 or 0
+            const headingChecked = $('#heading').is(':checked');
+            formData.set('heading', headingChecked ? '1' : '0');
+            
             $.easyAjax({
                 url: url,
                 container: '#import-deal-data-form',
@@ -56,13 +84,21 @@
                 blockUI: true,
                 buttonSelector: "#import-deal-form",
                 file: true,
-                data: $('#import-deal-data-form').serialize(),
+                data: formData,
+                processData: false,
+                contentType: false,
                 success: function (response) {
+                    $btn.data('loading', false);
                     if (response.status == 'success') {
                         $('#import_table').html(response.view);
                     }
+                },
+                error: function() {
+                    $btn.data('loading', false);
                 }
             });
+            
+            return false;
         });
     });
 </script>

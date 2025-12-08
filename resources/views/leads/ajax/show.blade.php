@@ -6,13 +6,13 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
 
 @endphp
 
-<div id="task-detail-section">
+<div id="task-detail-section" class="deal-show-content">
 
     {{-- <h3 class="heading-h1 mb-3">{{ $deal->name }}</h3> --}}
 
     <div class="row">
         <!--  USER CARDS START -->
-        <div class="col-sm-9 mb-4 mb-xl-0 mb-lg-4 mb-md-0">
+        <div class="col-sm-7 mb-4 mb-xl-0 mb-lg-4 mb-md-0">
 
             <x-cards.data :title="__('modules.deal.dealInfo')">
 
@@ -33,8 +33,8 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                             @if (
                                 $deleteLeadPermission == 'all'
                                 || ($deleteLeadPermission == 'added' && user()->id == $deal->added_by)
-                                || ($deleteLeadPermission == 'owned' && ((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)))
-                                || ($deleteLeadPermission == 'both' &&  (((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || (!is_null($deal->deal_watcher) && user()->id == $deal->deal_watcher)) || user()->id == $deal->added_by))
+                                || ($deleteLeadPermission == 'owned' && ((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)))
+                                || ($deleteLeadPermission == 'both' &&  (((!is_null($deal->agent_id) && user()->id == $deal->leadAgent->user->id) || $deal->dealWatchers->contains('id', user()->id)) || user()->id == $deal->added_by))
                             )
                                 <a class="dropdown-item delete-table-row" href="javascript:;" data-id="{{ $deal->id }}">
                                     @lang('app.delete')
@@ -82,13 +82,17 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         
                         <div class="col-6 px-0 pb-3 d-flex">
                             <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">{{ __('app.dealWatcher') }}</p>
-                            <p class="mb-0 text-dark-grey f-14">
-                                @if (!is_null($deal->dealWatcher))
-                                    <x-employee :user="$deal->dealWatcher"/>
+                            <div class="mb-0 text-dark-grey f-14">
+                                @if ($deal->dealWatchers->isNotEmpty())
+                                    <div class="d-flex flex-column gap-1">
+                                        @foreach ($deal->dealWatchers as $watcher)
+                                            <x-employee :user="$watcher"/>
+                                        @endforeach
+                                    </div>
                                 @else
                                     --
                                 @endif
-                            </p>
+                            </div>
                         </div>
         
                         @if ($deal->leadStatus)
@@ -131,33 +135,88 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
             <div class="bg-additional-grey rounded my-3">
                 <div class="s-b-inner s-b-notifications bg-white b-shadow-4 rounded">
                     <x-tab-section class="deal-tabs">
-                        @if($viewLeadFilePermission != 'none')
-                            <x-tab-item class="ajax-tab files" :active="(request('tab') === 'files' || !request('tab'))"
-                                            :link="route('deals.show', $deal->id).'?tab=files'">@lang('modules.lead.file')</x-tab-item>
-                        @endif
-                        @if($viewLeadFollowupPermission != 'none')
-                            <x-tab-item class="ajax-tab follow-up" :active="request('tab') === 'follow-up'"
-                                            :link="route('deals.show', $deal->id).'?tab=follow-up'">@lang('modules.lead.followUp')</x-tab-item>
-                        @endif
-
-
-                        @if($viewProposalPermission != 'none')
-                            <x-tab-item class="ajax-tab proposals" :active="request('tab') === 'proposals'"
-                                            :link="route('deals.show', $deal->id).'?tab=proposals'">@lang('modules.lead.proposal')</x-tab-item>
-                        @endif
-
                         @if ($viewClientNote != 'none')
-                            <x-tab-item class="ajax-tab notes" :active="request('tab') === 'notes'"
+                            <x-tab-item data-tab="notes" class="ajax-tab notes" :active="(request('tab') === 'notes' || !request('tab'))"
                                             :link="route('deals.show', $deal->id).'?tab=notes'">@lang('app.notes')</x-tab-item>
                         @endif
-
+                        @if($viewLeadFollowupPermission != 'none')
+                            <x-tab-item data-tab="follow-up" class="ajax-tab follow-up" :active="request('tab') === 'follow-up'"
+                                            :link="route('deals.show', $deal->id).'?tab=follow-up'">@lang('modules.lead.followUp')</x-tab-item>
+                        @endif
+                        @if($viewLeadFilePermission != 'none')
+                            <x-tab-item data-tab="files" class="ajax-tab files" :active="request('tab') === 'files'"
+                                            :link="route('deals.show', $deal->id).'?tab=files'">@lang('modules.lead.file')</x-tab-item>
+                        @endif
+                        @if($viewProposalPermission != 'none')
+                            <x-tab-item data-tab="proposals" class="ajax-tab proposals" :active="request('tab') === 'proposals'"
+                                            :link="route('deals.show', $deal->id).'?tab=proposals'">@lang('modules.lead.proposal')</x-tab-item>
+                        @endif
                         @if ($gdpr->enable_gdpr)
-                            <x-tab-item class="ajax-tab gdpr" :active="request('tab') === 'gdpr'"
+                            <x-tab-item data-tab="gdpr" class="ajax-tab gdpr" :active="request('tab') === 'gdpr'"
                                         :link="route('deals.show', $deal->id).'?tab=gdpr'">@lang('app.menu.gdpr')</x-tab-item>
                         @endif
 
-                        <x-tab-item class="ajax-tab history" :active="request('tab') === 'history'"
+                        <x-tab-item data-tab="history" class="ajax-tab history" :active="request('tab') === 'history'"
                                     :link="route('deals.show', $deal->id).'?tab=history'">@lang('modules.tasks.history')</x-tab-item>
+
+
+                        <x-tab-item data-tab="marketing" class="ajax-tab marketing" :active="request('tab') === 'marketing'"
+                                    :link="route('deals.show', $deal->id).'?tab=marketing'">@lang('modules.marketing')</x-tab-item>
+                        @php
+                            $addLeadFilePermission = user()->permission('add_lead_files');
+                            $addLeadFollowUpPermission = user()->permission('add_lead_follow_up');
+                            $addProposalPermission = user()->permission('add_lead_proposals');
+                            $addDealNotePermission = user()->permission('add_deal_note');
+                        @endphp
+                        <x-slot name="action">
+                            {{-- Files Action --}}
+                            @if($addLeadFilePermission == 'all' || $addLeadFilePermission == 'added')
+                                <a class="f-15 f-w-500 d-none tab-action-btn" 
+                                data-tab="files" 
+                                href="javascript:;" 
+                                id="add-files" 
+                                data-lead-id="{{ $deal->id }}">
+                                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.projects.uploadFile')
+                                </a>
+                            @endif
+
+                            {{-- Follow-up Action --}}
+                            @if($deal->leadStage->slug != 'win' && $deal->leadStage->slug != 'lost' && ($addLeadFollowUpPermission == 'all' || $addLeadFollowUpPermission == 'added'))
+                                <a class="f-15 f-w-500 d-none tab-action-btn" 
+                                data-tab="follow-up" 
+                                href="javascript:;" 
+                                id="add-lead-followup">
+                                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.followup.newFollowUp')
+                                </a>
+                            @endif
+                            @if($deal->leadStage->slug == 'win' || $deal->leadStage->slug == 'lost')
+                                <x-alert type="info" icon="info-circle" class="d-none tab-action-btn" data-tab="follow-up">
+                                    @lang('messages.cantAddFollowup')
+                                </x-alert>
+                            @endif
+
+                            {{-- Proposal Action --}}
+                            @if($addProposalPermission == 'all' || $addProposalPermission == 'added')
+                                <a class="f-15 f-w-500 d-none tab-action-btn" 
+                                data-tab="proposals" 
+                                target="_blank" 
+                                data-redirect-url="{{ url()->full() }}" 
+                                href="{{ route('proposals.create').'?deal_id='.$deal->id }}" 
+                                id="add-proposal">
+                                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.proposal.createProposal')
+                                </a>
+                            @endif
+
+                            {{-- Notes Action --}}
+                            @if($addDealNotePermission == 'all' || $addDealNotePermission == 'added' || $addDealNotePermission == 'both')
+                                <a class="f-15 f-w-500 openRightModal d-none tab-action-btn" 
+                                data-tab="notes" 
+                                href="{{ route('deal-notes.create').'?lead='.$deal->id }}" 
+                                id="add-notes">
+                                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.client.createNote')
+                                </a>
+                            @endif
+                        </x-slot>
 
                     </x-tab-section>
 
@@ -171,7 +230,10 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         </div>
         <!--  USER CARDS END -->
 
-        <div class="col-sm-3">
+        <div class="col-sm-5">
+
+            @include('leads.ajax.activities')
+
 
 
             {{-- <x-cards.data :title="__('modules.leadContact.leadDetails')">
@@ -180,7 +242,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                                     value="<a href='{{ route('lead-contact.show', $deal->contact->id) }}' class='text-darkest-grey'> {{ $deal->contact->client_name_salutation }}</a>"/>
 
                 <x-cards.data-row :label="__('app.email')" :value="$deal->contact->client_email ?? '--'" otherClasses="pr-1" labelClasses="pr-1"/>
-                <x-cards.data-row :label="__('modules.lead.mobile')" :value="$deal->contact->mobile ?? '--'" otherClasses="pr-1" labelClasses="pr-1"/>
+                <x-cards.data-row :label="__('modules.lead.mobile')" :value="$deal->contact->mobile_with_phonecode ?? '--'" otherClasses="pr-1" labelClasses="pr-1"/>
 
                 <x-cards.data-row :label="__('modules.lead.companyName')"
                                     :value="!empty($deal->contact->company_name) ? $deal->contact->company_name : '--'" otherClasses="pr-1" labelClasses="pr-1"/>
@@ -191,17 +253,60 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
                                                 icon="envelope">@lang('app.email')</x-forms.link-secondary>
                     @endif
 
-                    @if ($deal->contact->mobile )
-                        <x-forms.button-secondary class="btn-copy pr-1" data-clipboard-text="{{ $deal->contact->mobile }}"
+                    @if ($deal->contact->mobile_with_phonecode && $deal->contact->mobile_with_phonecode !== '--')
+                        <x-forms.button-secondary class="btn-copy pr-1" data-clipboard-text="{{ $deal->contact->mobile_with_phonecode }}"
                                                     icon="phone">@lang('app.mobile')</x-forms.button-secondary>
                     @endif
                 </div>
 
             </x-cards.data> --}}
+
         </div>
     </div>
 
     <script src="{{ asset('vendor/jquery/clipboard.min.js') }}"></script>
+    {{--tab action buttons --}}
+    <script>
+        function showTabAction(tab) {
+            $('.tab-action-btn').addClass('d-none');
+            $('.tab-action-btn[data-tab="' + tab + '"]').removeClass('d-none');
+        }
+
+        $(document).ready(function () {
+            // Initial show based on current tab
+            let initialTab = $('.deal-tabs .ajax-tab.active').data('tab') || 'notes';
+            showTabAction(initialTab);
+
+            // On tab click
+            $('.deal-tabs').on('click', '.ajax-tab', function (event) {
+                event.preventDefault();
+
+                $('.deal-tabs .ajax-tab').removeClass('active');
+                $(this).addClass('active');
+
+                const tab = $(this).data('tab');
+                showTabAction(tab);
+
+              
+                const requestUrl = this.href;
+                $.easyAjax({
+                    url: requestUrl,
+                    blockUI: true,
+                    container: "#nav-tabContent",
+                    historyPush: ($(RIGHT_MODAL).hasClass('in') ? false : true),
+                    data: {
+                        'json': true
+                    },
+                    success: function (response) {
+                        if (response.status == "success") {
+                            $('#nav-tabContent').html(response.html);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+    {{--tab action buttons --}}
 
     <script>
         var clipboard = new ClipboardJS('.btn-copy');
@@ -226,35 +331,7 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         });
     </script>
 
-    <script>
-        $(document).ready(function () {
-            $(".ajax-tab").click(function (event) {
-                event.preventDefault();
-
-                $('.deal-tabs .ajax-tab').removeClass('active');
-                $(this).addClass('active');
-
-                const requestUrl = this.href;
-
-                $.easyAjax({
-                    url: requestUrl,
-                    blockUI: true,
-                    container: "#nav-tabContent",
-                    historyPush: ($(RIGHT_MODAL).hasClass('in') ? false : true),
-                    data: {
-                        'json': true
-                    },
-                    success: function (response) {
-                        if (response.status == "success") {
-                            $('#nav-tabContent').html(response.html);
-                        }
-                    }
-                });
-            });
-
-        });
-    </script>
-
+ 
     <script>
         var fileLayout = 'thumbnail-list';
         function leadFilesView(layout) {
@@ -334,14 +411,22 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);
         });
+        $('body').on('click', '#add-files-no-record', function() {
+            const url = "{{ route('deal-files.create') }}";
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+       
         // File tab script end
 
         // Follow up tab script start
-        $('body').on('click', '#add-lead-followup', function() {
+        const addFollowUpModal = function() {
             const url = "{{ route('deals.follow_up', $deal->id) }}";
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);
-        })
+        }
+        $('body').on('click', '#add-lead-followup', addFollowUpModal);
+        $('body').on('click', '#add-lead-followup-no-record', addFollowUpModal);
 
         $('body').on('click', '.edit-table-row-lead', function() {
             var id = $(this).data('followup-id');
@@ -555,3 +640,9 @@ $viewLeadFollowupPermission = user()->permission('view_lead_follow_up');
         // Proposal tab script end
     </script>
 </div>
+
+<style>
+    /* Large screens: max 95% of viewport width */
+   
+
+</style>

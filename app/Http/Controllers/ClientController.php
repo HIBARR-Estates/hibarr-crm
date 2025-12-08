@@ -47,6 +47,7 @@ use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Models\ClientContact;
 use App\Models\Lead;
 use App\Traits\EmployeeActivityTrait;
+use Inertia\Inertia;
 
 class ClientController extends AccountBaseController
 {
@@ -128,6 +129,31 @@ class ClientController extends AccountBaseController
             $this->fields = $getCustomFieldGroupsWithFields->fields;
         }
 
+        // Check if it's an Inertia request
+        if (request()->inertia()) {
+            return Inertia::render('Clients/Create', [
+                'pageTitle' => $this->pageTitle,
+                'lead' => $this->lead ?? null,
+                'employees' => $this->employees ?? [],
+                'countries' => $this->countries,
+                'categories' => $this->categories,
+                'salutations' => collect($this->salutations)->map(function ($salutation) {
+                    return [
+                        'value' => $salutation->value,
+                        'label' => $salutation->label()
+                    ];
+                }),
+                'languages' => $this->languages,
+                'fields' => $this->fields ?? [],
+                'permissions' => [
+                    'add_clients' => $this->addPermission,
+                    'manage_client_category' => user()->permission('manage_client_category'),
+                    'manage_client_subcategory' => user()->permission('manage_client_subcategory'),
+                    'add_client_note' => user()->permission('add_client_note'),
+                ]
+            ]);
+        }
+
         $this->view = 'clients.ajax.create';
 
         if (request()->ajax()) {
@@ -158,6 +184,32 @@ class ClientController extends AccountBaseController
         $data['password'] = bcrypt($request->password);
         $data['country_id'] = $request->country;
         $data['name'] = $request->name;
+
+        // Handle mobile field with country code
+        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+            $countryIdentifier = $request->input('country_identifier_mobile');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                'country_code' => $request->country_phonecode_mobile,
+                'country_identifier' => $countryIdentifier
+            ];
+            $data['mobile'] = json_encode($phoneData);
+        } elseif (!empty($request->mobile)) {
+            $data['mobile'] = $request->mobile;
+        }
+
+        // Handle office field with country code
+        if ($request->has('country_phonecode_office') && !empty($request->country_phonecode_office) && !empty($request->office)) {
+            $countryIdentifier = $request->input('country_identifier_office');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_office . ' ' . $request->office,
+                'country_code' => $request->country_phonecode_office,
+                'country_identifier' => $countryIdentifier
+            ];
+            $data['office'] = json_encode($phoneData);
+        } elseif (!empty($request->office)) {
+            $data['office'] = $request->office;
+        }
 
         if($request->is_client_contact){
             $data['email_notifications'] = 1;
@@ -288,6 +340,12 @@ class ClientController extends AccountBaseController
             return Reply::successWithData(__('messages.recordSaved'), ['teamData' => $teamData, 'project' => $options, 'redirectUrl' => $redirectUrl]);
         }
 
+        // Handle Inertia requests
+        if ($request->inertia()) {
+            return redirect()->route('clients.index')
+                ->with('success', __('messages.recordSaved'));
+        }
+
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
     }
 
@@ -359,6 +417,32 @@ class ClientController extends AccountBaseController
         }
 
         $data['country_id'] = $request->country;
+
+        // Handle mobile field with country code
+        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+            $countryIdentifier = $request->input('country_identifier_mobile');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                'country_code' => $request->country_phonecode_mobile,
+                'country_identifier' => $countryIdentifier
+            ];
+            $data['mobile'] = json_encode($phoneData);
+        } elseif (!empty($request->mobile)) {
+            $data['mobile'] = $request->mobile;
+        }
+
+        // Handle office field with country code
+        if ($request->has('country_phonecode_office') && !empty($request->country_phonecode_office) && !empty($request->office)) {
+            $countryIdentifier = $request->input('country_identifier_office');
+            $phoneData = [
+                'phone' => '+' . $request->country_phonecode_office . ' ' . $request->office,
+                'country_code' => $request->country_phonecode_office,
+                'country_identifier' => $countryIdentifier
+            ];
+            $data['office'] = json_encode($phoneData);
+        } elseif (!empty($request->office)) {
+            $data['office'] = $request->office;
+        }
 
         if ($request->has('sendMail')) {
             $user->email_notifications = $request->sendMail == 'yes' ? 1 : 0;

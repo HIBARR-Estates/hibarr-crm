@@ -10,15 +10,7 @@
 
 <!-- TAB CONTENT START -->
 <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="nav-email-tab">
-    @if ($addProposalPermission == 'all' || $addProposalPermission == 'added')
-        <div class="row p-20">
-            <div class="col-md-12">
-                <a class="f-15 f-w-500" target="_blank" data-redirect-url="{{ url()->full() }}" href="{{ route('proposals.create').'?deal_id='.$deal->id }}" id="add-proposal">
-                    <i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.proposal.createProposal')
-                </a>
-            </div>
-        </div>
-    @endif
+
 
 
     <div class="d-flex flex-wrap p-20" id="task-file-list">
@@ -103,8 +95,20 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7">
-                            <x-cards.no-record :message="__('messages.noRecordFound')" icon="clipboard" />
+                        <td colspan="6">
+                            
+                            @if ($addProposalPermission == 'all' || $addProposalPermission == 'added')
+                                <x-cards.no-record-with-link
+                                    :message="__('messages.noRecordFound')"
+                                    icon="clipboard"
+                                    id="add-proposal-no-record"
+                                    :linkHref="route('proposals.create', ['deal_id' => $deal->id])"
+                                    :linkText="__('modules.proposal.addProposal')"
+                                    linkClass="f-14 f-w-500 mt-4 openRightModal"
+                                    data-redirect-url="{{ url()->full() }}" />
+                            @else
+                                <x-cards.no-record :message="__('messages.noRecordFound')" icon="clipboard" />
+                            @endif
                         </td>
                     </tr>
                 @endforelse

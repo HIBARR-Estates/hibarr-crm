@@ -6,6 +6,7 @@ use App\Scopes\ActiveScope;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\LeadCategory;
 
 /**
  * App\Models\LeadAgent
@@ -52,6 +53,11 @@ class LeadAgent extends BaseModel
     public function leads(): HasMany
     {
         return $this->hasMany(Deal::class, 'agent_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(LeadCategory::class, 'lead_category_id');
     }
 
 }

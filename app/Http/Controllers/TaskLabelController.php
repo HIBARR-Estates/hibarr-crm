@@ -20,6 +20,12 @@ class TaskLabelController extends AccountBaseController
         $this->pageTitle = 'app.menu.taskLabel';
     }
 
+    public function index()
+    {
+        $labels = TaskLabelList::all();
+        return Reply::dataOnly(['labels' => $labels]);
+    }
+
     public function create()
     {
         $this->taskLabels = TaskLabelList::all();

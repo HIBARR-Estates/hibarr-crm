@@ -74,11 +74,18 @@
                                         <td>{{ $field->type }}</td>
                                         <td>
                                             @if(isset($field->values) && $field->values != '[null]')
-                                                <ul class="value-list">
-                                                    @foreach(json_decode($field->values) as $value)
-                                                        <li>{{ $value }}</li>
-                                                    @endforeach
-                                                </ul>
+                                                @php
+                                                    $decodedValues = json_decode($field->values, true);
+                                                @endphp
+                                                @if(is_array($decodedValues) && count($decodedValues) > 0)
+                                                    <ul class="value-list">
+                                                        @foreach($decodedValues as $value)
+                                                            <li>{{ $value }}</li>
+                                                        @endforeach
+                                                    </ul>
+                                                @else
+                                                    --
+                                                @endif
                                             @else
                                                 --
                                             @endif

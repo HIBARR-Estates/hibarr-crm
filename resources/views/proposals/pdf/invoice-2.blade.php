@@ -451,8 +451,8 @@
                     @if ($proposal->lead->contact && $proposal->lead->email && $invoiceSetting->show_client_email == 'yes')
                         <div class="descriptionFont">{{ $proposal->lead->contact->client_email }}</div>
                     @endif
-                    @if ($proposal->lead->contact && $proposal->lead->contact->mobile && $invoiceSetting->show_client_phone == 'yes')
-                        <div class="descriptionFont">{{ $proposal->lead->contact->mobile }}</div>
+                    @if ($proposal->lead->contact && $proposal->lead->contact->mobile_with_phonecode && $proposal->lead->contact->mobile_with_phonecode !== '--' && $invoiceSetting->show_client_phone == 'yes')
+                        <div class="descriptionFont">{{ $proposal->lead->contact->mobile_with_phonecode }}</div>
                     @endif
                     @if ($proposal->lead->contact && $proposal->lead->contact->company_name && $invoiceSetting->show_client_company_name == 'yes')
                         <div class="descriptionFont">{{ $proposal->lead->contact->company_name }}</div>

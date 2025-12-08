@@ -15,7 +15,9 @@ use App\Models\LeadSetting;
 use Illuminate\Support\Facades\Notification;
 use App\Traits\EmployeeActivityTrait;
 use App\Notifications\LeadImported;
-
+use App\Services\DealAutomationService;
+use App\Models\MetaConversionTrigger;
+use App\Jobs\SendMetaConversionEventJob;
 
 use App\Traits\DealHistoryTrait;
 
@@ -23,6 +25,14 @@ class DealObserver
 {
     use DealHistoryTrait;
     use EmployeeActivityTrait;
+
+    protected DealAutomationService $dealAutomation;
+
+    public function __construct(
+    DealAutomationService $dealAutomation
+    ) {
+        $this->dealAutomation = $dealAutomation;
+    }
 
     public function saving(Deal $deal)
     {
@@ -137,7 +147,15 @@ class DealObserver
             if ($deal->isDirty('pipeline_stage_id') || $deal->isDirty('lead_pipeline_id')) {
                 event(new DealEvent($deal, $deal->leadAgent, 'StageUpdated'));
             }
+
+            // Meta Conversions API trigger
+            if ($deal->isDirty('pipeline_stage_id')) {
+                $this->triggerMetaConversionEvent($deal);
+            }
         }
+        //deal automation trigger
+        $this->dealAutomation->automate($deal);
+        
     }
 
     public function created(Deal $deal)
@@ -177,6 +195,9 @@ class DealObserver
 
             $this->createClient($deal);
         }
+        //deal automation trigger
+        $this->dealAutomation->automate($deal);
+
     }
 
     public function deleting(Deal $deal)
@@ -230,6 +251,43 @@ class DealObserver
             $lead->client_id = $client_id;
             $lead->save();
 
+        }
+    }
+
+    /**
+     * Trigger Meta Conversion Event when deal moves to a configured stage
+     *
+     * @param Deal $deal
+     * @return void
+     */
+    private function triggerMetaConversionEvent(Deal $deal): void
+    {
+        try {
+            // Query for active trigger matching the new stage and pipeline
+            $trigger = MetaConversionTrigger::where('lead_pipeline_id', $deal->lead_pipeline_id)
+                ->where('lead_pipeline_stage_id', $deal->pipeline_stage_id)
+                ->where('company_id', $deal->company_id)
+                ->active()
+                ->first();
+
+            if ($trigger) {
+                // Dispatch job to send Meta conversion event with the trigger's value
+                SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value);
+
+                \Log::info('Meta Conversion Event Job dispatched', [
+                    'deal_id' => $deal->id,
+                    'event_name' => $trigger->event_name,
+                    'value' => $trigger->value,
+                    'pipeline_id' => $deal->lead_pipeline_id,
+                    'stage_id' => $deal->pipeline_stage_id,
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Log error but don't block deal update
+            \Log::error('Failed to trigger Meta Conversion Event', [
+                'deal_id' => $deal->id,
+                'exception' => $e->getMessage(),
+            ]);
         }
     }
 }

@@ -37,3 +37,16 @@ demo_db_copy.sql
 database/maxmind/
 public/css/app-custom.css
 public/css/theme-custom.css
+settings.json
+CUSTOM_FIELDS_IMPORT_GUIDE.md
+DEAL_IMPORT_TEMPLATE_UPDATES.md
+IMPORT_STAGE_CONFIGURATION.md
+
+# docker
+docker-compose.override.yml
+
+public/js/
+public/css/
+public/build/
+public/mix-manifest.json
+docker-compose.override.yml

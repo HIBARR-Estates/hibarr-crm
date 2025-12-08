@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Meta Conversions API Integration**: Automatic tracking of deal stage changes as Meta (Facebook) conversion events
+  - **MetaConversionTrigger Model**: Configurable model to map pipeline stages to Meta event names
+  - **Queued Job Processing**: Background job (`SendMetaConversionEventJob`) for reliable event delivery without blocking deal updates
+  - **MetaConversionsService**: Dedicated service class for Meta Conversions API communication
+  - **DealObserver Enhancement**: Automatic detection of deal stage changes and trigger lookup
+  - **Data Privacy**: SHA256 hashing of user email and phone data before sending to Meta
+  - **Detailed Logging**: Comprehensive logging of all Meta API interactions including full request/response payloads
+  - **Multi-tenant Support**: Company-scoped triggers ensuring data isolation
+  - **Configuration**: Environment-based configuration for Meta Pixel ID and Access Token
+  - **Error Handling**: Graceful failure handling - Meta API failures do not block deal updates
+  - **Retry Logic**: Automatic retry mechanism with backoff for transient failures
+- **External Communications Module**: New module for tracking external communications across multiple channels
+  - **Communication Activity Tracking**: Created comprehensive system to track external communications via email, WhatsApp, Instagram, and Telegram
+  - **Database Schema**: Added `communication_activities` table with fields for channel type, message content, sender info, timestamp, and metadata
+  - **API Integration**: Created RESTful API endpoints for creating and retrieving communication activities
+  - **Permission-Based Access**: Implemented access control based on user permissions for deals and leads
+  - **Email Notifications**: Automatic email notifications sent to assigned agents when new communications are recorded
+  - **DataTable Integration**: Created DataTable for displaying communication activities with filtering and pagination
+  - **Model Relationships**: Added relationships between CommunicationActivity and Deal/Lead models
+  - **Factory and Seeder**: Created factory for generating test data and seeder for populating sample communications
+  - **Web Routes**: Added routes for viewing communication activities in web interface
+  - **Validation**: Comprehensive form validation for communication activity creation
+  - **Channel Support**: Support for email, WhatsApp, Instagram, and Telegram channels with distinct styling
+  - **Metadata Storage**: Flexible JSON metadata storage for platform-specific information
+  - **Timestamp Tracking**: Accurate timestamp tracking for communication activities
+  - **Sender Information**: Structured sender information storage with name and contact details
 - Initial codebase documentation and indexing
 - Comprehensive system architecture documentation
 - Module and feature inventory
@@ -38,6 +64,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Used blue primary color for active state and gray for inactive states
     - Improved button spacing from `space-x-2` to `space-x-1` for tighter layout
     - Added `data-category-id="general"` for the default tab to distinguish from category tabs
+
+### Fixed
+- **Meta Conversions Service**: Fixed SSL certificate error, Guzzle HTTP client issues, and API payload structure
+  - Fixed missing `new` keyword when instantiating Guzzle Client causing SSL verification options not to be applied
+  - Fixed incorrect method call `$response->successful()` (Laravel HTTP facade method) replaced with proper Guzzle status code check
+  - Fixed payload structure to match Meta Conversions API requirements - wrapped events in required `data` array
+  - Fixed "Invalid parameter" error (code 100, subcode 2804039) by correcting invalid `action_source` value
+    - Changed `action_source` from 'crm' (invalid) to 'other' (valid per Meta's API specification)
+    - Meta only accepts: website, email, app, phone_call, chat, physical_store, system_generated, business_messaging, other
+  - Fixed "Invalid parameter" error by ensuring `currency` field is always present when `value` is included
+  - Added required `currency` field to custom_data (defaults to GBP if deal currency not set) - Meta requires this when value is present
+  - Added `event_id` field for event deduplication to prevent duplicate event processing
+  - Simplified custom data to use trigger-defined value instead of deal value for more flexible conversion tracking
+  - Improved event payload structure to follow Meta's official API documentation format
+  - Added proper SSL certificate bypass for development environments (note: production should use proper CA certificate bundle)
+  - Resolved "cURL error 60: SSL certificate problem: unable to get local issuer certificate" error
+- **Meta Conversions API Integration**: Enhanced trigger configuration with custom conversion values
+  - **MetaConversionTrigger Model Enhancement**: Added `value` field (decimal 15,2) to allow custom conversion values per trigger
+    - Added `value` field to model with default value of 0
+    - Updated fillable array to include `value` field
+    - Added float casting for `value` field
+    - Added default attribute for `value` set to 0
+    - Updated validation rules to accept nullable numeric values (min: 0)
+    - Created and ran migration to add `value` column to `meta_conversion_triggers` table
+    - Updated model PHPDoc annotations to include the new `value` property and `whereValue()` method
+  - **SendMetaConversionEventJob**: Updated to accept and pass conversion value parameter
+    - Added `value` property to job class
+    - Updated constructor to accept optional `value` parameter (defaults to 0)
+    - Modified `handle()` method to pass value to MetaConversionsService
+    - Enhanced logging to include conversion value in all log entries
+  - **MetaConversionsService**: Updated to accept conversion value parameter
+    - Modified `sendEvent()` method signature to accept `value` parameter
+    - Updated `buildPayload()` to use trigger-defined value instead of deal value
+    - Enables flexible conversion tracking with custom values per pipeline stage
+  - **DealObserver**: Enhanced to pass trigger value when dispatching conversion events
+    - Updated `triggerMetaConversionEvent()` to dispatch job with trigger's value
+    - Added value to Meta conversion event log entries for better tracking
 
 ### Enhanced
 - **Custom Fields Module**: Extended with category management functionality

@@ -625,4 +625,18 @@ class Task extends BaseModel
             $this->projectAdmin();
     }
 
+    public function deals()
+    {
+        return $this->morphedByMany(Deal::class, 'taskable');
+    }
+
+    public function leads()
+    {
+        return $this->morphedByMany(Lead::class, 'taskable');
+    }
+
+    public function properties()
+    {
+        return $this->morphedByMany(Property::class, 'taskable');
+    }
 }

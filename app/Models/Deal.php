@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
+use App\Models\Payment;
+use App\Models\LeadAgent;
+
 
 /**
  * App\Models\Lead
@@ -125,11 +128,15 @@ class Deal extends BaseModel
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Deal';
 
+    protected $hidden = ["pivot"];
+
+
     protected $appends = ['image_url'];
 
     protected $casts = [
         'close_date' => 'datetime',
         'next_follow_up_date' => 'datetime',
+        'bitrix_id' => 'integer',
     ];
 
     public function getImageUrlAttribute()
@@ -156,9 +163,14 @@ class Deal extends BaseModel
         return $this->belongsTo(LeadAgent::class, 'agent_id');
     }
 
+    public function dealWatchers()
+    {
+        return $this->belongsToMany(User::class, 'deal_watchers', 'deal_id', 'user_id')->using(DealWatcher::class);
+    }
+
     public function dealWatcher()
     {
-        return $this->belongsTo(User::class, 'deal_watcher', 'id');
+        return $this->belongsToMany(User::class, 'deal_watchers', 'deal_id', 'user_id')->using(DealWatcher::class)->first();
     }
 
     public function contact(): BelongsTo
@@ -189,6 +201,11 @@ class Deal extends BaseModel
     public function pipeline(): BelongsTo
     {
         return $this->belongsTo(LeadPipeline::class, 'lead_pipeline_id');
+    }
+
+    public function package(): BelongsTo
+    {
+        return $this->belongsTo(Package::class, 'package_id');
     }
 
     public function client(): BelongsTo
@@ -252,4 +269,27 @@ class Deal extends BaseModel
         return $this->belongsTo(User::class, 'added_by')->withoutGlobalScope(ActiveScope::class);
     }
 
+
+    public function communicationActivities(): HasMany
+    {
+        return $this->hasMany(CommunicationActivity::class, 'deal_id')->orderByDesc('timestamp');
+    }
+
+    // payments relation
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'deal_id');
+
+    }
+
+    // Hibarr custom fields relation
+    public function hibarrFields(): HasOne
+    {
+        return $this->hasOne(HibarrDealFields::class, 'deal_id');
+    }
+
+    public function tasks()
+    {
+        return $this->morphToMany(Task::class, 'taskable');
+    }
 }

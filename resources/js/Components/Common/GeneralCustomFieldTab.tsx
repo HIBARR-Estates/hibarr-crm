@@ -1,0 +1,511 @@
+import React, { useState } from "react";
+import {
+    Form,
+    Input,
+    Select,
+    DatePicker,
+    Checkbox,
+    Radio,
+    Row,
+    Col,
+    InputNumber,
+} from "antd";
+import { usePage } from "@inertiajs/react";
+
+interface CustomFieldTabProps<CustomFormData = any> {
+    data: CustomFormData;
+    setData: (key: keyof CustomFormData, value: any) => void;
+    errors: Record<string, string>;
+    categoryId: number;
+    categoryName: string;
+}
+
+const GeneralCustomFieldTab = <
+    T extends { custom_fields_data?: Record<string, any> } = any
+>({
+    data,
+    setData,
+    errors,
+    categoryId,
+    categoryName,
+}: CustomFieldTabProps<T>) => {
+    const { props } = usePage<any>();
+    const { customFields, countries } = props;
+
+    const [otherValues, setOtherValues] = useState<Record<string, string>>({});
+
+    // Filter fields for this category and sort by field type
+    const categoryFields =
+        customFields
+            ?.filter(
+                (field: any) => field.custom_field_category_id === categoryId
+            )
+            .sort((a: any, b: any) => {
+                // Define the order priority for field types
+                const typeOrder = {
+                    select: 1,
+                    text: 2,
+                    textarea: 3,
+                    radio: 4,
+                    checkbox: 5,
+                    number: 0, // Same priority as text
+                    date: 2, // Same priority as text
+                    country: 1, // Same priority as select
+                    phone: 2, // Same priority as text
+                };
+
+                const aOrder = typeOrder[a.type as keyof typeof typeOrder] || 6;
+                const bOrder = typeOrder[b.type as keyof typeof typeOrder] || 6;
+
+                return aOrder - bOrder;
+            }) || [];
+
+    // const getFieldValue = (field: any) => {
+    //     const fieldKey = `custom_fields_data.field_${field.id}`;
+    //     return data.custom_fields_data?.[`field_${field.id}`];
+    // };
+
+    // const setFieldValue = (field: any, value: any) => {
+    //     const currentCustomData = data.custom_fields_data || {};
+    //     setData("custom_fields_data", {
+    //         ...currentCustomData,
+    //         [`field_${field.id}`]: value,
+    //     });
+    // };
+
+    const renderTextField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            rules={[
+                {
+                    required: field.required === "yes",
+                    message: `Please enter ${field.label}`,
+                },
+            ]}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+        >
+            <Input placeholder={field.label} />
+        </Form.Item>
+    );
+
+    const renderNumberField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            rules={[
+                {
+                    required: field.required === "yes",
+                    message: `Please enter ${field.label}`,
+                },
+            ]}
+        >
+            <InputNumber
+                placeholder={field.label}
+                style={{ width: "100%" }}
+                parser={(value) => {
+                    const num = parseFloat(
+                        value?.replace(/\$\s?|(,*)/g, "") || "0"
+                    );
+                    return num as any;
+                }}
+            />
+        </Form.Item>
+    );
+
+    const renderTextAreaField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            rules={[
+                {
+                    required: field.required === "yes",
+                    message: `Please enter ${field.label}`,
+                },
+            ]}
+        >
+            <Input.TextArea placeholder={field.label} rows={3} />
+        </Form.Item>
+    );
+
+    const renderSelectField = (field: any) => {
+        const values =
+            typeof field.values === "string"
+                ? JSON.parse(field.values)
+                : field.values;
+        const hasOtherOption = values?.some(
+            (v: string) => v.toLowerCase() === "other"
+        );
+        // const currentValue = getFieldValue(field);
+        // const isOtherSelected =
+        //     currentValue?.toLowerCase() === "other" ||
+        //     currentValue?.startsWith("other: ");
+
+        return (
+            <Form.Item
+                label={field.label}
+                validateStatus={
+                    errors[`custom_fields_data.field_${field.id}`]
+                        ? "error"
+                        : ""
+                }
+                help={errors[`custom_fields_data.field_${field.id}`]}
+                name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+                rules={[
+                    {
+                        required: field.required === "yes",
+                        message: `Please enter ${field.label}`,
+                    },
+                ]}
+            >
+                <Select placeholder={`Select ${field.label}`} allowClear>
+                    {values?.map((value: string, index: number) => (
+                        <Select.Option key={index} value={value}>
+                            {value}
+                        </Select.Option>
+                    ))}
+                </Select>
+
+                {/* {hasOtherOption && isOtherSelected && (
+                    <Input
+                        placeholder="Please specify..."
+                        style={{ marginTop: 8 }}
+                        value={otherValues[`field_${field.id}`] || ""}
+                        onChange={(e) => {
+                            const otherValue = e.target.value;
+                            setOtherValues((prev) => ({
+                                ...prev,
+                                [`field_${field.id}`]: otherValue,
+                            }));
+                            setFieldValue(
+                                field,
+                                otherValue ? `other: ${otherValue}` : "other"
+                            );
+                        }}
+                    />
+                )} */}
+            </Form.Item>
+        );
+    };
+
+    const renderRadioField = (field: any) => {
+        const values =
+            typeof field.values === "string"
+                ? JSON.parse(field.values)
+                : field.values;
+        const hasOtherOption = values?.some(
+            (v: string) => v.toLowerCase() === "other"
+        );
+        // const currentValue = getFieldValue(field);
+        // const isOtherSelected =
+        //     currentValue?.toLowerCase() === "other" ||
+        //     currentValue?.startsWith("other: ");
+
+        return (
+            <Form.Item
+                label={field.label}
+                validateStatus={
+                    errors[`custom_fields_data.field_${field.id}`]
+                        ? "error"
+                        : ""
+                }
+                help={errors[`custom_fields_data.field_${field.id}`]}
+                name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+                rules={[
+                    {
+                        required: field.required === "yes",
+                        message: `Please enter ${field.label}`,
+                    },
+                ]}
+            >
+                <Radio.Group
+                // value={currentValue}
+                // onChange={(e) => {
+                //     const value = e.target.value;
+                //     setFieldValue(field, value);
+                //     if (value?.toLowerCase() !== "other") {
+                //         setOtherValues((prev) => ({
+                //             ...prev,
+                //             [`field_${field.id}`]: "",
+                //         }));
+                //     }
+                // }}
+                >
+                    {values?.map((value: string, index: number) => (
+                        <Radio key={index} value={value}>
+                            {value}
+                        </Radio>
+                    ))}
+                </Radio.Group>
+                {/* 
+                {hasOtherOption && isOtherSelected && (
+                    <Input
+                        placeholder="Please specify..."
+                        style={{ marginTop: 8 }}
+                        value={otherValues[`field_${field.id}`] || ""}
+                        onChange={(e) => {
+                            const otherValue = e.target.value;
+                            setOtherValues((prev) => ({
+                                ...prev,
+                                [`field_${field.id}`]: otherValue,
+                            }));
+                            setFieldValue(
+                                field,
+                                otherValue ? `other: ${otherValue}` : "other"
+                            );
+                        }}
+                    />
+                )} */}
+            </Form.Item>
+        );
+    };
+
+    const renderCheckboxField = (field: any) => {
+        const values =
+            typeof field.values === "string"
+                ? JSON.parse(field.values)
+                : field.values;
+        const hasOtherOption = values?.some(
+            (v: string) => v.toLowerCase() === "other"
+        );
+        // const currentValue = getFieldValue(field) || "";
+        // const selectedValues = currentValue.split(", ").filter(Boolean);
+        // const isOtherSelected = selectedValues.some(
+        //     (v: string) =>
+        //         v.toLowerCase() === "other" || v.startsWith("other: ")
+        // );
+
+        return (
+            <Form.Item
+                label={field.label}
+                name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+                validateStatus={
+                    errors[`custom_fields_data.field_${field.id}`]
+                        ? "error"
+                        : ""
+                }
+                help={errors[`custom_fields_data.field_${field.id}`]}
+                rules={[
+                    {
+                        required: field.required === "yes",
+                        message: `Please enter ${field.label}`,
+                    },
+                ]}
+            >
+                <Checkbox.Group
+                // value={selectedValues}
+                // onChange={(checkedValues) => {
+                //     setFieldValue(field, checkedValues.join(", "));
+                //     if (
+                //         !checkedValues.some(
+                //             (v) => v.toLowerCase() === "other"
+                //         )
+                //     ) {
+                //         setOtherValues((prev) => ({
+                //             ...prev,
+                //             [`field_${field.id}`]: "",
+                //         }));
+                //     }
+                // }}
+                >
+                    {values?.map((value: string, index: number) => (
+                        <Checkbox key={index} value={value}>
+                            {value}
+                        </Checkbox>
+                    ))}
+                </Checkbox.Group>
+
+                {/* {hasOtherOption && isOtherSelected && (
+                    <Input
+                        placeholder="Please specify..."
+                        style={{ marginTop: 8 }}
+                        value={otherValues[`field_${field.id}`] || ""}
+                        onChange={(e) => {
+                            const otherValue = e.target.value;
+                            setOtherValues((prev) => ({
+                                ...prev,
+                                [`field_${field.id}`]: otherValue,
+                            }));
+
+                            const currentValues = selectedValues.filter(
+                                (v: string) =>
+                                    v.toLowerCase() !== "other" &&
+                                    !v.startsWith("other: ")
+                            );
+
+                            if (otherValue) {
+                                currentValues.push(`other: ${otherValue}`);
+                            } else {
+                                currentValues.push("other");
+                            }
+
+                            setFieldValue(field, currentValues.join(", "));
+                        }}
+                    />
+                )} */}
+            </Form.Item>
+        );
+    };
+
+    const renderDateField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            rules={[
+                {
+                    required: field.required === "yes",
+                    message: `Please enter ${field.label}`,
+                },
+            ]}
+        >
+            <DatePicker
+                placeholder={`Select ${field.label}`}
+                // value={
+                //     getFieldValue(field) ? dayjs(getFieldValue(field)) : null
+                // }
+                // onChange={(date, dateString) =>
+                //     setFieldValue(field, dateString)
+                // }
+                style={{ width: "100%" }}
+            />
+        </Form.Item>
+    );
+
+    const renderCountryField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            rules={[
+                {
+                    required: field.required === "yes",
+                    message: `Please enter ${field.label}`,
+                },
+            ]}
+        >
+            <Select
+                placeholder={`Select ${field.label}`}
+                // value={getFieldValue(field) || undefined}
+                // onChange={(value) => setFieldValue(field, value)}
+                allowClear
+                showSearch
+                filterOption={(input, option) =>
+                    (option?.children as unknown as string)
+                        ?.toLowerCase()
+                        .includes(input.toLowerCase())
+                }
+            >
+                {countries?.map((country: any) => (
+                    <Select.Option key={country.iso} value={country.nicename}>
+                        {country.nicename}
+                    </Select.Option>
+                ))}
+            </Select>
+        </Form.Item>
+    );
+
+    const renderPhoneField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            rules={[
+                {
+                    required: field.required === "yes",
+                    message: `Please enter ${field.label}`,
+                },
+            ]}
+        >
+            <Input
+                placeholder={field.label}
+                // value={getFieldValue(field) || ""}
+                // onChange={(e) => setFieldValue(field, e.target.value)}
+            />
+        </Form.Item>
+    );
+
+    const renderField = (field: any) => {
+        switch (field.type) {
+            case "text":
+                return renderTextField(field);
+            case "number":
+                return renderNumberField(field);
+            case "textarea":
+                return renderTextAreaField(field);
+            case "select":
+                return renderSelectField(field);
+            case "radio":
+                return renderRadioField(field);
+            case "checkbox":
+                return renderCheckboxField(field);
+            case "date":
+                return renderDateField(field);
+            case "country":
+                return renderCountryField(field);
+            case "phone":
+                return renderPhoneField(field);
+            default:
+                return renderTextField(field);
+        }
+    };
+
+    if (categoryFields.length === 0) {
+        return (
+            <div className="text-center py-8 text-gray-500">
+                No custom fields available for {categoryName}
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <Row gutter={[24, 16]}>
+                {categoryFields.map((field: any) => (
+                    <Col span={determineSpan(field.type)} key={field.id}>
+                        {renderField(field)}
+                    </Col>
+                ))}
+            </Row>
+        </div>
+    );
+};
+
+const determineSpan = (type: string): number => {
+    switch (type) {
+        case "text":
+            return 24;
+        case "textarea":
+            return 24;
+        case "select":
+            return 12;
+        case "radio":
+            return 24;
+        case "checkbox":
+            return 24;
+        default:
+            return 12;
+    }
+};
+
+export default GeneralCustomFieldTab;

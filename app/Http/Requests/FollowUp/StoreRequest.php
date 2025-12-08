@@ -28,13 +28,25 @@ class StoreRequest extends CoreRequest
         $deal = Deal::findOrFail($this->deal_id);
         $setting = company();
 
-        $rules = [];
+        $rules = [
+            'meeting_type_id' => 'nullable|exists:meeting_types,id',
+            'location' => 'required|in:office,zoom,zoho,zoho_meet,google_meet,teams,meet,phone,skype,other',
+            'meeting_link' => 'nullable|url',
+            'start_time' => 'required|date_format:"H:i:s"',
+            'reminders' => 'nullable|array',
+            'reminders.*.time' => 'required_with:reminders|integer|min:1|max:1440',
+            'reminders.*.type' => 'required_with:reminders|in:minute,hour,day',
+        ];
 
-        if(request()->has('send_reminder')){
-            $rules['remind_time'] = 'required';
+        // Zoho meetings don't require manual meeting link input
+        if ($this->location === 'zoho') {
+            $rules['meeting_link'] = 'nullable|url';
+        } elseif ($this->location !== 'office') {
+            $rules['meeting_link'] = 'required|url';
         }
 
-        $rules['next_follow_up_date'] = 'required|date_format:"' . $setting->date_format . '"|after_or_equal:'.$deal->created_at->format($setting->date_format);
+        // Frontend sends date in DD-MM-YYYY format, so validate accordingly
+        $rules['next_follow_up_date'] = 'required|date_format:"d-m-Y"|after_or_equal:'.$deal->created_at->format('d-m-Y');
 
         return $rules;
     }

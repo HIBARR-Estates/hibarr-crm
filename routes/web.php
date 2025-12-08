@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\DealController;
+use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AwardController;
 use App\Http\Controllers\ImageController;
@@ -98,6 +99,7 @@ use App\Http\Controllers\RecurringTaskController;
 use App\Http\Controllers\ContractTemplateController;
 use App\Http\Controllers\EmergencyContactController;
 use App\Http\Controllers\EstimateTemplateController;
+
 use App\Http\Controllers\ProjectMilestoneController;
 use App\Http\Controllers\ProposalTemplateController;
 use App\Http\Controllers\RecurringExpenseController;
@@ -128,6 +130,7 @@ use App\Http\Controllers\ProjectTemplateMilestoneController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\TimelogWeeklyApprovalController;
 use App\Http\Controllers\WeeklyTimesheetController;
+use App\Http\Controllers\MeetingTypeController;
 
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
@@ -500,6 +503,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/follow-up-edit/{id?}', [DealController::class, 'editFollow'])->name('deals.follow_up_edit');
     Route::post('deals/follow-up-update', [DealController::class, 'updateFollow'])->name('deals.follow_up_update');
     Route::post('deals/follow-up-delete/{id}', [DealController::class, 'deleteFollow'])->name('deals.follow_up_delete');
+    Route::post('deals/follow-up-apply-quick-action', [DealController::class, 'applyFollowUpQuickAction'])->name('deals.follow_up_apply_quick_action');
 
     // Change status
     Route::get('stage-change/{id}', [DealController::class, 'stageChange'])->name('deals.stage_change');
@@ -510,6 +514,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/gdpr-consent', [DealController::class, 'consent'])->name('deals.gdpr_consent');
     Route::post('deals/save-deal-consent/{deal}', [DealController::class, 'saveLeadConsent'])->name('deals.save_lead_consent');
     Route::post('deals/change-follow-up-status', [DealController::class, 'changeFollowUpStatus'])->name('deals.change_follow_up_status');
+    Route::post('deals/generate-meeting-link', [DealController::class, 'generateMeetingLink'])->name('deals.generate-meeting-link');
 
     // Lead Category
     Route::post('/update-lead-category', [LeadCategoryController::class, 'updateLeadCategory'])->name('category.updateDefault');
@@ -530,6 +535,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('leadboards/get-stage-slug', [LeadBoardController::class, 'getStageSlug'])->name('leadboards.get_stage_slug');
     Route::post('leadboards/collapseColumn', [LeadBoardController::class, 'collapseColumn'])->name('leadboards.collapse_column');
     Route::post('leadboards/updateIndex', [LeadBoardController::class, 'updateIndex'])->name('leadboards.update_index');
+    Route::get('leadboards/deals', [LeadBoardController::class, 'getBoardDeals'])->name('leadboards.deals');
     Route::get('leadboards/loadMore', [LeadBoardController::class, 'loadMore'])->name('leadboards.load_more');
     Route::resource('leadboards', LeadBoardController::class);
 
@@ -540,23 +546,35 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('import', [DealController::class, 'importLead'])->name('deals.import');
         Route::post('import', [DealController::class, 'importStore'])->name('deals.import.store');
         Route::post('import/process', [DealController::class, 'importProcess'])->name('deals.import.process');
+        Route::get('import/download-sample', [DealController::class, 'downloadSampleImport'])->name('deals.import.download-sample');
     });
 
     Route::group(['prefix' => 'lead-contact'], function () {
         Route::get('import', [LeadContactController::class, 'importLead'])->name('lead-contact.import');
         Route::post('import', [LeadContactController::class, 'importStore'])->name('lead-contact.import.store');
         Route::post('import/process', [LeadContactController::class, 'importProcess'])->name('lead-contact.import.process');
+        Route::get('sample-import', [LeadContactController::class, 'downloadSampleImport'])->name('lead-contact.sample_import');
     });
 
     // deals route
 
     Route::resource('lead-contact', LeadContactController::class);
+    Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
     Route::post('lead-contact/apply-quick-action', [LeadContactController::class, 'applyQuickAction'])->name('lead-contact.apply_quick_action');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
+    Route::get('deals/kanban', [LeadBoardController::class, 'index'])->name('deals.kanban_index');
+    
     Route::resource('deals', DealController::class);
+    Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    
+// Meeting Summary Routes
+Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
+
+    // Meeting Types
+    Route::resource('meeting-types', MeetingTypeController::class);
 
     // leaves files routes
     Route::get('leave-files/download/{id}', [LeaveFileController::class, 'download'])->name('leave-files.download');
@@ -911,6 +929,39 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('estimate-request/send_estimate_mail', [EstimateRequestController::class, 'sendEstimateMail'])->name('estimate-request.send_estimate_mail');
     Route::resource('estimate-request', EstimateRequestController::class);
 
+    // Properties
+    Route::post('properties/apply-quick-action', [App\Http\Controllers\PropertyController::class, 'applyQuickAction'])->name('properties.apply_quick_action');
+    Route::post('properties/bulk-action', [App\Http\Controllers\PropertyController::class, 'bulkAction'])->name('properties.bulk_action');
+    Route::get('properties/import', [App\Http\Controllers\PropertyController::class, 'importProperty'])->name('properties.import');
+    Route::post('properties/import', [App\Http\Controllers\PropertyController::class, 'importStore'])->name('properties.import.store');
+    Route::post('properties/import-process', [App\Http\Controllers\PropertyController::class, 'importProcess'])->name('properties.import.process');
+    Route::get('properties/sample-import', [App\Http\Controllers\PropertyController::class, 'downloadSampleImport'])->name('properties.sample_import');
+    Route::post('properties/export', [App\Http\Controllers\PropertyController::class, 'exportProperties'])->name('properties.export');
+    Route::get('properties/configurations', [App\Http\Controllers\PropertyController::class, 'getPropertyConfigurations'])->name('properties.configurations');
+    Route::get('properties/allowed-types', [App\Http\Controllers\PropertyController::class, 'getAllowedPropertyTypes'])->name('properties.allowed_types');
+    Route::get('properties/allowed-fields', [App\Http\Controllers\PropertyController::class, 'getAllowedFields'])->name('properties.allowed_fields');
+    
+    // Property Asset Management Routes
+    Route::post('properties/{property}/photos', [App\Http\Controllers\PropertyController::class, 'updatePhotos'])->name('properties.update_photos');
+    Route::post('properties/{property}/photos/add', [App\Http\Controllers\PropertyController::class, 'addSinglePhoto'])->name('properties.add_single_photo');
+    Route::put('properties/{property}/photos/{index}', [App\Http\Controllers\PropertyController::class, 'updateSinglePhoto'])->name('properties.update_single_photo');
+    Route::delete('properties/{property}/photos/single', [App\Http\Controllers\PropertyController::class, 'deleteSinglePhoto'])->name('properties.delete_single_photo');
+    Route::post('properties/{property}/video', [App\Http\Controllers\PropertyController::class, 'updateVideo'])->name('properties.update_video');
+    Route::post('properties/{property}/360-tour', [App\Http\Controllers\PropertyController::class, 'update360Tour'])->name('properties.update_360_tour');
+    Route::delete('properties/{property}/assets', [App\Http\Controllers\PropertyController::class, 'deleteAssets'])->name('properties.delete_assets');
+    
+    Route::resource('properties', App\Http\Controllers\PropertyController::class);
+
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);
+
+    // Test Activity Response Trait Routes
+    Route::prefix('test-activity')->name('test-activity.')->group(function () {
+        Route::post('email', [App\Http\Controllers\TestActivityController::class, 'testEmail'])->name('email');
+        Route::post('whatsapp', [App\Http\Controllers\TestActivityController::class, 'testWhatsApp'])->name('whatsapp');
+        Route::post('instagram', [App\Http\Controllers\TestActivityController::class, 'testInstagram'])->name('instagram');
+        Route::post('telegram', [App\Http\Controllers\TestActivityController::class, 'testTelegram'])->name('telegram');
+        Route::post('retry', [App\Http\Controllers\TestActivityController::class, 'testWithRetry'])->name('retry');
+        Route::post('all', [App\Http\Controllers\TestActivityController::class, 'testAllChannels'])->name('all');
+    });
 });

@@ -31,8 +31,10 @@ class UpdateRequest extends CoreRequest
         $rules['name'] = 'required';
         $rules['pipeline'] = 'required';
         $rules['stage_id'] = 'required';
-        $rules['close_date'] = 'required';
+        $rules['close_date'] = 'nullable';
         $rules['value'] = 'required';
+        $rules['deal_watcher'] = 'nullable|array';
+        $rules['deal_watcher.*'] = 'exists:users,id';
 
         $rules = $this->customFieldRules($rules);
 

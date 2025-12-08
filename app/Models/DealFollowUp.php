@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * App\Models\DealFollowUp
  *
  * @property int $id
- * @property int $lead_id
+ * @property int $deal_id
+ * @property int|null $meeting_type_id
  * @property string|null $remark
  * @property \Illuminate\Support\Carbon|null $next_follow_up_date
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -16,7 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $added_by
  * @property int|null $last_updated_by
  * @property-read mixed $icon
- * @property-read \App\Models\Lead $lead
+ * @property-read \App\Models\Deal $deal
+ * @property-read \App\Models\MeetingType|null $meetingType
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp query()
@@ -24,12 +26,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereLastUpdatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereLeadId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereDealId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereMeetingTypeId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereNextFollowUpDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereRemark($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereUpdatedAt($value)
  * @property string|null $event_id
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereEventId($value)
+ * @property string|null $meeting_id
+ * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereMeetingId($value)
  * @property string|null $send_reminder
  * @property string|null $remind_time
  * @property string|null $remind_type
@@ -39,21 +44,73 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read \App\Models\User|null $addedBy
  * @property string|null $status
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereStatus($value)
- * @property int|null $deal_id
- * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereDealId($value)
  * @mixin \Eloquent
  */
 class DealFollowUp extends BaseModel
 {
-
     protected $table = 'lead_follow_up';
+    protected $hidden = ["pivot"];
+
+
+    protected $fillable = [
+        'deal_id',
+        'lead_id',  // Keep for backward compatibility
+        'meeting_type_id',
+        'location',
+        'meeting_link',
+        'remark',
+        'meeting_type',
+        'next_follow_up_date',
+        'added_by',
+        'last_updated_by',
+        'event_id',
+        'meeting_id',
+        'summary_id',
+        'send_reminder',
+        'remind_time',
+        'remind_type',
+        'reminders',  // New JSON field for multiple reminders
+        'status',
+    ];
 
     protected $casts = [
         'next_follow_up_date' => 'datetime',
         'created_at' => 'datetime',
+        'reminders' => 'array',  // Cast JSON to array
     ];
 
-    public function lead(): BelongsTo
+    // Default reminders that cannot be edited or deleted
+    public const DEFAULT_REMINDERS = [
+        ['time' => 1, 'type' => 'hour', 'is_default' => true],
+        ['time' => 30, 'type' => 'minute', 'is_default' => true],
+        ['time' => 15, 'type' => 'minute', 'is_default' => true],
+        ['time' => 5, 'type' => 'minute', 'is_default' => true],
+    ];
+
+    /**
+     * Get all reminders including defaults
+     */
+    public function getAllReminders()
+    {
+        $customReminders = $this->reminders ?? [];
+        return array_merge(self::DEFAULT_REMINDERS, $customReminders);
+    }
+
+    /**
+     * Set custom reminders (defaults are always included)
+     */
+    public function setCustomReminders(array $customReminders)
+    {
+        // Filter out any attempts to set is_default = true
+        $customReminders = array_map(function ($reminder) {
+            unset($reminder['is_default']);
+            return $reminder;
+        }, $customReminders);
+        
+        $this->reminders = $customReminders;
+    }
+
+    public function deal(): BelongsTo
     {
         return $this->belongsTo(Deal::class, 'deal_id');
     }
@@ -61,6 +118,16 @@ class DealFollowUp extends BaseModel
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
+    }
+
+    public function meetingType(): BelongsTo
+    {
+        return $this->belongsTo(MeetingType::class);
+    }
+
+    public function meetingSummary(): BelongsTo
+    {
+        return $this->belongsTo(MeetingSummary::class, 'summary_id');
     }
 
 }

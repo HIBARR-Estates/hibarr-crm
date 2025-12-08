@@ -82,9 +82,9 @@
 
                 <x-cards.data-row :label="__('modules.lead.website')" :value="$leadContact->website ?? '--'" />
 
-                <x-cards.data-row :label="__('modules.lead.mobile')" :value="$leadContact->mobile ?? '--'" />
+                <x-cards.data-row :label="__('modules.lead.mobile')" :value="$leadContact->mobile_with_phonecode ?? '--'" />
 
-                <x-cards.data-row :label="__('modules.client.officePhoneNumber')" :value="$leadContact->office ?? '--'" />
+                <x-cards.data-row :label="__('modules.client.officePhoneNumber')" :value="$leadContact->office_phone_formatted" />
 
                 <x-cards.data-row :label="__('app.country')" :value="$leadContact->country ?? '--'" />
 

@@ -1,0 +1,251 @@
+import { Deal } from "@/Types/api/deals";
+
+import { Card, Row, Col, Divider, Typography } from "antd";
+import DealInfoSection from "./Components/DealInfoSection";
+import DealTabs from "./Components/DealTabs";
+import ActivitySidebar from "./Components/ActivitySidebar";
+// import "./Components/styles.css";
+import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
+import PageLayout from "@/Components/PageLayout";
+import { Note } from "@/Types/api/note";
+import { DealFollowup } from "@/Types/api/deal-followup";
+import { DealFile } from "@/Types/api/file";
+import { Proposal } from "@/Types/api/proposal";
+import QuickActions from "./Components/ActivitySidebar/QuickActions";
+import { Task } from "@/Types/api/tasks";
+
+interface Props extends PageProps {
+    deal: Deal;
+    productNames: string[];
+    customFieldCategories: any[];
+    fields: any[];
+    notes: Note[];
+    dealFollowUps: DealFollowup[];
+    meetingTypes: Array<{ id: number; name: string; color?: string }>;
+    files: DealFile[];
+    proposals: Proposal[];
+    histories: any[];
+    consents: any[];
+    gdprSetting: any;
+    permissions: Record<string, string>;
+    pageTitle: string;
+    tasks: Task[];
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    employees: any[];
+    projects: any[];
+}
+const { Title } = Typography;
+
+export default function Show({
+    deal,
+    productNames,
+    customFieldCategories,
+    fields,
+    notes,
+    dealFollowUps,
+    meetingTypes,
+    files,
+    proposals,
+    histories,
+    consents,
+    gdprSetting,
+    permissions,
+    pageTitle,
+    tasks,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    employees,
+    projects,
+}: Props) {
+    console.log(deal, "DEAL DATA");
+    return (
+        <DashboardLayout>
+            <PageLayout
+                title={pageTitle}
+                breadcrumbs={[
+                    { name: "Dashboard", url: route("dashboard") },
+                    { name: "Deals", url: route("deals.index") },
+                    { name: pageTitle },
+                ]}
+            >
+                <div className="min-h-screen mx-12">
+                    <div className="max-w-10xl mx-auto">
+                        {/* Page Header */}
+                        <div className="mb-6 sm:mb-8">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="min-w-0 flex-1">
+                                    <Title level={4} className="mb-2">
+                                        {deal.name}
+                                    </Title>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                                            {deal.pipeline?.name}
+                                        </div>
+
+                                        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar mask-linear-fade">
+                                            {deal.pipeline?.stages?.map(
+                                                (stage, index) => {
+                                                    const currentPriority =
+                                                        deal.lead_stage
+                                                            ?.priority || 0;
+                                                    const isCompleted =
+                                                        (stage?.priority || 0) <
+                                                        currentPriority;
+                                                    const isCurrent =
+                                                        stage.id ===
+                                                        deal.lead_stage?.id;
+
+                                                    return (
+                                                        <div
+                                                            key={stage.id}
+                                                            className="flex items-center shrink-0"
+                                                        >
+                                                            <div
+                                                                className={`
+                                                                flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border
+                                                                ${
+                                                                    isCurrent
+                                                                        ? "shadow-sm scale-105 font-bold"
+                                                                        : isCompleted
+                                                                        ? "opacity-80"
+                                                                        : "opacity-50 grayscale"
+                                                                }
+                                                            `}
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        isCurrent ||
+                                                                        isCompleted
+                                                                            ? `${stage.label_color}15`
+                                                                            : "#f3f4f6",
+                                                                    color:
+                                                                        isCurrent ||
+                                                                        isCompleted
+                                                                            ? stage.label_color
+                                                                            : "#6b7280",
+                                                                    borderColor:
+                                                                        isCurrent
+                                                                            ? stage.label_color
+                                                                            : "transparent",
+                                                                }}
+                                                            >
+                                                                {stage.name}
+                                                            </div>
+                                                            {index <
+                                                                (deal.pipeline
+                                                                    ?.stages
+                                                                    ?.length ||
+                                                                    0) -
+                                                                    1 && (
+                                                                <div
+                                                                    className={`w-4 h-0.5 mx-1 rounded-full shrink-0 ${
+                                                                        isCompleted
+                                                                            ? "bg-gray-300"
+                                                                            : "bg-gray-100"
+                                                                    }`}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+                                            )}
+
+                                            {(!deal.pipeline?.stages ||
+                                                deal.pipeline.stages.length ===
+                                                    0) && (
+                                                <div
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+                                                    style={{
+                                                        backgroundColor: `${deal.lead_stage?.label_color}20`,
+                                                        color: deal.lead_stage
+                                                            ?.label_color,
+                                                    }}
+                                                >
+                                                    {deal.lead_stage?.name}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <QuickActions
+                                    deal={deal}
+                                    permissions={permissions}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Main Content */}
+                        <Row gutter={[30, 40]} className="">
+                            {/* Left Column - Main Content */}
+                            <Col xs={24} lg={16} xl={16}>
+                                <div className="flex flex-col gap-y-4 sm:gap-y-6">
+                                    {/* Deal Information Card */}
+                                    <Card
+                                        className="border-0 rounded-lg overflow-hidden deal-card"
+                                        bodyStyle={{ padding: 0 }}
+                                        variant="outlined"
+                                    >
+                                        <DealInfoSection
+                                            deal={deal}
+                                            productNames={productNames}
+                                            customFieldCategories={
+                                                customFieldCategories
+                                            }
+                                            fields={fields}
+                                            permissions={permissions}
+                                            tasks={tasks}
+                                            taskCategories={taskCategories}
+                                            taskLabels={taskLabels}
+                                            taskBoardColumns={taskBoardColumns}
+                                            employees={employees}
+                                            projects={projects}
+                                        />
+                                    </Card>
+
+                                    {/* Tabs Section */}
+                                    <Card
+                                        className="border-0 rounded-lg overflow-hidden deal-card"
+                                        bodyStyle={{ padding: 0 }}
+                                        variant="outlined"
+                                    >
+                                        <DealTabs
+                                            deal={deal}
+                                            notes={notes}
+                                            dealFollowUps={dealFollowUps}
+                                            meetingTypes={meetingTypes}
+                                            files={files}
+                                            proposals={proposals}
+                                            histories={histories}
+                                            consents={consents}
+                                            gdprSetting={gdprSetting}
+                                            permissions={permissions}
+                                            tasks={tasks}
+                                            taskCategories={taskCategories}
+                                            taskLabels={taskLabels}
+                                            taskBoardColumns={taskBoardColumns}
+                                            employees={employees}
+                                            projects={projects}
+                                        />
+                                    </Card>
+                                </div>
+                            </Col>
+
+                            {/* Right Column - Activities Sidebar */}
+                            <Col xs={24} lg={8} xl={8}>
+                                <div className="lg:sticky lg:top-8">
+                                    <ActivitySidebar
+                                        deal={deal}
+                                        permissions={permissions}
+                                    />
+                                </div>
+                            </Col>
+                        </Row>
+                    </div>
+                </div>
+            </PageLayout>
+        </DashboardLayout>
+    );
+}

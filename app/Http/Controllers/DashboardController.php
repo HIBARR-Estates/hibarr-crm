@@ -29,13 +29,17 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Froiden\Envato\Traits\AppBoot;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use App\Services\PermissionService;
 
 
 class DashboardController extends AccountBaseController
 {
 
     use AppBoot, CurrencyExchange, OverviewDashboard, EmployeeDashboard, ProjectDashboard, ClientDashboard, HRDashboard, TicketDashboard, FinanceDashboard, ClientPanelDashboard;
+    use \App\Traits\DealFormDataTrait;
+    use \App\Traits\LeadFormDataTrait;
 
     public function __construct()
     {
@@ -56,21 +60,607 @@ class DashboardController extends AccountBaseController
 
         $this->isCheckScript();
         session()->forget(['qr_clock_in']);
-        if (in_array('employee', user_roles())) {
+        
+        // Check if the request wants the new dashboard overview
+        // if (request()->header('X-Inertia') || request()->wantsJson()) {
+        // if (true) {
+        return $this->dashboardOverview();
+        // }
+        
+        // if (in_array('employee', user_roles())) {
 
-            $this->viewOverviewDashboard = user()->permission('view_overview_dashboard');
-            $this->viewProjectDashboard = user()->permission('view_project_dashboard');
-            $this->viewClientDashboard = user()->permission('view_client_dashboard');
-            $this->viewHRDashboard = user()->permission('view_hr_dashboard');
-            $this->viewTicketDashboard = user()->permission('view_ticket_dashboard');
-            $this->viewFinanceDashboard = user()->permission('view_finance_dashboard');
+        //     $this->viewOverviewDashboard = user()->permission('view_overview_dashboard');
+        //     $this->viewProjectDashboard = user()->permission('view_project_dashboard');
+        //     $this->viewClientDashboard = user()->permission('view_client_dashboard');
+        //     $this->viewHRDashboard = user()->permission('view_hr_dashboard');
+        //     $this->viewTicketDashboard = user()->permission('view_ticket_dashboard');
+        //     $this->viewFinanceDashboard = user()->permission('view_finance_dashboard');
 
-            return $this->employeeDashboard();
-        }
+        //     return $this->employeeDashboard();
+        // }
 
-        if (in_array('client', user_roles())) {
-            return $this->clientPanelDashboard();
-        }
+        // if (in_array('client', user_roles())) {
+        //     return $this->clientPanelDashboard();
+        // }
+    }
+
+    /**
+     * Dashboard Overview with widgets
+     */
+    public function dashboardOverview()
+    {
+        $userId = user()->id;
+        $viewTaskPermission = user()->permission('view_tasks');
+        $viewDealPermission = user()->permission('view_deals');
+        $viewLeadPermission = user()->permission('view_lead');
+
+        // Define permission rules
+        $taskRules = [
+            'added' => 'added_by',
+            'owned' => function($q, $user) {
+                $q->whereHas('users', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                });
+            }
+        ];
+
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $query->whereHas('leadAgent', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    })->orWhereHas('dealWatchers', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    });
+                });
+            }
+        ];
+
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner'
+        ];
+        
+        // Get upcoming tasks ordered by due date
+        $tasksQuery = Task::with([
+            'project:id,project_name,project_short_code', 
+            'users:id,name,image', 
+            'boardColumn:id,column_name,slug', 
+            'category:id,category_name',
+            'labels'  // Remove column specification to let the model handle the accessor
+        ])
+            ->where('board_column_id', '!=', function($query) {
+                $query->select('id')->from('taskboard_columns')->where('slug', 'completed');
+            });
+
+        // Apply permission-based filtering for tasks
+        PermissionService::applyScope($tasksQuery, user(), 'view_tasks', $taskRules);
+
+        $tasks = $tasksQuery->orderBy(
+                \DB::raw("CASE 
+                    WHEN due_date IS NOT NULL AND due_date < NOW() THEN 1
+                    WHEN due_date IS NOT NULL AND DATE(due_date) = CURDATE() THEN 2
+                    ELSE 3
+                END")
+            )
+            ->orderBy('due_date', 'asc')
+            ->limit(20)
+            ->get()
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'heading' => $task->heading,
+                    'description' => $task->description,
+                    'due_date' => $task->due_date?->toDateString(),
+                    'start_date' => $task->start_date?->toDateString(),
+                    'priority' => $task->priority,
+                    'status' => $task->boardColumn->slug ?? 'incomplete',
+                    'board_column_id' => $task->board_column_id,
+                    'project' => $task->project ? [
+                        'id' => $task->project->id,
+                        'project_name' => $task->project->project_name,
+                        'project_short_code' => $task->project->project_short_code,
+                    ] : null,
+                    'category' => $task->category ? [
+                        'id' => $task->category->id,
+                        'category_name' => $task->category->category_name,
+                    ] : null,
+                    'users' => $task->users->map(function ($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'image' => $user->image_url,
+                        ];
+                    })->toArray(),
+                    'labels' => $task->labels->map(function ($label) {
+                        return [
+                            'id' => $label->id,
+                            'label_name' => $label->label_name,
+                            'label_color' => $label->label_color,
+                        ];
+                    })->toArray(),
+                    'estimate_hours' => $task->estimate_hours,
+                    'estimate_minutes' => $task->estimate_minutes,
+                    'is_private' => $task->is_private,
+                    'billable' => $task->billable,
+                    'without_duedate' => $task->without_duedate,
+                ];
+            });
+
+        // Get pipeline stages for deals tracker
+        $pipelineStages = \App\Models\PipelineStage::orderBy('priority', 'asc')
+            ->get()
+            ->map(function ($stage) {
+                return [
+                    'id' => $stage->id,
+                    'name' => $stage->name,
+                    'label_color' => $stage->label_color,
+                    'priority' => $stage->priority,
+                ];
+            });
+
+        // Get deals for pipeline view
+        $dealsQuery = \App\Models\Deal::with([
+            'contact:id,client_name,client_email,mobile',
+            'leadStage:id,name,label_color,priority',
+            'currency:id,currency_symbol',
+            'category:id,category_name',
+            'leadAgent.user:id,name,image',
+            'products:id,name',
+            'package:id,name'
+        ])->orderBy('updated_at', 'desc');
+
+        // Apply permission-based filtering for deals
+        PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
+
+        $allDeals = $dealsQuery->get()->toBase()
+            ->map(function ($deal) {
+                return [
+                    'id' => $deal->id,
+                    'name' => $deal->name,
+                    'value' => $deal->value,
+                    'close_date' => $deal->close_date,
+                    'pipeline_stage_id' => $deal->pipeline_stage_id,
+                    'lead_pipeline_id' => $deal->lead_pipeline_id,
+                    'probability' => $deal->probability,
+                    'products_count' => $deal->products->count(),
+                    'package_id' => $deal->package_id,
+                    'contact' => $deal->contact ? [
+                        'id' => $deal->contact->id,
+                        'client_name' => $deal->contact->client_name,
+                        'client_email' => $deal->contact->client_email,
+                        'mobile' => $deal->contact->mobile,
+                    ] : null,
+                    'lead_stage' => $deal->leadStage ? [
+                        'id' => $deal->leadStage->id,
+                        'name' => $deal->leadStage->name,
+                        'label_color' => $deal->leadStage->label_color,
+                        'priority' => $deal->leadStage->priority,
+                    ] : null,
+                    'category' => $deal->category ? [
+                        'id' => $deal->category->id,
+                        'category_name' => $deal->category->category_name,
+                    ] : null,
+                    'agent' => $deal->leadAgent && $deal->leadAgent->user ? [
+                        'id' => $deal->leadAgent->user->id,
+                        'name' => $deal->leadAgent->user->name,
+                        'image' => $deal->leadAgent->user->image_url,
+                    ] : null,
+                    'currency' => $deal->currency ? [
+                        'currency_symbol' => $deal->currency->currency_symbol,
+                    ] : null,
+                    'updated_at' => $deal->updated_at->toISOString(),
+                ];
+            });
+
+        $recentDeals = $allDeals->take(10);
+
+        // Enhanced data quality analysis
+        $dataQualityRecords = collect();
+        
+        // Get all leads
+        $leadsQuery = \App\Models\Lead::query();
+        PermissionService::applyScope($leadsQuery, user(), 'view_lead', $leadRules);
+        $allLeads = $leadsQuery->get()->toBase();
+        
+        // Get required custom fields for leads
+        $leadCustomFields = \App\Models\CustomField::where('custom_field_group_id', function($q) {
+            $q->select('id')->from('custom_field_groups')->where('model', 'App\Models\Lead');
+        })->where('required', 'yes')->get();
+
+        // Analyze deals for data quality
+        $poorDataQualityDeals = $allDeals->map(function ($deal) {
+            $missingFields = [];
+            $dataIssues = [];
+            $totalFields = 0;
+            $filledFields = 0;
+
+            // Check products
+            $totalFields++;
+            if ($deal['products_count'] > 0) {
+                $filledFields++;
+            } else {
+                $missingFields[] = 'Products';
+                $dataIssues[] = [
+                    'field' => 'products',
+                    'issue' => 'No products associated',
+                    'severity' => 'high',
+                    'suggestion' => 'Add products to the deal'
+                ];
+            }
+
+            // Check package
+            $totalFields++;
+            if ($deal['package_id']) {
+                $filledFields++;
+            } else {
+                $missingFields[] = 'Package';
+                $dataIssues[] = [
+                    'field' => 'package_id',
+                    'issue' => 'No package selected',
+                    'severity' => 'high',
+                    'suggestion' => 'Select a package for the deal'
+                ];
+            }
+
+            // Contact information validation (Lead connected to deal)
+            if ($deal['contact']) {
+                $contactFields = [
+                    'client_email' => 'Email',
+                    'mobile' => 'Phone'
+                ];
+                
+                foreach ($contactFields as $field => $label) {
+                    $totalFields++;
+                    $value = data_get($deal, 'contact.' . $field);
+                    if (!empty($value)) {
+                        $filledFields++;
+                        // Email validation
+                        if ($field === 'client_email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                            $dataIssues[] = [
+                                'field' => 'contact_email',
+                                'issue' => 'Invalid email format',
+                                'severity' => 'high',
+                                'suggestion' => 'Please provide a valid email address'
+                            ];
+                        }
+                    } else {
+                        $missingFields[] = 'Contact ' . $label;
+                        $dataIssues[] = [
+                            'field' => 'contact_' . $field,
+                            'issue' => 'Contact ' . strtolower($label) . ' is missing',
+                            'severity' => 'high',
+                            'suggestion' => 'Add contact ' . strtolower($label) . ' for better communication'
+                        ];
+                    }
+                }
+            } else {
+                $totalFields += 2;
+                $missingFields = array_merge($missingFields, ['Contact Email', 'Contact Phone']);
+                $dataIssues[] = [
+                    'field' => 'contact',
+                    'issue' => 'No contact information available',
+                    'severity' => 'high',
+                    'suggestion' => 'Associate a contact with this deal'
+                ];
+            }
+
+            // Category and agent validation
+            if (!$deal['category']) {
+                $totalFields++;
+                $missingFields[] = 'Category';
+                $dataIssues[] = [
+                    'field' => 'category',
+                    'issue' => 'Deal category not specified',
+                    'severity' => 'low',
+                    'suggestion' => 'Categorize deal for better reporting'
+                ];
+            } else {
+                $totalFields++;
+                $filledFields++;
+            }
+
+            if (!$deal['agent']) {
+                $totalFields++;
+                $missingFields[] = 'Agent';
+                $dataIssues[] = [
+                    'field' => 'agent',
+                    'issue' => 'No agent assigned',
+                    'severity' => 'high',
+                    'suggestion' => 'Assign an agent to manage this deal'
+                ];
+            } else {
+                $totalFields++;
+                $filledFields++;
+            }
+
+            $dataQualityScore = $totalFields > 0 ? round(($filledFields / $totalFields) * 100) : 0;
+            
+            // Calculate priority score based on data quality (since value is removed)
+            $priorityScore = max(0, (100 - $dataQualityScore)); 
+
+            return [
+                'id' => $deal['id'],
+                'type' => 'deal',
+                'name' => $deal['name'],
+                'data_quality_score' => $dataQualityScore,
+                'missing_fields' => $missingFields,
+                'data_issues' => $dataIssues,
+                'contact' => $deal['contact'],
+                'value' => $deal['value'],
+                'stage' => $deal['lead_stage'] ? $deal['lead_stage']['name'] : null,
+                'pipeline' => $deal['lead_pipeline_id'],
+                'stage_id' => $deal['pipeline_stage_id'],
+                'agent' => $deal['agent'],
+                'updated_at' => $deal['updated_at'],
+                'priority_score' => round($priorityScore),
+            ];
+        });
+
+        // Analyze leads for data quality
+        $poorDataQualityLeads = $allLeads->map(function ($lead) use ($leadCustomFields) {
+            $missingFields = [];
+            $dataIssues = [];
+            $totalFields = 0;
+            $filledFields = 0;
+
+            // Essential lead fields
+            $leadFields = [
+                'client_email' => 'Email',
+                'mobile' => 'Mobile',
+                'address' => 'Address',
+                'city' => 'City',
+                'postal_code' => 'Postal Code',
+                'country' => 'Country',
+                'state' => 'State'
+            ];
+
+            foreach ($leadFields as $field => $label) {
+                $totalFields++;
+                $value = $lead->{$field};
+                if (!empty($value)) {
+                    $filledFields++;
+                    if ($field === 'client_email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                        $dataIssues[] = [
+                            'field' => $field,
+                            'issue' => 'Invalid email format',
+                            'severity' => 'high',
+                            'suggestion' => 'Please provide a valid email address'
+                        ];
+                    }
+                } else {
+                    $missingFields[] = $label;
+                    $dataIssues[] = [
+                        'field' => $field,
+                        'issue' => $label . ' is missing',
+                        'severity' => 'medium',
+                        'suggestion' => 'Please provide ' . strtolower($label)
+                    ];
+                }
+            }
+
+            // Check required custom fields
+            // We need to fetch custom fields data for this lead
+            // Since we are iterating, this might be N+1 if not eager loaded.
+            // But Lead::allLeads() returns a collection.
+            // We can use the custom_fields_data table or helper.
+            // For performance, we should have eager loaded custom fields data, but Lead::allLeads() doesn't do that by default.
+            // We'll assume we can access it via the model helper or relation if available.
+            // Lead model uses CustomFieldsTrait.
+            
+            // Let's try to get custom fields data.
+            // $lead->custom_fields_data is available if we load it.
+            // Since we didn't eager load, we might need to fetch it or rely on lazy loading (slow).
+            // For now, let's assume we can check it.
+            
+            // To avoid N+1, we should have loaded it. But let's proceed with lazy loading for now as optimization is secondary to functionality.
+            // Actually, let's try to use the trait method if possible.
+            
+            foreach ($leadCustomFields as $customField) {
+                $totalFields++;
+                // Check if value exists in custom_fields_data table
+                $value = DB::table('custom_fields_data')
+                    ->where('model', 'App\Models\Lead')
+                    ->where('model_id', $lead->id)
+                    ->where('custom_field_id', $customField->id)
+                    ->value('value');
+
+                if (!empty($value)) {
+                    $filledFields++;
+                } else {
+                    $missingFields[] = $customField->label;
+                    $dataIssues[] = [
+                        'field' => 'custom_field_' . $customField->id,
+                        'issue' => $customField->label . ' is missing',
+                        'severity' => 'high', // Required fields are high severity
+                        'suggestion' => 'Please provide ' . $customField->label
+                    ];
+                }
+            }
+
+            $dataQualityScore = $totalFields > 0 ? round(($filledFields / $totalFields) * 100) : 0;
+            $priorityScore = max(0, (100 - $dataQualityScore));
+
+            return [
+                'id' => $lead->id,
+                'type' => 'lead',
+                'name' => $lead->client_name,
+                'data_quality_score' => $dataQualityScore,
+                'missing_fields' => $missingFields,
+                'data_issues' => $dataIssues,
+                'contact' => [
+                    'id' => $lead->id,
+                    'client_name' => $lead->client_name,
+                    'client_email' => $lead->client_email,
+                    'mobile' => $lead->mobile,
+                ],
+                'value' => $lead->value,
+                'stage' => null,
+                'agent' => null,
+                'updated_at' => $lead->updated_at,
+                'priority_score' => round($priorityScore),
+            ];
+        });
+
+        $poorDataQualityDeals = $poorDataQualityDeals->merge($poorDataQualityLeads)
+            ->filter(function ($deal) {
+            return $deal['data_quality_score'] < 80; // Only show records that need improvement
+        })->sortByDesc('priority_score')->take(10)->values();
+
+        // Get recent communication activities
+        $recentActivities = \App\Models\CommunicationActivity::with(['deal:id,name'])
+            ->when($viewDealPermission != 'all', function ($query) use ($userId, $viewDealPermission, $dealRules) {
+                $query->whereHas('deal', function ($q) use ($userId, $viewDealPermission, $dealRules) {
+                    PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
+                });
+            })
+            ->orderBy('timestamp', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($activity) {
+                return [
+                    'id' => $activity->id,
+                    'channel_type' => $activity->channel_type,
+                    'message_content' => $activity->message_content,
+                    'timestamp' => $activity->timestamp->toISOString(),
+                    'sender_info' => $activity->sender_info,
+                    'deal' => $activity->deal ? [
+                        'id' => $activity->deal->id,
+                        'name' => $activity->deal->name,
+                    ] : null,
+                ];
+            });
+
+        // Calculate comprehensive overview metrics
+        $completedColumn = TaskboardColumn::where('slug', 'completed')->first();
+        
+        $currentMonthDealsCount = $allDeals->filter(function ($deal) {
+            return \Carbon\Carbon::parse($deal['updated_at'])->isCurrentMonth();
+        })->count();
+        
+        $lastMonthDealsCount = \App\Models\Deal::whereMonth('created_at', now()->subMonth()->month)
+            ->whereYear('created_at', now()->subMonth()->year);
+            
+        PermissionService::applyScope($lastMonthDealsCount, user(), 'view_deals', $dealRules);
+        
+        $lastMonthDealsCount = $lastMonthDealsCount->count();
+
+        $dealsTrend = $lastMonthDealsCount > 0 
+            ? round((($currentMonthDealsCount - $lastMonthDealsCount) / $lastMonthDealsCount) * 100)
+            : ($currentMonthDealsCount > 0 ? 100 : 0);
+
+        // Lead metrics (you may need to adjust based on your Lead model structure)
+        $activeLeadsQuery = \App\Models\Lead::query();
+        PermissionService::applyScope($activeLeadsQuery, user(), 'view_lead', $leadRules);
+        $activeLeadsCount = $activeLeadsQuery->count();
+
+        $openDealsCount = $allDeals->filter(function ($deal) {
+            $closedStages = ['won', 'lost', 'closed']; // Adjust based on your stage names
+            $stageSlug = strtolower($deal['lead_stage']['name'] ?? '');
+            return !in_array($stageSlug, $closedStages);
+        })->count();
+
+        $closedDealsCount = $allDeals->filter(function ($deal) {
+            $closedStages = ['won', 'closed']; // Adjust based on your stage names
+            $stageSlug = strtolower($deal['lead_stage']['name'] ?? '');
+            return in_array($stageSlug, $closedStages);
+        })->count();
+
+        // Calculate quota progress (you may need to adjust based on your quota system)
+        $currentMonthValue = $allDeals->filter(function ($deal) {
+            return \Carbon\Carbon::parse($deal['updated_at'])->isCurrentMonth();
+        })->sum('value');
+        
+        $monthlyQuota = 1000000; // You should get this from user settings or company settings
+        
+        // Conversion rate calculation
+        $totalLeadsQuery = \App\Models\Lead::query();
+        PermissionService::applyScope($totalLeadsQuery, user(), 'view_lead', $leadRules);
+        $totalLeads = $totalLeadsQuery->count();
+        
+        $conversionRate = $totalLeads > 0 ? round(($allDeals->count() / $totalLeads) * 100, 1) : 0;
+
+        $overviewMetrics = [
+            'activeLeads' => $activeLeadsCount,
+            'openDeals' => $openDealsCount,
+            'closedDeals' => $closedDealsCount,
+            'quotaProgress' => [
+                'current' => $currentMonthValue,
+                'target' => $monthlyQuota,
+            ],
+            'conversionRate' => $conversionRate,
+            'trends' => [
+                'openDeals' => [
+                    'value' => abs($dealsTrend),
+                    'isPositive' => $dealsTrend >= 0,
+                ],
+                'conversionRate' => [
+                    'value' => 5, // You would calculate this based on historical data
+                    'isPositive' => true,
+                ],
+            ],
+        ];
+
+        // Calculate basic stats for backwards compatibility  
+        $pendingTasksQuery = Task::where('board_column_id', '!=', $completedColumn?->id);
+        PermissionService::applyScope($pendingTasksQuery, user(), 'view_tasks', $taskRules);
+        $pendingTasksCount = $pendingTasksQuery->count();
+            
+        // Update overview metrics to use calculated pending activities
+        $overviewMetrics['pendingActivities'] = $pendingTasksCount;
+        
+        $totalTasksQuery = Task::query();
+        PermissionService::applyScope($totalTasksQuery, user(), 'view_tasks', $taskRules);
+
+        $completedTasksQuery = Task::where('board_column_id', $completedColumn?->id);
+        PermissionService::applyScope($completedTasksQuery, user(), 'view_tasks', $taskRules);
+
+        $pendingTasksQuery2 = Task::where('board_column_id', '!=', $completedColumn?->id);
+        PermissionService::applyScope($pendingTasksQuery2, user(), 'view_tasks', $taskRules);
+
+        $overdueTasksQuery = Task::where('due_date', '<', now())
+            ->where('board_column_id', '!=', $completedColumn?->id);
+        PermissionService::applyScope($overdueTasksQuery, user(), 'view_tasks', $taskRules);
+
+        $totalDealsQuery = \App\Models\Deal::query();
+        PermissionService::applyScope($totalDealsQuery, user(), 'view_deals', $dealRules);
+
+        $dealsThisMonthQuery = \App\Models\Deal::whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year);
+        PermissionService::applyScope($dealsThisMonthQuery, user(), 'view_deals', $dealRules);
+
+        $stats = [
+            'total_tasks' => $totalTasksQuery->count(),
+            'completed_tasks' => $completedTasksQuery->count(),
+            'pending_tasks' => $pendingTasksQuery2->count(),
+            'overdue_tasks' => $overdueTasksQuery->count(),
+            'total_deals' => $totalDealsQuery->count(),
+            'deals_this_month' => $dealsThisMonthQuery->count(),
+            'total_activities' => \App\Models\CommunicationActivity::count(),
+            'activities_this_week' => \App\Models\CommunicationActivity::where('timestamp', '>=', now()->startOfWeek())
+                ->count(),
+            // TODO: Refactor this to be a service that calculates all this data and passes it to the dashboard controller, also the entities ought to be tied explicitly to the authenticated user
+        ];
+
+        $dealFormData = $this->getDealFormData();
+        $dealFormData['dealCustomFields'] = $dealFormData['customFields'];
+        $dealFormData['dealCustomFieldCategories'] = $dealFormData['customFieldCategories'];
+
+        $leadFormData = $this->getLeadFormData();
+        $leadFormData['leadCustomFields'] = $leadFormData['customFields'];
+        $leadFormData['leadCustomFieldCategories'] = $leadFormData['customFieldCategories'];
+
+        return Inertia::render('Dashboard/ComprehensiveDashboard', array_merge([
+            'tasks' => $tasks,
+            'deals' => $allDeals,
+            'recentDeals' => $recentDeals,
+            'poorDataQualityDeals' => $poorDataQualityDeals,
+            'recentActivities' => $recentActivities,
+            'pipelineStages' => $pipelineStages,
+            'overviewMetrics' => $overviewMetrics,
+            'stats' => $stats,
+        ], $dealFormData, $leadFormData));
     }
 
     public function widget(Request $request, $dashboardType)

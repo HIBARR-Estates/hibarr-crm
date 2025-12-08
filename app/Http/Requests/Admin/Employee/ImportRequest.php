@@ -26,6 +26,7 @@ class ImportRequest extends FormRequest
     {
         return [
             'import_file' => 'required|file|mimes:xls,xlsx,csv,txt',
+            'heading' => 'nullable|in:1,0,true,false,on,off',
         ];
     }
 

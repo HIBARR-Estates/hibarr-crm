@@ -37,6 +37,7 @@ use App\Http\Requests\Tasks\UpdateTask;
 use App\Events\TaskEvent;
 use App\Helper\UserService;
 use App\Models\ClientContact;
+use App\Services\PermissionService;
 
 class TaskController extends AccountBaseController
 {
@@ -56,49 +57,235 @@ class TaskController extends AccountBaseController
         );
     }
 
-    public function index(TasksDataTable $dataTable)
+    public function index()
     {
         $viewPermission = user()->permission('view_tasks');
 
         abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
-        if (!request()->ajax()) {
-            $this->assignedTo = request()->assignedTo;
+        // Fetch tasks based on permission
+        $tasksQuery = Task::with([
+            'project:id,project_name,project_short_code', 
+            'users:id,name,image', 
+            'category:id,category_name', 
+            'labels', 
+            'boardColumn:id,column_name,slug,label_color'
+        ]);
 
-            if (request()->has('assignee') && request()->assignee == 'me') {
-                $this->assignedTo = user()->id;
+        // Apply permission-based filtering
+        $taskRules = [
+            'added' => 'added_by',
+            'owned' => function($q, $user) {
+                $q->whereHas('users', function ($query) use ($user) {
+                    $query->where('created_by', $user->id);
+                });
             }
+        ];
+        PermissionService::applyScope($tasksQuery, user(), 'view_tasks', $taskRules);
+        // For 'all' permission, no additional filtering needed
 
-            $this->projects = Project::allProjects();
+        // Apply search filter
+        if (request()->filled('search')) {
+            $searchTerm = request('search');
+            $tasksQuery->where(function ($query) use ($searchTerm) {
+                $query->where('heading', 'like', "%{$searchTerm}%")
+                      ->orWhere('description', 'like', "%{$searchTerm}%");
+            });
+        }
 
-            if (in_array('client', user_roles())) {
-                $this->clients = User::client();
-            }
-            else {
-                $this->clients = User::allClients();
-            }
+        // Apply status filter
+        if (request()->filled('status') && request('status') !== 'all') {
+            $tasksQuery->whereHas('boardColumn', function ($query) {
+                $query->where('slug', request('status'));
+            });
+        }
 
-            $this->employees = User::allEmployees(null, true, ($viewPermission == 'all' ? 'all' : null));
-            $this->taskBoardStatus = TaskboardColumn::all();
-            $this->taskCategories = TaskCategory::all();
-            $this->taskLabels = TaskLabelList::all();
-            $this->milestones = ProjectMilestone::all();
+        // Apply priority filter
+        if (request()->filled('priority') && request('priority') !== 'all') {
+            $tasksQuery->where('priority', request('priority'));
+        }
 
-            $taskBoardColumn = TaskboardColumn::waitingForApprovalColumn();
+        // Apply project filter
+        if (request()->filled('project_id') && request('project_id') !== 'all') {
+            $tasksQuery->where('project_id', request('project_id'));
+        }
 
-            $projectIds = Project::where('project_admin', user()->id)->pluck('id');
+        // Apply category filter
+        if (request()->filled('category_id') && request('category_id') !== 'all') {
+            $tasksQuery->where('task_category_id', request('category_id'));
+        }
 
-            if (!in_array('admin', user_roles()) && (in_array('employee', user_roles()) && $projectIds->isEmpty())) {
-                $user = User::findOrFail(user()->id);
-                $this->waitingApprovalCount = $user->tasks()->where('board_column_id', $taskBoardColumn->id)->where('company_id', company()->id)->count();
-            }elseif(!in_array('admin', user_roles()) && (in_array('employee', user_roles()) && !$projectIds->isEmpty())) {
-                $this->waitingApprovalCount = Task::whereIn('project_id', $projectIds)->where('board_column_id', $taskBoardColumn->id)->where('company_id', company()->id)->count();
-            }else{
-                $this->waitingApprovalCount = Task::where('board_column_id', $taskBoardColumn->id)->where('company_id', company()->id)->count();
+        // Apply assignee filter
+        if (request()->filled('assigned_to') && request('assigned_to') !== 'all') {
+            $tasksQuery->whereHas('users', function ($query) {
+                $query->where('user_id', request('assigned_to'));
+            });
+        }
+
+        // Apply labels filter
+        if (request()->filled('labels') && is_array(request('labels'))) {
+            $tasksQuery->whereHas('labels', function ($query) {
+                $query->whereIn('task_label_id', request('labels'));
+            });
+        }
+
+        // Apply due date range filter
+        if (request()->filled('due_date_range') && is_array(request('due_date_range'))) {
+            $dates = request('due_date_range');
+            if (count($dates) === 2 && $dates[0] && $dates[1]) {
+                $tasksQuery->whereBetween('due_date', [$dates[0], $dates[1]]);
             }
         }
 
-        return $dataTable->render('tasks.index', $this->data);
+        // Apply created date range filter
+        if (request()->filled('created_date_range') && is_array(request('created_date_range'))) {
+            $dates = request('created_date_range');
+            if (count($dates) === 2 && $dates[0] && $dates[1]) {
+                $tasksQuery->whereBetween('created_at', [$dates[0] . ' 00:00:00', $dates[1] . ' 23:59:59']);
+            }
+        }
+
+        // Apply sorting
+        $sortField = request('sort_by', 'created_at');
+        $sortDirection = request('sort_direction', 'desc');
+        
+        // Map frontend field names to database field names
+        $fieldMapping = [
+            'heading' => 'heading',
+            'priority' => 'priority',
+            'due_date' => 'due_date',
+            'created_at' => 'created_at',
+            'board_column_id' => 'board_column_id',
+        ];
+
+        if (isset($fieldMapping[$sortField])) {
+            $tasksQuery->orderBy($fieldMapping[$sortField], $sortDirection);
+        } else {
+            $tasksQuery->orderBy('created_at', 'desc');
+        }
+
+        $tasks = $tasksQuery->get();
+
+        // Transform tasks for frontend
+        $tasks = $tasks->map(function ($task) {
+            return [
+                'id' => $task->id,
+                'heading' => $task->heading,
+                'description' => $task->description,
+                'due_date' => $task->due_date?->format('Y-m-d'),
+                'start_date' => $task->start_date?->format('Y-m-d'),
+                'priority' => $task->priority,
+                'status' => $task->boardColumn->slug ?? 'incomplete',
+                'board_column_id' => $task->board_column_id,
+                'completed_on' => $task->completed_on?->format('Y-m-d'),
+                'project' => $task->project ? [
+                    'id' => $task->project->id,
+                    'project_name' => $task->project->project_name,
+                    'project_short_code' => $task->project->project_short_code,
+                ] : null,
+                'category' => $task->category ? [
+                    'id' => $task->category->id,
+                    'category_name' => $task->category->category_name,
+                ] : null,
+                'users' => $task->users->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'image' => $user->image,
+                    ];
+                })->toArray(),
+                'labels' => $task->labels->map(function ($label) {
+                    return [
+                        'id' => $label->label->id,
+                        'label_name' => $label->label->label_name,
+                        'label_color' => $label->label->label_color,
+                    ];
+                })->toArray(),
+                'files_count' => $task->files->count(),
+                'notes_count' => $task->notes->count(),
+                'comments_count' => $task->comments->count(),
+                'subtasks_count' => $task->subtasks->count(),
+                'completed_subtasks_count' => $task->completedSubtasks->count(),
+                'created_at' => $task->created_at->toISOString(),
+                'updated_at' => $task->updated_at->toISOString(),
+                'added_by' => $task->added_by,
+            ];
+        });
+
+        // Fetch supporting data
+        $projects = Project::allProjects()->map(function ($project) {
+            return [
+                'id' => $project->id,
+                'project_name' => $project->project_name,
+                'project_short_code' => $project->project_short_code,
+            ];
+        });
+
+        $employees = User::allEmployees(null, true, ($viewPermission == 'all' ? 'all' : null))->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'image' => $user->image,
+                'designation_name' => $user->designation_name ?? null,
+            ];
+        });
+
+        $taskBoardColumns = TaskboardColumn::orderBy('priority', 'asc')->get()->map(function ($column) {
+            return [
+                'id' => $column->id,
+                'column_name' => $column->column_name,
+                'slug' => $column->slug,
+                'label_color' => $column->label_color,
+                'priority' => $column->priority,
+            ];
+        });
+
+        $categories = TaskCategory::all()->map(function ($category) {
+            return [
+                'id' => $category->id,
+                'category_name' => $category->category_name,
+            ];
+        });
+
+        $labels = TaskLabelList::all()->map(function ($label) {
+            return [
+                'id' => $label->id,
+                'label_name' => $label->label_name,
+                'label_color' => $label->label_color,
+            ];
+        });
+
+        // Get user permissions
+        $permissions = [
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
+            'view_tasks' => $viewPermission,
+        ];
+
+        // Build filters from request
+        $filters = [
+            'status' => request('status'),
+            'priority' => request('priority'),
+            'assigned_to' => request('assigned_to') ? (int) request('assigned_to') : null,
+            'project_id' => request('project_id') ? (int) request('project_id') : null,
+            'category_id' => request('category_id') ? (int) request('category_id') : null,
+            'labels' => request('labels', []),
+            'due_date_range' => request('due_date_range'),
+            'created_date_range' => request('created_date_range'),
+            'search' => request('search'),
+        ];
+
+        return inertia('Tasks/Index', [
+            'tasks' => $tasks,
+            'categories' => $categories,
+            'labels' => $labels,
+            'columns' => $taskBoardColumns,
+            'users' => $employees,
+            'projects' => $projects,
+            'filters' => $filters,
+            'permissions' => $permissions,
+        ]);
     }
 
     /**
@@ -430,7 +617,7 @@ class TaskController extends AccountBaseController
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
         $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
-        $task->start_date = Carbon::createFromFormat(company()->date_format, $request->start_date);
+        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format, $request->start_date) : null;
         $task->due_date = $dueDate;
         $task->project_id = $request->project_id;
         $task->task_category_id = $request->category_id;
@@ -487,6 +674,26 @@ class TaskController extends AccountBaseController
         // Save labels
 
         $task->labels()->sync($request->task_labels);
+
+        // Attach polymorphic relation if provided
+        if ($request->has('taskable_type') && $request->has('taskable_id')) {
+            $type = $request->taskable_type;
+            $id = $request->taskable_id;
+            
+            $modelClass = null;
+            switch(strtolower($type)) {
+                case 'deal': $modelClass = \App\Models\Deal::class; break;
+                case 'lead': $modelClass = \App\Models\Lead::class; break;
+                case 'property': $modelClass = \App\Models\Property::class; break;
+            }
+            
+            if ($modelClass) {
+                $entity = $modelClass::find($id);
+                if ($entity) {
+                    $entity->tasks()->syncWithoutDetaching([$task->id]);
+                }
+            }
+        }
 
 
         if (!is_null($request->taskId)) {
@@ -613,7 +820,7 @@ class TaskController extends AccountBaseController
             $redirectUrl = route('tasks.index');
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id]);
+        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
 
     }
 
@@ -763,7 +970,7 @@ class TaskController extends AccountBaseController
         $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
-        $task->start_date = Carbon::createFromFormat(company()->date_format, $request->start_date);
+        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format, $request->start_date) : null;
         $task->due_date = $dueDate;
         $task->task_category_id = $request->category_id;
         $task->priority = $request->priority;
