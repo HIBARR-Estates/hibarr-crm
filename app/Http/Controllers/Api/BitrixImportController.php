@@ -177,6 +177,7 @@ class BitrixImportController extends Controller
         $companyId = (int) $request->header('X-COMPANY-ID');
         $responsible = Arr::get($request->all(), 'responsible', []);
         
+        
         try {
             $result = DB::transaction(function () use ($request, $companyId, $responsible) {
                 // Ensure responsible user exists (inside transaction for rollback consistency)
@@ -323,6 +324,9 @@ class BitrixImportController extends Controller
             $lead->mobile = $phone !== '' ? $phone : null;
             $lead->address = Arr::get($contactData, 'address');
             $lead->note = Arr::get($contactData, 'comments');
+            // Set type from payload or default to customer
+            $type = strtolower(trim((string) Arr::get($contactData, 'type', 'customer')));
+            $lead->type = in_array($type, ['agent', 'customer']) ? $type : 'customer';
             if ($responsibleUser) {
                 $lead->lead_owner = $responsibleUser->id;
             }
@@ -336,6 +340,11 @@ class BitrixImportController extends Controller
             $lead->saveQuietly();
         } else {
             $lead->client_name = $name !== '' ? $name : $lead->client_name;
+            // Update type if provided in payload
+            if (Arr::has($contactData, 'type')) {
+                $type = strtolower(trim((string) Arr::get($contactData, 'type', 'customer')));
+                $lead->type = in_array($type, ['agent', 'customer']) ? $type : 'customer';
+            }
             if ($email !== '' && $lead->client_email !== $email) {
                 $lead->client_email = $email;
             }

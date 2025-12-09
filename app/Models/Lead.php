@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ContactType;
 use App\Enums\Salutation;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
@@ -120,6 +121,7 @@ class Lead extends BaseModel
 
     protected $casts = [
         'salutation' => Salutation::class,
+        'type' => ContactType::class,
     ];
 
     public function getImageUrlAttribute()
