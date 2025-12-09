@@ -37,7 +37,7 @@
 
                 <div class="row">
                     <div class="col-lg-12">
-                        <x-forms.text fieldId="event_name" :fieldLabel="__('app.menu.eventName')"
+                        <x-forms.text fieldId="event_name" :fieldLabel="__('app.eventName')"
                             fieldName="event_name" fieldRequired="true" 
                             fieldPlaceholder="e.g., Purchase, Lead, InitiateCheckout">
                         </x-forms.text>

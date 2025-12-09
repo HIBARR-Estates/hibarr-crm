@@ -28,7 +28,7 @@
                     <x-slot name="thead">
                         <th>@lang('modules.deal.pipeline')</th>
                         <th>@lang('modules.deal.leadStage')</th>
-                        <th>@lang('app.menu.eventName')</th>
+                        <th>@lang('app.eventName')</th>
                         <th>@lang('app.value')</th>
                         <th>@lang('app.status')</th>
                         <th>@lang('app.action')</th>
