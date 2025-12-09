@@ -410,9 +410,6 @@ class BitrixImportController extends Controller
                 // Process each task
                 foreach ($tasks as $taskData) {
                     try {
-                        // Reset auth state at the start of each iteration to prevent cross-contamination
-                        auth()->logout();
-                        
                         $taskHeading = trim((string) Arr::get($taskData, 'heading', ''));
                         
                         if (empty($taskHeading)) {
@@ -579,12 +576,65 @@ class BitrixImportController extends Controller
                         
                         // Set authenticated user for observer to work properly
                         // Use withoutGlobalScopes() to be consistent with initial user lookup
+                        $authUser = null;
+                        
                         if (!empty($userIds)) {
                             // DB query within transaction - use withoutGlobalScopes() for consistency
-                            $firstUser = User::withoutGlobalScopes()->find($userIds[0]);
-                            if ($firstUser) {
-                                auth()->setUser($firstUser);
+                            $authUser = User::withoutGlobalScopes()->find($userIds[0]);
+                        }
+                        
+                        // Fallback: If no users provided, try to use deal's agent or first admin
+                        if (!$authUser) {
+                            // Try deal's agent first
+                            if ($deal->agent_id) {
+                                $leadAgent = \App\Models\LeadAgent::withoutGlobalScopes()
+                                    ->where('id', $deal->agent_id)
+                                    ->where('company_id', $companyId)
+                                    ->first();
+                                
+                                if ($leadAgent && $leadAgent->user_id) {
+                                    $authUser = User::withoutGlobalScopes()->find($leadAgent->user_id);
+                                }
                             }
+                            
+                            // If still no user, try to get first admin for the company
+                            if (!$authUser) {
+                                $adminUsers = User::withoutGlobalScopes()
+                                    ->where('company_id', $companyId)
+                                    ->whereHas('roles', function($query) {
+                                        $query->where('name', 'admin');
+                                    })
+                                    ->limit(1)
+                                    ->get();
+                                
+                                if ($adminUsers->isNotEmpty()) {
+                                    $authUser = $adminUsers->first();
+                                }
+                            }
+                            
+                            // Last resort: get first user from company
+                            if (!$authUser) {
+                                $authUser = User::withoutGlobalScopes()
+                                    ->where('company_id', $companyId)
+                                    ->limit(1)
+                                    ->first();
+                            }
+                        }
+                        
+                        // Reset auth state and set the user to ensure clean context for each task
+                        // This prevents cross-contamination between tasks
+                        auth()->logout();
+                        
+                        // Set authenticated user if we found one
+                        if ($authUser) {
+                            auth()->setUser($authUser);
+                        } else {
+                            // Log warning if we couldn't find any user
+                            Log::warning('Bitrix task import: No user available for authentication context', [
+                                'company_id' => $companyId,
+                                'deal_id' => $deal->id,
+                                'task_heading' => $taskHeading,
+                            ]);
                         }
                         
                         // Save the task (DB operation within transaction)
