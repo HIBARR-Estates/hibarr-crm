@@ -392,14 +392,17 @@ class BitrixImportController extends Controller
                 
                 $tasksCreated = 0;
                 $tasksSkipped = 0;
+                $tasksFailed = 0;
                 $createdTasks = [];
                 
                 // Get default board columns (DB query within transaction)
-                $incompleteColumn = TaskboardColumn::where('slug', 'incomplete')
+                $incompleteColumn = TaskboardColumn::withoutGlobalScopes()
+                    ->where('slug', 'incomplete')
                     ->where('company_id', $companyId)
                     ->first();
                 
-                $completedColumn = TaskboardColumn::where('slug', 'completed')
+                $completedColumn = TaskboardColumn::withoutGlobalScopes()
+                    ->where('slug', 'completed')
                     ->where('company_id', $companyId)
                     ->first();
                 
@@ -484,9 +487,17 @@ class BitrixImportController extends Controller
                             try {
                                 // Try parsing as DD-MM-YYYY format
                                 $dueDate = Carbon::createFromFormat('d-m-Y', $dueDateStr);
+                                // Check if createFromFormat returned false
+                                if ($dueDate === false) {
+                                    $dueDate = $this->parseDate($dueDateStr);
+                                }
                             } catch (\Exception $e) {
                                 // Fallback to Carbon parse
                                 $dueDate = $this->parseDate($dueDateStr);
+                            }
+                            // Ensure final value is either Carbon instance or null
+                            if ($dueDate === false) {
+                                $dueDate = null;
                             }
                         }
                         
@@ -496,9 +507,17 @@ class BitrixImportController extends Controller
                             try {
                                 // Try parsing as DD-MM-YYYY format
                                 $startDate = Carbon::createFromFormat('d-m-Y', $startDateStr);
+                                // Check if createFromFormat returned false
+                                if ($startDate === false) {
+                                    $startDate = $this->parseDate($startDateStr);
+                                }
                             } catch (\Exception $e) {
                                 // Fallback to Carbon parse
                                 $startDate = $this->parseDate($startDateStr);
+                            }
+                            // Ensure final value is either Carbon instance or null
+                            if ($startDate === false) {
+                                $startDate = null;
                             }
                         }
                         
@@ -664,6 +683,8 @@ class BitrixImportController extends Controller
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString(),
                         ]);
+                        // Increment failed counter before continuing
+                        $tasksFailed++;
                         // Continue with next task instead of failing entire import
                         continue;
                     }
@@ -673,6 +694,7 @@ class BitrixImportController extends Controller
                     'deal_id' => $deal->id,
                     'tasks_created' => $tasksCreated,
                     'tasks_skipped' => $tasksSkipped,
+                    'tasks_failed' => $tasksFailed,
                 ];
             });
         } catch (\Exception $e) {
@@ -693,6 +715,7 @@ class BitrixImportController extends Controller
             'deal_id' => $result['deal_id'],
             'tasks_created' => $result['tasks_created'],
             'tasks_skipped' => $result['tasks_skipped'],
+            'tasks_failed' => $result['tasks_failed'],
         ]);
     }
 
