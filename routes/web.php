@@ -54,6 +54,7 @@ use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\DesignationController;
 use App\Http\Controllers\EmployeeDocController;
 use App\Http\Controllers\LeadCategoryController;
+use App\Http\Controllers\MetaConversionTriggerController;
 use App\Http\Controllers\LeaveReportController;
 use App\Http\Controllers\LeavesQuotaController;
 use App\Http\Controllers\MessageFileController;
@@ -951,6 +952,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::delete('properties/{property}/assets', [App\Http\Controllers\PropertyController::class, 'deleteAssets'])->name('properties.delete_assets');
     
     Route::resource('properties', App\Http\Controllers\PropertyController::class);
+
+    // Meta Conversion Triggers
+    Route::resource('meta-conversion-triggers', MetaConversionTriggerController::class);
 
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);
