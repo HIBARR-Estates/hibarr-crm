@@ -15,6 +15,8 @@ use App\Models\LeadMarketing;
 use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
 use App\Models\Role;
+use App\Models\Task;
+use App\Models\TaskboardColumn;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -356,6 +358,364 @@ class BitrixImportController extends Controller
         return Reply::successWithData('Comments synced successfully.', [
             'deal_id' => $result['deal_id'],
             'notes_created' => $result['notes_created'],
+        ]);
+    }
+
+    public function taskImport(Request $request)
+    {
+        $companyId = $request->header('X-COMPANY-ID') ?? 1;
+        $bitrixDealId = $request->input('dealId');
+        $tasks = $request->input('tasks', []);
+        
+        if (!$bitrixDealId) {
+            return Reply::error('Bitrix deal ID is required.');
+        }
+        
+        if (empty($tasks)) {
+            return Reply::error('Tasks array is required.');
+        }
+        
+        try {
+            $result = DB::transaction(function () use ($bitrixDealId, $tasks, $companyId) {
+                // All database operations are wrapped in this transaction
+                // If any operation fails, the entire transaction will be rolled back
+                
+                // Find the deal by bitrix_id
+                $deal = Deal::withoutGlobalScopes()
+                    ->where('company_id', $companyId)
+                    ->where('bitrix_id', $bitrixDealId)
+                    ->first();
+                
+                if (!$deal) {
+                    throw new \RuntimeException('Deal not found with Bitrix ID: ' . $bitrixDealId);
+                }
+                
+                $tasksCreated = 0;
+                $tasksSkipped = 0;
+                $tasksFailed = 0;
+                $createdTasks = [];
+                
+                // Get default board columns (DB query within transaction)
+                $incompleteColumn = TaskboardColumn::withoutGlobalScopes()
+                    ->where('slug', 'incomplete')
+                    ->where('company_id', $companyId)
+                    ->first();
+                
+                $completedColumn = TaskboardColumn::withoutGlobalScopes()
+                    ->where('slug', 'completed')
+                    ->where('company_id', $companyId)
+                    ->first();
+                
+                if (!$incompleteColumn) {
+                    throw new \RuntimeException('Default task board column (incomplete) not found for company: ' . $companyId);
+                }
+                
+                // Process each task
+                foreach ($tasks as $taskData) {
+                    try {
+                        $taskHeading = trim((string) Arr::get($taskData, 'heading', ''));
+                        
+                        if (empty($taskHeading)) {
+                            Log::warning('Bitrix task import: Skipping task with empty heading', [
+                                'task_data' => $taskData,
+                            ]);
+                            $tasksSkipped++;
+                            continue;
+                        }
+                        
+                        // Check for duplicate task: same heading and linked to the same deal (DB query within transaction)
+                        $existingTask = $deal->tasks()
+                            ->where('heading', $taskHeading)
+                            ->where('company_id', $companyId)
+                            ->first();
+                        
+                        if ($existingTask) {
+                            Log::info('Bitrix task import: Duplicate task skipped', [
+                                'task_heading' => $taskHeading,
+                                'existing_task_id' => $existingTask->id,
+                                'deal_id' => $deal->id,
+                            ]);
+                            $tasksSkipped++;
+                            continue;
+                        }
+                        // Resolve user IDs from emails
+                        $userIds = [];
+                        $userEmails = Arr::get($taskData, 'user_emails', []);
+                        
+                        if (!empty($userEmails) && is_array($userEmails)) {
+                            foreach ($userEmails as $email) {
+                                $email = trim((string) $email);
+                                if ($email === '') {
+                                    continue;
+                                }
+                                
+                                // DB query within transaction
+                                $user = User::withoutGlobalScopes()
+                                    ->where('company_id', $companyId)
+                                    ->where('email', $email)
+                                    ->first();
+                                
+                                if ($user) {
+                                    $userIds[] = $user->id;
+                                } else {
+                                    Log::warning('Bitrix task import: User not found by email', [
+                                        'email' => $email,
+                                        'company_id' => $companyId,
+                                    ]);
+                                }
+                            }
+                        }
+                        
+                        // Normalize priority (normal -> medium)
+                        $priority = strtolower(trim(Arr::get($taskData, 'priority', 'medium')));
+                        if ($priority === 'normal') {
+                            $priority = 'medium';
+                        }
+                        if (!in_array($priority, ['low', 'medium', 'high'])) {
+                            $priority = 'medium';
+                        }
+                        
+                        // Parse dates - check both due_date and deadline fields
+                        $dueDate = null;
+                        $dueDateStr = Arr::get($taskData, 'due_date');
+                        if (empty($dueDateStr) || $dueDateStr === '0') {
+                            // Fallback to deadline field if due_date is not provided
+                            $dueDateStr = Arr::get($taskData, 'deadline');
+                        }
+                        
+                        if ($dueDateStr && $dueDateStr !== '0') {
+                            try {
+                                // Try parsing as DD-MM-YYYY format
+                                $dueDate = Carbon::createFromFormat('d-m-Y', $dueDateStr);
+                                // Check if createFromFormat returned false
+                                if ($dueDate === false) {
+                                    $dueDate = $this->parseDate($dueDateStr);
+                                }
+                            } catch (\Exception $e) {
+                                // Fallback to Carbon parse
+                                $dueDate = $this->parseDate($dueDateStr);
+                            }
+                            // Ensure final value is either Carbon instance or null
+                            if ($dueDate === false) {
+                                $dueDate = null;
+                            }
+                        }
+                        
+                        $startDate = null;
+                        $startDateStr = Arr::get($taskData, 'start_date');
+                        if ($startDateStr && $startDateStr !== '0') {
+                            try {
+                                // Try parsing as DD-MM-YYYY format
+                                $startDate = Carbon::createFromFormat('d-m-Y', $startDateStr);
+                                // Check if createFromFormat returned false
+                                if ($startDate === false) {
+                                    $startDate = $this->parseDate($startDateStr);
+                                }
+                            } catch (\Exception $e) {
+                                // Fallback to Carbon parse
+                                $startDate = $this->parseDate($startDateStr);
+                            }
+                            // Ensure final value is either Carbon instance or null
+                            if ($startDate === false) {
+                                $startDate = null;
+                            }
+                        }
+                        
+                        // Handle 0 values - convert to null
+                        $projectId = $this->toInt(Arr::get($taskData, 'project_id'));
+                        $projectId = ($projectId === 0 || $projectId === null) ? null : $projectId;
+                        
+                        $categoryId = $this->toInt(Arr::get($taskData, 'category_id'));
+                        $categoryId = ($categoryId === 0 || $categoryId === null) ? null : $categoryId;
+                        
+                        // Determine board column based on COMPLETED field or board_column_id
+                        $boardColumnId = $this->toInt(Arr::get($taskData, 'board_column_id'));
+                        $completed = strtoupper(trim((string) Arr::get($taskData, 'COMPLETED', '')));
+                        
+                        // Validate board_column_id belongs to the correct company if provided
+                        if ($boardColumnId !== 0 && $boardColumnId !== null) {
+                            $validatedBoardColumn = TaskboardColumn::where('id', $boardColumnId)
+                                ->where('company_id', $companyId)
+                                ->first();
+                            
+                            if (!$validatedBoardColumn) {
+                                // Invalid board_column_id (doesn't exist or belongs to different company)
+                                // Fall back to default logic
+                                Log::warning('Bitrix task import: Invalid board_column_id provided, using default', [
+                                    'provided_board_column_id' => $boardColumnId,
+                                    'company_id' => $companyId,
+                                    'task_heading' => $taskHeading,
+                                ]);
+                                $boardColumnId = null; // Reset to trigger default logic
+                            } else {
+                                $boardColumnId = $validatedBoardColumn->id;
+                            }
+                        }
+                        
+                        if ($boardColumnId === 0 || $boardColumnId === null) {
+                            // Use COMPLETED field to determine status
+                            if ($completed === 'Y' && $completedColumn) {
+                                $boardColumnId = $completedColumn->id;
+                            } else {
+                                // Default to incomplete for "N" or empty
+                                $boardColumnId = $incompleteColumn->id;
+                            }
+                        }
+                        
+                        $milestoneId = $this->toInt(Arr::get($taskData, 'milestone_id'));
+                        $milestoneId = ($milestoneId === 0 || $milestoneId === null) ? null : $milestoneId;
+                        
+                        // Get task labels
+                        $taskLabels = Arr::get($taskData, 'task_labels', []);
+                        if (!is_array($taskLabels)) {
+                            $taskLabels = [];
+                        }
+                        // Filter out 0 values
+                        $taskLabels = array_filter($taskLabels, function($labelId) {
+                            return $labelId !== 0 && $labelId !== null;
+                        });
+                        
+                        // Create the task
+                        $task = new Task();
+                        $task->company_id = $companyId;
+                        $task->heading = $taskHeading;
+                        $task->description = trim_editor(Arr::get($taskData, 'description', ''));
+                        $task->due_date = $dueDate;
+                        $task->start_date = $startDate;
+                        $task->project_id = $projectId;
+                        $task->task_category_id = $categoryId;
+                        $task->priority = $priority;
+                        $task->board_column_id = $boardColumnId;
+                        $task->is_private = $this->toBoolean(Arr::get($taskData, 'is_private')) ? 1 : 0;
+                        $task->billable = $this->toBoolean(Arr::get($taskData, 'billable')) ? 1 : 0;
+                        $task->estimate_hours = $this->toInt(Arr::get($taskData, 'estimate_hours')) ?? 0;
+                        $task->estimate_minutes = $this->toInt(Arr::get($taskData, 'estimate_minutes')) ?? 0;
+                        $task->repeat = $this->toBoolean(Arr::get($taskData, 'repeat')) ? 1 : 0;
+                        $task->milestone_id = $milestoneId;
+                        
+                        // Set authenticated user for observer to work properly
+                        // Use withoutGlobalScopes() to be consistent with initial user lookup
+                        $authUser = null;
+                        
+                        if (!empty($userIds)) {
+                            // DB query within transaction - use withoutGlobalScopes() for consistency
+                            $authUser = User::withoutGlobalScopes()->find($userIds[0]);
+                        }
+                        
+                        // Fallback: If no users provided, try to use deal's agent or first admin
+                        if (!$authUser) {
+                            // Try deal's agent first
+                            if ($deal->agent_id) {
+                                $leadAgent = \App\Models\LeadAgent::withoutGlobalScopes()
+                                    ->where('id', $deal->agent_id)
+                                    ->where('company_id', $companyId)
+                                    ->first();
+                                
+                                if ($leadAgent && $leadAgent->user_id) {
+                                    $authUser = User::withoutGlobalScopes()->find($leadAgent->user_id);
+                                }
+                            }
+                            
+                            // If still no user, try to get first admin for the company
+                            if (!$authUser) {
+                                $adminUsers = User::withoutGlobalScopes()
+                                    ->where('company_id', $companyId)
+                                    ->whereHas('roles', function($query) {
+                                        $query->where('name', 'admin');
+                                    })
+                                    ->limit(1)
+                                    ->get();
+                                
+                                if ($adminUsers->isNotEmpty()) {
+                                    $authUser = $adminUsers->first();
+                                }
+                            }
+                            
+                            // Last resort: get first user from company
+                            if (!$authUser) {
+                                $authUser = User::withoutGlobalScopes()
+                                    ->where('company_id', $companyId)
+                                    ->limit(1)
+                                    ->first();
+                            }
+                        }
+                        
+                        // Reset auth state and set the user to ensure clean context for each task
+                        // This prevents cross-contamination between tasks
+                        auth()->logout();
+                        
+                        // Set authenticated user if we found one
+                        if ($authUser) {
+                            auth()->setUser($authUser);
+                        } else {
+                            // Log warning if we couldn't find any user
+                            Log::warning('Bitrix task import: No user available for authentication context', [
+                                'company_id' => $companyId,
+                                'deal_id' => $deal->id,
+                                'task_heading' => $taskHeading,
+                            ]);
+                        }
+                        
+                        // Save the task (DB operation within transaction)
+                        $task->saveQuietly();
+                        
+                        // Sync task labels (DB operation within transaction)
+                        if (!empty($taskLabels)) {
+                            $task->labels()->sync($taskLabels);
+                        }
+                        
+                        // Sync task users (DB operation within transaction)
+                        if (!empty($userIds)) {
+                            $task->users()->sync($userIds);
+                        }
+                        
+                        // Link task to deal using polymorphic relationship (DB operation within transaction)
+                        $deal->tasks()->syncWithoutDetaching([$task->id]);
+                        
+                        $tasksCreated++;
+                        $createdTasks[] = [
+                            'id' => $task->id,
+                            'heading' => $task->heading,
+                        ];
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Bitrix task import: Failed to create individual task', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                        // Increment failed counter before continuing
+                        $tasksFailed++;
+                        // Continue with next task instead of failing entire import
+                        continue;
+                    }
+                }
+                
+                return [
+                    'deal_id' => $deal->id,
+                    'tasks_created' => $tasksCreated,
+                    'tasks_skipped' => $tasksSkipped,
+                    'tasks_failed' => $tasksFailed,
+                ];
+            });
+        } catch (\Exception $e) {
+            $this->logoutIfAuthenticated();
+            
+            Log::error('Bitrix task import: Failed to create tasks', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'deal_id' => $bitrixDealId,
+            ]);
+            
+            return Reply::error('Task creation failed: ' . $e->getMessage());
+        }
+        
+        $this->logoutIfAuthenticated();
+        
+        return Reply::successWithData('Tasks synced successfully.', [
+            'deal_id' => $result['deal_id'],
+            'tasks_created' => $result['tasks_created'],
+            'tasks_skipped' => $result['tasks_skipped'],
+            'tasks_failed' => $result['tasks_failed'],
         ]);
     }
 
