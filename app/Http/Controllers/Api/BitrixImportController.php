@@ -516,6 +516,26 @@ class BitrixImportController extends Controller
                         $boardColumnId = $this->toInt(Arr::get($taskData, 'board_column_id'));
                         $completed = strtoupper(trim((string) Arr::get($taskData, 'COMPLETED', '')));
                         
+                        // Validate board_column_id belongs to the correct company if provided
+                        if ($boardColumnId !== 0 && $boardColumnId !== null) {
+                            $validatedBoardColumn = TaskboardColumn::where('id', $boardColumnId)
+                                ->where('company_id', $companyId)
+                                ->first();
+                            
+                            if (!$validatedBoardColumn) {
+                                // Invalid board_column_id (doesn't exist or belongs to different company)
+                                // Fall back to default logic
+                                Log::warning('Bitrix task import: Invalid board_column_id provided, using default', [
+                                    'provided_board_column_id' => $boardColumnId,
+                                    'company_id' => $companyId,
+                                    'task_heading' => $taskHeading,
+                                ]);
+                                $boardColumnId = null; // Reset to trigger default logic
+                            } else {
+                                $boardColumnId = $validatedBoardColumn->id;
+                            }
+                        }
+                        
                         if ($boardColumnId === 0 || $boardColumnId === null) {
                             // Use COMPLETED field to determine status
                             if ($completed === 'Y' && $completedColumn) {
