@@ -57,6 +57,7 @@
 
                 <div class="row">
                     <div class="col-lg-12">
+                        <input type="hidden" name="active" value="0">
                         <x-forms.checkbox :fieldLabel="__('app.status')" fieldName="active" fieldId="active"
                             fieldValue="1" :checked="true" />
                     </div>

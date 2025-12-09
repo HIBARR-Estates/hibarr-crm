@@ -69,6 +69,10 @@ class MetaConversionTriggerController extends AccountBaseController
         $validated = $request->validate(MetaConversionTrigger::validationRules());
         $validated['company_id'] = company()->id;
 
+        // Ensure active is properly converted to boolean
+        // When checkbox is unchecked, hidden input sends "0", when checked, checkbox sends "1"
+        $validated['active'] = $request->boolean('active');
+
         // Check for duplicate trigger (same pipeline + stage)
         $existing = MetaConversionTrigger::where('lead_pipeline_id', $validated['lead_pipeline_id'])
             ->where('lead_pipeline_stage_id', $validated['lead_pipeline_stage_id'])
@@ -134,6 +138,11 @@ class MetaConversionTriggerController extends AccountBaseController
 
         // Full update with all fields
         $validated = $request->validate(MetaConversionTrigger::validationRules());
+
+        // Ensure active is properly converted to boolean
+        // When checkbox is unchecked, hidden input sends "0", when checked, checkbox sends "1"
+        // Laravel's boolean() method handles both cases correctly
+        $validated['active'] = $request->boolean('active');
 
         // Check for duplicate trigger (same pipeline + stage) excluding current trigger
         $existing = MetaConversionTrigger::where('lead_pipeline_id', $validated['lead_pipeline_id'])
