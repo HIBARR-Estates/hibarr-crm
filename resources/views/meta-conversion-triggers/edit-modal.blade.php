@@ -83,6 +83,7 @@
     $('#lead_pipeline_id').on('change', function() {
         var pipelineId = $(this).val();
         var stageSelect = $('#lead_pipeline_stage_id');
+        var currentStageId = stageSelect.val();
         
         // Hide all options first
         stageSelect.find('option').hide();
@@ -90,10 +91,24 @@
         
         if (pipelineId) {
             // Show only stages for selected pipeline
-            stageSelect.find('option[data-pipeline-id="' + pipelineId + '"]').show();
+            var availableStages = stageSelect.find('option[data-pipeline-id="' + pipelineId + '"]');
+            availableStages.show();
+            
+            // Check if current stage belongs to the new pipeline
+            var currentStageOption = stageSelect.find('option[value="' + currentStageId + '"]');
+            var isCurrentStageValid = currentStageOption.length > 0 && 
+                                      currentStageOption.data('pipeline-id') == pipelineId;
+            
+            // Reset selection if current stage doesn't belong to new pipeline
+            if (!isCurrentStageValid && currentStageId) {
+                stageSelect.val('').selectpicker('refresh');
+            } else {
+                stageSelect.selectpicker('refresh');
+            }
+        } else {
+            // Reset selection if no pipeline selected
+            stageSelect.val('').selectpicker('refresh');
         }
-        
-        stageSelect.selectpicker('refresh');
     });
 
     // Initialize selectpicker
