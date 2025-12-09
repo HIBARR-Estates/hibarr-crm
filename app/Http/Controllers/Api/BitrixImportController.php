@@ -410,6 +410,9 @@ class BitrixImportController extends Controller
                 // Process each task
                 foreach ($tasks as $taskData) {
                     try {
+                        // Reset auth state at the start of each iteration to prevent cross-contamination
+                        auth()->logout();
+                        
                         $taskHeading = trim((string) Arr::get($taskData, 'heading', ''));
                         
                         if (empty($taskHeading)) {
@@ -555,9 +558,10 @@ class BitrixImportController extends Controller
                         $task->milestone_id = $milestoneId;
                         
                         // Set authenticated user for observer to work properly
+                        // Use withoutGlobalScopes() to be consistent with initial user lookup
                         if (!empty($userIds)) {
-                            // DB query within transaction
-                            $firstUser = User::find($userIds[0]);
+                            // DB query within transaction - use withoutGlobalScopes() for consistency
+                            $firstUser = User::withoutGlobalScopes()->find($userIds[0]);
                             if ($firstUser) {
                                 auth()->setUser($firstUser);
                             }
