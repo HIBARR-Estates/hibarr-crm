@@ -503,10 +503,21 @@ class DashboardController extends AccountBaseController
             ];
         });
 
-        $poorDataQualityDeals = $poorDataQualityDeals->merge($poorDataQualityLeads)
+        $mergedQualityRecords = $poorDataQualityDeals->merge($poorDataQualityLeads)
             ->filter(function ($deal) {
             return $deal['data_quality_score'] < 80; // Only show records that need improvement
-        })->sortByDesc('priority_score')->take(10)->values();
+        });
+
+        $dataQualityStats = [
+            'total' => $mergedQualityRecords->count(),
+            'critical' => $mergedQualityRecords->filter(fn($r) => $r['data_quality_score'] < 40)->count(),
+            'poor' => $mergedQualityRecords->filter(fn($r) => $r['data_quality_score'] >= 40 && $r['data_quality_score'] < 60)->count(),
+            'fair' => $mergedQualityRecords->filter(fn($r) => $r['data_quality_score'] >= 60 && $r['data_quality_score'] < 80)->count(),
+            'average_score' => $mergedQualityRecords->count() > 0 ? round($mergedQualityRecords->avg('data_quality_score')) : 0
+        ];
+
+        $poorDataQualityDeals = $mergedQualityRecords->sortByDesc('priority_score')->take(100)->values();
+        // TODO: Show 100 and once user scrolls, load more using pagination or infinite scroll
 
         // Get recent communication activities
         $recentActivities = \App\Models\CommunicationActivity::with(['deal:id,name'])
@@ -656,6 +667,7 @@ class DashboardController extends AccountBaseController
             'deals' => $allDeals,
             'recentDeals' => $recentDeals,
             'poorDataQualityDeals' => $poorDataQualityDeals,
+            'dataQualityStats' => $dataQualityStats,
             'recentActivities' => $recentActivities,
             'pipelineStages' => $pipelineStages,
             'overviewMetrics' => $overviewMetrics,
