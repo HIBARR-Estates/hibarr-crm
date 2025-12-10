@@ -117,6 +117,8 @@ export const antdMainThemeConfig: ThemeConfig = {
             bodyPadding: 26,
             // increase card content padding
             // headerBg: "#aaa", // gray-50 for header background
+            boxShadow: "none",
+            boxShadowTertiary: "none",
         },
         Collapse: {
             paddingLG: 24, // Large card padding

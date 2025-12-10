@@ -813,13 +813,13 @@ class TaskController extends AccountBaseController
             unset($request->project_id);
             $html = $this->create();
 
-            return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true, 'taskID' => $task->id]);
+            return Reply::successWithData(__('messages.taskSaved'), ['html' => $html, 'add_more' => true, 'taskID' => $task->id]);
         }
 
         if ($request->page_name && $request->page_name == 'ganttChart') {
 
             return Reply::successWithData(
-                'messages.recordSaved',
+                'messages.taskSaved',
                 [
                     'tasks' => $ganttTaskArray,
                     'links' => $gantTaskLinkArray
@@ -833,7 +833,7 @@ class TaskController extends AccountBaseController
             $redirectUrl = route('tasks.index');
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
+        return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
 
     }
 
@@ -1076,7 +1076,7 @@ class TaskController extends AccountBaseController
             }
         }
 
-        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('tasks.show', $id)]);
+        return Reply::successWithData(__('messages.taskUpdateSuccess'), ['redirectUrl' => route('tasks.show', $id)]);
     }
 
     /**

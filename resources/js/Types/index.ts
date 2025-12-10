@@ -188,6 +188,13 @@ export interface PropertyShowProps extends PageProps {
 
 // Common Types
 
+export interface Role {
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
+}
+
 export interface User {
     id: number;
     company_id: number;
@@ -208,7 +215,7 @@ export interface User {
 
     dark_theme: boolean;
     designation: string;
-    roles: string[];
+    roles: Role[];
 }
 export interface FlashMessage {
     type: "success" | "error" | "info" | "warning";

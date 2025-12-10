@@ -264,8 +264,8 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                             className="text-green-300"
                                         />
                                         <span>
-                                            {stats.completed_tasks} tasks
-                                            completed
+                                            {stats.completed_tasks?.toLocaleString()}{" "}
+                                            tasks completed
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -274,7 +274,8 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                             className="text-yellow-300"
                                         />
                                         <span>
-                                            {stats.total_deals} active deals
+                                            {stats.total_deals?.toLocaleString()}{" "}
+                                            deals
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -283,7 +284,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                             className="text-purple-300"
                                         />
                                         <span>
-                                            {stats.activities_this_week}{" "}
+                                            {stats.activities_this_week?.toLocaleString()}{" "}
                                             activities this week
                                         </span>
                                     </div>
@@ -372,25 +373,25 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                     <div>
                                         <div className="font-semibold text-gray-900">
-                                            {stats.total_tasks}
+                                            {stats.total_tasks?.toLocaleString()}
                                         </div>
                                         <div>Total Tasks</div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
-                                            {stats.overdue_tasks}
+                                            {stats.overdue_tasks?.toLocaleString()}
                                         </div>
                                         <div>Overdue Tasks</div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
-                                            {stats.total_deals}
+                                            {stats.total_deals?.toLocaleString()}
                                         </div>
                                         <div>Total Deals</div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
-                                            {stats.activities_this_week}
+                                            {stats.activities_this_week?.toLocaleString()}
                                         </div>
                                         <div>Weekly Activities</div>
                                     </div>
