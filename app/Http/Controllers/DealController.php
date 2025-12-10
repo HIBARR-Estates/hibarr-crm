@@ -732,7 +732,7 @@ class DealController extends AccountBaseController
             // return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
             return back()->with([
                 'status' => 'success',
-                'message' => __('messages.recordSaved')
+                'message' => __('messages.dealSaved')
             ]);
         }
 
@@ -741,7 +741,7 @@ class DealController extends AccountBaseController
             $redirectUrl = route('deals.index');
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'deal' => $deal]);
+        return Reply::successWithData(__('messages.dealSaved'), ['redirectUrl' => $redirectUrl, 'deal' => $deal]);
     }
 
     /**
@@ -924,7 +924,7 @@ class DealController extends AccountBaseController
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $this->triggerDealUpdateAutomation($request, $deal);
 
-        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => $redirectTo]);
+        return Reply::successWithData(__('messages.dealUpdateSuccess'), ['redirectUrl' => $redirectTo]);
     }
 
     /**
@@ -1057,14 +1057,14 @@ class DealController extends AccountBaseController
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => __('messages.recordUpdated'),
+                    'message' => __('messages.dealUpdateSuccess'),
                     'data' => $deal->fresh()->load(['leadAgent.user', 'contact', 'pipeline', 'leadStage', 'category', 'products'])
                 ]);
             }
             
             return back()->with([
                 'status' => 'success',
-                'message' => __('messages.recordUpdated')
+                'message' => __('messages.dealUpdateSuccess')
             ]);
             
         } catch (\Exception $e) {
