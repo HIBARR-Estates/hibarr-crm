@@ -5,7 +5,6 @@ import { PlusOutlined } from "@ant-design/icons";
 import NotesTab from "./Tabs/NotesTab";
 import FollowUpTab from "./Tabs/FollowUpTab";
 import FilesTab from "./Tabs/FilesTab";
-import ProposalsTab from "./Tabs/ProposalsTab";
 import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
 import { Note } from "@/Types/api/note";
@@ -16,10 +15,10 @@ import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import AddNote from "./Tabs/notes/AddNote";
 import AddFollowup from "./Tabs/followups/AddFollowup";
 import FileUpload from "./Tabs/files/FileUpload";
-import AddProposal from "./Tabs/proposals/AddProposal";
 import SaveProposal from "./Tabs/proposals/SaveProposal";
 import TasksTab from "@/Components/TasksTab";
 import { Task } from "@/Types/api/tasks";
+import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 
 interface Props {
     deal: Deal;
@@ -94,6 +93,7 @@ export default function DealTabs({
                     taskBoardColumns={taskBoardColumns}
                     employees={employees}
                     projects={projects}
+                    permissions={permissions as any}
                 />
             ),
         });
@@ -263,6 +263,20 @@ export default function DealTabs({
                     );
                 }
                 break;
+            case "tasks":
+                return (
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => {
+                            handleAction("add_task");
+                        }}
+                    >
+                        Add Task
+                    </Button>
+                );
+
+                break;
 
             default:
                 return null;
@@ -294,6 +308,19 @@ export default function DealTabs({
                     mode="create"
                 />
             </Drawer>
+            <SaveTaskModal
+                open={action === "add_task"}
+                onClose={() => handleClose()}
+                categories={taskCategories}
+                labels={taskLabels}
+                columns={taskBoardColumns}
+                users={employees}
+                projects={projects}
+                relatedEntity={{
+                    type: "deal",
+                    id: deal.id,
+                }}
+            />
             <FileUpload
                 deal={deal}
                 onClose={() => handleClose()}

@@ -393,7 +393,7 @@ export default function SaveFollowup({
 
             {/* Remark/Notes */}
             <Form.Item
-                label="Follow-up Summary/Remarks"
+                label="Meeting Agenda"
                 name="remark"
                 className="mb-6"
                 rules={[
@@ -404,7 +404,7 @@ export default function SaveFollowup({
                 ]}
             >
                 <HtmlEditor
-                    placeholder="Enter follow-up details, agenda, or remarks..."
+                    placeholder="Enter meeting agenda, details, or remarks..."
                     disabled={loading}
                     height={250}
                 />

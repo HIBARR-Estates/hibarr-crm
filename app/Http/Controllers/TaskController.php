@@ -38,6 +38,9 @@ use App\Events\TaskEvent;
 use App\Helper\UserService;
 use App\Models\ClientContact;
 use App\Services\PermissionService;
+use App\Models\Deal;
+use App\Models\Lead;
+use App\Models\Property;
 
 class TaskController extends AccountBaseController
 {
@@ -69,7 +72,10 @@ class TaskController extends AccountBaseController
             'users:id,name,image', 
             'category:id,category_name', 
             'labels', 
-            'boardColumn:id,column_name,slug,label_color'
+            'boardColumn:id,column_name,slug,label_color',
+            'deals',
+            'leads',
+            'properties'
         ]);
 
         // Apply permission-based filtering
@@ -255,6 +261,10 @@ class TaskController extends AccountBaseController
             ];
         });
 
+        $deals = Deal::select('id', 'name')->get();
+        $leads = Lead::select('id', 'client_name', 'company_name')->get();
+        $properties = Property::select('id', 'name')->get();
+
         // Get user permissions
         $permissions = [
             'add_tasks' => user()->permission('add_tasks'),
@@ -283,6 +293,9 @@ class TaskController extends AccountBaseController
             'columns' => $taskBoardColumns,
             'users' => $employees,
             'projects' => $projects,
+            'deals' => $deals,
+            'leads' => $leads,
+            'properties' => $properties,
             'filters' => $filters,
             'permissions' => $permissions,
         ]);

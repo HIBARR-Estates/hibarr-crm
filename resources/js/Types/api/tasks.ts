@@ -36,4 +36,15 @@ export interface Task {
         column_name: string;
         label_color: string;
     };
+
+    completed_on?: string;
+
+    files_count?: number;
+    notes_count?: number;
+    comments_count?: number;
+    subtasks_count?: number;
+    completed_subtasks_count?: number;
+    created_at: string;
+    updated_at: string;
+    added_by?: number;
 }

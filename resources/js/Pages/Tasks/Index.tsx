@@ -111,6 +111,22 @@ interface Project {
     project_short_code: string;
 }
 
+interface Deal {
+    id: number;
+    name: string;
+}
+
+interface Lead {
+    id: number;
+    client_name: string;
+    company_name?: string;
+}
+
+interface Property {
+    id: number;
+    name: string;
+}
+
 export interface TasksIndexProps extends PageProps {
     tasks: Task[];
     categories: TaskCategory[];
@@ -118,6 +134,9 @@ export interface TasksIndexProps extends PageProps {
     columns: TaskboardColumn[];
     users: User[];
     projects: Project[];
+    deals: Deal[];
+    leads: Lead[];
+    properties: Property[];
 
     permissions: {
         add_tasks: string;
@@ -134,6 +153,9 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
     columns = [],
     users = [],
     projects = [],
+    deals = [],
+    leads = [],
+    properties = [],
     permissions = {
         add_tasks: "all",
         edit_tasks: "all",
@@ -538,6 +560,9 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         columns={columns}
                         users={users}
                         projects={projects}
+                        deals={deals}
+                        leads={leads}
+                        properties={properties}
                     />
                     <SaveTaskModal
                         key="edit"
@@ -550,6 +575,9 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         columns={columns}
                         users={users}
                         projects={projects}
+                        deals={deals}
+                        leads={leads}
+                        properties={properties}
                     />
                     <SaveTaskModal
                         key="duplicate"
@@ -562,6 +590,9 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         columns={columns}
                         users={users}
                         projects={projects}
+                        deals={deals}
+                        leads={leads}
+                        properties={properties}
                     />
 
                     {/* Task Details Drawer */}
