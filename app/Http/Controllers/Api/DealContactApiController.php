@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
+use function Psl\Type\num;
+
 class DealContactApiController extends Controller
 {
     /**
@@ -185,7 +187,7 @@ class DealContactApiController extends Controller
                 }
 
                 // Default pipeline_id to 1 if not provided
-                $pipelineId = $request->pipeline_id ?? null;
+                $pipelineId = $request->pipeline_id ?? 1;
                 
                 // Get first stage ID for the pipeline
                 $firstStageId = $this->getFirstStageinpipeline($pipelineId, $companyId);
@@ -205,7 +207,7 @@ class DealContactApiController extends Controller
                     }
                 }
 
-                $packageId = $this->resolvePackageId($request, $companyId);
+                $packageId = $request->package_id ?? null;
 
                 // Update deal fields
                 $deal->name = $dealName;
