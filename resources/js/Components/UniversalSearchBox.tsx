@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Input } from "antd";
 import { useFilter } from "@/contexts/FilterContext";
 import { router } from "@inertiajs/react";
+import { useDebounce } from "@/Hooks/useDebounce";
 
 interface UniversalSearchBoxProps {
     placeholder?: string;
@@ -28,6 +29,8 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
         }
         return filters.search || "";
     });
+
+    const debouncedValue = useDebounce(localValue, 1800);
 
     // Sync local value with filter context
     useEffect(() => {
@@ -86,6 +89,13 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
 
         onSearch?.(value);
     };
+
+    useEffect(() => {
+        const currentSearch = filters.search || "";
+        if (debouncedValue !== currentSearch) {
+            handleSearch(debouncedValue);
+        }
+    }, [debouncedValue, filters.search]);
 
     return (
         <div className={className}>
