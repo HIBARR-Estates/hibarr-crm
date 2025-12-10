@@ -25,6 +25,7 @@ class CreateDealRequest extends CoreRequest
     {
         return [
             // Required contact fields
+            'deal_name' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             
@@ -82,6 +83,7 @@ class CreateDealRequest extends CoreRequest
     public function messages()
     {
         return [
+            'deal_name.string' => 'The deal name must be a string.',
             'name.required' => 'The contact name is required.',
             'email.required' => 'The contact email is required.',
             'email.email' => 'The contact email must be a valid email address.',
