@@ -33,6 +33,7 @@ export interface LeadShowProps {
     taskLabels: any[];
     taskBoardColumns: any[];
     projects: any[];
+    permissions: Record<string, string>;
 }
 
 const Show: React.FC<LeadShowProps> = ({
@@ -51,6 +52,7 @@ const Show: React.FC<LeadShowProps> = ({
     taskLabels,
     taskBoardColumns,
     projects,
+    permissions,
 }) => {
     const tabItems = [
         {
@@ -110,6 +112,7 @@ const Show: React.FC<LeadShowProps> = ({
                     taskBoardColumns={taskBoardColumns}
                     employees={employees}
                     projects={projects}
+                    permissions={permissions as any}
                 />
             ),
         },
