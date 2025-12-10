@@ -26,11 +26,12 @@ interface Props {
     taskBoardColumns: TaskboardColumn[];
     employees: any[];
     projects: any[];
-    permissions: {
+    permissions?: {
         add_tasks: string;
         edit_tasks: string;
         delete_tasks: string;
         view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
+        [key: string]: string;
     };
 }
 
@@ -42,7 +43,12 @@ export default function TasksTab({
     taskBoardColumns = [],
     employees,
     projects,
-    permissions,
+    permissions = {
+        add_tasks: "all",
+        edit_tasks: "all",
+        delete_tasks: "all",
+        view_tasks: "all",
+    },
 }: Props) {
     const {
         action,
