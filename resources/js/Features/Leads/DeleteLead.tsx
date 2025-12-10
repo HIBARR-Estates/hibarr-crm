@@ -13,7 +13,7 @@ interface Props extends IModalProps {
 
 const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
     const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
-        lead ? `/lead-contact/${lead.id}` : "",
+        lead ? `/account/lead-contact/${lead.id}` : "",
         "DELETE",
         () => {
             onClose();
