@@ -62,6 +62,7 @@ class CreateDealRequest extends CoreRequest
             // Optional Hibarr custom fields
             'customerBudget' => 'nullable|string|max:255',
             'motivation' => 'nullable|string',
+            'message' => 'nullable|string',
             
             // Optional meeting object
             'meeting' => 'nullable|array',
@@ -91,6 +92,7 @@ class CreateDealRequest extends CoreRequest
             'deal_owner_id.exists' => 'The selected deal owner does not exist.',
             'deal_watcher.*.exists' => 'One or more selected deal watchers do not exist.',
             'meeting.meeting_link.url' => 'The meeting link must be a valid URL.',
+            'message.string' => 'The message must be a string.',
         ];
     }
 }

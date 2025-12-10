@@ -149,12 +149,19 @@ class DealContactApiController extends Controller
         try {
             return DB::transaction(function () use ($request) {
                 $companyId = $request->header('X-COMPANY-ID');
+                $dealName = $request->input('deal_name') ?? null;
+                if (!$dealName) {
+                    $dealName = $request->input('name') ?? null;
+                }
  
                 if (!$companyId) {
                     return Reply::error(__('messages.missingCompanyId'));
                 }
                 $companyId = (int) $companyId;
-                $contactId = $this->resolveContact($request, $companyId);
+                $contactId = $request->input('lead_id') ?? null;
+                if (!$contactId) {
+                    $contactId = $this->resolveContact($request, $companyId);
+                }
                 
                 // Save UTM information if provided
                 $this->saveUtmInfo($contactId, $request);
@@ -178,7 +185,7 @@ class DealContactApiController extends Controller
                 }
 
                 // Default pipeline_id to 1 if not provided
-                $pipelineId = $request->pipeline_id ?? 1;
+                $pipelineId = $request->pipeline_id ?? null;
                 
                 // Get first stage ID for the pipeline
                 $firstStageId = $this->getFirstStageinpipeline($pipelineId, $companyId);
@@ -201,7 +208,7 @@ class DealContactApiController extends Controller
                 $packageId = $this->resolvePackageId($request, $companyId);
 
                 // Update deal fields
-                $deal->name = $request->name;
+                $deal->name = $dealName;
                 $deal->lead_pipeline_id = $pipelineId;
                 $deal->pipeline_stage_id = $request->pipeline_stage_id ?? $firstStageId ?? $deal->pipeline_stage_id;
                 $deal->agent_id = $agentId ?? $deal->agent_id;
@@ -696,6 +703,7 @@ class DealContactApiController extends Controller
         $hibarrFields = [
             'budget_range' => $request->input('customerBudget') ?? '',
             'motivation' => $request->input('motivation') ?? '',
+            'message' => $request->input('message') ?? '',
         ];
 
         HibarrDealFields::updateOrCreate(
