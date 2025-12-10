@@ -506,7 +506,8 @@ class DashboardController extends AccountBaseController
         $poorDataQualityDeals = $poorDataQualityDeals->merge($poorDataQualityLeads)
             ->filter(function ($deal) {
             return $deal['data_quality_score'] < 80; // Only show records that need improvement
-        })->sortByDesc('priority_score')->take(10)->values();
+        })->sortByDesc('priority_score')->take(100)->values();
+        // TODO: Show 100 and once user scrolls, load more using pagination or infinite scroll
 
         // Get recent communication activities
         $recentActivities = \App\Models\CommunicationActivity::with(['deal:id,name'])
