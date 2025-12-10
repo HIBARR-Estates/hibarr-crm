@@ -131,11 +131,20 @@ interface DashboardStats {
     activities_this_week: number;
 }
 
+interface DataQualityStats {
+    total: number;
+    critical: number;
+    poor: number;
+    fair: number;
+    average_score: number;
+}
+
 interface ComprehensiveDashboardProps extends PageProps {
     tasks: Task[];
     deals: Deal[];
     recentDeals: Deal[];
     poorDataQualityDeals: DataQualityRecord[];
+    dataQualityStats: DataQualityStats;
     recentActivities: CommunicationActivity[];
     pipelineStages: PipelineStage[];
     overviewMetrics: OverviewMetrics;
@@ -150,6 +159,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     deals,
     recentDeals,
     poorDataQualityDeals,
+    dataQualityStats,
     recentActivities,
     pipelineStages,
     overviewMetrics,
@@ -331,6 +341,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                     >
                                         <DataQualityPanel
                                             records={poorDataQualityDeals}
+                                            stats={dataQualityStats}
                                             products={products}
                                             packages={packages}
                                             countries={countries}
