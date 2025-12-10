@@ -25,6 +25,7 @@ class CreateDealRequest extends CoreRequest
     {
         return [
             // Required contact fields
+            'deal_name' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             
@@ -62,6 +63,7 @@ class CreateDealRequest extends CoreRequest
             // Optional Hibarr custom fields
             'customerBudget' => 'nullable|string|max:255',
             'motivation' => 'nullable|string',
+            'message' => 'nullable|string',
             
             // Optional meeting object
             'meeting' => 'nullable|array',
@@ -81,6 +83,7 @@ class CreateDealRequest extends CoreRequest
     public function messages()
     {
         return [
+            'deal_name.string' => 'The deal name must be a string.',
             'name.required' => 'The contact name is required.',
             'email.required' => 'The contact email is required.',
             'email.email' => 'The contact email must be a valid email address.',
@@ -91,6 +94,7 @@ class CreateDealRequest extends CoreRequest
             'deal_owner_id.exists' => 'The selected deal owner does not exist.',
             'deal_watcher.*.exists' => 'One or more selected deal watchers do not exist.',
             'meeting.meeting_link.url' => 'The meeting link must be a valid URL.',
+            'message.string' => 'The message must be a string.',
         ];
     }
 }

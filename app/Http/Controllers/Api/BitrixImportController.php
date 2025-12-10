@@ -1076,6 +1076,7 @@ class BitrixImportController extends Controller
     {
         $hibarrFields = [
             'budget_range' => Arr::get($dealData, 'customerBudget') ?? '',
+            'message' => Arr::get($dealData, 'message') ?? '',
             'inspection_trip_date' => $this->parseDate(Arr::get($dealData, 'nextMeeting')),
             'strategy_meeting_booked' => $this->toBoolean(Arr::get($dealData, 'strategyMeeting')) ? 1 : 0,
             'downpayment_paid' => $this->toBoolean(Arr::get($dealData, 'downpayment')) ? 1 : 0,
