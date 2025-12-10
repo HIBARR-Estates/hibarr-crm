@@ -500,7 +500,7 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         <div className="flex justify-end gap-x-2 items-center mb-2">
                             <div className="flex items-center gap-2"></div>
                         </div>
-
+                        {/* TODO : Refactor to have server size pagination/changes */}
                         {/* Table or Kanban View */}
                         {isTableView ? (
                             <Table
