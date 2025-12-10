@@ -20,6 +20,7 @@ import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createDealFilterConfig } from "@/configs/dealFilterConfig";
 import { createDealSearchConfig } from "@/configs/searchConfigs";
+import PipelineSelector from "@/Features/Deals/PipelineSelector";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -224,21 +225,10 @@ const LeadBoardIndex = ({
 
                                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                                     <div className="flex items-center gap-4">
-                                        <h1 className="text-xl font-semibold text-gray-900">
-                                            {currentPipelineName}
-                                        </h1>
-
-                                        <Select
-                                            value={valueLeadPipelineId}
-                                            onChange={handlePipelineChange}
-                                            style={{ width: 200 }}
-                                            placeholder="Select Pipeline"
-                                            options={pipelines.map(
-                                                (pipeline) => ({
-                                                    value: pipeline.id,
-                                                    label: pipeline.name,
-                                                })
-                                            )}
+                                        <PipelineSelector
+                                            pipelines={pipelines}
+                                            currentPipelineId={valueLeadPipelineId}
+                                            onSelect={handlePipelineChange}
                                         />
 
                                         {(addLeadPermission === "all" ||
