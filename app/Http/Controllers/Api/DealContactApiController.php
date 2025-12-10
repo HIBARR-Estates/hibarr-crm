@@ -207,7 +207,7 @@ class DealContactApiController extends Controller
                     }
                 }
 
-                $packageId = $request->package_id ?? null;
+                $packageId = $this->resolvePackageId($request, $companyId);
 
                 // Update deal fields
                 $deal->name = $dealName;
@@ -721,7 +721,7 @@ class DealContactApiController extends Controller
      * @param int $companyId
      * @return int
      */
-    private function resolvePackageId(Request $request, int $companyId): int
+    private function resolvePackageId(Request $request, int $companyId): ?int
     {
         // First check if package_id is provided directly
         if ($request->has('package_id') && is_numeric($request->package_id)) {
@@ -739,7 +739,7 @@ class DealContactApiController extends Controller
             }
         }
 
-        return 1;
+        return null;
     }
 
     /**
