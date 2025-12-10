@@ -227,7 +227,9 @@ const LeadBoardIndex = ({
                                     <div className="flex items-center gap-4">
                                         <PipelineSelector
                                             pipelines={pipelines}
-                                            currentPipelineId={valueLeadPipelineId}
+                                            currentPipelineId={
+                                                valueLeadPipelineId
+                                            }
                                             onSelect={handlePipelineChange}
                                         />
 
