@@ -60,19 +60,6 @@ const GeneralCustomFieldTab = <
                 return aOrder - bOrder;
             }) || [];
 
-    // const getFieldValue = (field: any) => {
-    //     const fieldKey = `custom_fields_data.field_${field.id}`;
-    //     return data.custom_fields_data?.[`field_${field.id}`];
-    // };
-
-    // const setFieldValue = (field: any, value: any) => {
-    //     const currentCustomData = data.custom_fields_data || {};
-    //     setData("custom_fields_data", {
-    //         ...currentCustomData,
-    //         [`field_${field.id}`]: value,
-    //     });
-    // };
-
     const renderTextField = (field: any) => (
         <Form.Item
             label={field.label}
@@ -147,10 +134,6 @@ const GeneralCustomFieldTab = <
         const hasOtherOption = values?.some(
             (v: string) => v.toLowerCase() === "other"
         );
-        // const currentValue = getFieldValue(field);
-        // const isOtherSelected =
-        //     currentValue?.toLowerCase() === "other" ||
-        //     currentValue?.startsWith("other: ");
 
         return (
             <Form.Item
@@ -176,25 +159,6 @@ const GeneralCustomFieldTab = <
                         </Select.Option>
                     ))}
                 </Select>
-
-                {/* {hasOtherOption && isOtherSelected && (
-                    <Input
-                        placeholder="Please specify..."
-                        style={{ marginTop: 8 }}
-                        value={otherValues[`field_${field.id}`] || ""}
-                        onChange={(e) => {
-                            const otherValue = e.target.value;
-                            setOtherValues((prev) => ({
-                                ...prev,
-                                [`field_${field.id}`]: otherValue,
-                            }));
-                            setFieldValue(
-                                field,
-                                otherValue ? `other: ${otherValue}` : "other"
-                            );
-                        }}
-                    />
-                )} */}
             </Form.Item>
         );
     };
@@ -207,10 +171,6 @@ const GeneralCustomFieldTab = <
         const hasOtherOption = values?.some(
             (v: string) => v.toLowerCase() === "other"
         );
-        // const currentValue = getFieldValue(field);
-        // const isOtherSelected =
-        //     currentValue?.toLowerCase() === "other" ||
-        //     currentValue?.startsWith("other: ");
 
         return (
             <Form.Item
@@ -229,44 +189,15 @@ const GeneralCustomFieldTab = <
                     },
                 ]}
             >
-                <Radio.Group
-                // value={currentValue}
-                // onChange={(e) => {
-                //     const value = e.target.value;
-                //     setFieldValue(field, value);
-                //     if (value?.toLowerCase() !== "other") {
-                //         setOtherValues((prev) => ({
-                //             ...prev,
-                //             [`field_${field.id}`]: "",
-                //         }));
-                //     }
-                // }}
-                >
-                    {values?.map((value: string, index: number) => (
-                        <Radio key={index} value={value}>
-                            {value}
-                        </Radio>
-                    ))}
+                <Radio.Group>
+                    <div className="flex gap-4">
+                        {values?.map((value: string, index: number) => (
+                            <Radio key={index} value={value}>
+                                {value}
+                            </Radio>
+                        ))}
+                    </div>
                 </Radio.Group>
-                {/* 
-                {hasOtherOption && isOtherSelected && (
-                    <Input
-                        placeholder="Please specify..."
-                        style={{ marginTop: 8 }}
-                        value={otherValues[`field_${field.id}`] || ""}
-                        onChange={(e) => {
-                            const otherValue = e.target.value;
-                            setOtherValues((prev) => ({
-                                ...prev,
-                                [`field_${field.id}`]: otherValue,
-                            }));
-                            setFieldValue(
-                                field,
-                                otherValue ? `other: ${otherValue}` : "other"
-                            );
-                        }}
-                    />
-                )} */}
             </Form.Item>
         );
     };
@@ -279,12 +210,6 @@ const GeneralCustomFieldTab = <
         const hasOtherOption = values?.some(
             (v: string) => v.toLowerCase() === "other"
         );
-        // const currentValue = getFieldValue(field) || "";
-        // const selectedValues = currentValue.split(", ").filter(Boolean);
-        // const isOtherSelected = selectedValues.some(
-        //     (v: string) =>
-        //         v.toLowerCase() === "other" || v.startsWith("other: ")
-        // );
 
         return (
             <Form.Item
@@ -303,57 +228,15 @@ const GeneralCustomFieldTab = <
                     },
                 ]}
             >
-                <Checkbox.Group
-                // value={selectedValues}
-                // onChange={(checkedValues) => {
-                //     setFieldValue(field, checkedValues.join(", "));
-                //     if (
-                //         !checkedValues.some(
-                //             (v) => v.toLowerCase() === "other"
-                //         )
-                //     ) {
-                //         setOtherValues((prev) => ({
-                //             ...prev,
-                //             [`field_${field.id}`]: "",
-                //         }));
-                //     }
-                // }}
-                >
-                    {values?.map((value: string, index: number) => (
-                        <Checkbox key={index} value={value}>
-                            {value}
-                        </Checkbox>
-                    ))}
+                <Checkbox.Group>
+                    <div className="flex gap-4">
+                        {values?.map((value: string, index: number) => (
+                            <Checkbox key={index} value={value}>
+                                {value}
+                            </Checkbox>
+                        ))}
+                    </div>
                 </Checkbox.Group>
-
-                {/* {hasOtherOption && isOtherSelected && (
-                    <Input
-                        placeholder="Please specify..."
-                        style={{ marginTop: 8 }}
-                        value={otherValues[`field_${field.id}`] || ""}
-                        onChange={(e) => {
-                            const otherValue = e.target.value;
-                            setOtherValues((prev) => ({
-                                ...prev,
-                                [`field_${field.id}`]: otherValue,
-                            }));
-
-                            const currentValues = selectedValues.filter(
-                                (v: string) =>
-                                    v.toLowerCase() !== "other" &&
-                                    !v.startsWith("other: ")
-                            );
-
-                            if (otherValue) {
-                                currentValues.push(`other: ${otherValue}`);
-                            } else {
-                                currentValues.push("other");
-                            }
-
-                            setFieldValue(field, currentValues.join(", "));
-                        }}
-                    />
-                )} */}
             </Form.Item>
         );
     };
@@ -375,12 +258,6 @@ const GeneralCustomFieldTab = <
         >
             <DatePicker
                 placeholder={`Select ${field.label}`}
-                // value={
-                //     getFieldValue(field) ? dayjs(getFieldValue(field)) : null
-                // }
-                // onChange={(date, dateString) =>
-                //     setFieldValue(field, dateString)
-                // }
                 style={{ width: "100%" }}
             />
         </Form.Item>
