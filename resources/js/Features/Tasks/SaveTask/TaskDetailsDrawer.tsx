@@ -507,7 +507,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 </Card>
             )}
 
-            {/* Related Entities */}
+            {/* Related Entities - Properties, Deals, Leads */}
             {((task.deals && task.deals.length > 0) ||
                 (task.leads && task.leads.length > 0) ||
                 (task.properties && task.properties.length > 0)) && (
@@ -521,6 +521,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     }
                     style={{ marginBottom: 16 }}
                 >
+                    {/* Deals */}
                     {task.deals && task.deals.length > 0 && (
                         <div
                             style={{
@@ -543,6 +544,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                             />
                         </div>
                     )}
+                    {/* Leads */}
                     {task.leads && task.leads.length > 0 && (
                         <div
                             style={{
@@ -567,6 +569,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                             />
                         </div>
                     )}
+                    {/* Properties */}
                     {task.properties && task.properties.length > 0 && (
                         <div>
                             <Text strong>Properties</Text>
