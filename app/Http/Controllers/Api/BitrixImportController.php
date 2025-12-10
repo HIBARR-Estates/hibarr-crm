@@ -197,7 +197,28 @@ class BitrixImportController extends Controller
                     $lead->saveQuietly();
                 }
                 
-                return $lead;
+                return $lead;   
+            });
+        } catch (\Exception $e) {
+            $this->logoutIfAuthenticated();
+            
+            Log::error('Bitrix import: Failed to create contact', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+            ]);
+            
+            return Reply::error('Contact creation failed: ' . $e->getMessage());
+        }
+        
+        $this->logoutIfAuthenticated();
+        
+        return Reply::successWithData('Contact synced successfully.', [
+            'contact_id' => $result->id,
+            'type' => $result->type,
+        ]);
+    }
+
     public function commentStore(Request $request)
     {
         $companyId = $request->header('X-COMPANY-ID');
@@ -723,14 +744,6 @@ class BitrixImportController extends Controller
         } catch (\Exception $e) {
             $this->logoutIfAuthenticated();
             
-            Log::error('Bitrix import: Failed to upsert lead', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),                
-                'contact_email_present' => !empty(Arr::get($request->all(), 'email')),
-                'responsible_email_present' => !empty(Arr::get($responsible, 'email')),
-            ]);
-            
-            return Reply::error('Contact Creation Failed.');
             Log::error('Bitrix task import: Failed to create tasks', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -742,7 +755,6 @@ class BitrixImportController extends Controller
         
         $this->logoutIfAuthenticated();
         
-        return Reply::success('Contact synced successfully.');
         return Reply::successWithData('Tasks synced successfully.', [
             'deal_id' => $result['deal_id'],
             'tasks_created' => $result['tasks_created'],
