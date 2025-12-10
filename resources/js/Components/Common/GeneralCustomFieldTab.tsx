@@ -9,7 +9,10 @@ import {
     Row,
     Col,
     InputNumber,
+    Upload,
+    Button,
 } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
 
 interface CustomFieldTabProps<CustomFormData = any> {
@@ -52,6 +55,7 @@ const GeneralCustomFieldTab = <
                     date: 2, // Same priority as text
                     country: 1, // Same priority as select
                     phone: 2, // Same priority as text
+                    file: 3, // Same priority as textarea
                 };
 
                 const aOrder = typeOrder[a.type as keyof typeof typeOrder] || 6;
@@ -322,6 +326,34 @@ const GeneralCustomFieldTab = <
         </Form.Item>
     );
 
+    const renderFileField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            valuePropName="fileList"
+            getValueFromEvent={(e: any) => {
+                if (Array.isArray(e)) {
+                    return e;
+                }
+                return e?.fileList;
+            }}
+            rules={[
+                {
+                    required: field.required === "yes",
+                    message: `Please upload ${field.label}`,
+                },
+            ]}
+        >
+            <Upload beforeUpload={() => false} maxCount={1}>
+                <Button icon={<UploadOutlined />}>Select File</Button>
+            </Upload>
+        </Form.Item>
+    );
+
     const renderField = (field: any) => {
         switch (field.type) {
             case "text":
@@ -342,6 +374,8 @@ const GeneralCustomFieldTab = <
                 return renderCountryField(field);
             case "phone":
                 return renderPhoneField(field);
+            case "file":
+                return renderFileField(field);
             default:
                 return renderTextField(field);
         }
@@ -379,6 +413,8 @@ const determineSpan = (type: string): number => {
         case "radio":
             return 24;
         case "checkbox":
+            return 24;
+        case "file":
             return 24;
         default:
             return 12;
