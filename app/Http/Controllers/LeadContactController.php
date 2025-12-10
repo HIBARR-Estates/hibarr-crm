@@ -552,18 +552,18 @@ class LeadContactController extends AccountBaseController
         if ($request->add_more == 'true') {
             $html = $this->create();
 
-            // return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
+            // return Reply::successWithData(__('messages.leadSaved'), ['html' => $html, 'add_more' => true]);
 
-            return back()->with('success', __('messages.recordSaved'));
+            return back()->with('success', __('messages.leadSaved'));
         }
 
         if ($redirectUrl == '') {
             $redirectUrl = route('lead-contact.index');
         }
 
-        // return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
+        // return Reply::successWithData(__('messages.leadSaved'), ['redirectUrl' => $redirectUrl]);
 
-        return back()->with('success', __('messages.recordSaved'));
+        return back()->with('success', __('messages.leadSaved'));
     }
 
     /**
@@ -701,9 +701,9 @@ class LeadContactController extends AccountBaseController
             $leadContact->updateCustomFieldData($request->custom_fields_data);
         }
 
-        // return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
+        // return Reply::successWithData(__('messages.leadUpdateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
 
-        return back()->with('success', __('messages.updateSuccess'));
+        return back()->with('success', __('messages.leadUpdateSuccess'));
     }
 
     /**
@@ -882,13 +882,13 @@ class LeadContactController extends AccountBaseController
 
             // Return success response for API calls or redirect for web
             if ($request->expectsJson()) {
-                return Reply::successWithData(__('messages.updateSuccess'), [
+                return Reply::successWithData(__('messages.leadUpdateSuccess'), [
                     'lead' => $leadContact->fresh(),
                     'redirectUrl' => route('lead-contact.show', $leadContact->id)
                 ]);
             }
 
-            return back()->with('success', __('messages.updateSuccess'));
+            return back()->with('success', __('messages.leadUpdateSuccess'));
 
         } catch (\Exception $e) {
             // Rollback transaction on error

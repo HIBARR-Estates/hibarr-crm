@@ -75,6 +75,22 @@ interface Project {
     project_short_code: string;
 }
 
+interface Deal {
+    id: number;
+    name: string;
+}
+
+interface Lead {
+    id: number;
+    client_name: string;
+    company_name?: string;
+}
+
+interface Property {
+    id: number;
+    name: string;
+}
+
 interface CreateTaskFormData {
     heading: string;
     description?: string;
@@ -91,6 +107,9 @@ interface CreateTaskFormData {
     is_private?: boolean;
     billable?: boolean;
     without_duedate?: boolean;
+    deal_id?: number;
+    lead_id?: number;
+    property_id?: number;
 }
 
 interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
@@ -103,9 +122,12 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
     columns: TaskboardColumn[];
     users: User[];
     projects: Project[];
+    deals?: Deal[];
+    leads?: Lead[];
+    properties?: Property[];
     relatedEntity?: {
         type: "deal" | "lead" | "property";
-        id: number;
+        id?: number;
     };
 }
 
@@ -120,6 +142,9 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     columns,
     users,
     projects,
+    deals = [],
+    leads = [],
+    properties = [],
     relatedEntity,
 }) => {
     const [errors, setErrors] = useState<string[]>([]);
@@ -273,6 +298,10 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                 columns={columns}
                 users={users}
                 projects={projects}
+                deals={deals}
+                leads={leads}
+                properties={properties}
+                relatedEntity={relatedEntity}
             />
         </Drawer>
     );

@@ -181,7 +181,7 @@ const DashboardLayout: React.FC<{
         return userPermission === level || userPermission === "all";
     };
     const isInRole = (role: string): boolean =>
-        user?.roles?.includes(role) ?? false;
+        user?.roles?.some((r) => r.name === role) ?? false;
 
     // Build menu items
     const buildMenuItems = (): MenuProps["items"] => {

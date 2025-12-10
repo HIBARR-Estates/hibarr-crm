@@ -66,6 +66,22 @@ interface Project {
     project_short_code: string;
 }
 
+interface Deal {
+    id: number;
+    name: string;
+}
+
+interface Lead {
+    id: number;
+    client_name: string;
+    company_name?: string;
+}
+
+interface Property {
+    id: number;
+    name: string;
+}
+
 interface TaskFormProps {
     data?: any;
     visible: boolean;
@@ -82,6 +98,13 @@ interface TaskFormProps {
     columns: TaskboardColumn[];
     users: User[];
     projects: Project[];
+    deals?: Deal[];
+    leads?: Lead[];
+    properties?: Property[];
+    relatedEntity?: {
+        type: "deal" | "lead" | "property";
+        id?: number;
+    };
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
@@ -100,6 +123,10 @@ const TaskForm: React.FC<TaskFormProps> = ({
     columns,
     users,
     projects,
+    deals = [],
+    leads = [],
+    properties = [],
+    relatedEntity,
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage();
@@ -126,15 +153,28 @@ const TaskForm: React.FC<TaskFormProps> = ({
             form.setFieldsValue(formValues);
         } else if (!data && visible) {
             form.resetFields();
-            form.setFieldsValue({
+            const initialValues: any = {
                 start_date: dayjs(),
                 priority: "medium",
                 board_column_id: columns.find(
                     (col) => col.slug === "incomplete"
                 )?.id,
-            });
+            };
+
+            // Pre-fill related entity if provided
+            if (relatedEntity) {
+                if (relatedEntity.type === "deal") {
+                    initialValues.deal_id = relatedEntity.id;
+                } else if (relatedEntity.type === "lead") {
+                    initialValues.lead_id = relatedEntity.id;
+                } else if (relatedEntity.type === "property") {
+                    initialValues.property_id = relatedEntity.id;
+                }
+            }
+
+            form.setFieldsValue(initialValues);
         }
-    }, [data, visible, form, columns]);
+    }, [data, visible, form, columns, relatedEntity]);
 
     return (
         <Form
@@ -322,6 +362,89 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                                 />
                                                 {column.column_name}
                                             </Space>
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={24}>
+                            <Form.Item
+                                name="deal_id"
+                                label="Related Deal"
+                                hidden={relatedEntity?.type === "deal"}
+                            >
+                                <Select
+                                    placeholder="Select a deal"
+                                    showSearch
+                                    allowClear
+                                    filterOption={(input, option) =>
+                                        (option?.children as unknown as string)
+                                            .toLowerCase()
+                                            .includes(input.toLowerCase())
+                                    }
+                                    disabled={relatedEntity?.type === "deal"}
+                                >
+                                    {deals.map((deal) => (
+                                        <Option key={deal.id} value={deal.id}>
+                                            {deal.name}
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={24}>
+                            <Form.Item
+                                name="lead_id"
+                                label="Related Lead"
+                                hidden={relatedEntity?.type === "lead"}
+                            >
+                                <Select
+                                    placeholder="Select a lead"
+                                    showSearch
+                                    allowClear
+                                    filterOption={(input, option) =>
+                                        (option?.children as unknown as string)
+                                            .toLowerCase()
+                                            .includes(input.toLowerCase())
+                                    }
+                                    disabled={relatedEntity?.type === "lead"}
+                                >
+                                    {leads.map((lead) => (
+                                        <Option key={lead.id} value={lead.id}>
+                                            {lead.client_name}{" "}
+                                            {lead.company_name
+                                                ? `(${lead.company_name})`
+                                                : ""}
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={24}>
+                            <Form.Item
+                                name="property_id"
+                                label="Related Property"
+                                hidden={relatedEntity?.type === "property"}
+                            >
+                                <Select
+                                    placeholder="Select a property"
+                                    showSearch
+                                    allowClear
+                                    filterOption={(input, option) =>
+                                        (option?.children as unknown as string)
+                                            .toLowerCase()
+                                            .includes(input.toLowerCase())
+                                    }
+                                    disabled={
+                                        relatedEntity?.type === "property"
+                                    }
+                                >
+                                    {properties.map((property) => (
+                                        <Option
+                                            key={property.id}
+                                            value={property.id}
+                                        >
+                                            {property.name}
                                         </Option>
                                     ))}
                                 </Select>

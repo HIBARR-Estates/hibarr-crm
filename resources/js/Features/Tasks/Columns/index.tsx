@@ -23,48 +23,11 @@ import dayjs from "dayjs";
 import { Link, usePage } from "@inertiajs/react";
 
 import PageDataSorter from "@/Components/PageDataSorter";
+import { Task } from "@/Types/api/tasks";
 
 const { Text, Title } = Typography;
 
 // Types based on Laravel Task model
-interface Task {
-    id: number;
-    heading: string;
-    description?: string;
-    due_date?: string;
-    start_date?: string;
-    priority: "low" | "medium" | "high";
-    status: string;
-    board_column_id?: number;
-    completed_on?: string;
-    project?: {
-        id: number;
-        project_name: string;
-        project_short_code?: string;
-    };
-    category?: {
-        id: number;
-        category_name: string;
-    };
-    users?: Array<{
-        id: number;
-        name: string;
-        image?: string;
-    }>;
-    labels?: Array<{
-        id: number;
-        label_name: string;
-        label_color: string;
-    }>;
-    files_count?: number;
-    notes_count?: number;
-    comments_count?: number;
-    subtasks_count?: number;
-    completed_subtasks_count?: number;
-    created_at: string;
-    updated_at: string;
-    added_by?: number;
-}
 
 interface TaskboardColumn {
     id: number;
@@ -77,9 +40,9 @@ interface TaskboardColumn {
 interface TasksTableColumnsProps {
     columns: TaskboardColumn[];
     permissions: {
-        edit_tasks: string;
-        delete_tasks: string;
-        view_tasks: string;
+        edit_tasks?: string;
+        delete_tasks?: string;
+        view_tasks?: string;
     };
     onEdit: (task: Task) => void;
     onView: (task: Task) => void;
@@ -311,22 +274,22 @@ export const useTasksTableColumns = ({
             width: "8%",
             render: (_, record: Task) => {
                 const canEdit =
-                    permissions.edit_tasks === "all" ||
-                    (permissions.edit_tasks === "added" &&
+                    permissions?.edit_tasks === "all" ||
+                    (permissions?.edit_tasks === "added" &&
                         record.added_by === userId) ||
-                    (permissions.edit_tasks === "owned" &&
+                    (permissions?.edit_tasks === "owned" &&
                         record.users?.some((u) => u.id === userId)) ||
-                    (permissions.edit_tasks === "both" &&
+                    (permissions?.edit_tasks === "both" &&
                         (record.added_by === userId ||
                             record.users?.some((u) => u.id === userId)));
 
                 const canDelete =
-                    permissions.delete_tasks === "all" ||
-                    (permissions.delete_tasks === "added" &&
+                    permissions?.delete_tasks === "all" ||
+                    (permissions?.delete_tasks === "added" &&
                         record.added_by === userId) ||
-                    (permissions.delete_tasks === "owned" &&
+                    (permissions?.delete_tasks === "owned" &&
                         record.users?.some((u) => u.id === userId)) ||
-                    (permissions.delete_tasks === "both" &&
+                    (permissions?.delete_tasks === "both" &&
                         (record.added_by === userId ||
                             record.users?.some((u) => u.id === userId)));
 

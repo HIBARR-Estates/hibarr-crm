@@ -99,6 +99,7 @@ export default function Index({
         () =>
             createPropertyFilterConfig({ ...props, excludeFields: ["search"] }),
         [props]
+        // TODO: Check if props can be more specific
     );
 
     // Setup search and filter contexts
