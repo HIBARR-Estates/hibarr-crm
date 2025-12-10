@@ -175,6 +175,50 @@ class BitrixImportController extends Controller
         ]);
     }
 
+    public function contactStore(Request $request)
+    {
+        $companyId = (int) $request->header('X-COMPANY-ID');
+        $responsible = Arr::get($request->all(), 'responsible', []);
+        
+        
+        try {
+            $result = DB::transaction(function () use ($request, $companyId, $responsible) {
+                // Ensure responsible user exists (inside transaction for rollback consistency)
+                $responsibleUser = $this->resolveResponsibleUser($responsible, $companyId);
+                
+                if ($responsibleUser) {
+                    auth()->setUser($responsibleUser);
+                }
+                
+                $lead = $this->upsertLead($request->all(), $companyId, $responsibleUser);
+                
+                if ($responsibleUser) {
+                    $lead->added_by = $responsibleUser->id;
+                    $lead->saveQuietly();
+                }
+                
+                return $lead;   
+            });
+        } catch (\Exception $e) {
+            $this->logoutIfAuthenticated();
+            
+            Log::error('Bitrix import: Failed to create contact', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+            ]);
+            
+            return Reply::error('Contact creation failed: ' . $e->getMessage());
+        }
+        
+        $this->logoutIfAuthenticated();
+        
+        return Reply::successWithData('Contact synced successfully.', [
+            'contact_id' => $result->id,
+            'type' => $result->type,
+        ]);
+    }
+
     public function commentStore(Request $request)
     {
         $companyId = $request->header('X-COMPANY-ID');
@@ -829,6 +873,9 @@ class BitrixImportController extends Controller
             $lead->mobile = $phone !== '' ? $phone : null;
             $lead->address = Arr::get($contactData, 'address');
             $lead->note = Arr::get($contactData, 'comments');
+            // Set type from payload or default to customer
+            $type = strtolower(trim((string) Arr::get($contactData, 'type', 'customer')));
+            $lead->type = in_array($type, ['agent', 'customer']) ? $type : 'customer';
             if ($responsibleUser) {
                 $lead->lead_owner = $responsibleUser->id;
             }
@@ -839,9 +886,14 @@ class BitrixImportController extends Controller
                 $lead->created_at = $createdDate;
             }
             
-            $lead->save();
+            $lead->saveQuietly();
         } else {
             $lead->client_name = $name !== '' ? $name : $lead->client_name;
+            // Update type if provided in payload
+            if (Arr::has($contactData, 'type')) {
+                $type = strtolower(trim((string) Arr::get($contactData, 'type', 'customer')));
+                $lead->type = in_array($type, ['agent', 'customer']) ? $type : 'customer';
+            }
             if ($email !== '' && $lead->client_email !== $email) {
                 $lead->client_email = $email;
             }
@@ -1024,6 +1076,7 @@ class BitrixImportController extends Controller
     {
         $hibarrFields = [
             'budget_range' => Arr::get($dealData, 'customerBudget') ?? '',
+            'message' => Arr::get($dealData, 'message') ?? '',
             'inspection_trip_date' => $this->parseDate(Arr::get($dealData, 'nextMeeting')),
             'strategy_meeting_booked' => $this->toBoolean(Arr::get($dealData, 'strategyMeeting')) ? 1 : 0,
             'downpayment_paid' => $this->toBoolean(Arr::get($dealData, 'downpayment')) ? 1 : 0,
