@@ -2,42 +2,44 @@ import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { Lead } from "@/Types";
 import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
-import React, { useState } from "react";
+import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
+import { Deal } from "@/Types/api/deals";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiResponse } from "@/lib/api/types";
 
 interface Props extends IModalProps {
-    lead?: Lead;
+    deal?: Deal;
 }
 
-const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
-    const [loading, setLoading] = useState(false);
+const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
+    const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
+        deal ? route("deals.destroy", deal.id) : "",
+        "DELETE",
+        () => {
+            onClose();
+            router.visit(route("deals.index"));
+        }
+    );
 
-    // Handle single lead deletion
-    const handleDeleteLead = () => {
-        if (!lead) return;
-
-        router.delete(route("lead-contact.destroy", lead.id), {
-            onStart: () => setLoading(true),
-            onFinish: () => setLoading(false),
-            onSuccess: () => {
-                onClose();
-                router.visit(route("lead-contact.index"));
-            },
-        });
+    // Handle single deal deletion
+    const handleDeleteDeal = () => {
+        if (!deal) return;
+        deleteMutation.mutate({});
     };
     return (
         <ConfirmationModal
             open={open}
             onClose={onClose}
             onSubmit={{
-                fn: handleDeleteLead,
-                loading: loading,
+                fn: handleDeleteDeal,
+                loading: deleteMutation.isPending,
             }}
-            title="Delete Lead"
+            title="Delete Deal"
             description={
-                lead
-                    ? `Are you sure you want to delete "${lead?.client_name}"? This action cannot be undone.`
-                    : "Are you sure you want to delete this lead? This action cannot be undone."
+                deal
+                    ? `Are you sure you want to delete "${deal?.name}"? This action cannot be undone.`
+                    : "Are you sure you want to delete this deal? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
             confirmText="Yes, Delete"
@@ -48,4 +50,4 @@ const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
     );
 };
 
-export default DeleteLead;
+export default DeleteDeal;
