@@ -119,6 +119,9 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                         onViewNote={handleNavigateToView}
                         onEditNote={handleNavigateToEdit}
                         onDeleteNote={handleDeleteNote}
+                        currentView={currentView}
+                        selectedNote={selectedNote}
+                        setCurrentView={setCurrentView}
                     />
                 );
         }
@@ -127,12 +130,13 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
     return (
         <div className="bg-gray-50 p-6 flex flex-col gap-y-6">
             {/* Breadcrumb Navigation */}
-            <NotesBreadcrumb
-                currentView={currentView}
-                noteTitle={selectedNote?.title}
-                onNavigate={setCurrentView}
-            />
-
+            {currentView !== "list" && (
+                <NotesBreadcrumb
+                    currentView={currentView}
+                    noteTitle={selectedNote?.title}
+                    onNavigate={setCurrentView}
+                />
+            )}
             {/* Current View Content */}
             {renderCurrentView()}
 
