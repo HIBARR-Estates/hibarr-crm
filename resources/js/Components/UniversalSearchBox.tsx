@@ -58,29 +58,24 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
                 currentParams[key] = val;
             });
 
-            // Clean filters - remove empty values
-            const cleanFilters: Record<string, any> = {
+            // Merge params first
+            const finalParams: Record<string, any> = {
+                ...currentParams,
                 ...filters,
                 search: value,
+                page: 1,
             };
 
             // Remove empty keys
-            Object.keys(cleanFilters).forEach((key) => {
+            Object.keys(finalParams).forEach((key) => {
                 if (
-                    cleanFilters[key] === null ||
-                    cleanFilters[key] === "" ||
-                    cleanFilters[key] === undefined
+                    finalParams[key] === null ||
+                    finalParams[key] === "" ||
+                    finalParams[key] === undefined
                 ) {
-                    delete cleanFilters[key];
+                    delete finalParams[key];
                 }
             });
-
-            // Merge
-            const finalParams = {
-                ...currentParams,
-                ...cleanFilters,
-                page: 1,
-            };
 
             router.get(route(config.routeName), finalParams, {
                 preserveState: true,
