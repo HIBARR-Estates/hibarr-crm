@@ -81,6 +81,7 @@ const Index = ({
                 countries,
                 clientCategories,
                 languages,
+                excludeFields: ["search"],
             }),
         [sources, categories, employees, countries, clientCategories, languages]
     );
