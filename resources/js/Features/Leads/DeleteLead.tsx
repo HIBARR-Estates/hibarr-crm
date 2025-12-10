@@ -21,6 +21,7 @@ const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
             onFinish: () => setLoading(false),
             onSuccess: () => {
                 onClose();
+                router.visit(route("lead-contact.index"));
             },
         });
     };
