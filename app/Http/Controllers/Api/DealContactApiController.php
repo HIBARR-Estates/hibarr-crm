@@ -26,7 +26,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
-use function Psl\Type\num;
 
 class DealContactApiController extends Controller
 {
