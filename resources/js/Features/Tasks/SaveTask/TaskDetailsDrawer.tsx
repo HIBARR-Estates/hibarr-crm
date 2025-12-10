@@ -507,7 +507,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 </Card>
             )}
 
-            {/* Related Entities */}
+            {/* Related Entities - Properties, Deals, Leads */}
             {((task.deals && task.deals.length > 0) ||
                 (task.leads && task.leads.length > 0) ||
                 (task.properties && task.properties.length > 0)) && (
