@@ -24,11 +24,13 @@ import {
     HomeOutlined,
     CalendarOutlined,
     MoreOutlined,
+    CheckSquareOutlined,
 } from "@ant-design/icons";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
 import DeleteLead from "@/Features/Leads/DeleteLead";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
+import SaveTaskModal from "@/Features/Tasks/SaveTask/SaveTaskModal";
 import dayjs from "dayjs";
 import { icons } from "antd/es/image/PreviewGroup";
 
@@ -38,6 +40,11 @@ interface Props {
     fields?: any[];
     editLeadPermission: string;
     deleteLeadPermission: string;
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    employees: any[];
+    projects: any[];
 }
 
 export default function LeadInfoSection({
@@ -46,6 +53,11 @@ export default function LeadInfoSection({
     fields = [],
     editLeadPermission,
     deleteLeadPermission,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    employees,
+    projects,
 }: Props) {
     const { props } = usePage();
     const user = props.auth.user;
@@ -56,6 +68,8 @@ export default function LeadInfoSection({
         handleClose,
         selected: currentLead,
     } = useGenericEntityAction<Lead>();
+
+    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
     const canEdit = ["all", "added", "owned", "both"].includes(
         editLeadPermission
@@ -81,6 +95,14 @@ export default function LeadInfoSection({
 
     // Action menu items
     const actionItems = [
+        {
+            key: "add_task",
+            tooltip: "Add Task",
+            type: "text" as const,
+            icon: <CheckSquareOutlined />,
+            label: <span>Add Task</span>,
+            onClick: () => setIsTaskModalOpen(true),
+        },
         ...(canEdit
             ? [
                   {
@@ -425,6 +447,17 @@ export default function LeadInfoSection({
                 open={action === "change_to_client"}
                 onClose={() => handleClose()}
                 lead={currentLead || lead}
+            />
+
+            <SaveTaskModal
+                open={isTaskModalOpen}
+                onClose={() => setIsTaskModalOpen(false)}
+                categories={taskCategories}
+                labels={taskLabels}
+                columns={taskBoardColumns}
+                users={employees}
+                projects={projects}
+                relatedEntity={{ type: "lead", id: lead.id }}
             />
 
             <div>

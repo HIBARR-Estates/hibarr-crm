@@ -32,7 +32,7 @@ class LeadBoardController extends AccountBaseController
         $this->pageTitle = 'app.deal';
         $this->middleware(function ($request, $next) {
 
-            $hasLeadsModule = in_array('leads', $this->user->modules);
+            $hasLeadsModule = in_array('leads', user_modules());
             if(!$hasLeadsModule){
                 if($request->ajax() || $request->header('X-Inertia')) {
                     return redirect()->back()->with('error', __('messages.permissionDenied'));
@@ -552,74 +552,7 @@ class LeadBoardController extends AccountBaseController
 
             $q->select(DB::raw('count(distinct deals.id)'));
         }])
-        ->with(['deals' => function ($q) use ($startDate, $endDate, $request, $pipelineId) {
-            $q->with(['leadAgent', 'leadAgent.user', 'currency', 'dealWatchers'])
-                ->leftJoin('leads', 'leads.id', 'deals.lead_id')
-                ->orderBy('leads.column_priority', 'asc')
-                ->groupBy('deals.id');
-
-            // Apply same filters as count query
-            if ($request->agent_status == 'unassigned') {
-                $q->whereNull('deals.agent_id');
-            } elseif ($request->agent_id != 'all' && $request->agent_id != '' && $request->agent_id != 'undefined') {
-                $q->whereHas('leadAgent', function ($subQ) use ($request) {
-                    $subQ->where('user_id', $request->agent_id);
-                });
-            } elseif ($request->agent_status == 'active') {
-                $q->whereHas('leadAgent.user', function ($q) {
-                    $q->where('status', 'active');
-                });
-            } elseif ($request->agent_status == 'inactive') {
-                $q->whereHas('leadAgent.user', function ($q) {
-                    $q->where('status', '!=', 'active');
-                });
-            }
-
-            // Apply permission-based filtering
-            $dealRules = [
-                'added' => 'deals.added_by',
-                'owned' => function($q, $user) {
-                    $q->where(function($query) use ($user) {
-                        $myAgentId = \App\Models\LeadAgent::where('user_id', $user->id)->pluck('id')->toArray();
-                        
-                        if (!empty($myAgentId)) {
-                            $query->whereIn('agent_id', $myAgentId);
-                        }
-                        
-                        $query->orWhereExists(function ($subQuery) use ($user) {
-                            $subQuery->select(DB::raw(1))
-                                    ->from('deal_watchers')
-                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                    ->where('deal_watchers.user_id', $user->id);
-                        });
-                    });
-                }
-            ];
-            PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
-
-            // Add other filters...
-            $this->dateFilter($q, $startDate, $endDate, $request);
-
-            if ($request->search != '') {
-                $q->where(function ($query) {
-                    $safeTerm = Common::safeString(request('search'));
-                    $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('deals.name', 'like', '%' . $safeTerm . '%');
-                });
-            }
-
-            if ($pipelineId != 'all' && $pipelineId != '' && $pipelineId != null) {
-                $q->where('deals.lead_pipeline_id', $pipelineId);
-            }
-
-            if ($request->category_id !== null && $request->category_id != 'null' && $request->category_id != '' && $request->category_id != 'all') {
-                $q->where('deals.category_id', $request->category_id);
-            }
-
-        }])->where(function ($query) use ($request, $pipelineId) {
+        ->where(function ($query) use ($request, $pipelineId) {
             if ($pipelineId != 'all' && $pipelineId != '' && $pipelineId != null) {
                 $query->where('lead_pipeline_id', $pipelineId);
             }
@@ -706,21 +639,93 @@ class LeadBoardController extends AccountBaseController
             ];
             PermissionService::applyScope($leads, user(), 'view_deals', $dealRules);
 
-            $leads->skip(0)->take($this->taskBoardColumnLength);
-            $leads = $leads->get();
-            $dealIds = $leads->pluck('id')->toArray();
+            // Calculate total value for the stage (all pages)
+            $statusTotalValue = Deal::withoutGlobalScopes()->fromSub($leads, 'sub_deals')->sum('value');
+            $result['boardColumns'][$key]['total_value'] = $statusTotalValue;
 
-            $result['boardColumns'][$key]['total_value'] = 0;
-
-            if (!empty($dealIds)) {
-                $statusTotalValue = Deal::whereIn('id', $dealIds)->sum('value');
-                $result['boardColumns'][$key]['total_value'] = $statusTotalValue;
-            }
-
-            $result['boardColumns'][$key]['deals'] = $leads;
+            // Return empty deals to force client-side fetch (Infinite Scroll)
+            $result['boardColumns'][$key]['deals'] = [];
         }
 
         return $result;
+    }
+
+    public function getBoardDeals(Request $request)
+    {
+        $startDate = ($request->start_date && $request->start_date != 'null' && $request->start_date != '') ? companyToDateString($request->start_date) : null;
+        $endDate = ($request->end_date && $request->end_date != 'null' && $request->end_date != '') ? companyToDateString($request->end_date) : null;
+        $pipelineStageId = $request->pipeline_stage_id;
+        $pipelineId = $request->lead_pipeline_id;
+
+        $leads = Deal::select('deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
+            ->with(['contact', 'leadStage', 'leadAgent', 'leadAgent.user', 'currency'])
+            ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+            ->where('deals.pipeline_stage_id', $pipelineStageId)
+            ->orderBy('leads.column_priority', 'asc')
+            ->groupBy('deals.id');
+
+        $this->dateFilter($leads, $startDate, $endDate, $request);
+
+        if ($request->search != '') {
+            $leads->where(function ($query) {
+                $safeTerm = Common::safeString(request('search'));
+                $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%')
+                    ->orWhere('deals.name', 'like', '%' . $safeTerm . '%');
+            });
+        }
+
+        if ($pipelineId != 'all' && $pipelineId != '' && $pipelineId != null) {
+            $leads->where('deals.lead_pipeline_id', $pipelineId);
+        }
+
+        if ($request->category_id !== null && $request->category_id != 'null' && $request->category_id != '' && $request->category_id != 'all') {
+            $leads->where('deals.category_id', $request->category_id);
+        }
+
+        if ($request->agent_status == 'unassigned') {
+            $leads->whereNull('deals.agent_id');
+        } elseif ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+            $leads->whereHas('leadAgent', function ($q) use ($request) {
+                $q->where('user_id', $request->agent_id);
+            });
+        } elseif ($request->agent_status == 'active') {
+            $leads->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', 'active');
+            });
+        } elseif ($request->agent_status == 'inactive') {
+            $leads->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', '!=', 'active');
+            });
+        }
+
+        // Apply permission-based filtering
+        $dealRules = [
+            'added' => 'deals.added_by',
+            'owned' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $myAgentId = \App\Models\LeadAgent::where('user_id', $user->id)->pluck('id')->toArray();
+                    
+                    if (!empty($myAgentId)) {
+                        $query->whereIn('agent_id', $myAgentId);
+                    }
+                    
+                    $query->orWhereExists(function ($subQuery) use ($user) {
+                        $subQuery->select(DB::raw(1))
+                                ->from('deal_watchers')
+                                ->whereColumn('deal_watchers.deal_id', 'deals.id')
+                                ->where('deal_watchers.user_id', $user->id);
+                    });
+                });
+            }
+        ];
+        PermissionService::applyScope($leads, user(), 'view_deals', $dealRules);
+
+        $deals = $leads->paginate(10);
+
+        return Reply::dataOnly(['deals' => $deals]);
     }
 
     public function dateFilter($query, $startDate, $endDate, $request)

@@ -54,6 +54,7 @@ use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\DesignationController;
 use App\Http\Controllers\EmployeeDocController;
 use App\Http\Controllers\LeadCategoryController;
+use App\Http\Controllers\MetaConversionTriggerController;
 use App\Http\Controllers\LeaveReportController;
 use App\Http\Controllers\LeavesQuotaController;
 use App\Http\Controllers\MessageFileController;
@@ -535,6 +536,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('leadboards/get-stage-slug', [LeadBoardController::class, 'getStageSlug'])->name('leadboards.get_stage_slug');
     Route::post('leadboards/collapseColumn', [LeadBoardController::class, 'collapseColumn'])->name('leadboards.collapse_column');
     Route::post('leadboards/updateIndex', [LeadBoardController::class, 'updateIndex'])->name('leadboards.update_index');
+    Route::get('leadboards/deals', [LeadBoardController::class, 'getBoardDeals'])->name('leadboards.deals');
     Route::get('leadboards/loadMore', [LeadBoardController::class, 'loadMore'])->name('leadboards.load_more');
     Route::resource('leadboards', LeadBoardController::class);
 
@@ -950,6 +952,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::delete('properties/{property}/assets', [App\Http\Controllers\PropertyController::class, 'deleteAssets'])->name('properties.delete_assets');
     
     Route::resource('properties', App\Http\Controllers\PropertyController::class);
+
+    // Meta Conversion Triggers
+    Route::resource('meta-conversion-triggers', MetaConversionTriggerController::class);
 
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);

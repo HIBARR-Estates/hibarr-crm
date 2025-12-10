@@ -12,6 +12,7 @@ import { DealFollowup } from "@/Types/api/deal-followup";
 import { DealFile } from "@/Types/api/file";
 import { Proposal } from "@/Types/api/proposal";
 import QuickActions from "./Components/ActivitySidebar/QuickActions";
+import { Task } from "@/Types/api/tasks";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -28,6 +29,12 @@ interface Props extends PageProps {
     gdprSetting: any;
     permissions: Record<string, string>;
     pageTitle: string;
+    tasks: Task[];
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    employees: any[];
+    projects: any[];
 }
 const { Title } = Typography;
 
@@ -46,6 +53,12 @@ export default function Show({
     gdprSetting,
     permissions,
     pageTitle,
+    tasks,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    employees,
+    projects,
 }: Props) {
     console.log(deal, "DEAL DATA");
     return (
@@ -183,6 +196,12 @@ export default function Show({
                                             }
                                             fields={fields}
                                             permissions={permissions}
+                                            tasks={tasks}
+                                            taskCategories={taskCategories}
+                                            taskLabels={taskLabels}
+                                            taskBoardColumns={taskBoardColumns}
+                                            employees={employees}
+                                            projects={projects}
                                         />
                                     </Card>
 
@@ -203,6 +222,12 @@ export default function Show({
                                             consents={consents}
                                             gdprSetting={gdprSetting}
                                             permissions={permissions}
+                                            tasks={tasks}
+                                            taskCategories={taskCategories}
+                                            taskLabels={taskLabels}
+                                            taskBoardColumns={taskBoardColumns}
+                                            employees={employees}
+                                            projects={projects}
                                         />
                                     </Card>
                                 </div>

@@ -536,6 +536,19 @@ class DealController extends AccountBaseController
         
         $formData = $this->getDealFormData();
 
+        // Get tasks
+        $tasks = $deal->tasks()
+            ->with(['users', 'category', 'boardColumn', 'labels'])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        // Get task metadata for modal
+        $taskCategories = \App\Models\TaskCategory::all();
+        $taskLabels = \App\Models\TaskLabelList::all();
+        $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
+        $employees = User::allEmployees();
+        $projects = \App\Models\Project::all();
+
         return Inertia::render('Deals/Show', array_merge([
             'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
@@ -551,6 +564,12 @@ class DealController extends AccountBaseController
             'gdprSetting' => $gdprSetting,
             'permissions' => $permissions,
             'pageTitle' => $deal->name,
+            'tasks' => $tasks,
+            'taskCategories' => $taskCategories,
+            'taskLabels' => $taskLabels,
+            'taskBoardColumns' => $taskBoardColumns,
+            'employees' => $employees,
+            'projects' => $projects,
         ], $formData));
     }
 
@@ -864,7 +883,7 @@ class DealController extends AccountBaseController
 
         if (!is_null($request->agent_id)) {
             $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
-            $deal->agent_id = $leadAgent->id;
+            $deal->agent_id = $leadAgent ? $leadAgent->id : null;
         } else {
             $deal->agent_id = $request->agent_id;
         }

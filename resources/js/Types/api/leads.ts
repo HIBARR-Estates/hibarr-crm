@@ -55,10 +55,34 @@ export interface Lead {
     client?: User | null;
     created_at?: string;
     updated_at?: string;
+    marketing?: LeadMarketing | null;
 
     // Custom Fields
     // custom_fields?: Record<string, any>;
     custom_fields_data?: Record<string, any>;
+}
+
+export interface LeadMarketing {
+    id: number;
+    lead_id: number;
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    utm_campaign?: string | null;
+    utm_content?: string | null;
+    utm_term?: string | null;
+    utm_audience?: string | null;
+    traffic_source_id?: string | null;
+    facebook_click_id?: string | null;
+    facebook_lead_id?: string | null;
+    has_registered_for_the_webinar: boolean;
+    has_joined_the_facebook_group: boolean;
+    has_downloaded_the_ebook: boolean;
+    has_attended_the_webinar: boolean;
+    registered_for_zoom_meeting: boolean;
+    last_webinar_date?: string | null;
+    contact_score?: number | null;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface LeadCategory {

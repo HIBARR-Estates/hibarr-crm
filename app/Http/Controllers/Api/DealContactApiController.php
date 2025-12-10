@@ -539,6 +539,18 @@ class DealContactApiController extends Controller
                 if (in_array($key, ['has_registered_for_the_webinar', 'has_joined_the_facebook_group', 
                     'has_downloaded_the_ebook', 'has_attended_the_webinar', 'registered_for_zoom_meeting'])) {
                     $marketingPayload[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+                } 
+                // Parse date fields properly
+                elseif ($key === 'last_webinar_date') {
+                    try {
+                        $marketingPayload[$key] = \Carbon\Carbon::parse($value);
+                    } catch (\Exception $e) {
+                        Log::warning('DealContactApi: Invalid last_webinar_date format', [
+                            'value' => $value,
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Skip invalid date instead of adding it
+                    }
                 } else {
                     $marketingPayload[$key] = $value;
                 }

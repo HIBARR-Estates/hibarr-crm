@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Property;
 use App\Models\Product;
+use App\Models\User;
 use App\Http\Requests\Property\StoreRequest;
 use App\Http\Requests\Property\UpdateRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
@@ -273,18 +274,44 @@ class PropertyController extends AccountBaseController
         //         break;
         // }
         $this->pageTitle = $this->property->title;
+
+        // Get tasks
+        $tasks = $this->property->tasks()
+            ->with(['users', 'category', 'boardColumn', 'labels'])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        // Get task metadata for modal
+        $taskCategories = \App\Models\TaskCategory::all();
+        $taskLabels = \App\Models\TaskLabelList::all();
+        $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
+        $employees = User::allEmployees();
+        $projects = \App\Models\Project::all();
+
         if (request()->ajax()) {
             return Inertia::render('Properties/Show', [
                 'pageTitle' => $this->pageTitle,
                 'property' => $this->property,
-                'canEdit' => $canEdit
+                'canEdit' => $canEdit,
+                'tasks' => $tasks,
+                'taskCategories' => $taskCategories,
+                'taskLabels' => $taskLabels,
+                'taskBoardColumns' => $taskBoardColumns,
+                'employees' => $employees,
+                'projects' => $projects,
             ]);
         }
 
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
             'property' => $this->property,
-            'canEdit' => $canEdit
+            'canEdit' => $canEdit,
+            'tasks' => $tasks,
+            'taskCategories' => $taskCategories,
+            'taskLabels' => $taskLabels,
+            'taskBoardColumns' => $taskBoardColumns,
+            'employees' => $employees,
+            'projects' => $projects,
         ]);
     }
 

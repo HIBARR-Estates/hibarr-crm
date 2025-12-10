@@ -109,6 +109,11 @@
                                  :text="__('app.menu.leadSettings')"/>
         @endif
 
+        @if (user()->permission('manage_lead_setting') == 'all' && in_array('leads', user_modules()))
+            <x-setting-menu-item :active="$activeMenu" menu="meta_conversion_triggers" :href="route('meta-conversion-triggers.index')"
+                                 :text="__('app.menu.metaConversionTriggers')"/>
+        @endif
+
         @if (user()->permission('manage_time_log_setting') == 'all' && in_array('timelogs', user_modules()))
             <x-setting-menu-item :active="$activeMenu" menu="timelog_settings" :href="route('timelog-settings.index')"
                                  :text="__('app.menu.timeLogSettings')"/>

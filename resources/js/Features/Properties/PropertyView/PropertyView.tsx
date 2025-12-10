@@ -4,6 +4,8 @@ import { Property } from "@/Types";
 import PropertyImageGallery from "../PropertyImageGallery";
 import PropertyStats from "../PropertyStats";
 import AssetsTab from "../SaveProperty/AssetsTab";
+import TasksTab from "@/Components/TasksTab";
+import { Task } from "@/Types/api/tasks";
 import {
     PropertyHeader,
     PropertyDetails,
@@ -21,6 +23,12 @@ interface PropertyViewProps {
     onEdit?: () => void;
     onShare?: () => void;
     canEdit?: boolean;
+    tasks: Task[];
+    taskCategories: any[];
+    taskLabels: any[];
+    taskBoardColumns: any[];
+    employees: any[];
+    projects: any[];
 }
 
 export default function PropertyView({
@@ -28,6 +36,12 @@ export default function PropertyView({
     onEdit,
     onShare,
     canEdit = false,
+    tasks,
+    taskCategories,
+    taskLabels,
+    taskBoardColumns,
+    employees,
+    projects,
 }: PropertyViewProps) {
     // console.log("PropertyView Rendered", property);
     // Mock photos for demo (replace with actual property photos)
@@ -63,6 +77,20 @@ export default function PropertyView({
                         <PropertyMedia property={property} />
                         <LegalFinancialInfo property={property} />
                         <AssetsTab property={property} canEdit={canEdit} />
+                        <Card>
+                            <TasksTab
+                                tasks={tasks}
+                                relatedEntity={{
+                                    type: "property",
+                                    id: property.id,
+                                }}
+                                taskCategories={taskCategories}
+                                taskLabels={taskLabels}
+                                taskBoardColumns={taskBoardColumns}
+                                employees={employees}
+                                projects={projects}
+                            />
+                        </Card>
                     </div>
                 </Col>
 
