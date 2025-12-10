@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Notification;
 use App\Traits\EmployeeActivityTrait;
 use App\Notifications\LeadImported;
 use App\Services\DealAutomationService;
+use App\Services\DealTaskService;
 use App\Models\MetaConversionTrigger;
 use App\Jobs\SendMetaConversionEventJob;
 
@@ -27,11 +28,14 @@ class DealObserver
     use EmployeeActivityTrait;
 
     protected DealAutomationService $dealAutomation;
+    protected DealTaskService $dealTaskService;
 
     public function __construct(
-    DealAutomationService $dealAutomation
+        DealAutomationService $dealAutomation,
+        DealTaskService $dealTaskService
     ) {
         $this->dealAutomation = $dealAutomation;
+        $this->dealTaskService = $dealTaskService;
     }
 
     public function saving(Deal $deal)
@@ -194,6 +198,9 @@ class DealObserver
             }
 
             $this->createClient($deal);
+
+            // Create default tasks for the deal
+            $this->dealTaskService->createDefaultTasks($deal);
         }
         //deal automation trigger
         $this->dealAutomation->automate($deal);
