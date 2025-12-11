@@ -78,6 +78,7 @@ export interface Deal {
 export interface HibarrDealFields {
     id: number;
     deal_id: number;
+    message?: string | null;
     interested_in?: string | null;
     motivation?: string | null;
     purchase_timeline?: string | null;
