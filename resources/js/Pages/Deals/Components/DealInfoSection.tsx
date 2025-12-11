@@ -1,5 +1,5 @@
 import { Deal } from "@/Types/api/deals";
-import { Link, usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Descriptions, Tag, Avatar, Tooltip, Tabs, Button, Space } from "antd";
 import {
     MailOutlined,
@@ -332,7 +332,10 @@ export default function DealInfoSection({
 
             <DeleteDeal
                 open={action === "delete"}
-                onClose={() => handleClose()}
+                onClose={() => {
+                    router.visit(route("deals.index"));
+                    handleClose();
+                }}
                 deal={deal}
             />
             <div>
