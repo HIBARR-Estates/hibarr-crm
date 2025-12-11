@@ -77,7 +77,7 @@ export default function PropertyView({
                         <PropertyMedia property={property} />
                         <LegalFinancialInfo property={property} />
                         <AssetsTab property={property} canEdit={canEdit} />
-                        <Card>
+                        <Card title="Tasks Related to this Property">
                             <TasksTab
                                 tasks={tasks}
                                 relatedEntity={{
