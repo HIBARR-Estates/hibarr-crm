@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Lead } from "@/Types/api/leads";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import {
     Descriptions,
     Avatar,
@@ -439,7 +439,10 @@ export default function LeadInfoSection({
 
             <DeleteLead
                 open={action === "delete"}
-                onClose={() => handleClose()}
+                onClose={() => {
+                    router.visit(route("lead-contact.index"));
+                    handleClose();
+                }}
                 lead={currentLead || lead}
             />
 
