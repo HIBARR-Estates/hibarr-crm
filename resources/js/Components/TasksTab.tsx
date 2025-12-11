@@ -65,10 +65,10 @@ export default function TasksTab({
     const columns = useTasksTableColumns({
         columns: taskBoardColumns,
         permissions,
-        onEdit: () => handleAction("edit", selectedTask),
-        onView: () => handleAction("view", selectedTask),
-        onDuplicate: () => handleAction("duplicate", selectedTask),
-        onDelete: () => handleAction("delete", selectedTask),
+        onEdit: (selectedTask) => handleAction("edit", selectedTask),
+        onView: (selectedTask) => handleAction("view", selectedTask),
+        onDuplicate: (selectedTask) => handleAction("duplicate", selectedTask),
+        onDelete: (selectedTask) => handleAction("delete", selectedTask),
     });
 
     return (
