@@ -41,6 +41,7 @@ use App\Services\PermissionService;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\Property;
+use Inertia\Inertia;
 
 class TaskController extends AccountBaseController
 {
@@ -263,7 +264,7 @@ class TaskController extends AccountBaseController
 
         $deals = Deal::select('id', 'name')->get();
         $leads = Lead::select('id', 'client_name', 'company_name')->get();
-        $properties = Property::select('id', 'name')->get();
+        $properties = Property::select('id', 'title')->get();
 
         // Get user permissions
         $permissions = [
@@ -286,7 +287,7 @@ class TaskController extends AccountBaseController
             'search' => request('search'),
         ];
 
-        return inertia('Tasks/Index', [
+        return Inertia::render('Tasks/Index', [
             'tasks' => $tasks,
             'categories' => $categories,
             'labels' => $labels,
