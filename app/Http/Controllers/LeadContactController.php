@@ -936,7 +936,7 @@ class LeadContactController extends AccountBaseController
         Lead::destroy($id);
 
         // return Reply::success(__('messages.deleteSuccess'));
-        return back()->with('success', __('messages.deleteSuccess'));
+        return to_route('lead-contact.index')->with('success', __('messages.deleteSuccess'));
     }
 
     public function applyQuickAction(Request $request)
