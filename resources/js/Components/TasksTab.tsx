@@ -69,6 +69,7 @@ export default function TasksTab({
         onView: (selectedTask) => handleAction("view", selectedTask),
         onDuplicate: (selectedTask) => handleAction("duplicate", selectedTask),
         onDelete: (selectedTask) => handleAction("delete", selectedTask),
+        exclude: ["due_date", "progress", "created_at"],
     });
 
     return (

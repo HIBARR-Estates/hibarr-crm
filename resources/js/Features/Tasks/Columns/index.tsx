@@ -48,6 +48,7 @@ interface TasksTableColumnsProps {
     onView: (task: Task) => void;
     onDuplicate: (task: Task) => void;
     onDelete: (task: Task) => void;
+    exclude?: string[];
 }
 
 export const useTasksTableColumns = ({
@@ -57,6 +58,7 @@ export const useTasksTableColumns = ({
     onView,
     onDuplicate,
     onDelete,
+    exclude = [],
 }: TasksTableColumnsProps): ColumnsType<Task> => {
     const { props } = usePage();
     const userId = props.auth.user.id;
@@ -68,7 +70,7 @@ export const useTasksTableColumns = ({
         high: { color: "#ff4d4f", icon: "🔴", bg: "#fff1f0" },
     };
 
-    return [
+    const tableColumns: ColumnsType<Task> = [
         {
             title: (
                 <span className="flex items-center">
@@ -211,7 +213,7 @@ export const useTasksTableColumns = ({
             title: "Progress",
             key: "progress",
             width: "10%",
-            render: (_, record: Task) => {
+            render: (_: string, record: Task) => {
                 if (!record.subtasks_count)
                     return <span className="text-gray-400">--</span>;
 
@@ -272,7 +274,7 @@ export const useTasksTableColumns = ({
             title: "Actions",
             key: "actions",
             width: "8%",
-            render: (_, record: Task) => {
+            render: (_: string, record: Task) => {
                 const canEdit =
                     permissions?.edit_tasks === "all" ||
                     (permissions?.edit_tasks === "added" &&
@@ -343,5 +345,7 @@ export const useTasksTableColumns = ({
                 );
             },
         },
-    ];
+    ].filter((column) => !exclude.includes(column.key as string));
+
+    return tableColumns;
 };
