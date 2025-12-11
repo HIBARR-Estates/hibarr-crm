@@ -45,6 +45,9 @@ const DealDetailsTab: React.FC<Props> = ({ deal }) => {
                 bordered
                 size="middle"
             >
+                <Descriptions.Item label="Message">
+                    {fields?.message || "--"}
+                </Descriptions.Item>
                 <Descriptions.Item label="Interested In">
                     {fields.interested_in || "--"}
                 </Descriptions.Item>
