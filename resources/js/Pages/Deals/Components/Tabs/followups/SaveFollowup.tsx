@@ -411,7 +411,12 @@ export default function SaveFollowup({
             </Form.Item>
 
             {/* Meeting Reminders - Compact Display */}
-            <Card title="Meeting Reminders" size="small" className="mb-4">
+            <Card
+                title="Meeting Reminders"
+                size="small"
+                className="mb-4"
+                variant="outlined"
+            >
                 <div className="space-y-4">
                     {/* Default Reminders Info */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">

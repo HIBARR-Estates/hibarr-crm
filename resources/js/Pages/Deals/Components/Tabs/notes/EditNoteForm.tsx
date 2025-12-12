@@ -88,8 +88,9 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
     return (
         <div className="">
             <Card
-                className="shadow-sm border border-gray-200"
+                className="border border-gray-200"
                 bodyStyle={{ padding: "32px" }}
+                variant="outlined"
             >
                 <div className="mb-6">
                     <Button

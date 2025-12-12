@@ -190,6 +190,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                 className="mb-4"
             >
                 <Card
+                    variant="outlined"
                     size="small"
                     className={`transition-all duration-200 ${
                         record.data_quality_score < 40
@@ -407,6 +408,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
     return (
         <>
             <Card
+                variant="outlined"
                 title={
                     <div className="flex items-center justify-between">
                         <span>Data Quality Monitor</span>

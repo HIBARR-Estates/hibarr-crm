@@ -271,6 +271,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                                         : "border-gray-200"
                                 }`}
                                 bodyStyle={{ padding: "12px" }}
+                                variant="outlined"
                             >
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex-1">

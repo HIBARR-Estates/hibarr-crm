@@ -80,7 +80,6 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "heading",
             key: "heading",
-            width: "30%",
             render: (_: string, record: Task) => (
                 <div className="space-y-2 max-w-full">
                     <div>
@@ -129,7 +128,6 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "status",
             key: "status",
-            width: "12%",
             render: (status: string) => {
                 const column = columns.find((col) => col.slug === status);
                 return (
@@ -172,7 +170,6 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "due_date",
             key: "due_date",
-            width: "12%",
             render: (date: string) => {
                 if (!date) return <span className="text-gray-400">--</span>;
 
@@ -212,7 +209,6 @@ export const useTasksTableColumns = ({
         {
             title: "Progress",
             key: "progress",
-            width: "10%",
             render: (_: string, record: Task) => {
                 if (!record.subtasks_count)
                     return <span className="text-gray-400">--</span>;
@@ -259,7 +255,6 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "created_at",
             key: "created_at",
-            width: "10%",
             render: (date: string) => {
                 if (!date) return <span className="text-gray-400">--</span>;
 
@@ -273,7 +268,6 @@ export const useTasksTableColumns = ({
         {
             title: "Actions",
             key: "actions",
-            width: "8%",
             render: (_: string, record: Task) => {
                 const canEdit =
                     permissions?.edit_tasks === "all" ||
