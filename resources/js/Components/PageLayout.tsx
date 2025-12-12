@@ -159,7 +159,10 @@ export default function PageLayout({
                                             {user?.name}
                                         </span>
                                         <span className="text-xs text-gray-500 truncate">
-                                            {user?.roles?.[0]?.display_name ??
+                                            {user?.employee_detail?.designation
+                                                ?.name ??
+                                                user?.roles?.[0]
+                                                    ?.display_name ??
                                                 appName}
                                         </span>
                                     </div>

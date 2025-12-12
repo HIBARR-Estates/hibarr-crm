@@ -10,8 +10,8 @@ class HandleInertiaRequests extends Middleware
     /**
      * The root template that's loaded on the first page visit.
      */
-    // protected $rootView = 'layouts.inertia_vite';
-    protected $rootView = 'layouts.inertia_alt';
+    protected $rootView = 'layouts.inertia_vite';
+    // protected $rootView = 'layouts.inertia_alt';
 
     /**
      * Get the root view based on the bundler configuration.
@@ -40,7 +40,7 @@ class HandleInertiaRequests extends Middleware
     {
         return array_merge(parent::share($request), [
             'auth' => fn () => [
-                'user' => auth()->user() ? auth()->user()->load('roles') : null,
+                'user' => auth()->user() ? auth()->user()->load(['roles', 'employeeDetail.designation']) : null,
             ],
             'default_currency_symbol' => fn () => $this->getDefaultCurrencySymbol(),
             'default_currency_code' => fn () => $this->getDefaultCurrencyCode(),
