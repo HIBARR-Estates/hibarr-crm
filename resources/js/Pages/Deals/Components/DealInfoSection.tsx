@@ -134,7 +134,7 @@ export default function DealInfoSection({
                             {deal.package?.name || "--"}
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Products">
+                        <Descriptions.Item label="Products" span={2}>
                             {deal.products && deal.products.length > 0
                                 ? deal.products
                                       .map((p: any) => p.name)
