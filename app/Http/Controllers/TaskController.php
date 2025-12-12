@@ -464,6 +464,24 @@ class TaskController extends AccountBaseController
         return Reply::success(__('messages.updateSuccess'));
     }
 
+    public function storeDefaultTask(Request $request, $dealId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $this->addPermission = user()->permission('add_tasks');
+        abort_403(!in_array($this->addPermission, ['all', 'added']));
+
+        $taskType = $request->task_type;
+        
+        $dealTaskService = new \App\Services\DealTaskService();
+        $task = $dealTaskService->createTaskByType($deal, $taskType);
+
+        if (!$task) {
+            return Reply::error('Invalid task type');
+        }
+
+        return Reply::success(__('messages.taskCreatedSuccessfully'));
+    }
+
     public function destroy(Request $request, $id)
     {
         $task = Task::with('project')->findOrFail($id);
