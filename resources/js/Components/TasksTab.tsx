@@ -10,6 +10,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { isLoading } from "@/lib/utils";
 import { useState } from "react";
+import { router } from "@inertiajs/react";
 
 interface TaskboardColumn {
     id: number;
@@ -131,6 +132,7 @@ export default function TasksTab({
                                                                 setSelectedTaskType(
                                                                     ""
                                                                 );
+                                                                router.reload();
                                                             },
                                                         }
                                                     );
@@ -173,6 +175,7 @@ export default function TasksTab({
                                                             setSelectedTaskType(
                                                                 ""
                                                             );
+                                                            router.reload();
                                                         },
                                                     }
                                                 );
