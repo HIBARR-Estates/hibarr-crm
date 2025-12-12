@@ -28,6 +28,7 @@ return array(
     'leadUpdateSuccess' => 'Contact updated successfully.',
     'propertyUpdateSuccess' => 'Property updated successfully.',
     'taskUpdateSuccess' => 'Task updated successfully.',
+    'taskCreatedSuccessfully' => 'Task created successfully.',
     'projectTasksNotCompleted' => 'Please complete the tasks of project.',
     'updateSuccessWithSomeSkipped' => 'Leaves which were already approved or rejected were not updated. The remaining leaves were updated successfully.',
     'noUpdateMade' => 'No leaves were updated because all selected leaves were either already approved or rejected.',
