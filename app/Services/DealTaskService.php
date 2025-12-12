@@ -10,8 +10,69 @@ use Carbon\Carbon;
 
 class DealTaskService
 {
+    public const TASK_SCHEDULE_MEETING = 'schedule_meeting';
+    public const TASK_SEND_PROPERTY_DETAILS = 'send_property_details';
+    public const TASK_SETUP_WATCHER = 'setup_watcher';
+    public const TASK_ASSIGN_AGENT = 'assign_agent';
+
+    public function getAvailableDefaultTasks()
+    {
+        return [
+            self::TASK_SCHEDULE_MEETING => [
+                'heading' => 'Schedule a meeting with client',
+                'description' => 'Schedule an initial meeting with the client.',
+                'priority' => 'high',
+                'label' => 'Schedule Meeting',
+            ],
+            self::TASK_SEND_PROPERTY_DETAILS => [
+                'heading' => 'Send property details',
+                'description' => 'Send details of the property to the client.',
+                'priority' => 'medium',
+                'label' => 'Send Property Details',
+            ],
+            self::TASK_SETUP_WATCHER => [
+                'heading' => 'Set up a deal watcher',
+                'description' => 'Add relevant watchers to this deal.',
+                'priority' => 'medium',
+                'label' => 'Set Up Watcher',
+            ],
+            self::TASK_ASSIGN_AGENT => [
+                'heading' => 'Assign Deal Agent',
+                'description' => 'Assign an agent to this deal.',
+                'priority' => 'high',
+                'label' => 'Assign Agent',
+            ],
+        ];
+    }
+
     public function createDefaultTasks(Deal $deal)
     {
+        $tasks = $this->getAvailableDefaultTasks();
+
+        foreach ($tasks as $key => $taskData) {
+            // Skip assign agent if already assigned
+            if ($key === self::TASK_ASSIGN_AGENT && !is_null($deal->agent_id)) {
+                continue;
+            }
+            $this->createTaskByType($deal, $key);
+        }
+    }
+
+    public function createTaskByType(Deal $deal, string $type)
+    {
+        $tasks = $this->getAvailableDefaultTasks();
+
+        if (!isset($tasks[$type])) {
+            return null;
+        }
+
+        $taskData = $tasks[$type];
+        
+        // Dynamic description for meeting
+        if ($type === self::TASK_SCHEDULE_MEETING) {
+            $taskData['description'] .= ' for deal: ' . $deal->name;
+        }
+
         $companyId = $deal->company_id;
         
         // Get the default task board column (usually 'incomplete')
@@ -28,37 +89,7 @@ class DealTaskService
 
         $columnId = $defaultColumn ? $defaultColumn->id : null;
 
-        // Define default tasks
-        $tasksToCreate = [
-            [
-                'heading' => 'Schedule a meeting with client',
-                'description' => 'Schedule an initial meeting with the client for deal: ' . $deal->name,
-                'priority' => 'high',
-            ],
-            [
-                'heading' => 'Send property details',
-                'description' => 'Send details of the property to the client.',
-                'priority' => 'medium',
-            ],
-            [
-                'heading' => 'Set up a deal watcher',
-                'description' => 'Add relevant watchers to this deal.',
-                'priority' => 'medium',
-            ]
-        ];
-
-        // Add "Assign Deal Agent" task if no agent is assigned
-        if (is_null($deal->agent_id)) {
-            $tasksToCreate[] = [
-                'heading' => 'Assign Deal Agent',
-                'description' => 'Assign an agent to this deal.',
-                'priority' => 'high',
-            ];
-        }
-
-        foreach ($tasksToCreate as $taskData) {
-            $this->createTask($deal, $taskData, $columnId);
-        }
+        return $this->createTask($deal, $taskData, $columnId);
     }
 
     private function createTask(Deal $deal, array $taskData, ?int $columnId)
@@ -76,11 +107,6 @@ class DealTaskService
         $task->billable = 0;
         $task->added_by = user() ? user()->id : null;
         
-        // If deal has an agent, assign the task to them? 
-        // The prompt doesn't explicitly say to assign the task to the deal agent, 
-        // but it makes sense. However, I'll stick to creating the task first.
-        // If I assign it to the agent, I need to populate task_users table.
-        
         $task->save();
 
         // Associate with Deal
@@ -92,5 +118,7 @@ class DealTaskService
         if ($deal->leadAgent && $deal->leadAgent->user_id) {
             $task->users()->attach($deal->leadAgent->user_id);
         }
+
+        return $task;
     }
 }

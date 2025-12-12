@@ -641,6 +641,15 @@ class DashboardController extends AccountBaseController
             ->whereYear('created_at', now()->year);
         PermissionService::applyScope($dealsThisMonthQuery, user(), 'view_deals', $dealRules);
 
+        // Activities query with permissions
+        $activitiesQuery = \App\Models\CommunicationActivity::query();
+        
+        if ($viewDealPermission != 'all') {
+            $activitiesQuery->whereHas('deal', function ($q) use ($userId, $viewDealPermission, $dealRules) {
+                PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
+            });
+        }
+
         $stats = [
             'total_tasks' => $totalTasksQuery->count(),
             'completed_tasks' => $completedTasksQuery->count(),
@@ -648,8 +657,8 @@ class DashboardController extends AccountBaseController
             'overdue_tasks' => $overdueTasksQuery->count(),
             'total_deals' => $totalDealsQuery->count(),
             'deals_this_month' => $dealsThisMonthQuery->count(),
-            'total_activities' => \App\Models\CommunicationActivity::count(),
-            'activities_this_week' => \App\Models\CommunicationActivity::where('timestamp', '>=', now()->startOfWeek())
+            'total_activities' => $activitiesQuery->count(),
+            'activities_this_week' => $activitiesQuery->clone()->where('timestamp', '>=', now()->startOfWeek())
                 ->count(),
             // TODO: Refactor this to be a service that calculates all this data and passes it to the dashboard controller, also the entities ought to be tied explicitly to the authenticated user
         ];

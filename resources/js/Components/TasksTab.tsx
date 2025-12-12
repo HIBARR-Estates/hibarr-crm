@@ -7,6 +7,8 @@ import BulkTaskActionSelector from "@/Features/Tasks/BulkActions/BulkTaskActionS
 import { useTasksTableColumns } from "@/Features/Tasks/Columns";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import { PlusOutlined } from "@ant-design/icons";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { isLoading } from "@/lib/utils";
 
 interface TaskboardColumn {
     id: number;
@@ -72,6 +74,25 @@ export default function TasksTab({
         exclude: ["due_date", "progress", "created_at"],
     });
 
+    const defaultTaskUrl =
+        relatedEntity.type === "deal"
+            ? `/account/deals/${relatedEntity.id}/tasks/default`
+            : "";
+    const {
+        mutate: createDefaultTask,
+        status,
+        isError,
+    } = useApiMutate(defaultTaskUrl, "POST");
+
+    const isCreatingDefaultTask = isLoading({ status, isError });
+
+    const defaultTasks = [
+        { key: "schedule_meeting", label: "Schedule Meeting" },
+        { key: "send_property_details", label: "Send Property Details" },
+        { key: "setup_watcher", label: "Set Up Watcher" },
+        { key: "assign_agent", label: "Assign Agent" },
+    ];
+
     return (
         <>
             {tasks.length === 0 && (
@@ -88,6 +109,25 @@ export default function TasksTab({
                                 >
                                     Add Task
                                 </Button>
+
+                                {relatedEntity.type === "deal" && (
+                                    <div className="flex gap-2 justify-center mt-4">
+                                        {defaultTasks.map((task) => (
+                                            <Button
+                                                key={task.key}
+                                                onClick={() =>
+                                                    createDefaultTask({
+                                                        task_type: task.key,
+                                                    })
+                                                }
+                                                loading={isCreatingDefaultTask}
+                                                size="small"
+                                            >
+                                                {task.label}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         }
                     />
@@ -95,7 +135,27 @@ export default function TasksTab({
             )}
             {tasks.length > 0 && (
                 <div className="p-6 flex flex-col gap-y-4">
-                    <div className="flex justify-end">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            {relatedEntity.type === "deal" && (
+                                <div className="flex gap-2">
+                                    {defaultTasks.map((task) => (
+                                        <Button
+                                            key={task.key}
+                                            onClick={() =>
+                                                createDefaultTask({
+                                                    task_type: task.key,
+                                                })
+                                            }
+                                            loading={isCreatingDefaultTask}
+                                            size="small"
+                                        >
+                                            {task.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         {selectedEntities.length > 0 && (
                             <BulkTaskActionSelector
                                 selectedEntityIds={selectedEntities.map(
