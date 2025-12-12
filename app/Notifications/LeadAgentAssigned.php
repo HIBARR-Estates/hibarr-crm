@@ -33,7 +33,8 @@ class LeadAgentAssigned extends BaseNotification
     {
         $via = array('database');
 
-        if ($this->emailSetting->send_email == 'yes' && $notifiable->email_notifications && $notifiable->email != '') {
+        // Check if email setting exists and is enabled
+        if ($this->emailSetting && $this->emailSetting->send_email == 'yes' && $notifiable->email_notifications && $notifiable->email != '') {
             array_push($via, 'mail');
         }
 

@@ -232,10 +232,7 @@ class DealContactApiController extends Controller
                 // Upsert Hibarr fields after deal is saved
                 $this->upsertHibarrFields($deal, $request);
                 
-                // Manually trigger notifications for agent or admins (only for new deals)
-                if ($isNewDeal) {
-                    $this->sendDealCreatedNotifications($deal);
-                }
+              
 
                 // Sync deal watchers after deal is saved
                 $dealWatchers = $request->input('deal_watcher', []);
@@ -252,6 +249,11 @@ class DealContactApiController extends Controller
                 // Handle meeting if provided
                 if ($request->has('meeting') && is_array($request->meeting)) {
                     $this->createMeeting($deal, $request->meeting, $companyId);
+                }
+
+                  // Manually trigger notifications for agent or admins (only for new deals)
+                  if ($isNewDeal) {
+                    $this->sendDealCreatedNotifications($deal);
                 }
 
                 return Reply::successWithData($isNewDeal ? 'Deal created successfully' : 'Deal updated successfully', [
@@ -837,6 +839,12 @@ class DealContactApiController extends Controller
         if ($deal->agent_id && $deal->leadAgent && $deal->leadAgent->user) {
             // Notify the assigned agent
             event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
+            
+            // Notify deal watchers
+            $deal->load('dealWatchers');            
+            if ($deal->dealWatchers->isNotEmpty()) {                
+                Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
+            }
         } else {
             // Notify all admins if no agent is assigned
             $admins = User::allAdmins($deal->company_id);
