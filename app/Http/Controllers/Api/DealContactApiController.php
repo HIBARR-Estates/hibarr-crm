@@ -842,15 +842,16 @@ class DealContactApiController extends Controller
             
             // Notify deal watchers
             $deal->load('dealWatchers');            
-            if ($deal->dealWatchers->isNotEmpty()) {                
-                Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
-            }
-        } else {
+           
+        }else {
             // Notify all admins if no agent is assigned
             $admins = User::allAdmins($deal->company_id);
             if ($admins->isNotEmpty()) {
                 Notification::send($admins, new LeadAgentAssigned($deal));
             }
+        }
+        if ($deal->dealWatchers->isNotEmpty()) {                
+            Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
         }
     }
 }
