@@ -834,23 +834,21 @@ class DealContactApiController extends Controller
     private function sendDealCreatedNotifications(Deal $deal): void
     {
         // Reload deal with relationships
-        $deal->load('leadAgent.user', 'company');
+        $deal->load('leadAgent.user', 'company', 'dealWatchers');
 
         if ($deal->agent_id && $deal->leadAgent && $deal->leadAgent->user) {
             // Notify the assigned agent
             event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
-            
-            // Notify deal watchers
-            $deal->load('dealWatchers');            
-           
-        }else {
+        } else {
             // Notify all admins if no agent is assigned
             $admins = User::allAdmins($deal->company_id);
             if ($admins->isNotEmpty()) {
                 Notification::send($admins, new LeadAgentAssigned($deal));
             }
         }
-        if ($deal->dealWatchers->isNotEmpty()) {                
+
+        // Always notify deal watchers if they exist
+        if ($deal->dealWatchers->isNotEmpty()) {
             Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
         }
     }
