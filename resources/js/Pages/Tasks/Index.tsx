@@ -496,7 +496,7 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         )}
                     </div>
 
-                    <Card>
+                    <Card variant="outlined">
                         <div className="flex justify-end gap-x-2 items-center mb-2">
                             <div className="flex items-center gap-2"></div>
                         </div>

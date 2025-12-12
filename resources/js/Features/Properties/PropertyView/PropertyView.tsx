@@ -63,7 +63,7 @@ export default function PropertyView({
                 canEdit={canEdit}
             />
 
-            <Card>
+            <Card variant="outlined">
                 <PropertyImageGallery images={photos} title={property.title} />
             </Card>
 
@@ -77,7 +77,10 @@ export default function PropertyView({
                         <PropertyMedia property={property} />
                         <LegalFinancialInfo property={property} />
                         <AssetsTab property={property} canEdit={canEdit} />
-                        <Card title="Tasks Related to this Property">
+                        <Card
+                            title="Tasks Related to this Property"
+                            variant="outlined"
+                        >
                             <TasksTab
                                 tasks={tasks}
                                 relatedEntity={{

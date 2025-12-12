@@ -189,7 +189,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             }}
             size="middle"
         >
-            <Card title="Deal Information" size="small">
+            <Card title="Deal Information" size="small" variant="outlined">
                 <Row gutter={[16, 16]}>
                     <Col span={8}>
                         <Form.Item

@@ -54,6 +54,7 @@ export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
             className="h-full"
         >
             <Card
+                variant="outlined"
                 className="h-full border-0 shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl"
                 bodyStyle={{ padding: 0 }}
                 title={

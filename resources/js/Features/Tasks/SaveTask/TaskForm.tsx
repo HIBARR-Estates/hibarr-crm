@@ -201,6 +201,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         Task Details
                     </Space>
                 }
+                variant="outlined"
             >
                 <Row gutter={16}>
                     <Col span={24}>
@@ -258,6 +259,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
             </Card>
 
             <Card
+                variant="outlined"
                 size="small"
                 title={
                     <Space>

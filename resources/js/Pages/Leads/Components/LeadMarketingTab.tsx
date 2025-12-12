@@ -48,8 +48,8 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                             UTM & Campaign Tracking
                         </span>
                     }
-                    className="shadow-sm"
                     size="small"
+                    variant="outlined"
                 >
                     <Descriptions
                         column={{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }}
@@ -90,6 +90,7 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                     }
                     className="shadow-sm"
                     size="small"
+                    variant="outlined"
                 >
                     <Descriptions
                         column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
@@ -115,6 +116,7 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                     }
                     className="shadow-sm"
                     size="small"
+                    variant="outlined"
                 >
                     <Descriptions
                         column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}

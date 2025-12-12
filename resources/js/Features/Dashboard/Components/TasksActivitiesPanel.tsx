@@ -220,6 +220,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                             : "border-gray-200 hover:border-blue-300"
                     }`}
                     loading={isProcessing}
+                    variant="outlined"
                 >
                     <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0 space-y-2">
@@ -378,6 +379,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                     </div>
                 }
                 className="h-full"
+                variant="outlined"
             >
                 <div className="max-h-96 overflow-y-auto">
                     {overdueTasks.length > 0 && (
