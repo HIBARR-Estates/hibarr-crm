@@ -232,10 +232,7 @@ class DealContactApiController extends Controller
                 // Upsert Hibarr fields after deal is saved
                 $this->upsertHibarrFields($deal, $request);
                 
-                // Manually trigger notifications for agent or admins (only for new deals)
-                if ($isNewDeal) {
-                    $this->sendDealCreatedNotifications($deal);
-                }
+              
 
                 // Sync deal watchers after deal is saved
                 $dealWatchers = $request->input('deal_watcher', []);
@@ -252,6 +249,11 @@ class DealContactApiController extends Controller
                 // Handle meeting if provided
                 if ($request->has('meeting') && is_array($request->meeting)) {
                     $this->createMeeting($deal, $request->meeting, $companyId);
+                }
+
+                  // Manually trigger notifications for agent or admins (only for new deals)
+                  if ($isNewDeal) {
+                    $this->sendDealCreatedNotifications($deal);
                 }
 
                 return Reply::successWithData($isNewDeal ? 'Deal created successfully' : 'Deal updated successfully', [
@@ -832,7 +834,7 @@ class DealContactApiController extends Controller
     private function sendDealCreatedNotifications(Deal $deal): void
     {
         // Reload deal with relationships
-        $deal->load('leadAgent.user', 'company');
+        $deal->load('leadAgent.user', 'company', 'dealWatchers');
 
         if ($deal->agent_id && $deal->leadAgent && $deal->leadAgent->user) {
             // Notify the assigned agent
@@ -843,6 +845,11 @@ class DealContactApiController extends Controller
             if ($admins->isNotEmpty()) {
                 Notification::send($admins, new LeadAgentAssigned($deal));
             }
+        }
+
+        // Always notify deal watchers if they exist
+        if ($deal->dealWatchers->isNotEmpty()) {
+            Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
         }
     }
 }
