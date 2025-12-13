@@ -499,15 +499,16 @@ class LeadBoardController extends AccountBaseController
                 $q = $q->where('deals.category_id', $request->category_id);
             }
 
-            if ($request->search != '') {
+            if ($request->filled('search')) {
                 $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
-                $q->where(function ($query) {
-                    $safeTerm = Common::safeString(request('search'));
-                    $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('deals.name', 'like', '%' . $safeTerm . '%');
+                $searchTerm = $request->search;
+                $q->where(function($query) use ($searchTerm) {
+                    $query->where('deals.name', 'like', '%' . $searchTerm . '%')
+                          ->orWhereHas('contact', function($q) use ($searchTerm) {
+                              $q->where('client_name', 'like', '%' . $searchTerm . '%')
+                                ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
+                                ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                          });
                 });
             }
 
@@ -516,17 +517,10 @@ class LeadBoardController extends AccountBaseController
                 'added' => 'deals.added_by',
                 'owned' => function($q, $user) {
                     $q->where(function($query) use ($user) {
-                        $myAgentId = \App\Models\LeadAgent::where('user_id', $user->id)->pluck('id')->toArray();
-                        
-                        if (!empty($myAgentId)) {
-                            $query->whereIn('agent_id', $myAgentId);
-                        }
-                        
-                        $query->orWhereExists(function ($subQuery) use ($user) {
-                            $subQuery->select(DB::raw(1))
-                                    ->from('deal_watchers')
-                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                    ->where('deal_watchers.user_id', $user->id);
+                        $query->whereHas('leadAgent', function($q) use ($user) {
+                            $q->where('user_id', $user->id);
+                        })->orWhereHas('dealWatchers', function($q) use ($user) {
+                            $q->where('users.id', $user->id);
                         });
                     });
                 }
@@ -582,14 +576,15 @@ class LeadBoardController extends AccountBaseController
 
             $this->dateFilter($leads, $startDate, $endDate, $request);
 
-            if ($request->search != '') {
-                $leads->where(function ($query) {
-                    $safeTerm = Common::safeString(request('search'));
-                    $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%')
-                        ->orWhere('deals.name', 'like', '%' . $safeTerm . '%');
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $leads->where(function($query) use ($searchTerm) {
+                    $query->where('deals.name', 'like', '%' . $searchTerm . '%')
+                          ->orWhereHas('contact', function($q) use ($searchTerm) {
+                              $q->where('client_name', 'like', '%' . $searchTerm . '%')
+                                ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
+                                ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                          });
                 });
             }
 
@@ -603,7 +598,7 @@ class LeadBoardController extends AccountBaseController
 
             if ($request->agent_status == 'unassigned') {
                 $leads->whereNull('deals.agent_id');
-            } elseif ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+            } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
                 $leads->whereHas('leadAgent', function ($q) use ($request) {
                     $q->where('user_id', $request->agent_id);
                 });
@@ -622,17 +617,10 @@ class LeadBoardController extends AccountBaseController
                 'added' => 'deals.added_by',
                 'owned' => function($q, $user) {
                     $q->where(function($query) use ($user) {
-                        $myAgentId = \App\Models\LeadAgent::where('user_id', $user->id)->pluck('id')->toArray();
-                        
-                        if (!empty($myAgentId)) {
-                            $query->whereIn('agent_id', $myAgentId);
-                        }
-                        
-                        $query->orWhereExists(function ($subQuery) use ($user) {
-                            $subQuery->select(DB::raw(1))
-                                    ->from('deal_watchers')
-                                    ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                    ->where('deal_watchers.user_id', $user->id);
+                        $query->whereHas('leadAgent', function($q) use ($user) {
+                            $q->where('user_id', $user->id);
+                        })->orWhereHas('dealWatchers', function($q) use ($user) {
+                            $q->where('users.id', $user->id);
                         });
                     });
                 }
@@ -666,14 +654,15 @@ class LeadBoardController extends AccountBaseController
 
         $this->dateFilter($leads, $startDate, $endDate, $request);
 
-        if ($request->search != '') {
-            $leads->where(function ($query) {
-                $safeTerm = Common::safeString(request('search'));
-                $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('deals.name', 'like', '%' . $safeTerm . '%');
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $leads->where(function($query) use ($searchTerm) {
+                $query->where('deals.name', 'like', '%' . $searchTerm . '%')
+                      ->orWhereHas('contact', function($q) use ($searchTerm) {
+                          $q->where('client_name', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                      });
             });
         }
 
@@ -687,7 +676,7 @@ class LeadBoardController extends AccountBaseController
 
         if ($request->agent_status == 'unassigned') {
             $leads->whereNull('deals.agent_id');
-        } elseif ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+        } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
             $leads->whereHas('leadAgent', function ($q) use ($request) {
                 $q->where('user_id', $request->agent_id);
             });
@@ -706,17 +695,10 @@ class LeadBoardController extends AccountBaseController
             'added' => 'deals.added_by',
             'owned' => function($q, $user) {
                 $q->where(function($query) use ($user) {
-                    $myAgentId = \App\Models\LeadAgent::where('user_id', $user->id)->pluck('id')->toArray();
-                    
-                    if (!empty($myAgentId)) {
-                        $query->whereIn('agent_id', $myAgentId);
-                    }
-                    
-                    $query->orWhereExists(function ($subQuery) use ($user) {
-                        $subQuery->select(DB::raw(1))
-                                ->from('deal_watchers')
-                                ->whereColumn('deal_watchers.deal_id', 'deals.id')
-                                ->where('deal_watchers.user_id', $user->id);
+                    $query->whereHas('leadAgent', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    })->orWhereHas('dealWatchers', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
                     });
                 });
             }
@@ -739,7 +721,7 @@ class LeadBoardController extends AccountBaseController
                         $q->whereBetween(DB::raw('DATE(lead_follow_up.`next_follow_up_date`)'), [$startDate, $endDate]);
                     });
                 } else {
-                    $task->whereBetween(DB::raw('DATE(leads.`created_at`)'), [$startDate, $endDate]);
+                    $task->whereBetween(DB::raw('DATE(deals.`created_at`)'), [$startDate, $endDate]);
                 }
             });
         }
@@ -774,7 +756,7 @@ class LeadBoardController extends AccountBaseController
 
         if ($request->agent_status == 'unassigned') {
             $leads->whereNull('deals.agent_id');
-        } elseif ($request->agent_id != 'all' && $request->agent_id != 'undefined' && $request->agent_id != '') {
+        } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
             $leads->whereHas('leadAgent', function ($q) use ($request) {
                 $q->where('user_id', $request->agent_id);
             });
@@ -798,16 +780,32 @@ class LeadBoardController extends AccountBaseController
             }
         }
 
-        if ($request->search != '') {
-            $leads->leftJoin('leads', 'leads.id', 'deals.lead_id');
-            $leads->where(function ($query) {
-                $safeTerm = Common::safeString(request('search'));
-                $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $leads->where(function($query) use ($searchTerm) {
+                $query->where('deals.name', 'like', '%' . $searchTerm . '%')
+                      ->orWhereHas('contact', function($q) use ($searchTerm) {
+                          $q->where('client_name', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                      });
             });
         }
+
+        // Apply permission-based filtering
+        $dealRules = [
+            'added' => 'deals.added_by',
+            'owned' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $query->whereHas('leadAgent', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    })->orWhereHas('dealWatchers', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    });
+                });
+            }
+        ];
+        PermissionService::applyScope($leads, user(), 'view_deals', $dealRules);
 
         $leads->skip($skip)->take($this->taskBoardColumnLength);
         $leads = $leads->get();
