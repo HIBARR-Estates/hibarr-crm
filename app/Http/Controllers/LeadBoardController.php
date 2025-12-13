@@ -577,7 +577,7 @@ class LeadBoardController extends AccountBaseController
                 ->with(['contact', 'leadStage', 'leadAgent', 'leadAgent.user', 'currency'])
                 ->leftJoin('leads', 'leads.id', 'deals.lead_id')
                 ->where('deals.pipeline_stage_id', $boardColumn->id)
-                ->orderBy('leads.column_priority', 'asc')
+                ->orderBy('deals.created_at', 'desc')
                 ->groupBy('deals.id');
 
             $this->dateFilter($leads, $startDate, $endDate, $request);
@@ -661,7 +661,7 @@ class LeadBoardController extends AccountBaseController
             ->with(['contact', 'leadStage', 'leadAgent', 'leadAgent.user', 'currency'])
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
             ->where('deals.pipeline_stage_id', $pipelineStageId)
-            ->orderBy('leads.column_priority', 'asc')
+            ->orderBy('deals.created_at', 'desc')
             ->groupBy('deals.id');
 
         $this->dateFilter($leads, $startDate, $endDate, $request);
@@ -756,7 +756,7 @@ class LeadBoardController extends AccountBaseController
         $leads = Deal::select('leads.*', 'deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = leads.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
             ->where('deals.pipeline_stage_id', $request->columnId)
-            ->orderBy('leads.column_priority', 'asc')
+            ->orderBy('deals.created_at', 'desc')
             ->groupBy('deals.id');
 
         if ($startDate && $endDate) {
