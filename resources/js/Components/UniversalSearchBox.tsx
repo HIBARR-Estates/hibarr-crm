@@ -60,11 +60,35 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
 
     // Sync local value with filter context changes
     useEffect(() => {
-        if (!isSyncingRef.current && filters.search !== localValue) {
+        // Only sync if config is loaded and matches current page
+        let isConfigForCurrentPage = false;
+        if (config) {
+            try {
+                const routeUrl = route(config.routeName);
+                const configPath = routeUrl.startsWith("http")
+                    ? new URL(routeUrl).pathname
+                    : new URL(routeUrl, window.location.origin).pathname;
+
+                // Normalize paths (remove trailing slashes)
+                const currentPath = window.location.pathname.replace(/\/$/, "");
+                const targetPath = configPath.replace(/\/$/, "");
+
+                isConfigForCurrentPage = currentPath === targetPath;
+            } catch (e) {
+                // Fallback if route parsing fails
+                isConfigForCurrentPage = !!config;
+            }
+        }
+
+        if (
+            isConfigForCurrentPage &&
+            !isSyncingRef.current &&
+            filters.search !== localValue
+        ) {
             setLocalValue(filters.search || "");
             lastSearchedValue.current = filters.search || "";
         }
-    }, [filters.search]);
+    }, [filters.search, config]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLocalValue(e.target.value);
