@@ -117,6 +117,7 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             span: 24,
         },
     ],
+    excludeFields: props.excludeFields,
     defaultValues: {},
 });
 

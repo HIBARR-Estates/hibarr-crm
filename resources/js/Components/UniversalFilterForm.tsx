@@ -274,8 +274,16 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
         return null;
     };
 
+    const visibleFields = config.fields.filter((field) => {
+        // If excludeFields is defined in config, filter them out
+        if (config.excludeFields && config.excludeFields.includes(field.key)) {
+            return false;
+        }
+        return true;
+    });
+
     // Group fields by sections for better organization
-    const groupedFields = config.fields.reduce((acc, field) => {
+    const groupedFields = visibleFields.reduce((acc, field) => {
         const section = field.section || "General";
         if (!acc[section]) {
             acc[section] = [];

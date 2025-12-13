@@ -44,6 +44,7 @@ export interface FilterConfig {
     routeName: string;
     title: string;
     fields: FilterFieldConfig[];
+    excludeFields?: string[];
     defaultValues?: Record<string, any>;
 }
 
