@@ -45,8 +45,8 @@ const ContextualActiveFilters: React.FC<ContextualActiveFiltersProps> = ({
     // This effectively handles "excludedFields" because the config passed to FilterContext
     // should already have those fields removed.
     const visibleFilters = Object.values(filterMetadata).filter((filter) => {
-        // If no config, show everything (fallback)
-        if (!config) return true;
+        // If no config, hide everything to prevent showing excluded fields
+        if (!config) return false;
 
         // Check if this filter key corresponds to a field in the config
         // We need to handle range fields specially as their keys in metadata (e.g. start_date_start)

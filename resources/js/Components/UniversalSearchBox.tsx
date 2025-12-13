@@ -35,6 +35,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
 
     // Track if we're currently syncing to prevent loops
     const isSyncingRef = useRef(false);
+    const lastSearchedValue = useRef(filters.search || "");
 
     // Sync with URL parameters (handles browser back/forward)
     useEffect(() => {
@@ -45,6 +46,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
             if (!isSyncingRef.current && localValue !== urlSearch) {
                 setLocalValue(urlSearch);
                 setFilter("search", urlSearch);
+                lastSearchedValue.current = urlSearch;
             }
         };
 
@@ -60,6 +62,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
     useEffect(() => {
         if (!isSyncingRef.current && filters.search !== localValue) {
             setLocalValue(filters.search || "");
+            lastSearchedValue.current = filters.search || "";
         }
     }, [filters.search]);
 
@@ -69,6 +72,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
 
     const performSearch = (value: string) => {
         isSyncingRef.current = true;
+        lastSearchedValue.current = value;
 
         setFilter("search", value);
 
@@ -116,7 +120,10 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
 
     // Handle debounced search
     useEffect(() => {
-        if (!isSyncingRef.current) {
+        if (
+            !isSyncingRef.current &&
+            debouncedValue !== lastSearchedValue.current
+        ) {
             performSearch(debouncedValue);
         }
     }, [debouncedValue]);
