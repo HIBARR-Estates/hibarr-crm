@@ -2,6 +2,7 @@ import { Button, Select } from "antd";
 import BulkChangeTaskStatus from "./BulkChangeTaskStatus";
 import BulkDeleteTasks from "./BulkDeleteTasks";
 import React from "react";
+import { router } from "@inertiajs/react";
 
 interface TaskboardColumn {
     id: number;
@@ -55,7 +56,10 @@ const BulkTaskActionSelector: React.FC<Props> = ({
     const onClose = (operationSucceeded?: boolean) => {
         setOpen(false);
         setAction(undefined);
-        if (operationSucceeded) clearSelected();
+        if (operationSucceeded) {
+            clearSelected();
+            router.reload();
+        }
     };
 
     return (
