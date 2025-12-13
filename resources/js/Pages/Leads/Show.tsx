@@ -122,7 +122,7 @@ const Show: React.FC<LeadShowProps> = ({
             <div className="max-w-7xl mx-auto mt-8 mb-12">
                 <Card
                     variant="outlined"
-                    className="shadow-sm border-0 rounded-lg overflow-hidden"
+                    className="border-0 rounded-lg overflow-hidden"
                     bodyStyle={{ padding: 0 }}
                 >
                     {item.children}

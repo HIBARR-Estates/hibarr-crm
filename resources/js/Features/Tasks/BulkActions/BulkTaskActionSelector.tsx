@@ -56,9 +56,9 @@ const BulkTaskActionSelector: React.FC<Props> = ({
     const onClose = (operationSucceeded?: boolean) => {
         setOpen(false);
         setAction(undefined);
+        router.reload();
         if (operationSucceeded) {
             clearSelected();
-            router.reload();
         }
     };
 

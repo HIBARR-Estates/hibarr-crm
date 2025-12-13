@@ -218,10 +218,7 @@ export default function DealInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        <Descriptions.Item
-                            label="Deal Watchers"
-                            span={"filled"}
-                        >
+                        <Descriptions.Item label="Deal Watchers" span={2}>
                             {deal.deal_watchers &&
                             deal.deal_watchers.length > 0 ? (
                                 <MultiUserIndicator
