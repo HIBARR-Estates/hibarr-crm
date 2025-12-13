@@ -204,12 +204,8 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                         >
                             <Select
                                 placeholder="Select Lead Contact"
+                                allowClear
                                 showSearch
-                                filterOption={(input, option) =>
-                                    (option?.children as unknown as string)
-                                        ?.toLowerCase()
-                                        .includes(input.toLowerCase())
-                                }
                                 optionFilterProp="children"
                                 options={leadContacts.map((contact: any) => ({
                                     label: contact.client_name_salutation,
@@ -248,6 +244,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             <Select
                                 placeholder="Select Pipeline"
                                 onChange={handlePipelineChange}
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
                             >
                                 {leadPipelines.map((pipeline: any) => (
                                     <Select.Option
@@ -272,7 +271,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 },
                             ]}
                         >
-                            <Select placeholder="Select Stage">
+                            <Select
+                                placeholder="Select Stage"
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
+                            >
                                 {stages
                                     .filter((stage: any) =>
                                         pipelineId

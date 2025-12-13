@@ -9,6 +9,8 @@ import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import { PlusOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { isLoading } from "@/lib/utils";
+import { useState } from "react";
+import { router } from "@inertiajs/react";
 
 interface TaskboardColumn {
     id: number;
@@ -52,6 +54,7 @@ export default function TasksTab({
         view_tasks: "all",
     },
 }: Props) {
+    const [selectedTaskType, setSelectedTaskType] = useState<string>("");
     const {
         action,
         handleAction,
@@ -115,12 +118,30 @@ export default function TasksTab({
                                         {defaultTasks.map((task) => (
                                             <Button
                                                 key={task.key}
-                                                onClick={() =>
-                                                    createDefaultTask({
-                                                        task_type: task.key,
-                                                    })
+                                                variant="dashed"
+                                                onClick={() => {
+                                                    setSelectedTaskType(
+                                                        task.key
+                                                    );
+                                                    return createDefaultTask(
+                                                        {
+                                                            task_type: task.key,
+                                                        },
+                                                        {
+                                                            onSettled: () => {
+                                                                setSelectedTaskType(
+                                                                    ""
+                                                                );
+                                                                router.reload();
+                                                            },
+                                                        }
+                                                    );
+                                                }}
+                                                loading={
+                                                    isCreatingDefaultTask &&
+                                                    selectedTaskType ===
+                                                        task.key
                                                 }
-                                                loading={isCreatingDefaultTask}
                                                 size="small"
                                             >
                                                 {task.label}
@@ -135,19 +156,34 @@ export default function TasksTab({
             )}
             {tasks.length > 0 && (
                 <div className="p-6 flex flex-col gap-y-4">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4">
                         <div>
                             {relatedEntity.type === "deal" && (
                                 <div className="flex gap-2">
                                     {defaultTasks.map((task) => (
                                         <Button
                                             key={task.key}
-                                            onClick={() =>
-                                                createDefaultTask({
-                                                    task_type: task.key,
-                                                })
+                                            variant="dashed"
+                                            onClick={() => {
+                                                setSelectedTaskType(task.key);
+                                                return createDefaultTask(
+                                                    {
+                                                        task_type: task.key,
+                                                    },
+                                                    {
+                                                        onSettled: () => {
+                                                            setSelectedTaskType(
+                                                                ""
+                                                            );
+                                                            router.reload();
+                                                        },
+                                                    }
+                                                );
+                                            }}
+                                            loading={
+                                                isCreatingDefaultTask &&
+                                                selectedTaskType === task.key
                                             }
-                                            loading={isCreatingDefaultTask}
                                             size="small"
                                         >
                                             {task.label}

@@ -130,16 +130,16 @@ export default function DealInfoSection({
                             </span>
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Package">
-                            {deal.package?.name || "--"}
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Products">
+                        <Descriptions.Item label="Products" span={"filled"}>
                             {deal.products && deal.products.length > 0
                                 ? deal.products
                                       .map((p: any) => p.name)
                                       .join(", ")
                                 : "--"}
+                        </Descriptions.Item>
+
+                        <Descriptions.Item label="Package">
+                            {deal.package?.name || "--"}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Lead Contact">
@@ -218,7 +218,10 @@ export default function DealInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Deal Watchers">
+                        <Descriptions.Item
+                            label="Deal Watchers"
+                            span={"filled"}
+                        >
                             {deal.deal_watchers &&
                             deal.deal_watchers.length > 0 ? (
                                 <MultiUserIndicator
@@ -270,7 +273,7 @@ export default function DealInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Properties" span={2}>
+                        <Descriptions.Item label="Properties" span={"filled"}>
                             {productNames.length > 0 ? (
                                 <div className="flex flex-wrap gap-1">
                                     {productNames.map((product, index) => (

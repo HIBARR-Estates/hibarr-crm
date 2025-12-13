@@ -174,7 +174,7 @@ export default function PageLayout({
 
                 {/* Filter Section */}
                 {filterSection && (
-                    <div className="bg-white border-b border-gray-50">
+                    <div className="bg-gray-50 border-b border-gray-50">
                         {filterSection}
                     </div>
                 )}

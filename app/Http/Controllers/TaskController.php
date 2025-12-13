@@ -216,6 +216,25 @@ class TaskController extends AccountBaseController
                 'created_at' => $task->created_at->toISOString(),
                 'updated_at' => $task->updated_at->toISOString(),
                 'added_by' => $task->added_by,
+                'deals' => $task->deals->map(function ($deal) {
+                    return [
+                        'id' => $deal->id,
+                        'name' => $deal->name,
+                    ];
+                })->toArray(),
+                'leads' => $task->leads->map(function ($lead) {
+                    return [
+                        'id' => $lead->id,
+                        'client_name' => $lead->client_name,
+                        'company_name' => $lead->company_name,
+                    ];
+                })->toArray(),
+                'properties' => $task->properties->map(function ($property) {
+                    return [
+                        'id' => $property->id,
+                        'title' => $property->title,
+                    ];
+                })->toArray(),
             ];
         });
 
