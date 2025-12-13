@@ -139,7 +139,7 @@ export const createDealFilterConfig = (
         },
     ];
 
-    // Filter out excluded fields
+    // Filter out excluded fields ...
     const filteredFields = fields.filter((field) => {
         if (props.excludeFields && Array.isArray(props.excludeFields)) {
             return !props.excludeFields.includes(field.key);
