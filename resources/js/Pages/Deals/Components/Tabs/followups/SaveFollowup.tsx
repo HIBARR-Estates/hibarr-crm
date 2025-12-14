@@ -129,10 +129,41 @@ export default function SaveFollowup({
         }
     };
 
-    const locationOptions = [
+    // Standard location options
+    const standardLocationOptions = [
         { value: "zoho", label: "Zoho" },
         { value: "office", label: "HIBARR Office" },
     ];
+
+    // Map old location values to readable labels for backward compatibility
+    const oldLocationLabels: Record<string, string> = {
+        'zoom': 'Zoom',
+        'teams': 'Microsoft Teams',
+        'meet': 'Google Meet',
+        'phone': 'Phone Call',
+        'skype': 'Skype',
+        'other': 'Other',
+        'zoho_meet': 'Zoho Meet',
+        'google_meet': 'Google Meet',
+    };
+
+    // Get current location value from form to preserve old values
+    const currentLocation = Form.useWatch('location', form);
+    
+    // Build location options including current value if it's not in standard options
+    const locationOptions = (() => {
+        const options = [...standardLocationOptions];
+        
+        // If current location exists and is not in standard options, add it
+        if (currentLocation && !options.find(opt => opt.value === currentLocation)) {
+            options.push({
+                value: currentLocation,
+                label: oldLocationLabels[currentLocation] || currentLocation.charAt(0).toUpperCase() + currentLocation.slice(1)
+            });
+        }
+        
+        return options;
+    })();
 
     const reminderTypes = [
         { value: "minute", label: "Minutes" },

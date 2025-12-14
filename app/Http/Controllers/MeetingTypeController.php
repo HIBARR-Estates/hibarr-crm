@@ -81,6 +81,7 @@ class MeetingTypeController extends AccountBaseController
                 'name' => $meetingType->name,
                 'description' => $meetingType->description,
                 'color' => $meetingType->color,
+                'is_active' => $meetingType->is_active,
             ]
         ]);
     }
