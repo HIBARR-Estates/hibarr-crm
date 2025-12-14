@@ -66,6 +66,23 @@ export default function MeetingTypeSelector({
         onChange?.(newMeetingType.id);
     };
 
+    const dropdownRender = (menu: React.ReactElement) => (
+        <>
+            {menu}
+            <div className="border-t border-gray-200 p-2">
+                <Button
+                    type="text"
+                    icon={<PlusOutlined />}
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="w-full text-left hover:bg-gray-50"
+                    disabled={disabled}
+                >
+                    Add New Meeting Type
+                </Button>
+            </div>
+        </>
+    );
+
     return (
         <>
             <Space.Compact className="w-full" block>
@@ -75,6 +92,7 @@ export default function MeetingTypeSelector({
                     placeholder={placeholder}
                     disabled={disabled || isLoading}
                     className={`flex-1 ${className || ""}`}
+                    popupRender={dropdownRender}
                     showSearch
                     notFoundContent={
                         isLoading ? <Spin size="small" /> : "No meeting types found"
