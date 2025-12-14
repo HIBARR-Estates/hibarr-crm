@@ -56,7 +56,7 @@ export default function MeetingTypeSelector({
 
     // Filter only active meeting types
     const meetingTypes = (meetingTypesResponse?.meeting_types || []).filter(
-        (type) => type.is_active !== false
+        (type) => type.is_active === true
     );
 
     const handleAddSuccess = (newMeetingType: MeetingType) => {
