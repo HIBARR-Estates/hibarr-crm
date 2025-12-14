@@ -42,13 +42,6 @@ trait DealAutomationTrait
                 'watcherInformation' => $watcherInfo,
             ]);
 
-            Log::info("Follow-up automation triggered successfully", [
-                'follow_up_id' => $followUp->id,
-                'deal_id' => $followUp->deal_id,
-                'meeting_type' => $followUp->meetingType ? $followUp->meetingType->name : null,
-                'n8n_response' => $result,
-            ]);
-
             return $result;
 
         } catch (\Exception $e) {
@@ -67,21 +60,10 @@ trait DealAutomationTrait
     {
         $url = config("app.automations.followups.followup_webhook_url");
         
-        \Log::info('Webhook configuration check', [
-            'url' => $url,
-            'type' => $type,
-            'payload_keys' => array_keys($payload)
-        ]);
-        
         if (!$url) {
-            \Log::error('Webhook URL not configured', ['type' => $type]);
+            Log::error('Webhook URL not configured', ['type' => $type]);
             throw new \Exception("Follow-up automation webhook URL not configured for type: {$type}");
         }
-
-        \Log::info('Making webhook request', [
-            'url' => $url,
-            'payload_size' => strlen(json_encode($payload))
-        ]);
 
         try {
             $client = new Client([
@@ -102,14 +84,8 @@ trait DealAutomationTrait
             $statusCode = $response->getStatusCode();
             $responseBody = $response->getBody()->getContents();
             
-            \Log::info('Webhook response received', [
-                'status_code' => $statusCode,
-                'response_body' => $responseBody,
-                'response_length' => strlen($responseBody)
-            ]);
-            
             if ($statusCode < 200 || $statusCode >= 300) {
-                \Log::error('Webhook returned error status', [
+                Log::error('Webhook returned error status', [
                     'status_code' => $statusCode,
                     'response_body' => $responseBody
                 ]);
@@ -355,11 +331,6 @@ trait DealAutomationTrait
             if ($followUp) {
                 $followUp->meeting_link = $meetingLink;
                 $followUp->save();
-                
-                Log::info("Meeting link updated from webhook response", [
-                    'follow_up_id' => $followUpId,
-                    'meeting_link' => $meetingLink,
-                ]);
             }
         } catch (\Exception $e) {
             Log::error("Failed to update meeting link from webhook response", [
