@@ -129,16 +129,41 @@ export default function SaveFollowup({
         }
     };
 
-    const locationOptions = [
-        { value: "office", label: "Office" },
+    // Standard location options
+    const standardLocationOptions = [
         { value: "zoho", label: "Zoho" },
-        { value: "zoom", label: "Zoom" },
-        { value: "teams", label: "Microsoft Teams" },
-        { value: "meet", label: "Google Meet" },
-        { value: "phone", label: "Phone Call" },
-        { value: "skype", label: "Skype" },
-        { value: "other", label: "Other" },
+        { value: "office", label: "HIBARR Office" },
     ];
+
+    // Map old location values to readable labels for backward compatibility
+    const oldLocationLabels: Record<string, string> = {
+        'zoom': 'Zoom',
+        'teams': 'Microsoft Teams',
+        'meet': 'Google Meet',
+        'phone': 'Phone Call',
+        'skype': 'Skype',
+        'other': 'Other',
+        'zoho_meet': 'Zoho Meet',
+        'google_meet': 'Google Meet',
+    };
+
+    // Get current location value from form to preserve old values
+    const currentLocation = Form.useWatch('location', form);
+    
+    // Build location options including current value if it's not in standard options
+    const locationOptions = (() => {
+        const options = [...standardLocationOptions];
+        
+        // If current location exists and is not in standard options, add it
+        if (currentLocation && !options.find(opt => opt.value === currentLocation)) {
+            options.push({
+                value: currentLocation,
+                label: oldLocationLabels[currentLocation] || currentLocation.charAt(0).toUpperCase() + currentLocation.slice(1)
+            });
+        }
+        
+        return options;
+    })();
 
     const reminderTypes = [
         { value: "minute", label: "Minutes" },
@@ -160,7 +185,7 @@ export default function SaveFollowup({
                 next_follow_up_date: followupDate,
                 start_time: followupDate,
                 meeting_type_id: followup.meeting_type?.id,
-                location: followup.location || "office",
+                location: followup.location || "zoho",
                 meeting_link: followup.meeting_link || "",
                 reminders: existingCustomReminders, // Only set custom reminders in form
                 remark: followup.remark || "",
@@ -168,7 +193,7 @@ export default function SaveFollowup({
         } else {
             // Set default values for new follow-up
             form.setFieldsValue({
-                location: "office",
+                location: "zoho",
                 reminders: [], // Start with empty custom reminders array
             });
         }
@@ -291,22 +316,23 @@ export default function SaveFollowup({
                 <MeetingTypeSelector
                     disabled={loading}
                     placeholder="Select meeting type"
+                    showPlatform={false}
                 />
             </Form.Item>
 
-            {/* Location */}
+            {/* Location/Platform */}
             <Form.Item
                 name="location"
-                label="Location"
+                label="Platform"
                 rules={[
                     {
                         required: true,
-                        message: "Please select a location",
+                        message: "Please select a platform",
                     },
                 ]}
             >
                 <Select
-                    placeholder="Select location"
+                    placeholder="Select platform"
                     className="w-full"
                     disabled={loading}
                     onChange={handleLocationChange}
@@ -396,12 +422,6 @@ export default function SaveFollowup({
                 label="Meeting Agenda"
                 name="remark"
                 className="mb-6"
-                rules={[
-                    {
-                        required: true,
-                        validator: validateContent,
-                    },
-                ]}
             >
                 <HtmlEditor
                     placeholder="Enter meeting agenda, details, or remarks..."
