@@ -233,6 +233,16 @@ export default function LeadInfoSection({
                                 )}
                         </Descriptions.Item>
 
+                        <Descriptions.Item label="Gender">
+                            {currentLead?.gender || lead.gender ? (
+                                <span className="capitalize">
+                                    {currentLead?.gender || lead.gender}
+                                </span>
+                            ) : (
+                                <span className="text-gray-500">--</span>
+                            )}
+                        </Descriptions.Item>
+
                         <Descriptions.Item label="Company">
                             {currentLead?.company_name || lead.company_name || (
                                 <span className="text-gray-500">--</span>

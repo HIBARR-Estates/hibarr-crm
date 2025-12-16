@@ -119,6 +119,15 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         </Col>
 
                         <Col span={8}>
+                            <Form.Item label="Gender" name="gender">
+                                <Select placeholder="--" allowClear>
+                                    <Select.Option value="male">Male</Select.Option>
+                                    <Select.Option value="female">Female</Select.Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={8}>
                             <Form.Item
                                 label="Name"
                                 name={"client_name"}
