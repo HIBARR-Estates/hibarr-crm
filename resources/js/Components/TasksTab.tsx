@@ -7,6 +7,10 @@ import BulkTaskActionSelector from "@/Features/Tasks/BulkActions/BulkTaskActionS
 import { useTasksTableColumns } from "@/Features/Tasks/Columns";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import { PlusOutlined } from "@ant-design/icons";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { isLoading } from "@/lib/utils";
+import { useState } from "react";
+import { router } from "@inertiajs/react";
 
 interface TaskboardColumn {
     id: number;
@@ -26,11 +30,12 @@ interface Props {
     taskBoardColumns: TaskboardColumn[];
     employees: any[];
     projects: any[];
-    permissions: {
+    permissions?: {
         add_tasks: string;
         edit_tasks: string;
         delete_tasks: string;
         view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
+        [key: string]: string;
     };
 }
 
@@ -42,8 +47,14 @@ export default function TasksTab({
     taskBoardColumns = [],
     employees,
     projects,
-    permissions,
+    permissions = {
+        add_tasks: "all",
+        edit_tasks: "all",
+        delete_tasks: "all",
+        view_tasks: "all",
+    },
 }: Props) {
+    const [selectedTaskType, setSelectedTaskType] = useState<string>("");
     const {
         action,
         handleAction,
@@ -59,11 +70,31 @@ export default function TasksTab({
     const columns = useTasksTableColumns({
         columns: taskBoardColumns,
         permissions,
-        onEdit: () => handleAction("edit", selectedTask),
-        onView: () => handleAction("view", selectedTask),
-        onDuplicate: () => handleAction("duplicate", selectedTask),
-        onDelete: () => handleAction("delete", selectedTask),
+        onEdit: (selectedTask) => handleAction("edit", selectedTask),
+        onView: (selectedTask) => handleAction("view", selectedTask),
+        onDuplicate: (selectedTask) => handleAction("duplicate", selectedTask),
+        onDelete: (selectedTask) => handleAction("delete", selectedTask),
+        exclude: ["due_date", "progress", "created_at"],
     });
+
+    const defaultTaskUrl =
+        relatedEntity.type === "deal"
+            ? `/account/deals/${relatedEntity.id}/tasks/default`
+            : "";
+    const {
+        mutate: createDefaultTask,
+        status,
+        isError,
+    } = useApiMutate(defaultTaskUrl, "POST");
+
+    const isCreatingDefaultTask = isLoading({ status, isError });
+
+    const defaultTasks = [
+        { key: "schedule_meeting", label: "Schedule Meeting" },
+        { key: "send_property_details", label: "Send Property Details" },
+        { key: "setup_watcher", label: "Set Up Watcher" },
+        { key: "assign_agent", label: "Assign Agent" },
+    ];
 
     return (
         <>
@@ -81,6 +112,43 @@ export default function TasksTab({
                                 >
                                     Add Task
                                 </Button>
+
+                                {relatedEntity.type === "deal" && (
+                                    <div className="flex gap-2 justify-center mt-4">
+                                        {defaultTasks.map((task) => (
+                                            <Button
+                                                key={task.key}
+                                                variant="dashed"
+                                                onClick={() => {
+                                                    setSelectedTaskType(
+                                                        task.key
+                                                    );
+                                                    return createDefaultTask(
+                                                        {
+                                                            task_type: task.key,
+                                                        },
+                                                        {
+                                                            onSettled: () => {
+                                                                setSelectedTaskType(
+                                                                    ""
+                                                                );
+                                                                router.reload();
+                                                            },
+                                                        }
+                                                    );
+                                                }}
+                                                loading={
+                                                    isCreatingDefaultTask &&
+                                                    selectedTaskType ===
+                                                        task.key
+                                                }
+                                                size="small"
+                                            >
+                                                {task.label}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         }
                     />
@@ -88,7 +156,42 @@ export default function TasksTab({
             )}
             {tasks.length > 0 && (
                 <div className="p-6 flex flex-col gap-y-4">
-                    <div className="flex justify-end">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            {relatedEntity.type === "deal" && (
+                                <div className="flex gap-2">
+                                    {defaultTasks.map((task) => (
+                                        <Button
+                                            key={task.key}
+                                            variant="dashed"
+                                            onClick={() => {
+                                                setSelectedTaskType(task.key);
+                                                return createDefaultTask(
+                                                    {
+                                                        task_type: task.key,
+                                                    },
+                                                    {
+                                                        onSettled: () => {
+                                                            setSelectedTaskType(
+                                                                ""
+                                                            );
+                                                            router.reload();
+                                                        },
+                                                    }
+                                                );
+                                            }}
+                                            loading={
+                                                isCreatingDefaultTask &&
+                                                selectedTaskType === task.key
+                                            }
+                                            size="small"
+                                        >
+                                            {task.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         {selectedEntities.length > 0 && (
                             <BulkTaskActionSelector
                                 selectedEntityIds={selectedEntities.map(

@@ -194,7 +194,7 @@ const GeneralCustomFieldTab = <
                 ]}
             >
                 <Radio.Group>
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 flex-wrap">
                         {values?.map((value: string, index: number) => (
                             <Radio key={index} value={value}>
                                 {value}
@@ -233,7 +233,7 @@ const GeneralCustomFieldTab = <
                 ]}
             >
                 <Checkbox.Group>
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 flex-wrap">
                         {values?.map((value: string, index: number) => (
                             <Checkbox key={index} value={value}>
                                 {value}

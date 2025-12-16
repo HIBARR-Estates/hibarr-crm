@@ -41,6 +41,7 @@ use App\Services\PermissionService;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\Property;
+use Inertia\Inertia;
 
 class TaskController extends AccountBaseController
 {
@@ -215,6 +216,25 @@ class TaskController extends AccountBaseController
                 'created_at' => $task->created_at->toISOString(),
                 'updated_at' => $task->updated_at->toISOString(),
                 'added_by' => $task->added_by,
+                'deals' => $task->deals->map(function ($deal) {
+                    return [
+                        'id' => $deal->id,
+                        'name' => $deal->name,
+                    ];
+                })->toArray(),
+                'leads' => $task->leads->map(function ($lead) {
+                    return [
+                        'id' => $lead->id,
+                        'client_name' => $lead->client_name,
+                        'company_name' => $lead->company_name,
+                    ];
+                })->toArray(),
+                'properties' => $task->properties->map(function ($property) {
+                    return [
+                        'id' => $property->id,
+                        'title' => $property->title,
+                    ];
+                })->toArray(),
             ];
         });
 
@@ -263,7 +283,7 @@ class TaskController extends AccountBaseController
 
         $deals = Deal::select('id', 'name')->get();
         $leads = Lead::select('id', 'client_name', 'company_name')->get();
-        $properties = Property::select('id', 'name')->get();
+        $properties = Property::select('id', 'title')->get();
 
         // Get user permissions
         $permissions = [
@@ -286,7 +306,7 @@ class TaskController extends AccountBaseController
             'search' => request('search'),
         ];
 
-        return inertia('Tasks/Index', [
+        return Inertia::render('Tasks/Index', [
             'tasks' => $tasks,
             'categories' => $categories,
             'labels' => $labels,
@@ -461,6 +481,24 @@ class TaskController extends AccountBaseController
         $task->save();
 
         return Reply::success(__('messages.updateSuccess'));
+    }
+
+    public function storeDefaultTask(Request $request, $dealId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $this->addPermission = user()->permission('add_tasks');
+        abort_403(!in_array($this->addPermission, ['all', 'added']));
+
+        $taskType = $request->task_type;
+        
+        $dealTaskService = new \App\Services\DealTaskService();
+        $task = $dealTaskService->createTaskByType($deal, $taskType);
+
+        if (!$task) {
+            return Reply::error('Invalid task type');
+        }
+
+        return Reply::success(__('messages.taskCreatedSuccessfully'));
     }
 
     public function destroy(Request $request, $id)

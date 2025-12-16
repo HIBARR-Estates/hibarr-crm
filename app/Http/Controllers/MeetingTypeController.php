@@ -20,7 +20,9 @@ class MeetingTypeController extends AccountBaseController
      */
     public function index(Request $request)
     {
-        $meetingTypes = MeetingType::where('company_id', company()->id)->get();
+        $meetingTypes = MeetingType::where('company_id', company()->id)
+            ->where('is_active', true)
+            ->get();
         
         // If it's an API request, return JSON
         if ($request->wantsJson() || $request->expectsJson()) {
@@ -31,6 +33,7 @@ class MeetingTypeController extends AccountBaseController
                         'name' => $type->name,
                         'description' => $type->description,
                         'color' => $type->color,
+                        'is_active' => $type->is_active,
                     ];
                 })
             ]);
@@ -38,6 +41,7 @@ class MeetingTypeController extends AccountBaseController
         
         // Otherwise, return the view for web interface
         $this->meetingTypes = $meetingTypes;
+        $this->activeSettingMenu = 'meeting_types';
         return view('meeting-types.index', $this->data);
     }
 
@@ -77,6 +81,7 @@ class MeetingTypeController extends AccountBaseController
                 'name' => $meetingType->name,
                 'description' => $meetingType->description,
                 'color' => $meetingType->color,
+                'is_active' => $meetingType->is_active,
             ]
         ]);
     }

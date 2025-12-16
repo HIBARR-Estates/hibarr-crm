@@ -201,6 +201,11 @@ export interface User {
     name: string;
     email: string;
     image_url: string;
+    employee_detail?: {
+        designation?: {
+            name: string;
+        };
+    };
     modules?: string[];
     mobile_with_phone_code?: string;
     name_salutation?: string;

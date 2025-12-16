@@ -119,13 +119,7 @@ const DealCard: React.FC<DealCardProps> = ({
                 <div className="flex items-center gap-2 ml-auto">
                     {/* Agent */}
                     {deal.lead_agent?.user ? (
-                        <a
-                            href={route(
-                                "employees.show",
-                                deal.lead_agent.user_id
-                            )}
-                            className="flex items-center gap-2 hover:text-blue-600"
-                        >
+                        <span className="flex items-center gap-2 hover:text-blue-600">
                             <span className="text-gray-600">
                                 {deal.lead_agent.user.name}
                             </span>
@@ -134,7 +128,7 @@ const DealCard: React.FC<DealCardProps> = ({
                                 src={deal.lead_agent.user.image_url}
                                 icon={<UserOutlined />}
                             />
-                        </a>
+                        </span>
                     ) : (
                         <span
                             className="text-blue-900 font-semibold hover:text-blue-800 text-xs cursor-pointer"

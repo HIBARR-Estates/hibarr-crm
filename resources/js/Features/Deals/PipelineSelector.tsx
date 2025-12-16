@@ -30,10 +30,10 @@ const PipelineSelector: React.FC<PipelineSelectorProps> = ({
     return (
         <Dropdown menu={{ items }} trigger={["click"]}>
             <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-2 rounded transition-colors group">
-                <h1 className="text-xl font-semibold text-gray-900 m-0 group-hover:text-blue-500">
+                <h1 className="text-xl font-semibold text-gray-900 m-0 group-hover:opacity-80">
                     {currentPipeline?.name || "Select Pipeline"}
                 </h1>
-                <DownOutlined className="text-gray-500 text-sm group-hover:text-blue-500" />
+                <DownOutlined className="text-gray-500 text-sm group-hover:opacity-80" />
             </div>
         </Dropdown>
     );

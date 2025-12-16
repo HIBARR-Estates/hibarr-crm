@@ -139,15 +139,11 @@ export const createDealFilterConfig = (
         },
     ];
 
-    // Filter out excluded fields
-    const filteredFields = props.excludeFields
-        ? fields.filter((field) => !props.excludeFields?.includes(field.key))
-        : fields;
-
     return {
         routeName: "deals.index",
         title: "Deal Filters",
-        fields: filteredFields,
+        fields,
+        excludeFields: props.excludeFields,
         defaultValues: {},
     };
 };

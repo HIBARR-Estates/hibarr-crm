@@ -177,7 +177,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     return (
         <div style={{ padding: "0" }}>
             {/* Header Section */}
-            <Card size="small" style={{ marginBottom: 16 }}>
+            <Card size="small" style={{ marginBottom: 16 }} variant="outlined">
                 <div style={{ marginBottom: 16 }}>
                     <Space
                         direction="vertical"
@@ -245,6 +245,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 size="small"
                 title="Status & Priority"
                 style={{ marginBottom: 16 }}
+                variant="outlined"
             >
                 <Row gutter={16}>
                     <Col span={12}>
@@ -285,6 +286,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     </Space>
                 }
                 style={{ marginBottom: 16 }}
+                variant="outlined"
             >
                 <Descriptions size="small" column={1}>
                     <Descriptions.Item label="Start Date">
@@ -336,6 +338,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
+                    variant="outlined"
                 >
                     <Space direction="vertical" style={{ width: "100%" }}>
                         <Row gutter={16}>
@@ -390,6 +393,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
+                    variant="outlined"
                 >
                     {task.project && (
                         <div style={{ marginBottom: 16 }}>
@@ -459,6 +463,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
+                    variant="outlined"
                 >
                     {task.category && (
                         <div
@@ -507,7 +512,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 </Card>
             )}
 
-            {/* Related Entities */}
+            {/* Related Entities - Properties, Deals, Leads */}
             {((task.deals && task.deals.length > 0) ||
                 (task.leads && task.leads.length > 0) ||
                 (task.properties && task.properties.length > 0)) && (
@@ -520,7 +525,9 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
+                    variant="outlined"
                 >
+                    {/* Deals */}
                     {task.deals && task.deals.length > 0 && (
                         <div
                             style={{
@@ -543,6 +550,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                             />
                         </div>
                     )}
+                    {/* Leads */}
                     {task.leads && task.leads.length > 0 && (
                         <div
                             style={{
@@ -567,6 +575,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                             />
                         </div>
                     )}
+                    {/* Properties */}
                     {task.properties && task.properties.length > 0 && (
                         <div>
                             <Text strong>Properties</Text>
@@ -585,7 +594,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
             )}
 
             {/* Additional Details */}
-            {(task.task_short_code || task.hash) && (
+            {/* {(task.task_short_code || task.hash) && (
                 <Card
                     size="small"
                     title="Additional Details"
@@ -618,7 +627,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         )}
                     </Descriptions>
                 </Card>
-            )}
+            )} */}
         </div>
     );
 };

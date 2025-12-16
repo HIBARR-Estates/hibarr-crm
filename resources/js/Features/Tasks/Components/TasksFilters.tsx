@@ -115,6 +115,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
             }
             size="small"
             style={{ marginBottom: 16 }}
+            variant="outlined"
         >
             <Row gutter={[16, 16]}>
                 {/* Search */}

@@ -157,6 +157,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                             transition={{ duration: 0.2 }}
                         >
                             <Card
+                                variant="outlined"
                                 size="small"
                                 loading={isProcessing}
                                 className={`transition-all duration-200 cursor-pointer ${
@@ -338,6 +339,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
         return (
             <div key={stage.id} className="flex-1 min-w-80">
                 <Card
+                    variant="outlined"
                     title={
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
@@ -433,6 +435,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                 deal={deal}
             />
             <Card
+                variant="outlined"
                 title={
                     <div className="flex items-center justify-between">
                         <span>Deals Pipeline</span>

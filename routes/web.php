@@ -570,6 +570,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     
     Route::resource('deals', DealController::class);
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
     
 // Meeting Summary Routes
 Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
