@@ -90,37 +90,34 @@ class DashboardController extends AccountBaseController
     public function dashboardOverview()
     {
         $userId = user()->id;
-        $viewTaskPermission = user()->permission('view_tasks');
-        $viewDealPermission = user()->permission('view_deals');
-        $viewLeadPermission = user()->permission('view_lead');
+        
+        // Define constraints for "My Items" view - enforcing strict visibility regardless of role permissions
+        $tasksConstraint = function($q) use ($userId) {
+            $q->where(function($query) use ($userId) {
+                $query->where('added_by', $userId)
+                      ->orWhereHas('users', function ($q) use ($userId) {
+                          $q->where('user_id', $userId);
+                      });
+            });
+        };
 
-        // Define permission rules
-        $taskRules = [
-            'added' => 'added_by',
-            'owned' => function($q, $user) {
-                $q->whereHas('users', function ($query) use ($user) {
-                    $query->where('user_id', $user->id);
-                });
-            }
-        ];
+        $dealsConstraint = function($q) use ($userId) {
+            $q->where(function($query) use ($userId) {
+                $query->where('added_by', $userId)
+                      ->orWhereHas('leadAgent', function($q) use ($userId) {
+                          $q->where('user_id', $userId);
+                      })->orWhereHas('dealWatchers', function($q) use ($userId) {
+                          $q->where('users.id', $userId);
+                      });
+            });
+        };
 
-        $dealRules = [
-            'added' => 'added_by',
-            'owned' => function($q, $user) {
-                $q->where(function($query) use ($user) {
-                    $query->whereHas('leadAgent', function($q) use ($user) {
-                        $q->where('user_id', $user->id);
-                    })->orWhereHas('dealWatchers', function($q) use ($user) {
-                        $q->where('users.id', $user->id);
-                    });
-                });
-            }
-        ];
-
-        $leadRules = [
-            'added' => 'added_by',
-            'owned' => 'lead_owner'
-        ];
+        $leadsConstraint = function($q) use ($userId) {
+            $q->where(function($query) use ($userId) {
+                $query->where('added_by', $userId)
+                      ->orWhere('lead_owner', $userId);
+            });
+        };
         
         // Get upcoming tasks ordered by due date
         $tasksQuery = Task::with([
@@ -128,14 +125,14 @@ class DashboardController extends AccountBaseController
             'users:id,name,image', 
             'boardColumn:id,column_name,slug', 
             'category:id,category_name',
-            'labels'  // Remove column specification to let the model handle the accessor
+            'labels'
         ])
             ->where('board_column_id', '!=', function($query) {
                 $query->select('id')->from('taskboard_columns')->where('slug', 'completed');
             });
 
-        // Apply permission-based filtering for tasks
-        PermissionService::applyScope($tasksQuery, user(), 'view_tasks', $taskRules);
+        // Apply strict filtering for tasks
+        $tasksConstraint($tasksQuery);
 
         $tasks = $tasksQuery->orderBy(
                 \DB::raw("CASE 
@@ -211,8 +208,8 @@ class DashboardController extends AccountBaseController
             'package:id,name'
         ])->orderBy('updated_at', 'desc');
 
-        // Apply permission-based filtering for deals
-        PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
+        // Apply strict filtering for deals
+        $dealsConstraint($dealsQuery);
 
         $allDeals = $dealsQuery->get()->toBase()
             ->map(function ($deal) {
@@ -261,7 +258,7 @@ class DashboardController extends AccountBaseController
         
         // Get all leads
         $leadsQuery = \App\Models\Lead::query();
-        PermissionService::applyScope($leadsQuery, user(), 'view_lead', $leadRules);
+        $leadsConstraint($leadsQuery);
         $allLeads = $leadsQuery->get()->toBase();
         
         // Get required custom fields for leads
@@ -521,10 +518,8 @@ class DashboardController extends AccountBaseController
 
         // Get recent communication activities
         $recentActivities = \App\Models\CommunicationActivity::with(['deal:id,name'])
-            ->when($viewDealPermission != 'all', function ($query) use ($userId, $viewDealPermission, $dealRules) {
-                $query->whereHas('deal', function ($q) use ($userId, $viewDealPermission, $dealRules) {
-                    PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
-                });
+            ->whereHas('deal', function ($q) use ($dealsConstraint) {
+                $dealsConstraint($q);
             })
             ->orderBy('timestamp', 'desc')
             ->limit(10)
@@ -553,7 +548,7 @@ class DashboardController extends AccountBaseController
         $lastMonthDealsCount = \App\Models\Deal::whereMonth('created_at', now()->subMonth()->month)
             ->whereYear('created_at', now()->subMonth()->year);
             
-        PermissionService::applyScope($lastMonthDealsCount, user(), 'view_deals', $dealRules);
+        $dealsConstraint($lastMonthDealsCount);
         
         $lastMonthDealsCount = $lastMonthDealsCount->count();
 
@@ -563,7 +558,7 @@ class DashboardController extends AccountBaseController
 
         // Lead metrics (you may need to adjust based on your Lead model structure)
         $activeLeadsQuery = \App\Models\Lead::query();
-        PermissionService::applyScope($activeLeadsQuery, user(), 'view_lead', $leadRules);
+        $leadsConstraint($activeLeadsQuery);
         $activeLeadsCount = $activeLeadsQuery->count();
 
         $openDealsCount = $allDeals->filter(function ($deal) {
@@ -587,7 +582,7 @@ class DashboardController extends AccountBaseController
         
         // Conversion rate calculation
         $totalLeadsQuery = \App\Models\Lead::query();
-        PermissionService::applyScope($totalLeadsQuery, user(), 'view_lead', $leadRules);
+        $leadsConstraint($totalLeadsQuery);
         $totalLeads = $totalLeadsQuery->count();
         
         $conversionRate = $totalLeads > 0 ? round(($allDeals->count() / $totalLeads) * 100, 1) : 0;
@@ -615,40 +610,37 @@ class DashboardController extends AccountBaseController
 
         // Calculate basic stats for backwards compatibility  
         $pendingTasksQuery = Task::where('board_column_id', '!=', $completedColumn?->id);
-        PermissionService::applyScope($pendingTasksQuery, user(), 'view_tasks', $taskRules);
+        $tasksConstraint($pendingTasksQuery);
         $pendingTasksCount = $pendingTasksQuery->count();
             
         // Update overview metrics to use calculated pending activities
         $overviewMetrics['pendingActivities'] = $pendingTasksCount;
         
         $totalTasksQuery = Task::query();
-        PermissionService::applyScope($totalTasksQuery, user(), 'view_tasks', $taskRules);
+        $tasksConstraint($totalTasksQuery);
 
         $completedTasksQuery = Task::where('board_column_id', $completedColumn?->id);
-        PermissionService::applyScope($completedTasksQuery, user(), 'view_tasks', $taskRules);
+        $tasksConstraint($completedTasksQuery);
 
         $pendingTasksQuery2 = Task::where('board_column_id', '!=', $completedColumn?->id);
-        PermissionService::applyScope($pendingTasksQuery2, user(), 'view_tasks', $taskRules);
+        $tasksConstraint($pendingTasksQuery2);
 
         $overdueTasksQuery = Task::where('due_date', '<', now())
             ->where('board_column_id', '!=', $completedColumn?->id);
-        PermissionService::applyScope($overdueTasksQuery, user(), 'view_tasks', $taskRules);
+        $tasksConstraint($overdueTasksQuery);
 
         $totalDealsQuery = \App\Models\Deal::query();
-        PermissionService::applyScope($totalDealsQuery, user(), 'view_deals', $dealRules);
+        $dealsConstraint($totalDealsQuery);
 
         $dealsThisMonthQuery = \App\Models\Deal::whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year);
-        PermissionService::applyScope($dealsThisMonthQuery, user(), 'view_deals', $dealRules);
+        $dealsConstraint($dealsThisMonthQuery);
 
         // Activities query with permissions
         $activitiesQuery = \App\Models\CommunicationActivity::query();
-        
-        if ($viewDealPermission != 'all') {
-            $activitiesQuery->whereHas('deal', function ($q) use ($userId, $viewDealPermission, $dealRules) {
-                PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
-            });
-        }
+        $activitiesQuery->whereHas('deal', function ($q) use ($dealsConstraint) {
+            $dealsConstraint($q);
+        });
 
         $stats = [
             'total_tasks' => $totalTasksQuery->count(),
