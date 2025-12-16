@@ -107,8 +107,9 @@ class ResolveCommunicationActivityJob implements ShouldQueue
                 $activity->save();
                 
                 // Only send email for outbound activities (user-initiated emails)
+                // Inbound emails can also have deal_id set by the resolver, so we must check direction explicitly
                 $direction = $activity->metadata['direction'] ?? null;
-                $isOutbound = $direction === 'outbound' || !empty($activity->deal_id); // If deal_id is set, it's likely outbound from modal
+                $isOutbound = $direction === 'outbound';
                 
                 if ($isOutbound && $activity->channel_type === 'email') {
                     $this->sendResolvedEmail($activity);

@@ -29,13 +29,14 @@ class UpdateRequest extends CoreRequest
     {
         $detailID = EmployeeDetails::where('user_id', $this->route('employee'))->first();
         $setting = company();
+
         
         // Build employee_id unique rule - if detailID exists, ignore it; otherwise check uniqueness
         $employeeIdRule = 'required|max:50|unique:employee_details,employee_id';
         if ($detailID) {
             $employeeIdRule .= ',' . $detailID->id . ',id,company_id,' . company()->id;
         } else {
-            $employeeIdRule .= ',NULL,id,company_id,' . company()->id;
+            $employeeIdRule .= ',null,id,company_id,' . company()->id;
         }
         
         $rules = [
