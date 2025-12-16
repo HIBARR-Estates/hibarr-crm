@@ -873,6 +873,10 @@ class BitrixImportController extends Controller
             $lead->mobile = $phone !== '' ? $phone : null;
             $lead->address = Arr::get($contactData, 'address');
             $lead->note = Arr::get($contactData, 'comments');
+            $gender = Arr::get($contactData, 'gender');
+            if ($gender && in_array($gender, ['male', 'female'])) {
+                $lead->gender = $gender;
+            }
             // Set type from payload or default to customer
             $type = strtolower(trim((string) Arr::get($contactData, 'type', 'customer')));
             $lead->type = in_array($type, ['agent', 'customer']) ? $type : 'customer';
@@ -899,6 +903,10 @@ class BitrixImportController extends Controller
             }
             if ($phone !== '' && $lead->mobile !== $phone) {
                 $lead->mobile = $phone;
+            }
+            $gender = Arr::get($contactData, 'gender');
+            if ($gender && in_array($gender, ['male', 'female'])) {
+                $lead->gender = $gender;
             }
             $lead->address = Arr::get($contactData, 'address', $lead->address);
             $lead->note = $this->combineNotes($lead->note, Arr::get($contactData, 'comments'));

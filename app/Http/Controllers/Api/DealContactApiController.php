@@ -317,6 +317,7 @@ class DealContactApiController extends Controller
                     $contact->client_name = $request->name;
                     $contact->client_email = $request->email;
                     $contact->mobile = $request->phone;
+                    $contact->gender = $request->gender;
                     
                     // Set source_id if provided (must be valid lead_source_id)
                     if ($request->has('lead_source_id') && !empty($request->lead_source_id)) {
@@ -339,6 +340,10 @@ class DealContactApiController extends Controller
                     }
                     if ($request->has('phone') && !empty($request->phone) && $existingContact->mobile !== $request->phone) {
                         $existingContact->mobile = $request->phone;
+                        $updated = true;
+                    }
+                    if ($request->has('gender') && $existingContact->gender !== $request->gender) {
+                        $existingContact->gender = $request->gender;
                         $updated = true;
                     }
                     // Update source_id if provided (must be valid lead_source_id)
@@ -406,6 +411,10 @@ class DealContactApiController extends Controller
                     $existingContact->mobile = $request->phone;
                     $updated = true;
                 }
+                if ($request->has('gender') && $existingContact->gender !== $request->gender) {
+                    $existingContact->gender = $request->gender;
+                    $updated = true;
+                }
                 // Update source_id if provided
                 $sourceId = $this->resolveSourceId($request, $companyId);
                 if ($sourceId && $existingContact->source_id !== $sourceId) {
@@ -433,6 +442,10 @@ class DealContactApiController extends Controller
                     $existingContact->mobile = $request->phone;
                     $updated = true;
                 }
+                if ($request->has('gender') && $existingContact->gender !== $request->gender) {
+                    $existingContact->gender = $request->gender;
+                    $updated = true;
+                }
                 // Update source_id if provided
                 $sourceId = $this->resolveSourceId($request, $companyId);
                 if ($sourceId && $existingContact->source_id !== $sourceId) {
@@ -452,6 +465,7 @@ class DealContactApiController extends Controller
         $contact->client_name = $request->name;
         $contact->client_email = $request->email;
         $contact->mobile = $request->phone;
+        $contact->gender = $request->gender;
         
         // Resolve and set source_id if provided
         $sourceId = $this->resolveSourceId($request, $companyId);

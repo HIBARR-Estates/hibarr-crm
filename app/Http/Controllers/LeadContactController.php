@@ -494,6 +494,7 @@ class LeadContactController extends AccountBaseController
         $leadContact = new Lead();
         $leadContact->company_id = company()->id;
         $leadContact->salutation = $request->salutation;
+        $leadContact->gender = $request->gender;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -663,6 +664,7 @@ class LeadContactController extends AccountBaseController
         }
 
         $leadContact->salutation = $request->salutation;
+        $leadContact->gender = $request->gender;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
