@@ -67,7 +67,7 @@ class CustomerCommunicationEmail extends Mailable
     public function build()
     {
         // Set locale
-        $locale = $this->company->locale ?? 'en';
+        $locale = $this->company?->locale ?? 'en';
         App::setLocale($locale);
         
         // Get company settings for logo and name
@@ -75,8 +75,9 @@ class CustomerCommunicationEmail extends Mailable
         
         // Use SMTP settings from database (loaded by SmtpConfigProvider)
         // The from address must match the SMTP username for relay to work
-        // Always use the configured email from env/config, not the sender's email
-        $fromEmail = config('mail.mailers.smtp.username') ?? config('mail.from.address') ?? env('MAIL_FROM_ADDRESS');
+        // Always use the configured email from config, not the sender's email
+        // Note: env() is not used here to ensure compatibility with config caching
+        $fromEmail = config('mail.mailers.smtp.username') ?? config('mail.from.address');
         $fromName = config('mail.from.name');
         
         // Override display name with company-specific settings if available
@@ -120,35 +121,22 @@ class CustomerCommunicationEmail extends Mailable
         $replyToName = $this->sender->name;
         
         // Get company details for template
-        $themeColor = $this->company->header_color ?? '#0056b3';
-        
-        // Determine URL and action text
-        $url = null;
-        $actionText = null;
-        
-        if ($this->activity && $this->activity->deal_id) {
-            $url = route('deals.show', $this->activity->deal_id);
-            $actionText = __('app.viewDealDetails') ?? 'View Deal Details';
-        } elseif ($this->activity && $this->activity->lead_id) {
-            $url = route('lead-contact.show', $this->activity->lead_id);
-            $actionText = __('app.viewContactDetails') ?? 'View Contact Details';
-        }
-        
-        // Apply domain-specific URL if needed
-        if ($url && $this->company) {
-            $url = getDomainSpecificUrl($url, $this->company);
-        }
+        $themeColor = $this->company?->header_color ?? '#0056b3';
         
         // Get logo and website URL
-        $logoUrl = $this->company->masked_logo_url ?? config('app.logo');
-        $websiteUrl = $this->company->website ?? url('/');
+        $logoUrl = $this->company?->masked_logo_url ?? config('app.logo');
+        $websiteUrl = $this->company?->website ?? url('/');
+        
+        // Sanitize email content to prevent XSS attacks
+        // Allow only safe HTML tags commonly used in email formatting
+        $sanitizedEmailContent = $this->sanitizeHtml($this->message);
         
         return $this->from($fromEmail, $senderName)
             ->replyTo($replyToEmail, $replyToName)
             ->subject($this->subject)
             ->view('mail.customer-communication', [
                 'customerName' => $customerName,
-                'emailContent' => $this->message,
+                'emailContent' => $sanitizedEmailContent,
                 'templateData' => $this->templateData,
                 'themeColor' => $themeColor,
                 'senderName' => $senderName,
@@ -205,6 +193,42 @@ class CustomerCommunicationEmail extends Mailable
         }
         
         return 'Customer';
+    }
+
+    /**
+     * Sanitize HTML content to prevent XSS attacks.
+     * Allows only safe HTML tags commonly used in email formatting.
+     *
+     * @param string $html
+     * @return string
+     */
+    private function sanitizeHtml(string $html): string
+    {
+        // Define allowed HTML tags for email content
+        // These are safe tags commonly used in email formatting
+        $allowedTags = '<p><br><strong><b><em><i><u><h1><h2><h3><h4><h5><h6>' .
+                      '<ul><ol><li><blockquote><a><span><div>' .
+                      '<table><thead><tbody><tr><td><th>';
+        
+        // Strip all tags except allowed ones
+        $sanitized = strip_tags($html, $allowedTags);
+        
+        // Additional security: Remove any javascript: or data: URLs from href/src attributes
+        // This is a basic check - for production, consider using a library like HTMLPurifier
+        $sanitized = preg_replace_callback(
+            '/(href|src)=["\']([^"\']*)["\']/i',
+            function ($matches) {
+                $url = $matches[2];
+                // Block javascript: and data: URLs
+                if (preg_match('/^(javascript|data):/i', $url)) {
+                    return $matches[1] . '="#"';
+                }
+                return $matches[0];
+            },
+            $sanitized
+        );
+        
+        return $sanitized;
     }
 
 }

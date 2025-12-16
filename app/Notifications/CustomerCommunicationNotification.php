@@ -161,17 +161,25 @@ class CustomerCommunicationNotification extends BaseNotification
             $url = getDomainSpecificUrl($url, $this->company);
         }
         
+        // Sanitize email content to prevent XSS attacks
+        $sanitizedEmailContent = $this->sanitizeHtml($this->emailContent);
+        
         $build
             ->subject($this->subject)
             ->markdown('mail.customer-communication', [
                 'customerName' => $customerName,
-                'emailContent' => $this->emailContent,
+                'emailContent' => $sanitizedEmailContent,
                 'templateData' => $this->templateData,
                 'url' => $url,
                 'actionText' => $actionText,
                 'themeColor' => $themeColor,
                 'senderName' => $senderName,
-                'companyName' => $companyName
+                'senderEmail' => $senderEmail,
+                'senderJobTitle' => $senderJobTitle,
+                'senderPhone' => $senderPhone,
+                'companyName' => $companyName,
+                'logoUrl' => $logoUrl,
+                'websiteUrl' => $websiteUrl,
             ]);
         
         parent::resetLocale();
@@ -207,6 +215,42 @@ class CustomerCommunicationNotification extends BaseNotification
             'lead_id' => $this->activity->lead_id,
             'subject' => $this->subject,
         ];
+    }
+
+    /**
+     * Sanitize HTML content to prevent XSS attacks.
+     * Allows only safe HTML tags commonly used in email formatting.
+     *
+     * @param string $html
+     * @return string
+     */
+    private function sanitizeHtml(string $html): string
+    {
+        // Define allowed HTML tags for email content
+        // These are safe tags commonly used in email formatting
+        $allowedTags = '<p><br><strong><b><em><i><u><h1><h2><h3><h4><h5><h6>' .
+                      '<ul><ol><li><blockquote><a><span><div>' .
+                      '<table><thead><tbody><tr><td><th>';
+        
+        // Strip all tags except allowed ones
+        $sanitized = strip_tags($html, $allowedTags);
+        
+        // Additional security: Remove any javascript: or data: URLs from href/src attributes
+        // This is a basic check - for production, consider using a library like HTMLPurifier
+        $sanitized = preg_replace_callback(
+            '/(href|src)=["\']([^"\']*)["\']/i',
+            function ($matches) {
+                $url = $matches[2];
+                // Block javascript: and data: URLs
+                if (preg_match('/^(javascript|data):/i', $url)) {
+                    return $matches[1] . '="#"';
+                }
+                return $matches[0];
+            },
+            $sanitized
+        );
+        
+        return $sanitized;
     }
 }
 

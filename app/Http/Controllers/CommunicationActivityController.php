@@ -305,12 +305,26 @@ class CommunicationActivityController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            // Log detailed error information for debugging (includes full stack trace)
             Log::error('Failed to send email to customer', [
-                'error' => $e->getMessage(),
-                'activity_id' => $activity->id ?? null
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'activity_id' => $activity->id ?? null,
+                'exception' => get_class($e),
             ]);
 
-            return Reply::error('Failed to send email: ' . $e->getMessage());
+            // Return generic error message to client (no sensitive details)
+            $errorMessage = 'Failed to send email. Please try again later.';
+            $errorData = [];
+            
+            // Include safe context like activity_id if available
+            if (isset($activity) && $activity->id) {
+                $errorData['activity_id'] = $activity->id;
+            }
+            
+            return Reply::error($errorMessage, null, $errorData);
         }
     }
     

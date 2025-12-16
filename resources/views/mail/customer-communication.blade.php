@@ -28,6 +28,8 @@
                             <p style="margin: 0 0 14px;">Dear {{ $customerName }},</p>
                             
                             @if (!empty($emailContent))
+                            {{-- Email content is sanitized in the Mailable to prevent XSS attacks --}}
+                            {{-- Only safe HTML tags are allowed (p, br, strong, em, a, etc.) --}}
                             <div style="margin: 0 0 15px;">
                                 {!! $emailContent !!}
                             </div>

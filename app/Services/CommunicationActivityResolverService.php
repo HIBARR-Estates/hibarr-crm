@@ -61,8 +61,9 @@ class CommunicationActivityResolverService
             if ($dealOrLead instanceof Deal) {
                 $activity->deal_id = $dealOrLead->id;
                 
-                // Also set lead_id from the deal if it exists
-                if ($dealOrLead->lead_id) {
+                // Also set lead_id from the deal if it exists and activity doesn't already have one
+                // This mirrors the logic at lines 45-47 to prevent overwriting an existing lead_id
+                if ($dealOrLead->lead_id && !$activity->lead_id) {
                     $activity->lead_id = $dealOrLead->lead_id;
                 }
                 
