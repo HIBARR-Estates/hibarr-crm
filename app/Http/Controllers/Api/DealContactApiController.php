@@ -317,7 +317,7 @@ class DealContactApiController extends Controller
                     $contact->client_name = $request->name;
                     $contact->client_email = $request->email;
                     $contact->mobile = $request->phone;
-                    $contact->gender = $request->gender;
+                        $contact->gender = $request->gender;
                     
                     // Set source_id if provided (must be valid lead_source_id)
                     if ($request->has('lead_source_id') && !empty($request->lead_source_id)) {
@@ -342,7 +342,7 @@ class DealContactApiController extends Controller
                         $existingContact->mobile = $request->phone;
                         $updated = true;
                     }
-                    if ($request->has('gender') && $existingContact->gender !== $request->gender) {
+                    if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
                         $existingContact->gender = $request->gender;
                         $updated = true;
                     }
@@ -411,7 +411,7 @@ class DealContactApiController extends Controller
                     $existingContact->mobile = $request->phone;
                     $updated = true;
                 }
-                if ($request->has('gender') && $existingContact->gender !== $request->gender) {
+                if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
                     $existingContact->gender = $request->gender;
                     $updated = true;
                 }
@@ -442,7 +442,7 @@ class DealContactApiController extends Controller
                     $existingContact->mobile = $request->phone;
                     $updated = true;
                 }
-                if ($request->has('gender') && $existingContact->gender !== $request->gender) {
+                if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
                     $existingContact->gender = $request->gender;
                     $updated = true;
                 }
