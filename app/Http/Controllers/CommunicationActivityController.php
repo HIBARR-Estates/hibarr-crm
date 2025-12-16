@@ -114,6 +114,21 @@ class CommunicationActivityController extends Controller
             if ($request->has('activity_id')) {
                 $activity = CommunicationActivity::find($request->activity_id);
                 
+                // If activity exists, ensure it has direction set to 'outbound' for email sending
+                if ($activity) {
+                    $metadata = $activity->metadata ?? [];
+                    if (!isset($metadata['direction']) || $metadata['direction'] !== 'outbound') {
+                        $metadata['direction'] = 'outbound';
+                        $activity->metadata = $metadata;
+                        $activity->save();
+                        $activity->refresh(); // Refresh to ensure metadata is saved
+                        
+                        Log::info('Updated existing activity metadata to set direction to outbound', [
+                            'activity_id' => $activity->id,
+                        ]);
+                    }
+                }
+                
                 // If activity exists, check if it has sender_info with a contact email
                 // The resolver may have found a LeadAgent based on this contact email
                 if ($activity && $activity->sender_info) {
@@ -169,6 +184,7 @@ class CommunicationActivityController extends Controller
                     ->where('email', $senderEmail)
                     ->where('company_id', $companyId)
                     ->first();
+                    
             }
             
             // Fallback to authenticated user if sender not provided in request
@@ -273,12 +289,31 @@ class CommunicationActivityController extends Controller
                     'company_id' => $companyId,
                     'resolution_status' => 'resolved',
                 ]);
+            } else {
+                // Ensure existing activity has direction set to 'outbound' for email sending
+                // This handles cases where the activity was created earlier without direction
+                $metadata = $activity->metadata ?? [];
+                if (!isset($metadata['direction']) || $metadata['direction'] !== 'outbound') {
+                    $metadata['direction'] = 'outbound';
+                    $activity->metadata = $metadata;
+                    $activity->save();
+                    
+                    Log::info('Updated existing activity metadata to set direction to outbound', [
+                        'activity_id' => $activity->id,
+                    ]);
+                }
             }
 
             // Get customer email
             $customerEmail = $dealOrLead instanceof Deal 
                 ? $dealOrLead->contact->client_email 
                 : $dealOrLead->client_email;
+
+            // Log email sending attempt (no sensitive info)
+            Log::info('Attempting to send email', [
+                'subject' => $request->subject,
+                'activity_id' => $activity->id,
+            ]);
 
             // Send the email using Mail facade
             Mail::to($customerEmail)->send(
@@ -291,6 +326,10 @@ class CommunicationActivityController extends Controller
                     $request->get('template_data', [])
                 )
             );
+
+            Log::info('Email sent successfully', [
+                'activity_id' => $activity->id,
+            ]);
 
             return Reply::successWithData('Email sent successfully to customer.', [
                 'activity_id' => $activity->id,
@@ -320,6 +359,4 @@ class CommunicationActivityController extends Controller
             return Reply::error($errorMessage, null, $errorData);
         }
     }
-    
-}
 }

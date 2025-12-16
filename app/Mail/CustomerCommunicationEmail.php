@@ -80,6 +80,15 @@ class CustomerCommunicationEmail extends Mailable
         $fromEmail = config('mail.mailers.smtp.username') ?? config('mail.from.address');
         $fromName = config('mail.from.name');
         
+        // Validate fromEmail is set
+        if (empty($fromEmail)) {
+            Log::error('Email from address is not configured', [
+                'smtp_username' => config('mail.mailers.smtp.username'),
+                'mail_from_address' => config('mail.from.address'),
+            ]);
+            throw new \Exception('Email from address is not configured. Please check SMTP settings.');
+        }
+        
         // Override display name with company-specific settings if available
         $companyName = $fromName;
         if ($this->company) {
@@ -131,6 +140,13 @@ class CustomerCommunicationEmail extends Mailable
         // Allow only safe HTML tags commonly used in email formatting
         $sanitizedEmailContent = $this->sanitizeHtml($this->message);
         
+        // Log email configuration for debugging (no sensitive info)
+        Log::info('Building CustomerCommunicationEmail', [
+            'subject' => $this->subject,
+        ]);
+        
+        // Use sender's name for the "from" name (the person who clicked send)
+        // The company name appears in the email body and template
         return $this->from($fromEmail, $senderName)
             ->replyTo($replyToEmail, $replyToName)
             ->subject($this->subject)

@@ -58,11 +58,10 @@ class CreateCommunicationActivityJob implements ShouldQueue
             $this->normalizedData['message_content'] = strip_tags($this->normalizedData['message_content']);
         }
         
-        // Store direction in metadata if provided
+        // Always store direction in metadata (use provided direction or default to 'inbound')
+        // This ensures ResolveCommunicationActivityJob can check direction correctly
         $metadata = $this->normalizedData['metadata'] ?? [];
-        if (isset($this->normalizedData['direction'])) {
-            $metadata['direction'] = $this->normalizedData['direction'];
-        }
+        $metadata['direction'] = $direction; // Always set direction, even if it's the default
         
         // Remove direction from normalizedData as it's not a database field
         $dataForCreation = $this->normalizedData;
@@ -74,6 +73,14 @@ class CreateCommunicationActivityJob implements ShouldQueue
             'resolution_attempts' => 0,
             'metadata' => $metadata,
         ]));
+        
+        // Log activity creation with direction for debugging
+        \Illuminate\Support\Facades\Log::info('CreateCommunicationActivityJob: Activity created', [
+            'activity_id' => $activity->id,
+            'direction' => $direction,
+            'metadata_direction' => $activity->metadata['direction'] ?? null,
+            'channel_type' => $activity->channel_type,
+        ]);
 
         // Save files if attached
         if (isset($this->normalizedData['files']) && is_array($this->normalizedData['files'])) {

@@ -106,10 +106,21 @@ class ResolveCommunicationActivityJob implements ShouldQueue
                 $activity->resolution_status = ResolutionStatus::Resolved->value;
                 $activity->save();
                 
+                // Refresh activity to ensure we have the latest metadata (including direction)
+                $activity->refresh();
+                
                 // Only send email for outbound activities (user-initiated emails)
                 // Inbound emails can also have deal_id set by the resolver, so we must check direction explicitly
                 $direction = $activity->metadata['direction'] ?? null;
                 $isOutbound = $direction === 'outbound';
+                
+                Log::info('ResolveCommunicationActivityJob: Checking if email should be sent', [
+                    'activity_id' => $activity->id,
+                    'direction' => $direction,
+                    'is_outbound' => $isOutbound,
+                    'channel_type' => $activity->channel_type,
+                    'will_send_email' => ($isOutbound && $activity->channel_type === 'email'),
+                ]);
                 
                 if ($isOutbound && $activity->channel_type === 'email') {
                     $this->sendResolvedEmail($activity);
@@ -283,6 +294,13 @@ class ResolveCommunicationActivityJob implements ShouldQueue
             $subject = $activity->subject ?? __('email.communicationActivity.resolved.subject', ['name' => config('app.name')]);
             $emailContent = (string) ($activity->message_content ?? __('email.communicationActivity.resolved.message'));
             
+            // Log email sending attempt (no sensitive info)
+            Log::info('ResolveCommunicationActivityJob: Attempting to send email', [
+                'activity_id' => $activity->id,
+                'subject' => $subject,
+                'direction' => $activity->metadata['direction'] ?? null,
+            ]);
+            
             // Send the email using Mail facade
             Mail::to($customerEmail)->send(
                 new CustomerCommunicationEmail(
@@ -295,10 +313,18 @@ class ResolveCommunicationActivityJob implements ShouldQueue
                 )
             );
             
-        } catch (\Exception $e) {
-            Log::error('Failed to send email template after activity resolution', [
+            Log::info('ResolveCommunicationActivityJob: Email sent successfully', [
                 'activity_id' => $activity->id,
-                'error' => $e->getMessage()
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('ResolveCommunicationActivityJob: Failed to send email template after activity resolution', [
+                'activity_id' => $activity->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'exception' => get_class($e),
             ]);
             // Don't throw - email failure shouldn't break the resolution process
         }

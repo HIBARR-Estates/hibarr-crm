@@ -130,7 +130,7 @@ class CommunicationActivityResolverService
         $dealOrLead = null;
         switch ($activity->channel_type) {
             case 'email':
-                Log::info('Resolving email activity for email: ' . $activity->email);
+                Log::info('Resolving email activity');
                 if (empty($activity->email)) {
                     return null; // Cannot resolve without email
                 }
@@ -445,7 +445,7 @@ class CommunicationActivityResolverService
         $contactInfo = $senderInfo['contact'] ?? null;
         
         if (empty($contactInfo)) {
-            Log::info('No contact information found in sender_info: ' . json_encode($senderInfo));
+            Log::info('No contact information found in sender_info');
             return null;
         }
 
@@ -461,7 +461,7 @@ class CommunicationActivityResolverService
                     if (filter_var($contactInfo, FILTER_VALIDATE_EMAIL)) {
                         $user = User::where('email', $contactInfo)->first();
                     } else {
-                        Log::info('Invalid email format for contact: ' . $contactInfo);
+                        Log::info('Invalid email format for contact');
                     }
                     break;
                     
@@ -499,9 +499,14 @@ class CommunicationActivityResolverService
             $leadAgent = LeadAgent::where('user_id', $user->id)->first();
 
             if ($leadAgent) {
-                Log::info('Found LeadAgent ID: ' . $leadAgent->id . ' for user: ' . $user->name . ' (email: ' . $user->email . ')');
+                Log::info('Found LeadAgent', [
+                    'lead_agent_id' => $leadAgent->id,
+                    'user_id' => $user->id,
+                ]);
             } else {
-                Log::info('No active LeadAgent found for user: ' . $user->name . ' (ID: ' . $user->id . ')');
+                Log::info('No active LeadAgent found', [
+                    'user_id' => $user->id,
+                ]);
             }
 
             return $leadAgent;
