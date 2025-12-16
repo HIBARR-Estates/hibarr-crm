@@ -317,7 +317,7 @@ class DealContactApiController extends Controller
                     $contact->client_name = $request->name;
                     $contact->client_email = $request->email;
                     $contact->mobile = $request->phone;
-                        $contact->gender = $request->gender;
+                    $contact->gender = ($request->has('gender') && in_array($request->gender, ['male', 'female'])) ? $request->gender : null;
                     
                     // Set source_id if provided (must be valid lead_source_id)
                     if ($request->has('lead_source_id') && !empty($request->lead_source_id)) {
@@ -465,7 +465,7 @@ class DealContactApiController extends Controller
         $contact->client_name = $request->name;
         $contact->client_email = $request->email;
         $contact->mobile = $request->phone;
-        $contact->gender = $request->gender;
+        $contact->gender = ($request->has('gender') && in_array($request->gender, ['male', 'female'])) ? $request->gender : null;
         
         // Resolve and set source_id if provided
         $sourceId = $this->resolveSourceId($request, $companyId);
