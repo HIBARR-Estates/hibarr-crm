@@ -342,6 +342,14 @@ class LeadContactController extends AccountBaseController
         $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
         $projects = \App\Models\Project::all();
 
+        // Get task permissions
+        $taskPermissions = [
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
+            'view_tasks' => user()->permission('view_tasks'),
+        ];
+
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
             'fields' => $formData['customFields'],
@@ -356,6 +364,7 @@ class LeadContactController extends AccountBaseController
             'taskLabels' => $taskLabels,
             'taskBoardColumns' => $taskBoardColumns,
             'projects' => $projects,
+            'taskPermissions' => $taskPermissions,
         ], $formData, $dealFormData));
     }
 

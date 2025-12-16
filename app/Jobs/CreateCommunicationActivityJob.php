@@ -51,15 +51,28 @@ class CreateCommunicationActivityJob implements ShouldQueue
             }
         }
 
-        // Normalize email content (strip HTML if email)
-        if ($this->normalizedData['channel_type'] === 'email') {
+        // Normalize email content (strip HTML only for inbound emails)
+        // Preserve HTML for outbound emails from the rich text editor
+        $direction = $this->normalizedData['direction'] ?? 'inbound';
+        if ($this->normalizedData['channel_type'] === 'email' && $direction === 'inbound') {
             $this->normalizedData['message_content'] = strip_tags($this->normalizedData['message_content']);
         }
+        
+        // Store direction in metadata if provided
+        $metadata = $this->normalizedData['metadata'] ?? [];
+        if (isset($this->normalizedData['direction'])) {
+            $metadata['direction'] = $this->normalizedData['direction'];
+        }
+        
+        // Remove direction from normalizedData as it's not a database field
+        $dataForCreation = $this->normalizedData;
+        unset($dataForCreation['direction']);
+        
         // Always save as "pending" unresolved log
-        $activity = CommunicationActivity::create(array_merge($this->normalizedData, [
+        $activity = CommunicationActivity::create(array_merge($dataForCreation, [
             'resolution_status'   => ResolutionStatus::Pending->value,
             'resolution_attempts' => 0,
-
+            'metadata' => $metadata,
         ]));
 
         // Save files if attached

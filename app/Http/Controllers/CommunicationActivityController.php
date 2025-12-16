@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use Log;
+use Illuminate\Support\Facades\Log;
 use App\Helper\Reply;
 use App\Models\CommunicationActivity;
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use App\Http\Requests\CommunicationActivity\StoreRequest;
+use App\Http\Requests\CommunicationActivity\SendEmailRequest;
 use App\Jobs\CreateCommunicationActivityJob;
+use App\Mail\CustomerCommunicationEmail;
 
 class CommunicationActivityController extends Controller
 {
@@ -85,6 +89,229 @@ class CommunicationActivityController extends Controller
         return Reply::successWithData(__('messages.communicationActivitiesByChannel'), [
             'data' => $activities
         ]);
+    }
+
+    /**
+     * Send a templated email to a customer from the authenticated user.
+     * 
+     * @param SendEmailRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function sendEmailToCustomer(SendEmailRequest $request)
+    {
+        try {
+            $companyId = $request->header('X-COMPANY-ID');
+            
+            if (!$companyId) {
+                return Reply::error(__('messages.missingCompanyId'));
+            }
+            
+            // PRIORITY 1: Check if there's an existing activity with sender_info
+            // The resolver may have found a LeadAgent based on the activity's sender_info contact email
+            $sender = null;
+            $activity = null;
+            
+            if ($request->has('activity_id')) {
+                $activity = CommunicationActivity::find($request->activity_id);
+                
+                // If activity exists, check if it has sender_info with a contact email
+                // The resolver may have found a LeadAgent based on this contact email
+                if ($activity && $activity->sender_info) {
+                    $activitySenderInfo = $activity->sender_info;
+                    $activityContactEmail = $activitySenderInfo['contact'] ?? $activitySenderInfo['email'] ?? null;
+                    
+                    if ($activityContactEmail) {
+                        // Find the User by the contact email
+                        $userFromContact = User::where('email', $activityContactEmail)
+                            ->where('company_id', $companyId)
+                            ->first();
+                        
+                        if ($userFromContact) {
+                            // Find the LeadAgent for this user
+                            $leadAgentFromContact = \App\Models\LeadAgent::where('user_id', $userFromContact->id)->first();
+                            
+                            if ($leadAgentFromContact && $leadAgentFromContact->user) {
+                                $sender = User::with('employeeDetail.designation')
+                                    ->where('id', $leadAgentFromContact->user->id)
+                                    ->first();
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Get the sender (the person clicking send)
+            // For internal API routes, check if sender_id or sender_email is provided in the request
+            // This allows the frontend to specify who is actually sending the email
+            // Only do this if we haven't already found a sender from the activity
+            
+            // Check multiple possible field names for sender information
+            $senderId = $request->get('sender_id') 
+                ?? $request->get('user_id') 
+                ?? $request->get('from_user_id')
+                ?? null;
+                
+            $senderEmail = $request->get('sender_email')
+                ?? $request->get('user_email')
+                ?? $request->get('from_email')
+                ?? $request->get('from')
+                ?? null;
+            
+            if ($senderId) {
+                // Get sender by ID
+                $sender = User::with('employeeDetail.designation')
+                    ->where('id', $senderId)
+                    ->where('company_id', $companyId)
+                    ->first();
+            } elseif ($senderEmail) {
+                // Get sender by email
+                $sender = User::with('employeeDetail.designation')
+                    ->where('email', $senderEmail)
+                    ->where('company_id', $companyId)
+                    ->first();
+            }
+            
+            // Fallback to authenticated user if sender not provided in request
+            if (!$sender) {
+                // Clear session cache first to ensure we get the current user
+                if (session()->has('user')) {
+                    session()->forget('user');
+                }
+                
+                // Get fresh authenticated user
+                $authenticatedUser = auth()->user();
+                
+                // Fallback to user() helper if auth()->user() is null (for web routes)
+                if (!$authenticatedUser) {
+                    $authenticatedUser = user();
+                }
+                
+                if (!$authenticatedUser || !($authenticatedUser instanceof \App\Models\User)) {
+                    return Reply::error('User not authenticated. Please provide sender_id or sender_email in the request.');
+                }
+                
+                // Always reload the user with relationships to ensure we have fresh data
+                $sender = User::with('employeeDetail.designation')
+                    ->where('id', $authenticatedUser->id)
+                    ->first();
+            }
+            
+            if (!$sender) {
+                return Reply::error('Sender user not found.');
+            }
+            
+            // Ensure we have the name attribute - check both name and email
+            if (empty($sender->name) && empty($sender->email)) {
+                return Reply::error('User name and email are missing.');
+            }
+
+            // Get deal or lead
+            $dealOrLead = null;
+
+            if ($request->has('deal_id')) {
+                $dealOrLead = Deal::with('contact', 'leadAgent.user.employeeDetail.designation')->where('company_id', $companyId)
+                    ->findOrFail($request->deal_id);
+                
+                // Refresh deal to get latest agent_id if resolver just set it
+                $dealOrLead->refresh();
+                
+                if (!$dealOrLead->contact || !$dealOrLead->contact->client_email) {
+                    return Reply::error('Deal does not have a contact email address.');
+                }
+                
+                // PRIORITY: If deal has a LeadAgent that was found by the resolver, use that as the sender
+                // This overrides the authenticated user or request sender
+                if ($dealOrLead->agent_id) {
+                    // Try to get LeadAgent - first check if relationship is loaded
+                    $leadAgent = $dealOrLead->leadAgent;
+                    
+                    // If relationship not loaded or null, load it explicitly
+                    if (!$leadAgent) {
+                        $leadAgent = \App\Models\LeadAgent::with('user.employeeDetail.designation')->find($dealOrLead->agent_id);
+                    }
+                    
+                    if ($leadAgent && $leadAgent->user) {
+                        $sender = User::with('employeeDetail.designation')
+                            ->where('id', $leadAgent->user->id)
+                            ->first();
+                    }
+                }
+            } elseif ($request->has('lead_id')) {
+                $dealOrLead = Lead::with('leadAgent.user.employeeDetail.designation')->where('company_id', $companyId)
+                    ->findOrFail($request->lead_id);
+                
+                if (!$dealOrLead->client_email) {
+                    return Reply::error('Lead does not have an email address.');
+                }
+                
+                // If lead has a LeadAgent, use that as the sender
+                if ($dealOrLead->agent_id) {
+                    $leadAgent = \App\Models\LeadAgent::with('user.employeeDetail.designation')->find($dealOrLead->agent_id);
+                    if ($leadAgent && $leadAgent->user) {
+                        $sender = User::with('employeeDetail.designation')
+                            ->where('id', $leadAgent->user->id)
+                            ->first();
+                    }
+                }
+            } else {
+                return Reply::error('Either deal_id or lead_id is required.');
+            }
+
+
+            // Create a new communication activity record for this outgoing email
+            if (!$activity) {
+                $senderInfo = [
+                    'name' => $sender->name,
+                    'email' => $sender->email,
+                    'contact' => $sender->email,
+                ];
+                
+                $activity = CommunicationActivity::create([
+                    'deal_id' => $dealOrLead instanceof Deal ? $dealOrLead->id : null,
+                    'lead_id' => $dealOrLead instanceof Lead ? $dealOrLead->id : null,
+                    'channel_type' => 'email',
+                    'message_content' => $request->message,
+                    'subject' => $request->subject,
+                    'sender_info' => $senderInfo,
+                    'metadata' => [
+                        'direction' => 'outbound',
+                    ],
+                    'timestamp' => now(),
+                    'company_id' => $companyId,
+                    'resolution_status' => 'resolved',
+                ]);
+            }
+
+            // Get customer email
+            $customerEmail = $dealOrLead instanceof Deal 
+                ? $dealOrLead->contact->client_email 
+                : $dealOrLead->client_email;
+
+            // Send the email using Mail facade
+            Mail::to($customerEmail)->send(
+                new CustomerCommunicationEmail(
+                    $activity,
+                    $dealOrLead,
+                    $sender,
+                    $request->subject,
+                    $request->message,
+                    $request->get('template_data', [])
+                )
+            );
+
+            return Reply::successWithData('Email sent successfully to customer.', [
+                'activity_id' => $activity->id,
+                'customer_email' => $customerEmail,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send email to customer', [
+                'error' => $e->getMessage(),
+                'activity_id' => $activity->id ?? null
+            ]);
+
+            return Reply::error('Failed to send email: ' . $e->getMessage());
+        }
     }
     
 }

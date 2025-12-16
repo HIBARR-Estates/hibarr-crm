@@ -288,6 +288,14 @@ class PropertyController extends AccountBaseController
         $employees = User::allEmployees();
         $projects = \App\Models\Project::all();
 
+        // Get task permissions
+        $taskPermissions = [
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
+            'view_tasks' => user()->permission('view_tasks'),
+        ];
+
         if (request()->ajax()) {
             return Inertia::render('Properties/Show', [
                 'pageTitle' => $this->pageTitle,
@@ -299,6 +307,7 @@ class PropertyController extends AccountBaseController
                 'taskBoardColumns' => $taskBoardColumns,
                 'employees' => $employees,
                 'projects' => $projects,
+                'taskPermissions' => $taskPermissions,
             ]);
         }
 
@@ -312,6 +321,7 @@ class PropertyController extends AccountBaseController
             'taskBoardColumns' => $taskBoardColumns,
             'employees' => $employees,
             'projects' => $projects,
+            'taskPermissions' => $taskPermissions,
         ]);
     }
 
