@@ -173,27 +173,20 @@ class CommunicationActivityController extends Controller
             
             // Fallback to authenticated user if sender not provided in request
             if (!$sender) {
-                // Clear session cache first to ensure we get the current user
-                if (session()->has('user')) {
-                    session()->forget('user');
-                }
+                // Get authenticated user (try auth()->user() first, fallback to user() helper)
+                $authenticatedUser = auth()->user() ?? user();
                 
-                // Get fresh authenticated user
-                $authenticatedUser = auth()->user();
-                
-                // Fallback to user() helper if auth()->user() is null (for web routes)
-                if (!$authenticatedUser) {
-                    $authenticatedUser = user();
-                }
-                
+                // Validate it's a User instance
                 if (!$authenticatedUser || !($authenticatedUser instanceof \App\Models\User)) {
                     return Reply::error('User not authenticated. Please provide sender_id or sender_email in the request.');
                 }
                 
-                // Always reload the user with relationships to ensure we have fresh data
-                $sender = User::with('employeeDetail.designation')
-                    ->where('id', $authenticatedUser->id)
-                    ->first();
+                // Eager-load the relationship on the existing model instead of re-querying
+                if (!$authenticatedUser->relationLoaded('employeeDetail')) {
+                    $authenticatedUser->load('employeeDetail.designation');
+                }
+                
+                $sender = $authenticatedUser;
             }
             
             if (!$sender) {
@@ -328,4 +321,5 @@ class CommunicationActivityController extends Controller
         }
     }
     
+}
 }

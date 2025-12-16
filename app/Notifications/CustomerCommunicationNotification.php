@@ -44,9 +44,8 @@ class CustomerCommunicationNotification extends BaseNotification
         $this->templateData = $templateData;
         
         // Set company from deal/lead
-        if ($dealOrLead instanceof Deal) {
-            $this->company = $dealOrLead->company;
-        } elseif ($dealOrLead instanceof Lead) {
+        // Both Deal and Lead models have a company relationship
+        if ($dealOrLead instanceof Deal || $dealOrLead instanceof Lead) {
             $this->company = $dealOrLead->company;
         }
     }
