@@ -739,7 +739,7 @@ class HomeController extends Controller
         $leadContact->client_name = (request()->has('name') ? $request->name : '');
         $leadContact->client_email = (request()->has('email') ? $request->email : '');
         $leadContact->mobile = (request()->has('mobile') ? $request->mobile : '');
-        $leadContact->gender = (request()->has('gender') ? $request->gender : null);
+        $leadContact->gender = ($request->has('gender') && in_array($request->gender, ['male', 'female'])) ? $request->gender : null;
         $leadContact->city = (request()->has('city') ? $request->city : '');
         $leadContact->state = (request()->has('state') ? $request->state : '');
         $leadContact->country = (request()->has('country') ? $request->country : '');
