@@ -82,8 +82,6 @@ export default function MeetingTypeSelector({
                     />
                 )}
             </Space.Compact>
-
-          
         </>
     );
 }
