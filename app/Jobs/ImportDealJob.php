@@ -695,6 +695,7 @@ class ImportDealJob implements ShouldQueue
             'motivation' => 'motivation',
             'purchase_timeline' => 'purchase_timeline',
             'budget_range' => 'budget_range',
+            'message' => 'message',
             'strategy_meeting_booked' => 'strategy_meeting_booked',
             'downpayment_paid' => 'downpayment_paid',
             'inspection_trip_date' => 'inspection_trip_date',

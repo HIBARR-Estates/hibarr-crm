@@ -20,6 +20,7 @@ import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createDealFilterConfig } from "@/configs/dealFilterConfig";
 import { createDealSearchConfig } from "@/configs/searchConfigs";
+import PipelineSelector from "@/Features/Deals/PipelineSelector";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -88,18 +89,16 @@ const LeadBoardIndex = ({
     endDate,
     ...props
 }: LeadBoardIndexProps) => {
-    const [result, setResult] = useState(initialResult);
+    // Removed local state for result to rely on props directly
+    // const [result, setResult] = useState(initialResult);
 
     // Update result when props change (from Inertia navigation)
-    useEffect(() => {
-        setResult(initialResult);
-    }, [initialResult]);
+    // useEffect(() => {
+    //     setResult(initialResult);
+    // }, [initialResult]);
 
     const handleColumnsUpdate = (updatedColumns: BoardColumn[]) => {
-        setResult((prev) => ({
-            ...prev,
-            boardColumns: updatedColumns,
-        }));
+        // Empty as requested
     };
 
     // Memoize configs to prevent unnecessary re-renders and filter resets
@@ -170,19 +169,11 @@ const LeadBoardIndex = ({
     };
 
     const handleEditColumn = (columnId: number) => {
-        // Find the column in the result data
-        const column = result.boardColumns.find((col) => col.id === columnId);
-        if (column) {
-            handleColumnAction("edit", column);
-        }
+        // Empty as requested
     };
 
     const handleDeleteColumn = (columnId: number) => {
-        // Find the column in the result data
-        const column = result.boardColumns.find((col) => col.id === columnId);
-        if (column) {
-            handleColumnAction("delete", column);
-        }
+        // Empty as requested
     };
     const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
         ? Number((props as any).filters?.lead_pipeline_id)
@@ -224,21 +215,12 @@ const LeadBoardIndex = ({
 
                                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                                     <div className="flex items-center gap-4">
-                                        <h1 className="text-xl font-semibold text-gray-900">
-                                            {currentPipelineName}
-                                        </h1>
-
-                                        <Select
-                                            value={valueLeadPipelineId}
-                                            onChange={handlePipelineChange}
-                                            style={{ width: 200 }}
-                                            placeholder="Select Pipeline"
-                                            options={pipelines.map(
-                                                (pipeline) => ({
-                                                    value: pipeline.id,
-                                                    label: pipeline.name,
-                                                })
-                                            )}
+                                        <PipelineSelector
+                                            pipelines={pipelines}
+                                            currentPipelineId={
+                                                valueLeadPipelineId
+                                            }
+                                            onSelect={handlePipelineChange}
                                         />
 
                                         {(addLeadPermission === "all" ||
@@ -277,7 +259,7 @@ const LeadBoardIndex = ({
                             {/* Kanban Board */}
                             <div className="p-4">
                                 <KanbanBoard
-                                    columns={result.boardColumns}
+                                    columns={initialResult.boardColumns}
                                     addLeadPermission={addLeadPermission}
                                     onCreateDeal={handleCreateDeal}
                                     onEditDeal={handleEditDeal}

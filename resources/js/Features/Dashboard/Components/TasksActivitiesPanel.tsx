@@ -212,13 +212,15 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
             >
                 <Card
                     size="small"
-                    className={`transition-all duration-200 hover:shadow-md ${isTaskOverdue
-                        ? "border-red-200 bg-red-50"
-                        : isTaskToday
+                    className={`${
+                        isTaskOverdue
+                            ? "border-red-200 bg-red-50"
+                            : isTaskToday
                             ? "border-amber-200 bg-amber-50"
                             : "border-gray-200 hover:border-blue-300"
-                        }`}
+                    }`}
                     loading={isProcessing}
+                    variant="outlined"
                 >
                     <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0 space-y-2">
@@ -247,14 +249,20 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                 )}
                             </div>
 
-                            {(task.due_date || task.project || (task.users && task.users.length > 0)) && (
+                            {(task.due_date ||
+                                task.project ||
+                                (task.users && task.users.length > 0)) && (
                                 <div className="flex items-center gap-x-4 text-sm text-gray-600">
                                     {task.due_date && (
                                         <span className="flex items-center">
                                             <CalendarOutlined className="mr-1" />
-                                            {dayjs(task.due_date).format("MMM DD")}
+                                            {dayjs(task.due_date).format(
+                                                "MMM DD"
+                                            )}
                                             <span className="ml-1 text-gray-500">
-                                                ({dayjs(task.due_date).fromNow()})
+                                                (
+                                                {dayjs(task.due_date).fromNow()}
+                                                )
                                             </span>
                                         </span>
                                     )}
@@ -269,7 +277,10 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                     {task.users && task.users.length > 0 && (
                                         <div className="flex items-center">
                                             <UserOutlined className="mr-1" />
-                                            <Avatar.Group size="small" maxCount={3}>
+                                            <Avatar.Group
+                                                size="small"
+                                                maxCount={3}
+                                            >
                                                 {task.users.map((user) => (
                                                     <Tooltip
                                                         key={user.id}
@@ -278,7 +289,9 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                                         <Avatar
                                                             size="small"
                                                             src={user.image}
-                                                            icon={<UserOutlined />}
+                                                            icon={
+                                                                <UserOutlined />
+                                                            }
                                                         >
                                                             {!user.image &&
                                                                 user.name?.charAt(
@@ -336,10 +349,10 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     const completionRate =
         tasks.length > 0
             ? Math.round(
-                (tasks.filter((t) => t.status === "completed").length /
-                    tasks.length) *
-                100
-            )
+                  (tasks.filter((t) => t.status === "completed").length /
+                      tasks.length) *
+                      100
+              )
             : 0;
 
     return (
@@ -359,11 +372,14 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                     format={(percent) => `${percent}% Complete`}
                                 />
                             </div>
-                            <Tag color="blue" className="!m-0">{allTasks.length} tasks</Tag>
+                            <Tag color="blue" className="!m-0">
+                                {allTasks.length} tasks
+                            </Tag>
                         </div>
                     </div>
                 }
                 className="h-full"
+                variant="outlined"
             >
                 <div className="max-h-96 overflow-y-auto">
                     {overdueTasks.length > 0 && (

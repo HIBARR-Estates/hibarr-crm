@@ -38,6 +38,10 @@ use App\Events\TaskEvent;
 use App\Helper\UserService;
 use App\Models\ClientContact;
 use App\Services\PermissionService;
+use App\Models\Deal;
+use App\Models\Lead;
+use App\Models\Property;
+use Inertia\Inertia;
 
 class TaskController extends AccountBaseController
 {
@@ -69,7 +73,10 @@ class TaskController extends AccountBaseController
             'users:id,name,image', 
             'category:id,category_name', 
             'labels', 
-            'boardColumn:id,column_name,slug,label_color'
+            'boardColumn:id,column_name,slug,label_color',
+            'deals',
+            'leads',
+            'properties'
         ]);
 
         // Apply permission-based filtering
@@ -209,6 +216,25 @@ class TaskController extends AccountBaseController
                 'created_at' => $task->created_at->toISOString(),
                 'updated_at' => $task->updated_at->toISOString(),
                 'added_by' => $task->added_by,
+                'deals' => $task->deals->map(function ($deal) {
+                    return [
+                        'id' => $deal->id,
+                        'name' => $deal->name,
+                    ];
+                })->toArray(),
+                'leads' => $task->leads->map(function ($lead) {
+                    return [
+                        'id' => $lead->id,
+                        'client_name' => $lead->client_name,
+                        'company_name' => $lead->company_name,
+                    ];
+                })->toArray(),
+                'properties' => $task->properties->map(function ($property) {
+                    return [
+                        'id' => $property->id,
+                        'title' => $property->title,
+                    ];
+                })->toArray(),
             ];
         });
 
@@ -255,6 +281,10 @@ class TaskController extends AccountBaseController
             ];
         });
 
+        $deals = Deal::select('id', 'name')->get();
+        $leads = Lead::select('id', 'client_name', 'company_name')->get();
+        $properties = Property::select('id', 'title')->get();
+
         // Get user permissions
         $permissions = [
             'add_tasks' => user()->permission('add_tasks'),
@@ -276,13 +306,16 @@ class TaskController extends AccountBaseController
             'search' => request('search'),
         ];
 
-        return inertia('Tasks/Index', [
+        return Inertia::render('Tasks/Index', [
             'tasks' => $tasks,
             'categories' => $categories,
             'labels' => $labels,
             'columns' => $taskBoardColumns,
             'users' => $employees,
             'projects' => $projects,
+            'deals' => $deals,
+            'leads' => $leads,
+            'properties' => $properties,
             'filters' => $filters,
             'permissions' => $permissions,
         ]);
@@ -448,6 +481,24 @@ class TaskController extends AccountBaseController
         $task->save();
 
         return Reply::success(__('messages.updateSuccess'));
+    }
+
+    public function storeDefaultTask(Request $request, $dealId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $this->addPermission = user()->permission('add_tasks');
+        abort_403(!in_array($this->addPermission, ['all', 'added']));
+
+        $taskType = $request->task_type;
+        
+        $dealTaskService = new \App\Services\DealTaskService();
+        $task = $dealTaskService->createTaskByType($deal, $taskType);
+
+        if (!$task) {
+            return Reply::error('Invalid task type');
+        }
+
+        return Reply::success(__('messages.taskCreatedSuccessfully'));
     }
 
     public function destroy(Request $request, $id)
@@ -800,13 +851,13 @@ class TaskController extends AccountBaseController
             unset($request->project_id);
             $html = $this->create();
 
-            return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true, 'taskID' => $task->id]);
+            return Reply::successWithData(__('messages.taskSaved'), ['html' => $html, 'add_more' => true, 'taskID' => $task->id]);
         }
 
         if ($request->page_name && $request->page_name == 'ganttChart') {
 
             return Reply::successWithData(
-                'messages.recordSaved',
+                'messages.taskSaved',
                 [
                     'tasks' => $ganttTaskArray,
                     'links' => $gantTaskLinkArray
@@ -820,7 +871,7 @@ class TaskController extends AccountBaseController
             $redirectUrl = route('tasks.index');
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
+        return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
 
     }
 
@@ -1063,7 +1114,7 @@ class TaskController extends AccountBaseController
             }
         }
 
-        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('tasks.show', $id)]);
+        return Reply::successWithData(__('messages.taskUpdateSuccess'), ['redirectUrl' => route('tasks.show', $id)]);
     }
 
     /**

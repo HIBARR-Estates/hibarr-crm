@@ -19,13 +19,31 @@ RSYNC_EXCLUDES := \
     --exclude 'public/mix-manifest.json'
 
 # ------------------------------------
-# Generic tasks
+# Branch management helpers
 # ------------------------------------
+
+checkout-branch:
+	@echo "Switching to branch: $(BRANCH)"
+	git fetch origin
+	git checkout -f $(BRANCH) || git checkout -b $(BRANCH) origin/$(BRANCH)
+	git clean -fd
+
+reset-and-pull:
+	@echo "Resetting and pulling latest changes from $(BRANCH)"
+	git fetch origin
+	git reset --hard origin/$(BRANCH)
+	git clean -fd
 
 reset-repo:
 	git restore --staged .
 	git restore .
 	git clean -fd
+
+
+
+# ------------------------------------
+# Generic tasks
+# ------------------------------------
 
 sync-to-webroot:
 	rsync -av $(RSYNC_EXCLUDES) ./ $(WEBROOT)
@@ -59,11 +77,9 @@ deploy-staging:
 	$(MAKE) queue-restart
 
 deploy-production:
-	cd $(PROJECT_DIR) && \
-	$(MAKE) reset-repo && \
-	git pull origin main && \
-	$(MAKE) sync-to-webroot && \
 	cd $(WEBROOT) && \
+	$(MAKE) checkout-branch BRANCH=main && \
+	$(MAKE) reset-and-pull BRANCH=main && \
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
 	$(MAKE) migrate && \

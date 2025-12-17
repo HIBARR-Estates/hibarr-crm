@@ -143,6 +143,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 })) || [],
         },
     ],
+    excludeFields: props.excludeFields,
     defaultValues: {},
 });
 

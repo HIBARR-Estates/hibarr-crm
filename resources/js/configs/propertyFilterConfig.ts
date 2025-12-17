@@ -8,7 +8,7 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             key: "search",
             label: "Search",
             type: "text",
-            placeholder: "Search properties by title, area, description...",
+            placeholder: "Search properties by title, area, description ...",
             section: "Search & General",
             span: 24,
         },
@@ -117,6 +117,7 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             span: 24,
         },
     ],
+    excludeFields: props.excludeFields,
     defaultValues: {},
 });
 

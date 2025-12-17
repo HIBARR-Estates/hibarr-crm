@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Input } from "antd";
 import { useFilter } from "@/contexts/FilterContext";
 import { router } from "@inertiajs/react";
+import { useDebounce } from "@/Hooks/useDebounce";
 
 interface UniversalSearchBoxProps {
     placeholder?: string;
@@ -29,25 +30,74 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
         return filters.search || "";
     });
 
-    // Sync local value with filter context
-    useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlSearch = urlParams.get("search");
+    // Reduced to 400ms for reasonable typing speed
+    const debouncedValue = useDebounce(localValue, 700);
 
-        if (filters.search !== undefined) {
-            setLocalValue(filters.search);
-        } else if (urlSearch) {
-            setLocalValue(urlSearch);
-        } else {
-            setLocalValue("");
+    // Track if we're currently syncing to prevent loops
+    const isSyncingRef = useRef(false);
+    const lastSearchedValue = useRef(filters.search || "");
+
+    // Sync with URL parameters (handles browser back/forward)
+    useEffect(() => {
+        const syncFromUrl = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlSearch = urlParams.get("search") || "";
+
+            if (!isSyncingRef.current && localValue !== urlSearch) {
+                setLocalValue(urlSearch);
+                setFilter("search", urlSearch);
+                lastSearchedValue.current = urlSearch;
+            }
+        };
+
+        // Listen for popstate (back/forward navigation)
+        window.addEventListener("popstate", syncFromUrl);
+
+        return () => {
+            window.removeEventListener("popstate", syncFromUrl);
+        };
+    }, [localValue, setFilter]);
+
+    // Sync local value with filter context changes
+    useEffect(() => {
+        // Only sync if config is loaded and matches current page
+        let isConfigForCurrentPage = false;
+        if (config) {
+            try {
+                const routeUrl = route(config.routeName);
+                const configPath = routeUrl.startsWith("http")
+                    ? new URL(routeUrl).pathname
+                    : new URL(routeUrl, window.location.origin).pathname;
+
+                // Normalize paths (remove trailing slashes)
+                const currentPath = window.location.pathname.replace(/\/$/, "");
+                const targetPath = configPath.replace(/\/$/, "");
+
+                isConfigForCurrentPage = currentPath === targetPath;
+            } catch (e) {
+                // Fallback if route parsing fails
+                isConfigForCurrentPage = !!config;
+            }
         }
-    }, [filters.search]);
+
+        if (
+            isConfigForCurrentPage &&
+            !isSyncingRef.current &&
+            filters.search !== localValue
+        ) {
+            setLocalValue(filters.search || "");
+            lastSearchedValue.current = filters.search || "";
+        }
+    }, [filters.search, config]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLocalValue(e.target.value);
     };
 
-    const handleSearch = (value: string) => {
+    const performSearch = (value: string) => {
+        isSyncingRef.current = true;
+        lastSearchedValue.current = value;
+
         setFilter("search", value);
 
         if (config) {
@@ -58,38 +108,55 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
                 currentParams[key] = val;
             });
 
-            // Clean filters - remove empty values
-            const cleanFilters: Record<string, any> = {
+            // Merge params
+            const finalParams: Record<string, any> = {
+                ...currentParams,
                 ...filters,
                 search: value,
+                page: 1,
             };
 
             // Remove empty keys
-            Object.keys(cleanFilters).forEach((key) => {
+            Object.keys(finalParams).forEach((key) => {
                 if (
-                    cleanFilters[key] === null ||
-                    cleanFilters[key] === "" ||
-                    cleanFilters[key] === undefined
+                    finalParams[key] === null ||
+                    finalParams[key] === "" ||
+                    finalParams[key] === undefined
                 ) {
-                    delete cleanFilters[key];
+                    delete finalParams[key];
                 }
             });
-
-            // Merge
-            const finalParams = {
-                ...currentParams,
-                ...cleanFilters,
-                page: 1,
-            };
 
             router.get(route(config.routeName), finalParams, {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
+                onFinish: () => {
+                    isSyncingRef.current = false;
+                },
             });
+        } else {
+            isSyncingRef.current = false;
         }
 
         onSearch?.(value);
+    };
+
+    // Handle debounced search
+    useEffect(() => {
+        if (
+            !isSyncingRef.current &&
+            debouncedValue !== lastSearchedValue.current
+        ) {
+            performSearch(debouncedValue);
+        }
+    }, [debouncedValue]);
+
+    // Prevent manual search from firing (already handled by debounce)
+    const handleManualSearch = (value: string) => {
+        // Update local value immediately for instant feedback
+        setLocalValue(value);
+        // The debounce effect will handle the actual search
     };
 
     return (
@@ -98,7 +165,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
                 placeholder={placeholder || "Search..."}
                 value={localValue}
                 onChange={handleInputChange}
-                onSearch={handleSearch}
+                onSearch={handleManualSearch}
                 allowClear={allowClear}
                 disabled={disabled}
                 size={size}

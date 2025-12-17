@@ -27,6 +27,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
             // Required contact fields
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
+            'gender' => 'nullable|string|in:male,female',
             
             // Optional contact fields
             'phone' => 'nullable|string|max:50',

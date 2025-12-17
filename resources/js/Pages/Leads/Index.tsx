@@ -1,25 +1,22 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
 import { LEAD_TABLE_COLUMNS } from "@/Features/Leads/Columns";
-import BasicLeadFilterBox from "@/Features/Leads/Filter/BasicLeadFilterBox";
-import AdvancedLeadFilterForm from "@/Features/Leads/Filter/AdvancedLeadFilterForm";
+
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
 import ImportLeads from "@/Features/Leads/ImportLeads";
 import DeleteLead from "@/Features/Leads/DeleteLead";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
-import usePageFilter from "@/Hooks/usePageFilter";
+
 import usePageSort from "@/Hooks/usePageSort";
 import { Lead, LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PaginatedLeadResponse } from "@/Types/api/leads";
-import FilterDrawer from "@/Components/FilterDrawer";
-import ActiveFilters from "@/Components/ActiveFilters";
+
 import {
     UserOutlined,
     PlusOutlined,
-    DownloadOutlined,
     EditOutlined,
     EyeOutlined,
     DeleteOutlined,
@@ -81,6 +78,7 @@ const Index = ({
                 countries,
                 clientCategories,
                 languages,
+                excludeFields: ["search"],
             }),
         [sources, categories, employees, countries, clientCategories, languages]
     );
@@ -285,17 +283,7 @@ const Index = ({
             />
 
             {/* Universal Filter Drawer */}
-            <UniversalFilterDrawer
-                config={createLeadFilterConfig({
-                    sources,
-                    categories,
-                    employees,
-                    countries,
-                    clientCategories,
-                    languages,
-                    ...props,
-                })}
-            />
+            <UniversalFilterDrawer config={filterConfig} />
         </DashboardLayout>
     );
 };

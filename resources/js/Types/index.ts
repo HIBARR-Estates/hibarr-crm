@@ -230,12 +230,24 @@ export interface PropertyAssetManageProps extends PageProps {
 
 // Common Types
 
+export interface Role {
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
+}
+
 export interface User {
     id: number;
     company_id: number;
     name: string;
     email: string;
     image_url: string;
+    employee_detail?: {
+        designation?: {
+            name: string;
+        };
+    };
     modules?: string[];
     mobile_with_phone_code?: string;
     name_salutation?: string;
@@ -250,7 +262,7 @@ export interface User {
 
     dark_theme: boolean;
     designation: string;
-    roles: string[];
+    roles: Role[];
 }
 export interface FlashMessage {
     type: "success" | "error" | "info" | "warning";

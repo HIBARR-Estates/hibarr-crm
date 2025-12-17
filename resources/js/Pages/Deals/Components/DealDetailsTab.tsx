@@ -88,6 +88,9 @@ const DealDetailsTab: React.FC<Props> = ({ deal }) => {
                 <Descriptions.Item label="Sales Contract">
                     {fields.sales_contract || "--"}
                 </Descriptions.Item>
+                <Descriptions.Item label="Message">
+                    {fields?.message || "--"}
+                </Descriptions.Item>
             </Descriptions>
         </div>
     );

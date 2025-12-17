@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Lead } from "@/Types/api/leads";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import {
     Descriptions,
     Avatar,
@@ -233,6 +233,16 @@ export default function LeadInfoSection({
                                 )}
                         </Descriptions.Item>
 
+                        <Descriptions.Item label="Gender">
+                            {currentLead?.gender || lead.gender ? (
+                                <span className="capitalize">
+                                    {currentLead?.gender || lead.gender}
+                                </span>
+                            ) : (
+                                <span className="text-gray-500">--</span>
+                            )}
+                        </Descriptions.Item>
+
                         <Descriptions.Item label="Company">
                             {currentLead?.company_name || lead.company_name || (
                                 <span className="text-gray-500">--</span>
@@ -439,7 +449,10 @@ export default function LeadInfoSection({
 
             <DeleteLead
                 open={action === "delete"}
-                onClose={() => handleClose()}
+                onClose={() => {
+                    router.visit(route("lead-contact.index"));
+                    handleClose();
+                }}
                 lead={currentLead || lead}
             />
 

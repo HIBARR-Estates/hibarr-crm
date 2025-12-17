@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
+
 class DealContactApiController extends Controller
 {
     /**
@@ -149,12 +150,19 @@ class DealContactApiController extends Controller
         try {
             return DB::transaction(function () use ($request) {
                 $companyId = $request->header('X-COMPANY-ID');
+                $dealName = $request->input('deal_name') ?? null;
+                if (!$dealName) {
+                    $dealName = $request->input('name') ?? null;
+                }
  
                 if (!$companyId) {
                     return Reply::error(__('messages.missingCompanyId'));
                 }
                 $companyId = (int) $companyId;
-                $contactId = $this->resolveContact($request, $companyId);
+                $contactId = $request->input('lead_id') ?? null;
+                if (!$contactId) {
+                    $contactId = $this->resolveContact($request, $companyId);
+                }
                 
                 // Save UTM information if provided
                 $this->saveUtmInfo($contactId, $request);
@@ -201,7 +209,7 @@ class DealContactApiController extends Controller
                 $packageId = $this->resolvePackageId($request, $companyId);
 
                 // Update deal fields
-                $deal->name = $request->name;
+                $deal->name = $dealName;
                 $deal->lead_pipeline_id = $pipelineId;
                 $deal->pipeline_stage_id = $request->pipeline_stage_id ?? $firstStageId ?? $deal->pipeline_stage_id;
                 $deal->agent_id = $agentId ?? $deal->agent_id;
@@ -224,10 +232,7 @@ class DealContactApiController extends Controller
                 // Upsert Hibarr fields after deal is saved
                 $this->upsertHibarrFields($deal, $request);
                 
-                // Manually trigger notifications for agent or admins (only for new deals)
-                if ($isNewDeal) {
-                    $this->sendDealCreatedNotifications($deal);
-                }
+              
 
                 // Sync deal watchers after deal is saved
                 $dealWatchers = $request->input('deal_watcher', []);
@@ -244,6 +249,11 @@ class DealContactApiController extends Controller
                 // Handle meeting if provided
                 if ($request->has('meeting') && is_array($request->meeting)) {
                     $this->createMeeting($deal, $request->meeting, $companyId);
+                }
+
+                  // Manually trigger notifications for agent or admins (only for new deals)
+                  if ($isNewDeal) {
+                    $this->sendDealCreatedNotifications($deal);
                 }
 
                 return Reply::successWithData($isNewDeal ? 'Deal created successfully' : 'Deal updated successfully', [
@@ -307,6 +317,7 @@ class DealContactApiController extends Controller
                     $contact->client_name = $request->name;
                     $contact->client_email = $request->email;
                     $contact->mobile = $request->phone;
+                    $contact->gender = ($request->has('gender') && in_array($request->gender, ['male', 'female'])) ? $request->gender : null;
                     
                     // Set source_id if provided (must be valid lead_source_id)
                     if ($request->has('lead_source_id') && !empty($request->lead_source_id)) {
@@ -329,6 +340,10 @@ class DealContactApiController extends Controller
                     }
                     if ($request->has('phone') && !empty($request->phone) && $existingContact->mobile !== $request->phone) {
                         $existingContact->mobile = $request->phone;
+                        $updated = true;
+                    }
+                    if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
+                        $existingContact->gender = $request->gender;
                         $updated = true;
                     }
                     // Update source_id if provided (must be valid lead_source_id)
@@ -396,6 +411,10 @@ class DealContactApiController extends Controller
                     $existingContact->mobile = $request->phone;
                     $updated = true;
                 }
+                if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
+                    $existingContact->gender = $request->gender;
+                    $updated = true;
+                }
                 // Update source_id if provided
                 $sourceId = $this->resolveSourceId($request, $companyId);
                 if ($sourceId && $existingContact->source_id !== $sourceId) {
@@ -423,6 +442,10 @@ class DealContactApiController extends Controller
                     $existingContact->mobile = $request->phone;
                     $updated = true;
                 }
+                if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
+                    $existingContact->gender = $request->gender;
+                    $updated = true;
+                }
                 // Update source_id if provided
                 $sourceId = $this->resolveSourceId($request, $companyId);
                 if ($sourceId && $existingContact->source_id !== $sourceId) {
@@ -442,6 +465,7 @@ class DealContactApiController extends Controller
         $contact->client_name = $request->name;
         $contact->client_email = $request->email;
         $contact->mobile = $request->phone;
+        $contact->gender = ($request->has('gender') && in_array($request->gender, ['male', 'female'])) ? $request->gender : null;
         
         // Resolve and set source_id if provided
         $sourceId = $this->resolveSourceId($request, $companyId);
@@ -539,6 +563,18 @@ class DealContactApiController extends Controller
                 if (in_array($key, ['has_registered_for_the_webinar', 'has_joined_the_facebook_group', 
                     'has_downloaded_the_ebook', 'has_attended_the_webinar', 'registered_for_zoom_meeting'])) {
                     $marketingPayload[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+                } 
+                // Parse date fields properly
+                elseif ($key === 'last_webinar_date') {
+                    try {
+                        $marketingPayload[$key] = \Carbon\Carbon::parse($value);
+                    } catch (\Exception $e) {
+                        Log::warning('DealContactApi: Invalid last_webinar_date format', [
+                            'value' => $value,
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Skip invalid date instead of adding it
+                    }
                 } else {
                     $marketingPayload[$key] = $value;
                 }
@@ -684,6 +720,7 @@ class DealContactApiController extends Controller
         $hibarrFields = [
             'budget_range' => $request->input('customerBudget') ?? '',
             'motivation' => $request->input('motivation') ?? '',
+            'message' => $request->input('message') ?? '',
         ];
 
         HibarrDealFields::updateOrCreate(
@@ -699,7 +736,7 @@ class DealContactApiController extends Controller
      * @param int $companyId
      * @return int
      */
-    private function resolvePackageId(Request $request, int $companyId): int
+    private function resolvePackageId(Request $request, int $companyId): ?int
     {
         // First check if package_id is provided directly
         if ($request->has('package_id') && is_numeric($request->package_id)) {
@@ -717,7 +754,7 @@ class DealContactApiController extends Controller
             }
         }
 
-        return 1;
+        return null;
     }
 
     /**
@@ -811,7 +848,7 @@ class DealContactApiController extends Controller
     private function sendDealCreatedNotifications(Deal $deal): void
     {
         // Reload deal with relationships
-        $deal->load('leadAgent.user', 'company');
+        $deal->load('leadAgent.user', 'company', 'dealWatchers');
 
         if ($deal->agent_id && $deal->leadAgent && $deal->leadAgent->user) {
             // Notify the assigned agent
@@ -822,6 +859,11 @@ class DealContactApiController extends Controller
             if ($admins->isNotEmpty()) {
                 Notification::send($admins, new LeadAgentAssigned($deal));
             }
+        }
+
+        // Always notify deal watchers if they exist
+        if ($deal->dealWatchers->isNotEmpty()) {
+            Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
         }
     }
 }

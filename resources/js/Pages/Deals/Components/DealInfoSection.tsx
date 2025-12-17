@@ -1,5 +1,5 @@
 import { Deal } from "@/Types/api/deals";
-import { Link, usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Descriptions, Tag, Avatar, Tooltip, Tabs, Button, Space } from "antd";
 import {
     MailOutlined,
@@ -130,16 +130,16 @@ export default function DealInfoSection({
                             </span>
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Package">
-                            {deal.package?.name || "--"}
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Products">
+                        <Descriptions.Item label="Products" span={"filled"}>
                             {deal.products && deal.products.length > 0
                                 ? deal.products
                                       .map((p: any) => p.name)
                                       .join(", ")
                                 : "--"}
+                        </Descriptions.Item>
+
+                        <Descriptions.Item label="Package">
+                            {deal.package?.name || "--"}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Lead Contact">
@@ -218,7 +218,7 @@ export default function DealInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Deal Watchers">
+                        <Descriptions.Item label="Deal Watchers" span={2}>
                             {deal.deal_watchers &&
                             deal.deal_watchers.length > 0 ? (
                                 <MultiUserIndicator
@@ -270,7 +270,7 @@ export default function DealInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Properties" span={2}>
+                        <Descriptions.Item label="Properties" span={"filled"}>
                             {productNames.length > 0 ? (
                                 <div className="flex flex-wrap gap-1">
                                     {productNames.map((product, index) => (
@@ -332,7 +332,10 @@ export default function DealInfoSection({
 
             <DeleteDeal
                 open={action === "delete"}
-                onClose={() => handleClose()}
+                onClose={() => {
+                    router.visit(route("deals.index"));
+                    handleClose();
+                }}
                 deal={deal}
             />
             <div>

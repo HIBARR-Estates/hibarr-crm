@@ -159,6 +159,7 @@ export default function QuickActions2({ deal, permissions }: Props) {
                 size="small"
                 className="shadow-sm border-0 rounded-lg overflow-hidden"
                 bodyStyle={{ padding: "12px" }}
+                variant="outlined"
             >
                 <div className="flex items-center justify-between gap-2">
                     {/* Primary Actions - Horizontal Layout */}

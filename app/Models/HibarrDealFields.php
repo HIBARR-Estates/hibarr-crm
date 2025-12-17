@@ -15,6 +15,7 @@ class HibarrDealFields extends Model
         'motivation',
         'purchase_timeline',
         'budget_range',
+        'message',
         'strategy_meeting_booked',
         'downpayment_paid',
         'inspection_trip_date',

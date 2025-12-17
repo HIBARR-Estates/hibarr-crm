@@ -40,7 +40,7 @@ class HandleInertiaRequests extends Middleware
     {
         return array_merge(parent::share($request), [
             'auth' => fn () => [
-                'user' => auth()->user(),
+                'user' => auth()->user() ? auth()->user()->load(['roles', 'employeeDetail.designation']) : null,
             ],
             'default_currency_symbol' => fn () => $this->getDefaultCurrencySymbol(),
             'default_currency_code' => fn () => $this->getDefaultCurrencyCode(),

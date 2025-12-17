@@ -179,6 +179,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                             Task Details
                         </Space>
                     }
+                    variant="outlined"
                 >
                     <Row gutter={16}>
                         <Col span={24}>
@@ -229,6 +230,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                         </Space>
                     }
                     style={{ marginTop: 16 }}
+                    variant="outlined"
                 >
                     <Row gutter={16}>
                         <Col xs={24} sm={12}>
@@ -316,6 +318,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                         </Space>
                     }
                     style={{ marginTop: 16 }}
+                    variant="outlined"
                 >
                     <Row gutter={16}>
                         <Col xs={24} sm={8}>
@@ -385,6 +388,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                         </Space>
                     }
                     style={{ marginTop: 16 }}
+                    variant="outlined"
                 >
                     <Row gutter={16}>
                         <Col xs={24} sm={8}>
@@ -481,6 +485,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                         </Space>
                     }
                     style={{ marginTop: 16 }}
+                    variant="outlined"
                 >
                     <Row gutter={16}>
                         <Col xs={24} sm={8}>

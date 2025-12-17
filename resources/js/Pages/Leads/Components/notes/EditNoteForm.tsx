@@ -88,6 +88,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
     return (
         <div className="">
             <Card
+                variant="outlined"
                 className="shadow-sm border border-gray-200"
                 bodyStyle={{ padding: "32px" }}
             >

@@ -223,12 +223,12 @@ class PropertyController extends AccountBaseController
 
 
         if (request()->expectsJson()) {
-            return Reply::successWithData(__('messages.recordSaved'), ['property' => $property, 'redirectUrl' => route('properties.index')]);
+            return Reply::successWithData(__('messages.propertySaved'), ['property' => $property, 'redirectUrl' => route('properties.index')]);
         }
 
         return back()->with([
             'success' => true,
-            'message' => __('messages.recordSaved'),
+            'message' => __('messages.propertySaved'),
             'property' => $property,
             'redirectUrl' => route('properties.index')
         ]);
@@ -292,6 +292,14 @@ class PropertyController extends AccountBaseController
         $employees = User::allEmployees();
         $projects = \App\Models\Project::all();
 
+        // Get task permissions
+        $taskPermissions = [
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
+            'view_tasks' => user()->permission('view_tasks'),
+        ];
+
         if (request()->ajax()) {
             return Inertia::render('Properties/Show', [
                 'pageTitle' => $this->pageTitle,
@@ -303,6 +311,7 @@ class PropertyController extends AccountBaseController
                 'taskBoardColumns' => $taskBoardColumns,
                 'employees' => $employees,
                 'projects' => $projects,
+                'taskPermissions' => $taskPermissions,
             ]);
         }
 
@@ -316,6 +325,7 @@ class PropertyController extends AccountBaseController
             'taskBoardColumns' => $taskBoardColumns,
             'employees' => $employees,
             'projects' => $projects,
+            'taskPermissions' => $taskPermissions,
         ]);
     }
 
@@ -649,7 +659,7 @@ class PropertyController extends AccountBaseController
             
             return back()->with([
                 'success' => true,
-                'message' => __('messages.recordSaved'),
+                'message' => __('messages.propertySaved'),
                 'property' => $property,
                 'redirectUrl' => route('properties.index')
             ]);
@@ -684,7 +694,7 @@ class PropertyController extends AccountBaseController
             
             return back()->with([
                 'success' => true,
-                'message' => __('messages.recordSaved'),
+                'message' => __('messages.propertySaved'),
                 'property' => $property,
                 'redirectUrl' => route('properties.index')
             ]);

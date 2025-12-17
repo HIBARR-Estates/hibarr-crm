@@ -33,6 +33,7 @@ import { User } from "@/Types";
 import AddFollowup from "./Components/Tabs/followups/AddFollowup";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
 import { useMemo } from "react";
+import PipelineSelector from "@/Features/Deals/PipelineSelector";
 
 interface LeadAgent {
     id: number;
@@ -220,15 +221,10 @@ const Index = ({
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <Select
-                                value={valueLeadPipelineId}
-                                onChange={handlePipelineChange}
-                                style={{ width: 200 }}
-                                placeholder="Select Pipeline"
-                                options={pipelines?.map((pipeline) => ({
-                                    value: pipeline?.id,
-                                    label: pipeline?.name,
-                                }))}
+                            <PipelineSelector
+                                pipelines={pipelines}
+                                currentPipelineId={valueLeadPipelineId}
+                                onSelect={handlePipelineChange}
                             />
                             <Button
                                 type="primary"

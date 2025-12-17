@@ -27,10 +27,7 @@ class CommunicationActivityResolverService
         // Check for a LeadAgent that is a user matching the email of the sender_info
         // This can be found in $senderInfo['contact'] if available
         // once found we attach the agent to the deal
-        $leadAgentLocated = $this->findLeadAgentByContactDetails($senderInfo, $activity->channel_type);
-        if ($leadAgentLocated) {
-            Log::info('Located LeadAgent with ID: ' . $leadAgentLocated->id . ' for user: ' . $leadAgentLocated->user->name);
-        } 
+        $leadAgentLocated = $this->findLeadAgentByContactDetails($senderInfo, $activity->channel_type); 
 
 
         // General rule of thumb:
@@ -40,7 +37,17 @@ class CommunicationActivityResolverService
         // TODO: Still does require a bit of fine-tuning and testing with real data
         $dealOrLead = $this->findDealById($activity?->deal_id) ?? $this->findLeadById($activity?->lead_id);
         if($dealOrLead){
-            Log::info('Activity already linked to ' . ( $dealOrLead instanceof Deal ? 'Deal' : 'Lead') . ' ID: ' . $dealOrLead->id);
+            // If linked to a Deal, also set the lead_id from the deal
+            if ($dealOrLead instanceof Deal) {
+                // Refresh the deal to ensure we have the latest lead_id
+                $dealOrLead->refresh();
+                
+                if ($dealOrLead->lead_id && !$activity->lead_id) {
+                    $activity->lead_id = $dealOrLead->lead_id;
+                    $activity->save();
+                }
+            }
+            
             ProcessCommunicationActivityJob::dispatch($activity);
             
             return $activity; // Already linked
@@ -51,15 +58,19 @@ class CommunicationActivityResolverService
 
     
         if ($dealOrLead) {
-            Log::info('Resolved activity to ' . ( $dealOrLead instanceof Deal ? 'Deal' : 'Lead') . ' ID: ' . $dealOrLead->id);
             if ($dealOrLead instanceof Deal) {
                 $activity->deal_id = $dealOrLead->id;
+                
+                // Also set lead_id from the deal if it exists and activity doesn't already have one
+                // This mirrors the logic at lines 45-47 to prevent overwriting an existing lead_id
+                if ($dealOrLead->lead_id && !$activity->lead_id) {
+                    $activity->lead_id = $dealOrLead->lead_id;
+                }
                 
                 // Attach the located agent to the deal if found and deal doesn't have an agent
                 if ($leadAgentLocated && !$dealOrLead->agent_id) {
                     $dealOrLead->agent_id = $leadAgentLocated->id;
                     $dealOrLead->save();
-                    Log::info('Attached LeadAgent ID: ' . $leadAgentLocated->id . ' to Deal ID: ' . $dealOrLead->id);
                 }
             } elseif ($dealOrLead instanceof Lead) {
                 $activity->lead_id = $dealOrLead->id;
@@ -71,7 +82,6 @@ class CommunicationActivityResolverService
             ProcessCommunicationActivityJob::dispatch($activity);
             
         }else{
-            Log::info('No matching Deal or Lead found for activity ID: ' . $activity->id);
             $company = $activity->company;
             $clientName = trim(($activity->first_name ?? '') . ' ' . ($activity->last_name ?? ''));
             
@@ -82,7 +92,6 @@ class CommunicationActivityResolverService
                 
                 if (is_array($senderInfo) && isset($senderInfo['name']) && !empty($senderInfo['name'])) {
                     $clientName = trim($senderInfo['name']);
-                    Log::info('Extracted client name from sender_info: ' . $clientName);
                 }
             }
             // If no deal or lead found, consider creating a new Lead if sufficient info is available
@@ -100,7 +109,6 @@ class CommunicationActivityResolverService
                 'lead_owner' => $company?->default_lead_creator_id, // Optionally assign to a default owner
             ];
             $newLead = $this->createLead($newLeadData);
-            Log::info('Created new Lead with ID: ' . ($newLead ? $newLead->id : 'null'));
         
             if ($newLead) {
                 $activity->lead_id = $newLead->id;
@@ -122,7 +130,7 @@ class CommunicationActivityResolverService
         $dealOrLead = null;
         switch ($activity->channel_type) {
             case 'email':
-                Log::info('Resolving email activity for email: ' . $activity->email);
+                Log::info('Resolving email activity');
                 if (empty($activity->email)) {
                     return null; // Cannot resolve without email
                 }
@@ -437,7 +445,7 @@ class CommunicationActivityResolverService
         $contactInfo = $senderInfo['contact'] ?? null;
         
         if (empty($contactInfo)) {
-            Log::info('No contact information found in sender_info: ' . json_encode($senderInfo));
+            Log::info('No contact information found in sender_info');
             return null;
         }
 
@@ -453,7 +461,7 @@ class CommunicationActivityResolverService
                     if (filter_var($contactInfo, FILTER_VALIDATE_EMAIL)) {
                         $user = User::where('email', $contactInfo)->first();
                     } else {
-                        Log::info('Invalid email format for contact: ' . $contactInfo);
+                        Log::info('Invalid email format for contact');
                     }
                     break;
                     
@@ -491,9 +499,14 @@ class CommunicationActivityResolverService
             $leadAgent = LeadAgent::where('user_id', $user->id)->first();
 
             if ($leadAgent) {
-                Log::info('Found LeadAgent ID: ' . $leadAgent->id . ' for user: ' . $user->name . ' (email: ' . $user->email . ')');
+                Log::info('Found LeadAgent', [
+                    'lead_agent_id' => $leadAgent->id,
+                    'user_id' => $user->id,
+                ]);
             } else {
-                Log::info('No active LeadAgent found for user: ' . $user->name . ' (ID: ' . $user->id . ')');
+                Log::info('No active LeadAgent found', [
+                    'user_id' => $user->id,
+                ]);
             }
 
             return $leadAgent;

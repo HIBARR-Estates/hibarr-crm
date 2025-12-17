@@ -23,7 +23,7 @@ $addDepartmentPermission = user()->permission('add_department');
                         <div class="row">
                             <div class="col-md-2">
                                 <x-forms.text fieldId="employee_id" :fieldLabel="__('modules.employees.employeeId')"
-                                    fieldName="employee_id" :fieldValue="$employee->employeeDetail->employee_id"
+                                    fieldName="employee_id" :fieldValue="$employee->employeeDetail?->employee_id ?? ''"
                                     fieldRequired="true" :fieldPlaceholder="__('modules.employees.employeeIdInfo')" :popover="__('modules.employees.employeeIdHelp')">
                                 </x-forms.text>
                             </div>
@@ -79,7 +79,7 @@ $addDepartmentPermission = user()->permission('add_department');
                                         id="employee_designation" data-live-search="true">
                                         <option value="">--</option>
                                         @foreach ($designations as $designation)
-                                            <option @if ($employee->employeeDetail->designation_id == $designation->id) selected @endif value="{{ $designation->id }}">
+                                            <option @if ($employee->employeeDetail?->designation_id == $designation->id) selected @endif value="{{ $designation->id }}">
                                                 {{ $designation->name }}</option>
                                         @endforeach
                                     </select>
@@ -101,7 +101,7 @@ $addDepartmentPermission = user()->permission('add_department');
                                         id="employee_department" data-live-search="true">
                                         <option value="">--</option>
                                         @foreach ($teams as $team)
-                                            <option @if ($employee->employeeDetail->department_id == $team->id) selected @endif value="{{ $team->id }}">
+                                            <option @if ($employee->employeeDetail?->department_id == $team->id) selected @endif value="{{ $team->id }}">
                                                 {{ $team->team_name }}</option>
                                         @endforeach
                                     </select>
@@ -164,12 +164,12 @@ $addDepartmentPermission = user()->permission('add_department');
                     <div class="col-md-4">
                         <x-forms.datepicker fieldId="joining_date" :fieldLabel="__('modules.employees.joiningDate')"
                             fieldName="joining_date" :fieldPlaceholder="__('placeholders.date')" fieldRequired="true"
-                            :fieldValue="$employee->employeeDetail->joining_date->format(company()->date_format)" />
+                            :fieldValue="$employee->employeeDetail?->joining_date?->format(company()->date_format) ?? ''" />
                     </div>
                     <div class="col-md-4">
                         <x-forms.datepicker fieldId="date_of_birth" :fieldLabel="__('modules.employees.dateOfBirth')"
                             fieldName="date_of_birth" :fieldPlaceholder="__('placeholders.date')"
-                            :fieldValue="($employee->employeeDetail->date_of_birth ? $employee->employeeDetail->date_of_birth->format(company()->date_format) : '')" />
+                            :fieldValue="($employee->employeeDetail?->date_of_birth ? $employee->employeeDetail?->date_of_birth->format(company()->date_format) : '')" />
                     </div>
 
                     <div class="col-md-4">
@@ -177,7 +177,7 @@ $addDepartmentPermission = user()->permission('add_department');
                             fieldName="reporting_to" :fieldPlaceholder="__('placeholders.date')" search="true">
                             <option value="">--</option>
                             @foreach ($employees as $item)
-                                <x-user-option :user="$item" :selected="$employee->employeeDetail->reporting_to == $item->id"/>
+                                <x-user-option :user="$item" :selected="$employee->employeeDetail?->reporting_to == $item->id"/>
                             @endforeach
                         </x-forms.select>
                     </div>
@@ -217,7 +217,7 @@ $addDepartmentPermission = user()->permission('add_department');
                     <div class="col-md-12">
                         <div class="form-group my-3">
                             <x-forms.textarea class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('app.address')"
-                                :fieldValue="$employee->employeeDetail->address" fieldName="address" fieldId="address"
+                                :fieldValue="$employee->employeeDetail?->address ?? ''" fieldName="address" fieldId="address"
                                 :fieldPlaceholder="__('placeholders.address')">
                             </x-forms.textarea>
                         </div>
@@ -225,7 +225,7 @@ $addDepartmentPermission = user()->permission('add_department');
                     <div class="col-md-12">
                         <div class="form-group my-3">
                             <x-forms.textarea class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('app.about')"
-                                fieldName="about_me" fieldId="about_me" fieldPlaceholder="" :fieldValue="$employee->employeeDetail->about_me">
+                                fieldName="about_me" fieldId="about_me" fieldPlaceholder="" :fieldValue="$employee->employeeDetail?->about_me ?? ''">
                             </x-forms.textarea>
                         </div>
                     </div>
@@ -280,7 +280,7 @@ $addDepartmentPermission = user()->permission('add_department');
                             </x-slot>
 
                             <input type="number" step=".01" min="0" class="form-control height-35 f-14"
-                                value="{{ $employee->employeeDetail->hourly_rate ?? '' }}" name="hourly_rate"
+                                value="{{ $employee->employeeDetail?->hourly_rate ?? '' }}" name="hourly_rate"
                                 id="hourly_rate">
                         </x-forms.input-group>
                     </div>
@@ -294,7 +294,7 @@ $addDepartmentPermission = user()->permission('add_department');
                             </x-slot>
 
                             <input type="text" class="form-control height-35 f-14" autocomplete="off"
-                                value="{{ $employee->employeeDetail->slack_username ?? '' }}" name="slack_username"
+                                value="{{ $employee->employeeDetail?->slack_username ?? '' }}" name="slack_username"
                                 id="slack_username">
                         </x-forms.input-group>
                     </div>
@@ -325,52 +325,52 @@ $addDepartmentPermission = user()->permission('add_department');
                     <div class="col-lg-3 col-md-6">
                         <x-forms.datepicker fieldId="probation_end_date" :fieldLabel="__('modules.employees.probationEndDate')"
                             fieldName="probation_end_date" :fieldPlaceholder="__('placeholders.date')"
-                            :fieldValue="$employee->employeeDetail->probation_end_date ? Carbon\Carbon::parse($employee->employeeDetail->probation_end_date)->format(company()->date_format) : '' "
+                            :fieldValue="$employee->employeeDetail?->probation_end_date ? Carbon\Carbon::parse($employee->employeeDetail?->probation_end_date)->format(company()->date_format) : '' "
                             :popover="__('messages.probationEndDate')"/>
                     </div>
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.datepicker fieldId="notice_period_start_date" :fieldLabel="__('modules.employees.noticePeriodStartDate')"
                             fieldName="notice_period_start_date" :fieldPlaceholder="__('placeholders.date')"
-                            :fieldValue="$employee->employeeDetail->notice_period_start_date ? Carbon\Carbon::parse($employee->employeeDetail->notice_period_start_date)->format(company()->date_format) : '' "
+                            :fieldValue="$employee->employeeDetail?->notice_period_start_date ? Carbon\Carbon::parse($employee->employeeDetail?->notice_period_start_date)->format(company()->date_format) : '' "
                             :popover="__('messages.noticePeriodStartDate')"/>
                     </div>
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.datepicker fieldId="notice_period_end_date" :fieldLabel="__('modules.employees.noticePeriodEndDate')"
                             fieldName="notice_period_end_date" :fieldPlaceholder="__('placeholders.date')"
-                            :fieldValue="$employee->employeeDetail->notice_period_end_date ? Carbon\Carbon::parse($employee->employeeDetail->notice_period_end_date)->format(company()->date_format) : '' "
+                            :fieldValue="$employee->employeeDetail?->notice_period_end_date ? Carbon\Carbon::parse($employee->employeeDetail?->notice_period_end_date)->format(company()->date_format) : '' "
                             :popover="__('messages.noticePeriodEndDate')"/>
                     </div>
                     <div class="col-lg-3 col-md-6">
                         <x-forms.select fieldId="employment_type" :fieldLabel="__('modules.employees.employmentType')"
                             fieldName="employment_type" :fieldPlaceholder="__('placeholders.date')">
                             <option value="">--</option>
-                            <option value="full_time" @if($employee->employeeDetail->employment_type == 'full_time') selected @endif>@lang('app.fullTime')</option>
-                            <option value="part_time" @if($employee->employeeDetail->employment_type == 'part_time') selected @endif>@lang('app.partTime')</option>
-                            <option value="on_contract" @if($employee->employeeDetail->employment_type == 'on_contract') selected @endif>@lang('app.onContract')</option>
-                            <option value="internship" @if($employee->employeeDetail->employment_type == 'internship') selected @endif>@lang('app.internship')</option>
-                            <option value="trainee" @if($employee->employeeDetail->employment_type == 'trainee') selected @endif>@lang('app.trainee')</option>
+                            <option value="full_time" @if($employee->employeeDetail?->employment_type == 'full_time') selected @endif>@lang('app.fullTime')</option>
+                            <option value="part_time" @if($employee->employeeDetail?->employment_type == 'part_time') selected @endif>@lang('app.partTime')</option>
+                            <option value="on_contract" @if($employee->employeeDetail?->employment_type == 'on_contract') selected @endif>@lang('app.onContract')</option>
+                            <option value="internship" @if($employee->employeeDetail?->employment_type == 'internship') selected @endif>@lang('app.internship')</option>
+                            <option value="trainee" @if($employee->employeeDetail?->employment_type == 'trainee') selected @endif>@lang('app.trainee')</option>
                         </x-forms.select>
                     </div>
 
                     <div class="col-lg-3 col-md-6 d-none internship-date">
                         <x-forms.datepicker fieldId="internship_end_date" :fieldLabel="__('modules.employees.internshipEndDate')"
                             fieldName="internship_end_date" :fieldPlaceholder="__('placeholders.date')"
-                            :fieldValue="$employee->employeeDetail->internship_end_date ? Carbon\Carbon::parse($employee->employeeDetail->internship_end_date)->format(company()->date_format) : '' "/>
+                            :fieldValue="$employee->employeeDetail?->internship_end_date ? Carbon\Carbon::parse($employee->employeeDetail?->internship_end_date)->format(company()->date_format) : '' "/>
                     </div>
 
                     <div class="col-lg-3 col-md-6 d-none contract-date">
                         <x-forms.datepicker fieldId="contract_end_date" :fieldLabel="__('modules.employees.contractEndDate')"
                             fieldName="contract_end_date" :fieldPlaceholder="__('placeholders.date')"
-                            :fieldValue="$employee->employeeDetail->contract_end_date ? Carbon\Carbon::parse($employee->employeeDetail->contract_end_date)->format(company()->date_format) : '' "/>
+                            :fieldValue="$employee->employeeDetail?->contract_end_date ? Carbon\Carbon::parse($employee->employeeDetail?->contract_end_date)->format(company()->date_format) : '' "/>
                     </div>
 
                     <div class="col-lg-3 col-md-6">
                         <x-forms.select fieldId="marital_status" :fieldLabel="__('modules.employees.maritalStatus')"
                             fieldName="marital_status" :fieldPlaceholder="__('placeholders.date')">
                             @foreach (\App\Enums\MaritalStatus::cases() as $status)
-                                <option @selected($employee->employeeDetail->marital_status == $status)
+                                <option @selected($employee->employeeDetail?->marital_status == $status)
                                     value="{{ $status->value }}">{{ $status->label() }}</option>
                             @endforeach
                         </x-forms.select>
@@ -384,7 +384,7 @@ $addDepartmentPermission = user()->permission('add_department');
                             <select class="form-control select-picker" name="company_address"
                                 id="company_address" data-live-search="true">
                                 @foreach ($companyAddresses as $address)
-                                    <option @selected($employee->employeeDetail->company_address_id == $address->id)
+                                    <option @selected($employee->employeeDetail?->company_address_id == $address->id)
                                      value="{{ $address->id }}">{{ $address->location }}</option>
                                 @endforeach
                             </select>
@@ -394,7 +394,7 @@ $addDepartmentPermission = user()->permission('add_department');
                     <div class="col-lg-3 col-md-6 d-none marriage_date">
                         <x-forms.datepicker fieldId="marriage_anniversary_date" :fieldLabel="__('modules.employees.marriageAnniversaryDate')"
                             fieldName="marriage_anniversary_date" :fieldPlaceholder="__('placeholders.date')"
-                            :fieldValue="$employee->employeeDetail->marriage_anniversary_date ? Carbon\Carbon::parse($employee->employeeDetail->marriage_anniversary_date)->format(company()->date_format) : '' " />
+                            :fieldValue="$employee->employeeDetail?->marriage_anniversary_date ? Carbon\Carbon::parse($employee->employeeDetail?->marriage_anniversary_date)->format(company()->date_format) : '' " />
                     </div>
 
 
@@ -426,7 +426,7 @@ $addDepartmentPermission = user()->permission('add_department');
                         ]) id="employeeExitDate">
                             <x-forms.datepicker fieldId="last_date" :fieldLabel="__('modules.employees.lastDate')"
                                                 fieldName="last_date" :fieldPlaceholder="__('placeholders.date')" fieldRequired="true"
-                                                :fieldValue="($employee->employeeDetail->last_date ? $employee->employeeDetail->last_date->format(company()->date_format) : '')"
+                                                :fieldValue="($employee->employeeDetail?->last_date ? $employee->employeeDetail?->last_date->format(company()->date_format) : '')"
                                                 :popover="__('messages.lastDateTooltip')" />
                         </div>
                         {{-- Display the message if the conditions are met --}}
@@ -436,7 +436,7 @@ $addDepartmentPermission = user()->permission('add_department');
                     @endif
                 </div>
 
-                <x-forms.custom-field :fields="$fields" :model="$employeeDetail"></x-forms.custom-field>
+                <x-forms.custom-field :fields="$fields" :model="$employeeDetail ?? null"></x-forms.custom-field>
 
                 <x-form-actions>
                     <x-forms.button-primary id="save-form" class="mr-3" icon="check">@lang('app.save')
@@ -549,8 +549,8 @@ $addDepartmentPermission = user()->permission('add_department');
 
         datepicker('#joining_date', {
             position: 'bl',
-            @if (!is_null($employee->employeeDetail->joining_date))
-            dateSelected: new Date("{{ str_replace('-', '/', $employee->employeeDetail->joining_date) }}"),
+            @if (!is_null($employee->employeeDetail?->joining_date))
+            dateSelected: new Date("{{ str_replace('-', '/', $employee->employeeDetail?->joining_date ?? '') }}"),
             @endif
             ...datepickerConfig
         });
@@ -558,8 +558,8 @@ $addDepartmentPermission = user()->permission('add_department');
         datepicker('#date_of_birth', {
             position: 'bl',
             maxDate: new Date(),
-            @if (!is_null($employee->employeeDetail->date_of_birth))
-            dateSelected: new Date("{{ str_replace('-', '/', $employee->employeeDetail->date_of_birth) }}"),
+            @if (!is_null($employee->employeeDetail?->date_of_birth))
+            dateSelected: new Date("{{ str_replace('-', '/', $employee->employeeDetail?->date_of_birth ?? '') }}"),
             @endif
             ...datepickerConfig
         });
@@ -685,8 +685,8 @@ $addDepartmentPermission = user()->permission('add_department');
         if ($('#last_date').length > 0) {
             datepicker('#last_date', {
                 position: 'bl',
-                @if ($employee->employeeDetail->last_date)
-                    dateSelected: new Date("{{ str_replace('-', '/', $employee->employeeDetail->last_date) }}"),
+                @if ($employee->employeeDetail?->last_date)
+                    dateSelected: new Date("{{ str_replace('-', '/', $employee->employeeDetail?->last_date ?? '') }}"),
                 @endif
                 ...datepickerConfig,
                 onSelect: function(dateText) {

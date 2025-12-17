@@ -342,6 +342,14 @@ class LeadContactController extends AccountBaseController
         $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
         $projects = \App\Models\Project::all();
 
+        // Get task permissions
+        $taskPermissions = [
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
+            'view_tasks' => user()->permission('view_tasks'),
+        ];
+
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
             'fields' => $formData['customFields'],
@@ -356,6 +364,7 @@ class LeadContactController extends AccountBaseController
             'taskLabels' => $taskLabels,
             'taskBoardColumns' => $taskBoardColumns,
             'projects' => $projects,
+            'taskPermissions' => $taskPermissions,
         ], $formData, $dealFormData));
     }
 
@@ -494,6 +503,7 @@ class LeadContactController extends AccountBaseController
         $leadContact = new Lead();
         $leadContact->company_id = company()->id;
         $leadContact->salutation = $request->salutation;
+        $leadContact->gender = $request->gender;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -552,18 +562,18 @@ class LeadContactController extends AccountBaseController
         if ($request->add_more == 'true') {
             $html = $this->create();
 
-            // return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
+            // return Reply::successWithData(__('messages.leadSaved'), ['html' => $html, 'add_more' => true]);
 
-            return back()->with('success', __('messages.recordSaved'));
+            return back()->with('success', __('messages.leadSaved'));
         }
 
         if ($redirectUrl == '') {
             $redirectUrl = route('lead-contact.index');
         }
 
-        // return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl]);
+        // return Reply::successWithData(__('messages.leadSaved'), ['redirectUrl' => $redirectUrl]);
 
-        return back()->with('success', __('messages.recordSaved'));
+        return back()->with('success', __('messages.leadSaved'));
     }
 
     /**
@@ -663,6 +673,9 @@ class LeadContactController extends AccountBaseController
         }
 
         $leadContact->salutation = $request->salutation;
+        if ($request->has('gender')) {
+            $leadContact->gender = $request->gender;
+        }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -701,9 +714,9 @@ class LeadContactController extends AccountBaseController
             $leadContact->updateCustomFieldData($request->custom_fields_data);
         }
 
-        // return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
+        // return Reply::successWithData(__('messages.leadUpdateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
 
-        return back()->with('success', __('messages.updateSuccess'));
+        return back()->with('success', __('messages.leadUpdateSuccess'));
     }
 
     /**
@@ -882,13 +895,13 @@ class LeadContactController extends AccountBaseController
 
             // Return success response for API calls or redirect for web
             if ($request->expectsJson()) {
-                return Reply::successWithData(__('messages.updateSuccess'), [
+                return Reply::successWithData(__('messages.leadUpdateSuccess'), [
                     'lead' => $leadContact->fresh(),
                     'redirectUrl' => route('lead-contact.show', $leadContact->id)
                 ]);
             }
 
-            return back()->with('success', __('messages.updateSuccess'));
+            return back()->with('success', __('messages.leadUpdateSuccess'));
 
         } catch (\Exception $e) {
             // Rollback transaction on error
@@ -936,7 +949,7 @@ class LeadContactController extends AccountBaseController
         Lead::destroy($id);
 
         // return Reply::success(__('messages.deleteSuccess'));
-        return back()->with('success', __('messages.deleteSuccess'));
+        return to_route('lead-contact.index')->with('success', __('messages.deleteSuccess'));
     }
 
     public function applyQuickAction(Request $request)
