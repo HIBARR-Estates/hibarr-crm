@@ -20,23 +20,15 @@ class ExposeGeneratorService
      * Generate PDF expose with validation warnings
      *
      * @param ExposeConfiguration $config
-     * @return array{pdf: string, warnings: array}
+     * @return mixed
      */
-    public function generate(ExposeConfiguration $config): array
+    public function generate(ExposeConfiguration $config)
     {
-        // Validate content completeness
-        $warnings = $this->validator->validate($config);
-
         // Render HTML from template
         $html = $this->renderer->render($config);
 
-        // Generate PDF
-        $pdfPath = $this->generator->generate($html, $config);
-
-        return [
-            'pdf' => $pdfPath,
-            'warnings' => $warnings,
-        ];
+        // Generate PDF and return download response
+        return $this->generator->generate($html, $config);
     }
 
     /**
@@ -65,7 +57,6 @@ class ExposeGeneratorService
                 'orientation' => 'landscape',
                 'preview' => asset('img/layouts/horizontal_premium.png'),
             ],
-            // Add more layouts as needed
         ]);
     }
 }

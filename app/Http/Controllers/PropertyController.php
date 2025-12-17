@@ -236,7 +236,9 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $this->property = Property::with('product')->findOrFail($id);
+        $this->property = Property::with(['product', 'assets' => function($query) {
+            $query->orderBy('order')->orderBy('created_at', 'desc');
+        }])->findOrFail($id);
         
         // // Check permission
         // $canView = false;
@@ -1134,7 +1136,9 @@ class PropertyController extends AccountBaseController
         
         $warnings = $this->exposeService->checkWarnings($config);
         
-        return Reply::dataOnly(['warnings' => $warnings]);
+        return Reply::successWithData('Expose validation completed successfully!',[
+            'data' => ['warnings' => $warnings]
+        ]);
     }
 
     public function generateExpose(Request $request, $id)
@@ -1144,8 +1148,7 @@ class PropertyController extends AccountBaseController
         
         $config = ExposeConfiguration::fromProperty($property, $layout);
         
-        $result = $this->exposeService->generate($config);
-        
-        return response()->download(storage_path('app/' . $result['pdf']));
+        // Return the download response directly
+        return $this->exposeService->generate($config);
     }
 }

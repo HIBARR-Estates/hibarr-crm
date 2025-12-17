@@ -18,7 +18,23 @@ class ExposeConfiguration implements Arrayable
     public static function fromProperty($property, string $layout, array $sections = []): self
     {
         $agent = $property->product->addedBy ?? auth()->user();
-        $images = $property->photos ?? [];
+        
+        // Group assets by tags
+        $assetsByTag = [];
+        $availableTags = ['hero', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
+        
+        foreach ($availableTags as $tag) {
+            $assetsByTag[$tag] = $property->assets()
+                ->where('asset_type', 'image')
+                ->whereJsonContains('tags', $tag)
+                ->orderBy('order')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(fn($asset) => $asset->url)
+                ->filter()
+                ->values()
+                ->toArray();
+        }
 
         return new self(
             entityType: 'property',
@@ -27,26 +43,34 @@ class ExposeConfiguration implements Arrayable
             sections: $sections ?: ['header', 'images', 'details', 'description', 'location', 'contact'],
             data: [
                 'title' => $property->title,
-                'price' => $property->price,
+                'price' => number_format($property->price, 2) . ' €',
                 'address' => $property->city,
                 'bedrooms' => $property->bedrooms,
                 'bathrooms' => $property->bathrooms,
                 'area' => $property->area,
+                'land_size' => $property->land_size,
+                'property_type' => $property->property_type,
+                'building_age' => $property->building_age,
                 'description' => $property->description,
+                'created_at' => $property->created_at->format('M d, Y'),
                 'features' => array_merge(
                     $property->exterior_features ?? [],
                     $property->interior_features ?? [],
                     $property->location_features ?? []
                 ),
-                'images' => $images,
+                'exterior_features' => $property->exterior_features ?? [],
+                'interior_features' => $property->interior_features ?? [],
+                'location_features' => $property->location_features ?? [],
+                'assets' => $assetsByTag,
                 'agent' => [
-                    'name' => $agent->name ?? null,
-                    'email' => $agent->email ?? null,
-                    'phone' => $agent->mobile ?? null,
+                    'name' => $agent->name ?? 'N/A',
+                    'email' => $agent->email ?? 'N/A',
+                    'phone' => $agent->mobile ?? 'N/A',
+                    'image' => $agent->image_url ?? null,
                 ],
                 'company' => [
                     'name' => config('app.name'),
-                    'logo' => asset('img/logo.png'),
+                    'logo' => public_path('img/logo.png'),
                 ],
             ],
             options: [

@@ -1,5 +1,6 @@
 import React from "react";
 import { Typography, Tag, Space, Button } from "antd";
+import { router } from "@inertiajs/react";
 import {
     EditOutlined,
     ShareAltOutlined,
@@ -7,6 +8,7 @@ import {
     HomeOutlined,
     DollarOutlined,
     FilePdfOutlined,
+    FolderOpenOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { getStatusColor, formatCurrency } from "@/lib/utils";
@@ -28,6 +30,10 @@ function PropertyHeader({
     onGenerateExpose,
     canEdit = false,
 }: PropertyHeaderProps) {
+    const handleManageAssets = () => {
+        router.visit(route("properties.assets.index", property.id));
+    };
+
     return (
         <div className="mb-4">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -74,6 +80,14 @@ function PropertyHeader({
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* {canEdit && ( */}
+                        <Button
+                            icon={<FolderOpenOutlined />}
+                            onClick={handleManageAssets}
+                        >
+                            Manage Assets
+                        </Button>
+                    {/* )} */}
                     {onGenerateExpose && (
                         <Button
                             icon={<FilePdfOutlined />}

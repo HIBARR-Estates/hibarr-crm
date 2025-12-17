@@ -9,34 +9,22 @@ use Illuminate\Support\Facades\Storage;
 class PdfGenerator
 {
     /**
-     * Generate PDF from HTML
+     * Generate PDF from HTML and return download response
      *
-     * @return string Path to generated PDF
+     * @return mixed
      */
-    public function generate(string $html, ExposeConfiguration $config): string
+    public function generate(string $html, ExposeConfiguration $config)
     {
         $filename = $this->generateFilename($config);
-        $orientation = $config->layout === 'horizontal' ? 'landscape' : 'portrait';
+        $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
 
-        // Generate PDF using Spatie
+        // Generate PDF using Spatie and return download response
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
             ->format('a4')
             ->orientation($orientation)
-            ->margins(10, 10, 10, 10)
-            ->name($filename);
+            ->margins(10, 10, 10, 10);
 
-        // Add options
-        if ($config->options['watermark'] ?? false) {
-            // Add watermark logic
-        }
-
-        // Save to storage
-        $path = "exposes/{$config->entityType}/{$config->entityId}";
-        $fullPath = "{$path}/{$filename}";
-        
-        Storage::put($fullPath, $pdf->base64());
-
-        return $fullPath;
+        return $pdf->download($filename);
     }
 
     /**
@@ -54,7 +42,26 @@ class PdfGenerator
     public function download(string $html, ExposeConfiguration $config, string $filename = null): \Symfony\Component\HttpFoundation\Response
     {
         $filename = $filename ?? $this->generateFilename($config);
-        $orientation = $config->layout === 'horizontal' ? 'landscape' : 'portrait';
+        
+        $orientation = 'portrait';
+        switch ($config->layout) {
+            case 'vertical_standard':
+                $orientation = 'portrait';
+                break;
+            case 'vertical':
+                $orientation = 'portrait';
+                break;
+            case 'horizontal_premium':
+                $orientation = 'landscape';
+                break;
+            case 'horizontal':
+                $orientation = 'landscape';
+                break;
+            
+            default:
+                $orientation = 'landscape';
+                break;
+        }
 
         return Pdf::view('pdf.wrapper', ['content' => $html])
             ->format('a4')

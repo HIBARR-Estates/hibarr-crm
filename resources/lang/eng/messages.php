@@ -1,6 +1,9 @@
 <?php
 
 return array(
+    'assetUploadSuccess' => 'Asset uploaded successfully.',
+    'bulkDeleteSuccess' => 'Assets deleted successfully.',
+    'bulkTagsUpdateSuccess' => 'Asset tags updated successfully.',
     'unsupportedChannel' => 'Unsupported channel type provided.',
     'invalidChannelRequestSignature' => 'Invalid channel request signature.',
     'attendanceIsMarked' => 'Attendance is marked for the date',

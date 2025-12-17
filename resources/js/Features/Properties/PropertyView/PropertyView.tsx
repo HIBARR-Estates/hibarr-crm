@@ -45,16 +45,9 @@ export default function PropertyView({
     employees,
     projects,
 }: PropertyViewProps) {
-    // console.log("PropertyView Rendered", property);
-    // Mock photos for demo (replace with actual property photos)
-    const photos =
-        property.photos && property.photos?.length > 0
-            ? property.photos
-            : [
-                  "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800",
-                  "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800",
-                  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
-              ];
+    // Get image assets from the new PropertyAsset system
+    const imageAssets = property.assets?.filter(asset => asset.asset_type === 'image') || [];
+    const photos = imageAssets.map(asset => asset.url).filter((url): url is string => !!url);
 
     return (
         <div className="property-view">
