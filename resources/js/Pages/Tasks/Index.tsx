@@ -345,7 +345,7 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
     const isTableView = view === "table";
 
     return (
-        <DashboardLayout>
+        <>
             <PageLayout
                 title="Tasks"
                 breadcrumbs={[{ name: "Tasks" }]}
@@ -638,8 +638,12 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                     projects={projects}
                 />
             </FilterDrawer>
-        </DashboardLayout>
+        </>
     );
 };
+
+TasksIndex.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default TasksIndex;

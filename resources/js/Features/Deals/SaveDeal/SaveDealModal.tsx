@@ -74,7 +74,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         CreateDealFormData,
         Deal,
         ApiResponse<Deal>
-    >(isEditing ? route("deals.update", deal!.id) : "", "PUT");
+    >(isEditing ? route("deals.patch", { deal: deal!.id }) : "", "PUT");
 
     // Update form data when deal or modal opens
     useEffect(() => {

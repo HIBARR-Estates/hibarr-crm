@@ -186,14 +186,13 @@ const LeadBoardIndex = ({
                 deal={deal}
                 onClose={() => handleClose()}
             />
-            <DashboardLayout>
-                <div className="bg-gray-50 min-h-screen">
-                    <PageLayout
-                        title={`Deals | Kanban`}
-                        breadcrumbs={[
-                            { name: "Deals", url: route("deals.index") },
-                            { name: "Kanban" },
-                        ]}
+            <div className="bg-gray-50 min-h-screen">
+                <PageLayout
+                    title={`Deals | Kanban`}
+                    breadcrumbs={[
+                        { name: "Deals", url: route("deals.index") },
+                        { name: "Kanban" },
+                    ]}
                         searchComp={
                             <UniversalSearchBox
                                 placeholder="Search deals by title, contact name, email..."
@@ -287,9 +286,12 @@ const LeadBoardIndex = ({
                     stage={selectedColumn}
                     onClose={() => handleColumnClose()}
                 />
-            </DashboardLayout>
         </>
     );
 };
+
+LeadBoardIndex.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default LeadBoardIndex;

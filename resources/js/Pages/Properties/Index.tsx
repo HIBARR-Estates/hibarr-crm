@@ -63,12 +63,12 @@ export interface IndexProps extends PageProps {
     developers: Developer[];
 }
 
-export default function Index({
+const Index = ({
     pageTitle,
     properties,
     default_currency_code: currencyCode,
     ...props
-}: IndexProps) {
+}: IndexProps) => {
     const {
         handleAction,
         handleClose,
@@ -162,7 +162,7 @@ export default function Index({
     const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencyCode);
 
     return (
-        <DashboardLayout>
+        <>
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Properties" }]}
@@ -277,6 +277,12 @@ export default function Index({
 
             {/* Filter Drawer */}
             <UniversalFilterDrawer config={filterConfig} />
-        </DashboardLayout>
+        </>
     );
 }
+
+Index.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
+
+export default Index;

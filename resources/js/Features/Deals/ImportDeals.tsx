@@ -57,7 +57,7 @@ const ImportDeals: React.FC<Props> = ({ open, onClose }) => {
             onSubmit={handleImport}
             loading={importLoading}
             title="Import Deals"
-            sampleDownloadUrl={route("deals.sample_import")}
+            sampleDownloadUrl={route("lead-contact.sample_import")}
             description="Import multiple deals at once using an Excel file. Make sure to follow the template format for successful import."
             acceptedFileTypes=".xlsx,.xls"
             maxFileSize={10}

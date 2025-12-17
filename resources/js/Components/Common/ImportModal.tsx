@@ -107,7 +107,7 @@ export default function ImportModal({
                 </Button>,
             ]}
             width={600}
-            destroyOnClose
+            destroyOnHidden
         >
             <div className="space-y-4">
                 {description && (
