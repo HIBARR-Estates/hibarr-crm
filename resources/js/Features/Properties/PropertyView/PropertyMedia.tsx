@@ -10,16 +10,26 @@ interface PropertyMediaProps {
 }
 
 export default function PropertyMedia({ property }: PropertyMediaProps) {
-    const photos = property.photos || [];
-    const hasMedia =
-        property.video_url || property.tour_360_url || photos.length > 0;
+    // Get video and tour assets from the new PropertyAsset system
+    const videoAssets = property.assets?.filter(asset => 
+        asset.asset_type === 'video_url' || asset.asset_type === 'video'
+    ) || [];
+    const tourAssets = property.assets?.filter(asset => 
+        asset.asset_type === 'tour_360_url'
+    ) || [];
+    
+    // Fallback to old properties for backward compatibility
+    const hasVideoUrl = property.video_url || videoAssets.length > 0;
+    const hasTourUrl = property.tour_360_url || tourAssets.length > 0;
+    const hasMedia = hasVideoUrl || hasTourUrl;
 
     if (!hasMedia) return null;
 
     return (
         <Card title="Media" className="mb-6">
             <Row gutter={[16, 16]}>
-                {property.video_url && (
+                {/* Video from assets or fallback to old property.video_url */}
+                {(videoAssets.length > 0 || property.video_url) && (
                     <Col xs={24} sm={12}>
                         <div className="p-4 border rounded-lg">
                             <div className="flex items-center gap-2 mb-2">
@@ -28,7 +38,7 @@ export default function PropertyMedia({ property }: PropertyMediaProps) {
                             </div>
                             <Button
                                 type="primary"
-                                href={property.video_url}
+                                href={videoAssets[0]?.external_url || videoAssets[0]?.url || property.video_url}
                                 target="_blank"
                                 block
                             >
@@ -38,7 +48,8 @@ export default function PropertyMedia({ property }: PropertyMediaProps) {
                     </Col>
                 )}
 
-                {property.tour_360_url && (
+                {/* 360 Tour from assets or fallback to old property.tour_360_url */}
+                {(tourAssets.length > 0 || property.tour_360_url) && (
                     <Col xs={24} sm={12}>
                         <div className="p-4 border rounded-lg">
                             <div className="flex items-center gap-2 mb-2">
@@ -47,7 +58,7 @@ export default function PropertyMedia({ property }: PropertyMediaProps) {
                             </div>
                             <Button
                                 type="primary"
-                                href={property.tour_360_url}
+                                href={tourAssets[0]?.external_url || tourAssets[0]?.url || property.tour_360_url}
                                 target="_blank"
                                 block
                             >

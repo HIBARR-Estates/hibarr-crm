@@ -186,6 +186,48 @@ export interface PropertyShowProps extends PageProps {
     };
 }
 
+// Property Asset Types
+export interface PropertyAsset {
+    id: number;
+    property_id: number;
+    company_id: number;
+    name: string;
+    asset_type: 'image' | 'video' | 'video_url' | 'tour_360_url';
+    file_path?: string;
+    external_url?: string;
+    mime_type?: string;
+    file_size?: number;
+    tags?: string[];
+    metadata?: Record<string, any>;
+    order: number;
+    url?: string;
+    formatted_size?: string;
+    has_tags: boolean;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string;
+    property?: Property;
+}
+
+export interface PropertyAssetFilters {
+    asset_type?: 'image' | 'video' | 'video_url' | 'tour_360_url' | '';
+    tags?: string[];
+    search?: string;
+    sort_by?: 'created_at' | 'name' | 'size';
+    sort_order?: 'asc' | 'desc';
+}
+
+export interface PropertyAssetManageProps extends PageProps {
+    props: {
+        property: Property;
+        assets: Pagination<PropertyAsset>;
+        availableTags: Record<string, string>;
+        availableTypes: Record<string, string>;
+        filters: PropertyAssetFilters;
+        errors: Errors & ErrorBag;
+    };
+}
+
 // Common Types
 
 export interface Role {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { router } from "@inertiajs/react";
 import { Property } from "@/Types";
 
@@ -8,6 +8,7 @@ import PageLayout from "../../Components/PageLayout";
 import { message } from "antd";
 import PropertyView from "@/Features/Properties/PropertyView/PropertyView";
 import { Task } from "@/Types/api/tasks";
+import GenerateExposeModal from "@/Features/Properties/GenerateExposeModal";
 
 interface ShowProps {
     pageTitle: string;
@@ -69,6 +70,8 @@ export default function Show({
         router.visit(route("properties.index"));
     };
 
+    const [showExposeModal, setShowExposeModal] = useState(false);
+
     return (
         <DashboardLayout>
             <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
@@ -77,6 +80,7 @@ export default function Show({
                         property={property}
                         onEdit={canEdit ? handleEdit : undefined}
                         onShare={handleShare}
+                        onGenerateExpose={() => setShowExposeModal(true)}
                         canEdit={canEdit}
                         tasks={tasks}
                         taskCategories={taskCategories}
@@ -87,6 +91,12 @@ export default function Show({
                     />
                 </div>
             </PageLayout>
+
+            <GenerateExposeModal
+                open={showExposeModal}
+                onClose={() => setShowExposeModal(false)}
+                propertyId={property.id}
+            />
         </DashboardLayout>
     );
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Property extends BaseModel
 {
@@ -141,6 +142,21 @@ class Property extends BaseModel
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function assets(): HasMany
+    {
+        return $this->hasMany(PropertyAsset::class)->orderBy('order')->orderBy('created_at', 'desc');
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(PropertyAsset::class)->where('asset_type', PropertyAsset::TYPE_IMAGE);
+    }
+
+    public function videos(): HasMany
+    {
+        return $this->hasMany(PropertyAsset::class)->whereIn('asset_type', [PropertyAsset::TYPE_VIDEO, PropertyAsset::TYPE_VIDEO_URL]);
     }
 
     // Scopes
