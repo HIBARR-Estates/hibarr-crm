@@ -113,6 +113,7 @@ export default function BasicInfoTab({
                 location_features: data.location_features || [],
                 photos: data.photos || [],
                 add_ons: data.add_ons || [],
+                assets: data.assets || [],
             };
             form.setFieldsValue(formData);
         }
