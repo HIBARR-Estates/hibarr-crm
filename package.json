@@ -62,6 +62,7 @@
         "flag-icon-css": "^4.1.7",
         "framer-motion": "^12.23.24",
         "frappe-charts": "^1.6.2",
+        "js-file-download": "^0.4.12",
         "laravel-echo": "^1.11.2",
         "lucide-react": "^0.554.0",
         "marked": "^16.4.1",
