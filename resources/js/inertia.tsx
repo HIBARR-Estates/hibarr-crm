@@ -46,19 +46,28 @@ window.route = function (name: string, params?: any, absolute?: boolean) {
         "properties.update_video": "/account/properties/{id}/video",
         "properties.update_360_tour": "/account/properties/{id}/360-tour",
         "properties.delete_assets": "/account/properties/{id}/assets",
-        "properties.expose.validate": "/account/properties/{id}/expose/validate",
-        "properties.expose.generate": "/account/properties/{id}/expose/generate",
+        "properties.expose.validate":
+            "/account/properties/{id}/expose/validate",
+        "properties.expose.generate":
+            "/account/properties/{id}/expose/generate",
 
         // Property Asset Management routes
         "properties.assets.index": "/account/properties/{property}/assets",
         "properties.assets.store": "/account/properties/{property}/assets",
-        "properties.assets.store_external_url": "/account/properties/{property}/assets/external-url",
-        "properties.assets.show": "/account/properties/{property}/assets/{asset}",
-        "properties.assets.update": "/account/properties/{property}/assets/{asset}",
-        "properties.assets.destroy": "/account/properties/{property}/assets/{asset}",
-        "properties.assets.bulk_action": "/account/properties/{property}/assets/bulk-action",
-        "properties.assets.bulk_tags": "/account/properties/{property}/assets/bulk-tags",
-        "properties.assets.bulk_destroy": "/account/properties/{property}/assets/bulk-delete",
+        "properties.assets.store_external_url":
+            "/account/properties/{property}/assets/external-url",
+        "properties.assets.show":
+            "/account/properties/{property}/assets/{asset}",
+        "properties.assets.update":
+            "/account/properties/{property}/assets/{asset}",
+        "properties.assets.destroy":
+            "/account/properties/{property}/assets/{asset}",
+        "properties.assets.bulk_action":
+            "/account/properties/{property}/assets/bulk-action",
+        "properties.assets.bulk_tags":
+            "/account/properties/{property}/assets/bulk-tags",
+        "properties.assets.bulk_destroy":
+            "/account/properties/{property}/assets/bulk-delete",
 
         // Dashboard routes
         dashboard: "/account/dashboard",
