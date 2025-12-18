@@ -166,7 +166,7 @@ const Index = ({
 
     const columns = LEAD_TABLE_COLUMNS(getActionItems);
     return (
-        <DashboardLayout>
+        <>
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Contacts" }]}
@@ -284,8 +284,12 @@ const Index = ({
 
             {/* Universal Filter Drawer */}
             <UniversalFilterDrawer config={filterConfig} />
-        </DashboardLayout>
+        </>
     );
 };
+
+Index.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default Index;
