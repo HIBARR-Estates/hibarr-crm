@@ -39,17 +39,20 @@ use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Services\PermissionService;
+use App\Services\LeadService;
 
 class LeadContactController extends AccountBaseController
 {
 
     use ImportExcel;
-    use \App\Traits\LeadFormDataTrait;
     use \App\Traits\DealFormDataTrait;
 
-    public function __construct()
+    protected $leadService;
+
+    public function __construct(LeadService $leadService)
     {
         parent::__construct();
+        $this->leadService = $leadService;
         $this->pageTitle = 'modules.leadContact.leadContacts';
         $this->middleware(function ($request, $next) {
             if (!in_array('leads', user_modules())) {
@@ -77,117 +80,14 @@ class LeadContactController extends AccountBaseController
             abort(403);
         }
 
-        // Load necessary data for the view
-        $this->leadContacts = Lead::allLeads();
-        $formData = $this->getLeadFormData();
-        
-        // Assign trait data to class properties for backward compatibility if needed
-        $this->categories = $formData['categories'];
-        $this->sources = $formData['sources'];
-        $this->employees = $formData['employees'];
-        $this->leadPipelines = $formData['leadPipelines'];
-        $this->leadStages = $formData['leadStages'];
-        $this->products = $formData['products'];
+        // Use LeadService for optimized data fetching
+        $leads = $this->leadService->getPaginatedLeads($request, $dataTable);
+        $leadContacts = $this->leadService->getDropdownLeads();
 
-        // Get the leads data from the DataTable query with relationships
-        $leadsQuery = $dataTable->query(new Lead())
-            ->with([
-                'leadOwner:id,name,email',
-                'addedBy:id,name,email',
-                'leadSource:id,type',
-                'category:id,category_name',
-                'client:id,name,email'
-            ]);
-        
-        // Apply filters from request
-        if ($request->filled('search')) {
-            $leadsQuery->where(function($query) use ($request) {
-                $query->where('client_name', 'like', '%' . $request->search . '%')
-                      ->orWhere('client_email', 'like', '%' . $request->search . '%')
-                      ->orWhere('mobile', 'like', '%' . $request->search . '%');
-            });
-        }
-
-        // Apply additional filters
-        if ($request->filled('lead_source')) {
-            $leadsQuery->where('leads.source_id', $request->lead_source);
-        }
-
-        if ($request->filled('lead_owner_id')) {
-            $leadsQuery->where('leads.lead_owner', $request->lead_owner_id);
-        }
-
-        if ($request->filled('added_by_id')) {
-            $leadsQuery->where('leads.added_by', $request->added_by_id);
-        }
-
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $leadsQuery->whereBetween('leads.created_at', [
-                $request->start_date . ' 00:00:00',
-                $request->end_date . ' 23:59:59'
-            ]);
-        }
-
-        // Apply permission-based filtering
-        $leadRules = [
-            'added' => 'leads.added_by',
-            'owned' => 'leads.lead_owner'
-        ];
-        PermissionService::applyScope($leadsQuery, user(), 'view_lead', $leadRules);
-        
-        // Apply sorting if specified
-        if ($request->filled('sort_by')) {
-            $sortBy = $request->sort_by;
-            $sortDirection = $request->get('sort_direction', 'asc');
-            
-            // Validate sort direction
-            if (!in_array($sortDirection, ['asc', 'desc'])) {
-                $sortDirection = 'asc';
-            }
-            
-            // Map frontend sort fields to database columns
-            $sortMapping = [
-                'client_name' => 'leads.client_name',
-                'lead_owner' => 'lead_owner_user.name',
-                'created_at' => 'leads.created_at',
-                'updated_at' => 'leads.updated_at',
-                'company_name' => 'leads.company_name',
-            ];
-            
-            if (isset($sortMapping[$sortBy])) {
-                $leadsQuery->orderBy($sortMapping[$sortBy], $sortDirection);
-            } else {
-                // Default fallback
-                $leadsQuery->orderBy('leads.created_at', 'desc');
-            }
-        } else {
-            // Default sorting when no sort is specified
-            $leadsQuery->orderBy('leads.created_at', 'desc');
-        }
-        
-        // Paginate the results
-        $leads = $leadsQuery->paginate($request->get('per_page', 15));
-        
-        // Get all the data needed for create/edit modals
-        // Data is already loaded via getLeadFormData()
-
-        return Inertia::render('Leads/Index', array_merge([
+        return Inertia::render('Leads/Index', [
             'pageTitle' => 'Lead Contacts',
-            'leadContacts' => $this->leadContacts ? $this->leadContacts->map(function($contact) {
-                return [
-                    'id' => $contact->id,
-                    'client_name' => $contact->client_name,
-                    'client_name_salutation' => $contact->client_name_salutation,
-                ];
-            })->toArray() : [],
-            'stages' => $this->leadStages ? $this->leadStages->map(function($stage) {
-                return [
-                    'id' => $stage->id,
-                    'name' => $stage->name,
-                    'lead_pipeline_id' => $stage->lead_pipeline_id,
-                    'label_color' => $stage->label_color,
-                ];
-            })->toArray() : [],
+            'leadContacts' => $leadContacts,
+            'stages' => $this->leadService->getLeadStages(),
             'permissions' => [
                 'view_lead_category' => user()->permission('view_lead_category'),
                 'view_lead_sources' => user()->permission('view_lead_sources'),
@@ -217,7 +117,7 @@ class LeadContactController extends AccountBaseController
                 'from' => $leads->firstItem(),
                 'to' => $leads->lastItem(),
             ]
-        ], $formData));
+        ]);
     }
 
 
