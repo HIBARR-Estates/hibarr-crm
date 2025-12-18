@@ -49,9 +49,9 @@ export interface Property {
     building_age?: number;
     is_furnished: boolean;
     within_site: boolean;
-    exterior_features?: string[] | null;
-    interior_features?: string[] | null;
-    location_features?: string[] | null;
+    exterior_features?: string[];
+    interior_features?: string[];
+    location_features?: string[];
     title: string;
     description?: string;
     video_url?: string;
