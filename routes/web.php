@@ -951,9 +951,24 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::post('properties/{property}/video', [App\Http\Controllers\PropertyController::class, 'updateVideo'])->name('properties.update_video');
     Route::post('properties/{property}/360-tour', [App\Http\Controllers\PropertyController::class, 'update360Tour'])->name('properties.update_360_tour');
     Route::delete('properties/{property}/assets', [App\Http\Controllers\PropertyController::class, 'deleteAssets'])->name('properties.delete_assets');
-    
-    Route::resource('properties', App\Http\Controllers\PropertyController::class);
 
+    Route::post('properties/{id}/expose/validate', [App\Http\Controllers\PropertyController::class, 'validateExpose'])->name('properties.expose.validate');
+    Route::post('properties/{id}/expose/generate', [App\Http\Controllers\PropertyController::class, 'generateExpose'])->name('properties.expose.generate');
+
+    // Property Asset Management (New System)
+    Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyAssetController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PropertyAssetController::class, 'store'])->name('store');
+        Route::post('/external-url', [App\Http\Controllers\PropertyAssetController::class, 'storeExternalUrl'])->name('store_external_url');
+        Route::get('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'show'])->name('show');
+        Route::put('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'update'])->name('update');
+        Route::delete('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'destroy'])->name('destroy');
+        Route::post('/bulk-action', [App\Http\Controllers\PropertyAssetController::class, 'bulkAction'])->name('bulk_action');
+        Route::post('/bulk-tags', [App\Http\Controllers\PropertyAssetController::class, 'bulkUpdateTags'])->name('bulk_tags');
+        Route::post('/bulk-delete', [App\Http\Controllers\PropertyAssetController::class, 'bulkDestroy'])->name('bulk_destroy');
+    });
+
+    Route::resource('properties', App\Http\Controllers\PropertyController::class);    Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     // Meta Conversion Triggers
     Route::resource('meta-conversion-triggers', MetaConversionTriggerController::class);
 

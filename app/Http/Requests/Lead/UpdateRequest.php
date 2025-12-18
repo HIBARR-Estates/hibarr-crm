@@ -29,6 +29,7 @@ class UpdateRequest extends CoreRequest
         $rules = [
             'client_name' => 'required',
             'client_email' => 'nullable|email:rfc,strict|unique:leads,client_email,'.$this->route('lead_contact').',id,company_id,' . company()->id,
+            'gender' => 'nullable|in:male,female',
         ];
 
         $rules = $this->customFieldRules($rules);

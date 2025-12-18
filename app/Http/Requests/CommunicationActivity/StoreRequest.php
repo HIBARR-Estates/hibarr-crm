@@ -33,6 +33,7 @@ class StoreRequest extends FormRequest
             'sender_info.name' => 'required|string|max:255',
             'sender_info.contact' => 'required|string|max:255',
             'timestamp' => 'required|date',
+            'direction' => 'nullable|in:inbound,outbound',
             'metadata' => 'nullable|array',
             // New fields
             'can_create_deal' => 'nullable|boolean',

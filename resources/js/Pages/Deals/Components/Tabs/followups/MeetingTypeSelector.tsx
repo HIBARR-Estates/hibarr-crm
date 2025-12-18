@@ -1,10 +1,5 @@
-import { useState } from "react";
-import { Select, Button, Spin, Space } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { Select, Spin, Space } from "antd";
 import { useApiQuery } from "@/lib/api/client";
-import AddMeetingType from "./AddMeetingType";
-
-const { Option } = Select;
 
 interface MeetingType {
     id: number;
@@ -35,8 +30,6 @@ export default function MeetingTypeSelector({
     className,
     showPlatform = true,
 }: Props) {
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-
     // Platform options: zoho or in the office
     const platformOptions = [
         { value: "zoho", label: "Zoho" },
@@ -47,7 +40,6 @@ export default function MeetingTypeSelector({
     const {
         data: meetingTypesResponse,
         isLoading,
-        refetch,
     } = useApiQuery<{
         meeting_types: MeetingType[];
     }>({
@@ -59,30 +51,6 @@ export default function MeetingTypeSelector({
         (type) => type.is_active === true
     );
 
-    const handleAddSuccess = (newMeetingType: MeetingType) => {
-        // Refetch the meeting types to get the updated list
-        refetch();
-        // Auto-select the newly created meeting type
-        onChange?.(newMeetingType.id);
-    };
-
-    const dropdownRender = (menu: React.ReactElement) => (
-        <>
-            {menu}
-            <div className="border-t border-gray-200 p-2">
-                <Button
-                    type="text"
-                    icon={<PlusOutlined />}
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="w-full text-left hover:bg-gray-50"
-                    disabled={disabled}
-                >
-                    Add New Meeting Type
-                </Button>
-            </div>
-        </>
-    );
-
     return (
         <>
             <Space.Compact className="w-full" block>
@@ -92,7 +60,6 @@ export default function MeetingTypeSelector({
                     placeholder={placeholder}
                     disabled={disabled || isLoading}
                     className={`flex-1 ${className || ""}`}
-                    popupRender={dropdownRender}
                     showSearch
                     notFoundContent={
                         isLoading ? <Spin size="small" /> : "No meeting types found"
@@ -115,12 +82,6 @@ export default function MeetingTypeSelector({
                     />
                 )}
             </Space.Compact>
-
-            <AddMeetingType
-                open={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                onSuccess={handleAddSuccess}
-            />
         </>
     );
 }

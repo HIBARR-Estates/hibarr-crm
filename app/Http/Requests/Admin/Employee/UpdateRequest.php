@@ -29,8 +29,18 @@ class UpdateRequest extends CoreRequest
     {
         $detailID = EmployeeDetails::where('user_id', $this->route('employee'))->first();
         $setting = company();
+
+        
+        // Build employee_id unique rule - if detailID exists, ignore it; otherwise check uniqueness
+        $employeeIdRule = 'required|max:50|unique:employee_details,employee_id';
+        if ($detailID) {
+            $employeeIdRule .= ',' . $detailID->id . ',id,company_id,' . company()->id;
+        } else {
+            $employeeIdRule .= ',null,id,company_id,' . company()->id;
+        }
+        
         $rules = [
-            'employee_id' => 'required|max:50|unique:employee_details,employee_id,'.$detailID->id.',id,company_id,' . company()->id,
+            'employee_id' => $employeeIdRule,
             'name'  => 'required|max:50',
             'hourly_rate' => 'nullable|numeric',
             'department' => 'required',
@@ -62,7 +72,7 @@ class UpdateRequest extends CoreRequest
         }
 
         if (request()->telegram_user_id) {
-            $rules['telegram_user_id'] = 'nullable|unique:users,telegram_user_id,' . $detailID->user_id.',id,company_id,' . company()->id;
+            $rules['telegram_user_id'] = 'nullable|unique:users,telegram_user_id,' . ($detailID?->user_id ?? $this->route('employee')).',id,company_id,' . company()->id;
         }
 
         $rules = $this->customFieldRules($rules);

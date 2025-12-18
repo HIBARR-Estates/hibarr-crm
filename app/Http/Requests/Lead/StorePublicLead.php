@@ -31,6 +31,7 @@ class StorePublicLead extends CoreRequest
         $rules = array();
         $rules['name'] = 'required';
         $rules['email'] = 'nullable|email:rfc,strict|unique:leads,client_email,null,id,company_id,' . $company->id.'|unique:users,email,null,id,company_id,' . $company->id;
+        $rules['gender'] = 'nullable|in:male,female';
 
         $rules = $this->customFieldRules($rules);
 

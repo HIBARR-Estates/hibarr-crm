@@ -11,7 +11,10 @@ export default function PropertyImageGallery({
     images,
     title = "Property Images",
 }: PropertyImageGalleryProps) {
-    if (!images || images.length === 0) {
+    // Filter out any null/undefined URLs
+    const validImages = images.filter(img => img && img.trim() !== '');
+    
+    if (!validImages || validImages.length === 0) {
         return (
             <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
                 <div className="text-center text-gray-500">
@@ -30,7 +33,7 @@ export default function PropertyImageGallery({
                     dots={{ className: "custom-carousel-dots" }}
                     effect="fade"
                 >
-                    {images.map((image, index) => (
+                    {validImages.map((image, index) => (
                         <div key={index} className="relative">
                             <div
                                 className="h-96 bg-cover bg-center cursor-pointer"
@@ -49,13 +52,13 @@ export default function PropertyImageGallery({
                 {/* Image counter overlay */}
                 <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 text-white px-3 py-2 rounded-full text-sm">
                     <CameraOutlined className="mr-1" />
-                    {images.length} {images.length === 1 ? "Photo" : "Photos"}
+                    {validImages.length} {validImages.length === 1 ? "Photo" : "Photos"}
                 </div>
 
                 {/* Thumbnail navigation */}
-                {images.length > 1 && (
+                {validImages.length > 1 && (
                     <div className="absolute bottom-4 left-4 flex gap-2">
-                        {images.slice(0, 5).map((image, index) => (
+                        {validImages.slice(0, 5).map((image, index) => (
                             <div key={index}>
                                 <Image
                                     src={image}
@@ -66,9 +69,9 @@ export default function PropertyImageGallery({
                                 />
                             </div>
                         ))}
-                        {images.length > 5 && (
+                        {validImages.length > 5 && (
                             <div className="w-12 h-12 rounded border-2 border-white bg-black bg-opacity-70 flex items-center justify-center cursor-pointer text-white text-xs">
-                                +{images.length - 5}
+                                +{validImages.length - 5}
                             </div>
                         )}
                     </div>
