@@ -10,8 +10,8 @@ class HandleInertiaRequests extends Middleware
     /**
      * The root template that's loaded on the first page visit.
      */
-    protected $rootView = 'layouts.inertia_vite';
-    // protected $rootView = 'layouts.inertia_alt';
+    // protected $rootView = 'layouts.inertia_vite';
+    protected $rootView = 'layouts.inertia_alt';
 
     /**
      * Get the root view based on the bundler configuration.
@@ -41,6 +41,8 @@ class HandleInertiaRequests extends Middleware
         return array_merge(parent::share($request), [
             'auth' => fn () => [
                 'user' => auth()->user() ? auth()->user()->load(['roles', 'employeeDetail.designation']) : null,
+                'permissions' => function_exists('user') ? $this->getAllPermissions() : [],
+                'modules' => function_exists('user_modules') ? user_modules() : [],
             ],
             'default_currency_symbol' => fn () => $this->getDefaultCurrencySymbol(),
             'default_currency_code' => fn () => $this->getDefaultCurrencyCode(),
@@ -59,8 +61,9 @@ class HandleInertiaRequests extends Middleware
             'company' => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
             'appName' => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting()->app_name ?? config('app.name') : config('app.name'),
             'appTheme' => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
+            // TODO: Remove sidebar props once refactor is complete
             'sidebar' => [
-                'permissions' => function_exists('user') && function_exists('user_modules') ? $this->getSidebarPermissions() : [],
+                'permissions' => function_exists('user') ? $this->getAllPermissions() : [],
                 'modules' => function_exists('user_modules') ? user_modules() : [],
                 'unreadMessagesCount' => function_exists('user') && user() ? $this->getUnreadMessagesCount() : 0,
                 'customLinks' => function_exists('user') ? $this->getCustomLinks() : [],
@@ -123,61 +126,7 @@ class HandleInertiaRequests extends Middleware
         }
     }
 
-    private function getSidebarPermissions(): array
-    {
-        if (!function_exists('user') || !user()) {
-            return [];
-        }
-
-        return [
-            'view_overview_dashboard' => user()->permission('view_overview_dashboard') ?? 4,
-            'view_project_dashboard' => user()->permission('view_project_dashboard') ?? 4,
-            'view_client_dashboard' => user()->permission('view_client_dashboard') ?? 4,
-            'view_hr_dashboard' => user()->permission('view_hr_dashboard') ?? 4,
-            'view_ticket_dashboard' => user()->permission('view_ticket_dashboard') ?? 4,
-            'view_finance_dashboard' => user()->permission('view_finance_dashboard') ?? 4,
-            'view_lead' => user()->permission('view_lead') ?? 4,
-            'view_deals' => user()->permission('view_deals') ?? 4,
-            'view_clients' => user()->permission('view_clients') ?? 4,
-            'view_employees' => user()->permission('view_employees') ?? 4,
-            'view_leave' => user()->permission('view_leave') ?? 4,
-            'view_attendance' => user()->permission('view_attendance') ?? 4,
-            'view_holiday' => user()->permission('view_holiday') ?? 4,
-            'view_shift_roster' => user()->permission('view_shift_roster') ?? 4,
-            'view_contract' => user()->permission('view_contract') ?? 4,
-            'view_projects' => user()->permission('view_projects') ?? 4,
-            'view_tasks' => user()->permission('view_tasks') ?? 4,
-            'view_timelogs' => user()->permission('view_timelogs') ?? 4,
-            'view_estimates' => user()->permission('view_estimates') ?? 4,
-            'view_invoices' => user()->permission('view_invoices') ?? 4,
-            'view_payments' => user()->permission('view_payments') ?? 4,
-            'view_expenses' => user()->permission('view_expenses') ?? 4,
-            'view_bankaccount' => user()->permission('view_bankaccount') ?? 4,
-            'view_lead_proposals' => user()->permission('view_lead_proposals') ?? 4,
-            'view_product' => user()->permission('view_product') ?? 4,
-            'view_order' => user()->permission('view_order') ?? 4,
-            'view_tickets' => user()->permission('view_tickets') ?? 4,
-            'view_events' => user()->permission('view_events') ?? 4,
-            'view_notice' => user()->permission('view_notice') ?? 4,
-            'view_knowledgebase' => user()->permission('view_knowledgebase') ?? 4,
-            'view_client_note' => user()->permission('view_client_note') ?? 4,
-            'manage_company_setting' => user()->permission('manage_company_setting') ?? 1,
-            'add_employees' => user()->permission('add_employees') ?? 1,
-            'view_designation' => user()->permission('view_designation') ?? 1,
-            'view_department' => user()->permission('view_department') ?? 1,
-            'view_appreciation' => user()->permission('view_appreciation') ?? 1,
-            'manage_award' => user()->permission('manage_award') ?? 1,
-            'view_task_report' => user()->permission('view_task_report') ?? 1,
-            'view_time_log_report' => user()->permission('view_time_log_report') ?? 1,
-            'view_finance_report' => user()->permission('view_finance_report') ?? 1,
-            'view_income_expense_report' => user()->permission('view_income_expense_report') ?? 1,
-            'view_leave_report' => user()->permission('view_leave_report') ?? 1,
-            'view_attendance_report' => user()->permission('view_attendance_report') ?? 1,
-            'view_expense_report' => user()->permission('view_expense_report') ?? 1,
-            'view_lead_report' => user()->permission('view_lead_report') ?? 1,
-            'view_sales_report' => user()->permission('view_sales_report') ?? 1,
-        ];
-    }
+  
 
     private function getUnreadMessagesCount(): int
     {
@@ -195,5 +144,38 @@ class HandleInertiaRequests extends Middleware
     {
         // Return worksuite plugins
         return []; // Placeholder
+    }
+
+    private function getAllPermissions()
+    {
+        if (!function_exists('user') || !user()) {
+            return [];
+        }
+
+        // Get all permissions for the user in a single query
+        // This joins user_permissions -> permissions -> permission_types
+        $userPermissions = \App\Models\UserPermission::join('permissions', 'user_permissions.permission_id', '=', 'permissions.id')
+            ->join('permission_types', 'user_permissions.permission_type_id', '=', 'permission_types.id')
+            ->where('user_permissions.user_id', user()->id)
+            ->select('permissions.name as permission_name', 'permission_types.name as permission_type')
+            ->pluck('permission_type', 'permission_name')
+            ->toArray();
+
+        // Get all possible permissions to ensure we return a complete list
+        // We cache this query as the list of all permissions rarely changes
+        $allPermissions = cache()->remember('all_permissions_list', 60 * 60 * 24, function () {
+            return \App\Models\Permission::pluck('name')->toArray();
+        });
+
+        $permissions = [];
+        
+        // Map permissions: use the user's specific permission type if it exists, otherwise default to 'none' (or 4/5 depending on your logic)
+        // Assuming 'none' or a specific ID represents no permission. 
+        // Based on your previous code, it seems you want the permission type name (e.g., 'all', 'added', 'owned', 'both', 'none')
+        foreach ($allPermissions as $permissionName) {
+            $permissions[$permissionName] = $userPermissions[$permissionName] ?? 'none';
+        }
+
+        return $permissions;
     }
 }

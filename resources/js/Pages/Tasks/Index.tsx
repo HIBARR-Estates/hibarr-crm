@@ -146,7 +146,7 @@ export interface TasksIndexProps extends PageProps {
     };
 }
 
-const TasksIndex: React.FC<TasksIndexProps> = ({
+const TasksIndex = ({
     tasks: initialTasks = [],
     categories = [],
     labels = [],
@@ -163,8 +163,7 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
         view_tasks: "all",
     },
     auth,
-}) => {
-    console.log("Tasks:", initialTasks);
+}:TasksIndexProps) => {
 
     // Generic entity action hook for modals and actions
     const {

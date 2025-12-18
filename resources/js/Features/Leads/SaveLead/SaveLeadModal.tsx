@@ -80,7 +80,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         CreateLeadFormData,
         Lead,
         ApiResponse<Lead>
-    >(isEditing ? route("lead-contact.update", lead!.id) : "", "PUT");
+    >(isEditing ? route("lead-contact.patch", lead!.id) : "", "PUT");
 
     // Update form data when lead or modal opens
     useEffect(() => {

@@ -1,22 +1,17 @@
 import React, { ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
-import { PageProps } from "@/Components/DashboardLayout";
+import { AppProps } from "@/Types";
+import { AppModule, AppPermission, PermissionKey, PermissionScope } from "@/Types/permission";
 
 // Define types based on the application structure
-export type PermissionScope =
-    | "all"
-    | "added"
-    | "owned"
-    | "both"
-    | "none"
-    | number;
+
 
 export interface User {
     id: number;
     name: string;
     email: string;
-    roles?: string[];
-    [key: string]: any;
+    // roles?: any[];
+    // [key: string]: any;
 }
 
 export interface PermissionCheckOptions {
@@ -24,7 +19,7 @@ export interface PermissionCheckOptions {
      * A single permission or array of permissions to check.
      * If an array is provided, behavior depends on `requireAll`.
      */
-    permissions?: string | string[];
+    permissions?: PermissionKey | PermissionKey[];
 
     /**
      * A single module or array of modules to check.
@@ -51,7 +46,7 @@ export interface PermissionCheckOptions {
      */
     callback?: (
         user: User,
-        permissions: Record<string, PermissionScope>,
+        permissions: AppPermission,
         userModules: string[]
     ) => boolean;
 }
@@ -108,9 +103,9 @@ const hasAccess = (
  */
 export const checkPermission = (
     options: PermissionCheckOptions,
-    context: {
+    context: {  
         user: User;
-        permissions: Record<string, PermissionScope>;
+        permissions: AppPermission;
         userModules: string[];
     }
 ): boolean => {
@@ -166,13 +161,13 @@ export const checkPermission = (
  * Hook to check permissions within a component.
  */
 export const usePermission = () => {
-    const { props } = usePage<PageProps>();
-    const { auth, sidebar } = props;
+    const { props } = usePage<AppProps>();
+    const { auth } = props;
     const user = auth.user;
-    const permissions = sidebar.permissions;
-    const userModules = sidebar.modules;
+    const permissions = auth.permissions;
+    const userModules = auth.modules || [];
 
-    const can = (options: PermissionCheckOptions | string): boolean => {
+    const can = (options: PermissionCheckOptions ): boolean => {
         // Allow passing a simple string as a shortcut for { permissions: string }
         const opts =
             typeof options === "string" ? { permissions: options } : options;
@@ -183,7 +178,7 @@ export const usePermission = () => {
     /**
      * Helper to check if user has a specific module
      */
-    const hasModule = (moduleName: string): boolean => {
+    const hasModule = (moduleName: AppModule): boolean => {
         return userModules.includes(moduleName);
     };
 
