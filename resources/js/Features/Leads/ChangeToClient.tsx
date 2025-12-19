@@ -277,14 +277,15 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                             <Input placeholder="Enter email address" />
                         </Form.Item>
                     </Col>
-                    <Col span={12}>
+                    {/* TODO: Add when you're refactoring and standardizing phone input ... */}
+                    {/* <Col span={12}>
                         <PhoneInput
                             fieldName="mobile"
                             placeholder="Enter mobile number"
                             showLabel={true}
                             label="Mobile"
                         />
-                    </Col>
+                    </Col> */}
                 </Row>
 
                 <Row gutter={16}>

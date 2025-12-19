@@ -205,6 +205,19 @@ class LeadContactController extends AccountBaseController
             ])
             ->get();
 
+        // Transform deals to include custom fields data
+        $deals = $deals->map(function ($deal) {
+            // Load custom fields for each deal
+            $dealWithFields = $deal->withCustomFields();
+            $customFieldsData = $dealWithFields->getCustomFieldsData();
+            
+            // Convert to array and add custom fields data
+            $dealArray = $deal->toArray();
+            $dealArray['custom_fields_data'] = $customFieldsData;
+            
+            return $dealArray;
+        });
+
         // Get notes associated with this lead
         $notes = LeadNote::where('lead_id', $id)
             ->with('addedBy')
@@ -245,6 +258,9 @@ class LeadContactController extends AccountBaseController
             'delete_tasks' => user()->permission('delete_tasks'),
             'view_tasks' => user()->permission('view_tasks'),
         ];
+        $deal = new Deal();
+        $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
+        $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
@@ -261,6 +277,7 @@ class LeadContactController extends AccountBaseController
             'taskBoardColumns' => $taskBoardColumns,
             'projects' => $projects,
             'taskPermissions' => $taskPermissions,
+            'dealCustomFields' => $fields,
         ], $formData, $dealFormData));
     }
 

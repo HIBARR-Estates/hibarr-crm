@@ -264,6 +264,7 @@ export interface PipelineStage {
 
 export interface CreateDealFormData {
     name: string;
+    lead_id?: number;
     lead_contact?: number;
     pipeline?: number;
     stage_id?: number;
