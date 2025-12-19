@@ -19,6 +19,7 @@ use App\Events\DealEvent;
 use App\Notifications\LeadAgentAssigned;
 use App\Http\Requests\Deal\CreateDealRequest;
 use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
+use App\Jobs\ProcessDealRequestJob;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Arr;
@@ -148,128 +149,46 @@ class DealContactApiController extends Controller
     public function createDeal(CreateDealRequest $request)
     {
         try {
-            return DB::transaction(function () use ($request) {
-                $companyId = $request->header('X-COMPANY-ID');
-                $dealName = $request->input('deal_name') ?? null;
-                if (!$dealName) {
-                    $dealName = $request->input('name') ?? null;
-                }
- 
-                if (!$companyId) {
-                    return Reply::error(__('messages.missingCompanyId'));
-                }
-                $companyId = (int) $companyId;
-                $contactId = $request->input('lead_id') ?? null;
-                if (!$contactId) {
-                    $contactId = $this->resolveContact($request, $companyId);
-                }
-                
-                // Save UTM information if provided
-                $this->saveUtmInfo($contactId, $request);
-                
-                // Find the most recent deal for this contact
-                $deal = Deal::where('lead_id', $contactId)
-                    ->where('company_id', $companyId)
-                    ->orderByDesc('updated_at')
-                    ->orderByDesc('created_at')
-                    ->first();
-
-                $isNewDeal = !$deal;
-
-                if ($isNewDeal) {
-                    // Create new deal
-                    $deal = new Deal();
-                    $deal->company_id = $companyId;
-                    $deal->lead_id = $contactId;
-                    $deal->hash = md5(microtime());
-                    $deal->created_at = now();
-                }
-
-                // Default pipeline_id to 1 if not provided
-                $pipelineId = $request->pipeline_id ?? 1;
-                
-                // Get first stage ID for the pipeline
-                $firstStageId = $this->getFirstStageinpipeline($pipelineId, $companyId);
-
-                // Resolve agent_id from deal_owner_id (user_id)
-                $agentId = null;
-                if ($request->has('deal_owner_id') && !empty($request->deal_owner_id)) {
-                    $agentId = $this->resolveAgentId($request->deal_owner_id, $companyId);
-                    
-                    // If deal_owner_id was provided but couldn't be resolved, log warning
-                    if ($agentId === null) {
-                        Log::warning('Invalid deal_owner_id provided in createDeal API', [
-                            'deal_owner_id' => $request->deal_owner_id,
-                            'company_id' => $companyId,
-                            'contact_email' => $request->email ?? 'unknown'
-                        ]);
-                    }
-                }
-
-                $packageId = $this->resolvePackageId($request, $companyId);
-
-                // Update deal fields
-                $deal->name = $dealName;
-                $deal->lead_pipeline_id = $pipelineId;
-                $deal->pipeline_stage_id = $request->pipeline_stage_id ?? $firstStageId ?? $deal->pipeline_stage_id;
-                $deal->agent_id = $agentId ?? $deal->agent_id;
-                $deal->package_id = $packageId;
-                $deal->next_follow_up = 'yes';
-                $deal->create_client = 0;
-                
-                // Save quietly to bypass observers
-                $deal->saveQuietly();
-
-                // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
-                if ($request->has('deal_owner_id') && !empty($request->deal_owner_id)) {
-                    $lead = Lead::where('company_id', $companyId)->where('id', $contactId)->first();
-                    if ($lead && !$lead->lead_owner) {
-                        $lead->lead_owner = $request->deal_owner_id;
-                        $lead->saveQuietly();
-                    }
-                }
-
-                // Upsert Hibarr fields after deal is saved
-                $this->upsertHibarrFields($deal, $request);
-                
-              
-
-                // Sync deal watchers after deal is saved
-                $dealWatchers = $request->input('deal_watcher', []);
-                if (is_array($dealWatchers) && !empty($dealWatchers)) {
-                    $validUserIds = User::whereIn('id', $dealWatchers)
-                        ->pluck('id')
-                        ->toArray();
-                    
-                    if (!empty($validUserIds)) {
-                        $deal->dealWatchers()->sync($validUserIds);
-                    }
-                }
-
-                // Handle meeting if provided
-                if ($request->has('meeting') && is_array($request->meeting)) {
-                    $this->createMeeting($deal, $request->meeting, $companyId);
-                }
-
-                  // Manually trigger notifications for agent or admins (only for new deals)
-                  if ($isNewDeal) {
-                    $this->sendDealCreatedNotifications($deal);
-                }
-
-                return Reply::successWithData($isNewDeal ? 'Deal created successfully' : 'Deal updated successfully', [
-                    'deal_id' => $deal->id,
-                    'is_new' => $isNewDeal
-                ]);
-            });
+            $companyId = $request->header('X-COMPANY-ID');
+            
+            if (!$companyId) {
+                return Reply::error(__('messages.missingCompanyId'));
+            }
+            
+            $companyId = (int) $companyId;
+            
+            // Resolve contact ID (this is fast and doesn't need to be queued)
+            $contactId = $request->input('lead_id') ?? null;
+            if (!$contactId) {
+                $contactId = $this->resolveContact($request, $companyId);
+            }
+            
+            // Save UTM information if provided (also fast)
+            $this->saveUtmInfo($contactId, $request);
+            
+            // Queue the deal processing work
+            ProcessDealRequestJob::dispatch(
+                $contactId,
+                $companyId,
+                $request->all()
+            );
+            
+            // Return immediately with "processing" status
+            return Reply::successWithData('Deal request is being processed', [
+                'status' => 'processing',
+                'contact_id' => $contactId,
+                'company_id' => $companyId,
+            ]);
+            
         } catch (\Exception $e) {
-            Log::error('Error creating/updating deal via API', [
+            Log::error('Error queuing deal request', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'email' => $request->input('email'),
                 'name' => $request->input('name'),
             ]);
             
-            return Reply::error('Failed to create/update deal: ');
+            return Reply::error('Failed to queue deal request');
         }
     }
 
@@ -845,6 +764,180 @@ class DealContactApiController extends Controller
      * @param Deal $deal
      * @return void
      */
+    /**
+     * Process deal creation/update in queue with database locks.
+     * This method is called by ProcessDealRequestJob.
+     *
+     * @param int $contactId
+     * @param int $companyId
+     * @param array $requestData
+     * @return Deal
+     */
+    public function processDealInQueue(int $contactId, int $companyId, array $requestData): Deal
+    {
+        // Convert array to Request object for compatibility with existing methods
+        $request = new Request($requestData);
+        
+        return DB::transaction(function () use ($contactId, $companyId, $request) {
+            $dealName = $request->input('deal_name') ?? $request->input('name') ?? 'Untitled Deal';
+            
+            // Find or create deal with lock to prevent duplicates
+            $result = $this->findOrCreateDeal($contactId, $companyId, $dealName);
+            $deal = $result['deal'];
+            $isNewDeal = $result['is_new'];
+            
+            if ($isNewDeal) {
+                $deal->created_at = now();
+            }
+
+            // Default pipeline_id to 1 if not provided
+            $pipelineId = $request->pipeline_id ?? 1;
+            
+            // Get first stage ID for the pipeline
+            $firstStageId = $this->getFirstStageinpipeline($pipelineId, $companyId);
+
+            // Resolve agent_id from deal_owner_id (user_id)
+            $agentId = null;
+            if ($request->has('deal_owner_id') && !empty($request->deal_owner_id)) {
+                $agentId = $this->resolveAgentId($request->deal_owner_id, $companyId);
+                
+                // If deal_owner_id was provided but couldn't be resolved, log warning
+                if ($agentId === null) {
+                    Log::warning('Invalid deal_owner_id provided in createDeal API', [
+                        'deal_owner_id' => $request->deal_owner_id,
+                        'company_id' => $companyId,
+                        'contact_email' => $request->email ?? 'unknown'
+                    ]);
+                }
+            }
+
+            $packageId = $this->resolvePackageId($request, $companyId);
+
+            // Check if deal name has changed and update hash accordingly
+            $nameChanged = $deal->name !== $dealName;
+            if ($nameChanged) {
+                // Recalculate hash for the new deal name
+                $newHash = $this->generateDealHash($contactId, $dealName, $companyId);
+                $deal->hash = $newHash;
+            }
+
+            // Update deal fields
+            $deal->name = $dealName;
+            $deal->lead_pipeline_id = $pipelineId;
+            $deal->pipeline_stage_id = $request->pipeline_stage_id ?? $firstStageId ?? $deal->pipeline_stage_id;
+            $deal->agent_id = $agentId ?? $deal->agent_id;
+            $deal->package_id = $packageId;
+            $deal->next_follow_up = 'yes';
+            $deal->create_client = 0;
+            
+            // Save quietly to bypass observers
+            $deal->saveQuietly();
+
+            // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
+            if ($request->has('deal_owner_id') && !empty($request->deal_owner_id)) {
+                $lead = Lead::where('company_id', $companyId)->where('id', $contactId)->first();
+                if ($lead && !$lead->lead_owner) {
+                    $lead->lead_owner = $request->deal_owner_id;
+                    $lead->saveQuietly();
+                }
+            }
+
+            // Upsert Hibarr fields after deal is saved
+            $this->upsertHibarrFields($deal, $request);
+
+            // Sync deal watchers after deal is saved
+            $dealWatchers = $request->input('deal_watcher', []);
+            if (is_array($dealWatchers) && !empty($dealWatchers)) {
+                $validUserIds = User::whereIn('id', $dealWatchers)
+                    ->pluck('id')
+                    ->toArray();
+                
+                if (!empty($validUserIds)) {
+                    $deal->dealWatchers()->sync($validUserIds);
+                }
+            }
+
+            // Handle meeting if provided
+            if ($request->has('meeting') && is_array($request->meeting)) {
+                $this->createMeeting($deal, $request->meeting, $companyId);
+            }
+
+            // Manually trigger notifications for agent or admins (only for new deals)
+            if ($isNewDeal) {
+                $this->sendDealCreatedNotifications($deal);
+            }
+
+            return $deal;
+        });
+    }
+
+    /**
+     * Generate a deterministic hash for a deal based on contact, name, and company.
+     *
+     * @param int $contactId
+     * @param string $dealName
+     * @param int $companyId
+     * @return string
+     */
+    private function generateDealHash(int $contactId, string $dealName, int $companyId): string
+    {
+        // Normalize deal name (lowercase, remove extra spaces)
+        $normalizedName = trim(strtolower($dealName));
+        
+        // Create hash from contact + normalized deal name + company
+        return hash('sha256', "{$contactId}|{$normalizedName}|{$companyId}");
+    }
+
+    /**
+     * Find or create a deal with database lock to prevent duplicates.
+     *
+     * @param int $contactId
+     * @param int $companyId
+     * @param string $dealName
+     * @return array{deal: Deal, is_new: bool}
+     */
+    private function findOrCreateDeal(int $contactId, int $companyId, string $dealName): array
+    {
+        // Create a deterministic hash from contact + deal name + company
+        $dealHash = $this->generateDealHash($contactId, $dealName, $companyId);
+        
+        // First, try to find deal by hash (most reliable for exact duplicates)
+        $existingDeal = Deal::where('lead_id', $contactId)
+            ->where('company_id', $companyId)
+            ->where('hash', $dealHash)
+            ->whereNull('close_date') // Only open deals
+            ->lockForUpdate() // Lock the row to prevent concurrent creation
+            ->first();
+        
+        if ($existingDeal) {
+            return ['deal' => $existingDeal, 'is_new' => false];
+        }
+        
+        // Fallback: Find any open deal for this contact (for backwards compatibility)
+        $existingDeal = Deal::where('lead_id', $contactId)
+            ->where('company_id', $companyId)
+            ->whereNull('close_date') // Only open deals
+            ->orderByDesc('updated_at')
+            ->lockForUpdate() // Lock the row to prevent concurrent creation
+            ->first();
+        
+        if ($existingDeal) {
+            // Update the hash for future requests
+            $existingDeal->hash = $dealHash;
+            $existingDeal->saveQuietly();
+            return ['deal' => $existingDeal, 'is_new' => false];
+        }
+        
+        // Create new deal with hash
+        $deal = new Deal();
+        $deal->company_id = $companyId;
+        $deal->lead_id = $contactId;
+        $deal->hash = $dealHash;
+        $deal->name = $dealName;
+        
+        return ['deal' => $deal, 'is_new' => true];
+    }
+
     private function sendDealCreatedNotifications(Deal $deal): void
     {
         // Reload deal with relationships
