@@ -287,6 +287,8 @@ const Index = ({
                                         route("deals.index"),
                                         {
                                             ...filters,
+                                            lead_pipeline_id:
+                                                valueLeadPipelineId,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
