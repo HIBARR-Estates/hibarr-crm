@@ -228,24 +228,100 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         [formatDisplayValue, getFieldLabel]
     );
 
-    const removeFilter = useCallback((key: string) => {
-        setFilters((prev) => {
-            const newFilters = { ...prev };
-            delete newFilters[key];
-            return newFilters;
-        });
+    const removeFilter = useCallback(
+        (key: string) => {
+            setFilters((prev) => {
+                const newFilters = { ...prev };
+                delete newFilters[key];
+                return newFilters;
+            });
 
-        setFilterMetadata((prev) => {
-            const newMetadata = { ...prev };
-            delete newMetadata[key];
-            return newMetadata;
-        });
-    }, []);
+            setFilterMetadata((prev) => {
+                const newMetadata = { ...prev };
+                delete newMetadata[key];
+                return newMetadata;
+            });
+
+            // Automatically apply filters after removal
+            // We need to use a timeout to ensure state updates have processed
+            // Or we can pass the new state directly to a modified applyFilters
+            setTimeout(() => {
+                // We can't call applyFilters directly here because it uses the 'filters' state
+                // which hasn't updated yet in this closure.
+                // Instead, we'll trigger a custom event or use a ref, but for now,
+                // let's duplicate the apply logic with the new state.
+
+                if (!config) return;
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const currentParams: Record<string, any> = {};
+                urlParams.forEach((value, k) => {
+                    currentParams[k] = value;
+                });
+
+                // Get current filters but exclude the removed key
+                const updatedFilters = { ...filters };
+                delete updatedFilters[key];
+
+                const cleanFilters = Object.entries(updatedFilters).reduce(
+                    (acc, [k, value]) => {
+                        if (
+                            value !== null &&
+                            value !== undefined &&
+                            value !== "" &&
+                            !(Array.isArray(value) && value.length === 0)
+                        ) {
+                            acc[k] = value;
+                        }
+                        return acc;
+                    },
+                    {} as Record<string, any>
+                );
+
+                const managedKeys = new Set<string>();
+                config.fields.forEach((field) => {
+                    managedKeys.add(field.key);
+                    if (field.type === "daterange") {
+                        managedKeys.add(`${field.key}_start`);
+                        managedKeys.add(`${field.key}_end`);
+                    } else if (field.type === "numberrange") {
+                        managedKeys.add(`min_${field.key}`);
+                        managedKeys.add(`max_${field.key}`);
+                    }
+                });
+
+                managedKeys.forEach((k) => {
+                    delete currentParams[k];
+                });
+
+                const finalParams = {
+                    ...currentParams,
+                    ...cleanFilters,
+                    page: 1,
+                };
+
+                router.get(route(config.routeName), finalParams, {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                });
+            }, 0);
+        },
+        [config, filters]
+    );
 
     const clearAllFilters = useCallback(() => {
         setFilters({});
         setFilterMetadata({});
-    }, []);
+
+        if (!config) return;
+
+        router.get(route(config.routeName), config.defaultValues || {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    }, [config]);
 
     const applyFilters = useCallback(() => {
         if (!config) return;
