@@ -31,7 +31,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
     // Initialize config when component mounts
     // useEffect(() => {
     //     setConfig(config);
-    // }, [config, ]);
+    // }, [config]);
 
     const renderField = (fieldConfig: any) => {
         const {

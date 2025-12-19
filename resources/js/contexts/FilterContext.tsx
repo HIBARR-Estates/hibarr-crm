@@ -416,8 +416,19 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
 
                     if (type === "multiselect") {
                         parsedValue = value.split(",");
+                        // Try to convert to numbers if possible
+                        parsedValue = parsedValue.map((v: string) => {
+                            const num = Number(v);
+                            return !isNaN(num) ? num : v;
+                        });
                     } else if (type === "number" || type === "numberrange") {
                         parsedValue = Number(value);
+                    } else if (type === "select") {
+                        // Try to convert to number if it looks like one
+                        const num = Number(value);
+                        if (!isNaN(num) && value.trim() !== "") {
+                            parsedValue = num;
+                        }
                     }
 
                     initialFilters[key] = parsedValue;
