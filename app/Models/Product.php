@@ -224,4 +224,9 @@ class Product extends BaseModel
         return $this->hasMany(PurchaseStockAdjustment::class, 'product_id');
     }
 
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by');
+    }
+
 }
