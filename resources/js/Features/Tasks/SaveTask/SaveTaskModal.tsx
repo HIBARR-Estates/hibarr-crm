@@ -232,7 +232,9 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
             onSuccess: () => {
                 setErrors([]);
                 handleCancel();
-                router.reload();
+                router.reload({
+                    only: ["tasks"], // Adjust based on what needs to be refreshed
+                });
             },
             onError: (errorResponse) => {
                 const responseErrors =

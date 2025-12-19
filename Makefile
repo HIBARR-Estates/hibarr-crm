@@ -53,6 +53,7 @@ composer-install:
 
 npm-build:
 	npm install
+	php artisan ziggy:generate
 	npm run production
 
 migrate:

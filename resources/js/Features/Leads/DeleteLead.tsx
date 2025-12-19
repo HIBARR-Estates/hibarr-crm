@@ -2,25 +2,33 @@ import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { Lead } from "@/Types";
 import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
-import React, { useState } from "react";
+import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
+import { useApiMutate } from "@/lib/api/client";
+import { ApiResponse } from "@/lib/api/types";
+import { isLoading as getLoadingStatus } from "@/lib/utils";
 
 interface Props extends IModalProps {
     lead?: Lead;
 }
 
 const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
-    const [loading, setLoading] = useState(false);
+    const { mutate: deleteLead, status } = useApiMutate<
+        unknown,
+        unknown,
+        ApiResponse<unknown>
+    >(lead ? route("lead-contact.destroy", lead.id) : "", "DELETE");
+
+    const loading = getLoadingStatus({ status });
 
     // Handle single deal deletion
     const handleDeleteLead = () => {
         if (!lead) return;
 
-        router.delete(route("lead-contact.destroy", lead.id), {
-            onStart: () => setLoading(true),
-            onFinish: () => setLoading(false),
+        deleteLead(undefined, {
             onSuccess: () => {
                 onClose();
+                router.reload();
             },
         });
     };

@@ -22,7 +22,7 @@ interface ShowProps {
     projects: any[];
 }
 
-export default function Show({
+const Show = ({
     pageTitle,
     property,
     canEdit = false,
@@ -32,7 +32,7 @@ export default function Show({
     taskBoardColumns,
     employees,
     projects,
-}: ShowProps) {
+}: ShowProps) => {
     // Breadcrumbs for the page
     const breadcrumbs = [
         {
@@ -73,7 +73,7 @@ export default function Show({
     const [showExposeModal, setShowExposeModal] = useState(false);
 
     return (
-        <DashboardLayout>
+        <>
             <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
                 <div className="max-w-7xl mx-auto">
                     <PropertyView
@@ -97,6 +97,12 @@ export default function Show({
                 onClose={() => setShowExposeModal(false)}
                 propertyId={property.id}
             />
-        </DashboardLayout>
+        </>
     );
 }
+
+Show.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
+
+export default Show;

@@ -18,7 +18,9 @@ const DeleteColumn: React.FC<Props> = ({ stage, onClose, open }) => {
     };
 
     const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
-        route("lead-stage-setting.destroy", stage?.id),
+        route("lead-stage-setting.destroy", {
+            lead_stage_setting: Number(stage?.id),
+        }),
         "DELETE",
         () => {
             handleCancel();

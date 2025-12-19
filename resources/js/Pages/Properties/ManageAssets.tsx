@@ -45,14 +45,14 @@ interface ManageAssetsProps {
     };
 }
 
-const ManageAssets: React.FC<ManageAssetsProps> = ({
+const ManageAssets = ({
     pageTitle,
     property,
     assets,
     availableTags,
     availableTypes,
     filters,
-}) => {
+}: ManageAssetsProps) => {
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
     const [selectedAssets, setSelectedAssets] = useState<number[]>([]);
     const [previewAsset, setPreviewAsset] = useState<PropertyAsset | null>(
@@ -156,7 +156,7 @@ const ManageAssets: React.FC<ManageAssetsProps> = ({
     };
 
     return (
-        <DashboardLayout>
+        <>
             <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
                 <div className="max-w-7xl mx-auto space-y-6">
                 {/* Actions Bar */}
@@ -297,8 +297,11 @@ const ManageAssets: React.FC<ManageAssetsProps> = ({
                     onNavigate={setPreviewAsset}
                 />
             </PageLayout>
-        </DashboardLayout>
+        </>
     );
 };
+ManageAssets.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default ManageAssets;

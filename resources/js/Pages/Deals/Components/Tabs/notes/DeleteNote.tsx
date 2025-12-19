@@ -18,7 +18,7 @@ const DeleteNote: React.FC<Props> = ({ note, onClose, open }) => {
     };
 
     const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
-        route("deal-notes.destroy", note?.id),
+        route("deal-notes.destroy", { deal_note: Number(note?.id) }),
         "DELETE",
 
         () => {
@@ -28,7 +28,6 @@ const DeleteNote: React.FC<Props> = ({ note, onClose, open }) => {
     const onSubmit = () => {
         mutate(null, {
             onSuccess: () => {
-                console.log("was deleted note ....");
                 router.reload();
             },
         });

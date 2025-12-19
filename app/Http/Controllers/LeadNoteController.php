@@ -87,7 +87,7 @@ class LeadNoteController extends AccountBaseController
         $note->title = $request->title;
         $note->lead_id = $request->lead_id;
         $note->details = $request->details;
-        $note->type = $request->type;
+        $note->type = request('type', 1);
         $note->ask_password = $request->ask_password ? $request->ask_password : '';
 
         $note->save();

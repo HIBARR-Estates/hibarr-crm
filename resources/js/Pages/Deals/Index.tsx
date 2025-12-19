@@ -206,7 +206,7 @@ const Index = ({
         ? Number((props as any).filters?.lead_pipeline_id)
         : defaultPipeline?.id;
     return (
-        <DashboardLayout>
+        <>
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Deals" }]}
@@ -287,6 +287,8 @@ const Index = ({
                                         route("deals.index"),
                                         {
                                             ...filters,
+                                            lead_pipeline_id:
+                                                valueLeadPipelineId,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
@@ -338,8 +340,12 @@ const Index = ({
 
             {/* Universal Filter Drawer */}
             <UniversalFilterDrawer config={filterConfig} />
-        </DashboardLayout>
+        </>
     );
 };
+
+Index.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default Index;

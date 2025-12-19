@@ -33,13 +33,19 @@ const GeneralCustomFieldTab = <
     categoryName,
 }: CustomFieldTabProps<T>) => {
     const { props } = usePage<any>();
-    const { customFields, countries } = props;
+    const { customFields = [], countries, dealCustomFields = [] } = props;
 
     const [otherValues, setOtherValues] = useState<Record<string, string>>({});
 
     // Filter fields for this category and sort by field type
     const categoryFields =
         customFields
+            .concat(dealCustomFields)
+            //remove duplicates based on id
+            ?.filter(
+                (field: any, index: number, self: any[]) =>
+                    index === self.findIndex((f) => f.id === field.id) //TODO: THis is a hack, fix properly later as the dealCustomFields is supposed to be properly differitaed in controller, and controller adapt the service pattern as oppososed to traits that are leading to the current override
+            )
             ?.filter(
                 (field: any) => field.custom_field_category_id === categoryId
             )

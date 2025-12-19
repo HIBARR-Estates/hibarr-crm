@@ -36,15 +36,20 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateLeadFormData | null>(null);
     const { props } = usePage<any>();
+    console.log(lead, "why lead ....");
 
     const customFields = props.leadCustomFields || props.customFields || [];
     // Determine if we're editing or creating
     const isEditing = !!lead;
-    const submitText = isEditing ? "Update Lead" : "Create Lead";
+    const submitText = isEditing ? "Update Contact" : "Create Contact";
 
     // Initialize form data
     const getInitialData = (): CreateLeadFormData => ({
-        salutation: lead?.salutation || "",
+        salutation:
+            lead?.salutation_value ??
+            (lead?.salutation as any)?.value ??
+            lead?.salutation ??
+            "",
         client_name: lead?.client_name || "",
         client_email: lead?.client_email || "",
         mobile: lead?.mobile || "",
@@ -64,6 +69,11 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         added_by: lead?.added_by?.id || undefined,
         create_deal: false,
         create_client: false,
+        gender:
+            lead?.gender_value ??
+            (lead?.gender as any)?.value ??
+            lead?.gender ??
+            "",
         custom_fields_data:
             constructCustomFieldsData(customFields, lead?.custom_fields_data) ||
             {},
@@ -80,7 +90,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         CreateLeadFormData,
         Lead,
         ApiResponse<Lead>
-    >(isEditing ? route("lead-contact.update", lead!.id) : "", "PUT");
+    >(isEditing ? `/account/lead-contact/${lead?.id}` : "", "PUT");
 
     // Update form data when lead or modal opens
     useEffect(() => {
@@ -129,9 +139,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
 
     return (
         <Drawer
-            title={
-                isEditing ? "Edit Lead Contact Info" : "Add Lead Contact Info"
-            }
+            title={isEditing ? "Edit Contact" : "Add Contact"}
             placement="right"
             size="large"
             open={open}
@@ -154,6 +162,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
                 onErrorsClear={handleErrorsClear}
                 setLead={setLead}
                 loading={isLoading}
+                isEditing={isEditing}
             />
         </Drawer>
     );

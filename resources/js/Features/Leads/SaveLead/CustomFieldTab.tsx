@@ -25,7 +25,7 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     onSubmit,
     onCancel,
     loading = false,
-    submitText = "Save Lead",
+    submitText = "Save Contact",
     cancelText = "Cancel",
     categoryId,
     categoryName,

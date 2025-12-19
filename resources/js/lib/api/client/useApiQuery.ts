@@ -33,9 +33,9 @@ const getData = async <
 
 export const useApiQuery = <
     QueryResponse,
-    Params extends Record<string, string | number> = Record<
+    Params extends Record<string, string | number | boolean> = Record<
         string,
-        string | number
+        string | number | boolean
     >
 >(input: {
     path: string;

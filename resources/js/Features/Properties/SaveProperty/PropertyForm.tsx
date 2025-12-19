@@ -173,7 +173,6 @@ export default function PropertyForm({
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 items={tabItems}
-                type="card"
             />
         </>
     );

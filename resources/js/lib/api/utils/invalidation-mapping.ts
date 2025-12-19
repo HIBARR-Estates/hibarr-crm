@@ -2,7 +2,7 @@ export const QUERY_INVALIDATION: Record<
     string,
     (string | boolean | number)[][]
 > = {
-    [`${route("deal-notes.store")}`]: [[`${route("deals.show")}`]],
+    [`${route("deal-notes.store")}`]: [[`${route("deals.index")}`]],
     [`${route("meeting-types.store")}`]: [[`${route("meeting-types.index")}`]],
     [`${route("clients.store")}`]: [[`${route("clients.index")}`]],
 };

@@ -32,6 +32,7 @@ interface DealDetailsTabProps
         | "onErrorsClear"
     > {
     setDeal?: (deal: Deal | undefined) => void;
+    disableFields?: string[];
 }
 
 const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
@@ -44,6 +45,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onErrorsClear,
     setErrors,
     setDeal,
+    disableFields = [],
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
@@ -203,6 +205,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             ]}
                         >
                             <Select
+                                disabled={disableFields.includes(
+                                    "lead_contact"
+                                )}
                                 placeholder="Select Lead Contact"
                                 allowClear
                                 showSearch

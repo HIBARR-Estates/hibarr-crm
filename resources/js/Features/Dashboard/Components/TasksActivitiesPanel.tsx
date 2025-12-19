@@ -209,6 +209,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 className="mb-3"
+                key={task.id}   
             >
                 <Card
                     size="small"

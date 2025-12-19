@@ -146,7 +146,7 @@ export interface TasksIndexProps extends PageProps {
     };
 }
 
-const TasksIndex: React.FC<TasksIndexProps> = ({
+const TasksIndex = ({
     tasks: initialTasks = [],
     categories = [],
     labels = [],
@@ -163,8 +163,7 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
         view_tasks: "all",
     },
     auth,
-}) => {
-    console.log("Tasks:", initialTasks);
+}:TasksIndexProps) => {
 
     // Generic entity action hook for modals and actions
     const {
@@ -345,7 +344,7 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
     const isTableView = view === "table";
 
     return (
-        <DashboardLayout>
+        <>
             <PageLayout
                 title="Tasks"
                 breadcrumbs={[{ name: "Tasks" }]}
@@ -638,8 +637,12 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                     projects={projects}
                 />
             </FilterDrawer>
-        </DashboardLayout>
+        </>
     );
 };
+
+TasksIndex.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default TasksIndex;

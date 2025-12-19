@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Button, Select, DatePicker } from "antd";
 import { PlusOutlined, FilterOutlined } from "@ant-design/icons";
-import { Link, router } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import { Deal, PipelineStage, Product } from "@/Types/api/deals";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { User } from "@/Types";
-import dayjs, { Dayjs } from "dayjs";
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
@@ -19,7 +18,6 @@ import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createDealFilterConfig } from "@/configs/dealFilterConfig";
-import { createDealSearchConfig } from "@/configs/searchConfigs";
 import PipelineSelector from "@/Features/Deals/PipelineSelector";
 
 interface BoardColumn extends PipelineStage {
@@ -186,110 +184,108 @@ const LeadBoardIndex = ({
                 deal={deal}
                 onClose={() => handleClose()}
             />
-            <DashboardLayout>
-                <div className="bg-gray-50 min-h-screen">
-                    <PageLayout
-                        title={`Deals | Kanban`}
-                        breadcrumbs={[
-                            { name: "Deals", url: route("deals.index") },
-                            { name: "Kanban" },
-                        ]}
-                        searchComp={
-                            <UniversalSearchBox
-                                placeholder="Search deals by title, contact name, email..."
-                                className="w-full"
-                            />
-                        }
-                        filterSection={<ContextualActiveFilters />}
-                    >
-                        <div className="bg-white rounded-lg shadow-sm max-w-7xl mx-auto">
-                            {/* Header Actions */}
-                            <div className="p-4 border-b border-gray-200">
-                                {/* Mobile Warning */}
-                                {/* <Alert
+            <div className="bg-gray-50 min-h-screen">
+                <PageLayout
+                    title={`Deals | Kanban`}
+                    breadcrumbs={[
+                        { name: "Deals", url: route("deals.index") },
+                        { name: "Kanban" },
+                    ]}
+                    searchComp={
+                        <UniversalSearchBox
+                            placeholder="Search deals by title, contact name, email..."
+                            className="w-full"
+                        />
+                    }
+                    filterSection={<ContextualActiveFilters />}
+                >
+                    <div className="bg-white rounded-lg shadow-sm max-w-7xl mx-auto">
+                        {/* Header Actions */}
+                        <div className="p-4 border-b border-gray-200">
+                            {/* Mobile Warning */}
+                            {/* <Alert
                             message="Drag and drop functionality works best on desktop devices"
                             type="info"
                             showIcon
                             className="mb-4 lg:hidden"
                         /> */}
 
-                                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <PipelineSelector
-                                            pipelines={pipelines}
-                                            currentPipelineId={
-                                                valueLeadPipelineId
-                                            }
-                                            onSelect={handlePipelineChange}
-                                        />
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <PipelineSelector
+                                        pipelines={pipelines}
+                                        currentPipelineId={valueLeadPipelineId}
+                                        onSelect={handlePipelineChange}
+                                    />
 
-                                        {(addLeadPermission === "all" ||
-                                            addLeadPermission === "added") && (
-                                            <Button
-                                                type="primary"
-                                                icon={<PlusOutlined />}
-                                                onClick={() =>
-                                                    handleCreateDeal()
-                                                }
-                                            >
-                                                Add Deal
-                                            </Button>
-                                        )}
+                                    {(addLeadPermission === "all" ||
+                                        addLeadPermission === "added") && (
+                                        <Button
+                                            type="primary"
+                                            icon={<PlusOutlined />}
+                                            onClick={() => handleCreateDeal()}
+                                        >
+                                            Add Deal
+                                        </Button>
+                                    )}
 
-                                        {/* <Button
+                                    {/* <Button
                                             icon={<PlusOutlined />}
                                             onClick={handleCreateStage}
                                         >
                                             Add Stages
                                         </Button> */}
-                                    </div>
+                                </div>
 
-                                    <div className="flex items-center gap-x-2">
-                                        <Button
-                                            icon={<FilterOutlined />}
-                                            onClick={openDrawer}
-                                        >
-                                            Filters
-                                        </Button>
-                                        <DealsModeSwitcher />
-                                    </div>
+                                <div className="flex items-center gap-x-2">
+                                    <Button
+                                        icon={<FilterOutlined />}
+                                        onClick={openDrawer}
+                                    >
+                                        Filters
+                                    </Button>
+                                    <DealsModeSwitcher />
                                 </div>
                             </div>
-
-                            {/* Kanban Board */}
-                            <div className="p-4">
-                                <KanbanBoard
-                                    columns={initialResult.boardColumns}
-                                    addLeadPermission={addLeadPermission}
-                                    onCreateDeal={handleCreateDeal}
-                                    onEditDeal={handleEditDeal}
-                                    onEditColumn={handleEditColumn}
-                                    onDeleteColumn={handleDeleteColumn}
-                                    onColumnsUpdate={handleColumnsUpdate}
-                                    filters={filters}
-                                />
-                            </div>
                         </div>
-                    </PageLayout>
-                </div>
-                {/* Filter Drawer */}
-                <UniversalFilterDrawer config={filterConfig} />
 
-                {/* Column Management Modals */}
-                <EditColumn
-                    open={columnAction === "edit"}
-                    stage={selectedColumn}
-                    onClose={() => handleColumnClose()}
-                />
+                        {/* Kanban Board */}
+                        <div className="p-4">
+                            <KanbanBoard
+                                columns={initialResult.boardColumns}
+                                addLeadPermission={addLeadPermission}
+                                onCreateDeal={handleCreateDeal}
+                                onEditDeal={handleEditDeal}
+                                onEditColumn={handleEditColumn}
+                                onDeleteColumn={handleDeleteColumn}
+                                onColumnsUpdate={handleColumnsUpdate}
+                                filters={filters}
+                            />
+                        </div>
+                    </div>
+                </PageLayout>
+            </div>
+            {/* Filter Drawer */}
+            <UniversalFilterDrawer config={filterConfig} />
 
-                <DeleteColumn
-                    open={columnAction === "delete"}
-                    stage={selectedColumn}
-                    onClose={() => handleColumnClose()}
-                />
-            </DashboardLayout>
+            {/* Column Management Modals */}
+            <EditColumn
+                open={columnAction === "edit"}
+                stage={selectedColumn}
+                onClose={() => handleColumnClose()}
+            />
+
+            <DeleteColumn
+                open={columnAction === "delete"}
+                stage={selectedColumn}
+                onClose={() => handleColumnClose()}
+            />
         </>
     );
 };
+
+LeadBoardIndex.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default LeadBoardIndex;
