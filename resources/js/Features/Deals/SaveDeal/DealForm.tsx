@@ -19,6 +19,7 @@ export interface DealFormProps {
     submitText?: string;
     cancelText?: string;
     visible?: boolean;
+    disableFields?: string[];
 }
 
 const DealForm: React.FC<DealFormProps> = ({
@@ -33,6 +34,7 @@ const DealForm: React.FC<DealFormProps> = ({
     setErrors,
     onErrorsClear,
     visible,
+    disableFields = [],
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
@@ -58,6 +60,7 @@ const DealForm: React.FC<DealFormProps> = ({
             label: "Deal Details",
             children: (
                 <DealDetailsTab
+                    disableFields={disableFields}
                     data={data}
                     onSubmit={onSubmit}
                     onCancel={onCancel}

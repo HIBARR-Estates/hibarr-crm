@@ -36,7 +36,7 @@ export interface LeadShowProps {
     permissions: Record<string, string>;
 }
 
-const Show: React.FC<LeadShowProps> = ({
+const Show= ({
     lead,
     customFieldCategories,
     fields,
@@ -53,7 +53,7 @@ const Show: React.FC<LeadShowProps> = ({
     taskBoardColumns,
     projects,
     permissions,
-}) => {
+}: LeadShowProps ) => {
     const tabItems = [
         {
             key: "profile",
@@ -132,31 +132,33 @@ const Show: React.FC<LeadShowProps> = ({
     }));
 
     return (
-        <DashboardLayout>
-            <PageLayout
-                title={lead?.client_name_salutation}
-                breadcrumbs={[
-                    { name: "Contacts", url: route("lead-contact.index") },
-                    { name: lead?.client_name || "" },
-                ]}
-                mainContentClassName=""
-            >
-                <div>
-                    <Tabs
-                        items={tabItems}
-                        className="lead-tabs"
-                        tabBarStyle={{
-                            paddingLeft: 24,
-                            paddingRight: 24,
-                            marginBottom: 0,
-                            backgroundColor: "#fafafa",
-                            borderBottom: "1px solid #f0f0f0",
-                        }}
-                    />
-                </div>
-            </PageLayout>
-        </DashboardLayout>
+        <PageLayout
+            title={lead?.client_name_salutation}
+            breadcrumbs={[
+                { name: "Contacts", url: route("lead-contact.index") },
+                { name: lead?.client_name || "" },
+            ]}
+            mainContentClassName=""
+        >
+            <div>
+                <Tabs
+                    items={tabItems}
+                    className="lead-tabs"
+                    tabBarStyle={{
+                        paddingLeft: 24,
+                        paddingRight: 24,
+                        marginBottom: 0,
+                        backgroundColor: "#fafafa",
+                        borderBottom: "1px solid #f0f0f0",
+                    }}
+                />
+            </div>
+        </PageLayout>
     );
 };
+
+Show.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default Show;

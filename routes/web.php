@@ -123,6 +123,7 @@ use App\Http\Controllers\EmployeeShiftChangeRequestController;
 use App\Http\Controllers\EstimateRequestController;
 use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
 use App\Http\Controllers\InvoicePaymentDetailController;
 use App\Http\Controllers\MyCalendarController;
@@ -555,6 +556,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('import', [LeadContactController::class, 'importStore'])->name('lead-contact.import.store');
         Route::post('import/process', [LeadContactController::class, 'importProcess'])->name('lead-contact.import.process');
         Route::get('sample-import', [LeadContactController::class, 'downloadSampleImport'])->name('lead-contact.sample_import');
+    });
+
+    // Form Data API routes for performance optimization
+    Route::prefix('api/form-data')->group(function () {
+        Route::get('{type}', [FormDataController::class, 'index'])->name('form-data.index');
+        Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
 
     // deals route

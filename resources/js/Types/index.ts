@@ -1,4 +1,5 @@
 import { ErrorBag, Errors, PageProps } from "@inertiajs/core";
+import { AppModule, AppPermission } from "./permission";
 
 // Laravel Pagination Interface
 export interface Pagination<T> {
@@ -270,7 +271,10 @@ export interface FlashMessage {
     message: string;
 }
 export interface AuthType {
-    user: User;
+    user: User; 
+    permissions: AppPermission;
+    modules: AppModule[];
+
 }
 export interface AppProps extends PageProps {
     props: {

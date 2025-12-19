@@ -18,7 +18,7 @@ const DeleteNote: React.FC<Props> = ({ note, onClose, open }) => {
     };
 
     const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
-        route("lead-notes.destroy", note?.id),
+        route("lead-notes.destroy", {lead_note: Number(note?.id)}),
         "DELETE",
 
         () => {

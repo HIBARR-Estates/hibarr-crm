@@ -98,6 +98,64 @@ interface FilterProviderProps {
     children: ReactNode;
 }
 
+// Helper function to format display value based on field config
+const getDisplayValue = (
+    key: string,
+    value: any,
+    config: FilterConfig | null
+): string => {
+    if (!config || !value) return String(value || "");
+
+    // Handle range keys which might not match field keys directly
+    let fieldKey = key;
+    if (key.endsWith("_start")) fieldKey = key.substring(0, key.length - 6);
+    else if (key.endsWith("_end")) fieldKey = key.substring(0, key.length - 4);
+    else if (key.startsWith("min_")) fieldKey = key.substring(4);
+    else if (key.startsWith("max_")) fieldKey = key.substring(4);
+
+    const fieldConfig = config.fields.find(
+        (field) => field.key === fieldKey || field.key === key
+    );
+
+    if (fieldConfig?.formatDisplayValue) {
+        const options =
+            typeof fieldConfig.options === "function"
+                ? fieldConfig.options()
+                : fieldConfig.options;
+        return fieldConfig.formatDisplayValue(value, options);
+    }
+
+    if (fieldConfig?.type === "select" || fieldConfig?.type === "multiselect") {
+        const options =
+            typeof fieldConfig.options === "function"
+                ? fieldConfig.options()
+                : fieldConfig.options || [];
+
+        if (Array.isArray(value)) {
+            return value
+                .map((v) => {
+                    const option = options.find((opt) => opt.value == v);
+                    return option ? option.label : String(v);
+                })
+                .join(", ");
+        } else {
+            const option = options.find((opt) => opt.value == value);
+            return option ? option.label : String(value);
+        }
+    }
+
+    if (fieldConfig?.type === "daterange") {
+        // For individual start/end values, just return the date string
+        return String(value);
+    }
+
+    if (fieldConfig?.type === "numberrange") {
+        return String(value);
+    }
+
+    return String(value);
+};
+
 export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const [filters, setFilters] = useState<Record<string, any>>({});
     const [filterMetadata, setFilterMetadata] = useState<
@@ -113,64 +171,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             value: any,
             configOverride?: FilterConfig | null
         ): string => {
-            const activeConfig = configOverride || config;
-            if (!activeConfig || !value) return String(value || "");
-
-            // Handle range keys which might not match field keys directly
-            let fieldKey = key;
-            if (key.endsWith("_start"))
-                fieldKey = key.substring(0, key.length - 6);
-            else if (key.endsWith("_end"))
-                fieldKey = key.substring(0, key.length - 4);
-            else if (key.startsWith("min_")) fieldKey = key.substring(4);
-            else if (key.startsWith("max_")) fieldKey = key.substring(4);
-
-            const fieldConfig = activeConfig.fields.find(
-                (field) => field.key === fieldKey || field.key === key
-            );
-
-            if (fieldConfig?.formatDisplayValue) {
-                const options =
-                    typeof fieldConfig.options === "function"
-                        ? fieldConfig.options()
-                        : fieldConfig.options;
-                return fieldConfig.formatDisplayValue(value, options);
-            }
-
-            if (
-                fieldConfig?.type === "select" ||
-                fieldConfig?.type === "multiselect"
-            ) {
-                const options =
-                    typeof fieldConfig.options === "function"
-                        ? fieldConfig.options()
-                        : fieldConfig.options || [];
-
-                if (Array.isArray(value)) {
-                    return value
-                        .map((v) => {
-                            const option = options.find(
-                                (opt) => opt.value == v
-                            );
-                            return option ? option.label : String(v);
-                        })
-                        .join(", ");
-                } else {
-                    const option = options.find((opt) => opt.value == value);
-                    return option ? option.label : String(value);
-                }
-            }
-
-            if (fieldConfig?.type === "daterange") {
-                // For individual start/end values, just return the date string
-                return String(value);
-            }
-
-            if (fieldConfig?.type === "numberrange") {
-                return String(value);
-            }
-
-            return String(value);
+            return getDisplayValue(key, value, configOverride || config);
         },
         [config]
     );
@@ -227,24 +228,100 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         [formatDisplayValue, getFieldLabel]
     );
 
-    const removeFilter = useCallback((key: string) => {
-        setFilters((prev) => {
-            const newFilters = { ...prev };
-            delete newFilters[key];
-            return newFilters;
-        });
+    const removeFilter = useCallback(
+        (key: string) => {
+            setFilters((prev) => {
+                const newFilters = { ...prev };
+                delete newFilters[key];
+                return newFilters;
+            });
 
-        setFilterMetadata((prev) => {
-            const newMetadata = { ...prev };
-            delete newMetadata[key];
-            return newMetadata;
-        });
-    }, []);
+            setFilterMetadata((prev) => {
+                const newMetadata = { ...prev };
+                delete newMetadata[key];
+                return newMetadata;
+            });
+
+            // Automatically apply filters after removal
+            // We need to use a timeout to ensure state updates have processed
+            // Or we can pass the new state directly to a modified applyFilters
+            setTimeout(() => {
+                // We can't call applyFilters directly here because it uses the 'filters' state
+                // which hasn't updated yet in this closure.
+                // Instead, we'll trigger a custom event or use a ref, but for now,
+                // let's duplicate the apply logic with the new state.
+
+                if (!config) return;
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const currentParams: Record<string, any> = {};
+                urlParams.forEach((value, k) => {
+                    currentParams[k] = value;
+                });
+
+                // Get current filters but exclude the removed key
+                const updatedFilters = { ...filters };
+                delete updatedFilters[key];
+
+                const cleanFilters = Object.entries(updatedFilters).reduce(
+                    (acc, [k, value]) => {
+                        if (
+                            value !== null &&
+                            value !== undefined &&
+                            value !== "" &&
+                            !(Array.isArray(value) && value.length === 0)
+                        ) {
+                            acc[k] = value;
+                        }
+                        return acc;
+                    },
+                    {} as Record<string, any>
+                );
+
+                const managedKeys = new Set<string>();
+                config.fields.forEach((field) => {
+                    managedKeys.add(field.key);
+                    if (field.type === "daterange") {
+                        managedKeys.add(`${field.key}_start`);
+                        managedKeys.add(`${field.key}_end`);
+                    } else if (field.type === "numberrange") {
+                        managedKeys.add(`min_${field.key}`);
+                        managedKeys.add(`max_${field.key}`);
+                    }
+                });
+
+                managedKeys.forEach((k) => {
+                    delete currentParams[k];
+                });
+
+                const finalParams = {
+                    ...currentParams,
+                    ...cleanFilters,
+                    page: 1,
+                };
+
+                router.get(route(config.routeName), finalParams, {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                });
+            }, 0);
+        },
+        [config, filters]
+    );
 
     const clearAllFilters = useCallback(() => {
         setFilters({});
         setFilterMetadata({});
-    }, []);
+
+        if (!config) return;
+
+        router.get(route(config.routeName), config.defaultValues || {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    }, [config]);
 
     const applyFilters = useCallback(() => {
         if (!config) return;
@@ -322,81 +399,78 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         setIsDrawerOpen(false);
     }, [config, clearAllFilters]);
 
-    const setConfig = useCallback(
-        (newConfig: FilterConfig) => {
-            setConfigState(newConfig);
+    const setConfig = useCallback((newConfig: FilterConfig) => {
+        setConfigState(newConfig);
 
-            // Initialize filters from URL params if available
-            const urlParams = new URLSearchParams(window.location.search);
-            const initialFilters: Record<string, any> = {};
-            const initialMetadata: Record<string, FilterValue> = {};
+        // Initialize filters from URL params if available
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialFilters: Record<string, any> = {};
+        const initialMetadata: Record<string, FilterValue> = {};
 
-            newConfig.fields.forEach((field) => {
-                // Helper to process a single key
-                const processKey = (
-                    key: string,
-                    label: string,
-                    type: string
-                ) => {
-                    const value = urlParams.get(key);
-                    if (value) {
-                        let parsedValue: any = value;
+        newConfig.fields.forEach((field) => {
+            // Helper to process a single key
+            const processKey = (key: string, label: string, type: string) => {
+                const value = urlParams.get(key);
+                if (value) {
+                    let parsedValue: any = value;
 
-                        if (type === "multiselect") {
-                            parsedValue = value.split(",");
-                        } else if (
-                            type === "number" ||
-                            type === "numberrange"
-                        ) {
-                            parsedValue = Number(value);
+                    if (type === "multiselect") {
+                        parsedValue = value.split(",");
+                        // Try to convert to numbers if possible
+                        parsedValue = parsedValue.map((v: string) => {
+                            const num = Number(v);
+                            return !isNaN(num) ? num : v;
+                        });
+                    } else if (type === "number" || type === "numberrange") {
+                        parsedValue = Number(value);
+                    } else if (type === "select") {
+                        // Try to convert to number if it looks like one
+                        const num = Number(value);
+                        if (!isNaN(num) && value.trim() !== "") {
+                            parsedValue = num;
                         }
-
-                        initialFilters[key] = parsedValue;
-                        initialMetadata[key] = {
-                            key: key,
-                            value: parsedValue,
-                            label: label,
-                            displayValue: formatDisplayValue(
-                                key,
-                                parsedValue,
-                                newConfig
-                            ),
-                        };
                     }
-                };
 
-                if (field.type === "daterange") {
-                    processKey(
-                        `${field.key}_start`,
-                        `${field.label} Start`,
-                        "date"
-                    );
-                    processKey(
-                        `${field.key}_end`,
-                        `${field.label} End`,
-                        "date"
-                    );
-                } else if (field.type === "numberrange") {
-                    processKey(
-                        `min_${field.key}`,
-                        `Min ${field.label}`,
-                        "numberrange"
-                    );
-                    processKey(
-                        `max_${field.key}`,
-                        `Max ${field.label}`,
-                        "numberrange"
-                    );
-                } else {
-                    processKey(field.key, field.label, field.type);
+                    initialFilters[key] = parsedValue;
+                    initialMetadata[key] = {
+                        key: key,
+                        value: parsedValue,
+                        label: label,
+                        displayValue: getDisplayValue(
+                            key,
+                            parsedValue,
+                            newConfig
+                        ),
+                    };
                 }
-            });
+            };
 
-            setFilters(initialFilters);
-            setFilterMetadata(initialMetadata);
-        },
-        [formatDisplayValue]
-    );
+            if (field.type === "daterange") {
+                processKey(
+                    `${field.key}_start`,
+                    `${field.label} Start`,
+                    "date"
+                );
+                processKey(`${field.key}_end`, `${field.label} End`, "date");
+            } else if (field.type === "numberrange") {
+                processKey(
+                    `min_${field.key}`,
+                    `Min ${field.label}`,
+                    "numberrange"
+                );
+                processKey(
+                    `max_${field.key}`,
+                    `Max ${field.label}`,
+                    "numberrange"
+                );
+            } else {
+                processKey(field.key, field.label, field.type);
+            }
+        });
+
+        setFilters(initialFilters);
+        setFilterMetadata(initialMetadata);
+    }, []);
 
     const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
     const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
