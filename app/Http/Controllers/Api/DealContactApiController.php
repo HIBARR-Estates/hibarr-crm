@@ -781,7 +781,8 @@ class DealContactApiController extends Controller
     public function processDealInQueue(int $contactId, int $companyId, array $requestData): Deal
     {
         // Convert array to Request object for compatibility with existing methods
-        $request = new Request($requestData);
+        // Request::create() properly sets POST data, unlike new Request() which uses query params
+        $request = Request::create('/', 'POST', $requestData);
         
         return DB::transaction(function () use ($contactId, $companyId, $request) {
             $dealName = $request->input('deal_name') ?? $request->input('name') ?? 'Untitled Deal';
