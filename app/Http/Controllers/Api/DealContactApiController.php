@@ -149,36 +149,41 @@ class DealContactApiController extends Controller
     public function createDeal(CreateDealRequest $request)
     {
         try {
-            $companyId = $request->header('X-COMPANY-ID');
-            
-            if (!$companyId) {
-                return Reply::error(__('messages.missingCompanyId'));
-            }
-            
-            $companyId = (int) $companyId;
-            
-            // Resolve contact ID (this is fast and doesn't need to be queued)
-            $contactId = $request->input('lead_id') ?? null;
-            if (!$contactId) {
-                $contactId = $this->resolveContact($request, $companyId);
-            }
-            
-            // Save UTM information if provided (also fast)
-            $this->saveUtmInfo($contactId, $request);
-            
-            // Queue the deal processing work
-            ProcessDealRequestJob::dispatch(
-                $contactId,
-                $companyId,
-                $request->all()
-            );
-            
-            // Return immediately with "processing" status
-            return Reply::successWithData('Deal request is being processed', [
-                'status' => 'processing',
-                'contact_id' => $contactId,
-                'company_id' => $companyId,
-            ]);
+            return DB::transaction(function () use ($request) {
+                $companyId = $request->header('X-COMPANY-ID');
+                
+                if (!$companyId) {
+                    return Reply::error(__('messages.missingCompanyId'));
+                }
+                
+                $companyId = (int) $companyId;
+                
+                // Resolve contact ID (this is fast and doesn't need to be queued)
+                $contactId = $request->input('lead_id') ?? null;
+                if (!$contactId) {
+                    $contactId = $this->resolveContact($request, $companyId);
+                }
+                
+                // Save UTM information if provided (also fast)
+                $this->saveUtmInfo($contactId, $request);
+                
+                // Dispatch job after transaction commits to ensure atomicity
+                // If contact/UTM saving fails, transaction rolls back and job won't be dispatched
+                DB::afterCommit(function () use ($contactId, $companyId, $request) {
+                    ProcessDealRequestJob::dispatch(
+                        $contactId,
+                        $companyId,
+                        $request->all()
+                    );
+                });
+                
+                // Return immediately with "processing" status
+                return Reply::successWithData('Deal request is being processed', [
+                    'status' => 'processing',
+                    'contact_id' => $contactId,
+                    'company_id' => $companyId,
+                ]);
+            });
             
         } catch (\Exception $e) {
             Log::error('Error queuing deal request', [
