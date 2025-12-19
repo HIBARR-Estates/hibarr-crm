@@ -50,9 +50,9 @@ export interface Property {
     building_age?: number;
     is_furnished: boolean;
     within_site: boolean;
-    exterior_features?: string[] | null;
-    interior_features?: string[] | null;
-    location_features?: string[] | null;
+    exterior_features?: string[];
+    interior_features?: string[];
+    location_features?: string[];
     title: string;
     description?: string;
     video_url?: string;
@@ -65,6 +65,7 @@ export interface Property {
     created_at: string;
     updated_at: string;
     product?: Product;
+    assets?: PropertyAsset[];
 }
 
 export type PropertyType =
@@ -193,7 +194,7 @@ export interface PropertyAsset {
     property_id: number;
     company_id: number;
     name: string;
-    asset_type: 'image' | 'video' | 'video_url' | 'tour_360_url';
+    asset_type: "image" | "video" | "video_url" | "tour_360_url";
     file_path?: string;
     external_url?: string;
     mime_type?: string;
@@ -211,11 +212,11 @@ export interface PropertyAsset {
 }
 
 export interface PropertyAssetFilters {
-    asset_type?: 'image' | 'video' | 'video_url' | 'tour_360_url' | '';
+    asset_type?: "image" | "video" | "video_url" | "tour_360_url" | "";
     tags?: string[];
     search?: string;
-    sort_by?: 'created_at' | 'name' | 'size';
-    sort_order?: 'asc' | 'desc';
+    sort_by?: "created_at" | "name" | "size";
+    sort_order?: "asc" | "desc";
 }
 
 export interface PropertyAssetManageProps extends PageProps {

@@ -70,6 +70,7 @@
         "sentry/sentry-laravel": "^4.2",
         "setasign/fpdf": "^1.8",
         "spatie/laravel-backup": "8.*",
+        "spatie/laravel-pdf": "*",
         "square/square": "16.0.0.20211117",
         "stevebauman/location": "^7.2",
         "stichoza/google-translate-php": "^4.1",
