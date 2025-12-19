@@ -202,14 +202,14 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 )}
                             </Space>
                             <Space>
-                                {task.is_private && (
+                                {Boolean(task.is_private) && (
                                     <Tooltip title="Private Task">
                                         <LockOutlined
                                             style={{ color: "#fa8c16" }}
                                         />
                                     </Tooltip>
                                 )}
-                                {task.billable && (
+                                {Boolean(task.billable) && (
                                     <Tooltip title="Billable">
                                         <DollarOutlined
                                             style={{ color: "#52c41a" }}
