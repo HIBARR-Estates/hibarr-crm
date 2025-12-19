@@ -400,7 +400,6 @@ class DealController extends AccountBaseController
             ->where('deal_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();
-        Log::info('Notes Count: ' . $notes->count());
 
         $viewNotesPermission = user()->permission('view_deal_note');
         
