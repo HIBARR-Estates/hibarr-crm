@@ -46,6 +46,7 @@ class LeadContactController extends AccountBaseController
 
     use ImportExcel;
     use \App\Traits\DealFormDataTrait;
+    use \App\Traits\LeadFormDataTrait;
 
     protected $leadService;
 
@@ -74,31 +75,20 @@ class LeadContactController extends AccountBaseController
         $this->viewLeadPermission = $viewPermission = user()->permission('view_lead');
 
         if (!in_array($viewPermission, ['all', 'added', 'owned', 'both'])) {
-            if ($request->ajax() || $request->header('X-Inertia')) {
-                return redirect()->back()->with('error', __('messages.permissionDenied'));
-            }
-            abort(403);
+          
+            return redirect()->back()->with('error', __('messages.permissionDenied'));
+            
         }
 
         // Use LeadService for optimized data fetching
         $leads = $this->leadService->getPaginatedLeads($request, $dataTable);
         $leadContacts = $this->leadService->getDropdownLeads();
+        $customFieldsData = $this->leadService->getLeadCustomFieldsData();
 
         return Inertia::render('Leads/Index', [
             'pageTitle' => 'Lead Contacts',
             'leadContacts' => $leadContacts,
             'stages' => $this->leadService->getLeadStages(),
-            'permissions' => [
-                'view_lead_category' => user()->permission('view_lead_category'),
-                'view_lead_sources' => user()->permission('view_lead_sources'),
-                'add_lead_sources' => user()->permission('add_lead_sources'),
-                'add_lead_category' => user()->permission('add_lead_category'),
-                'add_product' => user()->permission('add_product'),
-                'add_lead_agent' => user()->permission('add_lead_agent'),
-                'view_lead_agents' => user()->permission('view_lead_agents'),
-                'add_deals' => user()->permission('add_deals'),
-                'add_lead' => user()->permission('add_lead'),
-            ],
             'filters' => $request->only([
                 'search',
                 'lead_type',
@@ -116,7 +106,9 @@ class LeadContactController extends AccountBaseController
                 'total' => $leads->total(),
                 'from' => $leads->firstItem(),
                 'to' => $leads->lastItem(),
-            ]
+            ],
+            'customFields' => $customFieldsData['customFields'],
+            'customFieldCategories' => $customFieldsData['customFieldCategories'],
         ]);
     }
 
@@ -131,6 +123,10 @@ class LeadContactController extends AccountBaseController
             'client:id,name,email',
             'marketing'
         ])->findOrFail($id)->withCustomFields();
+
+        // Ensure enum values are available for frontend
+        $this->leadContact->salutation_value = $this->leadContact->salutation instanceof \App\Enums\Salutation ? $this->leadContact->salutation->value : $this->leadContact->salutation;
+        $this->leadContact->gender_value = $this->leadContact->gender instanceof \App\Enums\Gender ? $this->leadContact->gender->value : $this->leadContact->gender;
 
         $leadRules = [
             'added' => 'added_by',
@@ -462,18 +458,14 @@ class LeadContactController extends AccountBaseController
         if ($request->add_more == 'true') {
             $html = $this->create();
 
-            // return Reply::successWithData(__('messages.leadSaved'), ['html' => $html, 'add_more' => true]);
-
-            return back()->with('success', __('messages.leadSaved'));
+            return Reply::successWithData(__('messages.leadSaved'), ['html' => $html, 'add_more' => true]);
         }
 
         if ($redirectUrl == '') {
             $redirectUrl = route('lead-contact.index');
         }
 
-        // return Reply::successWithData(__('messages.leadSaved'), ['redirectUrl' => $redirectUrl]);
-
-        return back()->with('success', __('messages.leadSaved'));
+        return Reply::successWithData(__('messages.leadSaved'), ['redirectUrl' => $redirectUrl]);
     }
 
     /**
@@ -614,9 +606,7 @@ class LeadContactController extends AccountBaseController
             $leadContact->updateCustomFieldData($request->custom_fields_data);
         }
 
-        // return Reply::successWithData(__('messages.leadUpdateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
-
-        return back()->with('success', __('messages.leadUpdateSuccess'));
+        return Reply::successWithData(__('messages.leadUpdateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
     }
 
     /**
@@ -794,14 +784,14 @@ class LeadContactController extends AccountBaseController
             \DB::commit();
 
             // Return success response for API calls or redirect for web
-            if ($request->expectsJson()) {
-                return Reply::successWithData(__('messages.leadUpdateSuccess'), [
-                    'lead' => $leadContact->fresh(),
-                    'redirectUrl' => route('lead-contact.show', $leadContact->id)
-                ]);
-            }
+            
+            return Reply::successWithData(__('messages.leadUpdateSuccess'), [
+                'lead' => $leadContact->fresh(),
+                'redirectUrl' => route('lead-contact.show', $leadContact->id)
+            ]);
+           
 
-            return back()->with('success', __('messages.leadUpdateSuccess'));
+            
 
         } catch (\Exception $e) {
             // Rollback transaction on error
@@ -814,11 +804,11 @@ class LeadContactController extends AccountBaseController
                 'request_data' => $request->all()
             ]);
 
-            if ($request->expectsJson()) {
-                return Reply::error('An error occurred while updating the lead contact: ' . $e->getMessage());
-            }
+           
+            return Reply::error('An error occurred while updating the lead contact: ' . $e->getMessage());
+            
 
-            return back()->withErrors(['error' => 'An error occurred while updating the lead contact.']);
+            
         }
     }
 
@@ -848,16 +838,14 @@ class LeadContactController extends AccountBaseController
 
         Lead::destroy($id);
 
-        // return Reply::success(__('messages.deleteSuccess'));
-        return to_route('lead-contact.index')->with('success', __('messages.deleteSuccess'));
+        return Reply::success(__('messages.deleteSuccess'));
     }
 
     public function applyQuickAction(Request $request)
     {
         Lead::whereIn('id', explode(',', $request->row_ids))->delete();
 
-        // return Reply::success(__('messages.deleteSuccess'));
-        return back()->with('success', __('messages.deleteSuccess'));
+        return Reply::success(__('messages.deleteSuccess'));
     }
 
     public function importLead()

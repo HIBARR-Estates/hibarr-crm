@@ -24,9 +24,15 @@ const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
         EditStageFormData,
         null,
         ApiResponse<null>
-    >(route("lead-stage-setting.update", stage?.id), "PUT", () => {
-        handleCancel();
-    });
+    >(
+        route("lead-stage-setting.update", {
+            lead_stage_setting: Number(stage?.id),
+        }),
+        "PUT",
+        () => {
+            handleCancel();
+        }
+    );
 
     useEffect(() => {
         if (open && stage) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Form, Tabs, Button, Space, Alert } from "antd";
 import { CreateLeadFormData, Lead } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
@@ -17,6 +17,7 @@ export interface LeadFormProps {
     submitText?: string;
     cancelText?: string;
     visible?: boolean;
+    isEditing?: boolean;
 }
 
 const LeadForm: React.FC<LeadFormProps> = ({
@@ -25,12 +26,13 @@ const LeadForm: React.FC<LeadFormProps> = ({
     onCancel: _onCancel,
     loading = false,
     setLead,
-    submitText = "Save Lead",
+    submitText = "Save Contact",
     cancelText = "Cancel",
     errors = [],
     setErrors,
     onErrorsClear,
     visible,
+    isEditing = false,
 }) => {
     const [activeTab, setActiveTab] = useState("basic");
     const { props } = usePage<any>();
@@ -49,11 +51,10 @@ const LeadForm: React.FC<LeadFormProps> = ({
         setLead?.(undefined);
         _onCancel?.();
     };
-
     const tabItems = [
         {
             key: "basic",
-            label: "Lead Details",
+            label: "Contact Details",
             children: (
                 <BasicInfoTab
                     data={data}
@@ -84,7 +85,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     categoryName={category.name}
                 />
             ) : null,
-            disabled: data === undefined,
+            disabled: !isEditing,
         })),
     ];
 

@@ -79,7 +79,6 @@ class FormDataService
             return collect([
                 ['value' => 'male', 'label' => 'Male'],
                 ['value' => 'female', 'label' => 'Female'],
-                ['value' => 'other', 'label' => 'Other'],
             ]);
         });
     }
@@ -175,10 +174,12 @@ class FormDataService
                            str_contains(strtolower($country['iso']), $search);
                 });
             }
+
+            if( $request->filled('paginate') && $request->get('paginate')){
+                return $this->manualPaginate($countries, $request);
+            }
             
-            return $request->filled('paginate') 
-                ? $this->manualPaginate($countries, $request)
-                : $countries;
+            return $countries;
         });
     }
 
@@ -237,7 +238,7 @@ class FormDataService
      */
     private function paginateIfRequested($query, Request $request)
     {
-        if ($request->filled('paginate')) {
+        if ($request->filled('paginate') && $request->get('paginate')) {
             return $query->paginate($request->get('per_page', 15));
         }
         

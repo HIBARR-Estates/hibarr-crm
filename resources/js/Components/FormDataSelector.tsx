@@ -1,18 +1,18 @@
-import { useState, useEffect } from "react";
-import { Select, Spin, message } from "antd";
-import { useFormData, useFormDataBatch } from "@/Hooks/useFormData";
+import React, { useState, useEffect, useMemo } from "react";
+import { Select, Skeleton, Spin, message } from "antd";
+import {
+    FormDataType,
+    useFormData,
+    useFormDataBatch,
+} from "@/Hooks/useFormData";
 
 interface FormDataSelectorProps {
-    type:
-        | "salutations"
-        | "employees"
-        | "categories"
-        | "sources"
-        | "lead-pipelines";
+    type: FormDataType;
     value?: any;
     onChange?: (value: any) => void;
     placeholder?: string;
     allowClear?: boolean;
+    disabled?: boolean;
 }
 
 /**
@@ -25,38 +25,72 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
     onChange,
     placeholder,
     allowClear = true,
+    disabled = false,
 }) => {
-    const { data, loading, error } = useFormData(type);
+    // Memoize params to ensure referential stability and prevent infinite loops
+    const params = React.useMemo(
+        () => ({
+            paginate: false, // Most form selectors don't need pagination
+            per_page: 100, // Reasonable limit for dropdown options
+        }),
+        []
+    );
 
-    useEffect(() => {
-        if (error) {
-            message.error(`Failed to load ${type}: ${error}`);
-        }
-    }, [error, type]);
+    // Only fetch data with minimal parameters to reduce unnecessary calls
+    const { data, loading, error } = useFormData(type, params);
 
-    const options = data.map((item) => ({
-        label:
-            item.name ||
-            item.label ||
-            item.type ||
-            item.category_name ||
-            `${item.first_name} ${item.last_name}`,
-        value: item.id,
-    }));
+    // Generate options with better error handling and type checking
+    const options = Array.isArray(data)
+        ? data?.map((item) => {
+              let label = "Unknown";
+
+              // Handle different data structures
+              if (item.label) {
+                  label = item.label;
+              } else if (item.name) {
+                  label = item.name;
+              } else if (item.type) {
+                  label = item.type;
+              } else if (item.category_name) {
+                  label = item.category_name;
+              } else if (item.first_name && item.last_name) {
+                  label = `${item.first_name} ${item.last_name}`;
+              } else if (item.first_name) {
+                  label = item.first_name;
+              } else if (item.language_name) {
+                  label = item.language_name;
+              } else if (typeof item === "string") {
+                  label = item;
+              }
+
+              return {
+                  label,
+                  value: item.value || item.id,
+              };
+          })
+        : [];
 
     return (
         <Select
             value={value}
             onChange={onChange}
-            placeholder={placeholder || `Select ${type}`}
+            placeholder={placeholder || `Select ${type.replace("-", " ")}`}
             allowClear={allowClear}
             loading={loading}
+            disabled={disabled || loading}
             options={options}
             showSearch
             filterOption={(input, option) =>
                 (option?.label ?? "")
                     .toLowerCase()
                     .includes(input.toLowerCase())
+            }
+            notFoundContent={
+                loading ? (
+                    <Skeleton active paragraph={{ rows: 1 }} />
+                ) : (
+                    "No data found"
+                )
             }
         />
     );

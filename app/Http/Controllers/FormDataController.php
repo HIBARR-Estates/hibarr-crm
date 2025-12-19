@@ -19,6 +19,16 @@ class FormDataController extends Controller
      */
     public function index(Request $request, string $type): JsonResponse
     {
+
+        // Convert string boolean values to actual booleans
+        if ($request->has('paginate')) {
+            $paginateValue = $request->get('paginate');
+            if (is_string($paginateValue)) {
+                $request->merge([
+                    'paginate' => $paginateValue === 'true' ? true : false
+                ]);
+            }
+        }
         $request->validate([
             'search' => 'sometimes|string|max:255',
             'paginate' => 'sometimes|boolean',

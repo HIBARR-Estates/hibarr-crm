@@ -23,6 +23,8 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
 import { isLoading as _isLoading } from "@/lib/utils";
+import FormDataSelector from "@/Components/FormDataSelector";
+import { errorFormatter } from "@/lib/api/utils/common";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -98,6 +100,8 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
         if (open && lead) {
             // Pre-fill form with lead data
             form.setFieldsValue({
+                gender: lead?.gender || lead?.gender_value,
+                salutation: lead?.salutation || lead?.salutation_value,
                 name: lead.client_name,
                 email: lead.client_email,
                 mobile: lead.mobile,
@@ -185,7 +189,16 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
             lead: lead?.id,
         };
 
-        clientMutation.mutate(requestData);
+        clientMutation.mutate(requestData, {
+            onError: (errorResponse) => {
+                const responseErrors =
+                    errorFormatter(errorResponse)?.errors || [];
+                setErrors((prev) => [
+                    ...prev,
+                    ...Object.values(responseErrors).flat(),
+                ]);
+            },
+        });
     };
 
     const handleErrorsClear = () => {
@@ -220,13 +233,10 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item name="salutation" label="Salutation">
-                            <Select placeholder="Select salutation" allowClear>
-                                {salutations?.map((sal) => (
-                                    <Option key={sal.value} value={sal.value}>
-                                        {sal.label}
-                                    </Option>
-                                ))}
-                            </Select>
+                            <FormDataSelector
+                                type="salutations"
+                                placeholder="Salutation"
+                            />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
@@ -280,22 +290,18 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item name="gender" label="Gender">
-                            <Select placeholder="Select gender" allowClear>
-                                <Option value="male">Male</Option>
-                                <Option value="female">Female</Option>
-                                <Option value="other">Other</Option>
-                            </Select>
+                            <FormDataSelector
+                                type="genders"
+                                placeholder="Gender"
+                            />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
                         <Form.Item name="category_id" label="Category">
-                            <Select placeholder="Select category" allowClear>
-                                {categories?.map((cat) => (
-                                    <Option key={cat.id} value={cat.id}>
-                                        {cat.category_name}
-                                    </Option>
-                                ))}
-                            </Select>
+                            <FormDataSelector
+                                type="categories"
+                                placeholder="Category"
+                            />
                         </Form.Item>
                     </Col>
                 </Row>
@@ -316,12 +322,12 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item
-                            name="locale"
-                            label="Language"
-                            initialValue="en"
-                        >
-                            <Select>
+                        <Form.Item name="locale" label="Language">
+                            <FormDataSelector
+                                type="languages"
+                                placeholder="Language"
+                            />
+                            {/* <Select>
                                 {languages?.map((lang) => (
                                     <Option
                                         key={lang.language_code}
@@ -330,7 +336,7 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                                         {lang.language_name}
                                     </Option>
                                 ))}
-                            </Select>
+                            </Select> */}
                         </Form.Item>
                     </Col>
                 </Row>
@@ -416,7 +422,8 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                 </Row>
 
                 <Form.Item name="country" label="Country">
-                    <Select
+                    <FormDataSelector type="countries" placeholder="Country" />
+                    {/* <Select
                         placeholder="Select country"
                         allowClear
                         showSearch
@@ -431,7 +438,7 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                                 {country.nicename}
                             </Option>
                         ))}
-                    </Select>
+                    </Select> */}
                 </Form.Item>
 
                 <PhoneInput

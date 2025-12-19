@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
@@ -31,36 +31,21 @@ import { User, Country, ClientCategory, Language } from "@/Types";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
-import { createLeadSearchConfig } from "@/configs/searchConfigs";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 
 export interface IndexProps extends PageProps {
     pageTitle: string;
     leads: PaginatedLeadResponse;
-    categories: LeadCategory[];
-    sources: LeadSource[];
-    employees: User[];
-    countries: Country[];
-    salutations: Array<{ value: string; label: string }>;
-    clientCategories?: ClientCategory[];
-    languages?: Language[];
 }
 
 const Index = ({
     pageTitle,
     leads,
-    categories,
-    sources,
-    employees,
-    countries,
-    salutations,
-    clientCategories = [],
-    languages = [],
+
     ...props
 }: IndexProps) => {
-    const [importModalOpen, setImportModalOpen] = useState(false);
-
     const {
         handleAction,
         handleClose,
@@ -68,19 +53,36 @@ const Index = ({
         selected: lead,
     } = useGenericEntityAction<Lead>();
 
-    // Memoize configs to prevent unnecessary re-renders and filter resets
+    // Memoize the types array to ensure referential stability
+    const formDataTypes = useMemo(
+        () => [
+            "sources",
+            "categories",
+            "employees",
+            "countries",
+            "client-categories",
+            "languages",
+        ],
+        []
+    );
+
+    const { data: formData, loading: formDataLoading } = useFormDataBatch(
+        formDataTypes as FormDataType[]
+    );
+    console.log(formData, "FORM DATA");
+    // // Memoize configs to prevent unnecessary re-renders and filter resets
     const filterConfig = useMemo(
         () =>
             createLeadFilterConfig({
-                sources,
-                categories,
-                employees,
-                countries,
-                clientCategories,
-                languages,
+                sources: formData.sources || [],
+                categories: formData.categories || [],
+                employees: formData.employees || [],
+                countries: formData.countries || [],
+                clientCategories: formData["client-categories"] || [],
+                languages: formData.languages || [],
                 excludeFields: ["search"],
             }),
-        [sources, categories, employees, countries, clientCategories, languages]
+        [formData]
     );
 
     // Setup search and filter contexts
@@ -99,72 +101,83 @@ const Index = ({
         useGenericTableRowSelection<Lead>();
 
     // Handle create lead
-    const handleCreateLead = () => {
+    const handleCreateLead = useCallback(() => {
         handleAction("add");
-    };
+    }, [handleAction]);
 
     // Handle edit lead
-    const handleEditLead = (lead: Lead) => {
-        handleAction("edit", lead);
-    };
+    const handleEditLead = useCallback(
+        (lead: Lead) => {
+            handleAction("edit", lead);
+        },
+        [handleAction]
+    );
 
     // Handle import leads
-    const handleImportLeads = () => {
+    const handleImportLeads = useCallback(() => {
         handleAction("import");
-    };
-    // Action dropdown for each row
-    const getActionItems = (record: Lead): MenuProps["items"] => [
-        {
-            key: "view",
-            label: (
-                <Link href={route("lead-contact.show", record.id)}>
-                    <EyeOutlined className="mr-2" />
-                    View
-                </Link>
-            ),
-        },
-        {
-            key: "edit",
-            label: (
-                <span>
-                    <EditOutlined className="mr-2" />
-                    Edit
-                </span>
-            ),
-            onClick: () => {
-                handleEditLead(record);
-            },
-        },
-        {
-            key: "change_to_client",
-            label: (
-                <span>
-                    <UserOutlined className="mr-2" />
-                    Change to Client
-                </span>
-            ),
-            onClick: () => {
-                handleAction("change_to_client", record);
-            },
-        },
-        {
-            type: "divider",
-        },
-        {
-            key: "delete",
-            label: (
-                <span className="text-red-600">
-                    <DeleteOutlined className="mr-2" />
-                    Delete
-                </span>
-            ),
-            onClick: () => {
-                handleAction("delete", record);
-            },
-        },
-    ];
+    }, [handleAction]);
 
-    const columns = LEAD_TABLE_COLUMNS(getActionItems);
+    // Action dropdown for each row
+    const getActionItems = useCallback(
+        (record: Lead): MenuProps["items"] => [
+            {
+                key: "view",
+                label: (
+                    <Link href={route("lead-contact.show", record.id)}>
+                        <EyeOutlined className="mr-2" />
+                        View
+                    </Link>
+                ),
+            },
+            {
+                key: "edit",
+                label: (
+                    <span>
+                        <EditOutlined className="mr-2" />
+                        Edit
+                    </span>
+                ),
+                onClick: () => {
+                    handleEditLead(record);
+                },
+            },
+            {
+                key: "change_to_client",
+                label: (
+                    <span>
+                        <UserOutlined className="mr-2" />
+                        Change to Client
+                    </span>
+                ),
+                onClick: () => {
+                    handleAction("change_to_client", record);
+                },
+            },
+            {
+                type: "divider",
+            },
+            {
+                key: "delete",
+                label: (
+                    <span className="text-red-600">
+                        <DeleteOutlined className="mr-2" />
+                        Delete
+                    </span>
+                ),
+                onClick: () => {
+                    handleAction("delete", record);
+                },
+            },
+        ],
+        [handleEditLead, handleAction]
+    );
+
+    const columns = useMemo(
+        () => LEAD_TABLE_COLUMNS(getActionItems),
+        [getActionItems]
+    );
+
     return (
         <>
             <PageLayout
@@ -186,7 +199,7 @@ const Index = ({
                                 icon={<PlusOutlined />}
                                 onClick={handleCreateLead}
                             >
-                                Add Lead
+                                Add Contact
                             </Button>
                             <Button
                                 type="text"
@@ -236,7 +249,7 @@ const Index = ({
                                     router.get(
                                         route("lead-contact.index"),
                                         {
-                                            ...filters,
+                                            // ...filters,
                                             ...sortParams,
                                             page,
                                             per_page: pageSize,
@@ -267,8 +280,8 @@ const Index = ({
 
             {/* Import Leads Modal */}
             <ImportLeads
-                open={importModalOpen}
-                onClose={() => setImportModalOpen(false)}
+                open={action === "import"}
+                onClose={() => handleClose()}
             />
 
             <DeleteLead
@@ -283,7 +296,12 @@ const Index = ({
             />
 
             {/* Universal Filter Drawer */}
-            <UniversalFilterDrawer config={filterConfig} />
+            {
+                <UniversalFilterDrawer
+                    config={filterConfig}
+                    loading={formDataLoading}
+                />
+            }
         </>
     );
 };

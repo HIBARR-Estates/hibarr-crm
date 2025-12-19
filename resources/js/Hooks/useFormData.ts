@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
-import { router } from "@inertiajs/react";
+import { useMemo } from "react";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
-export interface FormDataResponse {
+export interface FormDataResponse<T = any> {
     success: boolean;
-    data: any[];
+    data: T[];
     message?: string;
     pagination?: {
         current_page: number;
@@ -28,86 +30,68 @@ export type FormDataType =
     | "languages"
     | "currencies"
     | "lead-agents"
-    | "lead-statuses";
+    | "lead-statuses"
+    | "genders";
 
-export const useFormData = (
+type FormDataParams = {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    paginate?: boolean;
+};
+
+export const useFormData = <T = any>(
     type: FormDataType,
-    options?: {
-        page?: number;
-        per_page?: number;
-        search?: string;
-        autoFetch?: boolean;
+    params: FormDataParams = {
+        page: 1,
+        per_page: 50,
+        search: "",
+        paginate: false,
     }
 ) => {
-    const [data, setData] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [pagination, setPagination] = useState<
-        FormDataResponse["pagination"] | null
-    >(null);
+    // Destructure params in dependency array to ensure stability
+    const queryParams = useMemo(() => {
+        const cleanParams: Record<string, string | number> = {};
 
+        if (params.page && params.page > 1) cleanParams.page = params.page;
+        if (params.per_page && params.per_page !== 50)
+            cleanParams.per_page = params.per_page;
+        if (params.search && params.search.trim())
+            cleanParams.search = params.search.trim();
+
+        // Explicitly handle boolean to prevent "The paginate field must be true or false" error
+        // Convert to string because useApiQuery expects Record<string, string | number>
+        if (typeof params.paginate === "boolean") {
+            cleanParams.paginate = params.paginate ? "true" : "false";
+        }
+
+        return cleanParams;
+    }, [params.page, params.per_page, params.search, params.paginate]);
+
+    // Use useApiQuery as requested
     const {
-        page = 1,
-        per_page = 50,
-        search = "",
-        autoFetch = true,
-    } = options || {};
+        data: response,
+        isLoading: loading,
+        error: queryError,
+        refetch,
+    } = useApiQuery<FormDataResponse<T>>({
+        path: `/account/api/form-data/${type}`,
+        params: queryParams,
+    });
 
-    const fetchData = async () => {
-        setLoading(true);
-        setError(null);
+    // Memoize data extraction to ensure referential stability
+    const data = useMemo(() => {
+        if (Array.isArray(response?.data)) return response.data;
+        // Handle case where data might be wrapped in a data property (Laravel pagination)
+        if (Array.isArray((response?.data as any)?.data))
+            return (response?.data as any).data;
+        return [];
+    }, [response]);
 
-        try {
-            const params = new URLSearchParams({
-                page: page.toString(),
-                per_page: per_page.toString(),
-                ...(search && { search }),
-            });
+    const pagination = response?.pagination || null;
+    const error = queryError ? (queryError as Error)?.message : null;
 
-            const response = await fetch(
-                `/account/api/form-data/${type}?${params.toString()}`,
-                {
-                    method: "GET",
-                    headers: {
-                        Accept: "application/json",
-                        "Content-Type": "application/json",
-                        "X-Requested-With": "XMLHttpRequest",
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to fetch ${type} data: ${response.status}`
-                );
-            }
-
-            const result: FormDataResponse = await response.json();
-
-            if (result.success) {
-                setData(result.data);
-                setPagination(result.pagination || null);
-            } else {
-                setError(result.message || `Failed to load ${type} data`);
-            }
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : `Failed to fetch ${type} data`
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const refetch = () => fetchData();
-
-    useEffect(() => {
-        if (autoFetch) {
-            fetchData();
-        }
-    }, [type, page, per_page, search, autoFetch]);
+    const fetchData = () => refetch();
 
     return {
         data,
@@ -120,59 +104,60 @@ export const useFormData = (
 };
 
 export const useFormDataBatch = (types: FormDataType[]) => {
-    const [data, setData] = useState<Record<string, any[]>>({});
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    // Sort types for stable cache keys
+    const sortedTypes = useMemo(() => [...types].sort(), [types]);
 
-    const fetchBatch = async () => {
-        setLoading(true);
-        setError(null);
+    // Use custom query for batch requests since useApiQuery doesn't handle POST requests
+    const {
+        data: response,
+        isLoading: loading,
+        error: queryError,
+        refetch,
+    } = useQuery<{
+        success: boolean;
+        data: Record<string, any[]>;
+        message?: string;
+    }>({
+        queryKey: ["formDataBatch", sortedTypes],
+        queryFn: async () => {
+            const result = await axios.post<{
+                success: boolean;
+                data: Record<string, any[]>;
+                message?: string;
+            }>(
+                "/account/api/form-data/batch",
+                { types: sortedTypes },
+                {
+                    headers: {
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                }
+            );
 
-        try {
-            const response = await fetch("/account/api/form-data/batch", {
-                method: "POST",
-                headers: {
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
-                },
-                body: JSON.stringify({ types }),
-            });
-
-            if (!response.ok) {
+            if (!result.data.success) {
                 throw new Error(
-                    `Failed to fetch batch data: ${response.status}`
+                    result.data.message || "Failed to load batch data"
                 );
             }
 
-            const result = await response.json();
+            return result.data;
+        },
+        enabled: types.length > 0,
+        staleTime: 1000 * 60 * 30, // 30 minutes
+        gcTime: 1000 * 60 * 60, // 1 hour
+        refetchOnWindowFocus: false,
+        retry: 1,
+    });
 
-            if (result.success) {
-                setData(result.data);
-            } else {
-                setError(result.message || "Failed to load batch data");
-            }
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Failed to fetch batch data"
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (types.length > 0) {
-            fetchBatch();
-        }
-    }, [types]);
+    const data = useMemo(() => response?.data || {}, [response]);
+    const error = queryError ? (queryError as Error)?.message : null;
 
     return {
         data,
         loading,
         error,
-        refetch: fetchBatch,
+        refetch,
     };
 };
