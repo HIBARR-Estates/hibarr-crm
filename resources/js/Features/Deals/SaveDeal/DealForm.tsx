@@ -20,6 +20,7 @@ export interface DealFormProps {
     cancelText?: string;
     visible?: boolean;
     disableFields?: string[];
+    formData?: Record<string, any>;
 }
 
 const DealForm: React.FC<DealFormProps> = ({
@@ -35,11 +36,15 @@ const DealForm: React.FC<DealFormProps> = ({
     onErrorsClear,
     visible,
     disableFields = [],
+    formData,
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
     const customFieldCategories =
-        props.dealCustomFieldCategories || props.customFieldCategories || [];
+        formData?.customFieldCategories ||
+        props.dealCustomFieldCategories ||
+        props.customFieldCategories ||
+        [];
 
     useEffect(() => {
         if (!visible) {
@@ -69,6 +74,7 @@ const DealForm: React.FC<DealFormProps> = ({
                     cancelText={cancelText}
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
+                    formData={formData}
                 />
             ),
         },

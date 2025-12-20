@@ -34,6 +34,7 @@ import AddFollowup from "./Components/Tabs/followups/AddFollowup";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
 import { useMemo } from "react";
 import PipelineSelector from "@/Features/Deals/PipelineSelector";
+import { useFormDataBatch } from "@/Hooks/useFormData";
 
 interface LeadAgent {
     id: number;
@@ -52,25 +53,40 @@ interface Pipeline {
 export interface IndexProps extends PageProps {
     pageTitle: string;
     deals: PaginatedDealResponse;
-    categories: LeadCategory[];
-    sources: LeadSource[];
-    stages: PipelineStage[];
-    leadAgents: LeadAgent[];
-    employees: User[];
-    countries: Array<{ iso: string; nicename: string; iso3: string }>;
-    salutations: Array<{ value: string; label: string }>;
-    pipelines: Pipeline[];
 }
 
-const Index = ({
-    pageTitle,
-    deals,
-    stages,
-    leadAgents,
-    pipelines,
-    defaultPipeline,
-    ...props
-}: IndexProps) => {
+const Index = ({ pageTitle, deals, ...props }: IndexProps) => {
+    const { data: formData, loading: formDataLoading } = useFormDataBatch([
+        "categories",
+        "sources",
+        "lead-stages",
+        "lead-agents",
+        "employees",
+        "countries",
+        "salutations",
+        "lead-pipelines",
+        "leads",
+        "products",
+        "packages",
+    ]);
+
+    const categories = (formData.categories as LeadCategory[]) || [];
+    const sources = (formData.sources as LeadSource[]) || [];
+    const stages = (formData["lead-stages"] as PipelineStage[]) || [];
+    const leadAgents = (formData["lead-agents"] as LeadAgent[]) || [];
+    const employees = (formData.employees as User[]) || [];
+    const countries =
+        (formData.countries as Array<{
+            iso: string;
+            nicename: string;
+            iso3: string;
+        }>) || [];
+    const salutations =
+        (formData.salutations as Array<{ value: string; label: string }>) || [];
+    const pipelines = (formData["lead-pipelines"] as Pipeline[]) || [];
+
+    const defaultPipeline = pipelines.find((p) => p.default === 1);
+
     const {
         handleAction,
         handleClose,
@@ -223,7 +239,7 @@ const Index = ({
                         <div className="flex items-center gap-3">
                             <PipelineSelector
                                 pipelines={pipelines}
-                                currentPipelineId={valueLeadPipelineId}
+                                currentPipelineId={Number(valueLeadPipelineId)}
                                 onSelect={handlePipelineChange}
                             />
                             <Button
@@ -315,6 +331,7 @@ const Index = ({
                 setDeal={(deal) => {
                     if (deal) handleEditDeal(deal);
                 }}
+                formData={formData}
             />
 
             <DeleteDeal

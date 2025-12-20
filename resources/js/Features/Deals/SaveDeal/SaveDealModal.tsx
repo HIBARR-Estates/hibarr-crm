@@ -15,6 +15,7 @@ interface SaveDealModalProps extends Omit<IModalProps, "onClose"> {
     setDeal?: (deal: Deal | undefined) => void;
     onClose: () => void;
     disableFields?: string[];
+    formData?: Record<string, any>;
 }
 
 const constructCustomFieldsData = (
@@ -36,12 +37,17 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     setDeal,
     lead_id,
     disableFields = [],
+    formData: externalFormData,
 }) => {
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateDealFormData | null>(null);
     const { props } = usePage<any>();
 
-    const customFields = props.dealCustomFields || props.customFields || [];
+    const customFields =
+        externalFormData?.customFields ||
+        props.dealCustomFields ||
+        props.customFields ||
+        [];
 
     // Determine if we're editing or creating
     const isEditing = !!deal;
@@ -151,6 +157,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
                 onErrorsClear={handleErrorsClear}
                 setDeal={setDeal}
                 loading={isLoading}
+                formData={externalFormData}
             />
         </Drawer>
     );

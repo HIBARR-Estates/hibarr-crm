@@ -56,6 +56,8 @@ class FormDataService
                 return $this->getLanguages($request);
             case 'leads':
                 return $this->getLeads($request);
+            case 'packages':
+                return $this->getPackages($request);
             default:
                 return collect();
         }
@@ -231,6 +233,17 @@ class FormDataService
         }
         
         return $leadService->getDropdownLeads($request->get('limit', 100));
+    }
+
+    private function getPackages(Request $request)
+    {
+        $query = \App\Models\Package::select('id', 'name', 'value', 'description');
+
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+
+        return $this->paginateIfRequested($query, $request);
     }
 
     /**

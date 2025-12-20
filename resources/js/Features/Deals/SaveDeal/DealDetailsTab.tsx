@@ -33,6 +33,7 @@ interface DealDetailsTabProps
     > {
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
+    formData?: Record<string, any>;
 }
 
 const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
@@ -46,23 +47,28 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     setErrors,
     setDeal,
     disableFields = [],
+    formData: externalFormData,
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
+
+    const leadContacts = externalFormData?.leads || props.leadContacts || [];
+    const leadPipelines =
+        externalFormData?.["lead-pipelines"] || props.leadPipelines || [];
+    const categories = externalFormData?.categories || props.categories || [];
+    const products = externalFormData?.products || props.products || [];
+    const employees = externalFormData?.employees || props.employees || [];
+    const leadAgents =
+        externalFormData?.["lead-agents"] || props.leadAgents || [];
+    const stages = externalFormData?.["lead-stages"] || props.stages || [];
+    const packages = externalFormData?.packages || props.packages || [];
+
     const {
-        leadContacts = [],
-        leadPipelines = [],
-        categories = [],
-        products = [],
-        employees = [],
-        leadAgents = [],
         stage = null,
         contactID = null,
         columnId = null,
         company = {},
-        stages = [],
-        packages = [],
     } = props;
 
     const [pipelineId, setPipelineId] = useState<number>();
