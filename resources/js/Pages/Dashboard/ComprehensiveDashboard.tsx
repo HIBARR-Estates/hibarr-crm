@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 
 import { motion } from "framer-motion";
 import { Row, Col, message } from "antd";
@@ -143,8 +143,8 @@ interface ComprehensiveDashboardProps extends PageProps {
     tasks: Task[];
     deals: Deal[];
     recentDeals: Deal[];
-    poorDataQualityDeals: DataQualityRecord[];
-    dataQualityStats: DataQualityStats;
+    poorDataQualityDeals?: DataQualityRecord[];
+    dataQualityStats?: DataQualityStats;
     recentActivities: CommunicationActivity[];
     pipelineStages: PipelineStage[];
     overviewMetrics: OverviewMetrics;
@@ -169,6 +169,19 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     countries,
 }) => {
     const [activeMetric, setActiveMetric] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (
+            poorDataQualityDeals === undefined ||
+            dataQualityStats === undefined
+        ) {
+            router.reload({
+                only: ["poorDataQualityDeals", "dataQualityStats"],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }
+    }, [poorDataQualityDeals, dataQualityStats]);
 
     // Handle metric click for filtering
     const handleMetricClick = useCallback(
@@ -342,6 +355,10 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         <DataQualityPanel
                                             records={poorDataQualityDeals}
                                             stats={dataQualityStats}
+                                            loading={
+                                                poorDataQualityDeals ===
+                                                undefined
+                                            }
                                             products={products}
                                             packages={packages}
                                             countries={countries}
