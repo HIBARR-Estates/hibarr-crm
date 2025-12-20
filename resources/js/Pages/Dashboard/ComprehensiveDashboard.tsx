@@ -158,7 +158,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     tasks,
     deals,
     recentDeals,
-    poorDataQualityDeals,
+    poorDataQualityDeals = [],
     dataQualityStats,
     recentActivities,
     pipelineStages,
@@ -177,8 +177,8 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
         ) {
             router.reload({
                 only: ["poorDataQualityDeals", "dataQualityStats"],
-                preserveScroll: true,
-                preserveState: true,
+                // preserveScroll: true,
+                // preserveState: true,
             });
         }
     }, [poorDataQualityDeals, dataQualityStats]);
