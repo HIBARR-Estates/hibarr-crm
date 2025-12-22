@@ -1,255 +1,211 @@
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; }
-    .page { page-break-after: always; width: 100%; min-height: 100vh; position: relative; }
-    .page:last-child { page-break-after: auto; }
-    .hero-grid { display: grid; gap: 10px; min-height: 500px; }
-    .hero-grid-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-    .hero-grid-3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
-    .hero-grid-2 { grid-template-columns: 1fr 1fr; }
-    .hero-grid-1 { grid-template-columns: 1fr; }
-    .img-cover { width: 100%; height: 100%; object-fit: cover; }
-    .text-center { text-align: center; }
+    body {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #1f2933;
+        background: #ffffff;
+    }
+
+    .page {
+        page-break-after: always;
+        width: 100%;
+        height: 100vh;
+        position: relative;
+    }
+
+    .page:last-child {
+        page-break-after: auto;
+    }
+
+    h1, h2, h3 {
+        font-weight: 600;
+        letter-spacing: -0.02em;
+    }
+
+    h1 { font-size: 34px; }
+    h2 { font-size: 28px; }
+    h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+    p {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #4b5563;
+    }
+
+    .muted { color: #6b7280; }
+
+    .divider {
+        height: 1px;
+        background: #e5e7eb;
+        margin: 30px 0;
+    }
+
+    .img-cover {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .grid {
+        display: grid;
+        gap: 16px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+
+    .card {
+        border: 1px solid #e5e7eb;
+        padding: 20px;
+        background: #ffffff;
+    }
 </style>
 
-<!-- Page 1: Hero Page -->
-<div class="page">
-    <!-- Top Section: Agent Info -->
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center;">
-        <p style="font-size: 12px; opacity: 0.8; margin-bottom: 20px;">{{ $data['created_at'] }}</p>
-        <h1 style="font-size: 42px; margin-bottom: 20px; font-weight: 300; letter-spacing: 1px;">
-            Hello! This is what we found for you
-        </h1>
-        
-        <div style="display: inline-flex; align-items: center; gap: 20px; margin-top: 30px; background: rgba(255,255,255,0.1); padding: 20px 40px; border-radius: 50px;">
-            @if(isset($data['agent']['image']))
-                <img src="{{ $data['agent']['image'] }}" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid white;">
-            @else
-                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">
-                    {{ substr($data['agent']['name'], 0, 1) }}
-                </div>
-            @endif
-            <div style="text-align: left;">
-                <p style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">{{ $data['agent']['name'] }}</p>
-                <p style="font-size: 13px; opacity: 0.9;">📧 {{ $data['agent']['email'] }}</p>
-                <p style="font-size: 13px; opacity: 0.9;">📱 {{ $data['agent']['phone'] }}</p>
-            </div>
+<!-- Page 1: Cover -->
+<div class="page" style="display:flex;">
+    <div style="width:35%; padding:50px; border-right:1px solid #e5e7eb; display:flex; flex-direction:column; justify-content:space-between;">
+        <div>
+            <p class="muted" style="margin-bottom:40px;">{{ $data['created_at'] }}</p>
+            <h1 style="margin-bottom:20px;">
+                Property<br>Overview
+            </h1>
+            <p class="muted">
+                Curated listing prepared for your review
+            </p>
+        </div>
+
+        <div>
+            <h3>Your Agent</h3>
+            <div class="divider"></div>
+            <p style="font-weight:600;">{{ $data['agent']['name'] }}</p>
+            <p>{{ $data['agent']['email'] }}</p>
+            <p>{{ $data['agent']['phone'] }}</p>
         </div>
     </div>
 
-    <!-- Hero Images -->
-    <div style="padding: 20px;">
-        @php
-            $heroImages = $data['assets']['hero'] ?? [];
-            $count = count($heroImages);
-        @endphp
-        
-        @if($count >= 4)
-            <div class="hero-grid hero-grid-4">
-                @foreach(array_slice($heroImages, 0, 4) as $image)
-                    <img src="{{ $image }}" class="img-cover" style="border-radius: 8px;">
+    <div style="width:65%;">
+        @php $hero = $data['assets']['hero'] ?? []; @endphp
+        @if(count($hero) >= 4)
+            <div class="grid grid-4" style="height:100%;">
+                @foreach(array_slice($hero,0,4) as $img)
+                    <img src="{{ $img }}" class="img-cover">
                 @endforeach
             </div>
-        @elseif($count == 3)
-            <div class="hero-grid hero-grid-3">
-                <img src="{{ $heroImages[0] }}" class="img-cover" style="grid-row: span 2; border-radius: 8px;">
-                <img src="{{ $heroImages[1] }}" class="img-cover" style="border-radius: 8px;">
-                <img src="{{ $heroImages[2] }}" class="img-cover" style="border-radius: 8px;">
-            </div>
-        @elseif($count == 2)
-            <div class="hero-grid hero-grid-2">
-                <img src="{{ $heroImages[0] }}" class="img-cover" style="border-radius: 8px;">
-                <img src="{{ $heroImages[1] }}" class="img-cover" style="border-radius: 8px;">
-            </div>
-        @elseif($count == 1)
-            <div class="hero-grid hero-grid-1">
-                <img src="{{ $heroImages[0] }}" class="img-cover" style="border-radius: 8px;">
-            </div>
-        @else
-            <div style="height: 400px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; color: #999; border-radius: 8px;">
-                <p>No hero images available</p>
-            </div>
+        @elseif(count($hero) > 0)
+            <img src="{{ $hero[0] }}" class="img-cover">
         @endif
     </div>
 </div>
 
-<!-- Page 2: Property Details -->
-<div class="page" style="padding: 60px;">
-    <div style="text-align: center; margin-bottom: 40px;">
-        <h1 style="font-size: 48px; color: #2c3e50; margin-bottom: 10px;">{{ $data['title'] }}</h1>
-        <p style="font-size: 20px; color: #7f8c8d;">📍 {{ $data['address'] }}</p>
+<!-- Page 2: Property Summary -->
+<div class="page" style="padding:60px;">
+    <h1 style="margin-bottom:10px;">{{ $data['title'] }}</h1>
+    <p class="muted" style="margin-bottom:40px;">{{ $data['address'] }}</p>
+
+    <div class="card" style="margin-bottom:40px;">
+        <h3>Asking Price</h3>
+        <p style="font-size:32px; font-weight:600; color:#111827;">{{ $data['price'] }}</p>
     </div>
 
-    <div style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 15px; margin-bottom: 50px;">
-        <p style="font-size: 18px; opacity: 0.9; margin-bottom: 5px;">Price</p>
-        <h2 style="font-size: 56px; font-weight: bold;">{{ $data['price'] }}</h2>
-    </div>
-
-    <div style="display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; margin-bottom: 40px;">
-        <div style="text-align: center; min-width: 200px; padding: 25px; background: #f8f9fa; border-radius: 10px; border-top: 4px solid #667eea;">
-            <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase;">Area</p>
-            <p style="font-size: 28px; font-weight: bold; color: #2c3e50;">{{ $data['area'] ?? 'N/A' }} m²</p>
+    <div class="grid grid-2">
+        <div class="card">
+            <h3>Area</h3>
+            <p>{{ $data['area'] ?? 'N/A' }} m²</p>
         </div>
-        <div style="text-align: center; min-width: 200px; padding: 25px; background: #f8f9fa; border-radius: 10px; border-top: 4px solid #764ba2;">
-            <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase;">Property Type</p>
-            <p style="font-size: 28px; font-weight: bold; color: #2c3e50;">{{ $data['property_type'] ?? 'N/A' }}</p>
+        <div class="card">
+            <h3>Type</h3>
+            <p>{{ $data['property_type'] ?? 'N/A' }}</p>
         </div>
-        <div style="text-align: center; min-width: 200px; padding: 25px; background: #f8f9fa; border-radius: 10px; border-top: 4px solid #667eea;">
-            <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase;">Bathrooms</p>
-            <p style="font-size: 28px; font-weight: bold; color: #2c3e50;">{{ $data['bathrooms'] ?? 'N/A' }}</p>
+        <div class="card">
+            <h3>Bathrooms</h3>
+            <p>{{ $data['bathrooms'] ?? 'N/A' }}</p>
         </div>
-        <div style="text-align: center; min-width: 200px; padding: 25px; background: #f8f9fa; border-radius: 10px; border-top: 4px solid #764ba2;">
-            <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase;">Building Age</p>
-            <p style="font-size: 28px; font-weight: bold; color: #2c3e50;">{{ $data['building_age'] ?? 'N/A' }} years</p>
+        <div class="card">
+            <h3>Building Age</h3>
+            <p>{{ $data['building_age'] ?? 'N/A' }} years</p>
         </div>
     </div>
-
-    @if(!empty($data['assets']['area']) && count($data['assets']['area']) > 0)
-        <div style="text-align: center;">
-            <img src="{{ $data['assets']['area'][0] }}" style="max-width: 80%; max-height: 400px; object-fit: cover; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
-        </div>
-    @endif
 </div>
 
-<!-- Page 3: Exterior Images -->
-<div class="page" style="padding: 60px;">
-    <h2 style="font-size: 42px; color: #2c3e50; margin-bottom: 40px; text-align: center; position: relative;">
-        <span style="background: white; padding: 0 30px; position: relative; z-index: 1;">Exterior Images</span>
-        <span style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #667eea, transparent);"></span>
-    </h2>
-    @php
-        $exteriorImages = $data['assets']['exterior'] ?? [];
-    @endphp
-    @if(count($exteriorImages) > 0)
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-            @foreach(array_slice($exteriorImages, 0, 6) as $image)
-                <img src="{{ $image }}" style="width: 100%; height: 350px; object-fit: cover; border-radius: 10px;">
-            @endforeach
-        </div>
-    @else
-        <p class="text-center" style="color: #999; margin-top: 100px; font-size: 18px;">No exterior images available</p>
-    @endif
+<!-- Page 3: Exterior -->
+<div class="page" style="padding:60px;">
+    <h2 style="margin-bottom:30px;">Exterior</h2>
+    @php $exterior = $data['assets']['exterior'] ?? []; @endphp
+    <div class="grid grid-3" style="height:calc(100% - 80px);">
+        @foreach(array_slice($exterior,0,9) as $img)
+            <img src="{{ $img }}" class="img-cover">
+        @endforeach
+    </div>
 </div>
 
-<!-- Page 4: Interior Images -->
-<div class="page" style="padding: 60px;">
-    <h2 style="font-size: 42px; color: #2c3e50; margin-bottom: 40px; text-align: center; position: relative;">
-        <span style="background: white; padding: 0 30px; position: relative; z-index: 1;">Interior Images</span>
-        <span style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #667eea, transparent);"></span>
-    </h2>
-    @php
-        $interiorImages = $data['assets']['interior'] ?? [];
-    @endphp
-    @if(count($interiorImages) > 0)
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-            @foreach(array_slice($interiorImages, 0, 6) as $image)
-                <img src="{{ $image }}" style="width: 100%; height: 350px; object-fit: cover; border-radius: 10px;">
-            @endforeach
-        </div>
-    @else
-        <p class="text-center" style="color: #999; margin-top: 100px; font-size: 18px;">No interior images available</p>
-    @endif
+<!-- Page 4: Interior -->
+<div class="page" style="padding:60px;">
+    <h2 style="margin-bottom:30px;">Interior</h2>
+    @php $interior = $data['assets']['interior'] ?? []; @endphp
+    <div class="grid grid-3" style="height:calc(100% - 80px);">
+        @foreach(array_slice($interior,0,9) as $img)
+            <img src="{{ $img }}" class="img-cover">
+        @endforeach
+    </div>
 </div>
 
 <!-- Page 5: Floor Plan -->
-<div class="page" style="padding: 60px;">
-    <h2 style="font-size: 42px; color: #2c3e50; margin-bottom: 40px; text-align: center; position: relative;">
-        <span style="background: white; padding: 0 30px; position: relative; z-index: 1;">Floor Plan</span>
-        <span style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #667eea, transparent);"></span>
-    </h2>
-    @php
-        $floorPlanImages = $data['assets']['floor-plan'] ?? [];
-    @endphp
-    @if(count($floorPlanImages) > 0)
-        <div style="display: grid; grid-template-columns: repeat(1, 1fr); gap: 30px;">
-            @foreach(array_slice($floorPlanImages, 0, 2) as $image)
-                <img src="{{ $image }}" style="width: 100%; max-height: 500px; object-fit: contain; background: #f9f9f9; padding: 30px; border-radius: 10px;">
-            @endforeach
-        </div>
-    @else
-        <p class="text-center" style="color: #999; margin-top: 100px; font-size: 18px;">No floor plan available</p>
-    @endif
-</div>
-
-<!-- Page 6: Facilities -->
-<div class="page" style="padding: 60px;">
-    <h2 style="font-size: 42px; color: #2c3e50; margin-bottom: 40px; text-align: center; position: relative;">
-        <span style="background: white; padding: 0 30px; position: relative; z-index: 1;">Facilities</span>
-        <span style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #667eea, transparent);"></span>
-    </h2>
-    
-    <div style="columns: 2; column-gap: 40px;">
-        @if(!empty($data['exterior_features']))
-            @foreach($data['exterior_features'] as $feature)
-                <div style="break-inside: avoid; margin-bottom: 15px; padding: 15px 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
-                    <p style="font-size: 16px; color: #2c3e50;">✓ {{ $feature }}</p>
-                </div>
-            @endforeach
-        @endif
-        @if(!empty($data['interior_features']))
-            @foreach($data['interior_features'] as $feature)
-                <div style="break-inside: avoid; margin-bottom: 15px; padding: 15px 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #764ba2;">
-                    <p style="font-size: 16px; color: #2c3e50;">✓ {{ $feature }}</p>
-                </div>
-            @endforeach
-        @endif
-        @if(!empty($data['location_features']))
-            @foreach($data['location_features'] as $feature)
-                <div style="break-inside: avoid; margin-bottom: 15px; padding: 15px 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #f093fb;">
-                    <p style="font-size: 16px; color: #2c3e50;">✓ {{ $feature }}</p>
-                </div>
-            @endforeach
-        @endif
-    </div>
-</div>
-
-<!-- Page 7: About the Property -->
-<div class="page" style="padding: 60px;">
-    <h2 style="font-size: 42px; color: #2c3e50; margin-bottom: 40px; text-align: center; position: relative;">
-        <span style="background: white; padding: 0 30px; position: relative; z-index: 1;">About the Property</span>
-        <span style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #667eea, transparent);"></span>
-    </h2>
-    
-    <div style="max-width: 800px; margin: 0 auto; line-height: 2; font-size: 16px; color: #34495e; text-align: justify;">
-        {!! $data['description'] ?? '<p style="color: #999; text-align: center;">No description available</p>' !!}
-    </div>
-</div>
-
-<!-- Page 8: Footer & Contact -->
-<div class="page" style="padding: 0;">
-    @php
-        $footerImages = $data['assets']['footer'] ?? [];
-    @endphp
-    @if(count($footerImages) > 0)
-        <div style="height: 40vh; overflow: hidden;">
-            <img src="{{ $footerImages[0] }}" style="width: 100%; height: 100%; object-fit: cover;">
-        </div>
-    @else
-        <div style="height: 40vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
-    @endif
-    
-    <div style="background: #2c3e50; color: white; padding: 60px; text-align: center;">
-        <h2 style="font-size: 36px; margin-bottom: 30px;">If you have any questions,<br>you can contact us</h2>
-        
-        <div style="display: inline-flex; align-items: center; gap: 30px; margin-top: 30px; padding: 30px; background: rgba(255,255,255,0.1); border-radius: 15px;">
-            @if(isset($data['agent']['image']))
-                <img src="{{ $data['agent']['image'] }}" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid white;">
-            @else
-                <div style="width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold;">
-                    {{ substr($data['agent']['name'], 0, 1) }}
-                </div>
-            @endif
-            <div style="text-align: left;">
-                <p style="font-size: 28px; font-weight: bold; margin-bottom: 10px;">{{ $data['agent']['name'] }}</p>
-                <p style="font-size: 16px; opacity: 0.9; margin-bottom: 8px;">📧 {{ $data['agent']['email'] }}</p>
-                <p style="font-size: 16px; opacity: 0.9;">📱 {{ $data['agent']['phone'] }}</p>
+<div class="page" style="padding:60px;">
+    <h2 style="margin-bottom:30px;">Floor Plan</h2>
+    @php $plans = $data['assets']['floor-plan'] ?? []; @endphp
+    <div class="grid grid-2" style="height:calc(100% - 80px);">
+        @foreach(array_slice($plans,0,4) as $img)
+            <div class="card" style="height:100%;">
+                <img src="{{ $img }}" style="width:100%; height:100%; object-fit:contain;">
             </div>
-        </div>
+        @endforeach
+    </div>
+</div>
+
+<!-- Page 6: Features -->
+<div class="page" style="padding:60px;">
+    <h2 style="margin-bottom:30px;">Facilities & Features</h2>
+
+    <div class="grid grid-3">
+        @foreach(array_merge(
+            $data['exterior_features'] ?? [],
+            $data['interior_features'] ?? [],
+            $data['location_features'] ?? []
+        ) as $feature)
+            <div class="card">
+                <p>{{ $feature }}</p>
+            </div>
+        @endforeach
+    </div>
+</div>
+
+<!-- Page 7: Description -->
+<div class="page" style="padding:60px;">
+    <h2 style="margin-bottom:30px;">Property Description</h2>
+    <div style="max-width:900px;">
+        {!! $data['description'] ?? '<p class="muted">No description provided.</p>' !!}
+    </div>
+</div>
+
+<!-- Page 8: Contact -->
+<div class="page" style="display:flex;">
+    <div style="width:60%;">
+        @php $footer = $data['assets']['footer'] ?? []; @endphp
+        @if(count($footer))
+            <img src="{{ $footer[0] }}" class="img-cover">
+        @endif
+    </div>
+
+    <div style="width:40%; padding:60px; border-left:1px solid #e5e7eb;">
+        <h2 style="margin-bottom:20px;">Contact</h2>
+        <p style="font-weight:600;">{{ $data['agent']['name'] }}</p>
+        <p>{{ $data['agent']['email'] }}</p>
+        <p>{{ $data['agent']['phone'] }}</p>
 
         @if(isset($data['company']['logo']))
-            <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.2);">
-                <img src="{{ $data['company']['logo'] }}" style="max-width: 200px; opacity: 0.8;">
-            </div>
+            <div class="divider"></div>
+            <img src="{{ $data['company']['logo'] }}" style="max-width:140px;">
         @endif
     </div>
 </div>
