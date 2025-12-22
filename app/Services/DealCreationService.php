@@ -86,7 +86,11 @@ class DealCreationService
         
         try {
             $startTime = microtime(true);
-            return DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $startTime) {
+            // Track if hash changes during processing 
+            $currentHash = $dealHash;
+            $hashChanged = false;
+            
+            $deal = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $startTime, &$currentHash, &$hashChanged) {
                 // Helper function to refresh cache lock if needed 
                 // Refresh if we're within 60 seconds of expiration to prevent mid-transaction expiration
                 $refreshCacheLock = function () use ($cacheKey, $startTime) {
@@ -146,6 +150,15 @@ class DealCreationService
                     // Recalculate hash for the new deal name
                     $newHash = $this->generateDealHash($contactId, $dealName, $companyId);
                     $deal->hash = $newHash;
+                    // Track hash change for cache key management 
+                    $currentHash = $newHash;
+                    $hashChanged = true;
+                }
+                
+                // If deal was found via fallback and hash was updated, ensure we track it 
+                if (!$isNewDeal && $deal->hash !== $dealHash) {
+                    $currentHash = $deal->hash;
+                    $hashChanged = true;
                 }
 
                 // Update deal fields
@@ -201,14 +214,32 @@ class DealCreationService
                 if ($isNewDeal) {
                     $this->sendDealCreatedNotifications($deal);
                 }
-
-                // Remove cache lock after successful processing
+                
+                // Return deal - cache lock will be released after transaction commits 
+                return $deal;
+            }, 5); // 5 attempts for deadlock retry
+            
+            // Release cache lock AFTER transaction commits 
+            // This prevents race condition where another process acquires lock before commit
+            DB::afterCommit(function () use ($cacheKey, $currentHash, $hashChanged) {
+                // Release the original cache lock
                 Cache::forget($cacheKey);
                 
-                return $deal;
+                // If hash changed, also release any potential lock with the new hash 
+                if ($hashChanged) {
+                    $newCacheKey = "deal_processing:{$currentHash}";
+                    Cache::forget($newCacheKey);
+                    Log::debug('DealCreationService: Released cache lock for changed hash', [
+                        'original_key' => $cacheKey,
+                        'new_key' => $newCacheKey,
+                    ]);
+                }
             });
+            
+            return $deal;
         } catch (\Exception $e) {
             // Remove cache lock on error to allow retry
+            // Release immediately on error since transaction didn't commit
             Cache::forget($cacheKey);
             throw $e;
         }
