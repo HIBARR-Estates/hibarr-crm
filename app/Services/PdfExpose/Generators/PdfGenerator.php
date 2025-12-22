@@ -22,6 +22,11 @@ class PdfGenerator
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
             ->format('a4')
             ->orientation($orientation)
+            ->withBrowsershot(function ($browsershot) {
+                $browsershot->noSandbox();
+                $browsershot->disableSetuidSandbox();
+                $browsershot->setOption('args', ['--disable-dev-shm-usage']);
+            })
             ->margins(10, 10, 10, 10);
 
         return $pdf->download($filename);
@@ -66,6 +71,11 @@ class PdfGenerator
         return Pdf::view('pdf.wrapper', ['content' => $html])
             ->format('a4')
             ->orientation($orientation)
+            ->withBrowsershot(function ($browsershot) {
+                $browsershot->noSandbox();
+                $browsershot->disableSetuidSandbox();
+                $browsershot->setOption('args', ['--disable-dev-shm-usage']);
+            })
             ->margins(10, 10, 10, 10)
             ->name($filename)
             ->download();
