@@ -836,9 +836,11 @@ class DealController extends AccountBaseController
 
         if (!is_null($request->agent_id)) {
             // $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
+            // ensures that the check is done direclty on the LeadAgent model
             $leadAgent = LeadAgent::find($request->agent_id);
             $deal->agent_id = $leadAgent ? $leadAgent->id : null;
         } else {
+            // ensures that the agent_id is set to null if no agent is provided
             $deal->agent_id = $request->agent_id;
         }
 
