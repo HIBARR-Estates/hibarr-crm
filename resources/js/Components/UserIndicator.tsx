@@ -38,8 +38,8 @@ const sizeMap: Record<
         maxLength: 8,
     },
     sm: {
-        avatar: 24,
-        nameClass: "text-sm",
+        avatar: 28,
+        nameClass: "text-xs",
         containerClass: "gap-1.5",
         maxLength: 12,
     },
