@@ -628,7 +628,8 @@ class DealController extends AccountBaseController
 
         $agentId = null;
         if (!is_null($request->agent_id)) {
-            $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
+            // $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
+            $leadAgent = LeadAgent::find($request->agent_id);
             $agentId = isset($leadAgent) ? $leadAgent->id : null;
         }
         $deal = new Deal();
@@ -919,7 +920,7 @@ class DealController extends AccountBaseController
                 'close_date' => 'close_date',
                 'probability' => 'probability',
                 'note' => 'note',
-                'agent_id' => 'agent_id',
+                'agent_id' => 'agent_id', //can be null
                 'lead_id' => 'lead_id',
                 'category_id' => 'category_id',
                 'source_id' => 'source_id',
