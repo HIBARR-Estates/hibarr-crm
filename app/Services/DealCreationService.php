@@ -46,10 +46,10 @@ class DealCreationService
      * @param int $contactId
      * @param int $companyId
      * @param array $requestData
-     * @return Deal
+     * @return array{deal: Deal, is_new: bool}
      * @throws \Exception
      */
-    public function processDeal(int $contactId, int $companyId, array $requestData): Deal
+    public function processDeal(int $contactId, int $companyId, array $requestData): array
     {
         // Convert array to Request object for compatibility with existing methods
         $request = Request::create('/', 'POST', $requestData);
@@ -59,7 +59,28 @@ class DealCreationService
         // Generate deterministic hash for duplicate prevention
         $dealHash = $this->generateDealHash($contactId, $dealName, $companyId);
         
-        // Cache key for duplicate prevention
+        // Contact-level lock to prevent concurrent deal creation for the same contact
+        // This prevents different deal names from creating multiple deals simultaneously
+        $contactLockKey = "deal_processing_contact:{$contactId}:{$companyId}";
+        $contactLockAcquired = Cache::add($contactLockKey, true, self::CACHE_TTL);
+        
+        if (!$contactLockAcquired) {
+            Log::info('DealCreationService: Contact-level lock already held, waiting for original to complete', [
+                'contact_id' => $contactId,
+                'company_id' => $companyId,
+                'deal_name' => $dealName,
+            ]);
+            
+            // Wait for the original request to complete
+            $existingDeal = $this->waitForContactLockRelease($contactId, $companyId, $dealHash);
+            if ($existingDeal) {
+                return ['deal' => $existingDeal, 'is_new' => false];
+            }
+            
+            throw new \Exception('Another deal creation is in progress for this contact');
+        }
+        
+        // Hash-based lock for exact duplicate prevention (same contact + same deal name)
         $cacheKey = "deal_processing:{$dealHash}";
         
         // Atomically acquire cache lock to prevent duplicates
@@ -68,7 +89,10 @@ class DealCreationService
         $lockAcquired = Cache::add($cacheKey, true, self::CACHE_TTL);
         
         if (!$lockAcquired) {
-            Log::info('DealCreationService: Duplicate request detected, waiting for original to complete', [
+            // Release contact lock since we won't proceed
+            Cache::forget($contactLockKey);
+            
+            Log::info('DealCreationService: Duplicate request detected (same hash), waiting for original to complete', [
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
                 'deal_name' => $dealName,
@@ -79,7 +103,7 @@ class DealCreationService
             // This handles the case where the original request is still in a transaction
             $existingDeal = $this->waitForExistingDeal($contactId, $companyId, $dealHash);
             if ($existingDeal) {
-                return $existingDeal;
+                return ['deal' => $existingDeal, 'is_new' => false];
             }
             
             throw new \Exception('Duplicate deal request detected and no existing deal found after waiting');
@@ -90,27 +114,30 @@ class DealCreationService
             // Track if hash changes during processing 
             $currentHash = $dealHash;
             $hashChanged = false;
+            $isNewDeal = false;
             
-            $deal = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $startTime, &$currentHash, &$hashChanged) {
-                // Helper function to refresh cache lock if needed 
+            $result = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $contactLockKey, $startTime, &$currentHash, &$hashChanged, &$isNewDeal) {
+                // Helper function to refresh cache locks if needed 
                 // Refresh if we're within 60 seconds of expiration to prevent mid-transaction expiration
-                $refreshCacheLock = function () use ($cacheKey, $startTime) {
+                $refreshCacheLocks = function () use ($cacheKey, $contactLockKey, $startTime) {
                     $elapsed = microtime(true) - $startTime;
                     $timeUntilExpiration = self::CACHE_TTL - $elapsed;
                     
                     // Refresh if we're within 60 seconds of expiration
                     if ($timeUntilExpiration < 60) {
                         Cache::put($cacheKey, true, self::CACHE_TTL);
-                        Log::debug('DealCreationService: Refreshed cache lock', [
+                        Cache::put($contactLockKey, true, self::CACHE_TTL);
+                        Log::debug('DealCreationService: Refreshed cache locks', [
                             'cache_key' => $cacheKey,
+                            'contact_lock_key' => $contactLockKey,
                             'elapsed_seconds' => round($elapsed, 2),
                             'time_until_expiration' => round($timeUntilExpiration, 2),
                         ]);
                     }
                 };
                 
-                // Refresh cache lock at the start
-                $refreshCacheLock();
+                // Refresh cache locks at the start
+                $refreshCacheLocks();
                 
                 // Find or create deal with lock to prevent duplicates (second line of defense)
                 $result = $this->findOrCreateDeal($contactId, $companyId, $dealName, $dealHash);
@@ -173,7 +200,7 @@ class DealCreationService
                 $deal->create_client = 0;
                 
                 // Refresh cache lock before saving (long operation)
-                $refreshCacheLock();
+                $refreshCacheLocks();
                 
                 // Save quietly to bypass observers
                 $deal->saveQuietly();
@@ -209,23 +236,29 @@ class DealCreationService
                     $this->createMeeting($deal, $meeting, $companyId);
                 }
 
-                // Refresh cache lock before notifications (potentially long operation)
-                $refreshCacheLock();
+                // Refresh cache locks before notifications (potentially long operation)
+                $refreshCacheLocks();
                 
                 // Manually trigger notifications for agent or admins (only for new deals)
                 if ($isNewDeal) {
                     $this->sendDealCreatedNotifications($deal);
                 }
                 
-                // Return deal - cache lock will be released after transaction commits 
-                return $deal;
+                // Return deal and is_new flag - cache lock will be released after transaction commits 
+                return ['deal' => $deal, 'is_new' => $isNewDeal];
             }, 5); // 5 attempts for deadlock retry
             
-            // Release cache lock AFTER transaction commits 
+            $deal = $result['deal'];
+            $isNewDeal = $result['is_new'];
+            
+            // Release cache locks AFTER transaction commits 
             // This prevents race condition where another process acquires lock before commit
-            DB::afterCommit(function () use ($cacheKey, $currentHash, $hashChanged) {
+            DB::afterCommit(function () use ($cacheKey, $contactLockKey, $currentHash, $hashChanged) {
                 // Release the original cache lock
                 Cache::forget($cacheKey);
+                
+                // Release the contact-level lock
+                Cache::forget($contactLockKey);
                 
                 // If hash changed, also release any potential lock with the new hash 
                 if ($hashChanged) {
@@ -238,11 +271,12 @@ class DealCreationService
                 }
             });
             
-            return $deal;
+            return ['deal' => $deal, 'is_new' => $isNewDeal];
         } catch (\Exception $e) {
-            // Remove cache lock on error to allow retry
+            // Remove cache locks on error to allow retry
             // Release immediately on error since transaction didn't commit
             Cache::forget($cacheKey);
+            Cache::forget($contactLockKey);
             throw $e;
         }
     }
@@ -359,6 +393,92 @@ class DealCreationService
     }
 
     /**
+     * Wait for contact-level lock to be released and check for existing deal.
+     * This handles concurrent requests with different deal names for the same contact.
+     *
+     * @param int $contactId
+     * @param int $companyId
+     * @param string $dealHash
+     * @return Deal|null
+     */
+    private function waitForContactLockRelease(int $contactId, int $companyId, string $dealHash): ?Deal
+    {
+        $startTime = microtime(true);
+        $retryDelay = self::DUPLICATE_RETRY_DELAY_MS;
+        $maxWaitTime = self::DUPLICATE_WAIT_TIMEOUT;
+        
+        $contactLockKey = "deal_processing_contact:{$contactId}:{$companyId}";
+        
+        while (true) {
+            // Check if we've exceeded the maximum wait time (hard timeout)
+            $elapsed = microtime(true) - $startTime;
+            
+            // Enforce hard timeout regardless of lock state to prevent infinite waiting
+            if ($elapsed > $maxWaitTime) {
+                $lockStillHeld = Cache::has($contactLockKey);
+                Log::warning('DealCreationService: Hard timeout waiting for contact lock to be released', [
+                    'contact_id' => $contactId,
+                    'company_id' => $companyId,
+                    'hash' => $dealHash,
+                    'elapsed_seconds' => $elapsed,
+                    'lock_still_held' => $lockStillHeld,
+                ]);
+                return null;
+            }
+            
+            // Check if the contact lock is still held
+            $lockStillHeld = Cache::has($contactLockKey);
+            
+            // If lock is released, check for existing deal
+            if (!$lockStillHeld) {
+                // First try to find deal by hash (exact match)
+                $existingDeal = $this->findExistingDealByHash($contactId, $companyId, $dealHash);
+                if ($existingDeal) {
+                    Log::info('DealCreationService: Found existing deal by hash after contact lock release', [
+                        'contact_id' => $contactId,
+                        'company_id' => $companyId,
+                        'deal_id' => $existingDeal->id,
+                        'hash' => $dealHash,
+                        'wait_time_seconds' => $elapsed,
+                    ]);
+                    return $existingDeal;
+                }
+                
+                // Fallback: find any open deal for this contact
+                $existingDeal = Deal::where('lead_id', $contactId)
+                    ->where('company_id', $companyId)
+                    ->whereNull('close_date')
+                    ->orderByDesc('updated_at')
+                    ->first();
+                
+                if ($existingDeal) {
+                    Log::info('DealCreationService: Found existing deal (fallback) after contact lock release', [
+                        'contact_id' => $contactId,
+                        'company_id' => $companyId,
+                        'deal_id' => $existingDeal->id,
+                        'hash' => $dealHash,
+                        'existing_deal_hash' => $existingDeal->hash,
+                        'wait_time_seconds' => $elapsed,
+                    ]);
+                    return $existingDeal;
+                }
+                
+                // Lock released but no deal found - original request may have failed
+                Log::warning('DealCreationService: Contact lock released but no deal found', [
+                    'contact_id' => $contactId,
+                    'company_id' => $companyId,
+                    'hash' => $dealHash,
+                ]);
+                return null;
+            }
+            
+            // Wait with exponential backoff before retrying
+            usleep($retryDelay * 1000); // Convert milliseconds to microseconds
+            $retryDelay = min($retryDelay * 2, 1000); // Cap at 1 second
+        }
+    }
+
+    /**
      * Find or create a deal with database lock to prevent duplicates.
      *
      * @param int $contactId
@@ -390,12 +510,17 @@ class DealCreationService
             ->first();
         
         if ($existingDeal) {
-            // Check if hash needs to be updated 
-            $hashWasUpdated = $existingDeal->hash !== $dealHash;
+            // Only update hash if deal doesn't have one yet (prevents hash flip-flopping)
+            // If deal already has a hash, preserve it to maintain consistency
+            $hashWasUpdated = false;
+            if (empty($existingDeal->hash)) {
+                // Deal has no hash - set it to the current request's hash
+                $existingDeal->hash = $dealHash;
+                $existingDeal->saveQuietly();
+                $hashWasUpdated = true;
+            }
+            // If deal already has a hash, don't overwrite it (prevents flip-flopping)
             
-            // Update the hash for future requests
-            $existingDeal->hash = $dealHash;
-            $existingDeal->saveQuietly();
             return ['deal' => $existingDeal, 'is_new' => false, 'hash_updated' => $hashWasUpdated];
         }
         

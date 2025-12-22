@@ -11,7 +11,6 @@ use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Http\Requests\Deal\CreateDealRequest;
 use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
-use App\Jobs\ProcessDealRequestJob;
 use App\Services\DealCreationService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -168,14 +167,18 @@ class DealContactApiController extends Controller
                 // This guarantees that if we return success, the deal was actually created
                 // If processing fails, we throw exception to rollback transaction
                 $dealCreationService = app(DealCreationService::class);
-                $deal = $dealCreationService->processDeal($contactId, $companyId, $request->all());
+                $result = $dealCreationService->processDeal($contactId, $companyId, $request->all());
+                $deal = $result['deal'];
+                $isNewDeal = $result['is_new'];
                 
-                // Deal was created successfully - transaction will commit
-                return Reply::successWithData('Deal created successfully', [
+                // Transaction will commit - return appropriate message based on whether deal was created or updated
+                $message = $isNewDeal ? 'Deal created successfully' : 'Deal updated successfully';
+                return Reply::successWithData($message, [
                     'status' => 'completed',
                     'contact_id' => $contactId,
                     'company_id' => $companyId,
                     'deal_id' => $deal->id,
+                    'is_new' => $isNewDeal,
                 ]);
             });
             
@@ -189,7 +192,7 @@ class DealContactApiController extends Controller
                 'name' => $request->input('name'),
             ]);
             
-            return Reply::error('Failed to create deal: ' . $e->getMessage());
+            return Reply::error('Failed to create/update deal: ' . $e->getMessage());
         }
     }
 
