@@ -140,51 +140,48 @@ class DealContactApiController extends Controller
     public function createDeal(CreateDealRequest $request)
     {
         try {
-            return DB::transaction(function () use ($request) {
-                $companyId = $request->header('X-COMPANY-ID');
-                
-                if (!$companyId) {
-                    return Reply::error(__('messages.missingCompanyId'));
-                }
-                
-                // Validate that company ID is a valid positive integer
-                if (!is_numeric($companyId) || (int) $companyId <= 0) {
-                    return Reply::error(__('messages.invalidCompanyId'));
-                }
-                
-                $companyId = (int) $companyId;
-                
-                // Resolve contact ID (this is fast and doesn't need to be queued)
-                $contactId = $request->input('lead_id') ?? null;
-                if (!$contactId) {
-                    $contactId = $this->resolveContact($request, $companyId);
-                }
-                
-                // Save UTM information if provided (also fast)
-                $this->saveUtmInfo($contactId, $request);
-                
-                // Process deal synchronously before committing to ensure we can return errors
-                // This guarantees that if we return success, the deal was actually created
-                // If processing fails, we throw exception to rollback transaction
-                $dealCreationService = app(DealCreationService::class);
-                $result = $dealCreationService->processDeal($contactId, $companyId, $request->all());
-                $deal = $result['deal'];
-                $isNewDeal = $result['is_new'];
-                
-                // Transaction will commit - return appropriate message based on whether deal was created or updated
-                $message = $isNewDeal ? 'Deal created successfully' : 'Deal updated successfully';
-                return Reply::successWithData($message, [
-                    'status' => 'completed',
-                    'contact_id' => $contactId,
-                    'company_id' => $companyId,
-                    'deal_id' => $deal->id,
-                    'is_new' => $isNewDeal,
-                ]);
-            });
+            $companyId = $request->header('X-COMPANY-ID');
+            
+            if (!$companyId) {
+                return Reply::error(__('messages.missingCompanyId'));
+            }
+            
+            // Validate that company ID is a valid positive integer
+            if (!is_numeric($companyId) || (int) $companyId <= 0) {
+                return Reply::error(__('messages.invalidCompanyId'));
+            }
+            
+            $companyId = (int) $companyId;
+            
+            // Resolve contact ID (this is fast and doesn't need to be queued)
+            $contactId = $request->input('lead_id') ?? null;
+            if (!$contactId) {
+                $contactId = $this->resolveContact($request, $companyId);
+            }
+            
+            // Save UTM information if provided (also fast)
+            $this->saveUtmInfo($contactId, $request);
+            
+            // Process deal - the service handles its own transaction and cache lock management
+            // This ensures cache locks are released only after the transaction commits
+            $dealCreationService = app(DealCreationService::class);
+            $result = $dealCreationService->processDeal($contactId, $companyId, $request->all());
+            $deal = $result['deal'];
+            $isNewDeal = $result['is_new'];
+            
+            // Return appropriate message based on whether deal was created or updated
+            $message = $isNewDeal ? 'Deal created successfully' : 'Deal updated successfully';
+            return Reply::successWithData($message, [
+                'status' => 'completed',
+                'contact_id' => $contactId,
+                'company_id' => $companyId,
+                'deal_id' => $deal->id,
+                'is_new' => $isNewDeal,
+            ]);
             
         } catch (\Exception $e) {
-            // Catch exceptions from transaction (including deal processing failures)
-            // Transaction will have rolled back automatically
+            // Catch exceptions from deal processing
+            // Transaction will have rolled back automatically if service started one
             Log::error('Failed to process deal request', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -192,7 +189,9 @@ class DealContactApiController extends Controller
                 'name' => $request->input('name'),
             ]);
             
-            return Reply::error('Failed to create/update deal: ' . $e->getMessage());
+            // Return generic error message to avoid exposing sensitive information
+            // Exception details are logged above for debugging
+            return Reply::error('Failed to create/update deal');
         }
     }
 
