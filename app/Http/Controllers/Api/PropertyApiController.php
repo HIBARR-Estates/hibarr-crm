@@ -29,31 +29,34 @@ class PropertyApiController extends Controller
 
             $companyId = (int) $companyId;
 
-            // Get pagination parameters
-            $page = max(1, (int) $request->get('page', 1));
+            // Get pagination parameters from query string only
+            $page = max(1, (int) $request->query('page', 1));
             $perPage = min(
-                max(1, (int) $request->get('per_page', config('api.defaultLimit', 20))),
+                max(1, (int) $request->query('per_page', config('api.defaultLimit', 20))),
                 config('api.maxLimit', 1000)
             );
 
             // Build query for properties
             $propertiesQuery = Property::where('properties.company_id', $companyId);
 
-            // Apply any filters if needed (e.g., status, city, property_type)
-            if ($request->filled('status')) {
-                $propertiesQuery->where('properties.status', $request->status);
+            // Get filters from request body (JSON) or fallback to query parameters
+            $filters = $this->getFilters($request);
+
+            // Apply filters if provided
+            if (isset($filters['status'])) {
+                $propertiesQuery->where('properties.status', $filters['status']);
             }
 
-            if ($request->filled('city')) {
-                $propertiesQuery->where('properties.city', $request->city);
+            if (isset($filters['city'])) {
+                $propertiesQuery->where('properties.city', $filters['city']);
             }
 
-            if ($request->filled('property_type')) {
-                $propertiesQuery->where('properties.property_type', $request->property_type);
+            if (isset($filters['property_type'])) {
+                $propertiesQuery->where('properties.property_type', $filters['property_type']);
             }
 
-            if ($request->filled('sale_type')) {
-                $propertiesQuery->where('properties.sale_type', $request->sale_type);
+            if (isset($filters['sale_type'])) {
+                $propertiesQuery->where('properties.sale_type', $filters['sale_type']);
             }
 
             // Get paginated results
@@ -67,8 +70,20 @@ class PropertyApiController extends Controller
             $productsMap = $this->getProductsMap($productIds, $companyId);
             $agentsMap = $this->getAgentsForProducts($productIds, $companyId);
 
+            // Parse fields from request body or query parameter (optional)
+            $requestedFields = null;
+            if (isset($filters['fields']) && !empty($filters['fields'])) {
+                // Support both array and comma-separated string
+                if (is_array($filters['fields'])) {
+                    $requestedFields = array_map('trim', $filters['fields']);
+                } else {
+                    $requestedFields = array_map('trim', explode(',', $filters['fields']));
+                }
+                $requestedFields = array_filter($requestedFields); // Remove empty values
+            }
+
             // Transform properties to flatten product fields and include agent details
-            $transformedProperties = $properties->getCollection()->map(function ($property) use ($productsMap, $agentsMap) {
+            $transformedProperties = $properties->getCollection()->map(function ($property) use ($productsMap, $agentsMap, $requestedFields) {
                 $propertyData = $property->toArray();
                 
                 // Remove the nested product object if it exists
@@ -97,6 +112,11 @@ class PropertyApiController extends Controller
                 // Add agent data as nested sub-payload
                 $propertyData['agent'] = $agentData;
                 
+                // Filter fields if requested
+                if ($requestedFields !== null && !empty($requestedFields)) {
+                    $propertyData = $this->filterFields($propertyData, $requestedFields);
+                }
+                
                 return $propertyData;
             });
 
@@ -117,14 +137,79 @@ class PropertyApiController extends Controller
             return response()->json($response, 200);
 
         } catch (\Exception $e) {
+            // Generate a unique reference ID for tracking
+            $referenceId = uniqid('PROP-', true);
+            
             Log::error('Error fetching properties via API', [
+                'reference_id' => $referenceId,
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'company_id' => $request->header('X-COMPANY-ID'),
             ]);
 
-            return response()->json(Reply::error('Failed to fetch properties: ' . $e->getMessage()), 500);
+            // Return generic error message to client with reference ID for support
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Failed to fetch properties. Please contact support with reference ID: ' . $referenceId,
+                'reference_id' => $referenceId
+            ], 500);
         }
+    }
+
+    /**
+     * Get filters from request body (JSON) only.
+     *
+     * @param Request $request
+     * @return array
+     */
+    private function getFilters(Request $request): array
+    {
+        $filters = [];
+        $body = $request->all();
+        
+        // Check for filters in body
+        if (isset($body['filters']) && is_array($body['filters'])) {
+            $filters = $body['filters'];
+        } else {
+            // If filters are at root level of body
+            $filters = array_intersect_key($body, array_flip([
+                'status', 'city', 'property_type', 'sale_type', 'fields'
+            ]));
+        }
+
+        // Remove null/empty values
+        return array_filter($filters, function ($value) {
+            return $value !== null && $value !== '';
+        });
+    }
+
+    /**
+     * Filter array to include only requested fields.
+     *
+     * @param array $data
+     * @param array $requestedFields
+     * @return array
+     */
+    private function filterFields(array $data, array $requestedFields): array
+    {
+        $filtered = [];
+        
+        foreach ($requestedFields as $field) {
+            // Handle nested agent field
+            if ($field === 'agent') {
+                if (isset($data['agent'])) {
+                    $filtered['agent'] = $data['agent'];
+                }
+                continue;
+            }
+            
+            // Check if field exists in data
+            if (array_key_exists($field, $data)) {
+                $filtered[$field] = $data[$field];
+            }
+        }
+        
+        return $filtered;
     }
 
     /**
