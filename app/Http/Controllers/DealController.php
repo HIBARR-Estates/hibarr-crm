@@ -920,7 +920,7 @@ class DealController extends AccountBaseController
                 'close_date' => 'close_date',
                 'probability' => 'probability',
                 'note' => 'note',
-                'agent_id' => 'agent_id',
+                'agent_id' => 'agent_id', //can be null
                 'lead_id' => 'lead_id',
                 'category_id' => 'category_id',
                 'source_id' => 'source_id',
