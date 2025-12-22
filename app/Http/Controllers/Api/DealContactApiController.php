@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Helper\Reply;
+use App\Jobs\ProcessDealRequestJob;
 use App\Models\Deal;
 use App\Models\DealHistory;
 use App\Models\Lead;
@@ -161,28 +162,30 @@ class DealContactApiController extends Controller
             
             // Save UTM information if provided (also fast)
             $this->saveUtmInfo($contactId, $request);
+
+            // Process deal asynchronously via queued job to avoid blocking HTTP workers
+            // The job will handle transaction management and cache locks
+            ProcessDealRequestJob::dispatch($contactId, $companyId, $request->all());
             
-            // Process deal - the service handles its own transaction and cache lock management
-            // This ensures cache locks are released only after the transaction commits
-            $dealCreationService = app(DealCreationService::class);
-            $result = $dealCreationService->processDeal($contactId, $companyId, $request->all());
-            $deal = $result['deal'];
-            $isNewDeal = $result['is_new'];
-            
-            // Return appropriate message based on whether deal was created or updated
-            $message = $isNewDeal ? 'Deal created successfully' : 'Deal updated successfully';
-            return Reply::successWithData($message, [
-                'status' => 'completed',
+            Log::info('Deal creation request enqueued for async processing', [
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
-                'deal_id' => $deal->id,
-                'is_new' => $isNewDeal,
+                'email' => $request->input('email'),
             ]);
             
+            // Return 202 Accepted - request accepted for processing
+            return response()->json([
+                'status' => 'accepted',
+                'message' => 'Deal creation request has been queued for processing.',
+                'contact_id' => $contactId,
+                'company_id' => $companyId,
+            ], 202);
+            
         } catch (\Exception $e) {
-            // Catch exceptions from deal processing
-            // Transaction will have rolled back automatically if service started one
-            Log::error('Failed to process deal request', [
+            // Catch exceptions from validation or job dispatch
+            // Note: Deal processing happens asynchronously in the job, so exceptions
+            // from processDeal() will be handled by the job's retry mechanism
+            Log::error('Failed to enqueue deal creation request', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'email' => $request->input('email'),
@@ -191,7 +194,7 @@ class DealContactApiController extends Controller
             
             // Return generic error message to avoid exposing sensitive information
             // Exception details are logged above for debugging
-            return Reply::error('Failed to create/update deal');
+            return Reply::error('Failed to enqueue deal creation request');
         }
     }
 

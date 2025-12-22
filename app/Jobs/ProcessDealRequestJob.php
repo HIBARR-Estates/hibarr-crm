@@ -29,6 +29,15 @@ class ProcessDealRequestJob implements ShouldQueue
     public $backoff = 10;
 
     /**
+     * The number of seconds the job can run before timing out.
+     * Set to 90 seconds to cover expected run time of DealCreationService::processDeal()
+     * which includes database transactions, lock management, and deal creation/updates.
+     *
+     * @var int
+     */
+    public $timeout = 90;
+
+    /**
      * Create a new job instance.
      *
      * @param int $contactId
