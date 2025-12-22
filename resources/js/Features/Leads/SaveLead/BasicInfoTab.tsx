@@ -99,7 +99,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             size="middle"
         >
             <div className="space-y-4">
-                <Card title="Lead Information" size="small">
+                <Card title="Contact Information" size="small">
                     <Row gutter={[24, 16]}>
                         <Col span={8}>
                             <Form.Item label="Salutation" name="salutation">

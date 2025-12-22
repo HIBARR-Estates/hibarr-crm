@@ -107,10 +107,10 @@ export default function LeadInfoSection({
             ? [
                   {
                       key: "edit",
-                      tooltip: "Edit Lead",
+                      tooltip: "Edit Contact",
                       type: "text" as const,
                       icon: <EditOutlined />,
-                      label: <span>Edit Lead</span>,
+                      label: <span>Edit Contact</span>,
                       onClick: () => handleAction("edit", lead),
                   },
               ]

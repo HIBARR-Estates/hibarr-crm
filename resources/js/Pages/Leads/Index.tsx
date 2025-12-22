@@ -181,11 +181,11 @@ const Index = ({
     return (
         <>
             <PageLayout
-                title={pageTitle}
+                title={`Contacts`}
                 breadcrumbs={[{ name: "Contacts" }]}
                 searchComp={
                     <UniversalSearchBox
-                        placeholder="Search leads by contact name, email, company..."
+                        placeholder="Search contacts by contact name, email, company..."
                         className="w-full"
                     />
                 }
