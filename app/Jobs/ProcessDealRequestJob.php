@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Http\Controllers\Api\DealContactApiController;
+use App\Services\DealCreationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -44,13 +44,13 @@ class ProcessDealRequestJob implements ShouldQueue
     /**
      * Execute the job.
      *
-     * @param DealContactApiController $controller
+     * @param DealCreationService $service
      * @return void
      */
-    public function handle(DealContactApiController $controller)
+    public function handle(DealCreationService $service)
     {
         try {
-            $controller->processDealInQueue(
+            $service->processDeal(
                 $this->contactId,
                 $this->companyId,
                 $this->requestData
