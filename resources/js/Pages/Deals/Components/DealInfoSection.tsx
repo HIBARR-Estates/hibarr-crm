@@ -130,14 +130,6 @@ export default function DealInfoSection({
                             </span>
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Products" span={"filled"}>
-                            {deal.products && deal.products.length > 0
-                                ? deal.products
-                                      .map((p: any) => p.name)
-                                      .join(", ")
-                                : "--"}
-                        </Descriptions.Item>
-
                         <Descriptions.Item label="Package">
                             {deal.package?.name || "--"}
                         </Descriptions.Item>
