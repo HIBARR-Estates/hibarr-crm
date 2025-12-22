@@ -12,6 +12,7 @@ use App\Models\PipelineStage;
 use App\Http\Requests\Deal\CreateDealRequest;
 use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
 use App\Jobs\ProcessDealRequestJob;
+use App\Services\DealCreationService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Arr;
@@ -163,70 +164,30 @@ class DealContactApiController extends Controller
                 // Save UTM information if provided (also fast)
                 $this->saveUtmInfo($contactId, $request);
                 
-                // Validate job can be created before committing
-                // This catches job creation errors early so we can return an error response
+                // Process deal synchronously before committing to ensure we can return errors
+                // This guarantees that if we return success, the deal was actually created
+                // If processing fails, we can still roll back and return an error response
                 try {
-                    $job = new ProcessDealRequestJob($contactId, $companyId, $request->all());
+                    $dealCreationService = app(DealCreationService::class);
+                    $deal = $dealCreationService->processDeal($contactId, $companyId, $request->all());
+                    
+                    // Deal was created successfully
+                    return Reply::successWithData('Deal created successfully', [
+                        'status' => 'completed',
+                        'contact_id' => $contactId,
+                        'company_id' => $companyId,
+                        'deal_id' => $deal->id,
+                    ]);
                 } catch (\Exception $e) {
-                    // If job creation fails, we can still roll back and return error
-                    Log::error('Failed to create ProcessDealRequestJob', [
+                    // If deal processing fails, we can still roll back and return error
+                    Log::error('Failed to process deal in transaction', [
                         'contact_id' => $contactId,
                         'company_id' => $companyId,
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString(),
                     ]);
-                    return Reply::error('Failed to create deal processing job: ' . $e->getMessage());
+                    return Reply::error('Failed to create deal: ' . $e->getMessage());
                 }
-                
-                // Dispatch job after transaction commits to ensure atomicity
-                // If contact/UTM saving fails, transaction rolls back and job won't be dispatched
-                DB::afterCommit(function () use ($contactId, $companyId, $request) {
-                    try {
-                        ProcessDealRequestJob::dispatch(
-                            $contactId,
-                            $companyId,
-                            $request->all()
-                        );
-                    } catch (\Exception $e) {
-                        // Log the error - queue dispatch failures are rare but possible
-                        Log::error('Failed to dispatch ProcessDealRequestJob after transaction commit', [
-                            'contact_id' => $contactId,
-                            'company_id' => $companyId,
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString(),
-                            'note' => 'Contact was created, but deal processing job failed to dispatch. Attempting synchronous fallback.',
-                        ]);
-                        
-                        // Attempt to dispatch synchronously as fallback to ensure deal is created
-                        try {
-                            ProcessDealRequestJob::dispatchSync(
-                                $contactId,
-                                $companyId,
-                                $request->all()
-                            );
-                            Log::info('ProcessDealRequestJob dispatched synchronously as fallback', [
-                                'contact_id' => $contactId,
-                                'company_id' => $companyId,
-                            ]);
-                        } catch (\Exception $syncException) {
-                            // Both async and sync dispatch failed - this is a critical error
-                            Log::error('Failed to dispatch ProcessDealRequestJob synchronously as fallback', [
-                                'contact_id' => $contactId,
-                                'company_id' => $companyId,
-                                'error' => $syncException->getMessage(),
-                                'trace' => $syncException->getTraceAsString(),
-                                'note' => 'CRITICAL: Contact was created but deal processing failed completely. Deal must be created manually.',
-                            ]);
-                        }
-                    }
-                });
-                
-                // Return immediately with "processing" status
-                return Reply::successWithData('Deal request is being processed', [
-                    'status' => 'processing',
-                    'contact_id' => $contactId,
-                    'company_id' => $companyId,
-                ]);
             });
             
         } catch (\Exception $e) {
