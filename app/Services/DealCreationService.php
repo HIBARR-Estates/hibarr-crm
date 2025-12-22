@@ -85,22 +85,23 @@ class DealCreationService
                 }
 
                 // Default pipeline_id to 1 if not provided
-                $pipelineId = $request->pipeline_id ?? 1;
+                $pipelineId = $request->input('pipeline_id') ?? 1;
                 
                 // Get first stage ID for the pipeline
                 $firstStageId = $this->getFirstStageInPipeline($pipelineId, $companyId);
 
                 // Resolve agent_id from deal_owner_id (user_id)
                 $agentId = null;
-                if ($request->has('deal_owner_id') && !empty($request->deal_owner_id)) {
-                    $agentId = $this->resolveAgentId($request->deal_owner_id, $companyId);
+                $dealOwnerId = $request->input('deal_owner_id');
+                if ($request->has('deal_owner_id') && !empty($dealOwnerId)) {
+                    $agentId = $this->resolveAgentId($dealOwnerId, $companyId);
                     
                     // If deal_owner_id was provided but couldn't be resolved, log warning
                     if ($agentId === null) {
                         Log::warning('Invalid deal_owner_id provided in createDeal API', [
-                            'deal_owner_id' => $request->deal_owner_id,
+                            'deal_owner_id' => $dealOwnerId,
                             'company_id' => $companyId,
-                            'contact_email' => $request->email ?? 'unknown'
+                            'contact_email' => $request->input('email') ?? 'unknown'
                         ]);
                     }
                 }
@@ -118,7 +119,7 @@ class DealCreationService
                 // Update deal fields
                 $deal->name = $dealName;
                 $deal->lead_pipeline_id = $pipelineId;
-                $deal->pipeline_stage_id = $request->pipeline_stage_id ?? $firstStageId ?? $deal->pipeline_stage_id;
+                $deal->pipeline_stage_id = $request->input('pipeline_stage_id') ?? $firstStageId ?? $deal->pipeline_stage_id;
                 $deal->agent_id = $agentId ?? $deal->agent_id;
                 $deal->package_id = $packageId;
                 $deal->next_follow_up = 'yes';
@@ -128,10 +129,11 @@ class DealCreationService
                 $deal->saveQuietly();
 
                 // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
-                if ($request->has('deal_owner_id') && !empty($request->deal_owner_id)) {
+                $dealOwnerId = $request->input('deal_owner_id');
+                if ($request->has('deal_owner_id') && !empty($dealOwnerId)) {
                     $lead = Lead::where('company_id', $companyId)->where('id', $contactId)->first();
                     if ($lead && !$lead->lead_owner) {
-                        $lead->lead_owner = $request->deal_owner_id;
+                        $lead->lead_owner = $dealOwnerId;
                         $lead->saveQuietly();
                     }
                 }
@@ -152,8 +154,9 @@ class DealCreationService
                 }
 
                 // Handle meeting if provided
-                if ($request->has('meeting') && is_array($request->meeting)) {
-                    $this->createMeeting($deal, $request->meeting, $companyId);
+                $meeting = $request->input('meeting');
+                if ($request->has('meeting') && is_array($meeting)) {
+                    $this->createMeeting($deal, $meeting, $companyId);
                 }
 
                 // Manually trigger notifications for agent or admins (only for new deals)
@@ -329,8 +332,9 @@ class DealCreationService
     private function resolvePackageId(Request $request, int $companyId): ?int
     {
         // First check if package_id is provided directly
-        if ($request->has('package_id') && is_numeric($request->package_id)) {
-            $package = Package::where('company_id', $companyId)->where('id', $request->package_id)->first();
+        $packageId = $request->input('package_id');
+        if ($request->has('package_id') && is_numeric($packageId)) {
+            $package = Package::where('company_id', $companyId)->where('id', $packageId)->first();
             if ($package) {
                 return $package->id;
             }
