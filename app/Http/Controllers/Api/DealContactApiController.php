@@ -163,10 +163,23 @@ class DealContactApiController extends Controller
                 // Save UTM information if provided (also fast)
                 $this->saveUtmInfo($contactId, $request);
                 
+                // Validate job can be created before committing
+                // This catches job creation errors early so we can return an error response
+                try {
+                    $job = new ProcessDealRequestJob($contactId, $companyId, $request->all());
+                } catch (\Exception $e) {
+                    // If job creation fails, we can still roll back and return error
+                    Log::error('Failed to create ProcessDealRequestJob', [
+                        'contact_id' => $contactId,
+                        'company_id' => $companyId,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                    return Reply::error('Failed to create deal processing job: ' . $e->getMessage());
+                }
+                
                 // Dispatch job after transaction commits to ensure atomicity
                 // If contact/UTM saving fails, transaction rolls back and job won't be dispatched
-                // Wrap in try-catch to handle dispatch failures gracefully 
-                // If dispatch fails, contact was already created, so we still return success
                 DB::afterCommit(function () use ($contactId, $companyId, $request) {
                     try {
                         ProcessDealRequestJob::dispatch(
@@ -175,18 +188,36 @@ class DealContactApiController extends Controller
                             $request->all()
                         );
                     } catch (\Exception $e) {
-                        // Log the error but don't propagate it
-                        // The contact was already created, so we should still return success
+                        // Log the error - queue dispatch failures are rare but possible
                         Log::error('Failed to dispatch ProcessDealRequestJob after transaction commit', [
                             'contact_id' => $contactId,
                             'company_id' => $companyId,
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString(),
-                            'note' => 'Contact was already created, but deal processing job failed to dispatch',
+                            'note' => 'Contact was created, but deal processing job failed to dispatch. Attempting synchronous fallback.',
                         ]);
                         
-                        // Optionally, you could dispatch a retry job or handle this differently
-                        // For now, we log and continue - the deal can be created manually if needed
+                        // Attempt to dispatch synchronously as fallback to ensure deal is created
+                        try {
+                            ProcessDealRequestJob::dispatchSync(
+                                $contactId,
+                                $companyId,
+                                $request->all()
+                            );
+                            Log::info('ProcessDealRequestJob dispatched synchronously as fallback', [
+                                'contact_id' => $contactId,
+                                'company_id' => $companyId,
+                            ]);
+                        } catch (\Exception $syncException) {
+                            // Both async and sync dispatch failed - this is a critical error
+                            Log::error('Failed to dispatch ProcessDealRequestJob synchronously as fallback', [
+                                'contact_id' => $contactId,
+                                'company_id' => $companyId,
+                                'error' => $syncException->getMessage(),
+                                'trace' => $syncException->getTraceAsString(),
+                                'note' => 'CRITICAL: Contact was created but deal processing failed completely. Deal must be created manually.',
+                            ]);
+                        }
                     }
                 });
                 

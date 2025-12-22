@@ -300,24 +300,27 @@ class DealCreationService
         $cacheKey = "deal_processing:{$dealHash}";
         
         while (true) {
-            // Check if we've exceeded the maximum wait time
+            // Check if we've exceeded the maximum wait time (hard timeout)
             $elapsed = microtime(true) - $startTime;
             
-            // Check if the cache lock is still held (original request still processing)
-            $lockStillHeld = Cache::has($cacheKey);
-            
-            // Only timeout if lock is not held AND we've exceeded max wait time 
-            // If lock is still held, continue waiting even if timeout exceeded
-            if ($elapsed > $maxWaitTime && !$lockStillHeld) {
-                Log::warning('DealCreationService: Timeout waiting for duplicate deal to be committed', [
+            // Enforce hard timeout regardless of lock state to prevent infinite waiting
+            if ($elapsed > $maxWaitTime) {
+                $lockStillHeld = Cache::has($cacheKey);
+                Log::warning('DealCreationService: Hard timeout waiting for duplicate deal to be committed', [
                     'contact_id' => $contactId,
                     'company_id' => $companyId,
                     'hash' => $dealHash,
                     'elapsed_seconds' => $elapsed,
-                    'lock_still_held' => false,
+                    'lock_still_held' => $lockStillHeld,
+                    'note' => $lockStillHeld 
+                        ? 'Lock still held after timeout - original request may be stuck or very slow'
+                        : 'Timeout reached and lock released - deal may not have been created',
                 ]);
                 return null;
             }
+            
+            // Check if the cache lock is still held (original request still processing)
+            $lockStillHeld = Cache::has($cacheKey);
             
             // Try to find the existing deal
             $existingDeal = $this->findExistingDealByHash($contactId, $companyId, $dealHash);
