@@ -2,6 +2,7 @@
 
 return array(
     'assetUploadSuccess' => 'Asset uploaded successfully.',
+    'bulkAssetsDeleteSuccess' => 'Assets deleted successfully.',
     'bulkDeleteSuccess' => 'Assets deleted successfully.',
     'bulkTagsUpdateSuccess' => 'Asset tags updated successfully.',
     'unsupportedChannel' => 'Unsupported channel type provided.',
