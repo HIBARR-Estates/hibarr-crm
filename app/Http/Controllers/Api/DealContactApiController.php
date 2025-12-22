@@ -166,39 +166,30 @@ class DealContactApiController extends Controller
                 
                 // Process deal synchronously before committing to ensure we can return errors
                 // This guarantees that if we return success, the deal was actually created
-                // If processing fails, we can still roll back and return an error response
-                try {
-                    $dealCreationService = app(DealCreationService::class);
-                    $deal = $dealCreationService->processDeal($contactId, $companyId, $request->all());
-                    
-                    // Deal was created successfully
-                    return Reply::successWithData('Deal created successfully', [
-                        'status' => 'completed',
-                        'contact_id' => $contactId,
-                        'company_id' => $companyId,
-                        'deal_id' => $deal->id,
-                    ]);
-                } catch (\Exception $e) {
-                    // If deal processing fails, we can still roll back and return error
-                    Log::error('Failed to process deal in transaction', [
-                        'contact_id' => $contactId,
-                        'company_id' => $companyId,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-                    return Reply::error('Failed to create deal: ' . $e->getMessage());
-                }
+                // If processing fails, we throw exception to rollback transaction
+                $dealCreationService = app(DealCreationService::class);
+                $deal = $dealCreationService->processDeal($contactId, $companyId, $request->all());
+                
+                // Deal was created successfully - transaction will commit
+                return Reply::successWithData('Deal created successfully', [
+                    'status' => 'completed',
+                    'contact_id' => $contactId,
+                    'company_id' => $companyId,
+                    'deal_id' => $deal->id,
+                ]);
             });
             
         } catch (\Exception $e) {
-            Log::error('Error queuing deal request', [
+            // Catch exceptions from transaction (including deal processing failures)
+            // Transaction will have rolled back automatically
+            Log::error('Failed to process deal request', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'email' => $request->input('email'),
                 'name' => $request->input('name'),
             ]);
             
-            return Reply::error('Failed to queue deal request');
+            return Reply::error('Failed to create deal: ' . $e->getMessage());
         }
     }
 
