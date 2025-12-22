@@ -115,6 +115,13 @@ class DealCreationService
                 $result = $this->findOrCreateDeal($contactId, $companyId, $dealName, $dealHash);
                 $deal = $result['deal'];
                 $isNewDeal = $result['is_new'];
+                $hashWasUpdated = $result['hash_updated'] ?? false;
+                
+                // Track hash change if it was updated in findOrCreateDeal 
+                if ($hashWasUpdated) {
+                    $currentHash = $deal->hash;
+                    $hashChanged = true;
+                }
                 
                 if ($isNewDeal) {
                     $deal->created_at = now();
@@ -152,12 +159,6 @@ class DealCreationService
                     $deal->hash = $newHash;
                     // Track hash change for cache key management 
                     $currentHash = $newHash;
-                    $hashChanged = true;
-                }
-                
-                // If deal was found via fallback and hash was updated, ensure we track it 
-                if (!$isNewDeal && $deal->hash !== $dealHash) {
-                    $currentHash = $deal->hash;
                     $hashChanged = true;
                 }
 
@@ -352,7 +353,7 @@ class DealCreationService
      * @param int $companyId
      * @param string $dealName
      * @param string $dealHash
-     * @return array{deal: Deal, is_new: bool}
+     * @return array{deal: Deal, is_new: bool, hash_updated?: bool}
      */
     private function findOrCreateDeal(int $contactId, int $companyId, string $dealName, string $dealHash): array
     {
@@ -365,7 +366,7 @@ class DealCreationService
             ->first();
         
         if ($existingDeal) {
-            return ['deal' => $existingDeal, 'is_new' => false];
+            return ['deal' => $existingDeal, 'is_new' => false, 'hash_updated' => false];
         }
         
         // Fallback: Find any open deal for this contact (for backwards compatibility)
@@ -377,10 +378,13 @@ class DealCreationService
             ->first();
         
         if ($existingDeal) {
+            // Check if hash needs to be updated 
+            $hashWasUpdated = $existingDeal->hash !== $dealHash;
+            
             // Update the hash for future requests
             $existingDeal->hash = $dealHash;
             $existingDeal->saveQuietly();
-            return ['deal' => $existingDeal, 'is_new' => false];
+            return ['deal' => $existingDeal, 'is_new' => false, 'hash_updated' => $hashWasUpdated];
         }
         
         // Create new deal with hash
@@ -390,7 +394,7 @@ class DealCreationService
         $deal->hash = $dealHash;
         $deal->name = $dealName;
         
-        return ['deal' => $deal, 'is_new' => true];
+        return ['deal' => $deal, 'is_new' => true, 'hash_updated' => false];
     }
 
     /**
