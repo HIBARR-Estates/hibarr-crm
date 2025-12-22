@@ -160,12 +160,29 @@ class DealContactApiController extends Controller
                 
                 // Dispatch job after transaction commits to ensure atomicity
                 // If contact/UTM saving fails, transaction rolls back and job won't be dispatched
+                // Wrap in try-catch to handle dispatch failures gracefully 
+                // If dispatch fails, contact was already created, so we still return success
                 DB::afterCommit(function () use ($contactId, $companyId, $request) {
-                    ProcessDealRequestJob::dispatch(
-                        $contactId,
-                        $companyId,
-                        $request->all()
-                    );
+                    try {
+                        ProcessDealRequestJob::dispatch(
+                            $contactId,
+                            $companyId,
+                            $request->all()
+                        );
+                    } catch (\Exception $e) {
+                        // Log the error but don't propagate it
+                        // The contact was already created, so we should still return success
+                        Log::error('Failed to dispatch ProcessDealRequestJob after transaction commit', [
+                            'contact_id' => $contactId,
+                            'company_id' => $companyId,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                            'note' => 'Contact was already created, but deal processing job failed to dispatch',
+                        ]);
+                        
+                        // Optionally, you could dispatch a retry job or handle this differently
+                        // For now, we log and continue - the deal can be created manually if needed
+                    }
                 });
                 
                 // Return immediately with "processing" status

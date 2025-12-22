@@ -85,18 +85,27 @@ class DealCreationService
         }
         
         try {
-            $startTime = time();
+            $startTime = microtime(true);
             return DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $startTime) {
-                // Refresh cache lock periodically during processing to prevent expiration (Bug 1 fix)
-                // Refresh if more than half the TTL has passed
-                $elapsed = time() - $startTime;
-                if ($elapsed > (self::CACHE_TTL / 2)) {
-                    Cache::put($cacheKey, true, self::CACHE_TTL);
-                    Log::debug('DealCreationService: Refreshed cache lock', [
-                        'cache_key' => $cacheKey,
-                        'elapsed_seconds' => $elapsed,
-                    ]);
-                }
+                // Helper function to refresh cache lock if needed 
+                // Refresh if we're within 60 seconds of expiration to prevent mid-transaction expiration
+                $refreshCacheLock = function () use ($cacheKey, $startTime) {
+                    $elapsed = microtime(true) - $startTime;
+                    $timeUntilExpiration = self::CACHE_TTL - $elapsed;
+                    
+                    // Refresh if we're within 60 seconds of expiration
+                    if ($timeUntilExpiration < 60) {
+                        Cache::put($cacheKey, true, self::CACHE_TTL);
+                        Log::debug('DealCreationService: Refreshed cache lock', [
+                            'cache_key' => $cacheKey,
+                            'elapsed_seconds' => round($elapsed, 2),
+                            'time_until_expiration' => round($timeUntilExpiration, 2),
+                        ]);
+                    }
+                };
+                
+                // Refresh cache lock at the start
+                $refreshCacheLock();
                 
                 // Find or create deal with lock to prevent duplicates (second line of defense)
                 $result = $this->findOrCreateDeal($contactId, $companyId, $dealName, $dealHash);
@@ -148,6 +157,9 @@ class DealCreationService
                 $deal->next_follow_up = 'yes';
                 $deal->create_client = 0;
                 
+                // Refresh cache lock before saving (long operation)
+                $refreshCacheLock();
+                
                 // Save quietly to bypass observers
                 $deal->saveQuietly();
 
@@ -182,6 +194,9 @@ class DealCreationService
                     $this->createMeeting($deal, $meeting, $companyId);
                 }
 
+                // Refresh cache lock before notifications (potentially long operation)
+                $refreshCacheLock();
+                
                 // Manually trigger notifications for agent or admins (only for new deals)
                 if ($isNewDeal) {
                     $this->sendDealCreatedNotifications($deal);
