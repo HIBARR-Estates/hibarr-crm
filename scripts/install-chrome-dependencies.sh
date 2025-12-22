@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install dependencies for Puppeteer/Chrome on Ubuntu/Debian
+# Install dependencies for Puppeteer/Chrome on Ubuntu/Debian server - could be production/staging server as its headless
 # Run this as root or with sudo
 
 echo "Installing Chrome/Puppeteer dependencies..."

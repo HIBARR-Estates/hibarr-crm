@@ -22,7 +22,7 @@ class PdfGenerator
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
             ->format('a4')
             ->orientation($orientation)
-            ->withBrowsershot(function ($browsershot) {
+            ->withBrowsershot(function ($browsershot) { // Configure Puppeteer options
                 $browsershot->noSandbox();
                 $browsershot->disableSetuidSandbox();
                 $browsershot->setOption('args', ['--disable-dev-shm-usage']);
