@@ -147,6 +147,11 @@ class DealContactApiController extends Controller
                     return Reply::error(__('messages.missingCompanyId'));
                 }
                 
+                // Validate that company ID is a valid positive integer
+                if (!is_numeric($companyId) || (int) $companyId <= 0) {
+                    return Reply::error(__('messages.invalidCompanyId'));
+                }
+                
                 $companyId = (int) $companyId;
                 
                 // Resolve contact ID (this is fast and doesn't need to be queued)

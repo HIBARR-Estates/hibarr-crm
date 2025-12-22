@@ -30,9 +30,10 @@ class DealCreationService
     private const CACHE_TTL = 300;
     
     /**
-     * Maximum time to wait for duplicate deal to be committed (30 seconds)
+     * Maximum time to wait for duplicate deal to be committed
+     * Set to match cache TTL to handle long-running transactions
      */
-    private const DUPLICATE_WAIT_TIMEOUT = 30;
+    private const DUPLICATE_WAIT_TIMEOUT = 300; // Match CACHE_TTL
     
     /**
      * Initial retry delay in milliseconds for duplicate detection
@@ -296,15 +297,24 @@ class DealCreationService
         $retryDelay = self::DUPLICATE_RETRY_DELAY_MS;
         $maxWaitTime = self::DUPLICATE_WAIT_TIMEOUT;
         
+        $cacheKey = "deal_processing:{$dealHash}";
+        
         while (true) {
             // Check if we've exceeded the maximum wait time
             $elapsed = microtime(true) - $startTime;
-            if ($elapsed > $maxWaitTime) {
+            
+            // Check if the cache lock is still held (original request still processing)
+            $lockStillHeld = Cache::has($cacheKey);
+            
+            // Only timeout if lock is not held AND we've exceeded max wait time 
+            // If lock is still held, continue waiting even if timeout exceeded
+            if ($elapsed > $maxWaitTime && !$lockStillHeld) {
                 Log::warning('DealCreationService: Timeout waiting for duplicate deal to be committed', [
                     'contact_id' => $contactId,
                     'company_id' => $companyId,
                     'hash' => $dealHash,
                     'elapsed_seconds' => $elapsed,
+                    'lock_still_held' => false,
                 ]);
                 return null;
             }
@@ -322,9 +332,8 @@ class DealCreationService
                 return $existingDeal;
             }
             
-            // Check if the cache lock is still held (original request still processing)
-            $cacheKey = "deal_processing:{$dealHash}";
-            if (!Cache::has($cacheKey)) {
+            // If lock is not held, original request completed (or failed)
+            if (!$lockStillHeld) {
                 // Lock was released, but deal not found - might have failed or been deleted
                 // Do one final check before giving up
                 $existingDeal = $this->findExistingDealByHash($contactId, $companyId, $dealHash);
