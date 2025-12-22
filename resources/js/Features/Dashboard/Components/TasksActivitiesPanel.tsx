@@ -209,7 +209,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 className="mb-3"
-                key={task.id}   
+                key={task.id}
             >
                 <Card
                     size="small"
@@ -382,59 +382,63 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 className="h-full"
                 variant="outlined"
             >
-                <div className="max-h-96 overflow-y-auto">
-                    {overdueTasks.length > 0 && (
-                        <div className="mb-4">
-                            <div className="text-red-600 font-medium text-sm mb-3 flex items-center">
-                                <ExclamationCircleOutlined className="mr-2" />
-                                Overdue ({overdueTasks.length})
-                            </div>
-                            {overdueTasks.map(renderTask)}
-                        </div>
-                    )}
-
-                    {todayTasks.length > 0 && (
-                        <div className="mb-4">
-                            <div className="text-amber-600 font-medium text-sm mb-3 flex items-center">
-                                <ClockCircleOutlined className="mr-2" />
-                                Due Today ({todayTasks.length})
-                            </div>
-                            {todayTasks.map(renderTask)}
-                        </div>
-                    )}
-
-                    {upcomingTasks.length > 0 && (
-                        <div className="mb-4">
-                            <div className="text-gray-600 font-medium text-sm mb-3 flex items-center">
-                                <CalendarOutlined className="mr-2" />
-                                Upcoming ({upcomingTasks.length})
-                            </div>
-                            {upcomingTasks.slice(0, 5).map(renderTask)}
-                            {upcomingTasks.length > 5 && (
-                                <div className="text-center py-2">
-                                    <Button
-                                        type="link"
-                                        size="small"
-                                        onClick={() =>
-                                            router.visit(route("tasks.index"))
-                                        }
-                                    >
-                                        View {upcomingTasks.length - 5} more
-                                        tasks
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {allTasks.length === 0 && (
+                {allTasks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[500px] overflow-hidden">
                         <div className="text-center py-8 text-gray-500">
                             <CheckOutlined className="text-4xl text-gray-300 mb-2" />
                             <div>No pending tasks</div>
                             <div className="text-sm">You're all caught up!</div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                        {overdueTasks.length > 0 && (
+                            <div className="mb-4">
+                                <div className="text-red-600 font-medium text-sm mb-3 flex items-center">
+                                    <ExclamationCircleOutlined className="mr-2" />
+                                    Overdue ({overdueTasks.length})
+                                </div>
+                                {overdueTasks.map(renderTask)}
+                            </div>
+                        )}
+
+                        {todayTasks.length > 0 && (
+                            <div className="mb-4">
+                                <div className="text-amber-600 font-medium text-sm mb-3 flex items-center">
+                                    <ClockCircleOutlined className="mr-2" />
+                                    Due Today ({todayTasks.length})
+                                </div>
+                                {todayTasks.map(renderTask)}
+                            </div>
+                        )}
+
+                        {upcomingTasks.length > 0 && (
+                            <div className="mb-4">
+                                <div className="text-gray-600 font-medium text-sm mb-3 flex items-center">
+                                    <CalendarOutlined className="mr-2" />
+                                    Upcoming ({upcomingTasks.length})
+                                </div>
+                                {upcomingTasks.slice(0, 5).map(renderTask)}
+                                {upcomingTasks.length > 5 && (
+                                    <div className="text-center py-2">
+                                        <Button
+                                            type="link"
+                                            size="small"
+                                            onClick={() =>
+                                                router.visit(
+                                                    route("tasks.index")
+                                                )
+                                            }
+                                        >
+                                            View {upcomingTasks.length - 5} more
+                                            tasks
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </Card>
 
             {/* Save Task Modal - handles both create and edit */}
