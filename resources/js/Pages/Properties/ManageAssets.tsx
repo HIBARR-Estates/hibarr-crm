@@ -72,10 +72,10 @@ const ManageAssets = ({
 
     // Debug: Check assets data
     React.useEffect(() => {
-        console.log('Assets data:', assets);
+        console.log("Assets data:", assets);
         if (assets.data && assets.data.length > 0) {
-            console.log('First asset:', assets.data[0]);
-            console.log('First asset URL:', assets.data[0].url);
+            console.log("First asset:", assets.data[0]);
+            console.log("First asset URL:", assets.data[0].url);
         }
     }, [assets]);
 
@@ -98,18 +98,13 @@ const ManageAssets = ({
         FormData,
         UploadAssetsResponse,
         ApiResponse<UploadAssetsResponse>
-    >(
-        route("properties.assets.store", property.id),
-        "POST",
-        (response) => {
-            console.log('Upload response:', response);
-            setIsUploadModalOpen(false);
-            setUploadFileList([]);
-            // Refresh the page to show new assets
-            router.reload({ only: ["assets"] });
-        },
-      
-    );
+    >(route("properties.assets.store", property.id), "POST", (response) => {
+        console.log("Upload response:", response);
+        setIsUploadModalOpen(false);
+        setUploadFileList([]);
+        // Refresh the page to show new assets
+        router.reload({ only: ["assets"] });
+    });
 
     // Handle asset selection
     const handleAssetSelect = (assetId: number, checked: boolean) => {
@@ -159,105 +154,103 @@ const ManageAssets = ({
         <>
             <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
                 <div className="max-w-7xl mx-auto space-y-6">
-                {/* Actions Bar */}
-                <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
-                    <Space size="middle">
-                        <Button
-                            type="primary"
-                            icon={<UploadOutlined />}
-                            onClick={() => setIsUploadModalOpen(true)}
-                        >
-                            Upload Assets
-                        </Button>
-
-                        {selectedAssets.length > 0 && (
-                            <BulkAssetActionSelector
-                                selectedEntityIds={selectedAssets}
-                                propertyId={property.id}
-                                availableTags={availableTags}
-                                clearSelected={() => setSelectedAssets([])}
-                            />
-                        )}
-
-                        <UniversalFilterDrawer config={filterConfig} />
-                    </Space>
-
-                    <Segmented
-                        value={viewMode}
-                        onChange={(value) => setViewMode(value as any)}
-                        options={[
-                            {
-                                label: "Grid",
-                                value: "grid",
-                                icon: <AppstoreOutlined />,
-                            },
-                            {
-                                label: "Table",
-                                value: "table",
-                                icon: <UnorderedListOutlined />,
-                            },
-                        ]}
-                    />
-                </div>
-
-                {/* Asset Display */}
-                {viewMode === "grid" ? (
-                    <AssetGridView
-                        assets={assets.data}
-                        selectedAssets={selectedAssets}
-                        onAssetClick={setPreviewAsset}
-                        onAssetSelect={handleAssetSelect}
-                        onSelectAll={handleSelectAll}
-                    />
-                ) : (
-                    <AssetTableView
-                        assets={assets.data}
-                        selectedAssets={selectedAssets}
-                        pagination={{
-                            current: assets.current_page,
-                            pageSize: assets.per_page,
-                            total: assets.total,
-                            onChange: handlePaginationChange,
-                        }}
-                        onAssetClick={setPreviewAsset}
-                        onAssetSelect={handleAssetSelect}
-                        onSelectAll={handleSelectAll}
-                    />
-                )}
-
-                {/* Grid Pagination */}
-                {viewMode === "grid" && assets.data.length > 0 && (
-                    <div className="mt-6 flex justify-center">
-                        <Space>
+                    {/* Actions Bar */}
+                    <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+                        <Space size="middle">
                             <Button
-                                disabled={!assets.prev_page_url}
-                                onClick={() =>
-                                    handlePaginationChange(
-                                        assets.current_page - 1,
-                                        assets.per_page
-                                    )
-                                }
+                                type="primary"
+                                icon={<UploadOutlined />}
+                                onClick={() => setIsUploadModalOpen(true)}
                             >
-                                Previous
+                                Upload Assets
                             </Button>
-                            <span className="px-4">
-                                Page {assets.current_page} of {assets.last_page}
-                            </span>
-                            <Button
-                                disabled={!assets.next_page_url}
-                                onClick={() =>
-                                    handlePaginationChange(
-                                        assets.current_page + 1,
-                                        assets.per_page
-                                    )
-                                }
-                            >
-                                Next
-                            </Button>
+
+                            {selectedAssets.length > 0 && (
+                                <BulkAssetActionSelector
+                                    selectedEntityIds={selectedAssets}
+                                    propertyId={property.id}
+                                    availableTags={availableTags}
+                                    clearSelected={() => setSelectedAssets([])}
+                                />
+                            )}
+
+                            <UniversalFilterDrawer config={filterConfig} />
                         </Space>
-                    </div>
-                )}
 
+                        <Segmented
+                            value={viewMode}
+                            onChange={(value) => setViewMode(value as any)}
+                            options={[
+                                {
+                                    value: "grid",
+                                    icon: <AppstoreOutlined />,
+                                },
+                                {
+                                    value: "table",
+                                    icon: <UnorderedListOutlined />,
+                                },
+                            ]}
+                        />
+                    </div>
+
+                    {/* Asset Display */}
+                    {viewMode === "grid" ? (
+                        <AssetGridView
+                            assets={assets.data}
+                            selectedAssets={selectedAssets}
+                            onAssetClick={setPreviewAsset}
+                            onAssetSelect={handleAssetSelect}
+                            onSelectAll={handleSelectAll}
+                        />
+                    ) : (
+                        <AssetTableView
+                            assets={assets.data}
+                            selectedAssets={selectedAssets}
+                            pagination={{
+                                current: assets.current_page,
+                                pageSize: assets.per_page,
+                                total: assets.total,
+                                onChange: handlePaginationChange,
+                            }}
+                            onAssetClick={setPreviewAsset}
+                            onAssetSelect={handleAssetSelect}
+                            onSelectAll={handleSelectAll}
+                        />
+                    )}
+
+                    {/* Grid Pagination */}
+                    {viewMode === "grid" && assets.data.length > 0 && (
+                        <div className="mt-6 flex justify-center">
+                            <Space>
+                                <Button
+                                    disabled={!assets.prev_page_url}
+                                    onClick={() =>
+                                        handlePaginationChange(
+                                            assets.current_page - 1,
+                                            assets.per_page
+                                        )
+                                    }
+                                >
+                                    Previous
+                                </Button>
+                                <span className="px-4">
+                                    Page {assets.current_page} of{" "}
+                                    {assets.last_page}
+                                </span>
+                                <Button
+                                    disabled={!assets.next_page_url}
+                                    onClick={() =>
+                                        handlePaginationChange(
+                                            assets.current_page + 1,
+                                            assets.per_page
+                                        )
+                                    }
+                                >
+                                    Next
+                                </Button>
+                            </Space>
+                        </div>
+                    )}
                 </div>
 
                 {/* Upload Modal */}

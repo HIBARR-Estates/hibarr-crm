@@ -154,7 +154,7 @@ export const LEAD_TABLE_COLUMNS = (
                         image_url: record.lead_owner.image_url,
                         name: record.lead_owner.name,
                     }}
-                    size="xs"
+                    size="sm"
                     maxNameLength={15}
                 />
             );

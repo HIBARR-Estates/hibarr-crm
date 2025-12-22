@@ -259,7 +259,7 @@ export const DEAL_TABLE_COLUMNS = (
             return (
                 <UserIndicator
                     data={deal.lead_agent.user}
-                    size="xs"
+                    size="sm"
                     maxNameLength={15}
                 />
             );
