@@ -96,15 +96,15 @@ class PropertyApiController extends Controller
                     
                     // Add product fields with "product_" prefix to avoid conflicts
                     foreach ($productArray as $key => $value) {
-                        // Skip relationships, internal fields, and product_id (already exists as property's product_id)
+                        // Skip relationships and internal fields (but include product id separately)
                         if (!in_array($key, ['id', 'tax', 'category', 'subCategory', 'unit', 'company', 'pivot'])) {
                             $propertyData['product_' . $key] = $value;
                         }
                     }
+                    
+                    // Include product_id in the response
+                    $propertyData['product_id'] = $product->id;
                 }
-                
-                // Remove product_id from property data since it's redundant (product info is already included)
-                unset($propertyData['product_id']);
                 
                 // Get agent details from pre-fetched map
                 $agentData = $agentsMap[$property->product_id] ?? null;
