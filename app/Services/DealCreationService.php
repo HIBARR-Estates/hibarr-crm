@@ -28,6 +28,16 @@ class DealCreationService
      * Cache TTL for duplicate prevention (5 minutes)
      */
     private const CACHE_TTL = 300;
+    
+    /**
+     * Maximum time to wait for duplicate deal to be committed (30 seconds)
+     */
+    private const DUPLICATE_WAIT_TIMEOUT = 30;
+    
+    /**
+     * Initial retry delay in milliseconds for duplicate detection
+     */
+    private const DUPLICATE_RETRY_DELAY_MS = 100;
 
     /**
      * Process deal creation/update with cache-based duplicate prevention.
@@ -57,24 +67,37 @@ class DealCreationService
         $lockAcquired = Cache::add($cacheKey, true, self::CACHE_TTL);
         
         if (!$lockAcquired) {
-            Log::info('DealCreationService: Duplicate request detected, skipping', [
+            Log::info('DealCreationService: Duplicate request detected, waiting for original to complete', [
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
                 'deal_name' => $dealName,
                 'hash' => $dealHash,
             ]);
             
-            // Return existing deal if found, otherwise throw exception
-            $existingDeal = $this->findExistingDealByHash($contactId, $companyId, $dealHash);
+            // Wait for the original request to complete and find the existing deal
+            // This handles the case where the original request is still in a transaction
+            $existingDeal = $this->waitForExistingDeal($contactId, $companyId, $dealHash);
             if ($existingDeal) {
                 return $existingDeal;
             }
             
-            throw new \Exception('Duplicate deal request detected and no existing deal found');
+            throw new \Exception('Duplicate deal request detected and no existing deal found after waiting');
         }
         
         try {
-            return DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey) {
+            $startTime = time();
+            return DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $startTime) {
+                // Refresh cache lock periodically during processing to prevent expiration (Bug 1 fix)
+                // Refresh if more than half the TTL has passed
+                $elapsed = time() - $startTime;
+                if ($elapsed > (self::CACHE_TTL / 2)) {
+                    Cache::put($cacheKey, true, self::CACHE_TTL);
+                    Log::debug('DealCreationService: Refreshed cache lock', [
+                        'cache_key' => $cacheKey,
+                        'elapsed_seconds' => $elapsed,
+                    ]);
+                }
+                
                 // Find or create deal with lock to prevent duplicates (second line of defense)
                 $result = $this->findOrCreateDeal($contactId, $companyId, $dealName, $dealHash);
                 $deal = $result['deal'];
@@ -208,6 +231,72 @@ class DealCreationService
             ->where('hash', $dealHash)
             ->whereNull('close_date') // Only open deals
             ->first();
+    }
+
+    /**
+     * Wait for existing deal to be committed (handles Bug 2: transaction isolation).
+     * Implements exponential backoff retry mechanism to wait for the original request's
+     * transaction to commit before checking for the deal.
+     *
+     * @param int $contactId
+     * @param int $companyId
+     * @param string $dealHash
+     * @return Deal|null
+     */
+    private function waitForExistingDeal(int $contactId, int $companyId, string $dealHash): ?Deal
+    {
+        $startTime = microtime(true);
+        $retryDelay = self::DUPLICATE_RETRY_DELAY_MS;
+        $maxWaitTime = self::DUPLICATE_WAIT_TIMEOUT;
+        
+        while (true) {
+            // Check if we've exceeded the maximum wait time
+            $elapsed = microtime(true) - $startTime;
+            if ($elapsed > $maxWaitTime) {
+                Log::warning('DealCreationService: Timeout waiting for duplicate deal to be committed', [
+                    'contact_id' => $contactId,
+                    'company_id' => $companyId,
+                    'hash' => $dealHash,
+                    'elapsed_seconds' => $elapsed,
+                ]);
+                return null;
+            }
+            
+            // Try to find the existing deal
+            $existingDeal = $this->findExistingDealByHash($contactId, $companyId, $dealHash);
+            if ($existingDeal) {
+                Log::info('DealCreationService: Found existing deal after waiting', [
+                    'contact_id' => $contactId,
+                    'company_id' => $companyId,
+                    'deal_id' => $existingDeal->id,
+                    'hash' => $dealHash,
+                    'wait_time_seconds' => $elapsed,
+                ]);
+                return $existingDeal;
+            }
+            
+            // Check if the cache lock is still held (original request still processing)
+            $cacheKey = "deal_processing:{$dealHash}";
+            if (!Cache::has($cacheKey)) {
+                // Lock was released, but deal not found - might have failed or been deleted
+                // Do one final check before giving up
+                $existingDeal = $this->findExistingDealByHash($contactId, $companyId, $dealHash);
+                if ($existingDeal) {
+                    return $existingDeal;
+                }
+                
+                Log::warning('DealCreationService: Cache lock released but deal not found', [
+                    'contact_id' => $contactId,
+                    'company_id' => $companyId,
+                    'hash' => $dealHash,
+                ]);
+                return null;
+            }
+            
+            // Wait with exponential backoff before retrying
+            usleep($retryDelay * 1000); // Convert milliseconds to microseconds
+            $retryDelay = min($retryDelay * 2, 1000); // Cap at 1 second
+        }
     }
 
     /**
