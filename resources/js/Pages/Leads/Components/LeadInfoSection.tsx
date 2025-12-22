@@ -322,7 +322,7 @@ export default function LeadInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Lead Source">
+                        <Descriptions.Item label="Contact Source">
                             {currentLead?.leadSource?.type ||
                                 currentLead?.lead_source?.type ||
                                 lead.leadSource?.type ||
