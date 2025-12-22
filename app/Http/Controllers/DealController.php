@@ -840,6 +840,7 @@ class DealController extends AccountBaseController
             $leadAgent = LeadAgent::find($request->agent_id);
             $deal->agent_id = $leadAgent ? $leadAgent->id : null;
         } else {
+            // ensures that the agent_id is set to null if no agent is provided
             $deal->agent_id = $request->agent_id;
         }
 
