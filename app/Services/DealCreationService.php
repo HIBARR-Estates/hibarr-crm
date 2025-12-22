@@ -51,9 +51,12 @@ class DealCreationService
         // Cache key for duplicate prevention
         $cacheKey = "deal_processing:{$dealHash}";
         
-        // Check cache BEFORE starting transaction to prevent duplicates
-        // This is the first line of defense
-        if (Cache::has($cacheKey)) {
+        // Atomically acquire cache lock to prevent duplicates
+        // Cache::add() is atomic - it only sets the value if the key doesn't exist
+        // Returns true if lock was acquired, false if another process is already processing
+        $lockAcquired = Cache::add($cacheKey, true, self::CACHE_TTL);
+        
+        if (!$lockAcquired) {
             Log::info('DealCreationService: Duplicate request detected, skipping', [
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
@@ -69,9 +72,6 @@ class DealCreationService
             
             throw new \Exception('Duplicate deal request detected and no existing deal found');
         }
-        
-        // Set cache lock BEFORE transaction to prevent concurrent processing
-        Cache::put($cacheKey, true, self::CACHE_TTL);
         
         try {
             return DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey) {
