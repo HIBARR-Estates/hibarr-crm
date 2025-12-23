@@ -45,7 +45,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onErrorsClear,
     setErrors,
     setDeal,
-    disableFields = [],
+    disableFields = [], // prop to disable fields
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
