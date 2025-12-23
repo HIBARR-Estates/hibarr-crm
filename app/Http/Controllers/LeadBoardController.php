@@ -710,6 +710,7 @@ class LeadBoardController extends AccountBaseController
         $deals = $leads->paginate(10);
 
         $deals->getCollection()->transform(function ($deal) {
+            // attach custom fields
             return $deal->withCustomFields();
         });
 
