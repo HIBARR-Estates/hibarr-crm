@@ -205,6 +205,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             ]}
                         >
                             <Select
+                                // Disabled if "lead_contact" is in the disableFields array
                                 disabled={disableFields.includes(
                                     "lead_contact"
                                 )}
