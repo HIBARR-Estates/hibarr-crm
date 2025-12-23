@@ -210,7 +210,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 )}
                                 placeholder="Select Lead Contact"
                                 allowClear
-                                showSearch
+                                // showSearch
                                 optionFilterProp="children"
                             >
                                 {leadContacts.map((contact: any) => (
