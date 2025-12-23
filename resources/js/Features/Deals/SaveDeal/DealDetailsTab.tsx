@@ -212,11 +212,16 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
-                                options={leadContacts.map((contact: any) => ({
-                                    label: contact.client_name_salutation,
-                                    value: contact.id,
-                                }))}
-                            />
+                            >
+                                {leadContacts.map((contact: any) => (
+                                    <Select.Option
+                                        key={contact.id}
+                                        value={contact.id}
+                                    >
+                                        {contact.client_name_salutation}
+                                    </Select.Option>
+                                ))}
+                            </Select>
                         </Form.Item>
                     </Col>
 
