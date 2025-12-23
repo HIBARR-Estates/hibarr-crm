@@ -45,7 +45,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onErrorsClear,
     setErrors,
     setDeal,
-    disableFields = [],
+    disableFields = [], // prop to disable fields
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
@@ -205,6 +205,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             ]}
                         >
                             <Select
+                                // Disabled if "lead_contact" is in the disableFields array
                                 disabled={disableFields.includes(
                                     "lead_contact"
                                 )}
@@ -212,11 +213,16 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
-                                options={leadContacts.map((contact: any) => ({
-                                    label: contact.client_name_salutation,
-                                    value: contact.id,
-                                }))}
-                            />
+                            >
+                                {leadContacts.map((contact: any) => (
+                                    <Select.Option
+                                        key={contact.id}
+                                        value={contact.id}
+                                    >
+                                        {contact.client_name_salutation}
+                                    </Select.Option>
+                                ))}
+                            </Select>
                         </Form.Item>
                     </Col>
 

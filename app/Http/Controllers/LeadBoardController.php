@@ -652,6 +652,8 @@ class LeadBoardController extends AccountBaseController
             ->orderBy('deals.created_at', 'desc')
             ->groupBy('deals.id');
 
+
+
         $this->dateFilter($leads, $startDate, $endDate, $request);
 
         if ($request->filled('search')) {
@@ -706,6 +708,11 @@ class LeadBoardController extends AccountBaseController
         PermissionService::applyScope($leads, user(), 'view_deals', $dealRules);
 
         $deals = $leads->paginate(10);
+
+        $deals->getCollection()->transform(function ($deal) {
+            // attach custom fields
+            return $deal->withCustomFields();
+        });
 
         return Reply::dataOnly(['deals' => $deals]);
     }
