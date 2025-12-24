@@ -19,7 +19,7 @@ const DeleteFollowup: React.FC<Props> = ({ followup, onClose, open }) => {
     };
 
     const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
-        route("deals.follow_up_delete", followup?.id),
+        `/account/deals/follow-up-delete/${followup?.id}`,
         "POST",
         () => {
             handleCancel();
