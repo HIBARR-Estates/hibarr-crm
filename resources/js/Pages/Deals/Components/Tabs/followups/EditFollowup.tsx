@@ -40,7 +40,7 @@ const EditFollowup: React.FC<Props> = ({ deal, followup, onClose, open }) => {
         SaveFollowupFormData & { id: number },
         null,
         ApiResponse<null>
-    >(`/account/deals/follow-up-edit/${followup.id}`, "POST", () => {
+    >(`/account/deals/follow-up-update`, "POST", () => {
         handleCancel();
     });
 

@@ -20,7 +20,7 @@ const BulkDeleteFollowups: React.FC<Props> = ({ open, onClose, ids }) => {
         null,
         ApiResponse<null>
     >(
-        route("deals.follow_up_apply_quick_action"),
+        `/account/deals/follow-up-apply-quick-action`,
 
         "POST"
     );
