@@ -38,7 +38,7 @@ const AddFollowup: React.FC<Props> = ({ deal, onClose, open }) => {
         SaveFollowupFormData,
         null,
         ApiResponse<null>
-    >(`/account/deals/follow-up/${deal.id}`, "POST", () => {
+    >(`/account/deals/follow-up-store`, "POST", () => {
         handleCancel();
     });
 
