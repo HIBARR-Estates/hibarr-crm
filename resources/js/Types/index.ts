@@ -332,4 +332,32 @@ export interface CustomField {
     show_table: string;
     field_display_name: string;
     field_order: number;
+    display_order?: number;
+    show_rule_set?: ShowRuleSet;
+}
+
+// New interfaces for visibility rules
+export interface ShowRuleSet {
+    id: number;
+    field_id: number;
+    default_visibility: boolean;
+    enabled: boolean;
+    group?: ShowRuleGroup;
+}
+
+export interface ShowRuleGroup {
+    id: number;
+    rule_set_id: number;
+    group_operator: 'AND' | 'OR';
+    criteria?: ShowCriterion[];
+}
+
+export interface ShowCriterion {
+    id: number;
+    group_id: number;
+    reference_field_id: number;
+    operator: 'equals' | 'exists' | 'boolean' | '>' | '<' | '>=' | '<=' | 'in' | 'not_in';
+    reference_value: string;
+    negate: boolean;
+    reference_field?: CustomField; // Populated from backend
 }

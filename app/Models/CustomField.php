@@ -74,6 +74,22 @@ class CustomField extends BaseModel
         return $this->belongsTo(CustomFieldGroup::class, 'custom_field_group_id');
     }
 
+    /**
+     * Get the visibility rule set for this field
+     */
+    public function showRuleSet(): HasOne
+    {
+        return $this->hasOne(ShowRuleSet::class, 'field_id');
+    }
+
+    /**
+     * Check if field has visibility rules
+     */
+    public function hasVisibilityRules(): bool
+    {
+        return $this->showRuleSet && $this->showRuleSet->enabled;
+    }
+
     public static function exportCustomFields($model)
     {
         $customFieldsGroupsId = CustomFieldGroup::where('model', $model::CUSTOM_FIELD_MODEL)->select('id')->first();

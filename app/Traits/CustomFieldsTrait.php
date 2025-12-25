@@ -73,7 +73,17 @@ trait CustomFieldsTrait
         })->first();
 
         if ($fields && $customFieldGroup) {
-            $customFieldGroup->load(['customField'])->append(['fields']);
+            // Load custom fields with their visibility rule sets
+            try {
+                $customFieldGroup->load(['customFieldWithRules' => function($query) {
+                    $query->orderBy('display_order');
+                }])->append(['fields']);
+            } catch (\Exception $e) {
+                // If tables don't exist yet, load without relationships
+                $customFieldGroup->load(['customField' => function($query) {
+                    $query->orderBy('display_order');
+                }])->append(['fields']);
+            }
         }
 
         return $customFieldGroup;

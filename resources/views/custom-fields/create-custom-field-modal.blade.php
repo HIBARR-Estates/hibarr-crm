@@ -65,12 +65,9 @@
                         fieldValue="1"  />
                     </div>
                 </div>
-                <div class="col-lg-4">
-                    <div class="form-group my-5">
-                        <x-forms.checkbox fieldId="important"
-                            :fieldLabel="__('modules.customFields.important')" fieldName="important"
-                            fieldValue="1"  />
-                    </div>
+                <div class="col-md-4">
+                    <x-forms.number class="" :fieldLabel="__('modules.customFields.displayOrder')" fieldName="display_order" fieldId="display_order" 
+                        fieldValue="0" :fieldPlaceholder="__('modules.customFields.displayOrderPlaceholder')" />
                 </div>
 
             </div>

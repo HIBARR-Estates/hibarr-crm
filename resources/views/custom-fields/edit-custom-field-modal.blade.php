@@ -4,7 +4,25 @@
 </div>
 <div class="modal-body">
     <div class="portlet-body">
-        <x-form id="editForm" method="PUT" class="form-horizontal">
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-3" id="customFieldTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link active" id="basic-tab" data-toggle="tab" href="#basic" role="tab" aria-controls="basic" aria-selected="true">
+                    Basic Info
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="visibility-tab" data-toggle="tab" href="#visibility" role="tab" aria-controls="visibility" aria-selected="false">
+                    Visibility Rules
+                </a>
+            </li>
+        </ul>
+
+        <!-- Tabs Content -->
+        <div class="tab-content" id="customFieldTabsContent">
+            <!-- Basic Info Tab -->
+            <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                <x-form id="editForm" method="PUT" class="form-horizontal">
 
             <div class="row">
                 <input type="hidden" name="id" value="{{ $field->id }}" />
@@ -47,12 +65,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-4">
-                    <div class="form-group my-5">
-                        <x-forms.checkbox fieldId="important" :fieldLabel="__('modules.customFields.important')" fieldName="important" fieldValue="1"
-                            :checked="$field->important == 1" />
-                    </div>
-                </div>
                 <div class="col-lg-6">
                     <div class="form-group my-5">
                         <x-forms.checkbox fieldId="visible" :fieldLabel="__('modules.customFields.showInTable')" fieldName="visible" fieldValue="true"
@@ -64,6 +76,10 @@
                         <x-forms.checkbox fieldId="export" :fieldLabel="__('modules.customFields.export')" fieldName="export" fieldValue="1"
                             :checked="$field->export == 1" />
                     </div>
+                </div>
+                <div class="col-md-4">
+                    <x-forms.number class="" :fieldLabel="__('modules.customFields.displayOrder')" fieldName="display_order" fieldId="display_order" 
+                        :fieldValue="$field->display_order ?? 0" :fieldPlaceholder="__('modules.customFields.displayOrderPlaceholder')" />
                 </div>
                
             </div>
@@ -99,7 +115,14 @@
                 </div>
             </div>
 
-        </x-form>
+                </x-form>
+            </div>
+
+            <!-- Visibility Rules Tab -->
+            <div class="tab-pane fade" id="visibility" role="tabpanel" aria-labelledby="visibility-tab">
+                @include('custom-fields.visibility-rules-tab')
+            </div>
+        </div>
     </div>
 </div>
 <div class="modal-footer">

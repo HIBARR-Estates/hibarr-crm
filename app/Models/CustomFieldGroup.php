@@ -55,6 +55,14 @@ class CustomFieldGroup extends BaseModel
         return $this->HasMany(CustomField::class);
     }
 
+    /**
+     * Get custom fields with visibility rule sets
+     */
+    public function customFieldWithRules(): HasMany
+    {
+        return $this->HasMany(CustomField::class)->with('showRuleSet.group.criteria.referenceField');
+    }
+
     public function customFieldCategories(): HasMany
     {
         return $this->hasMany(CustomFieldCategory::class, 'custom_field_group_id');
@@ -92,7 +100,15 @@ class CustomFieldGroup extends BaseModel
     {
         return Attribute::make(
             get: function () {
-                return $this->customField->map(function ($item) {
+                // Try to load fields with rule sets if tables exist
+                try {
+                    $fields = $this->customFieldWithRules()->orderBy('display_order')->get();
+                } catch (\Exception $e) {
+                    // If tables don't exist yet, load without relationships
+                    $fields = $this->customField()->orderBy('display_order')->get();
+                }
+                
+                return $fields->map(function ($item) {
                     if (in_array($item->type, ['select', 'radio'])) {
                         $item->values = json_decode($item->values);
 
