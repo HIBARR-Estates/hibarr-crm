@@ -131,7 +131,8 @@ export default function DealInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Package">
-                            {deal.package?.name || "--"}
+                            {deal.packages?.map((pkg) => pkg.name).join(", ") ||
+                                "--"}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Lead Contact">

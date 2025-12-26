@@ -38,6 +38,7 @@ const DealForm: React.FC<DealFormProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
+    console.log(data, "what is the data .....");
     const customFieldCategories =
         props.dealCustomFieldCategories || props.customFieldCategories || [];
 

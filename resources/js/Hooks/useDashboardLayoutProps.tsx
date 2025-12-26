@@ -9,14 +9,13 @@ import {
     CheckSquareIcon,
 } from "../Components/icons";
 
-
-    // Get current path and determine active menu items
-    const getCurrentPath = () => {
-        if (typeof window !== "undefined") {
-            return window.location.pathname;
-        }
-        return "";
-    };
+// Get current path and determine active menu items
+const getCurrentPath = () => {
+    if (typeof window !== "undefined") {
+        return window.location.pathname;
+    }
+    return "";
+};
 
 const useDashboardLayoutProps = () => {
     const getActiveMenuKeys = (): string[] => {
@@ -111,109 +110,97 @@ const useDashboardLayoutProps = () => {
         return activeKeys;
     };
 
-   
-
     // Build menu items
     const buildMenuItems = (): MenuProps["items"] => {
         const items: MenuProps["items"] = [
             {
-            key: "dashboard",
-            label: (
-                <Link
-                    href={route("dashboard")}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        router.visit(route("dashboard"));
-                    }}
-                >
-                    Dashboard
-                </Link>
-            ),
-            icon: <HouseIcon />,
-            disabled: false,
-        },
-        {
-            key: "lead-contact",
-            label: (
-                <Link
-                    href={route("lead-contact.index")}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        router.visit(route("lead-contact.index"));
-                    }}
-                >
-                    Contacts
-                </Link>
-            ),
-            icon: <PersonIcon />,},
+                key: "dashboard",
+                label: (
+                    <Link
+                        href={route("dashboard")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("dashboard"));
+                        }}
+                    >
+                        Dashboard
+                    </Link>
+                ),
+                icon: <HouseIcon />,
+                disabled: false,
+            },
             {
-            key: "deals",
-            label: (
-                <Link
-                    href={`/account/deals/kanban`}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        router.visit(`/account/deals/kanban`);
-                    }}
-                >
-                    Deals
-                </Link>
-            ),
-            icon: <BriefcaseIcon />,
-        },
-        {
-            key: "tasks",
-            label: (
-                <Link
-                    href={route("tasks.index")}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        router.visit(route("tasks.index"));
-                    }}
-                >
-                    Tasks
-                </Link>
-            ),
-            icon: <CheckSquareIcon />,
-        },
-        {
-            key: "properties",
-            label: (
-                <Link
-                    href={route("properties.index")}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        router.visit(route("properties.index"));
-                    }}
-                >
-                    Properties
-                </Link>
-            ),
-            icon: <HouseDoorIcon />,
-        }
-        
-        ].filter(item => item.disabled !== true);
-
-       
-
-
-
-       
-
-     
-   
-
+                key: "lead-contact",
+                label: (
+                    <Link
+                        href={route("lead-contact.index")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("lead-contact.index"));
+                        }}
+                    >
+                        Leads
+                    </Link>
+                ),
+                icon: <PersonIcon />,
+            },
+            {
+                key: "deals",
+                label: (
+                    <Link
+                        href={`/account/deals/kanban`}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(`/account/deals/kanban`);
+                        }}
+                    >
+                        Deals
+                    </Link>
+                ),
+                icon: <BriefcaseIcon />,
+            },
+            {
+                key: "tasks",
+                label: (
+                    <Link
+                        href={route("tasks.index")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("tasks.index"));
+                        }}
+                    >
+                        Tasks
+                    </Link>
+                ),
+                icon: <CheckSquareIcon />,
+            },
+            {
+                key: "properties",
+                label: (
+                    <Link
+                        href={route("properties.index")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("properties.index"));
+                        }}
+                    >
+                        Properties
+                    </Link>
+                ),
+                icon: <HouseDoorIcon />,
+            },
+        ].filter((item) => item.disabled !== true);
 
         return items;
     };
 
-  return {
-    menuItems: buildMenuItems(),
-    activeMenuKeys: getActiveMenuKeys(),
-    defaultOpenKeys: getActiveMenuKeys().filter((key) =>
-        ["dashboard", "hr", "work", "finance"].includes(key)
-    ),
-  }
-}
+    return {
+        menuItems: buildMenuItems(),
+        activeMenuKeys: getActiveMenuKeys(),
+        defaultOpenKeys: getActiveMenuKeys().filter((key) =>
+            ["dashboard", "hr", "work", "finance"].includes(key)
+        ),
+    };
+};
 
-export default useDashboardLayoutProps
+export default useDashboardLayoutProps;

@@ -6,6 +6,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * App\Models\CustomField
@@ -72,6 +73,16 @@ class CustomField extends BaseModel
     public function fieldGroup(): BelongsTo
     {
         return $this->belongsTo(CustomFieldGroup::class, 'custom_field_group_id');
+    }
+
+    public function conditions(): HasMany
+    {
+        return $this->hasMany(CustomFieldCondition::class, 'custom_field_id');
+    }
+
+    public function visibility(): HasOne
+    {
+        return $this->hasOne(CustomFieldVisibility::class, 'custom_field_id');
     }
 
     public static function exportCustomFields($model)

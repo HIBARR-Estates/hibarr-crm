@@ -73,7 +73,7 @@ trait CustomFieldsTrait
         })->first();
 
         if ($fields && $customFieldGroup) {
-            $customFieldGroup->load(['customField'])->append(['fields']);
+            $customFieldGroup->load(['customField.conditions', 'customField.visibility'])->append(['fields']);
         }
 
         return $customFieldGroup;
