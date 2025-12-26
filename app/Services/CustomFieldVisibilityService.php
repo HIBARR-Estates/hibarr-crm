@@ -155,7 +155,11 @@ class CustomFieldVisibilityService
                 if (is_array($fieldValue)) {
                     return count($fieldValue) > 0;
                 }
-                return !empty($fieldValue);
+                // Check if value exists: not null, not empty string
+                // This matches JavaScript behavior: fieldValue !== null && fieldValue !== undefined && fieldValue !== ''
+                // Note: 0, false, and "0" are considered as existing values (user provided them)
+                // In PHP, we check for null and empty string (which covers undefined-like behavior)
+                return $fieldValue !== null && $fieldValue !== '';
 
             case 'boolean':
                 return filter_var($fieldValue, FILTER_VALIDATE_BOOLEAN);
@@ -174,11 +178,13 @@ class CustomFieldVisibilityService
 
             case 'in':
                 $values = json_decode($referenceValue, true) ?: [];
-                return in_array($fieldValue, $values);
+                // Use strict comparison (third parameter true) to match JavaScript's Array.includes() behavior
+                return in_array($fieldValue, $values, true);
 
             case 'not_in':
                 $values = json_decode($referenceValue, true) ?: [];
-                return !in_array($fieldValue, $values);
+                // Use strict comparison (third parameter true) to match JavaScript's Array.includes() behavior
+                return !in_array($fieldValue, $values, true);
 
             default:
                 return false;

@@ -28,6 +28,9 @@ function evaluateCriterion(
             if (Array.isArray(fieldValue)) {
                 result = fieldValue.length > 0;
             } else {
+                // Check if value exists: not null, not undefined, and not empty string
+                // Note: 0, false, and "0" are considered as existing values (user provided them)
+                // This matches PHP behavior: $fieldValue !== null && $fieldValue !== ''
                 result = fieldValue !== null && fieldValue !== undefined && fieldValue !== '';
             }
             break;
