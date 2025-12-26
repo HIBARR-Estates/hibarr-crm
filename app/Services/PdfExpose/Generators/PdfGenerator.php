@@ -37,8 +37,10 @@ class PdfGenerator
      */
     private function generateFilename(ExposeConfiguration $config): string
     {
-        $timestamp = now()->format('Y-m-d_His');
-        return "{$config->entityType}_{$config->entityId}_{$timestamp}.pdf";
+        $title = $config->get('title') ?? "{$config->entityType}_{$config->entityId}";
+        $slug = \Illuminate\Support\Str::slug($title);
+        
+        return "{$slug}-Expose.pdf";
     }
 
     /**
