@@ -181,11 +181,11 @@ const Index = ({
     return (
         <>
             <PageLayout
-                title={`Contacts`}
-                breadcrumbs={[{ name: "Contacts" }]}
+                title={`Leads`}
+                breadcrumbs={[{ name: "Leads" }]}
                 searchComp={
                     <UniversalSearchBox
-                        placeholder="Search contacts by contact name, email, company..."
+                        placeholder="Search leads by lead name, email, company..."
                         className="w-full"
                     />
                 }
@@ -199,7 +199,7 @@ const Index = ({
                                 icon={<PlusOutlined />}
                                 onClick={handleCreateLead}
                             >
-                                Add Contact
+                                Add Lead
                             </Button>
                             <Button
                                 type="text"

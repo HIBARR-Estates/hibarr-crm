@@ -36,6 +36,12 @@ const GeneralCustomFieldTab = <
     const { props } = usePage<any>();
     const { customFields = [], countries, dealCustomFields = [] } = props;
 
+    // Get form instance and watch custom_fields_data for real-time visibility updates
+    const form = Form.useFormInstance();
+    const watchedCustomFieldsData = Form.useWatch("custom_fields_data", form);
+    const currentCustomFieldsData =
+        watchedCustomFieldsData || data?.custom_fields_data || {};
+
     const [otherValues, setOtherValues] = useState<Record<string, string>>({});
     
     // Get form instance from parent Form context (may be null if no Form context)
@@ -78,6 +84,78 @@ const GeneralCustomFieldTab = <
                 // If display_order is the same or not set, sort by ID
                 return a.id - b.id;
             }) || [];
+
+    const checkVisibility = (field: any) => {
+        if (
+            !field.visibility ||
+            !field.conditions ||
+            field.conditions.length === 0
+        ) {
+            return true; // Visible by default if no rules
+        }
+
+        const { logic_string } = field.visibility;
+        const { conditions } = field;
+        const formValues = currentCustomFieldsData;
+
+        // Evaluate each condition
+        const conditionResults = conditions.map((condition: any) => {
+            const targetFieldId = condition.target_field_id;
+            // Find the target field definition to get its name
+            const targetField = customFields
+                .concat(dealCustomFields)
+                .find((f: any) => f.id === targetFieldId);
+            if (!targetField) return false;
+
+            const targetKey = `${targetField.name}_${targetField.id}`;
+            const targetValue = formValues[targetKey];
+
+            switch (condition.operator) {
+                case "==":
+                    return targetValue == condition.value;
+                case "!=":
+                    return targetValue != condition.value;
+                case ">":
+                    return Number(targetValue) > Number(condition.value);
+                case "<":
+                    return Number(targetValue) < Number(condition.value);
+                case "contains":
+                    return String(targetValue || "").includes(condition.value);
+                default:
+                    return false;
+            }
+        });
+
+        let evalString = logic_string;
+        // Sort conditions by index descending to avoid replacing "1" in "10"
+        const indices = conditions
+            .map((_: any, i: number) => i + 1)
+            .sort((a: number, b: number) => b - a);
+
+        for (const index of indices) {
+            const result = conditionResults[index - 1];
+            evalString = evalString.replace(
+                new RegExp(`\\b${index}\\b`, "g"),
+                String(result)
+            );
+        }
+
+        try {
+            // Sanitize: ensure only allowed chars remain (true, false, space, (, ), &, |, !)
+            if (!/^[truefalse\s\(\)\&\|!]+$/.test(evalString)) {
+                console.error(
+                    "Invalid logic string after substitution:",
+                    evalString
+                );
+                return false;
+            }
+
+            return new Function(`return ${evalString}`)();
+        } catch (e) {
+            console.error("Error evaluating visibility logic:", e);
+            return true; // Fallback to visible
+        }
+    };
 
     const renderTextField = (field: any) => (
         <Form.Item

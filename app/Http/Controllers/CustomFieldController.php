@@ -12,13 +12,16 @@ use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 use App\Http\Requests\CustomField\StoreCustomField;
 use App\Http\Requests\CustomField\UpdateCustomField;
+use App\Services\CustomFieldRuleService;
 
 class CustomFieldController extends AccountBaseController
 {
+    protected $ruleService;
 
-    public function __construct()
+    public function __construct(CustomFieldRuleService $ruleService)
     {
         parent::__construct();
+        $this->ruleService = $ruleService;
         $this->pageTitle = 'app.menu.customFields';
         $this->activeSettingMenu = 'custom_fields';
         $this->middleware(function ($request, $next) {
@@ -103,7 +106,15 @@ class CustomFieldController extends AccountBaseController
 
         ];
 
-        $this->addCustomField($group);
+        $createdFields = $this->addCustomField($group);
+
+        if (!empty($createdFields) && $request->has('conditions')) {
+            $this->ruleService->saveRules(
+                $createdFields[0],
+                $request->get('conditions', []),
+                $request->get('logic_string')
+            );
+        }
 
         return Reply::success('messages.recordSaved');
     }
@@ -161,6 +172,14 @@ class CustomFieldController extends AccountBaseController
         $field->display_order = $request->display_order ?? 0;
         $field->save();
 
+        if ($request->has('conditions')) {
+            $this->ruleService->saveRules(
+                $field,
+                $request->get('conditions', []),
+                $request->get('logic_string')
+            );
+        }
+
         return Reply::success('messages.updateSuccess');
     }
 
@@ -209,6 +228,7 @@ class CustomFieldController extends AccountBaseController
 
     private function addCustomField($group)
     {
+        $createdFields = [];
         // Add Custom Fields for this group
         foreach ($group['fields'] as $field) {
             $insertData = [
@@ -242,9 +262,10 @@ class CustomFieldController extends AccountBaseController
                 }
             }
 
-            CustomField::create($insertData);
+            $createdFields[] = CustomField::create($insertData);
 
         }
+        return $createdFields;
     }
 
     /**

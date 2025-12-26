@@ -477,7 +477,7 @@ export default function LeadInfoSection({
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
                     <h2 className="text-lg font-semibold text-gray-900">
-                        Contact Information
+                        Lead Information
                     </h2>
                     <Space size="small">
                         {actionItems.map((item) => (
