@@ -157,15 +157,17 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                         </Form.Item>
 
                         <Form.List name="criteria">
-                            {(fields, { add, remove }) => (
-                                <>
-                                    {fields.map((fieldItem, index) => {
-                                        const operator = Form.useWatch(
-                                            ['criteria', fieldItem.name, 'operator'],
-                                            form
-                                        );
+                            {(fields, { add, remove }) => {
+                                // Watch all criteria operators at the top level (not inside map)
+                                const allCriteria = Form.useWatch('criteria', form) || [];
 
-                                        return (
+                                return (
+                                    <>
+                                        {fields.map((fieldItem, index) => {
+                                            // Access operator from watched data instead of calling hook inside map
+                                            const operator = allCriteria[fieldItem.name]?.operator;
+
+                                            return (
                                             <Card
                                                 key={fieldItem.key}
                                                 style={{ marginBottom: 16 }}
@@ -291,8 +293,9 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                     >
                                         Add Criterion
                                     </Button>
-                                </>
-                            )}
+                                    </>
+                                );
+                            }}
                         </Form.List>
                     </Card>
                 )}

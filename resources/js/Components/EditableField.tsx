@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Input, Typography, message } from "antd";
-import { router } from "@inertiajs/react";
 import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
@@ -142,14 +141,22 @@ export default function EditableField({
                     />
                 )}
                 <CheckOutlined
-                    onClick={handleSave}
-                    className="cursor-pointer text-green-600 hover:text-green-700"
-                    disabled={saving}
+                    onClick={saving ? undefined : handleSave}
+                    className={`${
+                        saving
+                            ? "cursor-not-allowed opacity-50 pointer-events-none"
+                            : "cursor-pointer text-green-600 hover:text-green-700"
+                    }`}
+                    aria-disabled={saving}
                 />
                 <CloseOutlined
-                    onClick={handleCancel}
-                    className="cursor-pointer text-red-600 hover:text-red-700"
-                    disabled={saving}
+                    onClick={saving ? undefined : handleCancel}
+                    className={`${
+                        saving
+                            ? "cursor-not-allowed opacity-50 pointer-events-none"
+                            : "cursor-pointer text-red-600 hover:text-red-700"
+                    }`}
+                    aria-disabled={saving}
                 />
             </div>
         );

@@ -8,12 +8,12 @@
         <ul class="nav nav-tabs mb-3" id="customFieldTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <a class="nav-link active" id="basic-tab" data-toggle="tab" href="#basic" role="tab" aria-controls="basic" aria-selected="true">
-                    Basic Info
+                    @lang('modules.customFields.basic_info')
                 </a>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link" id="visibility-tab" data-toggle="tab" href="#visibility" role="tab" aria-controls="visibility" aria-selected="false">
-                    Visibility Rules
+                    @lang('modules.customFields.visibility_rules')
                 </a>
             </li>
         </ul>

@@ -148,7 +148,8 @@ class CustomFieldVisibilityService
                     }
                     return false;
                 }
-                return (string)$fieldValue === (string)$referenceValue;
+                // Trim both values before comparison to match JavaScript behavior
+                return trim((string)$fieldValue) === trim((string)$referenceValue);
 
             case 'exists':
                 // Handle arrays (for checkbox fields) - check if array has at least one element
@@ -178,12 +179,44 @@ class CustomFieldVisibilityService
 
             case 'in':
                 $values = json_decode($referenceValue, true) ?: [];
-                // Use strict comparison (third parameter true) to match JavaScript's Array.includes() behavior
+                
+                // Handle empty/null values array
+                if (empty($values)) {
+                    return false;
+                }
+                
+                // Handle arrays (for checkbox fields) - check if any element exists in $values
+                if (is_array($fieldValue)) {
+                    foreach ($fieldValue as $val) {
+                        if (in_array($val, $values, true)) {
+                            return true; // At least one element exists in $values
+                        }
+                    }
+                    return false; // None of the elements exist in $values
+                }
+                
+                // Scalar value - use strict comparison to match JavaScript's Array.includes() behavior
                 return in_array($fieldValue, $values, true);
 
             case 'not_in':
                 $values = json_decode($referenceValue, true) ?: [];
-                // Use strict comparison (third parameter true) to match JavaScript's Array.includes() behavior
+                
+                // Handle empty/null values array
+                if (empty($values)) {
+                    return true; // If no values to check against, field value is not in the list
+                }
+                
+                // Handle arrays (for checkbox fields) - return true only if none of the elements exist
+                if (is_array($fieldValue)) {
+                    foreach ($fieldValue as $val) {
+                        if (in_array($val, $values, true)) {
+                            return false; // At least one element exists in $values, so not_in is false
+                        }
+                    }
+                    return true; // None of the elements exist in $values, so not_in is true
+                }
+                
+                // Scalar value - use strict comparison to match JavaScript's Array.includes() behavior
                 return !in_array($fieldValue, $values, true);
 
             default:

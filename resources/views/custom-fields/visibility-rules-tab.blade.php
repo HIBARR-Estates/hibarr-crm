@@ -83,8 +83,9 @@
                                     $group->setRelation('criteria', collect());
                                 }
                             }
-                            // Keep as collection to preserve relationships, but sort by ID
-                            $groupsToShow = $groups->sortBy('id')->values()->all();
+                            // Keep as collection to preserve relationships (don't convert to array)
+                            // This ensures eager-loaded relationships remain accessible
+                            $groupsToShow = $groups->sortBy('id')->values();
                         } elseif ($field->showRuleSet->group) {
                             // Load criteria for single group if not loaded
                             if (!$field->showRuleSet->group->relationLoaded('criteria')) {
@@ -153,23 +154,17 @@
 
                             <div class="criteria-container" data-group-index="{{ $groupIndex }}">
                                 @php
-                                    // Ensure criteria are loaded for this group
+                                    // Access criteria from already-eager-loaded relationship
+                                    // Criteria should be loaded via eager loading in controller (criteria.referenceField)
                                     $groupCriteria = collect();
-                                    if ($group) {
-                                        // Reload criteria from database if group ID exists
-                                        // This ensures criteria are always loaded, even if relationship was lost during array conversion
-                                        if (isset($group->id) && is_numeric($group->id)) {
-                                            $groupModel = \App\Models\ShowRuleGroup::with('criteria.referenceField')->find($group->id);
-                                            if ($groupModel && $groupModel->criteria) {
-                                                $groupCriteria = $groupModel->criteria->sortBy('id')->values();
-                                            }
+                                    if ($group && isset($group->criteria)) {
+                                        // Access the already-loaded criteria relationship
+                                        if (is_object($group->criteria) && method_exists($group->criteria, 'sortBy')) {
+                                            $groupCriteria = $group->criteria->sortBy('id')->values();
+                                        } elseif (is_array($group->criteria)) {
+                                            $groupCriteria = collect($group->criteria)->sortBy('id')->values();
                                         } else {
-                                            // Try to access criteria from the group object
-                                            if (isset($group->criteria)) {
-                                                $groupCriteria = is_object($group->criteria) && method_exists($group->criteria, 'values') 
-                                                    ? $group->criteria->values() 
-                                                    : collect($group->criteria);
-                                            }
+                                            $groupCriteria = collect($group->criteria);
                                         }
                                     }
                                 @endphp
@@ -619,8 +614,13 @@ $(document).ready(function() {
         };
 
         // Collect all groups and their criteria
+        let validationError = false;
         let hasCriteria = false;
         $('.group-item').each(function() {
+            // Skip remaining groups if validation error occurred
+            if (validationError) {
+                return false; // Exit outer loop
+            }
             // Get values from Bootstrap Select or regular select
             const $groupOperatorSelect = $(this).find('.group-operator-select');
             const $visibilityActionSelect = $(this).find('.visibility-action-select');
@@ -703,6 +703,11 @@ $(document).ready(function() {
 
             // Collect criteria for this group
             $(this).find('.criterion-item').each(function() {
+                // Skip remaining criteria if validation error occurred
+                if (validationError) {
+                    return false; // Exit inner loop
+                }
+                
                 const $refFieldSelect = $(this).find('.reference-field-select');
                 const $operatorSelect = $(this).find('.operator-select');
                 
@@ -774,7 +779,8 @@ $(document).ready(function() {
                     if (operator !== 'exists' && operator !== 'boolean') {
                         if (!referenceValue || referenceValue.trim() === '') {
                             alert('Please fill in all criterion values');
-                            return false;
+                            validationError = true;
+                            return false; // Exit inner loop
                         }
                     }
 
@@ -792,6 +798,11 @@ $(document).ready(function() {
 
             formData.rule_set.groups.push(group);
         });
+
+        // Stop save operation if validation error occurred
+        if (validationError) {
+            return; // Stop the save operation
+        }
 
         // Validate
         if ($('#enableRules').is(':checked') && !hasCriteria) {

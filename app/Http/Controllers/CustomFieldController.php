@@ -213,7 +213,6 @@ class CustomFieldController extends AccountBaseController
     public function sortFields(Request $request)
     {
         $sortedValues = $request->sortedValues;
-        $module = $request->module; // Optional: if you want to sort within a specific module
 
         if (!is_array($sortedValues)) {
             return Reply::error('Invalid sorted values');

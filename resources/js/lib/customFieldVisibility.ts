@@ -14,12 +14,14 @@ function evaluateCriterion(
         case 'equals':
             // Handle arrays (for checkbox fields) - check if the value is in the array
             if (Array.isArray(fieldValue)) {
-                // Check if reference_value is in the array (case-insensitive)
+                // Check if reference_value is in the array (case-insensitive, with trimming)
+                // This matches PHP behavior: strtolower(trim((string)$val)) === strtolower(trim((string)$referenceValue))
                 result = fieldValue.some(val => 
-                    String(val).toLowerCase() === String(reference_value).toLowerCase()
+                    String(val).trim().toLowerCase() === String(reference_value).trim().toLowerCase()
                 );
             } else {
-                result = String(fieldValue) === String(reference_value);
+                // Trim both values before comparison to match PHP behavior
+                result = String(fieldValue).trim() === String(reference_value).trim();
             }
             break;
 
@@ -58,7 +60,20 @@ function evaluateCriterion(
         case 'in':
             try {
                 const values = JSON.parse(reference_value);
-                result = Array.isArray(values) && values.includes(fieldValue);
+                
+                // Handle empty/null values array
+                if (!Array.isArray(values) || values.length === 0) {
+                    result = false;
+                    break;
+                }
+                
+                // Handle arrays (for checkbox fields) - check if any element exists in values
+                if (Array.isArray(fieldValue)) {
+                    result = fieldValue.some(val => values.includes(val));
+                } else {
+                    // Scalar value - use strict comparison
+                    result = values.includes(fieldValue);
+                }
             } catch {
                 result = false;
             }
@@ -67,7 +82,20 @@ function evaluateCriterion(
         case 'not_in':
             try {
                 const values = JSON.parse(reference_value);
-                result = Array.isArray(values) && !values.includes(fieldValue);
+                
+                // Handle empty/null values array
+                if (!Array.isArray(values) || values.length === 0) {
+                    result = true; // If no values to check against, field value is not in the list
+                    break;
+                }
+                
+                // Handle arrays (for checkbox fields) - return true only if none of the elements exist
+                if (Array.isArray(fieldValue)) {
+                    result = !fieldValue.some(val => values.includes(val));
+                } else {
+                    // Scalar value - use strict comparison
+                    result = !values.includes(fieldValue);
+                }
             } catch {
                 result = false;
             }
@@ -94,10 +122,10 @@ export function evaluateFieldVisibility(
         return true;
     }
     
-    // Ensure groups_operator has a default value if not set
-    if (!ruleSet.groups_operator || (ruleSet.groups_operator !== 'AND' && ruleSet.groups_operator !== 'OR')) {
-        ruleSet.groups_operator = 'AND';
-    }
+    // Create local constant for groups_operator (treat input as immutable)
+    const groupsOperator = (ruleSet.groups_operator === 'OR' || ruleSet.groups_operator === 'AND')
+        ? ruleSet.groups_operator
+        : 'AND';
 
     // If rule set is disabled, use default visibility
     if (!ruleSet.enabled) {
@@ -166,11 +194,6 @@ export function evaluateFieldVisibility(
     }
 
     // Otherwise, evaluate show groups
-    // Get groups_operator from ruleSet, defaulting to 'AND' if not set
-    const groupsOperator = (ruleSet.groups_operator && (ruleSet.groups_operator === 'OR' || ruleSet.groups_operator === 'AND')) 
-        ? ruleSet.groups_operator 
-        : 'AND';
-    
     let finalResult: boolean;
     if (showGroupResults.length === 0) {
         // No show groups, use default visibility

@@ -18,8 +18,11 @@ export function useCustomFieldVisibility({
     form,
     namePrefix = 'custom_fields_data',
 }: UseCustomFieldVisibilityOptions) {
-    // Watch all custom field values - only if form instance exists
-    const allFieldValues = form ? (Form.useWatch(namePrefix, form) || {}) : {};
+    // Always call Form.useWatch unconditionally at the top level to comply with Rules of Hooks
+    // If form is null/undefined, the hook will return undefined, which we handle below
+    const watched = Form.useWatch(namePrefix, form || undefined);
+    // Derive allFieldValues by defaulting watched to {} after the hook call
+    const allFieldValues = watched || {};
 
     // Evaluate visibility for all fields
     const visibilityMap = useMemo(() => {

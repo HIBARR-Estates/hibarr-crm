@@ -9,7 +9,7 @@ import {
     CheckSquareOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -54,6 +54,11 @@ export default function DealInfoSection({
     const [activeTab, setActiveTab] = useState("overview");
     const { action, handleAction, handleClose } = useGenericEntityAction();
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
+
+    // Sync currentDeal state when deal prop changes
+    useEffect(() => {
+        setCurrentDeal(deal);
+    }, [deal]);
 
     // Check edit permission
     const canEdit =
@@ -134,9 +139,8 @@ export default function DealInfoSection({
 
             if (response.data?.success && response.data?.data) {
                 // Update local state with fresh data
+                // The useEffect will sync if the prop changes, but we update state directly here
                 setCurrentDeal(response.data.data);
-                // Reload to get all updated relationships
-                router.reload({ only: ["deal"] });
             }
         } catch (error: any) {
             const errorMessage =
@@ -400,7 +404,7 @@ export default function DealInfoSection({
         {
             key: "details",
             label: "Details",
-            children: <DealDetailsTab deal={deal} />,
+            children: <DealDetailsTab deal={currentDeal} />,
         },
         // Custom field categories as tabs
         ...(customFieldCategories || []).map((category) => ({
@@ -410,7 +414,7 @@ export default function DealInfoSection({
                 <div className="p-6">
                     <CustomFieldDisplay
                         fields={fields}
-                        customFieldsData={deal.custom_fields_data || {}}
+                        customFieldsData={currentDeal.custom_fields_data || {}}
                         categoryId={category.id}
                         column={2}
                     />
