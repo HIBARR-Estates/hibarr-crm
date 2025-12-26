@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('show_rule_groups', function (Blueprint $table) {
-            $table->boolean('enabled')->default(true)->after('group_operator');
+            if (!Schema::hasColumn('show_rule_groups', 'enabled')) {
+                $table->boolean('enabled')->default(true)->after('group_operator');
+            }
         });
     }
 

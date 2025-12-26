@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('show_rule_groups', function (Blueprint $table) {
-            $table->enum('visibility_action', ['show', 'hide'])->default('show')->after('enabled');
+            if (!Schema::hasColumn('show_rule_groups', 'visibility_action')) {
+                $table->enum('visibility_action', ['show', 'hide'])->default('show')->after('enabled');
+            }
         });
     }
 

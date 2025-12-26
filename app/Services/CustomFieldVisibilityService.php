@@ -103,6 +103,9 @@ class CustomFieldVisibilityService
         }
 
         // Otherwise, evaluate show groups
+        // Get groups_operator from ruleSet, defaulting to 'AND' if not set
+        $groupsOperator = $ruleSet->groups_operator ?? 'AND';
+        
         if (empty($showGroupResults)) {
             // No show groups, use default visibility
             $finalResult = $ruleSet->default_visibility;
