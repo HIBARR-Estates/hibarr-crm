@@ -84,7 +84,7 @@ const GeneralCustomFieldTab = <
             label={field.label}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -108,7 +108,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -136,7 +136,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -270,7 +270,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -292,7 +292,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -328,7 +328,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}

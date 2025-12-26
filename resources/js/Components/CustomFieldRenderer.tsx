@@ -98,7 +98,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
                 rules={
-                    field.required === '1' && isFieldVisible(field.id)
+                    field.required === 'yes' && isFieldVisible(field.id)
                         ? [{ required: true, message: `${field.label} is required` }]
                         : []
                 }
@@ -126,7 +126,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
                 rules={
-                    field.required === '1' && isFieldVisible(field.id)
+                    field.required === 'yes' && isFieldVisible(field.id)
                         ? [{ required: true, message: `${field.label} is required` }]
                         : []
                 }
@@ -153,7 +153,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
                 rules={
-                    field.required === '1' && isFieldVisible(field.id)
+                    field.required === 'yes' && isFieldVisible(field.id)
                         ? [{ required: true, message: `${field.label} is required` }]
                         : []
                 }

@@ -180,13 +180,10 @@ export function evaluateFieldVisibility(
         finalResult = showGroupResults.every(r => r === true);
     }
 
-    // Check for exclusion conditions: if "Residential" AND "Immigration/Exit Plan" are both selected, hide the field
-    // NOTE: This is a global exclusion that applies to all fields. Consider making it field-specific if needed.
-    const exclusionResult = checkExclusionConditions(allFieldValues);
-    if (exclusionResult === false) {
-        return false; // Force hide if exclusion condition is met
-    }
-
+    // NOTE: Exclusion conditions have been removed to allow full configurability through visibility rules.
+    // If you need hardcoded exclusion logic, you can re-enable checkExclusionConditions() here.
+    // For now, all visibility is controlled through the configurable rule system above.
+    
     return finalResult;
 }
 

@@ -117,12 +117,10 @@ class CustomFieldVisibilityService
             $finalResult = !in_array(false, $showGroupResults, true);
         }
 
-        // Check for exclusion conditions: if "Residential" AND "Immigration/Exit Plan" are both selected, hide the field
-        $exclusionResult = $this->checkExclusionConditions($currentValues);
-        if ($exclusionResult === false) {
-            return false; // Force hide if exclusion condition is met
-        }
-
+        // NOTE: Exclusion conditions have been removed to allow full configurability through visibility rules.
+        // If you need hardcoded exclusion logic, you can re-enable checkExclusionConditions() here.
+        // For now, all visibility is controlled through the configurable rule system above.
+        
         return $finalResult;
     }
 
