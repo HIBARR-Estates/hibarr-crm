@@ -9,13 +9,16 @@ use App\Models\CustomFieldCategory;
 use Yajra\DataTables\Facades\DataTables;
 use App\Http\Requests\CustomField\StoreCustomField;
 use App\Http\Requests\CustomField\UpdateCustomField;
+use App\Services\CustomFieldRuleService;
 
 class CustomFieldController extends AccountBaseController
 {
+    protected $ruleService;
 
-    public function __construct()
+    public function __construct(CustomFieldRuleService $ruleService)
     {
         parent::__construct();
+        $this->ruleService = $ruleService;
         $this->pageTitle = 'app.menu.customFields';
         $this->activeSettingMenu = 'custom_fields';
         $this->middleware(function ($request, $next) {
@@ -79,7 +82,15 @@ class CustomFieldController extends AccountBaseController
 
         ];
 
-        $this->addCustomField($group);
+        $createdFields = $this->addCustomField($group);
+
+        if (!empty($createdFields) && $request->has('conditions')) {
+            $this->ruleService->saveRules(
+                $createdFields[0],
+                $request->get('conditions', []),
+                $request->get('logic_string')
+            );
+        }
 
         return Reply::success('messages.recordSaved');
     }
@@ -92,12 +103,17 @@ class CustomFieldController extends AccountBaseController
      */
     public function edit($id)
     {
-        $this->field = CustomField::findOrFail($id);
+        $this->field = CustomField::with(['conditions', 'visibility'])->findOrFail($id);
         // Use json_decode with true to return array instead of stdClass
         $decodedValues = json_decode($this->field->values, true);
         $this->field->values = is_array($decodedValues) ? $decodedValues : [];
         $this->customFieldGroups = CustomFieldGroup::all();
         $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
+        
+        $this->otherFields = CustomField::where('custom_field_group_id', $this->field->custom_field_group_id)
+            ->where('id', '!=', $id)
+            ->get();
+
         // Categories will be loaded dynamically based on the selected module
 
         return view('custom-fields.edit-custom-field-modal', $this->data);
@@ -123,6 +139,14 @@ class CustomFieldController extends AccountBaseController
         $field->visible = $request->visible;
         $field->important = $request->important ?? 0;
         $field->save();
+
+        if ($request->has('conditions')) {
+            $this->ruleService->saveRules(
+                $field,
+                $request->get('conditions', []),
+                $request->get('logic_string')
+            );
+        }
 
         return Reply::success('messages.updateSuccess');
     }
@@ -150,6 +174,7 @@ class CustomFieldController extends AccountBaseController
 
     private function addCustomField($group)
     {
+        $createdFields = [];
         // Add Custom Fields for this group
         foreach ($group['fields'] as $field) {
             $insertData = [
@@ -182,9 +207,10 @@ class CustomFieldController extends AccountBaseController
                 }
             }
 
-            CustomField::create($insertData);
+            $createdFields[] = CustomField::create($insertData);
 
         }
+        return $createdFields;
     }
 
 }
