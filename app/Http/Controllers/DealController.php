@@ -98,6 +98,7 @@ class DealController extends AccountBaseController
             'leadStage:id,name,label_color,slug',
             'currency:id,currency_symbol,currency_code',
             'products:id,name',
+            'packages',
             'tasks' => function($q) {
                 $q->with(['deals', 'leads', 'properties']);
             }
@@ -341,7 +342,7 @@ class DealController extends AccountBaseController
             'leadStage',
             'currency',
             'products:id,name',
-            'package:id,name',
+            'packages:id,name',
             'communicationActivities',
             'hibarrFields',
             'dealWatchers' => function ($query) {
@@ -640,7 +641,6 @@ class DealController extends AccountBaseController
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->agent_id = $agentId;
-        $deal->package_id = $request->package_id;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
@@ -648,6 +648,11 @@ class DealController extends AccountBaseController
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
         // $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
         $deal->save();
+
+        // Handle packages
+        if ($request->package_id && is_array($request->package_id)) {
+            $deal->packages()->sync($request->package_id);
+        }
 
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
@@ -711,6 +716,7 @@ class DealController extends AccountBaseController
             'leadAgent', 
             'leadAgent.user', 
             'products', 
+            'packages',
             'leadStage', 
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
@@ -849,7 +855,6 @@ class DealController extends AccountBaseController
         $deal->next_follow_up = $request->next_follow_up;
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
-        $deal->package_id = $request->package_id;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->value = ($request->value) ?: 0;
         $deal->currency_id = $this->company->currency_id;
@@ -863,6 +868,13 @@ class DealController extends AccountBaseController
         Log::info('Deal update - downpayment_confirmed: ' . ($deal->downpayment_confirmed ? 'true' : 'false'));
         
         $deal->save();
+
+        // Handle packages
+        if ($request->package_id && is_array($request->package_id)) {
+            $deal->packages()->sync($request->package_id);
+        } else {
+            $deal->packages()->detach();
+        }
 
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {

@@ -77,7 +77,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 close_date: data.close_date ? dayjs(data.close_date) : null,
                 deal_watcher: data.deal_watcher || [],
                 product_id: data.product_id || [],
+                package_id: data.packages
+                    ? data.packages.map((p: any) => p.id)
+                    : data.package_id || [],
             };
+            console.log(formData, "how does deal formdata ...", data);
             setPipelineId(formData.pipeline);
             setSelectedCategoryId(formData.category_id);
             form.setFieldsValue(formData);
@@ -135,28 +139,29 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         return uniqueAgents;
     }, [selectedCategoryId, leadAgents, uniqueAgents]);
 
-    const calculateTotalValue = (currentPackageId?: number) => {
+    const calculateTotalValue = (currentPackageIds?: number[]) => {
         let total = 0;
 
         // Package value
-        const packageId =
-            currentPackageId !== undefined
-                ? currentPackageId
+        const packageIds =
+            currentPackageIds !== undefined
+                ? currentPackageIds
                 : form.getFieldValue("package_id");
-        if (packageId) {
-            const selectedPackage = packages.find(
-                (p: any) => p.id === packageId
-            );
-            if (selectedPackage) {
-                total += parseFloat(selectedPackage.value);
-            }
+
+        if (Array.isArray(packageIds)) {
+            packageIds.forEach((id) => {
+                const selectedPackage = packages.find((p: any) => p.id === id);
+                if (selectedPackage) {
+                    total += parseFloat(selectedPackage.value);
+                }
+            });
         }
 
         // form.setFieldValue("value", total);
     };
 
-    const handlePackageChange = (packageId: number) => {
-        calculateTotalValue(packageId);
+    const handlePackageChange = (packageIds: number[]) => {
+        calculateTotalValue(packageIds);
     };
 
     const handleSubmit = (values: any) => {
@@ -399,9 +404,10 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     </Col>
 
                     <Col span={24}>
-                        <Form.Item name="package_id" label="Package">
+                        <Form.Item name="package_id" label="Packages">
                             <Select
-                                placeholder="Select Package"
+                                mode="multiple"
+                                placeholder="Select Packages"
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
