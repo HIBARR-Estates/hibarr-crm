@@ -79,6 +79,13 @@ trait CustomFieldsTrait
                     $query->orderBy('display_order');
                 }])->append(['fields']);
             } catch (\Exception $e) {
+                // Log the error for debugging
+                \Log::warning('Failed to load custom field visibility rules in CustomFieldsTrait', [
+                    'error' => $e->getMessage(),
+                    'model' => $this->getModelName(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                
                 // If tables don't exist yet, load without relationships
                 $customFieldGroup->load(['customField' => function($query) {
                     $query->orderBy('display_order');

@@ -49,6 +49,12 @@ class CustomFieldController extends AccountBaseController
                 }
             ])->orderBy('custom_fields.display_order')->get();
         } catch (\Exception $e) {
+            // Log the error for debugging
+            \Log::warning('Failed to load custom field visibility rules', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             // If tables don't exist yet, load without relationships
             $this->customFields = $query->orderBy('custom_fields.display_order')->get();
         }

@@ -40,9 +40,10 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
 
     useEffect(() => {
         if (ruleSet) {
+            const enabledValue = ruleSet.enabled ?? false;
             form.setFieldsValue({
                 default_visibility: ruleSet.default_visibility,
-                enabled: ruleSet.enabled,
+                enabled: enabledValue,
                 group_operator: ruleSet.group?.group_operator ?? 'AND',
                 criteria: ruleSet.group?.criteria?.map(c => ({
                     reference_field_id: c.reference_field_id,
@@ -51,10 +52,12 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                     negate: c.negate,
                 })) ?? [],
             });
-            setEnabled(ruleSet.enabled);
+            setEnabled(enabledValue);
         } else {
             form.resetFields();
             setEnabled(false);
+            // Ensure enabled is set to false in form
+            form.setFieldValue('enabled', false);
         }
     }, [ruleSet, form]);
 
@@ -105,7 +108,12 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
     return (
         <div style={{ padding: '20px' }}>
             <Form form={form} layout="vertical">
-                <Form.Item label="Enable visibility rules">
+                <Form.Item 
+                    name="enabled"
+                    label="Enable visibility rules"
+                    valuePropName="checked"
+                    initialValue={enabled}
+                >
                     <Switch
                         checked={enabled}
                         onChange={(checked) => {

@@ -18,13 +18,17 @@ export function useCustomFieldVisibility({
     form,
     namePrefix = 'custom_fields_data',
 }: UseCustomFieldVisibilityOptions) {
-    // Watch all custom field values
-    const allFieldValues = Form.useWatch(namePrefix, form) || {};
+    // Watch all custom field values - only if form instance exists
+    const allFieldValues = form ? (Form.useWatch(namePrefix, form) || {}) : {};
 
     // Evaluate visibility for all fields
     const visibilityMap = useMemo(() => {
+        // If no form, return default visibility (all fields visible)
+        if (!form) {
+            return {};
+        }
         return evaluateAllFieldsVisibility(fields, allFieldValues);
-    }, [fields, allFieldValues]);
+    }, [fields, allFieldValues, form]);
 
     /**
      * Check if a field is visible

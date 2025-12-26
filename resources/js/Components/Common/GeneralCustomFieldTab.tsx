@@ -38,7 +38,7 @@ const GeneralCustomFieldTab = <
 
     const [otherValues, setOtherValues] = useState<Record<string, string>>({});
     
-    // Get form instance from parent Form context
+    // Get form instance from parent Form context (may be null if no Form context)
     const form = Form.useFormInstance();
     
     // Get all fields (including those from other categories) for visibility evaluation
@@ -47,10 +47,10 @@ const GeneralCustomFieldTab = <
             index === self.findIndex((f) => f.id === field.id)
     );
     
-    // Use visibility hook
+    // Use visibility hook (form may be null, hook handles this gracefully)
     const { isFieldVisible } = useCustomFieldVisibility({
         fields: allFields,
-        form: form,
+        form: form || undefined, // Convert null to undefined for type safety
         namePrefix: 'custom_fields_data',
     });
 

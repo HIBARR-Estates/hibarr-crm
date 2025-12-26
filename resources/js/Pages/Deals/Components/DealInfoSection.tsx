@@ -439,7 +439,7 @@ export default function DealInfoSection({
                 columns={taskBoardColumns}
                 users={employees}
                 projects={projects}
-                relatedEntity={{ type: "deal", id: deal.id }}
+                relatedEntity={{ type: "deal", id: currentDeal.id }}
             />
 
             <DeleteDeal

@@ -48,20 +48,34 @@ export default function CustomFieldDisplay({
 
     // Evaluate visibility for all fields
     // Convert Field[] to CustomField[] format for evaluation
-    const customFieldsForEvaluation: CustomField[] = filteredFields.map((field) => ({
-        id: typeof field.id === "string" ? parseInt(field.id) : field.id,
-        label: field.label,
-        name: `field_${field.id}`,
-        type: field.type,
-        required: "no",
-        values: field.values ? JSON.stringify(field.values) : null,
-        custom_field_group_id: 0,
-        show_table: "no",
-        field_display_name: field.label,
-        field_order: 0,
-        display_order: 0,
-        show_rule_set: field.show_rule_set,
-    }));
+    const customFieldsForEvaluation: CustomField[] = filteredFields.map((field) => {
+        // Handle values: may already be a JSON string from backend, or an object
+        let valuesString: string | null = null;
+        if (field.values) {
+            if (typeof field.values === 'string') {
+                // Already a string, use as-is (may be JSON string or plain string)
+                valuesString = field.values;
+            } else {
+                // Object/array, stringify it
+                valuesString = JSON.stringify(field.values);
+            }
+        }
+        
+        return {
+            id: typeof field.id === "string" ? parseInt(field.id) : field.id,
+            label: field.label,
+            name: `field_${field.id}`,
+            type: field.type,
+            required: "no",
+            values: valuesString,
+            custom_field_group_id: 0,
+            show_table: "no",
+            field_display_name: field.label,
+            field_order: 0,
+            display_order: 0,
+            show_rule_set: field.show_rule_set,
+        };
+    });
 
     const visibilityMap = evaluateAllFieldsVisibility(
         customFieldsForEvaluation,
