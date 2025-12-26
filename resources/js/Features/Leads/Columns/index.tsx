@@ -1,12 +1,7 @@
 import { Link } from "@inertiajs/react";
 import { Button, Dropdown, MenuProps, Tag, Tooltip, Avatar } from "antd";
 import { ColumnsType } from "antd/lib/table";
-import {
-    MoreOutlined,
-    UserOutlined,
-    MailOutlined,
-    PhoneOutlined,
-} from "@ant-design/icons";
+import { MoreOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
 import { Lead } from "@/Types/api/leads";
 import dayjs from "dayjs";
 import UserIndicator from "@/Components/UserIndicator";
@@ -18,7 +13,7 @@ export const LEAD_TABLE_COLUMNS = (
     {
         title: (
             <span className="flex items-center">
-                Contact Name
+                Lead Name
                 <PageDataSorter
                     field="client_name"
                     routeName="lead-contact.index"
@@ -51,7 +46,7 @@ export const LEAD_TABLE_COLUMNS = (
         ),
     },
     {
-        title: "Contact Details",
+        title: "Lead Details",
         dataIndex: "contact_details",
         key: "contact_details",
         width: 200,
