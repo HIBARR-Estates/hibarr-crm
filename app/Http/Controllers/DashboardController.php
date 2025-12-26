@@ -118,6 +118,23 @@ class DashboardController extends AccountBaseController
                       ->orWhere('lead_owner', $userId);
             });
         };
+
+        // Get upcoming meetings
+        $meetingsQuery = \App\Models\DealFollowUp::with([
+            'deal:id,name,lead_id',
+            'deal.contact:id,client_name,client_email,mobile',
+            'deal.leadAgent.user:id,name,image'
+        ])
+        ->where('next_follow_up_date', '>=', now())
+        // ->where('status', 'incomplete')
+        ->orderBy('next_follow_up_date', 'asc');
+
+        // Apply constraints
+        $meetingsQuery->whereHas('deal', function($q) use ($dealsConstraint) {
+            $dealsConstraint($q);
+        });
+
+        $upcomingMeetings = $meetingsQuery->take(5)->get();
         
         // Get upcoming tasks ordered by due date
         $tasksQuery = Task::with([
@@ -670,6 +687,7 @@ class DashboardController extends AccountBaseController
 
         return Inertia::render('Dashboard/ComprehensiveDashboard', array_merge([
             'tasks' => $tasks,
+            'upcomingMeetings' => $upcomingMeetings,
             'deals' => $allDeals,
             'recentDeals' => $recentDeals,
             'poorDataQualityDeals' => $poorDataQualityDeals,

@@ -5,6 +5,7 @@ import { Row, Col, message } from "antd";
 
 import OverviewMetricsBar from "@/Features/Dashboard/Components/OverviewMetricsBar";
 import TasksActivitiesPanel from "@/Features/Dashboard/Components/TasksActivitiesPanel";
+import MeetingsPanel from "@/Features/Dashboard/Components/MeetingsPanel";
 import DataQualityPanel from "@/Features/Dashboard/Components/DataQualityPanel";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -141,6 +142,7 @@ interface DataQualityStats {
 
 interface ComprehensiveDashboardProps extends PageProps {
     tasks: Task[];
+    upcomingMeetings: any[];
     deals: Deal[];
     recentDeals: Deal[];
     poorDataQualityDeals: DataQualityRecord[];
@@ -156,6 +158,7 @@ interface ComprehensiveDashboardProps extends PageProps {
 
 const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     tasks,
+    upcomingMeetings,
     deals,
     recentDeals,
     poorDataQualityDeals,
@@ -313,19 +316,35 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
 
                             {/* Main Workflow Panels */}
                             <Row gutter={[24, 24]} className="mb-8">
-                                {/* Tasks & Activities Panel */}
+                                {/* Meetings & Tasks Panel */}
                                 <Col xs={24} lg={8}>
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -50 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{
-                                            duration: 0.7,
-                                            delay: 0.2,
-                                        }}
-                                        className="h-full"
-                                    >
-                                        <TasksActivitiesPanel tasks={tasks} />
-                                    </motion.div>
+                                    <div className="flex flex-col gap-6">
+                                        <motion.div
+                                            initial={{ opacity: 0, x: -50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{
+                                                duration: 0.7,
+                                                delay: 0.2,
+                                            }}
+                                        >
+                                            <MeetingsPanel
+                                                meetings={upcomingMeetings}
+                                            />
+                                        </motion.div>
+
+                                        <motion.div
+                                            initial={{ opacity: 0, x: -50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{
+                                                duration: 0.7,
+                                                delay: 0.3,
+                                            }}
+                                        >
+                                            <TasksActivitiesPanel
+                                                tasks={tasks}
+                                            />
+                                        </motion.div>
+                                    </div>
                                 </Col>
 
                                 {/* Data Quality Panel */}
