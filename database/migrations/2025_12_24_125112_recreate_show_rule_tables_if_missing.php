@@ -30,6 +30,8 @@ return new class extends Migration
                 $table->id();
                 $table->unsignedBigInteger('rule_set_id');
                 $table->enum('group_operator', ['AND', 'OR'])->default('AND');
+                $table->boolean('enabled')->default(true);
+                $table->enum('visibility_action', ['show', 'hide'])->default('show');
                 $table->timestamps();
                 
                 $table->foreign('rule_set_id')->references('id')->on('show_rule_sets')->onDelete('cascade');

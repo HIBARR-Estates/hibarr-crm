@@ -409,14 +409,13 @@ const GeneralCustomFieldTab = <
         );
     }
 
+    // Filter out hidden fields before rendering to avoid layout issues
+    const visibleFields = categoryFields.filter((field: any) => isFieldVisible(field.id));
+
     return (
         <div className="space-y-6">
             <Row gutter={[24, 16]}>
-                {categoryFields.map((field: any) => {
-                    // Check visibility before rendering the Col wrapper
-                    if (!isFieldVisible(field.id)) {
-                        return null;
-                    }
+                {visibleFields.map((field: any) => {
                     const fieldElement = renderField(field);
                     if (!fieldElement) return null;
                     

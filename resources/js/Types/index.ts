@@ -342,13 +342,17 @@ export interface ShowRuleSet {
     field_id: number;
     default_visibility: boolean;
     enabled: boolean;
-    group?: ShowRuleGroup;
+    groups_operator?: 'AND' | 'OR'; // How to combine multiple groups
+    group?: ShowRuleGroup; // For backward compatibility (single group)
+    groups?: ShowRuleGroup[]; // Multiple groups support
 }
 
 export interface ShowRuleGroup {
     id: number;
     rule_set_id: number;
     group_operator: 'AND' | 'OR';
+    enabled?: boolean; // Whether this group is enabled
+    visibility_action?: 'show' | 'hide'; // Whether this group shows or hides the field when it matches
     criteria?: ShowCriterion[];
 }
 

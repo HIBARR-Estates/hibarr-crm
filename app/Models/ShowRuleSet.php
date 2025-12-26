@@ -13,11 +13,25 @@ class ShowRuleSet extends Model
         'field_id',
         'default_visibility',
         'enabled',
+        'groups_operator',
     ];
 
     protected $casts = [
         'default_visibility' => 'boolean',
         'enabled' => 'boolean',
+    ];
+    
+    /**
+     * The attributes that should be visible in serialization.
+     */
+    protected $visible = [
+        'id',
+        'field_id',
+        'default_visibility',
+        'enabled',
+        'groups_operator',
+        'groups',
+        'group', // For backward compatibility
     ];
 
     /**
@@ -41,6 +55,6 @@ class ShowRuleSet extends Model
      */
     public function groups(): HasMany
     {
-        return $this->hasMany(ShowRuleGroup::class, 'rule_set_id');
+        return $this->hasMany(ShowRuleGroup::class, 'rule_set_id')->orderBy('id');
     }
 }

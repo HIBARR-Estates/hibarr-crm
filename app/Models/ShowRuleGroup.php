@@ -11,6 +11,12 @@ class ShowRuleGroup extends Model
     protected $fillable = [
         'rule_set_id',
         'group_operator',
+        'enabled',
+        'visibility_action',
+    ];
+
+    protected $casts = [
+        'enabled' => 'boolean',
     ];
 
     /**

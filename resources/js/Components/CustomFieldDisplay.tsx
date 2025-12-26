@@ -1,5 +1,7 @@
 import { Descriptions, Tag } from "antd";
 import dayjs from "dayjs";
+import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { CustomField } from "@/Types";
 
 interface Field {
     id: string | number;
@@ -7,6 +9,7 @@ interface Field {
     type: string;
     values?: Record<string, string>;
     custom_field_category_id?: string | number;
+    show_rule_set?: any; // Visibility rules
 }
 
 interface Props {
@@ -23,11 +26,53 @@ export default function CustomFieldDisplay({
     column = 2,
 }: Props) {
     // Filter fields by category if categoryId is provided
-    const filteredFields = categoryId
+    let filteredFields = categoryId
         ? fields.filter(
               (field) => field.custom_field_category_id === categoryId
           )
         : fields;
+
+    // Apply visibility rules if customFieldsData is provided
+    // Convert customFieldsData to the format expected by visibility evaluator
+    const fieldValuesForVisibility: Record<string, any> = {};
+    if (customFieldsData) {
+        Object.keys(customFieldsData).forEach((key) => {
+            // Ensure keys are in format "field_47"
+            if (key.startsWith("field_")) {
+                fieldValuesForVisibility[key] = customFieldsData[key];
+            } else {
+                fieldValuesForVisibility[`field_${key}`] = customFieldsData[key];
+            }
+        });
+    }
+
+    // Evaluate visibility for all fields
+    // Convert Field[] to CustomField[] format for evaluation
+    const customFieldsForEvaluation: CustomField[] = filteredFields.map((field) => ({
+        id: typeof field.id === "string" ? parseInt(field.id) : field.id,
+        label: field.label,
+        name: `field_${field.id}`,
+        type: field.type,
+        required: "no",
+        values: field.values ? JSON.stringify(field.values) : null,
+        custom_field_group_id: 0,
+        show_table: "no",
+        field_display_name: field.label,
+        field_order: 0,
+        display_order: 0,
+        show_rule_set: field.show_rule_set,
+    }));
+
+    const visibilityMap = evaluateAllFieldsVisibility(
+        customFieldsForEvaluation,
+        fieldValuesForVisibility
+    );
+
+    // Filter out fields that are not visible
+    filteredFields = filteredFields.filter((field) => {
+        const fieldId = typeof field.id === "string" ? parseInt(field.id) : field.id;
+        return visibilityMap[fieldId] !== false;
+    });
 
     // Calculate optimal span based on content length and field type
     const calculateSpan = (field: Field, value: any): number => {

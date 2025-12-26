@@ -77,6 +77,12 @@
                             :checked="$field->export == 1" />
                     </div>
                 </div>
+                <div class="col-lg-6">
+                    <div class="form-group my-5">
+                        <x-forms.checkbox fieldId="important" :fieldLabel="__('app.important')" fieldName="important" fieldValue="1"
+                            :checked="$field->important == 1" />
+                    </div>
+                </div>
                 <div class="col-md-4">
                     <x-forms.number class="" :fieldLabel="__('modules.customFields.displayOrder')" fieldName="display_order" fieldId="display_order" 
                         :fieldValue="$field->display_order ?? 0" :fieldPlaceholder="__('modules.customFields.displayOrderPlaceholder')" />

@@ -17,7 +17,17 @@ class CustomFieldVisibilityService
      */
     public function evaluate(int $fieldId, array $currentValues): bool
     {
-        $field = CustomField::with(['showRuleSet.group.criteria.referenceField'])->find($fieldId);
+        // Load rule set with only enabled groups to improve performance
+        $field = CustomField::with([
+            'showRuleSet' => function($query) {
+                $query->with([
+                    'groups' => function($q) {
+                        // Only load enabled groups to reduce data
+                        $q->where('enabled', true)->with('criteria.referenceField');
+                    }
+                ]);
+            }
+        ])->find($fieldId);
         
         if (!$field || !$field->showRuleSet) {
             return true; // Default: visible if no rules
@@ -30,30 +40,78 @@ class CustomFieldVisibilityService
             return $ruleSet->default_visibility;
         }
 
-        // If no groups, use default visibility
-        if (!$ruleSet->group || $ruleSet->group->criteria->isEmpty()) {
+        // Groups are already loaded via eager loading (only enabled ones)
+        $groups = $ruleSet->groups;
+
+        // If no groups or all groups are empty, use default visibility
+        if ($groups->isEmpty() || $groups->every(fn($g) => $g->criteria->isEmpty())) {
             return $ruleSet->default_visibility;
         }
 
-        $group = $ruleSet->group;
-        $criteriaResults = [];
+        $showGroupResults = [];
+        $hideGroupResults = [];
 
-        // Evaluate each criterion in the group
-        foreach ($group->criteria as $criterion) {
-            $referenceValue = $currentValues['field_' . $criterion->reference_field_id] ?? null;
-            $result = $this->evaluateCriterion($criterion, $referenceValue);
+        // Evaluate each group
+        foreach ($groups as $group) {
+            // Skip disabled groups (default to enabled if not set for backward compatibility)
+            if (isset($group->enabled) && $group->enabled === false) {
+                continue;
+            }
             
-            // Apply negation if needed
-            $criteriaResults[] = $criterion->negate ? !$result : $result;
+            // If enabled is not set, treat as enabled (backward compatibility)
+            // This handles old groups that don't have the enabled field yet
+            
+            if ($group->criteria->isEmpty()) {
+                continue; // Skip empty groups
+            }
+
+            $criteriaResults = [];
+
+            // Evaluate each criterion in the group
+            foreach ($group->criteria as $criterion) {
+                $referenceValue = $currentValues['field_' . $criterion->reference_field_id] ?? null;
+                $result = $this->evaluateCriterion($criterion, $referenceValue);
+                
+                // Apply negation if needed
+                $criteriaResults[] = $criterion->negate ? !$result : $result;
+            }
+
+            // Combine criteria within group based on group_operator
+            if ($group->group_operator === 'OR') {
+                // At least one criterion must pass (OR logic)
+                // If any criterion is true, the group passes
+                $groupResult = in_array(true, $criteriaResults, true);
+            } else {
+                // All criteria must pass (AND logic)
+                $groupResult = !empty($criteriaResults) && !in_array(false, $criteriaResults, true);
+            }
+
+            // Separate groups by their visibility action
+            $visibilityAction = $group->visibility_action ?? 'show'; // Default to 'show' for backward compatibility
+            if ($visibilityAction === 'hide') {
+                $hideGroupResults[] = $groupResult;
+            } else {
+                $showGroupResults[] = $groupResult;
+            }
         }
 
-        // Combine criteria based on group operator
-        if ($group->group_operator === 'OR') {
-            // At least one criterion must pass
-            $groupResult = !empty($criteriaResults) && in_array(true, $criteriaResults, true);
+        // Hide groups take absolute precedence - if ANY hide group matches, field is hidden
+        // This is independent of the groups_operator - hide groups always work with OR logic
+        // (if one group says hide, the field is hidden, regardless of other groups)
+        if (!empty($hideGroupResults) && in_array(true, $hideGroupResults, true)) {
+            return false; // Field is hidden if any hide group matches
+        }
+
+        // Otherwise, evaluate show groups
+        if (empty($showGroupResults)) {
+            // No show groups, use default visibility
+            $finalResult = $ruleSet->default_visibility;
+        } else if ($groupsOperator === 'OR') {
+            // At least one show group must pass
+            $finalResult = in_array(true, $showGroupResults, true);
         } else {
-            // All criteria must pass (AND logic)
-            $groupResult = !empty($criteriaResults) && !in_array(false, $criteriaResults, true);
+            // All show groups must pass (AND logic)
+            $finalResult = !in_array(false, $showGroupResults, true);
         }
 
         // Check for exclusion conditions: if "Residential" AND "Immigration/Exit Plan" are both selected, hide the field
@@ -62,7 +120,7 @@ class CustomFieldVisibilityService
             return false; // Force hide if exclusion condition is met
         }
 
-        return $groupResult;
+        return $finalResult;
     }
 
     /**
@@ -79,6 +137,16 @@ class CustomFieldVisibilityService
 
         switch ($operator) {
             case 'equals':
+                // Handle arrays (for checkbox fields) - check if the value is in the array
+                if (is_array($fieldValue)) {
+                    // Check if referenceValue is in the array (case-insensitive)
+                    foreach ($fieldValue as $val) {
+                        if (strtolower(trim((string)$val)) === strtolower(trim((string)$referenceValue))) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
                 return (string)$fieldValue === (string)$referenceValue;
 
             case 'exists':
@@ -127,17 +195,21 @@ class CustomFieldVisibilityService
     protected function checkExclusionConditions(array $currentValues): ?bool
     {
         // Check if "Residential" and "Immigration/Exit Plan" are both selected
-        // Look through all field values for checkbox arrays containing these values
-        $hasResidential = false;
-        $hasImmigrationExitPlan = false;
-
+        // IMPORTANT: Only apply exclusion if both values are in the SAME field
+        // This prevents hiding fields when "Residential" is in "Purpose of Investment" 
+        // and "Immigration/Exit Plan" is in a different field like "Residential" section
+        
         foreach ($currentValues as $fieldKey => $fieldValue) {
+            $hasResidential = false;
+            $hasImmigrationExitPlan = false;
+            
             // Handle checkbox arrays
             if (is_array($fieldValue)) {
-                // Check if array contains "Residential" (case-insensitive)
+                // Check if THIS SPECIFIC FIELD contains both values
                 foreach ($fieldValue as $value) {
                     $valueStr = is_string($value) ? strtolower(trim($value)) : '';
-                    if (strpos($valueStr, 'residential') !== false) {
+                    if (strpos($valueStr, 'residential') !== false && strpos($valueStr, 'immigration') === false) {
+                        // Check it's just "Residential", not "Residential" section options
                         $hasResidential = true;
                     }
                     if (strpos($valueStr, 'immigration') !== false && strpos($valueStr, 'exit') !== false) {
@@ -152,7 +224,7 @@ class CustomFieldVisibilityService
             } else {
                 // Handle string values (comma-separated checkbox values)
                 $valueStr = is_string($fieldValue) ? strtolower(trim($fieldValue)) : '';
-                if (strpos($valueStr, 'residential') !== false) {
+                if (strpos($valueStr, 'residential') !== false && strpos($valueStr, 'immigration') === false) {
                     $hasResidential = true;
                 }
                 if (strpos($valueStr, 'immigration') !== false && strpos($valueStr, 'exit') !== false) {
@@ -163,11 +235,11 @@ class CustomFieldVisibilityService
                     $hasImmigrationExitPlan = true;
                 }
             }
-        }
-
-        // If both are selected, return false to force hide
-        if ($hasResidential && $hasImmigrationExitPlan) {
-            return false;
+            
+            // Only apply exclusion if BOTH values are in the SAME field
+            if ($hasResidential && $hasImmigrationExitPlan) {
+                return false; // Force hide if both are in the same field
+            }
         }
 
         // No exclusion condition met, continue with normal evaluation

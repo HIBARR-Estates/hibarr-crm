@@ -60,7 +60,14 @@ class CustomFieldGroup extends BaseModel
      */
     public function customFieldWithRules(): HasMany
     {
-        return $this->HasMany(CustomField::class)->with('showRuleSet.group.criteria.referenceField');
+        return $this->HasMany(CustomField::class)->with([
+            'showRuleSet' => function($query) {
+                // Only load enabled groups to improve performance (rule sets still loaded to check enabled status)
+                $query->with(['groups' => function($q) {
+                    $q->where('enabled', true)->orderBy('id')->with('criteria.referenceField');
+                }]);
+            }
+        ]);
     }
 
     public function customFieldCategories(): HasMany
@@ -111,10 +118,7 @@ class CustomFieldGroup extends BaseModel
                 return $fields->map(function ($item) {
                     if (in_array($item->type, ['select', 'radio'])) {
                         $item->values = json_decode($item->values);
-
-                        return $item;
                     }
-
                     return $item;
                 });
             },
