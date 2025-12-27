@@ -118,6 +118,23 @@ class DashboardController extends AccountBaseController
                       ->orWhere('lead_owner', $userId);
             });
         };
+
+        // Get upcoming meetings
+        $meetingsQuery = \App\Models\DealFollowUp::with([
+            'deal:id,name,lead_id',
+            'deal.contact:id,client_name,client_email,mobile',
+            'deal.leadAgent.user:id,name,image'
+        ])
+        ->where('next_follow_up_date', '>=', now())
+        // ->where('status', 'incomplete')
+        ->orderBy('next_follow_up_date', 'asc');
+
+        // Apply constraints
+        $meetingsQuery->whereHas('deal', function($q) use ($dealsConstraint) {
+            $dealsConstraint($q);
+        });
+
+        $upcomingMeetings = $meetingsQuery->take(5)->get();
         
         // Get upcoming tasks ordered by due date
         $tasksQuery = Task::with([
@@ -205,7 +222,7 @@ class DashboardController extends AccountBaseController
             'category:id,category_name',
             'leadAgent.user:id,name,image',
             'products:id,name',
-            'package:id,name'
+            'packages:id,name'
         ])->orderBy('updated_at', 'desc');
 
         // Apply strict filtering for deals
@@ -222,7 +239,12 @@ class DashboardController extends AccountBaseController
                     'lead_pipeline_id' => $deal->lead_pipeline_id,
                     'probability' => $deal->probability,
                     'products_count' => $deal->products->count(),
-                    'package_id' => $deal->package_id,
+                    'packages' => $deal->packages->map(function($package) {
+                        return [
+                            'id' => $package->id,
+                            'name' => $package->name
+                        ];
+                    }),
                     'contact' => $deal->contact ? [
                         'id' => $deal->contact->id,
                         'client_name' => $deal->contact->client_name,
@@ -289,12 +311,12 @@ class DashboardController extends AccountBaseController
 
             // Check package
             $totalFields++;
-            if ($deal['package_id']) {
+            if (!empty($deal['packages']) && count($deal['packages']) > 0) {
                 $filledFields++;
             } else {
                 $missingFields[] = 'Package';
                 $dataIssues[] = [
-                    'field' => 'package_id',
+                    'field' => 'packages',
                     'issue' => 'No package selected',
                     'severity' => 'high',
                     'suggestion' => 'Select a package for the deal'
@@ -665,6 +687,7 @@ class DashboardController extends AccountBaseController
 
         return Inertia::render('Dashboard/ComprehensiveDashboard', array_merge([
             'tasks' => $tasks,
+            'upcomingMeetings' => $upcomingMeetings,
             'deals' => $allDeals,
             'recentDeals' => $recentDeals,
             'poorDataQualityDeals' => $poorDataQualityDeals,

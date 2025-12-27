@@ -37,6 +37,8 @@ class StoreRequest extends CoreRequest
         $rules['value'] = 'required';
         $rules['deal_watcher'] = 'nullable|array';
         $rules['deal_watcher.*'] = 'exists:users,id';
+        $rules['package_id'] = 'nullable|array';
+        $rules['package_id.*'] = 'exists:packages,id';
 
         $rules = $this->customFieldRules($rules);
 

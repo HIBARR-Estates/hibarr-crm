@@ -114,13 +114,13 @@ export const LEAD_TABLE_COLUMNS = (
         key: "source",
         width: 120,
         render: (_, record) => {
-            if (!record.leadSource)
+            if (!record.lead_source)
                 return <span className="text-gray-400">--</span>;
 
             return (
-                <Tooltip title={record.leadSource.type}>
+                <Tooltip title={record.lead_source.type}>
                     <Tag className="truncate max-w-full">
-                        {record.leadSource.type}
+                        {record.lead_source.type}
                     </Tag>
                 </Tooltip>
             );
