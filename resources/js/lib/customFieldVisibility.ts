@@ -38,7 +38,23 @@ function evaluateCriterion(
             break;
 
         case 'boolean':
-            result = Boolean(fieldValue);
+            // Parse boolean value to match PHP's filter_var(..., FILTER_VALIDATE_BOOLEAN) behavior
+            if (typeof fieldValue === 'boolean') {
+                result = fieldValue;
+            } else if (typeof fieldValue === 'number') {
+                result = Boolean(fieldValue);
+            } else if (typeof fieldValue === 'string') {
+                const normalized = fieldValue.trim().toLowerCase();
+                // PHP FILTER_VALIDATE_BOOLEAN returns true for: "1", "true", "on", "yes"
+                // Returns false for: "0", "false", "off", "no", and any other value
+                result = normalized === '1' || 
+                         normalized === 'true' || 
+                         normalized === 'on' || 
+                         normalized === 'yes';
+            } else {
+                // For other types (null, undefined, objects, arrays), treat as false to match PHP
+                result = false;
+            }
             break;
 
         case '>':

@@ -36,16 +36,14 @@ const GeneralCustomFieldTab = <
     const { props } = usePage<any>();
     const { customFields = [], countries, dealCustomFields = [] } = props;
 
-    // Get form instance and watch custom_fields_data for real-time visibility updates
+    // Get form instance from parent Form context (may be null if no Form context)
+    // Call hook once at top level to comply with Rules of Hooks
     const form = Form.useFormInstance();
     const watchedCustomFieldsData = Form.useWatch("custom_fields_data", form);
     const currentCustomFieldsData =
         watchedCustomFieldsData || data?.custom_fields_data || {};
 
     const [otherValues, setOtherValues] = useState<Record<string, string>>({});
-    
-    // Get form instance from parent Form context (may be null if no Form context)
-    const form = Form.useFormInstance();
     
     // Get all fields (including those from other categories) for visibility evaluation
     const allFields = customFields.concat(dealCustomFields).filter(

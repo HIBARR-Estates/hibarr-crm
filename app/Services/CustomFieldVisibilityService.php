@@ -239,7 +239,7 @@ class CustomFieldVisibilityService
         // This prevents hiding fields when "Residential" is in "Purpose of Investment" 
         // and "Immigration/Exit Plan" is in a different field like "Residential" section
         
-        foreach ($currentValues as $fieldKey => $fieldValue) {
+        foreach ($currentValues as $fieldValue) {
             $hasResidential = false;
             $hasImmigrationExitPlan = false;
             
