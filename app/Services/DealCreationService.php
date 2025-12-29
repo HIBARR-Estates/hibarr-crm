@@ -201,7 +201,7 @@ class DealCreationService
             }
         }
         
-        $packageId = $this->resolvePackageId($request, $companyId);
+        $packageIds = $this->resolvePackageId($request, $companyId);
         
         // Wrap in try-catch to ensure locks are released on any error
         // Note: DB transaction starts inside the try block, so rollbacks only occur
@@ -227,7 +227,7 @@ class DealCreationService
                 ]);
             }
             
-            $result = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $contactLockKey, $startTime, $pipelineId, $firstStageId, $agentId, $packageId, &$currentHash, &$hashChanged, &$isNewDeal, &$newCacheKey, &$newLockAcquired) {
+            $result = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $contactLockKey, $startTime, $pipelineId, $firstStageId, $agentId, $packageIds, &$currentHash, &$hashChanged, &$isNewDeal, &$newCacheKey, &$newLockAcquired) {
                 // Helper function to refresh cache locks if needed 
                 // Refresh if we're within threshold of expiration to prevent mid-transaction expiration
                 // Note: $newCacheKey and $newLockAcquired are captured by reference so they see updates when hash changes
@@ -355,8 +355,9 @@ class DealCreationService
                 // Save quietly to bypass observers
                 $deal->saveQuietly();
                 
-                if ($packageId) {
-                    $deal->packages()->syncWithoutDetaching([$packageId]);
+                // Attach packages using pivot table relationship (package_id column was removed in migration 2025_12_26_000002)
+                if (!empty($packageIds)) {
+                    $deal->packages()->syncWithoutDetaching($packageIds);
                 }
 
                 // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
@@ -829,32 +830,50 @@ class DealCreationService
     }
 
     /**
-     * Resolve package_id from package_id or package_name.
+     * Resolve package_ids from package_id (array) or package_name.
      *
      * @param Request $request
      * @param int $companyId
-     * @return int|null
+     * @return array
      */
-    private function resolvePackageId(Request $request, int $companyId): ?int
+    private function resolvePackageId(Request $request, int $companyId): array
     {
-        // First check if package_id is provided directly
-        $packageId = $request->input('package_id');
-        if ($request->has('package_id') && is_numeric($packageId)) {
-            $package = Package::where('company_id', $companyId)->where('id', $packageId)->first();
-            if ($package) {
-                return $package->id;
+        $packageIds = [];
+        
+        // First check if package_id is provided as an array
+        if ($request->has('package_id')) {
+            $packageIdInput = $request->input('package_id');
+            
+            // Handle array input
+            if (is_array($packageIdInput)) {
+                $packageIds = array_filter(array_map('intval', $packageIdInput));
+                // Validate that all package IDs exist and belong to the company
+                if (!empty($packageIds)) {
+                    $validPackages = Package::where('company_id', $companyId)
+                        ->whereIn('id', $packageIds)
+                        ->pluck('id')
+                        ->toArray();
+                    return $validPackages;
+                }
+            }
+            // Handle single integer (backward compatibility)
+            elseif (is_numeric($packageIdInput)) {
+                $package = Package::where('company_id', $companyId)->where('id', $packageIdInput)->first();
+                if ($package) {
+                    return [$package->id];
+                }
             }
         }
 
-        // Fallback to package_name if provided
+        // Fallback to package_name if provided (single package by name)
         if ($request->has('package_name')) {
             $package = Package::where('company_id', $companyId)->where('name', $request->input('package_name'))->first();
             if ($package) {
-                return $package->id;
+                return [$package->id];
             }
         }
 
-        return null;
+        return [];
     }
 
     /**

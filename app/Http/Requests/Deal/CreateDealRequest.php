@@ -34,7 +34,8 @@ class CreateDealRequest extends CoreRequest
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
             
             // Optional deal fields
-            'package_id' => 'nullable|integer|exists:packages,id',
+            'package_id' => 'nullable|array',
+            'package_id.*' => 'integer|exists:packages,id',
             'pipeline_id' => 'nullable|integer|exists:lead_pipelines,id',
             'pipeline_stage_id' => 'nullable|integer|exists:pipeline_stages,id',
             'deal_owner_id' => 'nullable|integer|exists:users,id',
@@ -86,7 +87,7 @@ class CreateDealRequest extends CoreRequest
             'email.required' => 'The contact email is required.',
             'email.email' => 'The contact email must be a valid email address.',
             'lead_source_id.exists' => 'The selected lead source does not exist.',
-            'package_id.exists' => 'The selected package does not exist.',
+            'package_id.*.exists' => 'One or more selected packages do not exist.',
             'pipeline_id.exists' => 'The selected pipeline does not exist.',
             'pipeline_stage_id.exists' => 'The selected pipeline stage does not exist.',
             'deal_owner_id.exists' => 'The selected deal owner does not exist.',
