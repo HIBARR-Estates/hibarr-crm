@@ -8,7 +8,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 
 class ProcessDealRequestJob implements ShouldQueue
 {
@@ -58,6 +60,11 @@ class ProcessDealRequestJob implements ShouldQueue
      */
     public function handle(DealCreationService $service)
     {
+        // Clear any existing auth/session context to ensure clean state
+        // Queue jobs should not rely on HTTP request context
+        Auth::logout();
+        Session::flush();
+        
         try {
             $service->processDeal(
                 $this->contactId,
@@ -74,6 +81,10 @@ class ProcessDealRequestJob implements ShouldQueue
             
             // Re-throw to trigger retry mechanism
             throw $e;
+        } finally {
+            // Ensure context is cleared even if an exception occurs
+            Auth::logout();
+            Session::flush();
         }
     }
 }

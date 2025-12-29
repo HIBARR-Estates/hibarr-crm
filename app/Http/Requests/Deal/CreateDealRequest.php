@@ -17,6 +17,22 @@ class CreateDealRequest extends CoreRequest
     }
 
     /**
+     * Prepare the data for validation.
+     * Normalize package_id to always be an array for consistent validation.
+     *
+     * @return void
+     */
+    protected function prepareForValidation()
+    {
+        // Convert single package_id integer to array for backward compatibility
+        if ($this->has('package_id') && !is_array($this->package_id) && is_numeric($this->package_id)) {
+            $this->merge([
+                'package_id' => [(int) $this->package_id]
+            ]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array
