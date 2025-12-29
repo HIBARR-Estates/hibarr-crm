@@ -83,8 +83,11 @@ class TaskController extends AccountBaseController
         $taskRules = [
             'added' => 'added_by',
             'owned' => function($q, $user) {
-                $q->whereHas('users', function ($query) use ($user) {
-                    $query->where('created_by', $user->id);
+                $q->where(function($query) use ($user) {
+                    $query->where('added_by', $user->id)
+                        ->orWhereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
                 });
             }
         ];
