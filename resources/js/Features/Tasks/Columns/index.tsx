@@ -278,7 +278,7 @@ export const useTasksTableColumns = ({
                     (permissions?.edit_tasks === "both" &&
                         (record.added_by === userId ||
                             record.users?.some((u) => u.id === userId)));
-
+                // Check permission before displaying the ability to delete a task
                 const canDelete =
                     permissions?.delete_tasks === "all" ||
                     (permissions?.delete_tasks === "added" &&
