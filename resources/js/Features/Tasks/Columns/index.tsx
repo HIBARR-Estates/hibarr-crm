@@ -301,6 +301,7 @@ export const useTasksTableColumns = ({
                         icon: <EditOutlined />,
                         label: "Edit Task",
                         onClick: () => onEdit(record),
+                        //
                         // disabled: !canEdit,
                     },
                     {
