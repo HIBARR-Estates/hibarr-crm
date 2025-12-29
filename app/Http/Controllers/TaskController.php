@@ -83,8 +83,11 @@ class TaskController extends AccountBaseController
         $taskRules = [
             'added' => 'added_by',
             'owned' => function($q, $user) {
-                $q->whereHas('users', function ($query) use ($user) {
-                    $query->where('created_by', $user->id);
+                $q->where(function($query) use ($user) {
+                    $query->where('added_by', $user->id)
+                        ->orWhereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
                 });
             }
         ];
@@ -125,14 +128,14 @@ class TaskController extends AccountBaseController
         // Apply assignee filter
         if (request()->filled('assigned_to') && request('assigned_to') !== 'all') {
             $tasksQuery->whereHas('users', function ($query) {
-                $query->where('user_id', request('assigned_to'));
+                $query->where('users.id', request('assigned_to'));
             });
         }
 
         // Apply labels filter
         if (request()->filled('labels') && is_array(request('labels'))) {
             $tasksQuery->whereHas('labels', function ($query) {
-                $query->whereIn('task_label_id', request('labels'));
+                $query->whereIn('id', request('labels'));
             });
         }
 
@@ -1003,7 +1006,7 @@ class TaskController extends AccountBaseController
 
     public function update(UpdateTask $request, $id)
     {
-        $task = Task::with('users', 'label', 'project')->findOrFail($id)->withCustomFields();
+        $task = Task::with('users', 'label', 'project')->findOrFail($id);
         $editTaskPermission = user()->permission('edit_tasks');
         $taskUsers = $task->users->pluck('id')->toArray();
 

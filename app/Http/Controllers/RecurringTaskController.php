@@ -729,7 +729,7 @@ class RecurringTaskController extends AccountBaseController
 
     public function update(UpdateTask $request, $id)
     {
-        $task = Task::with('users', 'label', 'project')->findOrFail($id)->withCustomFields();
+        $task = Task::with('users', 'label', 'project')->findOrFail($id);
         $editTaskPermission = user()->permission('edit_tasks');
         $taskUsers = $task->users->pluck('id')->toArray();
 
