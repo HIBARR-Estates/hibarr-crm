@@ -248,7 +248,7 @@ class ProductController extends AccountBaseController
      */
     public function update(UpdateProductRequest $request, $id)
     {
-        $product = Product::findOrFail($id)->withCustomFields();
+        $product = Product::findOrFail($id);
         $this->editPermission = user()->permission('edit_product');
 
         abort_403(!($this->editPermission == 'all' || ($this->editPermission == 'added' && $product->added_by == user()->id)));
