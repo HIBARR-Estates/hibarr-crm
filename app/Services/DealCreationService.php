@@ -955,7 +955,9 @@ class DealCreationService
         // Update custom fields if we have any data
         if (!empty($customFieldsData)) {
             try {
-                $deal->updateCustomFieldData($customFieldsData);
+                // Pass company_id to ensure correct date formatting for date-type custom fields
+                // This prevents issues when company() helper returns a different company
+                $deal->updateCustomFieldData($customFieldsData, $deal->company_id);
             } catch (\Exception $e) {
                 Log::error('DealCreationService: Error updating custom fields', [
                     'deal_id' => $deal->id,
