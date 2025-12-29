@@ -463,13 +463,24 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                     mode="multiple"
                                     placeholder="Select assignees"
                                     showSearch
-                                    filterOption={(input, option) =>
-                                        option?.children
-                                            ?.toString()
-                                            .toLowerCase()
-                                            .includes(input.toLowerCase()) ??
-                                        false
-                                    }
+                                    filterOption={(input, option) => {
+                                        const user = users.find(
+                                            (u) => u.id === option?.value
+                                        );
+                                        return (
+                                            user?.name
+                                                ?.toLowerCase()
+                                                .includes(
+                                                    input.toLowerCase()
+                                                ) ||
+                                            user?.designation_name
+                                                ?.toLowerCase()
+                                                .includes(
+                                                    input.toLowerCase()
+                                                ) ||
+                                            false
+                                        );
+                                    }}
                                 >
                                     {users.map((user) => (
                                         <Option key={user.id} value={user.id}>
