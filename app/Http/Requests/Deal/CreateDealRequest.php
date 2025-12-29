@@ -44,14 +44,16 @@ class CreateDealRequest extends CoreRequest
         $companyId = $this->header('X-COMPANY-ID');
         if (!$companyId && function_exists('company')) {
             $company = company();
-            // company() returns Company model or false, check if it's an object with id property
-            if ($company && is_object($company) && property_exists($company, 'id')) {
+            // company() returns Company model (Eloquent) or false
+            // Use isset() to check for magic property access, which works with Eloquent models
+            if ($company && is_object($company) && isset($company->id)) {
                 $companyId = $company->id;
             }
         }
         $companyId = $companyId ? (int) $companyId : null;
         
         // Build package validation rule with company scope
+        // Security: Require company context - fail validation if companyId is not available
         $packageRule = 'integer';
         if ($companyId) {
             $packageRule = [
@@ -61,8 +63,13 @@ class CreateDealRequest extends CoreRequest
                 })
             ];
         } else {
-            // Fallback to basic exists check if company_id is not available
-            $packageRule .= '|exists:packages,id';
+            // Fail validation when company context is missing to prevent cross-company package selection
+            $packageRule = [
+                'integer',
+                function ($attribute, $value, $fail) {
+                    $fail('Package selection requires company context. Please provide X-COMPANY-ID header or ensure you are authenticated.');
+                }
+            ];
         }
         
         return [
