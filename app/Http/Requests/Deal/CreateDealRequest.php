@@ -55,6 +55,14 @@ class CreateDealRequest extends CoreRequest
         }
         $companyId = $companyId ? (int) $companyId : null;
         
+        // Get the Deal custom field group once (outside validation loop to avoid N+1 queries)
+        // Filter by company_id when available to ensure company isolation and prevent cross-company access
+        $dealFieldGroupQuery = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL);
+        if ($companyId) {
+            $dealFieldGroupQuery->where('company_id', $companyId);
+        }
+        $dealFieldGroup = $dealFieldGroupQuery->first();
+        
         // Build package validation rule with company scope
         // Security: Require company context - fail validation if companyId is not available
         $packageRule = 'integer';
@@ -129,7 +137,7 @@ class CreateDealRequest extends CoreRequest
             'custom_fields' => 'nullable|array',
             'custom_fields.*' => [
                 'nullable',
-                function ($attribute, $value, $fail) use ($companyId) {
+                function ($attribute, $value, $fail) use ($companyId, $dealFieldGroup) {
                     // Extract field ID from attribute (e.g., "custom_fields.131" -> 131)
                     $fieldId = (int) str_replace('custom_fields.', '', $attribute);
                     
@@ -138,11 +146,13 @@ class CreateDealRequest extends CoreRequest
                         return;
                     }
                     
-                    // Get the Deal custom field group
-                    $dealFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
-                    
+                    // Check if Deal custom field group exists (queried once outside this closure)
                     if (!$dealFieldGroup) {
-                        $fail('Deal custom field group not found.');
+                        if ($companyId) {
+                            $fail('Deal custom field group not found for your company.');
+                        } else {
+                            $fail('Deal custom field group not found.');
+                        }
                         return;
                     }
                     
