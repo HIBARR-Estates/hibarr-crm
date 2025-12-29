@@ -92,8 +92,8 @@ export default function TasksTab({
     const defaultTasks = [
         { key: "schedule_meeting", label: "Schedule Meeting" },
         { key: "send_property_details", label: "Send Property Details" },
-        { key: "setup_watcher", label: "Set Up Watcher" },
-        { key: "assign_agent", label: "Assign Agent" },
+        // { key: "setup_watcher", label: "Set Up Watcher" },
+        // { key: "assign_agent", label: "Assign Agent" },
     ];
 
     return (
