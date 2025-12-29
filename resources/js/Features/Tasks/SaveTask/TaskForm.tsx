@@ -459,6 +459,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                 extra="Select team members to assign this task"
                                 hidden={!isAdmin} // THis currecntly only admins and managers can assign tasks, TOODO: Need to implement permission properly and check and enforce on BE ....
                             >
+                                {/* can select multiple users */}
                                 <Select
                                     mode="multiple"
                                     placeholder="Select assignees"
