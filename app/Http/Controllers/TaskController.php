@@ -128,14 +128,14 @@ class TaskController extends AccountBaseController
         // Apply assignee filter
         if (request()->filled('assigned_to') && request('assigned_to') !== 'all') {
             $tasksQuery->whereHas('users', function ($query) {
-                $query->where('user_id', request('assigned_to'));
+                $query->where('users.id', request('assigned_to'));
             });
         }
 
         // Apply labels filter
         if (request()->filled('labels') && is_array(request('labels'))) {
             $tasksQuery->whereHas('labels', function ($query) {
-                $query->whereIn('task_label_id', request('labels'));
+                $query->whereIn('id', request('labels'));
             });
         }
 
