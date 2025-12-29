@@ -6,6 +6,14 @@ const createTaskFilterConfig = (
 ): FilterConfig => {
     const fields: FilterConfig["fields"] = [
         {
+            key: "search",
+            label: "Search",
+            type: "text",
+            placeholder: "Search tasks...",
+            section: "Search & General",
+            span: 24,
+        },
+        {
             key: "status",
             label: "Status",
             type: "select",
