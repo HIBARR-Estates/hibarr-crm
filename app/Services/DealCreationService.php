@@ -346,7 +346,6 @@ class DealCreationService
                 $deal->lead_pipeline_id = $pipelineId;
                 $deal->pipeline_stage_id = $request->input('pipeline_stage_id') ?? $firstStageId ?? $deal->pipeline_stage_id;
                 $deal->agent_id = $agentId ?? $deal->agent_id;
-                $deal->package_id = $packageId;
                 $deal->next_follow_up = 'yes';
                 $deal->create_client = 0;
                 
@@ -355,6 +354,10 @@ class DealCreationService
                 
                 // Save quietly to bypass observers
                 $deal->saveQuietly();
+                
+                if ($packageId) {
+                    $deal->packages()->syncWithoutDetaching([$packageId]);
+                }
 
                 // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
                 // Use lockForUpdate() to prevent race conditions with concurrent requests
