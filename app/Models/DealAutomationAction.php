@@ -11,6 +11,7 @@ class DealAutomationAction extends BaseModel
 
     protected $table = 'deal_automation_actions';
 
+    // Mass assignable attributes
     protected $fillable = [
         'deal_automation_id',
         'target_stage_id',
