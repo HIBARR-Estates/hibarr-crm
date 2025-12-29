@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Deal;
 
 use App\Http\Requests\CoreRequest;
+use App\Models\CustomField;
+use App\Models\CustomFieldGroup;
+use App\Models\Deal;
 use Illuminate\Validation\Rule;
 
 class CreateDealRequest extends CoreRequest
@@ -51,6 +54,14 @@ class CreateDealRequest extends CoreRequest
             }
         }
         $companyId = $companyId ? (int) $companyId : null;
+        
+        // Get the Deal custom field group once (outside validation loop to avoid N+1 queries)
+        // Filter by company_id when available to ensure company isolation and prevent cross-company access
+        $dealFieldGroupQuery = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL);
+        if ($companyId) {
+            $dealFieldGroupQuery->where('company_id', $companyId);
+        }
+        $dealFieldGroup = $dealFieldGroupQuery->first();
         
         // Build package validation rule with company scope
         // Security: Require company context - fail validation if companyId is not available
@@ -121,6 +132,51 @@ class CreateDealRequest extends CoreRequest
             'meeting.meeting_location' => 'nullable|string|max:255',
             'meeting.meeting_link' => 'nullable|url|max:500',
             'meeting.meeting_id' => 'nullable|string|max:255',
+            
+            // Optional custom fields (format: {"131": "value", "132": "value"})
+            'custom_fields' => 'nullable|array',
+            'custom_fields.*' => [
+                'nullable',
+                function ($attribute, $value, $fail) use ($companyId, $dealFieldGroup) {
+                    // Extract field ID from attribute (e.g., "custom_fields.131" -> 131)
+                    $fieldId = (int) str_replace('custom_fields.', '', $attribute);
+                    
+                    if ($fieldId <= 0) {
+                        $fail('Invalid custom field ID format.');
+                        return;
+                    }
+                    
+                    // Check if Deal custom field group exists (queried once outside this closure)
+                    if (!$dealFieldGroup) {
+                        if ($companyId) {
+                            $fail('Deal custom field group not found for your company.');
+                        } else {
+                            $fail('Deal custom field group not found.');
+                        }
+                        return;
+                    }
+                    
+                    // Check if custom field exists and belongs to Deal model
+                    $customField = CustomField::where('id', $fieldId)
+                        ->where('custom_field_group_id', $dealFieldGroup->id)
+                        ->first();
+                    
+                    if (!$customField) {
+                        $fail("Custom field with ID {$fieldId} does not exist or is not valid for deals.");
+                        return;
+                    }
+                    
+                    // If company_id is available, validate company scope
+                    if ($companyId && $customField->company_id && $customField->company_id !== $companyId) {
+                        $fail("Custom field with ID {$fieldId} does not belong to your company.");
+                        return;
+                    }
+                }
+            ],
+            
+            // Optional custom_fields_data format (backward compatibility)
+            'custom_fields_data' => 'nullable|array',
+            'custom_fields_data.*' => 'nullable',
         ];
     }
 
@@ -142,6 +198,7 @@ class CreateDealRequest extends CoreRequest
             'deal_owner_id.exists' => 'The selected deal owner does not exist.',
             'deal_watcher.*.exists' => 'One or more selected deal watchers do not exist.',
             'meeting.meeting_link.url' => 'The meeting link must be a valid URL.',
+            'custom_fields.*' => 'One or more custom fields are invalid.',
         ];
     }
 }

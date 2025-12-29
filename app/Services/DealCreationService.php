@@ -412,6 +412,9 @@ class DealCreationService
                     // Upsert Hibarr fields (non-critical, can be retried)
                     $this->upsertHibarrFields($deal, $request);
                     
+                    // Handle custom fields (non-critical, can be retried)
+                    $this->upsertCustomFields($deal, $request);
+                    
                     // Sync deal watchers (non-critical)
                     $dealWatchers = $request->input('deal_watcher', []);
                     if (is_array($dealWatchers) && !empty($dealWatchers)) {
@@ -903,6 +906,67 @@ class DealCreationService
             ['deal_id' => $deal->id],
             $hibarrFields
         );
+    }
+
+    /**
+     * Upsert custom fields for a deal.
+     * Accepts any key-value pairs in custom_fields format (e.g., {"131": "value", "132": "value", "200": "another value"}).
+     * The key is the custom field ID, and the value will be stored for that field.
+     * Also handles custom_fields_data format for backward compatibility.
+     *
+     * @param Deal $deal
+     * @param Request $request
+     * @return void
+     */
+    private function upsertCustomFields(Deal $deal, Request $request): void
+    {
+        if (!$deal->id) {
+            Log::warning('DealCreationService: Cannot upsert custom fields for unsaved deal', [
+                'deal_name' => $deal->name,
+                'lead_id' => $deal->lead_id,
+            ]);
+            return;
+        }
+        
+        $customFieldsData = [];
+        
+        // Handle custom_fields format - accepts any field ID and value
+        // Format: {"131": "value", "132": "value", "200": "another value", ...}
+        // The key is the custom field ID, value can be any type (string, number, array, etc.)
+        if ($request->has('custom_fields') && is_array($request->input('custom_fields'))) {
+            foreach ($request->input('custom_fields') as $fieldId => $value) {
+                // Convert field ID to string and ensure it's a valid key
+                $fieldId = (string) $fieldId;
+                
+                // Skip null values, but allow empty strings, 0, false, etc.
+                if ($value !== null) {
+                    $customFieldsData['field_' . $fieldId] = $value;
+                }
+            }
+        }
+        
+        // Handle standard custom_fields_data format if provided (field_131, field_132, etc.)
+        // This format uses "field_{id}" as the key directly
+        if ($request->has('custom_fields_data') && is_array($request->input('custom_fields_data'))) {
+            // Merge with existing custom fields data, with custom_fields_data taking precedence
+            $customFieldsData = array_merge($customFieldsData, $request->input('custom_fields_data'));
+        }
+        
+        // Update custom fields if we have any data
+        if (!empty($customFieldsData)) {
+            try {
+                // Pass company_id to ensure correct date formatting for date-type custom fields
+                // This prevents issues when company() helper returns a different company
+                $deal->updateCustomFieldData($customFieldsData, $deal->company_id);
+            } catch (\Exception $e) {
+                Log::error('DealCreationService: Error updating custom fields', [
+                    'deal_id' => $deal->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'custom_fields_data' => $customFieldsData,
+                ]);
+            }
+        }
     }
 
     /**
