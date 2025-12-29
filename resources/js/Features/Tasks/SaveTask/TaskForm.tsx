@@ -241,7 +241,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         </Form.Item>
                     </Col>
 
-                    <Col xs={24} sm={12}>
+                    {/* <Col xs={24} sm={12}>
                         <Form.Item name="category_id" label="Category">
                             <TaskCategorySelector placeholder="Select category (optional)" />
                         </Form.Item>
@@ -254,7 +254,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         >
                             <TaskLabelSelector placeholder="Select labels" />
                         </Form.Item>
-                    </Col>
+                    </Col> */}
                 </Row>
             </Card>
 
