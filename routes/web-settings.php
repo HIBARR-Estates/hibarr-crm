@@ -47,6 +47,7 @@ use App\Http\Controllers\TicketReplyTemplatesController;
 use App\Http\Controllers\DatabaseBackupSettingController;
 use App\Http\Controllers\GoogleCalendarSettingController;
 use App\Http\Controllers\LeadPipelineSettingController;
+use App\Http\Controllers\DealAutomationController;
 use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\OfflinePaymentSettingController;
 use App\Http\Controllers\PaymentGatewayCredentialController;
@@ -265,7 +266,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
-    Route::resource('company-settings', SettingsController::class)->only(['edit', 'update', 'index', 'change_language']);
+    Route::get('company-settings/deal-automations', [SettingsController::class, 'deal_automations'])->name('company-settings.deal_automations');
+    Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
+    Route::resource('deal-automations', DealAutomationController::class);
+    Route::resource('company-settings', SettingsController::class)->only(['edit', 'update', 'index']);
 
     // Update App
     Route::post('update-settings/deleteFile', [UpdateAppController::class, 'deleteFile'])->name('update-settings.deleteFile');

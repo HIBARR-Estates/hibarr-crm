@@ -20,7 +20,9 @@ class DealFollowUpObserver
     public function created(DealFollowUp $dealFollowUp): void
     {
         //deal automation trigger
-        $this->dealAutomation->automate($dealFollowUp->lead);
+        if ($dealFollowUp->deal) {
+            $this->dealAutomation->process($dealFollowUp->deal, 'followup_created');
+        }
     }
 
     /**

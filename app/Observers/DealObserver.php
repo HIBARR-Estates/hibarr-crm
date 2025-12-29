@@ -158,7 +158,7 @@ class DealObserver
             }
         }
         //deal automation trigger
-        // $this->dealAutomation->automate($deal); // Disable as there is a shift to deal pipeline automation
+        $this->dealAutomation->process($deal, 'deal_updated');
         
     }
 
@@ -203,7 +203,7 @@ class DealObserver
             $this->dealTaskService->createDefaultTasks($deal);
         }
         //deal automation trigger
-        // $this->dealAutomation->automate($deal);
+        $this->dealAutomation->process($deal, 'deal_created');
 
     }
 
