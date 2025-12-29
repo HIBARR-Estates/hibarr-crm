@@ -296,11 +296,13 @@ export const useTasksTableColumns = ({
                         label: "View Details",
                         onClick: () => onView(record),
                     },
-                    canEdit && {
+                    {
                         key: "edit",
                         icon: <EditOutlined />,
                         label: "Edit Task",
                         onClick: () => onEdit(record),
+                        //
+                        // disabled: !canEdit,
                     },
                     {
                         key: "duplicate",
@@ -308,20 +310,20 @@ export const useTasksTableColumns = ({
                         label: "Duplicate",
                         onClick: () => onDuplicate(record),
                     },
-                    ...(canDelete
-                        ? [
-                              {
-                                  type: "divider",
-                              },
-                              {
-                                  key: "delete",
-                                  icon: <DeleteOutlined />,
-                                  label: "Delete",
-                                  danger: true,
-                                  onClick: () => onDelete(record),
-                              },
-                          ]
-                        : []),
+
+                    {
+                        type: "divider",
+                    },
+                    {
+                        key: "delete",
+                        icon: <DeleteOutlined />,
+                        label: "Delete",
+                        danger: true,
+                        onClick: () => onDelete(record),
+                        // disabled: !canDelete,
+                    },
+
+                    ,
                 ].filter(Boolean) as MenuProps["items"];
 
                 return (
