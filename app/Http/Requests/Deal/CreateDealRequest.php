@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Deal;
 
 use App\Http\Requests\CoreRequest;
+use Illuminate\Validation\Rule;
 
 class CreateDealRequest extends CoreRequest
 {
@@ -39,6 +40,31 @@ class CreateDealRequest extends CoreRequest
      */
     public function rules()
     {
+        // Get company_id from header (API requests) or from company() helper (web requests)
+        $companyId = $this->header('X-COMPANY-ID');
+        if (!$companyId && function_exists('company')) {
+            $company = company();
+            // company() returns Company model or false, check if it's an object with id property
+            if ($company && is_object($company) && property_exists($company, 'id')) {
+                $companyId = $company->id;
+            }
+        }
+        $companyId = $companyId ? (int) $companyId : null;
+        
+        // Build package validation rule with company scope
+        $packageRule = 'integer';
+        if ($companyId) {
+            $packageRule = [
+                'integer',
+                Rule::exists('packages', 'id')->where(function ($query) use ($companyId) {
+                    return $query->where('company_id', $companyId);
+                })
+            ];
+        } else {
+            // Fallback to basic exists check if company_id is not available
+            $packageRule .= '|exists:packages,id';
+        }
+        
         return [
             // Required contact fields
             'name' => 'required|string|max:255',
@@ -51,7 +77,7 @@ class CreateDealRequest extends CoreRequest
             
             // Optional deal fields
             'package_id' => 'nullable|array',
-            'package_id.*' => 'integer|exists:packages,id',
+            'package_id.*' => $packageRule,
             'pipeline_id' => 'nullable|integer|exists:lead_pipelines,id',
             'pipeline_stage_id' => 'nullable|integer|exists:pipeline_stages,id',
             'deal_owner_id' => 'nullable|integer|exists:users,id',
@@ -103,7 +129,7 @@ class CreateDealRequest extends CoreRequest
             'email.required' => 'The contact email is required.',
             'email.email' => 'The contact email must be a valid email address.',
             'lead_source_id.exists' => 'The selected lead source does not exist.',
-            'package_id.*.exists' => 'One or more selected packages do not exist.',
+            'package_id.*.exists' => 'One or more selected packages do not exist or do not belong to your company.',
             'pipeline_id.exists' => 'The selected pipeline does not exist.',
             'pipeline_stage_id.exists' => 'The selected pipeline stage does not exist.',
             'deal_owner_id.exists' => 'The selected deal owner does not exist.',
