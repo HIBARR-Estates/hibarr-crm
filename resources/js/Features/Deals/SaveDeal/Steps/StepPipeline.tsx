@@ -21,10 +21,10 @@ const StepPipeline: React.FC<StepPipelineProps> = ({
                 (stage) => stage.lead_pipeline_id === pipelineId
             );
             setFilteredStages(newStages);
-            
+
             // If current stage is not in new pipeline, reset it
             const currentStage = form.getFieldValue("stage_id");
-            if (currentStage && !newStages.find(s => s.id === currentStage)) {
+            if (currentStage && !newStages.find((s) => s.id === currentStage)) {
                 form.setFieldValue("stage_id", undefined);
             }
         } else {
@@ -40,11 +40,19 @@ const StepPipeline: React.FC<StepPipelineProps> = ({
                     <Form.Item
                         name="pipeline"
                         label="Pipeline"
-                        rules={[{ required: false, message: "Please select a pipeline" }]}
+                        rules={[
+                            {
+                                required: false,
+                                message: "Please select a pipeline",
+                            },
+                        ]}
                     >
                         <Select placeholder="Select Pipeline">
                             {leadPipelines.map((pipeline) => (
-                                <Select.Option key={pipeline.id} value={pipeline.id}>
+                                <Select.Option
+                                    key={pipeline.id}
+                                    value={pipeline.id}
+                                >
                                     {pipeline.name}
                                 </Select.Option>
                             ))}
@@ -55,15 +63,26 @@ const StepPipeline: React.FC<StepPipelineProps> = ({
                     <Form.Item
                         name="stage_id"
                         label="Stage"
-                        rules={[{ required: false, message: "Please select a stage" }]}
+                        rules={[
+                            {
+                                required: false,
+                                message: "Please select a stage",
+                            },
+                        ]}
                     >
-                        <Select placeholder="Select Stage" disabled={!pipelineId}>
+                        <Select
+                            placeholder="Select Stage"
+                            disabled={!pipelineId}
+                        >
                             {filteredStages.map((stage) => (
                                 <Select.Option key={stage.id} value={stage.id}>
                                     <div className="flex items-center">
                                         <span
                                             className="w-2 h-2 rounded-full mr-2"
-                                            style={{ backgroundColor: stage.label_color }}
+                                            style={{
+                                                backgroundColor:
+                                                    stage.label_color,
+                                            }}
                                         />
                                         {stage.name}
                                     </div>

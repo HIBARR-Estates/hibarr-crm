@@ -30,7 +30,10 @@ const StepOtherDetails: React.FC<StepOtherDetailsProps> = ({
                     <Form.Item name="category_id" label="Category">
                         <Select placeholder="Select Category" allowClear>
                             {categories.map((category) => (
-                                <Select.Option key={category.id} value={category.id}>
+                                <Select.Option
+                                    key={category.id}
+                                    value={category.id}
+                                >
                                     {category.category_name}
                                 </Select.Option>
                             ))}

@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Form, Input, Select, Row, Col } from "antd";
-import { UserOutlined, MailOutlined, PhoneOutlined, TeamOutlined } from "@ant-design/icons";
+import {
+    UserOutlined,
+    MailOutlined,
+    PhoneOutlined,
+    TeamOutlined,
+} from "@ant-design/icons";
 
 interface StepAgentProps {
     form: any;
@@ -51,7 +56,9 @@ const StepAgent: React.FC<StepAgentProps> = ({
     return (
         <div className="step-agent">
             <div className="flex justify-between items-center mb-4">
-                <h4 className="text-lg font-medium m-0">Agent Information (Optional)</h4>
+                <h4 className="text-lg font-medium m-0">
+                    Agent Information (Optional)
+                </h4>
                 <div style={{ width: 300 }}>
                     <Form.Item name="agent_id" noStyle>
                         <Select
@@ -78,22 +85,42 @@ const StepAgent: React.FC<StepAgentProps> = ({
             <Row gutter={16}>
                 <Col span={24}>
                     <Form.Item name="agent_name" label="Agent Name">
-                        <Input prefix={<UserOutlined />} disabled={isDisabled} placeholder="Agent Name" />
+                        <Input
+                            prefix={<UserOutlined />}
+                            disabled={isDisabled}
+                            placeholder="Agent Name"
+                        />
                     </Form.Item>
                 </Col>
                 <Col span={24}>
-                    <Form.Item name="agent_referral" label="Referral" tooltip="Who referred this agent?">
-                        <Input prefix={<TeamOutlined />} disabled={isDisabled} placeholder="Referral Source" />
+                    <Form.Item
+                        name="agent_referral"
+                        label="Referral"
+                        tooltip="Who referred this agent?"
+                    >
+                        <Input
+                            prefix={<TeamOutlined />}
+                            disabled={isDisabled}
+                            placeholder="Referral Source"
+                        />
                     </Form.Item>
                 </Col>
                 <Col span={12}>
                     <Form.Item name="agent_email" label="Email">
-                        <Input prefix={<MailOutlined />} disabled={isDisabled} placeholder="Email Address" />
+                        <Input
+                            prefix={<MailOutlined />}
+                            disabled={isDisabled}
+                            placeholder="Email Address"
+                        />
                     </Form.Item>
                 </Col>
                 <Col span={12}>
                     <Form.Item name="agent_mobile" label="Phone Number">
-                        <Input prefix={<PhoneOutlined />} disabled={isDisabled} placeholder="Phone Number" />
+                        <Input
+                            prefix={<PhoneOutlined />}
+                            disabled={isDisabled}
+                            placeholder="Phone Number"
+                        />
                     </Form.Item>
                 </Col>
             </Row>

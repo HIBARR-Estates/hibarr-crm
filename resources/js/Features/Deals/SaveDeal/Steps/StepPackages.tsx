@@ -16,7 +16,8 @@ const StepPackages: React.FC<StepPackagesProps> = ({
 }) => {
     const calculateTotalValue = (currentPackageIds?: number[]) => {
         let total = 0;
-        const packageIds = currentPackageIds || form.getFieldValue("package_id");
+        const packageIds =
+            currentPackageIds || form.getFieldValue("package_id");
 
         if (Array.isArray(packageIds)) {
             packageIds.forEach((id) => {
@@ -36,7 +37,9 @@ const StepPackages: React.FC<StepPackagesProps> = ({
 
     return (
         <div className="step-packages">
-            <h4 className="text-lg font-medium mb-4">Packages, Properties & Value</h4>
+            <h4 className="text-lg font-medium mb-4">
+                Packages, Properties & Value
+            </h4>
             <Row gutter={16}>
                 <Col span={24}>
                     <Form.Item name="package_id" label="Packages">
@@ -48,7 +51,8 @@ const StepPackages: React.FC<StepPackagesProps> = ({
                         >
                             {packages.map((pkg) => (
                                 <Select.Option key={pkg.id} value={pkg.id}>
-                                    {pkg.name} ({defaultCurrencySymbol}{pkg.value})
+                                    {pkg.name} ({defaultCurrencySymbol}
+                                    {pkg.value})
                                 </Select.Option>
                             ))}
                         </Select>
@@ -63,7 +67,10 @@ const StepPackages: React.FC<StepPackagesProps> = ({
                             optionFilterProp="children"
                         >
                             {products.map((product) => (
-                                <Select.Option key={product.id} value={product.id}>
+                                <Select.Option
+                                    key={product.id}
+                                    value={product.id}
+                                >
                                     {product.name}
                                 </Select.Option>
                             ))}
@@ -75,7 +82,12 @@ const StepPackages: React.FC<StepPackagesProps> = ({
                     <Form.Item
                         name="value"
                         label="Deal Value"
-                        rules={[{ required: false, message: "Please enter deal value" }]}
+                        rules={[
+                            {
+                                required: false,
+                                message: "Please enter deal value",
+                            },
+                        ]}
                     >
                         <InputNumber
                             style={{ width: "100%" }}
@@ -85,9 +97,12 @@ const StepPackages: React.FC<StepPackagesProps> = ({
                             formatter={(value) =>
                                 `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                             }
-                            parser={(value) =>
-                                value?.replace(/\$\s?|(,*)/g, "") as unknown as number
-                            }
+                            // parser={(value) =>
+                            //     value?.replace(
+                            //         /\$\s?|(,*)/g,
+                            //         ""
+                            //     ) as unknown as number
+                            // }
                         />
                     </Form.Item>
                 </Col>

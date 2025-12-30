@@ -30,7 +30,7 @@ const StepClient: React.FC<StepClientProps> = ({
             }
         } else {
             setIsDisabled(false);
-            // Only clear if we are explicitly clearing selection, 
+            // Only clear if we are explicitly clearing selection,
             // but we might want to keep typed values if user just cleared the search but didn't select anything yet?
             // The prompt says: "If selection is cleared... Inputs revert to enabled... User can create a new lead"
         }
@@ -69,7 +69,9 @@ const StepClient: React.FC<StepClientProps> = ({
                             }
                             options={leadContacts.map((contact) => ({
                                 value: contact.id,
-                                label: contact.client_name_salutation || contact.client_name,
+                                label:
+                                    contact.client_name_salutation ||
+                                    contact.client_name,
                             }))}
                         />
                     </Form.Item>
@@ -81,9 +83,18 @@ const StepClient: React.FC<StepClientProps> = ({
                     <Form.Item
                         name="client_name"
                         label="Client Name"
-                        rules={[{ required: !selectedLeadId, message: "Client Name is required" }]}
+                        rules={[
+                            {
+                                required: !selectedLeadId,
+                                message: "Client Name is required",
+                            },
+                        ]}
                     >
-                        <Input prefix={<UserOutlined />} disabled={isDisabled} placeholder="Full Name" />
+                        <Input
+                            prefix={<UserOutlined />}
+                            disabled={isDisabled}
+                            placeholder="Full Name"
+                        />
                     </Form.Item>
                 </Col>
                 <Col span={12}>
@@ -91,20 +102,36 @@ const StepClient: React.FC<StepClientProps> = ({
                         name="client_email"
                         label="Email"
                         rules={[
-                            { required: !selectedLeadId, message: "Email is required" },
-                            { type: "email", message: "Invalid email" }
+                            {
+                                required: !selectedLeadId,
+                                message: "Email is required",
+                            },
+                            { type: "email", message: "Invalid email" },
                         ]}
                     >
-                        <Input prefix={<MailOutlined />} disabled={isDisabled} placeholder="Email Address" />
+                        <Input
+                            prefix={<MailOutlined />}
+                            disabled={isDisabled}
+                            placeholder="Email Address"
+                        />
                     </Form.Item>
                 </Col>
                 <Col span={12}>
                     <Form.Item
                         name="mobile"
                         label="Phone Number"
-                        rules={[{ required: !selectedLeadId, message: "Phone Number is required" }]}
+                        rules={[
+                            {
+                                required: !selectedLeadId,
+                                message: "Phone Number is required",
+                            },
+                        ]}
                     >
-                        <Input prefix={<PhoneOutlined />} disabled={isDisabled} placeholder="Phone Number" />
+                        <Input
+                            prefix={<PhoneOutlined />}
+                            disabled={isDisabled}
+                            placeholder="Phone Number"
+                        />
                     </Form.Item>
                 </Col>
             </Row>
