@@ -7,6 +7,7 @@ import {
     Tooltip,
     Dropdown,
     Button,
+    Avatar,
 } from "antd";
 import { ColumnsType } from "antd/es/table";
 import {
@@ -17,6 +18,7 @@ import {
     MoreOutlined,
     CheckSquareOutlined,
     ClockCircleOutlined,
+    UserOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
@@ -24,6 +26,7 @@ import { Link, usePage } from "@inertiajs/react";
 
 import PageDataSorter from "@/Components/PageDataSorter";
 import { Task } from "@/Types/api/tasks";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 
 const { Text, Title } = Typography;
 
@@ -207,39 +210,14 @@ export const useTasksTableColumns = ({
             },
         },
         {
-            title: "Progress",
-            key: "progress",
+            title: "Assignee",
+            key: "assignee",
             render: (_: string, record: Task) => {
-                if (!record.subtasks_count)
+                if (!record.users || record.users.length === 0) {
                     return <span className="text-gray-400">--</span>;
+                }
 
-                const progress =
-                    record.completed_subtasks_count && record.subtasks_count
-                        ? (record.completed_subtasks_count /
-                              record.subtasks_count) *
-                          100
-                        : 0;
-
-                return (
-                    <Tooltip
-                        title={`${record.completed_subtasks_count || 0} of ${
-                            record.subtasks_count
-                        } subtasks completed`}
-                    >
-                        <Progress
-                            percent={Math.round(progress)}
-                            size="small"
-                            showInfo={false}
-                            strokeColor={
-                                progress === 100
-                                    ? "#52c41a"
-                                    : progress >= 50
-                                    ? "#1890ff"
-                                    : "#faad14"
-                            }
-                        />
-                    </Tooltip>
-                );
+                return <MultiUserIndicator users={record.users} />;
             },
         },
         {
