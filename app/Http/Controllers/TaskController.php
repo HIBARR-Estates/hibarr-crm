@@ -81,7 +81,14 @@ class TaskController extends AccountBaseController
 
         // Apply permission-based filtering
         $taskRules = [
-            'added' => 'added_by',
+            'added' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $query->where('added_by', $user->id)
+                        ->orWhereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
+                });
+            },
             'owned' => function($q, $user) {
                 $q->where(function($query) use ($user) {
                     $query->where('added_by', $user->id)
@@ -1018,16 +1025,16 @@ class TaskController extends AccountBaseController
         $editTaskPermission = user()->permission('edit_tasks');
         $taskUsers = $task->users->pluck('id')->toArray();
 
-        abort_403(
-            !($editTaskPermission == 'all'
-                || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
-                || ($editTaskPermission == 'added' && $task->added_by == user()->id)
-                || ($task->project && ($task->project->project_admin == user()->id))
-                || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
-                || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
-                || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
-            )
-        );
+        if (!($editTaskPermission == 'all'
+            || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
+            || ($editTaskPermission == 'added' && $task->added_by == user()->id)
+            || ($task->project && ($task->project->project_admin == user()->id))
+            || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
+            || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
+            || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
+        )) {
+            return Reply::error(__('messages.permissionDenied'));
+        }
 
         $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
         $task->heading = $request->heading;
