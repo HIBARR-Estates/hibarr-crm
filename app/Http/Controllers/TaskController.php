@@ -745,6 +745,14 @@ class TaskController extends AccountBaseController
                 $entity = $modelClass::find($id);
                 if ($entity) {
                     $entity->tasks()->syncWithoutDetaching([$task->id]);
+
+                    // Auto-assign deal agent if applicable
+                    if (strtolower($type) === 'deal' && $entity->agent_id) {
+                        $agentUserId = \App\Models\LeadAgent::find($entity->agent_id)?->user_id;
+                        if ($agentUserId) {
+                            $task->users()->syncWithoutDetaching([$agentUserId]);
+                        }
+                    }
                 }
             }
         }

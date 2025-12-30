@@ -180,16 +180,30 @@ const TaskForm: React.FC<TaskFormProps> = ({
         <Form
             form={form}
             layout="vertical"
-            onFinish={(vals) =>
+            onFinish={(vals) => {
+                const taskableInfo: any = {};
+
+                if (vals.deal_id) {
+                    taskableInfo.taskable_type = "deal";
+                    taskableInfo.taskable_id = vals.deal_id;
+                } else if (vals.lead_id) {
+                    taskableInfo.taskable_type = "lead";
+                    taskableInfo.taskable_id = vals.lead_id;
+                } else if (vals.property_id) {
+                    taskableInfo.taskable_type = "property";
+                    taskableInfo.taskable_id = vals.property_id;
+                }
+
                 onSubmit({
                     ...vals,
+                    ...taskableInfo,
                     priority: vals.priority || "medium",
                     without_duedate: !vals.due_date,
                     user_id: isAdmin
                         ? vals?.user_ids
                         : [props?.auth?.user?.id].filter(Boolean), //if not an admin or manager assign to self, TODO: Refactor with the controller in place
-                })
-            }
+                });
+            }}
             preserve={false}
             style={{ marginTop: 16 }}
         >
