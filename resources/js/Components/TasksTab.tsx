@@ -58,9 +58,14 @@ export default function TasksTab({
     const {
         action,
         handleAction,
-        handleClose,
+        handleClose: closeAction,
         selected: selectedTask,
     } = useGenericEntityAction<Task>();
+
+    const handleClose = () => {
+        router.reload({ only: ["tasks"] });
+        closeAction();
+    };
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -175,7 +180,9 @@ export default function TasksTab({
                                                             setSelectedTaskType(
                                                                 ""
                                                             );
-                                                            router.reload();
+                                                            router.reload({
+                                                                only: ["tasks"],
+                                                            });
                                                         },
                                                     }
                                                 );

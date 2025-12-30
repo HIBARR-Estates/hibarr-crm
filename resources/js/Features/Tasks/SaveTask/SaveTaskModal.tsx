@@ -222,8 +222,8 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                 : values.due_date,
             estimate_hours: values.estimate_hours || 0,
             estimate_minutes: values.estimate_minutes || 0,
-            taskable_type: relatedEntity?.type,
-            taskable_id: relatedEntity?.id,
+            taskable_type: values?.taskable_type ?? relatedEntity?.type,
+            taskable_id: values?.taskable_id ?? relatedEntity?.id,
         };
 
         const mutation = isEditing ? updateTask : createTask;
