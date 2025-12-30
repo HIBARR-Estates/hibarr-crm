@@ -1,4 +1,4 @@
- <?php
+<?php
 
 namespace App\Services;
 
@@ -10,6 +10,7 @@ use Carbon\Carbon;
 
 class DealTaskService
 {
+    // Define task types
     public const TASK_SCHEDULE_MEETING = 'schedule_meeting';
     public const TASK_SEND_PROPERTY_DETAILS = 'send_property_details';
     public const TASK_SETUP_WATCHER = 'setup_watcher';
