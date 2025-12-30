@@ -99,47 +99,6 @@
                 </div>
             </div>
 
-            <hr>
-            <h5 class="mb-3">Visibility Conditions</h5>
-            <div id="conditions-container">
-                @foreach($field->conditions as $index => $condition)
-                    <div class="row condition-row mb-2" id="condition-{{ $index + 1 }}">
-                        <div class="col-md-1 d-flex align-items-center justify-content-center">
-                            <span class="condition-number font-weight-bold">{{ $index + 1 }}</span>
-                        </div>
-                        <div class="col-md-4">
-                            <select name="conditions[{{ $index }}][target_field_id]" class="form-control select-picker">
-                                @foreach($otherFields as $otherField)
-                                    <option value="{{ $otherField->id }}" {{ $condition->target_field_id == $otherField->id ? 'selected' : '' }}>{{ $otherField->label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <select name="conditions[{{ $index }}][operator]" class="form-control select-picker">
-                                <option value="==" {{ $condition->operator == '==' ? 'selected' : '' }}>Equals</option>
-                                <option value="!=" {{ $condition->operator == '!=' ? 'selected' : '' }}>Not Equals</option>
-                                <option value=">" {{ $condition->operator == '>' ? 'selected' : '' }}>Greater Than</option>
-                                <option value="<" {{ $condition->operator == '<' ? 'selected' : '' }}>Less Than</option>
-                                <option value="contains" {{ $condition->operator == 'contains' ? 'selected' : '' }}>Contains</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <input type="text" name="conditions[{{ $index }}][value]" class="form-control" value="{{ $condition->value }}" placeholder="Value">
-                        </div>
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-danger btn-sm remove-condition" onclick="removeCondition({{ $index + 1 }})"><i class="fa fa-trash"></i></button>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-            <button type="button" class="btn btn-secondary btn-sm mt-2" id="add-condition">Add Condition</button>
-
-            <div class="form-group mt-3">
-                <label>Logic (e.g., (1 && 2) || 3)</label>
-                <input type="text" name="logic_string" class="form-control" value="{{ $field->visibility->logic_string ?? '' }}" placeholder="(1 && 2) || 3">
-                <small class="form-text text-muted">Use condition numbers (1, 2, 3...) and operators (&&, ||, !, (, )).</small>
-            </div>
-
         </x-form>
     </div>
 </div>
