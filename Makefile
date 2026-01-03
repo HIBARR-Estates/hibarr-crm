@@ -64,7 +64,7 @@ ensure-storage:
 	mkdir -p storage/framework/sessions
 	mkdir -p storage/framework/views
 	mkdir -p storage/logs
-	chmod -R 775 storage
+	chmod -R 775 storage || true
 
 queue-restart:
 	php artisan queue:restart
