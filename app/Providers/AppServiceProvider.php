@@ -8,6 +8,7 @@ use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Cashier;
 use Laravel\Sanctum\Sanctum;
@@ -40,6 +41,10 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Schema::defaultStringLength(191);
+
+        // Register mail component namespace
+        // Laravel automatically resolves mail::message to html/message or text/message based on mail driver
+        View::addNamespace('mail', resource_path('views/vendor/mail'));
 
         if (app()->environment('development')) {
             $this->app->register(IdeHelperServiceProvider::class);

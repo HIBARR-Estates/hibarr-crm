@@ -9,7 +9,10 @@ import {
     Row,
     Col,
     InputNumber,
+    Upload,
+    Button,
 } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
 
 interface CustomFieldTabProps<CustomFormData = any> {
@@ -30,13 +33,25 @@ const GeneralCustomFieldTab = <
     categoryName,
 }: CustomFieldTabProps<T>) => {
     const { props } = usePage<any>();
-    const { customFields, countries } = props;
+    const { customFields = [], countries, dealCustomFields = [] } = props;
+
+    // Get form instance and watch custom_fields_data for real-time visibility updates
+    const form = Form.useFormInstance();
+    const watchedCustomFieldsData = Form.useWatch("custom_fields_data", form);
+    const currentCustomFieldsData =
+        watchedCustomFieldsData || data?.custom_fields_data || {};
 
     const [otherValues, setOtherValues] = useState<Record<string, string>>({});
 
     // Filter fields for this category and sort by field type
     const categoryFields =
         customFields
+            .concat(dealCustomFields)
+            //remove duplicates based on id
+            ?.filter(
+                (field: any, index: number, self: any[]) =>
+                    index === self.findIndex((f) => f.id === field.id) //TODO: THis is a hack, fix properly later as the dealCustomFields is supposed to be properly differitaed in controller, and controller adapt the service pattern as oppososed to traits that are leading to the current override
+            )
             ?.filter(
                 (field: any) => field.custom_field_category_id === categoryId
             )
@@ -52,6 +67,7 @@ const GeneralCustomFieldTab = <
                     date: 2, // Same priority as text
                     country: 1, // Same priority as select
                     phone: 2, // Same priority as text
+                    file: 3, // Same priority as textarea
                 };
 
                 const aOrder = typeOrder[a.type as keyof typeof typeOrder] || 6;
@@ -60,18 +76,77 @@ const GeneralCustomFieldTab = <
                 return aOrder - bOrder;
             }) || [];
 
-    // const getFieldValue = (field: any) => {
-    //     const fieldKey = `custom_fields_data.field_${field.id}`;
-    //     return data.custom_fields_data?.[`field_${field.id}`];
-    // };
+    const checkVisibility = (field: any) => {
+        if (
+            !field.visibility ||
+            !field.conditions ||
+            field.conditions.length === 0
+        ) {
+            return true; // Visible by default if no rules
+        }
 
-    // const setFieldValue = (field: any, value: any) => {
-    //     const currentCustomData = data.custom_fields_data || {};
-    //     setData("custom_fields_data", {
-    //         ...currentCustomData,
-    //         [`field_${field.id}`]: value,
-    //     });
-    // };
+        const { logic_string } = field.visibility;
+        const { conditions } = field;
+        const formValues = currentCustomFieldsData;
+
+        // Evaluate each condition
+        const conditionResults = conditions.map((condition: any) => {
+            const targetFieldId = condition.target_field_id;
+            // Find the target field definition to get its name
+            const targetField = customFields
+                .concat(dealCustomFields)
+                .find((f: any) => f.id === targetFieldId);
+            if (!targetField) return false;
+
+            const targetKey = `${targetField.name}_${targetField.id}`;
+            const targetValue = formValues[targetKey];
+
+            switch (condition.operator) {
+                case "==":
+                    return targetValue == condition.value;
+                case "!=":
+                    return targetValue != condition.value;
+                case ">":
+                    return Number(targetValue) > Number(condition.value);
+                case "<":
+                    return Number(targetValue) < Number(condition.value);
+                case "contains":
+                    return String(targetValue || "").includes(condition.value);
+                default:
+                    return false;
+            }
+        });
+
+        let evalString = logic_string;
+        // Sort conditions by index descending to avoid replacing "1" in "10"
+        const indices = conditions
+            .map((_: any, i: number) => i + 1)
+            .sort((a: number, b: number) => b - a);
+
+        for (const index of indices) {
+            const result = conditionResults[index - 1];
+            evalString = evalString.replace(
+                new RegExp(`\\b${index}\\b`, "g"),
+                String(result)
+            );
+        }
+
+        try {
+            // Sanitize: ensure only allowed chars remain (true, false, space, (, ), &, |, !)
+            if (!/^[truefalse\s\(\)\&\|!]+$/.test(evalString)) {
+                console.error(
+                    "Invalid logic string after substitution:",
+                    evalString
+                );
+                return false;
+            }
+
+            return new Function(`return ${evalString}`)();
+        } catch (e) {
+            console.error("Error evaluating visibility logic:", e);
+            return true; // Fallback to visible
+        }
+    };
 
     const renderTextField = (field: any) => (
         <Form.Item
@@ -147,10 +222,6 @@ const GeneralCustomFieldTab = <
         const hasOtherOption = values?.some(
             (v: string) => v.toLowerCase() === "other"
         );
-        // const currentValue = getFieldValue(field);
-        // const isOtherSelected =
-        //     currentValue?.toLowerCase() === "other" ||
-        //     currentValue?.startsWith("other: ");
 
         return (
             <Form.Item
@@ -176,25 +247,6 @@ const GeneralCustomFieldTab = <
                         </Select.Option>
                     ))}
                 </Select>
-
-                {/* {hasOtherOption && isOtherSelected && (
-                    <Input
-                        placeholder="Please specify..."
-                        style={{ marginTop: 8 }}
-                        value={otherValues[`field_${field.id}`] || ""}
-                        onChange={(e) => {
-                            const otherValue = e.target.value;
-                            setOtherValues((prev) => ({
-                                ...prev,
-                                [`field_${field.id}`]: otherValue,
-                            }));
-                            setFieldValue(
-                                field,
-                                otherValue ? `other: ${otherValue}` : "other"
-                            );
-                        }}
-                    />
-                )} */}
             </Form.Item>
         );
     };
@@ -207,10 +259,6 @@ const GeneralCustomFieldTab = <
         const hasOtherOption = values?.some(
             (v: string) => v.toLowerCase() === "other"
         );
-        // const currentValue = getFieldValue(field);
-        // const isOtherSelected =
-        //     currentValue?.toLowerCase() === "other" ||
-        //     currentValue?.startsWith("other: ");
 
         return (
             <Form.Item
@@ -229,44 +277,15 @@ const GeneralCustomFieldTab = <
                     },
                 ]}
             >
-                <Radio.Group
-                // value={currentValue}
-                // onChange={(e) => {
-                //     const value = e.target.value;
-                //     setFieldValue(field, value);
-                //     if (value?.toLowerCase() !== "other") {
-                //         setOtherValues((prev) => ({
-                //             ...prev,
-                //             [`field_${field.id}`]: "",
-                //         }));
-                //     }
-                // }}
-                >
-                    {values?.map((value: string, index: number) => (
-                        <Radio key={index} value={value}>
-                            {value}
-                        </Radio>
-                    ))}
+                <Radio.Group>
+                    <div className="flex gap-4 flex-wrap">
+                        {values?.map((value: string, index: number) => (
+                            <Radio key={index} value={value}>
+                                {value}
+                            </Radio>
+                        ))}
+                    </div>
                 </Radio.Group>
-                {/* 
-                {hasOtherOption && isOtherSelected && (
-                    <Input
-                        placeholder="Please specify..."
-                        style={{ marginTop: 8 }}
-                        value={otherValues[`field_${field.id}`] || ""}
-                        onChange={(e) => {
-                            const otherValue = e.target.value;
-                            setOtherValues((prev) => ({
-                                ...prev,
-                                [`field_${field.id}`]: otherValue,
-                            }));
-                            setFieldValue(
-                                field,
-                                otherValue ? `other: ${otherValue}` : "other"
-                            );
-                        }}
-                    />
-                )} */}
             </Form.Item>
         );
     };
@@ -279,12 +298,6 @@ const GeneralCustomFieldTab = <
         const hasOtherOption = values?.some(
             (v: string) => v.toLowerCase() === "other"
         );
-        // const currentValue = getFieldValue(field) || "";
-        // const selectedValues = currentValue.split(", ").filter(Boolean);
-        // const isOtherSelected = selectedValues.some(
-        //     (v: string) =>
-        //         v.toLowerCase() === "other" || v.startsWith("other: ")
-        // );
 
         return (
             <Form.Item
@@ -303,57 +316,15 @@ const GeneralCustomFieldTab = <
                     },
                 ]}
             >
-                <Checkbox.Group
-                // value={selectedValues}
-                // onChange={(checkedValues) => {
-                //     setFieldValue(field, checkedValues.join(", "));
-                //     if (
-                //         !checkedValues.some(
-                //             (v) => v.toLowerCase() === "other"
-                //         )
-                //     ) {
-                //         setOtherValues((prev) => ({
-                //             ...prev,
-                //             [`field_${field.id}`]: "",
-                //         }));
-                //     }
-                // }}
-                >
-                    {values?.map((value: string, index: number) => (
-                        <Checkbox key={index} value={value}>
-                            {value}
-                        </Checkbox>
-                    ))}
+                <Checkbox.Group>
+                    <div className="flex gap-4 flex-wrap">
+                        {values?.map((value: string, index: number) => (
+                            <Checkbox key={index} value={value}>
+                                {value}
+                            </Checkbox>
+                        ))}
+                    </div>
                 </Checkbox.Group>
-
-                {/* {hasOtherOption && isOtherSelected && (
-                    <Input
-                        placeholder="Please specify..."
-                        style={{ marginTop: 8 }}
-                        value={otherValues[`field_${field.id}`] || ""}
-                        onChange={(e) => {
-                            const otherValue = e.target.value;
-                            setOtherValues((prev) => ({
-                                ...prev,
-                                [`field_${field.id}`]: otherValue,
-                            }));
-
-                            const currentValues = selectedValues.filter(
-                                (v: string) =>
-                                    v.toLowerCase() !== "other" &&
-                                    !v.startsWith("other: ")
-                            );
-
-                            if (otherValue) {
-                                currentValues.push(`other: ${otherValue}`);
-                            } else {
-                                currentValues.push("other");
-                            }
-
-                            setFieldValue(field, currentValues.join(", "));
-                        }}
-                    />
-                )} */}
             </Form.Item>
         );
     };
@@ -375,12 +346,6 @@ const GeneralCustomFieldTab = <
         >
             <DatePicker
                 placeholder={`Select ${field.label}`}
-                // value={
-                //     getFieldValue(field) ? dayjs(getFieldValue(field)) : null
-                // }
-                // onChange={(date, dateString) =>
-                //     setFieldValue(field, dateString)
-                // }
                 style={{ width: "100%" }}
             />
         </Form.Item>
@@ -445,6 +410,34 @@ const GeneralCustomFieldTab = <
         </Form.Item>
     );
 
+    const renderFileField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            valuePropName="fileList"
+            getValueFromEvent={(e: any) => {
+                if (Array.isArray(e)) {
+                    return e;
+                }
+                return e?.fileList;
+            }}
+            rules={[
+                {
+                    required: field.required === "yes",
+                    message: `Please upload ${field.label}`,
+                },
+            ]}
+        >
+            <Upload beforeUpload={() => false} maxCount={1}>
+                <Button icon={<UploadOutlined />}>Select File</Button>
+            </Upload>
+        </Form.Item>
+    );
+
     const renderField = (field: any) => {
         switch (field.type) {
             case "text":
@@ -465,6 +458,8 @@ const GeneralCustomFieldTab = <
                 return renderCountryField(field);
             case "phone":
                 return renderPhoneField(field);
+            case "file":
+                return renderFileField(field);
             default:
                 return renderTextField(field);
         }
@@ -481,11 +476,14 @@ const GeneralCustomFieldTab = <
     return (
         <div className="space-y-6">
             <Row gutter={[24, 16]}>
-                {categoryFields.map((field: any) => (
-                    <Col span={determineSpan(field.type)} key={field.id}>
-                        {renderField(field)}
-                    </Col>
-                ))}
+                {categoryFields.map((field: any) => {
+                    if (!checkVisibility(field)) return null;
+                    return (
+                        <Col span={determineSpan(field.type)} key={field.id}>
+                            {renderField(field)}
+                        </Col>
+                    );
+                })}
             </Row>
         </div>
     );
@@ -502,6 +500,8 @@ const determineSpan = (type: string): number => {
         case "radio":
             return 24;
         case "checkbox":
+            return 24;
+        case "file":
             return 24;
         default:
             return 12;

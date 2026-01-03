@@ -209,16 +209,19 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 className="mb-3"
+                key={task.id}
             >
                 <Card
                     size="small"
-                    className={`transition-all duration-200 hover:shadow-md ${isTaskOverdue
-                        ? "border-red-200 bg-red-50"
-                        : isTaskToday
+                    className={`${
+                        isTaskOverdue
+                            ? "border-red-200 bg-red-50"
+                            : isTaskToday
                             ? "border-amber-200 bg-amber-50"
                             : "border-gray-200 hover:border-blue-300"
-                        }`}
+                    }`}
                     loading={isProcessing}
+                    variant="outlined"
                 >
                     <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0 space-y-2">
@@ -247,14 +250,20 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                 )}
                             </div>
 
-                            {(task.due_date || task.project || (task.users && task.users.length > 0)) && (
+                            {(task.due_date ||
+                                task.project ||
+                                (task.users && task.users.length > 0)) && (
                                 <div className="flex items-center gap-x-4 text-sm text-gray-600">
                                     {task.due_date && (
                                         <span className="flex items-center">
                                             <CalendarOutlined className="mr-1" />
-                                            {dayjs(task.due_date).format("MMM DD")}
+                                            {dayjs(task.due_date).format(
+                                                "MMM DD"
+                                            )}
                                             <span className="ml-1 text-gray-500">
-                                                ({dayjs(task.due_date).fromNow()})
+                                                (
+                                                {dayjs(task.due_date).fromNow()}
+                                                )
                                             </span>
                                         </span>
                                     )}
@@ -269,7 +278,10 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                     {task.users && task.users.length > 0 && (
                                         <div className="flex items-center">
                                             <UserOutlined className="mr-1" />
-                                            <Avatar.Group size="small" maxCount={3}>
+                                            <Avatar.Group
+                                                size="small"
+                                                maxCount={3}
+                                            >
                                                 {task.users.map((user) => (
                                                     <Tooltip
                                                         key={user.id}
@@ -278,7 +290,9 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                                         <Avatar
                                                             size="small"
                                                             src={user.image}
-                                                            icon={<UserOutlined />}
+                                                            icon={
+                                                                <UserOutlined />
+                                                            }
                                                         >
                                                             {!user.image &&
                                                                 user.name?.charAt(
@@ -336,10 +350,10 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     const completionRate =
         tasks.length > 0
             ? Math.round(
-                (tasks.filter((t) => t.status === "completed").length /
-                    tasks.length) *
-                100
-            )
+                  (tasks.filter((t) => t.status === "completed").length /
+                      tasks.length) *
+                      100
+              )
             : 0;
 
     return (
@@ -359,65 +373,72 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                     format={(percent) => `${percent}% Complete`}
                                 />
                             </div>
-                            <Tag color="blue" className="!m-0">{allTasks.length} tasks</Tag>
+                            <Tag color="blue" className="!m-0">
+                                {allTasks.length} tasks
+                            </Tag>
                         </div>
                     </div>
                 }
                 className="h-full"
+                variant="outlined"
             >
-                <div className="max-h-96 overflow-y-auto">
-                    {overdueTasks.length > 0 && (
-                        <div className="mb-4">
-                            <div className="text-red-600 font-medium text-sm mb-3 flex items-center">
-                                <ExclamationCircleOutlined className="mr-2" />
-                                Overdue ({overdueTasks.length})
-                            </div>
-                            {overdueTasks.map(renderTask)}
-                        </div>
-                    )}
-
-                    {todayTasks.length > 0 && (
-                        <div className="mb-4">
-                            <div className="text-amber-600 font-medium text-sm mb-3 flex items-center">
-                                <ClockCircleOutlined className="mr-2" />
-                                Due Today ({todayTasks.length})
-                            </div>
-                            {todayTasks.map(renderTask)}
-                        </div>
-                    )}
-
-                    {upcomingTasks.length > 0 && (
-                        <div className="mb-4">
-                            <div className="text-gray-600 font-medium text-sm mb-3 flex items-center">
-                                <CalendarOutlined className="mr-2" />
-                                Upcoming ({upcomingTasks.length})
-                            </div>
-                            {upcomingTasks.slice(0, 5).map(renderTask)}
-                            {upcomingTasks.length > 5 && (
-                                <div className="text-center py-2">
-                                    <Button
-                                        type="link"
-                                        size="small"
-                                        onClick={() =>
-                                            router.visit(route("tasks.index"))
-                                        }
-                                    >
-                                        View {upcomingTasks.length - 5} more
-                                        tasks
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {allTasks.length === 0 && (
+                {allTasks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[500px] overflow-hidden">
                         <div className="text-center py-8 text-gray-500">
                             <CheckOutlined className="text-4xl text-gray-300 mb-2" />
                             <div>No pending tasks</div>
                             <div className="text-sm">You're all caught up!</div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                        {overdueTasks.length > 0 && (
+                            <div className="mb-4">
+                                <div className="text-red-600 font-medium text-sm mb-3 flex items-center">
+                                    <ExclamationCircleOutlined className="mr-2" />
+                                    Overdue ({overdueTasks.length})
+                                </div>
+                                {overdueTasks.map(renderTask)}
+                            </div>
+                        )}
+
+                        {todayTasks.length > 0 && (
+                            <div className="mb-4">
+                                <div className="text-amber-600 font-medium text-sm mb-3 flex items-center">
+                                    <ClockCircleOutlined className="mr-2" />
+                                    Due Today ({todayTasks.length})
+                                </div>
+                                {todayTasks.map(renderTask)}
+                            </div>
+                        )}
+
+                        {upcomingTasks.length > 0 && (
+                            <div className="mb-4">
+                                <div className="text-gray-600 font-medium text-sm mb-3 flex items-center">
+                                    <CalendarOutlined className="mr-2" />
+                                    Upcoming ({upcomingTasks.length})
+                                </div>
+                                {upcomingTasks.slice(0, 5).map(renderTask)}
+                                {upcomingTasks.length > 5 && (
+                                    <div className="text-center py-2">
+                                        <Button
+                                            type="link"
+                                            size="small"
+                                            onClick={() =>
+                                                router.visit(
+                                                    route("tasks.index")
+                                                )
+                                            }
+                                        >
+                                            View {upcomingTasks.length - 5} more
+                                            tasks
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </Card>
 
             {/* Save Task Modal - handles both create and edit */}

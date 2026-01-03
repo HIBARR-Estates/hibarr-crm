@@ -27,19 +27,12 @@ export const PROPERTY_TABLE_COLUMNS = (
         key: "title",
         width: 250,
         render: (title: string, record: Property) => (
-            <div>
-                <Link
-                    href={route("properties.show", record.id)}
-                    className="font-medium text-blue-600 hover:text-blue-800"
-                >
-                    {title}
-                </Link>
-                {record.product && (
-                    <div className="text-xs text-gray-500 mt-1">
-                        Product: {record.product.name}
-                    </div>
-                )}
-            </div>
+            <Link
+                href={route("properties.show", record.id)}
+                className="font-medium text-blue-600 hover:text-blue-800"
+            >
+                {title}
+            </Link>
         ),
     },
     {

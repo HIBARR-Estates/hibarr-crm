@@ -1,5 +1,5 @@
 import React from "react";
-import { Drawer, Button, Space } from "antd";
+import { Drawer, Button, Space, Skeleton } from "antd";
 import { FilterOutlined } from "@ant-design/icons";
 import { useFilter, FilterConfig } from "@/contexts/FilterContext";
 import UniversalFilterForm from "@/Components/UniversalFilterForm";
@@ -7,11 +7,13 @@ import UniversalFilterForm from "@/Components/UniversalFilterForm";
 interface UniversalFilterDrawerProps {
     config: FilterConfig;
     width?: number;
+    loading?: boolean;
 }
 
 const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
     config,
     width = 480,
+    loading = false,
 }) => {
     const {
         isDrawerOpen,
@@ -54,7 +56,9 @@ const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
                 </div>
             }
         >
-            <UniversalFilterForm config={config} />
+            <Skeleton active loading={loading} paragraph={{ rows: 6 }}>
+                <UniversalFilterForm config={config} />
+            </Skeleton>
         </Drawer>
     );
 };

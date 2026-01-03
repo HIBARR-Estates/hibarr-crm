@@ -69,7 +69,7 @@ class ProcessCommunicationActivityJob implements ShouldQueue
               // Lead owner(should only be notified if this is the first communication activity on a deal)
             $isFirstActivity = $deal->communicationActivities()->count() === 0;
             if ($deal && $deal->lead?->leadOwner && $isFirstActivity) {
-                $notifiables->push($deal->lead?->leadOwner);
+                // $notifiables->push($deal->lead?->leadOwner);
             }
 
             // Deal creator
@@ -99,14 +99,14 @@ class ProcessCommunicationActivityJob implements ShouldQueue
                     // Deal watchers
                     if ($deal?->dealWatchers) {
                         foreach ($deal->dealWatchers as $watcher) {
-                            $notifiables->push($watcher);
+                            // $notifiables->push($watcher);
                             Log::info("Added deal watcher {$watcher->id} to notifications");
                         }
                     }
 
                     // Lead agent
                     if ($deal?->leadAgent && $deal?->leadAgent?->user) {
-                        $notifiables->push($deal?->leadAgent?->user);
+                        // $notifiables->push($deal?->leadAgent?->user);
                     }
                 }
             }
@@ -126,7 +126,8 @@ class ProcessCommunicationActivityJob implements ShouldQueue
         $notifiables = $notifiables->filter()->unique('id');
 
         foreach ($notifiables as $user) {
-            $user->notify(new NewCommunicationActivity($activity, $dealOrLead));
+            // $user->notify(new NewCommunicationActivity($activity, $dealOrLead));
         }
+    
     }
 }

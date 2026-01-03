@@ -19,6 +19,7 @@ export interface DealFormProps {
     submitText?: string;
     cancelText?: string;
     visible?: boolean;
+    disableFields?: string[];
 }
 
 const DealForm: React.FC<DealFormProps> = ({
@@ -33,9 +34,11 @@ const DealForm: React.FC<DealFormProps> = ({
     setErrors,
     onErrorsClear,
     visible,
+    disableFields = [],
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
+    console.log(data, "what is the data .....");
     const customFieldCategories =
         props.dealCustomFieldCategories || props.customFieldCategories || [];
 
@@ -58,6 +61,7 @@ const DealForm: React.FC<DealFormProps> = ({
             label: "Deal Details",
             children: (
                 <DealDetailsTab
+                    disableFields={disableFields}
                     data={data}
                     onSubmit={onSubmit}
                     onCancel={onCancel}

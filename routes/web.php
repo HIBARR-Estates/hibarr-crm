@@ -54,6 +54,7 @@ use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\DesignationController;
 use App\Http\Controllers\EmployeeDocController;
 use App\Http\Controllers\LeadCategoryController;
+use App\Http\Controllers\MetaConversionTriggerController;
 use App\Http\Controllers\LeaveReportController;
 use App\Http\Controllers\LeavesQuotaController;
 use App\Http\Controllers\MessageFileController;
@@ -122,6 +123,7 @@ use App\Http\Controllers\EmployeeShiftChangeRequestController;
 use App\Http\Controllers\EstimateRequestController;
 use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
 use App\Http\Controllers\InvoicePaymentDetailController;
 use App\Http\Controllers\MyCalendarController;
@@ -556,6 +558,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('sample-import', [LeadContactController::class, 'downloadSampleImport'])->name('lead-contact.sample_import');
     });
 
+    // Form Data API routes for performance optimization
+    Route::prefix('api/form-data')->group(function () {
+        Route::get('{type}', [FormDataController::class, 'index'])->name('form-data.index');
+        Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
+    });
+
     // deals route
 
     Route::resource('lead-contact', LeadContactController::class);
@@ -569,6 +577,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     
     Route::resource('deals', DealController::class);
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
     
 // Meeting Summary Routes
 Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
@@ -949,8 +958,26 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::post('properties/{property}/video', [App\Http\Controllers\PropertyController::class, 'updateVideo'])->name('properties.update_video');
     Route::post('properties/{property}/360-tour', [App\Http\Controllers\PropertyController::class, 'update360Tour'])->name('properties.update_360_tour');
     Route::delete('properties/{property}/assets', [App\Http\Controllers\PropertyController::class, 'deleteAssets'])->name('properties.delete_assets');
-    
-    Route::resource('properties', App\Http\Controllers\PropertyController::class);
+
+    Route::post('properties/{id}/expose/validate', [App\Http\Controllers\PropertyController::class, 'validateExpose'])->name('properties.expose.validate');
+    Route::post('properties/{id}/expose/generate', [App\Http\Controllers\PropertyController::class, 'generateExpose'])->name('properties.expose.generate');
+
+    // Property Asset Management (New System)
+    Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyAssetController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PropertyAssetController::class, 'store'])->name('store');
+        Route::post('/external-url', [App\Http\Controllers\PropertyAssetController::class, 'storeExternalUrl'])->name('store_external_url');
+        Route::get('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'show'])->name('show');
+        Route::put('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'update'])->name('update');
+        Route::delete('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'destroy'])->name('destroy');
+        Route::post('/bulk-action', [App\Http\Controllers\PropertyAssetController::class, 'bulkAction'])->name('bulk_action');
+        Route::post('/bulk-tags', [App\Http\Controllers\PropertyAssetController::class, 'bulkUpdateTags'])->name('bulk_tags');
+        Route::post('/bulk-delete', [App\Http\Controllers\PropertyAssetController::class, 'bulkDestroy'])->name('bulk_destroy');
+    });
+
+    Route::resource('properties', App\Http\Controllers\PropertyController::class);    Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
+    // Meta Conversion Triggers
+    Route::resource('meta-conversion-triggers', MetaConversionTriggerController::class);
 
     Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     Route::resource('gantt_link', GanttLinkController::class);

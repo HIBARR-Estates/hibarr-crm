@@ -54,7 +54,11 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
 
     return (
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-            <Card title={`${categoryName} Custom Fields`} size="small">
+            <Card
+                title={`${categoryName} Custom Fields`}
+                size="small"
+                variant="outlined"
+            >
                 <GeneralCustomFieldTab
                     data={data}
                     setData={(key, value) => {

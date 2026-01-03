@@ -159,6 +159,22 @@ export const DEAL_TABLE_COLUMNS = (
         },
     },
     {
+        title: <span className="flex items-center">Lead Source</span>,
+        dataIndex: "lead_source",
+        key: "lead_source",
+        width: 120,
+        render: (_, record) => {
+            if (!record.contact?.lead_source)
+                return <span className="text-gray-400">--</span>;
+
+            return (
+                <div className="font-medium text-gray-900">
+                    {record.contact.lead_source.type}
+                </div>
+            );
+        },
+    },
+    {
         title: (
             <span className="flex items-center">
                 Deal Value
@@ -248,7 +264,7 @@ export const DEAL_TABLE_COLUMNS = (
         },
     },
     {
-        title: "Deal Agent",
+        title: "Assigned Agent",
         dataIndex: "agent_name",
         key: "agent_name",
         width: 150,
@@ -259,7 +275,7 @@ export const DEAL_TABLE_COLUMNS = (
             return (
                 <UserIndicator
                     data={deal.lead_agent.user}
-                    size="xs"
+                    size="sm"
                     maxNameLength={15}
                 />
             );

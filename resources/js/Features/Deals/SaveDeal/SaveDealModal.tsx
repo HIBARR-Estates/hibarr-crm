@@ -11,8 +11,10 @@ import DealForm from "./DealForm";
 
 interface SaveDealModalProps extends Omit<IModalProps, "onClose"> {
     deal?: Deal;
+    lead_id?: number;
     setDeal?: (deal: Deal | undefined) => void;
     onClose: () => void;
+    disableFields?: string[];
 }
 
 const constructCustomFieldsData = (
@@ -32,6 +34,8 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     onClose,
     open,
     setDeal,
+    lead_id,
+    disableFields = [],
 }) => {
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateDealFormData | null>(null);
@@ -46,7 +50,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     // Initialize form data
     const getInitialData = (): CreateDealFormData => ({
         name: deal?.name || "",
-        lead_contact: deal?.contact?.id || undefined,
+        lead_contact: deal?.contact?.id || lead_id || undefined,
         pipeline: deal?.lead_pipeline_id || undefined,
         stage_id: deal?.pipeline_stage_id || undefined,
         value: deal?.value || 0,
@@ -54,6 +58,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         category_id: deal?.category_id || undefined,
         agent_id: deal?.agent_id || undefined,
         product_id: deal?.products?.map((p) => p.id) || [],
+        package_id: deal?.packages?.map((p) => p.id) || [],
         services: deal?.services?.map((s) => s.id) || [],
         deal_watcher: deal?.deal_watchers?.map((w) => w.id) || [],
         strategy_accepted: !!deal?.strategy_accepted,
@@ -74,7 +79,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         CreateDealFormData,
         Deal,
         ApiResponse<Deal>
-    >(isEditing ? route("deals.update", deal!.id) : "", "PUT");
+    >(isEditing ? route("deals.patch", { deal: deal!.id }) : "", "PUT");
 
     // Update form data when deal or modal opens
     useEffect(() => {
@@ -132,6 +137,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         >
             <DealForm
                 data={formData || undefined}
+                disableFields={disableFields}
                 visible={open}
                 onCancel={handleCancel}
                 onSubmit={handleSubmit}

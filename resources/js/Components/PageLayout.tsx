@@ -156,10 +156,14 @@ export default function PageLayout({
                                     </Avatar>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-medium truncate">
-                                            {appName}
+                                            {user?.name}
                                         </span>
                                         <span className="text-xs text-gray-500 truncate">
-                                            {user?.name}
+                                            {user?.employee_detail?.designation
+                                                ?.name ??
+                                                user?.roles?.[0]
+                                                    ?.display_name ??
+                                                appName}
                                         </span>
                                     </div>
                                 </div>
@@ -170,7 +174,7 @@ export default function PageLayout({
 
                 {/* Filter Section */}
                 {filterSection && (
-                    <div className="bg-white border-b border-gray-200">
+                    <div className="bg-gray-50 border-b border-gray-50">
                         {filterSection}
                     </div>
                 )}

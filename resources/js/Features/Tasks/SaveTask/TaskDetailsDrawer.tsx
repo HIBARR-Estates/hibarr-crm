@@ -89,6 +89,19 @@ interface Task {
         image?: string;
     };
     hash?: string;
+    deals?: Array<{
+        id: number;
+        name: string;
+    }>;
+    leads?: Array<{
+        id: number;
+        client_name: string;
+        company_name?: string;
+    }>;
+    properties?: Array<{
+        id: number;
+        name: string;
+    }>;
 }
 
 interface TaskDetailsDrawerProps {
@@ -164,7 +177,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     return (
         <div style={{ padding: "0" }}>
             {/* Header Section */}
-            <Card size="small" style={{ marginBottom: 16 }}>
+            <Card size="small" style={{ marginBottom: 16 }} variant="outlined">
                 <div style={{ marginBottom: 16 }}>
                     <Space
                         direction="vertical"
@@ -189,14 +202,14 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 )}
                             </Space>
                             <Space>
-                                {task.is_private && (
+                                {Boolean(task.is_private) && (
                                     <Tooltip title="Private Task">
                                         <LockOutlined
                                             style={{ color: "#fa8c16" }}
                                         />
                                     </Tooltip>
                                 )}
-                                {task.billable && (
+                                {Boolean(task.billable) && (
                                     <Tooltip title="Billable">
                                         <DollarOutlined
                                             style={{ color: "#52c41a" }}
@@ -212,17 +225,17 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         >
                             {task.heading}
                         </Title>
-                        {task.description && (
-                            <Text
-                                type="secondary"
-                                style={{
-                                    whiteSpace: "pre-wrap",
-                                    wordBreak: "break-word",
-                                }}
-                            >
-                                {task.description}
-                            </Text>
-                        )}
+
+                        <Text
+                            type="secondary"
+                            style={{
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-word",
+                            }}
+                        >
+                            {task?.description ??
+                                "No Description has been assigned to this task"}
+                        </Text>
                     </Space>
                 </div>
             </Card>
@@ -232,6 +245,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 size="small"
                 title="Status & Priority"
                 style={{ marginBottom: 16 }}
+                variant="outlined"
             >
                 <Row gutter={16}>
                     <Col span={12}>
@@ -272,6 +286,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     </Space>
                 }
                 style={{ marginBottom: 16 }}
+                variant="outlined"
             >
                 <Descriptions size="small" column={1}>
                     <Descriptions.Item label="Start Date">
@@ -323,6 +338,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
+                    variant="outlined"
                 >
                     <Space direction="vertical" style={{ width: "100%" }}>
                         <Row gutter={16}>
@@ -377,6 +393,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
+                    variant="outlined"
                 >
                     {task.project && (
                         <div style={{ marginBottom: 16 }}>
@@ -446,6 +463,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
+                    variant="outlined"
                 >
                     {task.category && (
                         <div
@@ -494,8 +512,89 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 </Card>
             )}
 
+            {/* Related Entities - Properties, Deals, Leads */}
+            {((task.deals && task.deals.length > 0) ||
+                (task.leads && task.leads.length > 0) ||
+                (task.properties && task.properties.length > 0)) && (
+                <Card
+                    size="small"
+                    title={
+                        <Space>
+                            <FlagOutlined />
+                            Related Entities
+                        </Space>
+                    }
+                    style={{ marginBottom: 16 }}
+                    variant="outlined"
+                >
+                    {/* Deals */}
+                    {task.deals && task.deals.length > 0 && (
+                        <div
+                            style={{
+                                marginBottom:
+                                    (task.leads?.length || 0) > 0 ||
+                                    (task.properties?.length || 0) > 0
+                                        ? 16
+                                        : 0,
+                            }}
+                        >
+                            <Text strong>Deals</Text>
+                            <List
+                                size="small"
+                                dataSource={task.deals}
+                                renderItem={(deal: any) => (
+                                    <List.Item style={{ padding: "4px 0" }}>
+                                        <Text>{deal.name}</Text>
+                                    </List.Item>
+                                )}
+                            />
+                        </div>
+                    )}
+                    {/* Leads */}
+                    {task.leads && task.leads.length > 0 && (
+                        <div
+                            style={{
+                                marginBottom:
+                                    (task.properties?.length || 0) > 0 ? 16 : 0,
+                            }}
+                        >
+                            <Text strong>Leads</Text>
+                            <List
+                                size="small"
+                                dataSource={task.leads}
+                                renderItem={(lead: any) => (
+                                    <List.Item style={{ padding: "4px 0" }}>
+                                        <Text>
+                                            {lead.client_name}{" "}
+                                            {lead.company_name
+                                                ? `(${lead.company_name})`
+                                                : ""}
+                                        </Text>
+                                    </List.Item>
+                                )}
+                            />
+                        </div>
+                    )}
+                    {/* Properties */}
+                    {task.properties && task.properties.length > 0 && (
+                        <div>
+                            <Text strong>Properties</Text>
+                            <List
+                                size="small"
+                                dataSource={task.properties}
+                                renderItem={(property: any) => (
+                                    <List.Item style={{ padding: "4px 0" }}>
+                                        <Text>{property.name}</Text>
+                                    </List.Item>
+                                )}
+                            />
+                        </div>
+                    )}
+                </Card>
+            )}
+
             {/* Additional Details */}
-            {(task.task_short_code || task.hash) && (
+            {/* {(task.task_short_code || task.hash) && (
                 <Card
                     size="small"
                     title="Additional Details"
@@ -528,7 +627,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         )}
                     </Descriptions>
                 </Card>
-            )}
+            )} */}
         </div>
     );
 };

@@ -47,8 +47,9 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
     return (
         <div className="">
             <Card
-                className="shadow-sm border border-gray-200"
+                className="border border-gray-200"
                 bodyStyle={{ padding: "32px" }}
+                variant="outlined"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">

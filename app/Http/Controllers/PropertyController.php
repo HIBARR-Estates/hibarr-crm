@@ -20,6 +20,8 @@ use Maatwebsite\Excel\Excel;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Helper\Files;
+use App\Services\PdfExpose\ExposeGeneratorService;
+use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 
 
 class PropertyController extends AccountBaseController
@@ -32,7 +34,7 @@ class PropertyController extends AccountBaseController
     private $editPropertyPermission;
     private $deletePropertyPermission;
 
-    public function __construct(Excel $excel)
+    public function __construct(Excel $excel, private ExposeGeneratorService $exposeService)
     {
         $this->excel = $excel;
         parent::__construct();
@@ -221,12 +223,12 @@ class PropertyController extends AccountBaseController
 
 
         if (request()->expectsJson()) {
-            return Reply::successWithData(__('messages.recordSaved'), ['property' => $property, 'redirectUrl' => route('properties.index')]);
+            return Reply::successWithData(__('messages.propertySaved'), ['property' => $property, 'redirectUrl' => route('properties.index')]);
         }
 
         return back()->with([
             'success' => true,
-            'message' => __('messages.recordSaved'),
+            'message' => __('messages.propertySaved'),
             'property' => $property,
             'redirectUrl' => route('properties.index')
         ]);
@@ -234,7 +236,9 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $this->property = Property::with('product')->findOrFail($id);
+        $this->property = Property::with(['product', 'assets' => function($query) {
+            $query->orderBy('order')->orderBy('created_at', 'desc');
+        }])->findOrFail($id);
         
         // // Check permission
         // $canView = false;
@@ -288,6 +292,14 @@ class PropertyController extends AccountBaseController
         $employees = User::allEmployees();
         $projects = \App\Models\Project::all();
 
+        // Get task permissions
+        $taskPermissions = [
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
+            'view_tasks' => user()->permission('view_tasks'),
+        ];
+
         if (request()->ajax()) {
             return Inertia::render('Properties/Show', [
                 'pageTitle' => $this->pageTitle,
@@ -299,6 +311,7 @@ class PropertyController extends AccountBaseController
                 'taskBoardColumns' => $taskBoardColumns,
                 'employees' => $employees,
                 'projects' => $projects,
+                'taskPermissions' => $taskPermissions,
             ]);
         }
 
@@ -312,6 +325,7 @@ class PropertyController extends AccountBaseController
             'taskBoardColumns' => $taskBoardColumns,
             'employees' => $employees,
             'projects' => $projects,
+            'taskPermissions' => $taskPermissions,
         ]);
     }
 
@@ -645,7 +659,7 @@ class PropertyController extends AccountBaseController
             
             return back()->with([
                 'success' => true,
-                'message' => __('messages.recordSaved'),
+                'message' => __('messages.propertySaved'),
                 'property' => $property,
                 'redirectUrl' => route('properties.index')
             ]);
@@ -680,7 +694,7 @@ class PropertyController extends AccountBaseController
             
             return back()->with([
                 'success' => true,
-                'message' => __('messages.recordSaved'),
+                'message' => __('messages.propertySaved'),
                 'property' => $property,
                 'redirectUrl' => route('properties.index')
             ]);
@@ -1121,5 +1135,30 @@ class PropertyController extends AccountBaseController
         $filename = 'properties-export-' . now()->format('Y-m-d-H-i-s') . '.xlsx';
         
         return $this->excel->download($export, $filename);
+    }
+
+    public function validateExpose($id)
+    {
+        $property = Property::with(['product.addedBy'])->findOrFail($id);
+        
+        // Create default config for validation
+        $config = ExposeConfiguration::fromProperty($property, 'vertical_standard');
+        
+        $warnings = $this->exposeService->checkWarnings($config);
+        
+        return Reply::successWithData('Expose validation completed successfully!',[
+            'data' => ['warnings' => $warnings]
+        ]);
+    }
+
+    public function generateExpose(Request $request, $id)
+    {
+        $property = Property::with(['product.addedBy'])->findOrFail($id);
+        $layout = $request->input('layout', 'vertical_standard');
+        
+        $config = ExposeConfiguration::fromProperty($property, $layout);
+        
+        // Return the download response directly
+        return $this->exposeService->generate($config);
     }
 }

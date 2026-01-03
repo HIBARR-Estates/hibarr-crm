@@ -38,7 +38,7 @@ interface Props extends PageProps {
 }
 const { Title } = Typography;
 
-export default function Show({
+export const  Show = ({
     deal,
     productNames,
     customFieldCategories,
@@ -59,10 +59,9 @@ export default function Show({
     taskBoardColumns,
     employees,
     projects,
-}: Props) {
-    console.log(deal, "DEAL DATA");
+}: Props) =>{
     return (
-        <DashboardLayout>
+        <>
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[
@@ -246,6 +245,13 @@ export default function Show({
                     </div>
                 </div>
             </PageLayout>
-        </DashboardLayout>
+        </>
     );
 }
+
+
+Show.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
+
+export default Show;

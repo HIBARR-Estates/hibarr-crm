@@ -28,6 +28,9 @@ export interface Lead {
     lead_owner?: User | null;
     client_id?: number | null;
     salutation?: string | null;
+    salutation_value?: string | null;
+    gender?: "male" | "female" | null;
+    gender_value?: "male" | "female" | null;
     category_id?: number | null;
     source_id?: number | null;
     client_name?: string;
@@ -98,6 +101,7 @@ export interface LeadSource {
 // Form data interfaces
 export interface CreateLeadFormData {
     salutation?: string;
+    gender?: "male" | "female" | null;
     client_name: string;
     client_email: string;
     mobile?: string;

@@ -6,6 +6,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * App\Models\Package
@@ -43,9 +44,9 @@ class Package extends BaseModel
     /**
      * Get the deals associated with this package.
      */
-    public function deals(): HasMany
+    public function deals(): BelongsToMany
     {
-        return $this->hasMany(Deal::class);
+        return $this->belongsToMany(Deal::class, 'deal_package');
     }
 
     /**

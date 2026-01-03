@@ -7,6 +7,7 @@ import {
     Tooltip,
     Dropdown,
     Button,
+    Avatar,
 } from "antd";
 import { ColumnsType } from "antd/es/table";
 import {
@@ -17,54 +18,19 @@ import {
     MoreOutlined,
     CheckSquareOutlined,
     ClockCircleOutlined,
+    UserOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
 import { Link, usePage } from "@inertiajs/react";
 
 import PageDataSorter from "@/Components/PageDataSorter";
+import { Task } from "@/Types/api/tasks";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 
 const { Text, Title } = Typography;
 
 // Types based on Laravel Task model
-interface Task {
-    id: number;
-    heading: string;
-    description?: string;
-    due_date?: string;
-    start_date?: string;
-    priority: "low" | "medium" | "high";
-    status: string;
-    board_column_id?: number;
-    completed_on?: string;
-    project?: {
-        id: number;
-        project_name: string;
-        project_short_code?: string;
-    };
-    category?: {
-        id: number;
-        category_name: string;
-    };
-    users?: Array<{
-        id: number;
-        name: string;
-        image?: string;
-    }>;
-    labels?: Array<{
-        id: number;
-        label_name: string;
-        label_color: string;
-    }>;
-    files_count?: number;
-    notes_count?: number;
-    comments_count?: number;
-    subtasks_count?: number;
-    completed_subtasks_count?: number;
-    created_at: string;
-    updated_at: string;
-    added_by?: number;
-}
 
 interface TaskboardColumn {
     id: number;
@@ -77,14 +43,15 @@ interface TaskboardColumn {
 interface TasksTableColumnsProps {
     columns: TaskboardColumn[];
     permissions: {
-        edit_tasks: string;
-        delete_tasks: string;
-        view_tasks: string;
+        edit_tasks?: string;
+        delete_tasks?: string;
+        view_tasks?: string;
     };
     onEdit: (task: Task) => void;
     onView: (task: Task) => void;
     onDuplicate: (task: Task) => void;
     onDelete: (task: Task) => void;
+    exclude?: string[];
 }
 
 export const useTasksTableColumns = ({
@@ -94,6 +61,7 @@ export const useTasksTableColumns = ({
     onView,
     onDuplicate,
     onDelete,
+    exclude = [],
 }: TasksTableColumnsProps): ColumnsType<Task> => {
     const { props } = usePage();
     const userId = props.auth.user.id;
@@ -105,7 +73,7 @@ export const useTasksTableColumns = ({
         high: { color: "#ff4d4f", icon: "🔴", bg: "#fff1f0" },
     };
 
-    return [
+    const tableColumns: ColumnsType<Task> = [
         {
             title: (
                 <span className="flex items-center">
@@ -115,7 +83,6 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "heading",
             key: "heading",
-            width: "30%",
             render: (_: string, record: Task) => (
                 <div className="space-y-2 max-w-full">
                     <div>
@@ -164,7 +131,6 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "status",
             key: "status",
-            width: "12%",
             render: (status: string) => {
                 const column = columns.find((col) => col.slug === status);
                 return (
@@ -207,7 +173,6 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "due_date",
             key: "due_date",
-            width: "12%",
             render: (date: string) => {
                 if (!date) return <span className="text-gray-400">--</span>;
 
@@ -245,40 +210,14 @@ export const useTasksTableColumns = ({
             },
         },
         {
-            title: "Progress",
-            key: "progress",
-            width: "10%",
-            render: (_, record: Task) => {
-                if (!record.subtasks_count)
+            title: "Assignee",
+            key: "assignee",
+            render: (_: string, record: Task) => {
+                if (!record.users || record.users.length === 0) {
                     return <span className="text-gray-400">--</span>;
+                }
 
-                const progress =
-                    record.completed_subtasks_count && record.subtasks_count
-                        ? (record.completed_subtasks_count /
-                              record.subtasks_count) *
-                          100
-                        : 0;
-
-                return (
-                    <Tooltip
-                        title={`${record.completed_subtasks_count || 0} of ${
-                            record.subtasks_count
-                        } subtasks completed`}
-                    >
-                        <Progress
-                            percent={Math.round(progress)}
-                            size="small"
-                            showInfo={false}
-                            strokeColor={
-                                progress === 100
-                                    ? "#52c41a"
-                                    : progress >= 50
-                                    ? "#1890ff"
-                                    : "#faad14"
-                            }
-                        />
-                    </Tooltip>
-                );
+                return <MultiUserIndicator users={record.users} />;
             },
         },
         {
@@ -294,7 +233,6 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "created_at",
             key: "created_at",
-            width: "10%",
             render: (date: string) => {
                 if (!date) return <span className="text-gray-400">--</span>;
 
@@ -308,25 +246,24 @@ export const useTasksTableColumns = ({
         {
             title: "Actions",
             key: "actions",
-            width: "8%",
-            render: (_, record: Task) => {
+            render: (_: string, record: Task) => {
                 const canEdit =
-                    permissions.edit_tasks === "all" ||
-                    (permissions.edit_tasks === "added" &&
+                    permissions?.edit_tasks === "all" ||
+                    (permissions?.edit_tasks === "added" &&
                         record.added_by === userId) ||
-                    (permissions.edit_tasks === "owned" &&
+                    (permissions?.edit_tasks === "owned" &&
                         record.users?.some((u) => u.id === userId)) ||
-                    (permissions.edit_tasks === "both" &&
+                    (permissions?.edit_tasks === "both" &&
                         (record.added_by === userId ||
                             record.users?.some((u) => u.id === userId)));
-
+                // Check permission before displaying the ability to delete a task
                 const canDelete =
-                    permissions.delete_tasks === "all" ||
-                    (permissions.delete_tasks === "added" &&
+                    permissions?.delete_tasks === "all" ||
+                    (permissions?.delete_tasks === "added" &&
                         record.added_by === userId) ||
-                    (permissions.delete_tasks === "owned" &&
+                    (permissions?.delete_tasks === "owned" &&
                         record.users?.some((u) => u.id === userId)) ||
-                    (permissions.delete_tasks === "both" &&
+                    (permissions?.delete_tasks === "both" &&
                         (record.added_by === userId ||
                             record.users?.some((u) => u.id === userId)));
 
@@ -337,11 +274,13 @@ export const useTasksTableColumns = ({
                         label: "View Details",
                         onClick: () => onView(record),
                     },
-                    canEdit && {
+                    {
                         key: "edit",
                         icon: <EditOutlined />,
                         label: "Edit Task",
                         onClick: () => onEdit(record),
+                        //
+                        // disabled: !canEdit,
                     },
                     {
                         key: "duplicate",
@@ -349,20 +288,20 @@ export const useTasksTableColumns = ({
                         label: "Duplicate",
                         onClick: () => onDuplicate(record),
                     },
-                    ...(canDelete
-                        ? [
-                              {
-                                  type: "divider",
-                              },
-                              {
-                                  key: "delete",
-                                  icon: <DeleteOutlined />,
-                                  label: "Delete",
-                                  danger: true,
-                                  onClick: () => onDelete(record),
-                              },
-                          ]
-                        : []),
+
+                    {
+                        type: "divider",
+                    },
+                    {
+                        key: "delete",
+                        icon: <DeleteOutlined />,
+                        label: "Delete",
+                        danger: true,
+                        onClick: () => onDelete(record),
+                        // disabled: !canDelete,
+                    },
+
+                    ,
                 ].filter(Boolean) as MenuProps["items"];
 
                 return (
@@ -380,5 +319,7 @@ export const useTasksTableColumns = ({
                 );
             },
         },
-    ];
+    ].filter((column) => !exclude.includes(column.key as string));
+
+    return tableColumns;
 };

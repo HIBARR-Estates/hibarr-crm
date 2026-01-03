@@ -1,4 +1,5 @@
 import { ErrorBag, Errors, PageProps } from "@inertiajs/core";
+import { AppModule, AppPermission } from "./permission";
 
 // Laravel Pagination Interface
 export interface Pagination<T> {
@@ -49,9 +50,9 @@ export interface Property {
     building_age?: number;
     is_furnished: boolean;
     within_site: boolean;
-    exterior_features?: string[] | null;
-    interior_features?: string[] | null;
-    location_features?: string[] | null;
+    exterior_features?: string[];
+    interior_features?: string[];
+    location_features?: string[];
     title: string;
     description?: string;
     video_url?: string;
@@ -64,6 +65,7 @@ export interface Property {
     created_at: string;
     updated_at: string;
     product?: Product;
+    assets?: PropertyAsset[];
 }
 
 export type PropertyType =
@@ -186,7 +188,56 @@ export interface PropertyShowProps extends PageProps {
     };
 }
 
+// Property Asset Types
+export interface PropertyAsset {
+    id: number;
+    property_id: number;
+    company_id: number;
+    name: string;
+    asset_type: "image" | "video" | "video_url" | "tour_360_url";
+    file_path?: string;
+    external_url?: string;
+    mime_type?: string;
+    file_size?: number;
+    tags?: string[];
+    metadata?: Record<string, any>;
+    order: number;
+    url?: string;
+    formatted_size?: string;
+    has_tags: boolean;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string;
+    property?: Property;
+}
+
+export interface PropertyAssetFilters {
+    asset_type?: "image" | "video" | "video_url" | "tour_360_url" | "";
+    tags?: string[];
+    search?: string;
+    sort_by?: "created_at" | "name" | "size";
+    sort_order?: "asc" | "desc";
+}
+
+export interface PropertyAssetManageProps extends PageProps {
+    props: {
+        property: Property;
+        assets: Pagination<PropertyAsset>;
+        availableTags: Record<string, string>;
+        availableTypes: Record<string, string>;
+        filters: PropertyAssetFilters;
+        errors: Errors & ErrorBag;
+    };
+}
+
 // Common Types
+
+export interface Role {
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
+}
 
 export interface User {
     id: number;
@@ -194,6 +245,11 @@ export interface User {
     name: string;
     email: string;
     image_url: string;
+    employee_detail?: {
+        designation?: {
+            name: string;
+        };
+    };
     modules?: string[];
     mobile_with_phone_code?: string;
     name_salutation?: string;
@@ -208,14 +264,17 @@ export interface User {
 
     dark_theme: boolean;
     designation: string;
-    roles: string[];
+    roles: Role[];
 }
 export interface FlashMessage {
     type: "success" | "error" | "info" | "warning";
     message: string;
 }
 export interface AuthType {
-    user: User;
+    user: User; 
+    permissions: AppPermission;
+    modules: AppModule[];
+
 }
 export interface AppProps extends PageProps {
     props: {

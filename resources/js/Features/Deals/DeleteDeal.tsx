@@ -1,31 +1,36 @@
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
-import { Lead } from "@/Types";
 import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
 import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
 import { Deal } from "@/Types/api/deals";
-import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
+import { isLoading as getLoadingStatus } from "@/lib/utils";
 
 interface Props extends IModalProps {
     deal?: Deal;
 }
 
 const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
-    const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
-        deal ? route("deals.destroy", deal.id) : "",
-        "DELETE",
-        () => {
-            onClose();
-            router.visit(route("deals.index"));
-        }
-    );
+    const { mutate: deleteDeal, status } = useApiMutate<
+        unknown,
+        unknown,
+        ApiResponse<unknown>
+    >(deal ? route("deals.destroy", deal.id) : "", "DELETE");
+
+    const loading = getLoadingStatus({ status });
 
     // Handle single deal deletion
     const handleDeleteDeal = () => {
         if (!deal) return;
-        deleteMutation.mutate({});
+
+        deleteDeal(undefined, {
+            onSuccess: () => {
+                onClose();
+                router.reload();
+            },
+        });
     };
     return (
         <ConfirmationModal
@@ -33,7 +38,7 @@ const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
             onClose={onClose}
             onSubmit={{
                 fn: handleDeleteDeal,
-                loading: deleteMutation.isPending,
+                loading: loading,
             }}
             title="Delete Deal"
             description={

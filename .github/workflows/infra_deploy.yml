@@ -34,5 +34,5 @@ jobs:
           username: ${{ secrets.PRODUCTION_USER }}
           key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
           script: |
-            cd ~/hibarr-crm
+            cd /var/www/html
             make deploy-production

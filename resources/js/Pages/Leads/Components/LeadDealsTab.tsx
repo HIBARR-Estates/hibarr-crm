@@ -252,6 +252,8 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
         },
     ];
 
+    console.log(deals, "----------");
+
     return (
         <>
             {deals.length === 0 && (
@@ -318,7 +320,9 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
             <SaveDealModal
                 open={action === "add"}
                 onClose={() => handleClose()}
+                lead_id={lead.id}
                 deal={undefined}
+                disableFields={["lead_contact"]}
             />
 
             {/* Edit Deal Modal */}
@@ -326,7 +330,9 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                 <SaveDealModal
                     open={action === "edit"}
                     onClose={() => handleClose()}
+                    lead_id={lead.id}
                     deal={deal}
+                    disableFields={["lead_contact"]}
                 />
             )}
 

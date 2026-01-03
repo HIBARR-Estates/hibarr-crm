@@ -1,13 +1,24 @@
-import React, { useState } from "react";
-import { Button, Card, List, Tag, Avatar, Tooltip, Empty } from "antd";
-import {
-    PlusOutlined,
-    CalendarOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
+import { Table, Drawer, Empty, Button } from "antd";
 import { Task } from "@/Types/api/tasks";
-import SaveTaskModal from "@/Features/Tasks/SaveTask/SaveTaskModal";
+import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
+import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
+import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import BulkTaskActionSelector from "@/Features/Tasks/BulkActions/BulkTaskActionSelector";
+import { useTasksTableColumns } from "@/Features/Tasks/Columns";
+import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
+import { PlusOutlined } from "@ant-design/icons";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { isLoading } from "@/lib/utils";
+import { useState } from "react";
+import { router } from "@inertiajs/react";
 
+interface TaskboardColumn {
+    id: number;
+    column_name: string;
+    slug: string;
+    label_color: string;
+    priority: number;
+}
 interface Props {
     tasks: Task[];
     relatedEntity: {
@@ -16,9 +27,16 @@ interface Props {
     };
     taskCategories: any[];
     taskLabels: any[];
-    taskBoardColumns: any[];
+    taskBoardColumns: TaskboardColumn[];
     employees: any[];
     projects: any[];
+    permissions?: {
+        add_tasks: string;
+        edit_tasks: string;
+        delete_tasks: string;
+        view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
+        [key: string]: string;
+    };
 }
 
 export default function TasksTab({
@@ -26,131 +44,195 @@ export default function TasksTab({
     relatedEntity,
     taskCategories,
     taskLabels,
-    taskBoardColumns,
+    taskBoardColumns = [],
     employees,
     projects,
+    permissions = {
+        add_tasks: "all",
+        edit_tasks: "all",
+        delete_tasks: "all",
+        view_tasks: "all",
+    },
 }: Props) {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedTask, setSelectedTask] = useState<Task | undefined>(
-        undefined
-    );
+    const [selectedTaskType, setSelectedTaskType] = useState<string>("");
+    const {
+        action,
+        handleAction,
+        handleClose: closeAction,
+        selected: selectedTask,
+    } = useGenericEntityAction<Task>();
 
-    const handleCreate = () => {
-        setSelectedTask(undefined);
-        setIsModalOpen(true);
+    const handleClose = () => {
+        router.reload({ only: ["tasks"] });
+        closeAction();
     };
 
-    const handleEdit = (task: Task) => {
-        setSelectedTask(task);
-        setIsModalOpen(true);
-    };
+    // Table row selection
+    const { selectedEntities, rowSelection, clearSelected } =
+        useGenericTableRowSelection<Task>();
+
+    // Table columns using the hook
+    const columns = useTasksTableColumns({
+        columns: taskBoardColumns,
+        permissions,
+        onEdit: (selectedTask) => handleAction("edit", selectedTask),
+        onView: (selectedTask) => handleAction("view", selectedTask),
+        onDuplicate: (selectedTask) => handleAction("duplicate", selectedTask),
+        onDelete: (selectedTask) => handleAction("delete", selectedTask),
+        exclude: ["due_date", "progress", "created_at"],
+    });
+
+    const defaultTaskUrl =
+        relatedEntity.type === "deal"
+            ? `/account/deals/${relatedEntity.id}/tasks/default`
+            : "";
+    const {
+        mutate: createDefaultTask,
+        status,
+        isError,
+    } = useApiMutate(defaultTaskUrl, "POST");
+
+    const isCreatingDefaultTask = isLoading({ status, isError });
+
+    const defaultTasks = [
+        { key: "schedule_meeting", label: "Schedule Meeting" },
+        { key: "send_property_details", label: "Send Property Details" },
+        // { key: "setup_watcher", label: "Set Up Watcher" },
+        // { key: "assign_agent", label: "Assign Agent" },
+    ];
 
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Tasks</h3>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleCreate}
-                >
-                    Add Task
-                </Button>
-            </div>
+        <>
+            {tasks.length === 0 && (
+                <div className="p-8">
+                    <Empty
+                        description={
+                            <div className="text-center">
+                                <p className="text-gray-500 mb-2">No tasks</p>
 
-            {tasks.length === 0 ? (
-                <Empty description="No tasks found" />
-            ) : (
-                <List
-                    grid={{ gutter: 16, column: 1 }}
-                    dataSource={tasks}
-                    renderItem={(task) => (
-                        <List.Item>
-                            <Card
-                                size="small"
-                                className="cursor-pointer hover:shadow-md transition-shadow"
-                                onClick={() => handleEdit(task)}
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-medium text-base">
-                                                {task.heading}
-                                            </span>
-                                            <Tag
-                                                color={
-                                                    task.boardColumn
-                                                        ?.label_color
-                                                }
-                                            >
-                                                {task.boardColumn?.column_name}
-                                            </Tag>
-                                            <Tag
-                                                color={
-                                                    task.priority === "high"
-                                                        ? "red"
-                                                        : task.priority ===
-                                                          "medium"
-                                                        ? "orange"
-                                                        : "green"
-                                                }
-                                            >
-                                                {task.priority}
-                                            </Tag>
-                                        </div>
-                                        <div
-                                            className="text-gray-500 text-sm mb-2 line-clamp-2"
-                                            dangerouslySetInnerHTML={{
-                                                __html: task.description || "",
-                                            }}
-                                        />
+                                <Button
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => handleAction("add")}
+                                >
+                                    Add Task
+                                </Button>
 
-                                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                                            {task.due_date && (
-                                                <span className="flex items-center gap-1">
-                                                    <CalendarOutlined />
-                                                    Due: {task.due_date}
-                                                </span>
-                                            )}
-                                            {task.users &&
-                                                task.users.length > 0 && (
-                                                    <div className="flex -space-x-2">
-                                                        {task.users.map(
-                                                            (user) => (
-                                                                <Tooltip
-                                                                    title={
-                                                                        user.name
-                                                                    }
-                                                                    key={
-                                                                        user.id
-                                                                    }
-                                                                >
-                                                                    <Avatar
-                                                                        src={
-                                                                            user.image
-                                                                        }
-                                                                        size="small"
-                                                                        icon={
-                                                                            <UserOutlined />
-                                                                        }
-                                                                    />
-                                                                </Tooltip>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                )}
-                                        </div>
+                                {relatedEntity.type === "deal" && (
+                                    <div className="flex gap-2 justify-center mt-4">
+                                        {defaultTasks.map((task) => (
+                                            <Button
+                                                key={task.key}
+                                                variant="dashed"
+                                                onClick={() => {
+                                                    setSelectedTaskType(
+                                                        task.key
+                                                    );
+                                                    return createDefaultTask(
+                                                        {
+                                                            task_type: task.key,
+                                                        },
+                                                        {
+                                                            onSettled: () => {
+                                                                setSelectedTaskType(
+                                                                    ""
+                                                                );
+                                                                router.reload();
+                                                            },
+                                                        }
+                                                    );
+                                                }}
+                                                loading={
+                                                    isCreatingDefaultTask &&
+                                                    selectedTaskType ===
+                                                        task.key
+                                                }
+                                                size="small"
+                                            >
+                                                {task.label}
+                                            </Button>
+                                        ))}
                                     </div>
-                                </div>
-                            </Card>
-                        </List.Item>
-                    )}
-                />
+                                )}
+                            </div>
+                        }
+                    />
+                </div>
             )}
-
+            {tasks.length > 0 && (
+                <div className="p-6 flex flex-col gap-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            {relatedEntity.type === "deal" && (
+                                <div className="flex gap-2">
+                                    {defaultTasks.map((task) => (
+                                        <Button
+                                            key={task.key}
+                                            variant="dashed"
+                                            onClick={() => {
+                                                setSelectedTaskType(task.key);
+                                                return createDefaultTask(
+                                                    {
+                                                        task_type: task.key,
+                                                    },
+                                                    {
+                                                        onSettled: () => {
+                                                            setSelectedTaskType(
+                                                                ""
+                                                            );
+                                                            router.reload({
+                                                                only: ["tasks"],
+                                                            });
+                                                        },
+                                                    }
+                                                );
+                                            }}
+                                            loading={
+                                                isCreatingDefaultTask &&
+                                                selectedTaskType === task.key
+                                            }
+                                            size="small"
+                                        >
+                                            {task.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        {selectedEntities.length > 0 && (
+                            <BulkTaskActionSelector
+                                selectedEntityIds={selectedEntities.map(
+                                    (e) => e.id
+                                )}
+                                columns={taskBoardColumns}
+                                clearSelected={() => clearSelected()}
+                            />
+                        )}
+                    </div>
+                    <Table
+                        columns={columns}
+                        dataSource={tasks}
+                        rowKey="id"
+                        pagination={{
+                            pageSize: 10,
+                            showSizeChanger: true,
+                            showQuickJumper: true,
+                            showTotal: (total) => `Total ${total} tasks`,
+                        }}
+                        rowSelection={rowSelection}
+                    />
+                </div>
+            )}
+            {/* Delete Task Modal */}
+            <DeleteTask
+                open={action === "delete"}
+                task={selectedTask}
+                onClose={() => handleClose()}
+            />
             <SaveTaskModal
-                open={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                open={["add", "edit", "duplicate"].includes(action || "")}
+                onClose={() => handleClose()}
+                isDuplicate={action === "duplicate"}
                 task={selectedTask}
                 categories={taskCategories}
                 labels={taskLabels}
@@ -159,6 +241,18 @@ export default function TasksTab({
                 projects={projects}
                 relatedEntity={relatedEntity}
             />
-        </div>
+
+            {/* Task Details Drawer */}
+            <Drawer
+                title={`Task: ${selectedTask?.heading || ""}`}
+                placement="right"
+                size="large"
+                open={action === "view"}
+                onClose={() => handleClose()}
+                destroyOnHidden
+            >
+                <TaskDetailsDrawer task={selectedTask} loading={false} />
+            </Drawer>
+        </>
     );
 }

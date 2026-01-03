@@ -30,6 +30,11 @@ import { router } from "@inertiajs/react";
 
 import TasksKanban from "@/Features/Tasks/Components/TasksKanban";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import UniversalSearchBox from "@/Components/UniversalSearchBox";
+import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
+import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import createTaskFilterConfig from "@/configs/taskFilterConfig";
+import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 
 dayjs.extend(isBetween);
 
@@ -111,6 +116,22 @@ interface Project {
     project_short_code: string;
 }
 
+interface Deal {
+    id: number;
+    name: string;
+}
+
+interface Lead {
+    id: number;
+    client_name: string;
+    company_name?: string;
+}
+
+interface Property {
+    id: number;
+    name: string;
+}
+
 export interface TasksIndexProps extends PageProps {
     tasks: Task[];
     categories: TaskCategory[];
@@ -118,6 +139,9 @@ export interface TasksIndexProps extends PageProps {
     columns: TaskboardColumn[];
     users: User[];
     projects: Project[];
+    deals: Deal[];
+    leads: Lead[];
+    properties: Property[];
 
     permissions: {
         add_tasks: string;
@@ -127,13 +151,16 @@ export interface TasksIndexProps extends PageProps {
     };
 }
 
-const TasksIndex: React.FC<TasksIndexProps> = ({
+const TasksIndex = ({
     tasks: initialTasks = [],
     categories = [],
     labels = [],
     columns = [],
     users = [],
     projects = [],
+    deals = [],
+    leads = [],
+    properties = [],
     permissions = {
         add_tasks: "all",
         edit_tasks: "all",
@@ -141,44 +168,53 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
         view_tasks: "all",
     },
     auth,
-}) => {
-    console.log("Tasks:", initialTasks);
-
+}: TasksIndexProps) => {
     // Generic entity action hook for modals and actions
     const {
         action,
         selected: selectedTask,
         handleAction,
-        handleClose,
+        handleClose: closeAction,
     } = useGenericEntityAction<Task>();
+    const handleClose = () => {
+        closeAction();
+        router.reload();
+    };
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
         useGenericTableRowSelection<Task>();
 
+    // Memoize configs to prevent unnecessary re-renders and filter resets
+    const filterConfig = useMemo(
+        () =>
+            createTaskFilterConfig({
+                categories,
+                labels,
+                columns,
+                users,
+                projects,
+                deals,
+                leads,
+                properties,
+                excludeFields: ["search"],
+            }),
+        [categories, labels, columns, users, projects, deals, leads, properties]
+    );
+
     // Filter and sort handlers
-    const {
-        filters = {},
-        drawerOpen,
-        openFilterDrawer,
-        closeFilterDrawer,
-        handleQuickFilter,
-        removeFilter,
-        handleResetQuickFilters,
-        handleResetFilters,
-        handleFilterSubmit,
-        clearAllFilters,
-    } = usePageFilter({ handleClose, routeName: "tasks.index" });
+    // Setup search and filter contexts
+    const { filter } = usePageSearchAndFilter({
+        filterConfig,
+    });
+
+    const { openDrawer, filters } = filter;
 
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "tasks.index" });
 
-    // State
-    const [tasks, setTasks] = useState<Task[]>(initialTasks);
-    const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-
     // Use server-filtered tasks directly
-    const filteredTasks = tasks;
+    const filteredTasks = initialTasks;
 
     // Statistics
     const stats = useMemo(() => {
@@ -222,29 +258,6 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
         handleAction("delete", task);
     };
 
-    // Task list update handler for successful operations
-    const updateTasksList = (
-        updatedTask: Task,
-        operation: "create" | "update" | "delete"
-    ) => {
-        setTasks((prevTasks) => {
-            switch (operation) {
-                case "create":
-                    return [...prevTasks, updatedTask];
-                case "update":
-                    return prevTasks.map((task) =>
-                        task.id === updatedTask.id ? updatedTask : task
-                    );
-                case "delete":
-                    return prevTasks.filter(
-                        (task) => task.id !== updatedTask.id
-                    );
-                default:
-                    return prevTasks;
-            }
-        });
-        handleClose();
-    };
     // Task status change handler for Kanban
     const { mutate: updateTaskStatus } = useApiMutate(
         route("tasks.change_status"),
@@ -256,19 +269,6 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
         newStatus: string,
         newColumnId: number
     ) => {
-        // Optimistically update the UI
-        setTasks((prevTasks) =>
-            prevTasks.map((task) =>
-                task.id === taskId
-                    ? {
-                          ...task,
-                          status: newStatus,
-                          board_column_id: newColumnId,
-                      }
-                    : task
-            )
-        );
-
         updateTaskStatus({
             taskId: taskId,
             status: newStatus,
@@ -323,31 +323,17 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
     const isTableView = view === "table";
 
     return (
-        <DashboardLayout>
+        <>
             <PageLayout
                 title="Tasks"
                 breadcrumbs={[{ name: "Tasks" }]}
-                filterSection={
-                    <>
-                        {/* <BasicTaskFilterBox
-                            filters={filters}
-                            handleResetFilters={handleResetFilters}
-                            handleQuickFilter={handleQuickFilter}
-                            handleResetQuickFilters={handleResetQuickFilters}
-                            handleSubmit={handleFilterSubmit}
-                            categories={categories}
-                            columns={columns}
-                            users={users}
-                            projects={projects}
-                        /> */}
-                        {/* Active Filters */}
-                        <ActiveFilters
-                            filters={filters}
-                            onRemoveFilter={removeFilter}
-                            onClearAll={clearAllFilters}
-                        />
-                    </>
+                searchComp={
+                    <UniversalSearchBox
+                        placeholder="Search by title ..."
+                        className="w-full"
+                    />
                 }
+                filterSection={<ContextualActiveFilters />}
             >
                 <div className="max-w-7xl mx-auto">
                     {/* Header */}
@@ -456,7 +442,7 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         <div className="flex  items-center gap-x-2">
                             <Button
                                 icon={<FilterOutlined />}
-                                onClick={openFilterDrawer}
+                                onClick={openDrawer}
                             >
                                 Filters
                             </Button>
@@ -474,11 +460,11 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         )}
                     </div>
 
-                    <Card>
+                    <Card variant="outlined">
                         <div className="flex justify-end gap-x-2 items-center mb-2">
                             <div className="flex items-center gap-2"></div>
                         </div>
-
+                        {/* TODO : Refactor to have server size pagination/changes */}
                         {/* Table or Kanban View */}
                         {isTableView ? (
                             <Table
@@ -538,6 +524,9 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         columns={columns}
                         users={users}
                         projects={projects}
+                        deals={deals}
+                        leads={leads}
+                        properties={properties}
                     />
                     <SaveTaskModal
                         key="edit"
@@ -550,6 +539,9 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         columns={columns}
                         users={users}
                         projects={projects}
+                        deals={deals}
+                        leads={leads}
+                        properties={properties}
                     />
                     <SaveTaskModal
                         key="duplicate"
@@ -562,6 +554,9 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
                         columns={columns}
                         users={users}
                         projects={projects}
+                        deals={deals}
+                        leads={leads}
+                        properties={properties}
                     />
 
                     {/* Task Details Drawer */}
@@ -589,26 +584,13 @@ const TasksIndex: React.FC<TasksIndexProps> = ({
             </PageLayout>
 
             {/* Filter Drawer */}
-            <FilterDrawer
-                open={drawerOpen}
-                onClose={closeFilterDrawer}
-                title="Task Filters"
-                filters={filters}
-                onApplyFilters={handleFilterSubmit}
-                onResetFilters={handleResetFilters}
-            >
-                <AdvancedTaskFilterForm
-                    filters={filters}
-                    onFilterChange={handleQuickFilter}
-                    categories={categories}
-                    labels={labels}
-                    columns={columns}
-                    users={users}
-                    projects={projects}
-                />
-            </FilterDrawer>
-        </DashboardLayout>
+            <UniversalFilterDrawer config={filterConfig} />
+        </>
     );
 };
+
+TasksIndex.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default TasksIndex;

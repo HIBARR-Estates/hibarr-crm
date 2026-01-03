@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Lead } from "@/Types/api/leads";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import {
     Descriptions,
     Avatar,
@@ -107,10 +107,10 @@ export default function LeadInfoSection({
             ? [
                   {
                       key: "edit",
-                      tooltip: "Edit Lead",
+                      tooltip: "Edit Contact",
                       type: "text" as const,
                       icon: <EditOutlined />,
-                      label: <span>Edit Lead</span>,
+                      label: <span>Edit Contact</span>,
                       onClick: () => handleAction("edit", lead),
                   },
               ]
@@ -146,7 +146,7 @@ export default function LeadInfoSection({
             children: (
                 <div className="p-6">
                     {/* Header with Avatar and Basic Info */}
-                    <div className="flex items-start gap-x-4 mb-6">
+                    {/* <div className="flex items-start gap-x-4 mb-6">
                         <Avatar
                             size={80}
                             src={currentLead?.image_url || lead.image_url}
@@ -178,9 +178,9 @@ export default function LeadInfoSection({
                                 )}
                             </div>
                         </div>
-                    </div>
+                    </div> */}
 
-                    <Divider />
+                    {/* <Divider /> */}
 
                     <Descriptions column={2} bordered size="middle">
                         {/* Contact Information */}
@@ -231,6 +231,16 @@ export default function LeadInfoSection({
                                 lead.office_phone_formatted || (
                                     <span className="text-gray-500">--</span>
                                 )}
+                        </Descriptions.Item>
+
+                        <Descriptions.Item label="Gender">
+                            {currentLead?.gender || lead.gender ? (
+                                <span className="capitalize">
+                                    {currentLead?.gender || lead.gender}
+                                </span>
+                            ) : (
+                                <span className="text-gray-500">--</span>
+                            )}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Company">
@@ -439,7 +449,10 @@ export default function LeadInfoSection({
 
             <DeleteLead
                 open={action === "delete"}
-                onClose={() => handleClose()}
+                onClose={() => {
+                    router.visit(route("lead-contact.index"));
+                    handleClose();
+                }}
                 lead={currentLead || lead}
             />
 

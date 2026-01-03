@@ -48,10 +48,10 @@ export interface Deal {
     next_follow_up_date?: string | null;
     next_follow_up_status?: string | null;
     strategy_accepted?: number;
-    package?: {
+    packages?: {
         id: number;
         name: string;
-    };
+    }[];
 
     package_id?: number;
     downpayment_confirmed?: number;
@@ -78,6 +78,7 @@ export interface Deal {
 export interface HibarrDealFields {
     id: number;
     deal_id: number;
+    message?: string | null;
     interested_in?: string | null;
     motivation?: string | null;
     purchase_timeline?: string | null;
@@ -263,6 +264,7 @@ export interface PipelineStage {
 
 export interface CreateDealFormData {
     name: string;
+    lead_id?: number;
     lead_contact?: number;
     pipeline?: number;
     stage_id?: number;
@@ -271,11 +273,13 @@ export interface CreateDealFormData {
     category_id?: number;
     agent_id?: number;
     product_id?: number[];
+    package_id?: number[];
     services?: number[];
     deal_watcher?: number[];
     strategy_accepted?: boolean;
     downpayment_confirmed?: boolean;
     custom_fields_data?: Record<string, any>;
+    packages?: number[];
 }
 
 export interface EditDealFormData extends CreateDealFormData {

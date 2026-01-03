@@ -427,6 +427,9 @@ class EmployeeController extends AccountBaseController
 
         $this->employees = User::allEmployees($exceptUsers, true);
 
+        // Initialize employeeDetail to null if it doesn't exist
+        $this->employeeDetail = null;
+        
         if (!is_null($this->employee->employeeDetail)) {
             $this->employeeDetail = $this->employee->employeeDetail->withCustomFields();
 

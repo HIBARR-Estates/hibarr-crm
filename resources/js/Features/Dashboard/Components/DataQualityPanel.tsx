@@ -65,8 +65,17 @@ interface DataQualityRecord {
     priority_score: number; // Calculated based on value, stage, and data quality
 }
 
+interface DataQualityStats {
+    total: number;
+    critical: number;
+    poor: number;
+    fair: number;
+    average_score: number;
+}
+
 interface DataQualityPanelProps {
     records: DataQualityRecord[];
+    stats?: DataQualityStats;
     loading?: boolean;
     products?: any[];
     packages?: any[];
@@ -85,6 +94,7 @@ const determineAppropriateRecordRoute = (record: DataQualityRecord): string => {
 };
 const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
     records = [],
+    stats,
     loading = false,
     products = [],
     packages = [],
@@ -173,13 +183,14 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
 
         return (
             <motion.div
-                key={record.id}
+                key={record.id + "-" + index}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 className="mb-4"
             >
                 <Card
+                    variant="outlined"
                     size="small"
                     className={`transition-all duration-200 ${
                         record.data_quality_score < 40
@@ -371,27 +382,33 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
         return a.data_quality_score - b.data_quality_score;
     });
 
-    const criticalRecords = sortedRecords.filter(
-        (r) => r.data_quality_score < 40
-    );
-    const poorRecords = sortedRecords.filter(
-        (r) => r.data_quality_score >= 40 && r.data_quality_score < 60
-    );
-    const fairRecords = sortedRecords.filter(
-        (r) => r.data_quality_score >= 60 && r.data_quality_score < 80
-    );
+    const criticalCount =
+        stats?.critical ??
+        sortedRecords.filter((r) => r.data_quality_score < 40).length;
+    const poorCount =
+        stats?.poor ??
+        sortedRecords.filter(
+            (r) => r.data_quality_score >= 40 && r.data_quality_score < 60
+        ).length;
+    const fairCount =
+        stats?.fair ??
+        sortedRecords.filter(
+            (r) => r.data_quality_score >= 60 && r.data_quality_score < 80
+        ).length;
 
     const averageScore =
-        records.length > 0
+        stats?.average_score ??
+        (records.length > 0
             ? Math.round(
                   records.reduce((sum, r) => sum + r.data_quality_score, 0) /
                       records.length
               )
-            : 0;
+            : 0);
 
     return (
         <>
             <Card
+                variant="outlined"
                 title={
                     <div className="flex items-center justify-between">
                         <span>Data Quality Monitor</span>
@@ -412,11 +429,9 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                     {averageScore}%
                                 </span>
                             </div>
-                            <Tag color="red">
-                                {criticalRecords.length} critical
-                            </Tag>
-                            <Tag color="orange">{poorRecords.length} poor</Tag>
-                            <Tag color="blue">{fairRecords.length} fair</Tag>
+                            <Tag color="red">{criticalCount} critical</Tag>
+                            <Tag color="orange">{poorCount} poor</Tag>
+                            <Tag color="blue">{fairCount} fair</Tag>
                         </div>
                     </div>
                 }
@@ -425,9 +440,9 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
             >
                 <div className="flex flex-col gap-y-4">
                     {/* Summary Alert */}
-                    {criticalRecords.length > 0 && (
+                    {criticalCount > 0 && (
                         <Alert
-                            message={`${criticalRecords.length} records need immediate attention`}
+                            message={`${criticalCount} records need immediate attention`}
                             description="These records have critical data quality issues that may affect sales performance"
                             type="error"
                             showIcon

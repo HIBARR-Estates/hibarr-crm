@@ -33,9 +33,10 @@ export interface LeadShowProps {
     taskLabels: any[];
     taskBoardColumns: any[];
     projects: any[];
+    permissions: Record<string, string>;
 }
 
-const Show: React.FC<LeadShowProps> = ({
+const Show= ({
     lead,
     customFieldCategories,
     fields,
@@ -51,7 +52,8 @@ const Show: React.FC<LeadShowProps> = ({
     taskLabels,
     taskBoardColumns,
     projects,
-}) => {
+    permissions,
+}: LeadShowProps ) => {
     const tabItems = [
         {
             key: "profile",
@@ -110,6 +112,7 @@ const Show: React.FC<LeadShowProps> = ({
                     taskBoardColumns={taskBoardColumns}
                     employees={employees}
                     projects={projects}
+                    permissions={permissions as any}
                 />
             ),
         },
@@ -118,7 +121,8 @@ const Show: React.FC<LeadShowProps> = ({
         children: (
             <div className="max-w-7xl mx-auto mt-8 mb-12">
                 <Card
-                    className="shadow-sm border-0 rounded-lg overflow-hidden"
+                    variant="outlined"
+                    className="border-0 rounded-lg overflow-hidden"
                     bodyStyle={{ padding: 0 }}
                 >
                     {item.children}
@@ -128,31 +132,33 @@ const Show: React.FC<LeadShowProps> = ({
     }));
 
     return (
-        <DashboardLayout>
-            <PageLayout
-                title={lead?.client_name_salutation}
-                breadcrumbs={[
-                    { name: "Contacts", url: route("lead-contact.index") },
-                    { name: lead?.client_name || "" },
-                ]}
-                mainContentClassName=""
-            >
-                <div>
-                    <Tabs
-                        items={tabItems}
-                        className="lead-tabs"
-                        tabBarStyle={{
-                            paddingLeft: 24,
-                            paddingRight: 24,
-                            marginBottom: 0,
-                            backgroundColor: "#fafafa",
-                            borderBottom: "1px solid #f0f0f0",
-                        }}
-                    />
-                </div>
-            </PageLayout>
-        </DashboardLayout>
+        <PageLayout
+            title={lead?.client_name_salutation}
+            breadcrumbs={[
+                { name: "Contacts", url: route("lead-contact.index") },
+                { name: lead?.client_name || "" },
+            ]}
+            mainContentClassName=""
+        >
+            <div>
+                <Tabs
+                    items={tabItems}
+                    className="lead-tabs"
+                    tabBarStyle={{
+                        paddingLeft: 24,
+                        paddingRight: 24,
+                        marginBottom: 0,
+                        backgroundColor: "#fafafa",
+                        borderBottom: "1px solid #f0f0f0",
+                    }}
+                />
+            </div>
+        </PageLayout>
     );
 };
+
+Show.layout = (page: React.ReactNode) => (
+    <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default Show;

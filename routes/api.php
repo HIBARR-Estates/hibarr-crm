@@ -21,6 +21,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
     ApiRoute::post('internal/communication-activities', ['as' => 'api.communication-activities.store.internal', 'uses' => 'CommunicationActivityController@store']);
     ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities.internal', 'uses' => 'CommunicationActivityController@getDealActivities']);
+    ApiRoute::post('internal/communication-activities/send-email', ['as' => 'api.communication-activities.send-email.internal', 'uses' => 'CommunicationActivityController@sendEmailToCustomer']);
   
 
     // External Communications Module Routes
@@ -29,6 +30,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities', 'uses' => 'CommunicationActivityController@getDealActivities']);
         ApiRoute::get('leads/{leadId}/communication-activities', ['as' => 'api.leads.communication-activities', 'uses' => 'CommunicationActivityController@getLeadActivities']);
         ApiRoute::get('communication-activities/channel/{channelType}', ['as' => 'api.communication-activities.by-channel', 'uses' => 'CommunicationActivityController@getActivitiesByChannel']);
+        ApiRoute::post('communication-activities/send-email', ['as' => 'api.communication-activities.send-email', 'uses' => 'CommunicationActivityController@sendEmailToCustomer']);
         ApiRoute::post('meeting-summary', ['as' => 'api.meeting-summary', 'uses' => 'MeetingSummaryApiController@getMeetingSummary']);
 
         // Meeting Summary Routes
@@ -37,7 +39,9 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
         //Import routes
         ApiRoute::post('bitrix/import', ['as' => 'api.bitrix.import', 'uses' => 'Api\BitrixImportController@store']);
+        ApiRoute::post('bitrix/contact/import', ['as' => 'api.bitrix.contact.import', 'uses' => 'Api\BitrixImportController@contactStore']);
         ApiRoute::post('bitrix/comments/import', ['as' => 'api.bitrix.comments.import', 'uses' => 'Api\BitrixImportController@commentStore']);
+        ApiRoute::post('bitrix/tasks/import', ['as' => 'api.bitrix.tasks.import', 'uses' => 'Api\BitrixImportController@taskImport']);
 
         
         // External Events Routes

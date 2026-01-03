@@ -32,6 +32,7 @@ interface DealDetailsTabProps
         | "onErrorsClear"
     > {
     setDeal?: (deal: Deal | undefined) => void;
+    disableFields?: string[];
 }
 
 const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
@@ -44,6 +45,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onErrorsClear,
     setErrors,
     setDeal,
+    disableFields = [], // prop to disable fields
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
@@ -75,7 +77,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 close_date: data.close_date ? dayjs(data.close_date) : null,
                 deal_watcher: data.deal_watcher || [],
                 product_id: data.product_id || [],
+                package_id: data.packages
+                    ? data.packages.map((p: any) => p.id)
+                    : data.package_id || [],
             };
+            console.log(formData, "how does deal formdata ...", data);
             setPipelineId(formData.pipeline);
             setSelectedCategoryId(formData.category_id);
             form.setFieldsValue(formData);
@@ -133,28 +139,29 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         return uniqueAgents;
     }, [selectedCategoryId, leadAgents, uniqueAgents]);
 
-    const calculateTotalValue = (currentPackageId?: number) => {
+    const calculateTotalValue = (currentPackageIds?: number[]) => {
         let total = 0;
 
         // Package value
-        const packageId =
-            currentPackageId !== undefined
-                ? currentPackageId
+        const packageIds =
+            currentPackageIds !== undefined
+                ? currentPackageIds
                 : form.getFieldValue("package_id");
-        if (packageId) {
-            const selectedPackage = packages.find(
-                (p: any) => p.id === packageId
-            );
-            if (selectedPackage) {
-                total += parseFloat(selectedPackage.value);
-            }
+
+        if (Array.isArray(packageIds)) {
+            packageIds.forEach((id) => {
+                const selectedPackage = packages.find((p: any) => p.id === id);
+                if (selectedPackage) {
+                    total += parseFloat(selectedPackage.value);
+                }
+            });
         }
 
         // form.setFieldValue("value", total);
     };
 
-    const handlePackageChange = (packageId: number) => {
-        calculateTotalValue(packageId);
+    const handlePackageChange = (packageIds: number[]) => {
+        calculateTotalValue(packageIds);
     };
 
     const handleSubmit = (values: any) => {
@@ -189,7 +196,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             }}
             size="middle"
         >
-            <Card title="Deal Information" size="small">
+            <Card title="Deal Information" size="small" variant="outlined">
                 <Row gutter={[16, 16]}>
                     <Col span={8}>
                         <Form.Item
@@ -203,19 +210,24 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             ]}
                         >
                             <Select
+                                // Disabled if "lead_contact" is in the disableFields array
+                                disabled={disableFields.includes(
+                                    "lead_contact"
+                                )}
                                 placeholder="Select Lead Contact"
+                                allowClear
                                 showSearch
-                                filterOption={(input, option) =>
-                                    (option?.children as unknown as string)
-                                        ?.toLowerCase()
-                                        .includes(input.toLowerCase())
-                                }
                                 optionFilterProp="children"
-                                options={leadContacts.map((contact: any) => ({
-                                    label: contact.client_name_salutation,
-                                    value: contact.id,
-                                }))}
-                            />
+                            >
+                                {leadContacts.map((contact: any) => (
+                                    <Select.Option
+                                        key={contact.id}
+                                        value={contact.id}
+                                    >
+                                        {contact.client_name_salutation}
+                                    </Select.Option>
+                                ))}
+                            </Select>
                         </Form.Item>
                     </Col>
 
@@ -248,6 +260,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             <Select
                                 placeholder="Select Pipeline"
                                 onChange={handlePipelineChange}
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
                             >
                                 {leadPipelines.map((pipeline: any) => (
                                     <Select.Option
@@ -272,7 +287,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 },
                             ]}
                         >
-                            <Select placeholder="Select Stage">
+                            <Select
+                                placeholder="Select Stage"
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
+                            >
                                 {stages
                                     .filter((stage: any) =>
                                         pipelineId
@@ -384,9 +404,10 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     </Col>
 
                     <Col span={24}>
-                        <Form.Item name="package_id" label="Package">
+                        <Form.Item name="package_id" label="Packages">
                             <Select
-                                placeholder="Select Package"
+                                mode="multiple"
+                                placeholder="Select Packages"
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"

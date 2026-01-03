@@ -38,6 +38,10 @@ use App\Events\TaskEvent;
 use App\Helper\UserService;
 use App\Models\ClientContact;
 use App\Services\PermissionService;
+use App\Models\Deal;
+use App\Models\Lead;
+use App\Models\Property;
+use Inertia\Inertia;
 
 class TaskController extends AccountBaseController
 {
@@ -69,15 +73,28 @@ class TaskController extends AccountBaseController
             'users:id,name,image', 
             'category:id,category_name', 
             'labels', 
-            'boardColumn:id,column_name,slug,label_color'
+            'boardColumn:id,column_name,slug,label_color',
+            'deals',
+            'leads',
+            'properties'
         ]);
 
         // Apply permission-based filtering
         $taskRules = [
-            'added' => 'added_by',
+            'added' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $query->where('added_by', $user->id)
+                        ->orWhereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
+                });
+            },
             'owned' => function($q, $user) {
-                $q->whereHas('users', function ($query) use ($user) {
-                    $query->where('created_by', $user->id);
+                $q->where(function($query) use ($user) {
+                    $query->where('added_by', $user->id)
+                        ->orWhereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
                 });
             }
         ];
@@ -118,14 +135,14 @@ class TaskController extends AccountBaseController
         // Apply assignee filter
         if (request()->filled('assigned_to') && request('assigned_to') !== 'all') {
             $tasksQuery->whereHas('users', function ($query) {
-                $query->where('user_id', request('assigned_to'));
+                $query->where('users.id', request('assigned_to'));
             });
         }
 
         // Apply labels filter
         if (request()->filled('labels') && is_array(request('labels'))) {
             $tasksQuery->whereHas('labels', function ($query) {
-                $query->whereIn('task_label_id', request('labels'));
+                $query->whereIn('id', request('labels'));
             });
         }
 
@@ -209,6 +226,25 @@ class TaskController extends AccountBaseController
                 'created_at' => $task->created_at->toISOString(),
                 'updated_at' => $task->updated_at->toISOString(),
                 'added_by' => $task->added_by,
+                'deals' => $task->deals->map(function ($deal) {
+                    return [
+                        'id' => $deal->id,
+                        'name' => $deal->name,
+                    ];
+                })->toArray(),
+                'leads' => $task->leads->map(function ($lead) {
+                    return [
+                        'id' => $lead->id,
+                        'client_name' => $lead->client_name,
+                        'company_name' => $lead->company_name,
+                    ];
+                })->toArray(),
+                'properties' => $task->properties->map(function ($property) {
+                    return [
+                        'id' => $property->id,
+                        'title' => $property->title,
+                    ];
+                })->toArray(),
             ];
         });
 
@@ -255,6 +291,10 @@ class TaskController extends AccountBaseController
             ];
         });
 
+        $deals = Deal::select('id', 'name')->get();
+        $leads = Lead::select('id', 'client_name', 'company_name')->get();
+        $properties = Property::select('id', 'title')->get();
+
         // Get user permissions
         $permissions = [
             'add_tasks' => user()->permission('add_tasks'),
@@ -276,13 +316,16 @@ class TaskController extends AccountBaseController
             'search' => request('search'),
         ];
 
-        return inertia('Tasks/Index', [
+        return Inertia::render('Tasks/Index', [
             'tasks' => $tasks,
             'categories' => $categories,
             'labels' => $labels,
             'columns' => $taskBoardColumns,
             'users' => $employees,
             'projects' => $projects,
+            'deals' => $deals,
+            'leads' => $leads,
+            'properties' => $properties,
             'filters' => $filters,
             'permissions' => $permissions,
         ]);
@@ -448,6 +491,24 @@ class TaskController extends AccountBaseController
         $task->save();
 
         return Reply::success(__('messages.updateSuccess'));
+    }
+
+    public function storeDefaultTask(Request $request, $dealId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $this->addPermission = user()->permission('add_tasks');
+        abort_403(!in_array($this->addPermission, ['all', 'added']));
+
+        $taskType = $request->task_type;
+        
+        $dealTaskService = new \App\Services\DealTaskService();
+        $task = $dealTaskService->createTaskByType($deal, $taskType);
+
+        if (!$task) {
+            return Reply::error('Invalid task type');
+        }
+
+        return Reply::success(__('messages.taskCreatedSuccessfully'));
     }
 
     public function destroy(Request $request, $id)
@@ -691,6 +752,14 @@ class TaskController extends AccountBaseController
                 $entity = $modelClass::find($id);
                 if ($entity) {
                     $entity->tasks()->syncWithoutDetaching([$task->id]);
+
+                    // Auto-assign deal agent if applicable
+                    if (strtolower($type) === 'deal' && $entity->agent_id) {
+                        $agentUserId = \App\Models\LeadAgent::find($entity->agent_id)?->user_id;
+                        if ($agentUserId) {
+                            $task->users()->syncWithoutDetaching([$agentUserId]);
+                        }
+                    }
                 }
             }
         }
@@ -800,13 +869,13 @@ class TaskController extends AccountBaseController
             unset($request->project_id);
             $html = $this->create();
 
-            return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true, 'taskID' => $task->id]);
+            return Reply::successWithData(__('messages.taskSaved'), ['html' => $html, 'add_more' => true, 'taskID' => $task->id]);
         }
 
         if ($request->page_name && $request->page_name == 'ganttChart') {
 
             return Reply::successWithData(
-                'messages.recordSaved',
+                'messages.taskSaved',
                 [
                     'tasks' => $ganttTaskArray,
                     'links' => $gantTaskLinkArray
@@ -820,7 +889,7 @@ class TaskController extends AccountBaseController
             $redirectUrl = route('tasks.index');
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
+        return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
 
     }
 
@@ -952,20 +1021,20 @@ class TaskController extends AccountBaseController
 
     public function update(UpdateTask $request, $id)
     {
-        $task = Task::with('users', 'label', 'project')->findOrFail($id)->withCustomFields();
+        $task = Task::with('users', 'label', 'project')->findOrFail($id);
         $editTaskPermission = user()->permission('edit_tasks');
         $taskUsers = $task->users->pluck('id')->toArray();
 
-        abort_403(
-            !($editTaskPermission == 'all'
-                || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
-                || ($editTaskPermission == 'added' && $task->added_by == user()->id)
-                || ($task->project && ($task->project->project_admin == user()->id))
-                || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
-                || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
-                || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
-            )
-        );
+        if (!($editTaskPermission == 'all'
+            || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
+            || ($editTaskPermission == 'added' && $task->added_by == user()->id)
+            || ($task->project && ($task->project->project_admin == user()->id))
+            || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
+            || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
+            || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
+        )) {
+            return Reply::error(__('messages.permissionDenied'));
+        }
 
         $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
         $task->heading = $request->heading;
@@ -1063,7 +1132,7 @@ class TaskController extends AccountBaseController
             }
         }
 
-        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('tasks.show', $id)]);
+        return Reply::successWithData(__('messages.taskUpdateSuccess'), ['redirectUrl' => route('tasks.show', $id)]);
     }
 
     /**

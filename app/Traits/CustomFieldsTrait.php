@@ -73,7 +73,7 @@ trait CustomFieldsTrait
         })->first();
 
         if ($fields && $customFieldGroup) {
-            $customFieldGroup->load(['customField'])->append(['fields']);
+            $customFieldGroup->load(['customField.conditions', 'customField.visibility'])->append(['fields']);
         }
 
         return $customFieldGroup;
@@ -200,6 +200,10 @@ trait CustomFieldsTrait
     {
         $this->custom_fields = $this->getCustomFieldGroupsWithFields();
         $this->custom_fields_data = $this->getCustomFieldsData();
+
+        // Ensure these are serialized by adding them to attributes
+        $this->attributes['custom_fields'] = $this->custom_fields;
+        $this->attributes['custom_fields_data'] = $this->custom_fields_data;
 
         return $this;
     }

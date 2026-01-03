@@ -568,7 +568,7 @@ export default function SaveProposal({
                 <Divider />
 
                 {/* Totals Section */}
-                <Card size="small" className="mb-4">
+                <Card size="small" className="mb-4" variant="outlined">
                     <Row gutter={24}>
                         <Col xs={24} sm={12}>
                             <div className="flex flex-col gap-y-2">

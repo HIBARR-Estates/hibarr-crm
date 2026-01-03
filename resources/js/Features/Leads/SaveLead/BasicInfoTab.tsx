@@ -16,6 +16,7 @@ import { usePage } from "@inertiajs/react";
 import { LeadFormProps } from "./LeadForm";
 import LeadDealCreation from "./LeadDealCreation";
 import dayjs from "dayjs";
+import FormDataSelector from "@/Components/FormDataSelector";
 
 interface BasicInfoTabProps
     extends Pick<
@@ -37,7 +38,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     onSubmit,
     onCancel,
     loading = false,
-    submitText = "Save Lead",
+    submitText = "Save Contact",
     cancelText = "Cancel",
     onErrorsClear,
     setErrors,
@@ -45,7 +46,6 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 }) => {
     const { props } = usePage<any>();
     const { salutations, sources, categories, employees, permissions } = props;
-    console.log("data passed for lead basic info", data);
     const [form] = Form.useForm();
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const isEditing = data ? true : false;
@@ -68,7 +68,6 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
     const handleSubmit = (values: any) => {
         // Transform the values to match the API expectations
-        console.log(values, createDeal, createClient, "Submit lead basic info");
         const formData = {
             ...values,
             close_date: values.close_date
@@ -90,7 +89,6 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             layout="vertical"
             onFinish={handleSubmit}
             onFinishFailed={(errorInfo) => {
-                console.log("Form validation failed:", errorInfo);
                 setErrors?.(
                     errorInfo.errorFields.map((field) => field.errors).flat()
                 );
@@ -101,20 +99,23 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             size="middle"
         >
             <div className="space-y-4">
-                <Card title="Lead Information" size="small">
+                <Card title="Contact Information" size="small">
                     <Row gutter={[24, 16]}>
                         <Col span={8}>
                             <Form.Item label="Salutation" name="salutation">
-                                <Select placeholder="--" allowClear>
-                                    {salutations?.map((salutation: any) => (
-                                        <Select.Option
-                                            key={salutation.value}
-                                            value={salutation.value}
-                                        >
-                                            {salutation.label}
-                                        </Select.Option>
-                                    ))}
-                                </Select>
+                                <FormDataSelector
+                                    type="salutations"
+                                    placeholder="Salutation"
+                                />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={8}>
+                            <Form.Item label="Gender" name="gender">
+                                <FormDataSelector
+                                    type="genders"
+                                    placeholder="Gender"
+                                />
                             </Form.Item>
                         </Col>
 
@@ -154,27 +155,10 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                     label="Lead Source"
                                     name={"source_id"}
                                 >
-                                    <Select
-                                        placeholder="--"
-                                        allowClear
-                                        showSearch
-                                        filterOption={(input, option) =>
-                                            (
-                                                option?.children as unknown as string
-                                            )
-                                                ?.toLowerCase()
-                                                .includes(input.toLowerCase())
-                                        }
-                                    >
-                                        {sources?.map((source: any) => (
-                                            <Select.Option
-                                                key={source.id}
-                                                value={source.id}
-                                            >
-                                                {source.type}
-                                            </Select.Option>
-                                        ))}
-                                    </Select>
+                                    <FormDataSelector
+                                        type="sources"
+                                        placeholder="Lead Source"
+                                    />
                                 </Form.Item>
                             </Col>
                         )}
@@ -182,52 +166,20 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         {permissions?.add_lead === "all" && (
                             <Col span={8}>
                                 <Form.Item label="Added By" name={"added_by"}>
-                                    <Select
-                                        placeholder="--"
-                                        allowClear
-                                        showSearch
-                                        filterOption={(input, option) =>
-                                            (
-                                                option?.children as unknown as string
-                                            )
-                                                ?.toLowerCase()
-                                                .includes(input.toLowerCase())
-                                        }
-                                    >
-                                        {employees?.map((employee: any) => (
-                                            <Select.Option
-                                                key={employee.id}
-                                                value={employee.id}
-                                            >
-                                                {employee.name}
-                                            </Select.Option>
-                                        ))}
-                                    </Select>
+                                    <FormDataSelector
+                                        type="employees"
+                                        placeholder="Added By"
+                                    />
                                 </Form.Item>
                             </Col>
                         )}
 
                         <Col span={8}>
                             <Form.Item label="Lead Owner" name={"lead_owner"}>
-                                <Select
-                                    placeholder="--"
-                                    allowClear
-                                    showSearch
-                                    filterOption={(input, option) =>
-                                        (option?.children as unknown as string)
-                                            ?.toLowerCase()
-                                            .includes(input.toLowerCase())
-                                    }
-                                >
-                                    {employees?.map((employee: any) => (
-                                        <Select.Option
-                                            key={employee.id}
-                                            value={employee.id}
-                                        >
-                                            {employee.name}
-                                        </Select.Option>
-                                    ))}
-                                </Select>
+                                <FormDataSelector
+                                    type="employees"
+                                    placeholder="Lead Owner"
+                                />
                             </Form.Item>
                         </Col>
                     </Row>

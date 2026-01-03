@@ -2,65 +2,82 @@
 @section('title', __('Meeting Types'))
 
 @section('content')
-    <div class="row">
-        <div class="col-sm-12">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0">@lang('Meeting Types')</h4>
-                <a href="{{ route('meeting-types.create') }}" class="btn btn-primary">
-                    <i class="fa fa-plus"></i> @lang('Add Meeting Type')
-                </a>
-            </div>
 
-            <div class="card">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>@lang('Name')</th>
-                                    <th>@lang('Description')</th>
-                                    <th>@lang('Color')</th>
-                                    <th>@lang('Actions')</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($meetingTypes as $meetingType)
-                                    <tr>
-                                        <td>
-                                            <span class="badge" style="background-color: {{ $meetingType->color }}; color: white;">
-                                                {{ $meetingType->name }}
-                                            </span>
-                                        </td>
-                                        <td>{{ $meetingType->description ?: '--' }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="color-preview" style="width: 20px; height: 20px; background-color: {{ $meetingType->color }}; border-radius: 3px; margin-right: 10px;"></div>
-                                                {{ $meetingType->color }}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group">
-                                                <a href="{{ route('meeting-types.edit', $meetingType->id) }}" class="btn btn-sm btn-info">
-                                                    <i class="fa fa-edit"></i>
-                                                </a>
-                                                <button type="button" class="btn btn-sm btn-danger delete-meeting-type" data-id="{{ $meetingType->id }}">
-                                                    <i class="fa fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="text-center">@lang('No meeting types found')</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+    <!-- SETTINGS START -->
+    <div class="w-100 d-flex">
+        <x-setting-sidebar :activeMenu="$activeSettingMenu" />
+        <x-setting-card>
+            <x-slot name="buttons">
+                <div class="row">
+                    <div class="col-md-12 mb-2">
+                        <a href="{{ route('meeting-types.create') }}" class="btn btn-primary">
+                            <i class="fa fa-plus"></i> @lang('Add Meeting Type')
+                        </a>
                     </div>
                 </div>
+            </x-slot>
+
+            <x-slot name="header">
+                <div class="s-b-n-header" id="tabs">
+                    <nav class="tabs px-4 border-bottom-grey">
+                        <div class="nav" id="nav-tab" role="tablist">
+                            <a class="nav-item nav-link f-15 active" href="{{ route('meeting-types.index') }}"
+                                role="tab" aria-controls="nav-meetingTypes" aria-selected="true">
+                                @lang('Meeting Types')
+                            </a>
+                        </div>
+                    </nav>
+                </div>
+            </x-slot>
+
+            <div class="table-responsive" style="width: 100%; margin: 0; padding: 0;">
+                <table class="table table-bordered" style="width: 100%; margin: 0;">
+                    <thead>
+                        <tr>
+                            <th>@lang('Name')</th>
+                            <th>@lang('Description')</th>
+                            <th>@lang('Color')</th>
+                            <th>@lang('Actions')</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($meetingTypes as $meetingType)
+                            <tr>
+                                <td>
+                                    <span class="badge" style="background-color: {{ $meetingType->color }}; color: white;">
+                                        {{ $meetingType->name }}
+                                    </span>
+                                </td>
+                                <td>{{ $meetingType->description ?: '--' }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="color-preview" style="width: 20px; height: 20px; background-color: {{ $meetingType->color }}; border-radius: 3px; margin-right: 10px;"></div>
+                                        {{ $meetingType->color }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{{ route('meeting-types.edit', $meetingType->id) }}" class="btn btn-sm btn-info">
+                                            <i class="fa fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger delete-meeting-type" data-id="{{ $meetingType->id }}">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center">@lang('No meeting types found')</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-        </div>
+        </x-setting-card>
     </div>
+    <!-- SETTINGS END -->
+
 @endsection
 
 @push('scripts')
