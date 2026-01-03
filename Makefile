@@ -79,7 +79,6 @@ deploy-staging:
 	git pull origin staging && \
 	$(MAKE) sync-to-webroot && \
 	cd $(WEBROOT) && \
-	$(MAKE) ensure-storage && \
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
 	$(MAKE) migrate && \
@@ -91,7 +90,6 @@ deploy-production:
 	git checkout -f main && \
 	git reset --hard origin/main && \
 	git clean -fd -e storage && \
-	$(MAKE) ensure-storage && \
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
 	$(MAKE) migrate && \
