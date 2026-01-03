@@ -79,9 +79,11 @@ deploy-staging:
 
 deploy-production:
 	cd $(WEBROOT) && \
-	$(MAKE) checkout-branch BRANCH=main && \
-	$(MAKE) reset-and-pull BRANCH=main && \
-	$(MAKE) composer-install && \
-	$(MAKE) npm-build && \
-	$(MAKE) migrate && \
-	$(MAKE) queue-restart
+    git fetch origin && \
+    git checkout -f main && \
+    git reset --hard origin/main && \
+    git clean -fd && \
+    $(MAKE) composer-install && \
+    $(MAKE) npm-build && \
+    $(MAKE) migrate && \
+    $(MAKE) queue-restart
