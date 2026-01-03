@@ -35,4 +35,6 @@ jobs:
           key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/html
+            git fetch origin
+            git reset --hard origin/main
             make deploy-production
