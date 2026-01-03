@@ -26,18 +26,18 @@ checkout-branch:
 	@echo "Switching to branch: $(BRANCH)"
 	git fetch origin
 	git checkout -f $(BRANCH) || git checkout -b $(BRANCH) origin/$(BRANCH)
-	git clean -fd
+	git clean -fd -e storage
 
 reset-and-pull:
 	@echo "Resetting and pulling latest changes from $(BRANCH)"
 	git fetch origin
 	git reset --hard origin/$(BRANCH)
-	git clean -fd
+	git clean -fd -e storage
 
 reset-repo:
 	git restore --staged .
 	git restore .
-	git clean -fd
+	git clean -fd -e storage
 
 
 
@@ -59,6 +59,13 @@ npm-build:
 migrate:
 	php artisan migrate --force
 
+ensure-storage:
+	mkdir -p storage/framework/cache/data
+	mkdir -p storage/framework/sessions
+	mkdir -p storage/framework/views
+	mkdir -p storage/logs
+	chmod -R 775 storage
+
 queue-restart:
 	php artisan queue:restart
 
@@ -72,6 +79,7 @@ deploy-staging:
 	git pull origin staging && \
 	$(MAKE) sync-to-webroot && \
 	cd $(WEBROOT) && \
+	$(MAKE) ensure-storage && \
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
 	$(MAKE) migrate && \
@@ -79,11 +87,12 @@ deploy-staging:
 
 deploy-production:
 	cd $(WEBROOT) && \
-    git fetch origin && \
-    git checkout -f main && \
-    git reset --hard origin/main && \
-    git clean -fd && \
-    $(MAKE) composer-install && \
-    $(MAKE) npm-build && \
-    $(MAKE) migrate && \
-    $(MAKE) queue-restart
+	git fetch origin && \
+	git checkout -f main && \
+	git reset --hard origin/main && \
+	git clean -fd -e storage && \
+	$(MAKE) ensure-storage && \
+	$(MAKE) composer-install && \
+	$(MAKE) npm-build && \
+	$(MAKE) migrate && \
+	$(MAKE) queue-restart
