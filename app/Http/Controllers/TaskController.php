@@ -1122,7 +1122,9 @@ class TaskController extends AccountBaseController
         }
 
         // Sync task users
-        $task->users()->sync($request->user_id);
+        if ($request->has('user_id')) {
+            $task->users()->sync($request->user_id);
+        }
 
         if(!empty($request->user_id)){
             $newlyAssignedUserIds = array_diff($request->user_id, $taskUsers);

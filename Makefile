@@ -95,4 +95,5 @@ deploy-production:
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
 	$(MAKE) migrate && \
+	php artisan optimize:clear && \
 	$(MAKE) queue-restart
