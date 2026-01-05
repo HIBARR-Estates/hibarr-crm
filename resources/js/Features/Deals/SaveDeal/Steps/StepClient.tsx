@@ -51,8 +51,7 @@ const StepClient: React.FC<StepClientProps> = ({
 
     return (
         <div className="step-client">
-            <div className="flex justify-between items-center mb-4">
-                <h4 className="text-lg font-medium m-0">Client Information</h4>
+            <div className="flex justify-end items-center mb-4">
                 <div style={{ width: 300 }}>
                     <Form.Item name="lead_contact" noStyle>
                         <Select

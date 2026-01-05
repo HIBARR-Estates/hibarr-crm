@@ -15,6 +15,7 @@ interface SaveDealModalProps extends Omit<IModalProps, "onClose"> {
     setDeal?: (deal: Deal | undefined) => void;
     onClose: () => void;
     disableFields?: string[];
+    isEditing?: boolean;
 }
 
 const constructCustomFieldsData = (
@@ -152,6 +153,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
                 onErrorsClear={handleErrorsClear}
                 setDeal={setDeal}
                 loading={isLoading}
+                isEditing={isEditing}
             />
         </Drawer>
     );

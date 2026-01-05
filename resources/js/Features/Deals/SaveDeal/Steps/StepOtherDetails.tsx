@@ -14,7 +14,6 @@ const StepOtherDetails: React.FC<StepOtherDetailsProps> = ({
 }) => {
     return (
         <div className="step-other-details">
-            <h4 className="text-lg font-medium mb-4">Other Deal Details</h4>
             <Row gutter={16}>
                 <Col span={24}>
                     <Form.Item

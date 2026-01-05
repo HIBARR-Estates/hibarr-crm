@@ -37,9 +37,6 @@ const StepPackages: React.FC<StepPackagesProps> = ({
 
     return (
         <div className="step-packages">
-            <h4 className="text-lg font-medium mb-4">
-                Packages, Properties & Value
-            </h4>
             <Row gutter={16}>
                 <Col span={24}>
                     <Form.Item name="package_id" label="Packages">

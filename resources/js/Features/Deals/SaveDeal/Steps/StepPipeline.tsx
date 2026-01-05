@@ -34,7 +34,6 @@ const StepPipeline: React.FC<StepPipelineProps> = ({
 
     return (
         <div className="step-pipeline">
-            <h4 className="text-lg font-medium mb-4">Pipeline & Stage</h4>
             <Row gutter={16}>
                 <Col span={12}>
                     <Form.Item

@@ -251,7 +251,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             size="middle"
         >
             <div className="flex h-full">
-                <div className="w-1/4 pr-4 border-r">
+                <div className="w-1/4 pr-4">
                     <Steps
                         direction="vertical"
                         current={currentStep}
@@ -261,10 +261,14 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             description: s.description,
                         }))}
                         className="h-full"
+                        size="small"
                     />
                 </div>
                 <div className="w-3/4 pl-4">
-                    <Card bordered={false} className="h-full overflow-y-auto">
+                    <h4 className="text-lg font-medium m-0 flex-1 w-full mb-4 text-slate-400/50">
+                        {steps[currentStep].title}
+                    </h4>
+                    <Card className="h-full overflow-y-auto">
                         {steps[currentStep].content}
                     </Card>
                 </div>

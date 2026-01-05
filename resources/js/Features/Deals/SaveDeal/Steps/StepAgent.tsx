@@ -55,10 +55,7 @@ const StepAgent: React.FC<StepAgentProps> = ({
 
     return (
         <div className="step-agent">
-            <div className="flex justify-between items-center mb-4">
-                <h4 className="text-lg font-medium m-0">
-                    Agent Information (Optional)
-                </h4>
+            <div className="flex justify-end items-center mb-4">
                 <div style={{ width: 300 }}>
                     <Form.Item name="agent_id" noStyle>
                         <Select
