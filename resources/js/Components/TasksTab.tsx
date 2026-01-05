@@ -58,9 +58,14 @@ export default function TasksTab({
     const {
         action,
         handleAction,
-        handleClose,
+        handleClose: closeAction,
         selected: selectedTask,
     } = useGenericEntityAction<Task>();
+
+    const handleClose = () => {
+        router.reload({ only: ["tasks"] });
+        closeAction();
+    };
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -92,8 +97,8 @@ export default function TasksTab({
     const defaultTasks = [
         { key: "schedule_meeting", label: "Schedule Meeting" },
         { key: "send_property_details", label: "Send Property Details" },
-        { key: "setup_watcher", label: "Set Up Watcher" },
-        { key: "assign_agent", label: "Assign Agent" },
+        // { key: "setup_watcher", label: "Set Up Watcher" },
+        // { key: "assign_agent", label: "Assign Agent" },
     ];
 
     return (
@@ -175,7 +180,9 @@ export default function TasksTab({
                                                             setSelectedTaskType(
                                                                 ""
                                                             );
-                                                            router.reload();
+                                                            router.reload({
+                                                                only: ["tasks"],
+                                                            });
                                                         },
                                                     }
                                                 );

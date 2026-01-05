@@ -81,10 +81,20 @@ class TaskController extends AccountBaseController
 
         // Apply permission-based filtering
         $taskRules = [
-            'added' => 'added_by',
+            'added' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $query->where('added_by', $user->id)
+                        ->orWhereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
+                });
+            },
             'owned' => function($q, $user) {
-                $q->whereHas('users', function ($query) use ($user) {
-                    $query->where('created_by', $user->id);
+                $q->where(function($query) use ($user) {
+                    $query->where('added_by', $user->id)
+                        ->orWhereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
                 });
             }
         ];
@@ -125,14 +135,14 @@ class TaskController extends AccountBaseController
         // Apply assignee filter
         if (request()->filled('assigned_to') && request('assigned_to') !== 'all') {
             $tasksQuery->whereHas('users', function ($query) {
-                $query->where('user_id', request('assigned_to'));
+                $query->where('users.id', request('assigned_to'));
             });
         }
 
         // Apply labels filter
         if (request()->filled('labels') && is_array(request('labels'))) {
             $tasksQuery->whereHas('labels', function ($query) {
-                $query->whereIn('task_label_id', request('labels'));
+                $query->whereIn('id', request('labels'));
             });
         }
 
@@ -742,6 +752,14 @@ class TaskController extends AccountBaseController
                 $entity = $modelClass::find($id);
                 if ($entity) {
                     $entity->tasks()->syncWithoutDetaching([$task->id]);
+
+                    // Auto-assign deal agent if applicable
+                    if (strtolower($type) === 'deal' && $entity->agent_id) {
+                        $agentUserId = \App\Models\LeadAgent::find($entity->agent_id)?->user_id;
+                        if ($agentUserId) {
+                            $task->users()->syncWithoutDetaching([$agentUserId]);
+                        }
+                    }
                 }
             }
         }
@@ -1003,20 +1021,20 @@ class TaskController extends AccountBaseController
 
     public function update(UpdateTask $request, $id)
     {
-        $task = Task::with('users', 'label', 'project')->findOrFail($id)->withCustomFields();
+        $task = Task::with('users', 'label', 'project')->findOrFail($id);
         $editTaskPermission = user()->permission('edit_tasks');
         $taskUsers = $task->users->pluck('id')->toArray();
 
-        abort_403(
-            !($editTaskPermission == 'all'
-                || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
-                || ($editTaskPermission == 'added' && $task->added_by == user()->id)
-                || ($task->project && ($task->project->project_admin == user()->id))
-                || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
-                || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
-                || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
-            )
-        );
+        if (!($editTaskPermission == 'all'
+            || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
+            || ($editTaskPermission == 'added' && $task->added_by == user()->id)
+            || ($task->project && ($task->project->project_admin == user()->id))
+            || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
+            || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
+            || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
+        )) {
+            return Reply::error(__('messages.permissionDenied'));
+        }
 
         $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
         $task->heading = $request->heading;
@@ -1104,7 +1122,9 @@ class TaskController extends AccountBaseController
         }
 
         // Sync task users
-        $task->users()->sync($request->user_id);
+        if ($request->has('user_id')) {
+            $task->users()->sync($request->user_id);
+        }
 
         if(!empty($request->user_id)){
             $newlyAssignedUserIds = array_diff($request->user_id, $taskUsers);

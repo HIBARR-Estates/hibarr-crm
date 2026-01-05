@@ -201,7 +201,7 @@ class DealCreationService
             }
         }
         
-        $packageId = $this->resolvePackageId($request, $companyId);
+        $packageIds = $this->resolvePackageId($request, $companyId);
         
         // Wrap in try-catch to ensure locks are released on any error
         // Note: DB transaction starts inside the try block, so rollbacks only occur
@@ -227,7 +227,7 @@ class DealCreationService
                 ]);
             }
             
-            $result = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $contactLockKey, $startTime, $pipelineId, $firstStageId, $agentId, $packageId, &$currentHash, &$hashChanged, &$isNewDeal, &$newCacheKey, &$newLockAcquired) {
+            $result = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $contactLockKey, $startTime, $pipelineId, $firstStageId, $agentId, $packageIds, &$currentHash, &$hashChanged, &$isNewDeal, &$newCacheKey, &$newLockAcquired) {
                 // Helper function to refresh cache locks if needed 
                 // Refresh if we're within threshold of expiration to prevent mid-transaction expiration
                 // Note: $newCacheKey and $newLockAcquired are captured by reference so they see updates when hash changes
@@ -346,7 +346,6 @@ class DealCreationService
                 $deal->lead_pipeline_id = $pipelineId;
                 $deal->pipeline_stage_id = $request->input('pipeline_stage_id') ?? $firstStageId ?? $deal->pipeline_stage_id;
                 $deal->agent_id = $agentId ?? $deal->agent_id;
-                $deal->package_id = $packageId;
                 $deal->next_follow_up = 'yes';
                 $deal->create_client = 0;
                 
@@ -355,6 +354,11 @@ class DealCreationService
                 
                 // Save quietly to bypass observers
                 $deal->saveQuietly();
+                
+                // Attach packages using pivot table relationship (package_id column was removed in migration 2025_12_26_000002)
+                if (!empty($packageIds)) {
+                    $deal->packages()->syncWithoutDetaching($packageIds);
+                }
 
                 // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
                 // Use lockForUpdate() to prevent race conditions with concurrent requests
@@ -407,6 +411,9 @@ class DealCreationService
                 try {
                     // Upsert Hibarr fields (non-critical, can be retried)
                     $this->upsertHibarrFields($deal, $request);
+                    
+                    // Handle custom fields (non-critical, can be retried)
+                    $this->upsertCustomFields($deal, $request);
                     
                     // Sync deal watchers (non-critical)
                     $dealWatchers = $request->input('deal_watcher', []);
@@ -826,32 +833,50 @@ class DealCreationService
     }
 
     /**
-     * Resolve package_id from package_id or package_name.
+     * Resolve package_ids from package_id (array) or package_name.
      *
      * @param Request $request
      * @param int $companyId
-     * @return int|null
+     * @return array
      */
-    private function resolvePackageId(Request $request, int $companyId): ?int
+    private function resolvePackageId(Request $request, int $companyId): array
     {
-        // First check if package_id is provided directly
-        $packageId = $request->input('package_id');
-        if ($request->has('package_id') && is_numeric($packageId)) {
-            $package = Package::where('company_id', $companyId)->where('id', $packageId)->first();
-            if ($package) {
-                return $package->id;
+        $packageIds = [];
+        
+        // First check if package_id is provided as an array
+        if ($request->has('package_id')) {
+            $packageIdInput = $request->input('package_id');
+            
+            // Handle array input
+            if (is_array($packageIdInput)) {
+                $packageIds = array_filter(array_map('intval', $packageIdInput));
+                // Validate that all package IDs exist and belong to the company
+                if (!empty($packageIds)) {
+                    $validPackages = Package::where('company_id', $companyId)
+                        ->whereIn('id', $packageIds)
+                        ->pluck('id')
+                        ->toArray();
+                    return $validPackages;
+                }
+            }
+            // Handle single integer (backward compatibility)
+            elseif (is_numeric($packageIdInput)) {
+                $package = Package::where('company_id', $companyId)->where('id', $packageIdInput)->first();
+                if ($package) {
+                    return [$package->id];
+                }
             }
         }
 
-        // Fallback to package_name if provided
+        // Fallback to package_name if provided (single package by name)
         if ($request->has('package_name')) {
             $package = Package::where('company_id', $companyId)->where('name', $request->input('package_name'))->first();
             if ($package) {
-                return $package->id;
+                return [$package->id];
             }
         }
 
-        return null;
+        return [];
     }
 
     /**
@@ -881,6 +906,67 @@ class DealCreationService
             ['deal_id' => $deal->id],
             $hibarrFields
         );
+    }
+
+    /**
+     * Upsert custom fields for a deal.
+     * Accepts any key-value pairs in custom_fields format (e.g., {"131": "value", "132": "value", "200": "another value"}).
+     * The key is the custom field ID, and the value will be stored for that field.
+     * Also handles custom_fields_data format for backward compatibility.
+     *
+     * @param Deal $deal
+     * @param Request $request
+     * @return void
+     */
+    private function upsertCustomFields(Deal $deal, Request $request): void
+    {
+        if (!$deal->id) {
+            Log::warning('DealCreationService: Cannot upsert custom fields for unsaved deal', [
+                'deal_name' => $deal->name,
+                'lead_id' => $deal->lead_id,
+            ]);
+            return;
+        }
+        
+        $customFieldsData = [];
+        
+        // Handle custom_fields format - accepts any field ID and value
+        // Format: {"131": "value", "132": "value", "200": "another value", ...}
+        // The key is the custom field ID, value can be any type (string, number, array, etc.)
+        if ($request->has('custom_fields') && is_array($request->input('custom_fields'))) {
+            foreach ($request->input('custom_fields') as $fieldId => $value) {
+                // Convert field ID to string and ensure it's a valid key
+                $fieldId = (string) $fieldId;
+                
+                // Skip null values, but allow empty strings, 0, false, etc.
+                if ($value !== null) {
+                    $customFieldsData['field_' . $fieldId] = $value;
+                }
+            }
+        }
+        
+        // Handle standard custom_fields_data format if provided (field_131, field_132, etc.)
+        // This format uses "field_{id}" as the key directly
+        if ($request->has('custom_fields_data') && is_array($request->input('custom_fields_data'))) {
+            // Merge with existing custom fields data, with custom_fields_data taking precedence
+            $customFieldsData = array_merge($customFieldsData, $request->input('custom_fields_data'));
+        }
+        
+        // Update custom fields if we have any data
+        if (!empty($customFieldsData)) {
+            try {
+                // Pass company_id to ensure correct date formatting for date-type custom fields
+                // This prevents issues when company() helper returns a different company
+                $deal->updateCustomFieldData($customFieldsData, $deal->company_id);
+            } catch (\Exception $e) {
+                Log::error('DealCreationService: Error updating custom fields', [
+                    'deal_id' => $deal->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'custom_fields_data' => $customFieldsData,
+                ]);
+            }
+        }
     }
 
     /**

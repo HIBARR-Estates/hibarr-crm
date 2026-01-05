@@ -1,5 +1,5 @@
 import { Link } from "@inertiajs/react";
-import { Button, Dropdown, MenuProps, Tag, Tooltip, Avatar } from "antd";
+import { Button, Dropdown, MenuProps, Tag, Tooltip } from "antd";
 import { ColumnsType } from "antd/lib/table";
 import { MoreOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
 import { Lead } from "@/Types/api/leads";
@@ -46,7 +46,7 @@ export const LEAD_TABLE_COLUMNS = (
         ),
     },
     {
-        title: "Lead Details",
+        title: "Contact Details",
         dataIndex: "contact_details",
         key: "contact_details",
         width: 200,
@@ -152,25 +152,6 @@ export const LEAD_TABLE_COLUMNS = (
                     size="sm"
                     maxNameLength={15}
                 />
-            );
-        },
-    },
-
-    {
-        title: "Category",
-        dataIndex: "category",
-        key: "category",
-        width: 120,
-        render: (_, record) => {
-            if (!record.category)
-                return <span className="text-gray-400">--</span>;
-
-            return (
-                <Tooltip title={record.category.category_name}>
-                    <Tag color="blue" className="truncate max-w-full">
-                        {record.category.category_name}
-                    </Tag>
-                </Tooltip>
             );
         },
     },

@@ -199,6 +199,11 @@ class DealObserver
 
             $this->createClient($deal);
 
+            // Meta Conversions API trigger for new deals
+            if ($deal->pipeline_stage_id) {
+                $this->triggerMetaConversionEvent($deal);
+            }
+
             // Create default tasks for the deal
             $this->dealTaskService->createDefaultTasks($deal);
         }

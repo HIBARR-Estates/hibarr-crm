@@ -58,6 +58,10 @@ class ProcessDealRequestJob implements ShouldQueue
      */
     public function handle(DealCreationService $service)
     {
+        // Note: Queue jobs run in CLI context without HTTP session/auth context.
+        // No need to clear auth/session as they don't exist in this context.
+        // The observer fix (checking if user() exists) handles null user cases.
+        
         try {
             $service->processDeal(
                 $this->contactId,

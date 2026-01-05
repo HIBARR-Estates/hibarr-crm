@@ -180,16 +180,30 @@ const TaskForm: React.FC<TaskFormProps> = ({
         <Form
             form={form}
             layout="vertical"
-            onFinish={(vals) =>
+            onFinish={(vals) => {
+                const taskableInfo: any = {};
+
+                if (vals.deal_id) {
+                    taskableInfo.taskable_type = "deal";
+                    taskableInfo.taskable_id = vals.deal_id;
+                } else if (vals.lead_id) {
+                    taskableInfo.taskable_type = "lead";
+                    taskableInfo.taskable_id = vals.lead_id;
+                } else if (vals.property_id) {
+                    taskableInfo.taskable_type = "property";
+                    taskableInfo.taskable_id = vals.property_id;
+                }
+
                 onSubmit({
                     ...vals,
+                    ...taskableInfo,
                     priority: vals.priority || "medium",
                     without_duedate: !vals.due_date,
                     user_id: isAdmin
                         ? vals?.user_ids
                         : [props?.auth?.user?.id].filter(Boolean), //if not an admin or manager assign to self, TODO: Refactor with the controller in place
-                })
-            }
+                });
+            }}
             preserve={false}
             style={{ marginTop: 16 }}
         >
@@ -241,7 +255,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         </Form.Item>
                     </Col>
 
-                    <Col xs={24} sm={12}>
+                    {/* <Col xs={24} sm={12}>
                         <Form.Item name="category_id" label="Category">
                             <TaskCategorySelector placeholder="Select category (optional)" />
                         </Form.Item>
@@ -254,7 +268,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         >
                             <TaskLabelSelector placeholder="Select labels" />
                         </Form.Item>
-                    </Col>
+                    </Col> */}
                 </Row>
             </Card>
 
@@ -459,17 +473,29 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                 extra="Select team members to assign this task"
                                 hidden={!isAdmin} // THis currecntly only admins and managers can assign tasks, TOODO: Need to implement permission properly and check and enforce on BE ....
                             >
+                                {/* can select multiple users */}
                                 <Select
                                     mode="multiple"
                                     placeholder="Select assignees"
                                     showSearch
-                                    filterOption={(input, option) =>
-                                        option?.children
-                                            ?.toString()
-                                            .toLowerCase()
-                                            .includes(input.toLowerCase()) ??
-                                        false
-                                    }
+                                    filterOption={(input, option) => {
+                                        const user = users.find(
+                                            (u) => u.id === option?.value
+                                        );
+                                        return (
+                                            user?.name
+                                                ?.toLowerCase()
+                                                .includes(
+                                                    input.toLowerCase()
+                                                ) ||
+                                            user?.designation_name
+                                                ?.toLowerCase()
+                                                .includes(
+                                                    input.toLowerCase()
+                                                ) ||
+                                            false
+                                        );
+                                    }}
                                 >
                                     {users.map((user) => (
                                         <Option key={user.id} value={user.id}>
