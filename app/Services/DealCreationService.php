@@ -1009,10 +1009,10 @@ class DealCreationService
                 // This preserves the status if the meeting was already completed or cancelled
                 $updateData = [
                     'meeting_type_id' => $meetingTypeId,
-                    'location' => $meetingData['meeting_location'],
-                    'meeting_link' => $meetingData['meeting_link'],
                     'next_follow_up_date' => $meetingDate,
                 ];
+                if (isset($meetingData['meeting_location'])) $updateData['location'] = $meetingData['meeting_location'];
+                if (isset($meetingData['meeting_link'])) $updateData['meeting_link'] = $meetingData['meeting_link'];
                 
                 // Only update status if current status is 'scheduled' or null
                 // Preserve 'completed' or 'cancelled' status
