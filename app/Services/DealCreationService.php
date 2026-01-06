@@ -999,7 +999,7 @@ class DealCreationService
             }
         }
 
-        if ($meetingId) {
+        if ($meetingId !== null) {
             $followUp = DealFollowUp::where('meeting_id', $meetingId)->where('deal_id', $deal->id)->first();
             if ($followUp) {
                 $followUp->update([
