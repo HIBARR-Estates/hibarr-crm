@@ -983,6 +983,7 @@ class DealCreationService
         if (empty($meetingData['meeting_date'])) {
             return;
         }
+        $meetingId = $meetingData['meeting_id'] ?? null;
 
         // Resolve meeting_type_id
         $meetingTypeId = $this->resolveMeetingTypeId($meetingData, $companyId);
@@ -998,13 +999,27 @@ class DealCreationService
             }
         }
 
+        if ($meetingId) {
+            $followUp = DealFollowUp::where('meeting_id', $meetingId)->where('deal_id', $deal->id)->first();
+            if ($followUp) {
+                $followUp->update([
+                    'meeting_type_id' => $meetingTypeId,
+                    'location' => $meetingData['meeting_location'] ?? 'office',
+                    'meeting_link' => $meetingData['meeting_link'] ?? null,
+                    'next_follow_up_date' => $meetingDate,
+                    'status' => 'scheduled',
+                ]);
+                return;
+            }
+        }
+
         // Create DealFollowUp
         $followUp = new DealFollowUp();
         $followUp->deal_id = $deal->id;
         $followUp->meeting_type_id = $meetingTypeId;
         $followUp->location = $meetingData['meeting_location'] ?? 'office';
         $followUp->meeting_link = $meetingData['meeting_link'] ?? null;
-        $followUp->meeting_id = $meetingData['meeting_id'] ?? null;
+        $followUp->meeting_id = $meetingId;
         $followUp->next_follow_up_date = $meetingDate;
         $followUp->status = 'scheduled';
         $followUp->added_by = $deal->agent_id ? LeadAgent::find($deal->agent_id)?->user_id : null;
