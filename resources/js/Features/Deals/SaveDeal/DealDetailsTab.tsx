@@ -1,23 +1,17 @@
-import React, { useEffect, useState, useMemo } from "react";
-import {
-    Row,
-    Col,
-    Input,
-    Select,
-    DatePicker,
-    InputNumber,
-    Switch,
-    Form,
-    Button,
-    Card,
-    Divider,
-} from "antd";
+import React, { useEffect, useState } from "react";
+import { Form, Button, Steps, Card, Divider, Row, Col } from "antd";
 import { Deal } from "@/Types/api/deals";
 import { usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { SaveOutlined } from "@ant-design/icons";
 import { DealFormProps } from "./DealForm";
-import { formatCurrency } from "@/lib/utils";
+
+import StepClient from "./Steps/StepClient";
+import StepAgent from "./Steps/StepAgent";
+import StepCustomFields from "./Steps/StepCustomFields";
+import StepPackages from "./Steps/StepPackages";
+import StepPipeline from "./Steps/StepPipeline";
+import StepOtherDetails from "./Steps/StepOtherDetails";
 
 interface DealDetailsTabProps
     extends Pick<
@@ -44,8 +38,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     cancelText = "Cancel",
     onErrorsClear,
     setErrors,
-    setDeal,
-    disableFields = [], // prop to disable fields
+    disableFields = [],
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
@@ -60,13 +53,33 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         stage = null,
         contactID = null,
         columnId = null,
-        company = {},
         stages = [],
         packages = [],
+        customFieldCategories = [],
+        dealCustomFieldCategories = [],
     } = props;
 
-    const [pipelineId, setPipelineId] = useState<number>();
-    const [selectedCategoryId, setSelectedCategoryId] = useState<number>();
+    const allCustomFieldCategories =
+        dealCustomFieldCategories.length > 0
+            ? dealCustomFieldCategories
+            : customFieldCategories;
+
+    const [currentStep, setCurrentStep] = useState(0);
+    const [selectedLeadId, setSelectedLeadId] = useState<number | undefined>(
+        data?.lead_contact
+    );
+    const [selectedAgentId, setSelectedAgentId] = useState<number | undefined>(
+        data?.agent_id
+    );
+
+    // Watch client name for auto-generating deal name
+    const clientName = Form.useWatch("client_name", form);
+
+    useEffect(() => {
+        if (clientName && !data?.name) {
+            form.setFieldValue("name", `New Deal – ${clientName}`);
+        }
+    }, [clientName, data, form]);
 
     // Populate form when data changes
     useEffect(() => {
@@ -81,10 +94,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     ? data.packages.map((p: any) => p.id)
                     : data.package_id || [],
             };
-            console.log(formData, "how does deal formdata ...", data);
-            setPipelineId(formData.pipeline);
-            setSelectedCategoryId(formData.category_id);
             form.setFieldsValue(formData);
+            if (data.lead_contact) setSelectedLeadId(data.lead_contact);
+            if (data.agent_id) setSelectedAgentId(data.agent_id);
         }
     }, [data, form]);
 
@@ -95,77 +107,17 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         }
         if (stage && stage.lead_pipeline_id && !data?.pipeline) {
             form.setFieldValue("pipeline", stage.lead_pipeline_id);
-            setPipelineId(stage.lead_pipeline_id);
-        } else if (!data?.pipeline && !pipelineId && leadPipelines.length > 0) {
+        } else if (!data?.pipeline && leadPipelines.length > 0) {
             const defaultPipeline =
                 leadPipelines.find((p: any) => p.default === 1) ||
                 leadPipelines[0];
             if (defaultPipeline) {
                 form.setFieldValue("pipeline", defaultPipeline.id);
-                setPipelineId(defaultPipeline.id);
             }
         }
-    }, [contactID, columnId, stage, data, form, leadPipelines, pipelineId]);
-
-    // Fetch stages when pipeline changes
-    const handlePipelineChange = (pipelineId: number) => {
-        form.setFieldValue("pipeline", pipelineId);
-        form.setFieldValue("stage_id", undefined); // Reset stage when pipeline changes
-        setPipelineId(pipelineId);
-    };
-
-    // Fetch agents when category changes
-    const handleCategoryChange = (categoryId: number) => {
-        form.setFieldValue("category_id", categoryId);
-        setSelectedCategoryId(categoryId);
-    };
-
-    const uniqueAgents = useMemo(() => {
-        const unique = new Map();
-        leadAgents.forEach((agent: any) => {
-            if (agent.user && !unique.has(agent.user_id)) {
-                unique.set(agent.user_id, agent);
-            }
-        });
-        return Array.from(unique.values());
-    }, [leadAgents]);
-
-    const displayedAgents = useMemo(() => {
-        if (selectedCategoryId) {
-            return leadAgents.filter(
-                (agent: any) => agent.lead_category_id === selectedCategoryId
-            );
-        }
-        return uniqueAgents;
-    }, [selectedCategoryId, leadAgents, uniqueAgents]);
-
-    const calculateTotalValue = (currentPackageIds?: number[]) => {
-        let total = 0;
-
-        // Package value
-        const packageIds =
-            currentPackageIds !== undefined
-                ? currentPackageIds
-                : form.getFieldValue("package_id");
-
-        if (Array.isArray(packageIds)) {
-            packageIds.forEach((id) => {
-                const selectedPackage = packages.find((p: any) => p.id === id);
-                if (selectedPackage) {
-                    total += parseFloat(selectedPackage.value);
-                }
-            });
-        }
-
-        // form.setFieldValue("value", total);
-    };
-
-    const handlePackageChange = (packageIds: number[]) => {
-        calculateTotalValue(packageIds);
-    };
+    }, [columnId, stage, data, form, leadPipelines]);
 
     const handleSubmit = (values: any) => {
-        // Transform the values to match the API expectations
         const formData = {
             ...values,
             close_date: values.close_date
@@ -176,9 +128,111 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             strategy_accepted: values.strategy_accepted || false,
             downpayment_confirmed: values.downpayment_confirmed || false,
         };
-
         onSubmit(formData);
     };
+
+    // Find categories for steps
+    const generalInfoCategory = allCustomFieldCategories.find(
+        (c: any) => c.name === "General Information"
+    );
+    const investmentExpCategory = allCustomFieldCategories.find(
+        (c: any) => c.name === "Investment Experience"
+    );
+
+    const steps = [
+        {
+            title: "Client Information",
+            description: "Mandatory",
+            content: (
+                <StepClient
+                    form={form}
+                    leadContacts={leadContacts}
+                    onLeadSelect={(value) =>
+                        value ? setSelectedLeadId(value) : null
+                    }
+                    selectedLeadId={selectedLeadId}
+                />
+            ),
+        },
+        {
+            title: "Agent Information",
+            description: "Optional",
+            content: (
+                <StepAgent
+                    form={form}
+                    leadAgents={leadAgents}
+                    onAgentSelect={(value) =>
+                        value ? setSelectedAgentId(value) : null
+                    }
+                    selectedAgentId={selectedAgentId}
+                />
+            ),
+        },
+        {
+            title: "General Information",
+            description: "Optional",
+            content: generalInfoCategory ? (
+                <StepCustomFields
+                    categoryId={generalInfoCategory.id}
+                    categoryName={generalInfoCategory.name}
+                    data={data}
+                />
+            ) : (
+                <div className="text-gray-500 italic">
+                    No General Information fields configured.
+                </div>
+            ),
+        },
+        {
+            title: "Investment Experience",
+            description: "Optional",
+            content: investmentExpCategory ? (
+                <StepCustomFields
+                    categoryId={investmentExpCategory.id}
+                    categoryName={investmentExpCategory.name}
+                    data={data}
+                />
+            ) : (
+                <div className="text-gray-500 italic">
+                    No Investment Experience fields configured.
+                </div>
+            ),
+        },
+        {
+            title: "Packages & Value",
+            description: "Optional",
+            content: (
+                <StepPackages
+                    form={form}
+                    packages={packages}
+                    products={products}
+                    defaultCurrencySymbol={defaultCurrencySymbol}
+                />
+            ),
+        },
+        {
+            title: "Pipeline & Stage",
+            description: "Optional",
+            content: (
+                <StepPipeline
+                    form={form}
+                    leadPipelines={leadPipelines}
+                    stages={stages}
+                />
+            ),
+        },
+        {
+            title: "Other Details",
+            description: "Optional",
+            content: (
+                <StepOtherDetails
+                    form={form}
+                    categories={categories}
+                    employees={employees}
+                />
+            ),
+        },
+    ];
 
     return (
         <Form
@@ -196,327 +250,47 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             }}
             size="middle"
         >
-            <Card title="Deal Information" size="small" variant="outlined">
-                <Row gutter={[16, 16]}>
-                    <Col span={8}>
-                        <Form.Item
-                            name="lead_contact"
-                            label="Lead Contact"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please select a lead contact",
-                                },
-                            ]}
-                        >
-                            <Select
-                                // Disabled if "lead_contact" is in the disableFields array
-                                disabled={disableFields.includes(
-                                    "lead_contact"
-                                )}
-                                placeholder="Select Lead Contact"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {leadContacts.map((contact: any) => (
-                                    <Select.Option
-                                        key={contact.id}
-                                        value={contact.id}
-                                    >
-                                        {contact.client_name_salutation}
-                                    </Select.Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
+            <div className="flex h-full">
+                <div className="w-1/4 pr-4">
+                    <Steps
+                        direction="vertical"
+                        current={currentStep}
+                        onChange={setCurrentStep}
+                        items={steps.map((s) => ({
+                            title: s.title,
+                            description: s.description,
+                        }))}
+                        className="h-full"
+                        size="small"
+                    />
+                </div>
+                <div className="w-3/4 pl-4">
+                    <h4 className="text-lg font-medium m-0 flex-1 w-full mb-4 text-slate-400/50">
+                        {steps[currentStep].title}
+                    </h4>
+                    <Card className="h-full overflow-y-auto">
+                        {steps[currentStep].content}
+                    </Card>
+                </div>
+            </div>
 
-                    <Col span={8}>
-                        <Form.Item
-                            name="name"
-                            label="Deal Name"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please enter deal name",
-                                },
-                            ]}
-                        >
-                            <Input placeholder="Enter deal name" />
-                        </Form.Item>
-                    </Col>
+            <Divider />
 
-                    <Col span={8}>
-                        <Form.Item
-                            name="pipeline"
-                            label="Pipeline"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please select a pipeline",
-                                },
-                            ]}
-                        >
-                            <Select
-                                placeholder="Select Pipeline"
-                                onChange={handlePipelineChange}
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {leadPipelines.map((pipeline: any) => (
-                                    <Select.Option
-                                        key={pipeline.id}
-                                        value={pipeline.id}
-                                    >
-                                        {pipeline.name}
-                                    </Select.Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-
-                    <Col span={8}>
-                        <Form.Item
-                            name="stage_id"
-                            label="Stage"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please select a stage",
-                                },
-                            ]}
-                        >
-                            <Select
-                                placeholder="Select Stage"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {stages
-                                    .filter((stage: any) =>
-                                        pipelineId
-                                            ? stage.lead_pipeline_id ===
-                                              pipelineId
-                                            : false
-                                    )
-                                    .map((stage: any) => (
-                                        <Select.Option
-                                            key={stage.id}
-                                            value={stage.id}
-                                        >
-                                            <span
-                                                className="inline-block w-2 h-2 rounded-full mr-2"
-                                                style={{
-                                                    backgroundColor:
-                                                        stage.label_color,
-                                                }}
-                                            ></span>
-                                            {stage.name}
-                                        </Select.Option>
-                                    ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-
-                    <Col span={8}>
-                        <Form.Item
-                            name="value"
-                            label="Deal Value"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please enter deal value",
-                                },
-                            ]}
-                        >
-                            <InputNumber
-                                style={{ width: "100%" }}
-                                placeholder="Enter Value"
-                                min={0}
-                                prefix={defaultCurrencySymbol}
-                                parser={(value) => {
-                                    const num = parseFloat(
-                                        value?.replace(/\$\s?|(,*)/g, "") || "0"
-                                    );
-                                    return num as any;
-                                }}
-                            />
-                        </Form.Item>
-                    </Col>
-
-                    <Col span={8}>
-                        <Form.Item
-                            name="close_date"
-                            label="Close Date"
-                            rules={[
-                                {
-                                    required: false,
-                                    message: "Please select close date",
-                                },
-                            ]}
-                        >
-                            <DatePicker
-                                placeholder="Select close date"
-                                className="w-full"
-                                format="YYYY-MM-DD"
-                            />
-                        </Form.Item>
-                    </Col>
-
-                    <Col span={8}>
-                        <Form.Item name="category_id" label="Deal Category">
-                            <Select
-                                placeholder="Select Category"
-                                onChange={handleCategoryChange}
-                                allowClear
-                            >
-                                {categories.map((category: any) => (
-                                    <Select.Option
-                                        key={category.id}
-                                        value={category.id}
-                                    >
-                                        {category.category_name}
-                                    </Select.Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-
-                    <Col span={8}>
-                        <Form.Item name="agent_id" label="Deal Agent">
-                            <Select
-                                placeholder="Select Agent"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {displayedAgents.map((agent: any) => (
-                                    <Select.Option
-                                        key={agent.id}
-                                        value={agent?.id}
-                                    >
-                                        {agent.user?.name}
-                                    </Select.Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-
-                    <Col span={24}>
-                        <Form.Item name="package_id" label="Packages">
-                            <Select
-                                mode="multiple"
-                                placeholder="Select Packages"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                                onChange={handlePackageChange}
-                            >
-                                {packages.map(
-                                    (p: {
-                                        id: number;
-                                        name: string;
-                                        value: number;
-                                    }) => (
-                                        <Select.Option key={p.id} value={p.id}>
-                                            <div className="flex justify-between items-center w-full">
-                                                <span className="text-gray-900">
-                                                    {p.name}
-                                                </span>
-                                                <span className="text-gray-500 font-medium">
-                                                    {formatCurrency(p.value)}
-                                                </span>
-                                            </div>
-                                        </Select.Option>
-                                    )
-                                )}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-                    <Col span={24}>
-                        <Form.Item name="product_id" label="Properties">
-                            <Select
-                                mode="multiple"
-                                placeholder="Select Properties"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {products.map((product: any) => (
-                                    <Select.Option
-                                        key={product.id}
-                                        value={product.id}
-                                    >
-                                        {product.name}
-                                    </Select.Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-
-                    <Col span={24}>
-                        <Form.Item name="deal_watcher" label="Deal Watchers">
-                            <Select
-                                mode="multiple"
-                                placeholder="Select Watchers"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {employees.map((employee: any) => (
-                                    <Select.Option
-                                        key={employee.id}
-                                        value={employee.id}
-                                    >
-                                        {employee.name}
-                                    </Select.Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-
-                    {data ? (
-                        <>
-                            <Col span={8}>
-                                <Form.Item
-                                    name="strategy_accepted"
-                                    label="Strategy Accepted"
-                                    valuePropName="checked"
-                                >
-                                    <Switch />
-                                </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                                <Form.Item
-                                    name="downpayment_confirmed"
-                                    label="Downpayment Confirmed"
-                                    valuePropName="checked"
-                                >
-                                    <Switch />
-                                </Form.Item>
-                            </Col>
-                        </>
-                    ) : null}
-                </Row>
-                <Divider />
-
-                <Row justify="end" gutter={8} style={{ marginTop: 24 }}>
-                    <Col>
-                        <Button onClick={onCancel}>{cancelText}</Button>
-                    </Col>
-                    <Col>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={loading}
-                            icon={<SaveOutlined />}
-                        >
-                            {submitText}
-                        </Button>
-                    </Col>
-                </Row>
-            </Card>
+            <Row justify="end" gutter={8}>
+                <Col>
+                    <Button onClick={onCancel}>{cancelText}</Button>
+                </Col>
+                <Col>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={loading}
+                        icon={<SaveOutlined />}
+                    >
+                        {submitText}
+                    </Button>
+                </Col>
+            </Row>
         </Form>
     );
 };
