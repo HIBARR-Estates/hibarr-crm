@@ -20,6 +20,7 @@ export interface DealFormProps {
     cancelText?: string;
     visible?: boolean;
     disableFields?: string[];
+    isEditing?: boolean;
 }
 
 const DealForm: React.FC<DealFormProps> = ({
@@ -35,6 +36,7 @@ const DealForm: React.FC<DealFormProps> = ({
     onErrorsClear,
     visible,
     disableFields = [],
+    isEditing = true,
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
@@ -74,7 +76,7 @@ const DealForm: React.FC<DealFormProps> = ({
             ),
         },
         // Add custom field category tabs
-        ...customFieldCategories.map((category: any) => ({
+        ...(isEditing ? customFieldCategories : []).map((category: any) => ({
             key: `custom_${category.id}`,
             label: category.name,
 
