@@ -983,7 +983,10 @@ class DealCreationService
         if (empty($meetingData['meeting_date'])) {
             return;
         }
-        $meetingId = $meetingData['meeting_id'] ?? null;
+        // Normalize empty strings and whitespace-only strings to null to prevent matching records with empty meeting_id
+        $meetingId = isset($meetingData['meeting_id']) && trim($meetingData['meeting_id']) !== '' 
+            ? trim($meetingData['meeting_id']) 
+            : null;
 
         // Resolve meeting_type_id
         $meetingTypeId = $this->resolveMeetingTypeId($meetingData, $companyId);
@@ -1002,13 +1005,28 @@ class DealCreationService
         if ($meetingId !== null) {
             $followUp = DealFollowUp::where('meeting_id', $meetingId)->where('deal_id', $deal->id)->first();
             if ($followUp) {
-                $followUp->update([
+                // Only update status if it's not in a final state (completed or cancelled)
+                // This preserves the status if the meeting was already completed or cancelled
+                $updateData = [
                     'meeting_type_id' => $meetingTypeId,
                     'location' => $meetingData['meeting_location'] ?? 'office',
                     'meeting_link' => $meetingData['meeting_link'] ?? null,
                     'next_follow_up_date' => $meetingDate,
-                    'status' => 'scheduled',
-                ]);
+                ];
+                
+                // Only update status if current status is 'scheduled' or null
+                // Preserve 'completed' or 'cancelled' status
+                $currentStatus = $followUp->status;
+                if ($currentStatus !== 'completed' && $currentStatus !== 'cancelled') {
+                    $updateData['status'] = 'scheduled';
+                }
+                
+                // If status is explicitly provided in request, use it
+                if (isset($meetingData['status']) && in_array($meetingData['status'], ['scheduled', 'completed', 'cancelled'])) {
+                    $updateData['status'] = $meetingData['status'];
+                }
+                
+                $followUp->update($updateData);
                 return;
             }
         }
