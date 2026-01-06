@@ -9,7 +9,7 @@ import {
     CheckSquareOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -19,6 +19,8 @@ import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import DealDetailsTab from "./DealDetailsTab";
 import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import { Task } from "@/Types/api/tasks";
+import EditableField from "@/Components/EditableField";
+import axios from "axios";
 
 interface Props {
     deal: Deal;
@@ -51,6 +53,22 @@ export default function DealInfoSection({
     const user = props.auth.user;
     const [activeTab, setActiveTab] = useState("overview");
     const { action, handleAction, handleClose } = useGenericEntityAction();
+    const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
+
+    // Sync currentDeal state when deal prop changes
+    useEffect(() => {
+        setCurrentDeal(deal);
+    }, [deal]);
+
+    // Check edit permission
+    const canEdit =
+        permissions.edit_deals === "all" ||
+        (permissions.edit_deals === "added" && deal.added_by === user?.id) ||
+        (permissions.edit_deals === "owned" &&
+            deal.lead_agent?.user_id === user?.id) ||
+        (permissions.edit_deals === "both" &&
+            (deal.added_by === user?.id ||
+                deal.lead_agent?.user_id === user?.id));
 
     // Format currency
     const formatCurrency = (value: number, currencySymbol: string = "£") => {
@@ -71,6 +89,67 @@ export default function DealInfoSection({
             }
         }
         return mobile;
+    };
+
+    // Handle field update
+    const handleFieldUpdate = async (
+        fieldName: string,
+        value: string
+    ): Promise<void> => {
+        const updateData: Record<string, any> = {};
+
+        // Map field names to API field names
+        const fieldMapping: Record<string, string> = {
+            name: "deal_name",
+            email: "client_email",
+            mobile: "mobile",
+            company_name: "company_name",
+            value: "value",
+            close_date: "close_date",
+        };
+
+        const apiFieldName = fieldMapping[fieldName] || fieldName;
+
+        // Handle special cases
+        if (apiFieldName === "client_email" || apiFieldName === "mobile" || apiFieldName === "company_name") {
+            // These are contact fields, need to update via lead_id
+            updateData[apiFieldName] = value || null;
+        } else if (apiFieldName === "deal_name") {
+            updateData.deal_name = value;
+        } else if (apiFieldName === "value") {
+            updateData.value = parseFloat(value) || 0;
+        } else if (apiFieldName === "close_date") {
+            updateData.close_date = value || null;
+        } else {
+            updateData[apiFieldName] = value;
+        }
+
+        try {
+            const response = await axios.patch(
+                route("deals.patch", { deal: currentDeal.id }),
+                updateData,
+                {
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (response.data?.success && response.data?.data) {
+                // Update local state with fresh data
+                // The useEffect will sync if the prop changes, but we update state directly here
+                setCurrentDeal(response.data.data);
+            }
+        } catch (error: any) {
+            const errorMessage =
+                error?.response?.data?.message ||
+                error?.response?.data?.error ||
+                error?.message ||
+                "Failed to update field. Please try again.";
+            throw new Error(errorMessage);
+        }
     };
 
     // Action menu items
@@ -125,30 +204,34 @@ export default function DealInfoSection({
                 <div className="p-6">
                     <Descriptions column={2} bordered size="middle">
                         <Descriptions.Item label="Deal Name" span={2}>
-                            <span className="font-medium text-gray-900">
-                                {deal.name}
-                            </span>
+                            <EditableField
+                                value={currentDeal.name}
+                                fieldName="name"
+                                fieldType="text"
+                                onSave={(value) => handleFieldUpdate("name", value)}
+                                className="font-medium text-gray-900"
+                                disabled={!canEdit}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Package">
-                            {deal.packages?.map((pkg) => pkg.name).join(", ") ||
-                                "--"}
+                            {currentDeal.package?.name || "--"}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Lead Contact">
-                            {deal.contact ? (
+                            {currentDeal.contact ? (
                                 <div className="space-y-1">
                                     <Link
                                         href={route(
                                             "lead-contact.show",
-                                            deal.contact.id
+                                            currentDeal.contact.id
                                         )}
                                         className="text-blue-600 hover:text-blue-800 font-medium"
                                     >
-                                        {deal.contact.client_name_salutation ||
-                                            deal.contact.client_name}
+                                        {currentDeal.contact.client_name_salutation ||
+                                            currentDeal.contact.client_name}
                                     </Link>
-                                    {deal.contact.client_id && (
+                                    {currentDeal.contact.client_id && (
                                         <Tag color="blue" className="text-xs">
                                             Client
                                         </Tag>
@@ -160,15 +243,19 @@ export default function DealInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Email">
-                            {deal.contact?.client_email ? (
+                            {currentDeal.contact?.client_email ? (
                                 <div className="flex items-center gap-x-2">
                                     <MailOutlined className="text-gray-400" />
-                                    <a
-                                        href={`mailto:${deal.contact.client_email}`}
+                                    <EditableField
+                                        value={currentDeal.contact.client_email}
+                                        fieldName="email"
+                                        fieldType="email"
+                                        onSave={(value) =>
+                                            handleFieldUpdate("email", value)
+                                        }
                                         className="text-blue-600 hover:text-blue-800"
-                                    >
-                                        {deal.contact.client_email}
-                                    </a>
+                                        disabled={!canEdit}
+                                    />
                                 </div>
                             ) : (
                                 <span className="text-gray-500">--</span>
@@ -176,12 +263,20 @@ export default function DealInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Mobile">
-                            {deal.contact ? (
+                            {currentDeal.contact ? (
                                 <div className="flex items-center gap-x-2">
                                     <PhoneOutlined className="text-gray-400" />
-                                    <span>
-                                        {getMobileNumber(deal.contact.mobile)}
-                                    </span>
+                                    <EditableField
+                                        value={getMobileNumber(
+                                            currentDeal.contact.mobile
+                                        )}
+                                        fieldName="mobile"
+                                        fieldType="text"
+                                        onSave={(value) =>
+                                            handleFieldUpdate("mobile", value)
+                                        }
+                                        disabled={!canEdit}
+                                    />
                                 </div>
                             ) : (
                                 <span className="text-gray-500">--</span>
@@ -189,21 +284,27 @@ export default function DealInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Company Name">
-                            {deal.contact?.company_name || (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentDeal.contact?.company_name}
+                                fieldName="company_name"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("company_name", value)
+                                }
+                                disabled={!canEdit}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Deal Category">
-                            {deal.category?.category_name || (
+                            {currentDeal.category?.category_name || (
                                 <span className="text-gray-500">--</span>
                             )}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Deal Agent">
-                            {deal.lead_agent?.user ? (
+                            {currentDeal.lead_agent?.user ? (
                                 <UserIndicator
-                                    data={deal.lead_agent.user}
+                                    data={currentDeal.lead_agent.user}
                                     size="sm"
                                 />
                             ) : (
@@ -212,10 +313,10 @@ export default function DealInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Deal Watchers" span={2}>
-                            {deal.deal_watchers &&
-                            deal.deal_watchers.length > 0 ? (
+                            {currentDeal.deal_watchers &&
+                            currentDeal.deal_watchers.length > 0 ? (
                                 <MultiUserIndicator
-                                    users={deal.deal_watchers.map(
+                                    users={currentDeal.deal_watchers.map(
                                         (watcher: any) => ({
                                             id: watcher.id,
                                             image_url: watcher.image,
@@ -231,36 +332,56 @@ export default function DealInfoSection({
                             )}
                         </Descriptions.Item>
 
-                        {deal?.lead_status && (
+                        {currentDeal?.lead_status && (
                             <Descriptions.Item label="Status">
                                 <Tag
-                                    color={deal.lead_status.label_color}
+                                    color={currentDeal.lead_status.label_color}
                                     className="font-medium"
                                 >
-                                    {deal.lead_status.type}
+                                    {currentDeal.lead_status.type}
                                 </Tag>
                             </Descriptions.Item>
                         )}
 
                         <Descriptions.Item label="Close Date">
-                            {deal.close_date ? (
-                                dayjs(deal.close_date).format("MMM DD, YYYY")
-                            ) : (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentDeal.close_date}
+                                fieldName="close_date"
+                                fieldType="date"
+                                onSave={(value) =>
+                                    handleFieldUpdate("close_date", value)
+                                }
+                                formatValue={(value) =>
+                                    value
+                                        ? dayjs(value.toString()).format(
+                                              "MMM DD, YYYY"
+                                          )
+                                        : "--"
+                                }
+                                disabled={!canEdit}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Deal Value">
-                            {deal.value ? (
-                                <span className="font-semibold">
-                                    {formatCurrency(
-                                        deal.value,
-                                        deal.currency?.currency_symbol
-                                    )}
-                                </span>
-                            ) : (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentDeal.value}
+                                fieldName="value"
+                                fieldType="number"
+                                onSave={(value) =>
+                                    handleFieldUpdate("value", value)
+                                }
+                                formatValue={(value) =>
+                                    value
+                                        ? formatCurrency(
+                                              Number(value),
+                                              currentDeal.currency
+                                                  ?.currency_symbol
+                                          )
+                                        : "--"
+                                }
+                                className="font-semibold"
+                                disabled={!canEdit}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Properties" span={"filled"}>
@@ -283,7 +404,7 @@ export default function DealInfoSection({
         {
             key: "details",
             label: "Details",
-            children: <DealDetailsTab deal={deal} />,
+            children: <DealDetailsTab deal={currentDeal} />,
         },
         // Custom field categories as tabs
         ...(customFieldCategories || []).map((category) => ({
@@ -293,7 +414,7 @@ export default function DealInfoSection({
                 <div className="p-6">
                     <CustomFieldDisplay
                         fields={fields}
-                        customFieldsData={deal.custom_fields_data || {}}
+                        customFieldsData={currentDeal.custom_fields_data || {}}
                         categoryId={category.id}
                         column={2}
                     />
@@ -307,9 +428,11 @@ export default function DealInfoSection({
             <SaveDealModal
                 open={action === "edit"}
                 onClose={handleClose}
-                deal={deal}
-                setDeal={(deal) => {
-                    console.log("Deal updated:", deal);
+                deal={currentDeal}
+                setDeal={(updatedDeal) => {
+                    if (updatedDeal) {
+                        setCurrentDeal(updatedDeal);
+                    }
                 }}
             />
             <SaveTaskModal
@@ -320,7 +443,7 @@ export default function DealInfoSection({
                 columns={taskBoardColumns}
                 users={employees}
                 projects={projects}
-                relatedEntity={{ type: "deal", id: deal.id }}
+                relatedEntity={{ type: "deal", id: currentDeal.id }}
             />
 
             <DeleteDeal
@@ -329,7 +452,7 @@ export default function DealInfoSection({
                     router.visit(route("deals.index"));
                     handleClose();
                 }}
-                deal={deal}
+                deal={currentDeal}
             />
             <div>
                 {/* Header */}

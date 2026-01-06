@@ -6,6 +6,9 @@ use App\Helper\Reply;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\CustomFieldCategory;
+use App\Services\CustomFieldVisibilityService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 use App\Http\Requests\CustomField\StoreCustomField;
 use App\Http\Requests\CustomField\UpdateCustomField;
@@ -35,11 +38,31 @@ class CustomFieldController extends AccountBaseController
      */
     public function index()
     {
-        $this->customFields = CustomField::join('custom_field_groups', 'custom_field_groups.id', '=', 'custom_fields.custom_field_group_id')
-                ->select('custom_fields.id', 'custom_field_groups.name as module', 'custom_fields.label', 'custom_fields.type', 'custom_fields.values', 'custom_fields.required', 'custom_fields.export', 'custom_fields.visible')
-                ->get();
+        $query = CustomField::join('custom_field_groups', 'custom_field_groups.id', '=', 'custom_fields.custom_field_group_id')
+                ->select('custom_fields.id', 'custom_field_groups.name as module', 'custom_fields.label', 'custom_fields.type', 'custom_fields.values', 'custom_fields.required', 'custom_fields.export', 'custom_fields.visible', 'custom_fields.display_order');
+        
+        // Only load rule sets when needed (for admin view, load all; for frontend, only enabled ones)
+        // For the index page (admin), we need all rule sets to show/edit them
+        try {
+            $this->customFields = $query->with([
+                'showRuleSet' => function($query) {
+                    $query->with(['groups' => function($q) {
+                        $q->orderBy('id')->with('criteria.referenceField');
+                    }]);
+                }
+            ])->orderBy('custom_fields.display_order')->get();
+        } catch (\Exception $e) {
+            // Log the error for debugging
+            \Log::warning('Failed to load custom field visibility rules', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // If tables don't exist yet, load without relationships
+            $this->customFields = $query->orderBy('custom_fields.display_order')->get();
+        }
+        
         $this->groupedCustomFields = $this->customFields->groupBy('module');
-
 
         return view('custom-fields.index', $this->data);
     }
@@ -77,6 +100,7 @@ class CustomFieldController extends AccountBaseController
                     'export' => $request->get('export'),
                     'visible' => $request->get('visible'),
                     'important' => $request->get('important', 0),
+                    'display_order' => $request->get('display_order', 0),
                 ]
             ],
 
@@ -103,17 +127,24 @@ class CustomFieldController extends AccountBaseController
      */
     public function edit($id)
     {
-        $this->field = CustomField::with(['conditions', 'visibility'])->findOrFail($id);
+        $this->field = CustomField::with([
+            'showRuleSet' => function($query) {
+                $query->with(['groups' => function($q) {
+                    $q->orderBy('id')->with('criteria.referenceField');
+                }]);
+            }
+        ])->findOrFail($id);
         // Use json_decode with true to return array instead of stdClass
         $decodedValues = json_decode($this->field->values, true);
         $this->field->values = is_array($decodedValues) ? $decodedValues : [];
         $this->customFieldGroups = CustomFieldGroup::all();
         $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
         
-        $this->otherFields = CustomField::where('custom_field_group_id', $this->field->custom_field_group_id)
+        // Get all fields in the same group for visibility rules
+        $this->availableFields = CustomField::where('custom_field_group_id', $this->field->custom_field_group_id)
             ->where('id', '!=', $id)
             ->get();
-
+        
         // Categories will be loaded dynamically based on the selected module
 
         return view('custom-fields.edit-custom-field-modal', $this->data);
@@ -138,6 +169,7 @@ class CustomFieldController extends AccountBaseController
         $field->export = $request->export;
         $field->visible = $request->visible;
         $field->important = $request->important ?? 0;
+        $field->display_order = $request->display_order ?? 0;
         $field->save();
 
         if ($request->has('conditions')) {
@@ -172,6 +204,27 @@ class CustomFieldController extends AccountBaseController
         return Reply::successWithData(__('messages.deleteSuccess'), ['updatedCount' => $updatedCount]);
     }
 
+    /**
+     * Sort fields order within a module
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function sortFields(Request $request)
+    {
+        $sortedValues = $request->sortedValues;
+
+        if (!is_array($sortedValues)) {
+            return Reply::error('Invalid sorted values');
+        }
+
+        foreach ($sortedValues as $key => $value) {
+            CustomField::where('id', $value)->update(['display_order' => $key + 1]);
+        }
+
+        return Reply::success(__('messages.updateSuccess'));
+    }
+
     private function addCustomField($group)
     {
         $createdFields = [];
@@ -185,7 +238,8 @@ class CustomFieldController extends AccountBaseController
                 'type' => $field['type'],
                 'export' => $field['export'],
                 'visible' => $field['visible'],
-                'important' => $field['important'] ?? 0
+                'important' => $field['important'] ?? 0,
+                'display_order' => $field['display_order'] ?? 0
             ];
 
             if (isset($field['required']) && (in_array($field['required'], ['yes', 'on', 1]))) {
@@ -211,6 +265,220 @@ class CustomFieldController extends AccountBaseController
 
         }
         return $createdFields;
+    }
+
+    /**
+     * Get rule set for a field
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getRuleSet($id)
+    {
+        try {
+            $field = CustomField::with([
+                'showRuleSet' => function($query) {
+                    $query->with(['groups' => function($q) {
+                        $q->orderBy('id')->with('criteria.referenceField');
+                    }]);
+                }
+            ])->findOrFail($id);
+            
+            $ruleSet = $field->showRuleSet;
+            
+            // For backward compatibility, also load single group if groups don't exist
+            if ($ruleSet && (!$ruleSet->groups || $ruleSet->groups->isEmpty())) {
+                $ruleSet->load('group.criteria.referenceField');
+            }
+            
+            return response()->json($ruleSet);
+        } catch (\Exception $e) {
+            // If tables don't exist, return null
+            return response()->json(null);
+        }
+    }
+
+    /**
+     * Save/Update rule set
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function saveRuleSet(Request $request, $id)
+    {
+        $field = CustomField::findOrFail($id);
+        
+        // Normalize boolean values from request (handle string "1"/"0", "true"/"false", or actual booleans)
+        $ruleSetData = $request->input('rule_set', []);
+        
+        // Helper function to convert various formats to boolean
+        $toBoolean = function($value) {
+            if (is_bool($value)) {
+                return $value;
+            }
+            if (is_string($value)) {
+                $value = strtolower(trim($value));
+                return in_array($value, ['1', 'true', 'yes', 'on'], true);
+            }
+            if (is_numeric($value)) {
+                return (bool) $value;
+            }
+            return false;
+        };
+        
+        if (isset($ruleSetData['default_visibility'])) {
+            $ruleSetData['default_visibility'] = $toBoolean($ruleSetData['default_visibility']);
+        }
+        
+        if (isset($ruleSetData['enabled'])) {
+            $ruleSetData['enabled'] = $toBoolean($ruleSetData['enabled']);
+        }
+        
+        // Normalize criteria negate values for single group (backward compatibility)
+        if (isset($ruleSetData['group']['criteria'])) {
+            foreach ($ruleSetData['group']['criteria'] as &$criterion) {
+                if (isset($criterion['negate'])) {
+                    $criterion['negate'] = $toBoolean($criterion['negate']);
+                }
+            }
+        }
+        
+            // Normalize criteria negate values and group enabled for multiple groups
+        if (isset($ruleSetData['groups'])) {
+            foreach ($ruleSetData['groups'] as &$group) {
+                // Normalize enabled field
+                if (isset($group['enabled'])) {
+                    $group['enabled'] = $toBoolean($group['enabled']);
+                }
+                
+                if (isset($group['criteria'])) {
+                    foreach ($group['criteria'] as &$criterion) {
+                        if (isset($criterion['negate'])) {
+                            $criterion['negate'] = $toBoolean($criterion['negate']);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Validate request data
+        $validator = Validator::make(['rule_set' => $ruleSetData], [
+            'rule_set.default_visibility' => 'sometimes|boolean',
+            'rule_set.enabled' => 'sometimes|boolean',
+            'rule_set.groups_operator' => 'sometimes|in:AND,OR',
+            // Multiple groups validation
+            'rule_set.groups.*.group_operator' => 'required_with:rule_set.groups|in:AND,OR',
+            'rule_set.groups.*.enabled' => 'sometimes|boolean',
+            'rule_set.groups.*.visibility_action' => 'sometimes|in:show,hide',
+            'rule_set.groups.*.criteria.*.reference_field_id' => 'required_with:rule_set.groups.*.criteria|exists:custom_fields,id',
+            'rule_set.groups.*.criteria.*.operator' => 'required_with:rule_set.groups.*.criteria|in:equals,exists,boolean,>,<,>=,<=,in,not_in',
+            'rule_set.groups.*.criteria.*.reference_value' => 'nullable',
+            'rule_set.groups.*.criteria.*.negate' => 'sometimes|boolean',
+            // Single group validation (backward compatibility)
+            'rule_set.group.group_operator' => 'sometimes|in:AND,OR',
+            'rule_set.group.criteria.*.reference_field_id' => 'required_with:rule_set.group.criteria|exists:custom_fields,id',
+            'rule_set.group.criteria.*.operator' => 'required_with:rule_set.group.criteria|in:equals,exists,boolean,>,<,>=,<=,in,not_in',
+            'rule_set.group.criteria.*.reference_value' => 'nullable',
+            'rule_set.group.criteria.*.negate' => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+        
+        // Use normalized data
+        
+        // Create or update rule set
+        $ruleSet = $field->showRuleSet()->updateOrCreate(
+            ['field_id' => $id],
+            [
+                'default_visibility' => $ruleSetData['default_visibility'] ?? true,
+                'enabled' => $ruleSetData['enabled'] ?? true,
+                'groups_operator' => $ruleSetData['groups_operator'] ?? 'AND',
+            ]
+        );
+        
+        // Handle multiple groups (new approach)
+        if (isset($ruleSetData['groups']) && is_array($ruleSetData['groups'])) {
+            // Delete all existing groups and their criteria
+            $ruleSet->groups()->each(function ($group) {
+                $group->criteria()->delete();
+            });
+            $ruleSet->groups()->delete();
+            
+            // Create new groups
+            foreach ($ruleSetData['groups'] as $groupData) {
+                $group = $ruleSet->groups()->create([
+                    'group_operator' => $groupData['group_operator'] ?? 'AND',
+                    'enabled' => $groupData['enabled'] ?? true,
+                    'visibility_action' => $groupData['visibility_action'] ?? 'show',
+                ]);
+                
+                // Create criteria for this group
+                if (isset($groupData['criteria']) && is_array($groupData['criteria'])) {
+                    foreach ($groupData['criteria'] as $criterionData) {
+                        $group->criteria()->create([
+                            'reference_field_id' => $criterionData['reference_field_id'],
+                            'operator' => $criterionData['operator'],
+                            'reference_value' => $criterionData['reference_value'] ?? null,
+                            'negate' => $criterionData['negate'] ?? false,
+                        ]);
+                    }
+                }
+            }
+        }
+        // Handle single group (backward compatibility)
+        elseif (isset($ruleSetData['group'])) {
+            $group = $ruleSet->group()->updateOrCreate(
+                ['rule_set_id' => $ruleSet->id],
+                ['group_operator' => $ruleSetData['group']['group_operator'] ?? 'AND']
+            );
+            
+            // Delete existing criteria
+            $group->criteria()->delete();
+            
+            // Create new criteria
+            if (isset($ruleSetData['group']['criteria'])) {
+                foreach ($ruleSetData['group']['criteria'] as $criterionData) {
+                    $group->criteria()->create([
+                        'reference_field_id' => $criterionData['reference_field_id'],
+                        'operator' => $criterionData['operator'],
+                        'reference_value' => $criterionData['reference_value'] ?? null,
+                        'negate' => $criterionData['negate'] ?? false,
+                    ]);
+                }
+            }
+        }
+        
+        // Reload groups with proper ordering
+        $ruleSet->load(['groups' => function($q) {
+            $q->orderBy('id')->with('criteria.referenceField');
+        }]);
+        
+        return response()->json(
+            Reply::successWithData('Visibility rules saved successfully', [
+                'success' => true,
+                'rule_set' => $ruleSet
+            ])
+        );
+    }
+
+    /**
+     * Evaluate visibility
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function evaluateVisibility(Request $request)
+    {
+        $fieldId = $request->input('field_id');
+        $currentValues = $request->input('current_values', []);
+        
+        $service = new CustomFieldVisibilityService();
+        $visible = $service->evaluate($fieldId, $currentValues);
+        
+        return response()->json(['visible' => $visible]);
     }
 
 }
