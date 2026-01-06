@@ -1007,10 +1007,18 @@ class DealCreationService
             if ($followUp) {
                 // Only update status if it's not in a final state (completed or cancelled)
                 // This preserves the status if the meeting was already completed or cancelled
-                $updateData = [
-                    'meeting_type_id' => $meetingTypeId,
-                    'next_follow_up_date' => $meetingDate,
-                ];
+                $updateData = [];
+                
+                // Only update meeting_type_id if it's not null
+                if ($meetingTypeId !== null) {
+                    $updateData['meeting_type_id'] = $meetingTypeId;
+                }
+                
+                // Only update next_follow_up_date if it's not null
+                if ($meetingDate !== null) {
+                    $updateData['next_follow_up_date'] = $meetingDate;
+                }
+                
                 if (isset($meetingData['meeting_location'])) $updateData['location'] = $meetingData['meeting_location'];
                 if (isset($meetingData['meeting_link'])) $updateData['meeting_link'] = $meetingData['meeting_link'];
                 
@@ -1019,12 +1027,14 @@ class DealCreationService
                 $currentStatus = $followUp->status;
                 if ($currentStatus !== 'completed' && $currentStatus !== 'cancelled') {
                     $updateData['status'] = 'scheduled';
+                    
+                    // If status is explicitly provided in request and current status is not final, use it
+                    if (isset($meetingData['status']) && in_array($meetingData['status'], ['scheduled', 'completed', 'cancelled'])) {
+                        $updateData['status'] = $meetingData['status'];
+                    }
                 }
-                
-                // If status is explicitly provided in request, use it
-                if (isset($meetingData['status']) && in_array($meetingData['status'], ['scheduled', 'completed', 'cancelled'])) {
-                    $updateData['status'] = $meetingData['status'];
-                }
+                // Note: Explicit status override is only allowed when current status is not a final state
+                // This prevents accidentally rescheduling completed or cancelled meetings
                 
                 $followUp->update($updateData);
                 return;
