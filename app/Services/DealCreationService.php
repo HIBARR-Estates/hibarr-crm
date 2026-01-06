@@ -1002,11 +1002,22 @@ class DealCreationService
             }
         }
 
-        if ($meetingId !== null) {
-            $followUp = DealFollowUp::where('meeting_id', $meetingId)->where('deal_id', $deal->id)->first();
+        // Use transaction with row-level locking to prevent race conditions
+        // This ensures only one request can create/update a follow-up for the same meeting_id/deal_id combination
+        DB::transaction(function () use ($meetingId, $deal, $meetingTypeId, $meetingDate, $meetingData) {
+            $followUp = null;
+            
+            if ($meetingId !== null) {
+                // Lock the row if it exists to prevent concurrent creation
+                // This ensures atomicity: only one request can proceed with create/update
+                $followUp = DealFollowUp::where('meeting_id', $meetingId)
+                    ->where('deal_id', $deal->id)
+                    ->lockForUpdate()
+                    ->first();
+            }
+                    
             if ($followUp) {
-                // Only update status if it's not in a final state (completed or cancelled)
-                // This preserves the status if the meeting was already completed or cancelled
+                // Update existing follow-up
                 $updateData = [];
                 
                 // Only update meeting_type_id if it's not null
@@ -1036,24 +1047,59 @@ class DealCreationService
                 // Note: Explicit status override is only allowed when current status is not a final state
                 // This prevents accidentally rescheduling completed or cancelled meetings
                 
-                $followUp->update($updateData);
-                return;
-            }
-        }
+                if (!empty($updateData)) {
+                    $followUp->update($updateData);
+                }
+            } else {
+                // Double-check pattern: After lock, check again to handle race condition
+                // where another concurrent request created the record between our check and now
+                if ($meetingId !== null) {
+                    $existingFollowUp = DealFollowUp::where('meeting_id', $meetingId)
+                        ->where('deal_id', $deal->id)
+                        ->first();
+                        
+                    if ($existingFollowUp) {
+                        // Another request created it during our transaction, update it instead
+                        $updateData = [];
+                        if ($meetingTypeId !== null) {
+                            $updateData['meeting_type_id'] = $meetingTypeId;
+                        }
+                        if ($meetingDate !== null) {
+                            $updateData['next_follow_up_date'] = $meetingDate;
+                        }
+                        if (isset($meetingData['meeting_location'])) $updateData['location'] = $meetingData['meeting_location'];
+                        if (isset($meetingData['meeting_link'])) $updateData['meeting_link'] = $meetingData['meeting_link'];
+                        
+                        $currentStatus = $existingFollowUp->status;
+                        if ($currentStatus !== 'completed' && $currentStatus !== 'cancelled') {
+                            $updateData['status'] = 'scheduled';
+                            if (isset($meetingData['status']) && in_array($meetingData['status'], ['scheduled', 'completed', 'cancelled'])) {
+                                $updateData['status'] = $meetingData['status'];
+                            }
+                        }
+                        
+                        if (!empty($updateData)) {
+                            $existingFollowUp->update($updateData);
+                        }
+                        return;
+                    }
+                }
 
-        // Create DealFollowUp
-        $followUp = new DealFollowUp();
-        $followUp->deal_id = $deal->id;
-        $followUp->meeting_type_id = $meetingTypeId;
-        $followUp->location = $meetingData['meeting_location'] ?? 'office';
-        $followUp->meeting_link = $meetingData['meeting_link'] ?? null;
-        $followUp->meeting_id = $meetingId;
-        $followUp->next_follow_up_date = $meetingDate;
-        $followUp->status = 'scheduled';
-        $followUp->added_by = $deal->agent_id ? LeadAgent::find($deal->agent_id)?->user_id : null;
-        
-        // Save quietly to bypass observers
-        $followUp->saveQuietly();
+                // Create new DealFollowUp (only if it doesn't exist after all checks)
+                $followUp = new DealFollowUp();
+                $followUp->deal_id = $deal->id;
+                $followUp->meeting_type_id = $meetingTypeId;
+                $followUp->location = $meetingData['meeting_location'] ?? 'office';
+                $followUp->meeting_link = $meetingData['meeting_link'] ?? null;
+                $followUp->meeting_id = $meetingId;
+                $followUp->next_follow_up_date = $meetingDate;
+                $followUp->status = 'scheduled';
+                $followUp->added_by = $deal->agent_id ? LeadAgent::find($deal->agent_id)?->user_id : null;
+                
+                // Save quietly to bypass observers
+                $followUp->saveQuietly();
+            }
+        });
     }
 
     /**
