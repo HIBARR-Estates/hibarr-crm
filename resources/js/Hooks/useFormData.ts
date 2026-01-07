@@ -30,6 +30,7 @@ export type FormDataType =
     | "languages"
     | "currencies"
     | "lead-agents"
+    | "leads"
     | "lead-statuses"
     | "genders";
 

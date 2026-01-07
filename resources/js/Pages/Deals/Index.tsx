@@ -1,7 +1,7 @@
+import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
-import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageSort from "@/Hooks/usePageSort";
@@ -307,14 +307,14 @@ const Index = ({
                 </div>
             </PageLayout>
 
-            {/* Save Deal Modal */}
-            <SaveDealModal
-                open={["add", "edit"].includes(action ?? "")}
+            {/* Save Deal Modal - Only for Edit */}
+            {/* Removed SaveDealModal - now using DealInformationGatheringForm for edit too */}
+
+            {/* Deal Gathering Form - For Add and Edit */}
+            <DealInformationGatheringForm
+                open={action === "add" || action === "edit"}
                 onClose={handleClose}
-                deal={deal}
-                setDeal={(deal) => {
-                    if (deal) handleEditDeal(deal);
-                }}
+                deal={action === "edit" ? deal : null}
             />
 
             <DeleteDeal
