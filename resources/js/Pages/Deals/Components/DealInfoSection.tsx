@@ -11,7 +11,7 @@ import {
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
-import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
+import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import UserIndicator from "@/Components/UserIndicator";
@@ -111,7 +111,11 @@ export default function DealInfoSection({
         const apiFieldName = fieldMapping[fieldName] || fieldName;
 
         // Handle special cases
-        if (apiFieldName === "client_email" || apiFieldName === "mobile" || apiFieldName === "company_name") {
+        if (
+            apiFieldName === "client_email" ||
+            apiFieldName === "mobile" ||
+            apiFieldName === "company_name"
+        ) {
             // These are contact fields, need to update via lead_id
             updateData[apiFieldName] = value || null;
         } else if (apiFieldName === "deal_name") {
@@ -131,7 +135,7 @@ export default function DealInfoSection({
                 {
                     headers: {
                         "X-Requested-With": "XMLHttpRequest",
-                        "Accept": "application/json",
+                        Accept: "application/json",
                         "Content-Type": "application/json",
                     },
                 }
@@ -208,14 +212,16 @@ export default function DealInfoSection({
                                 value={currentDeal.name}
                                 fieldName="name"
                                 fieldType="text"
-                                onSave={(value) => handleFieldUpdate("name", value)}
+                                onSave={(value) =>
+                                    handleFieldUpdate("name", value)
+                                }
                                 className="font-medium text-gray-900"
                                 disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
-                        <Descriptions.Item label="Package">
-                            {currentDeal.package?.name || "--"}
+                        <Descriptions.Item label="Package(s)">
+                            {currentDeal.packages?.join(", ") || "--"}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Lead Contact">
@@ -228,7 +234,8 @@ export default function DealInfoSection({
                                         )}
                                         className="text-blue-600 hover:text-blue-800 font-medium"
                                     >
-                                        {currentDeal.contact.client_name_salutation ||
+                                        {currentDeal.contact
+                                            .client_name_salutation ||
                                             currentDeal.contact.client_name}
                                     </Link>
                                     {currentDeal.contact.client_id && (
@@ -425,15 +432,10 @@ export default function DealInfoSection({
 
     return (
         <>
-            <SaveDealModal
+            <DealInformationGatheringForm
                 open={action === "edit"}
                 onClose={handleClose}
                 deal={currentDeal}
-                setDeal={(updatedDeal) => {
-                    if (updatedDeal) {
-                        setCurrentDeal(updatedDeal);
-                    }
-                }}
             />
             <SaveTaskModal
                 open={action === "add_task"}

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\DealController;
+use App\Http\Controllers\DealGatheringController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AwardController;
@@ -575,6 +576,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::get('deals/kanban', [LeadBoardController::class, 'index'])->name('deals.kanban_index');
     
+    Route::group(['prefix' => 'deals', 'as' => 'deals.'], function () {
+        Route::post('gathering/init', [DealGatheringController::class, 'init'])->name('gathering.init');
+        Route::get('gathering/steps', [DealGatheringController::class, 'getSteps'])->name('gathering.steps');
+        Route::get('gathering/search-leads', [DealGatheringController::class, 'searchLeads'])->name('gathering.search_leads');
+        Route::patch('gathering/update-step/{id}', [DealGatheringController::class, 'updateStep'])->name('gathering.update_step');
+        Route::get('gathering/custom-fields/{id}', [DealGatheringController::class, 'getDealCustomFields'])->name('gathering.get_custom_fields');
+    });
+
     Route::resource('deals', DealController::class);
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
