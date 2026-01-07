@@ -122,7 +122,22 @@ class DealGatheringService
         $categories = CustomFieldCategory::where('custom_field_group_id', $group->id)
             ->with(['customFields' => function($q) {
                 // Order by display_order, don't filter by 'visible' as that's for table display
-                $q->orderBy('display_order');
+                $q->orderBy('display_order')
+                  ->with([
+                      'showRuleSet' => function($query) {
+                          // Load rule set with enabled groups and their criteria
+                          $query->with([
+                              'groups' => function($groupQuery) {
+                                  // Only load enabled groups to improve performance
+                                  $groupQuery->where('enabled', true)
+                                             ->orderBy('id')
+                                             ->with('criteria.referenceField');
+                              },
+                              // Also load single group for backward compatibility
+                              'group.criteria.referenceField'
+                          ]);
+                      }
+                  ]);
             }])
             ->get();
             
