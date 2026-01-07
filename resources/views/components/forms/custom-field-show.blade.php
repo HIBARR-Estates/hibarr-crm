@@ -1,7 +1,33 @@
 @props(['fields', 'model' => null, 'categoryId' => null])
+@php
+    use App\Services\CustomFieldVisibilityService;
+    
+    $visibilityService = new CustomFieldVisibilityService();
+    $customFieldsData = $model->custom_fields_data ?? [];
+    
+    // Prepare field values for visibility evaluation
+    // Ensure keys are in format "field_47"
+    $fieldValuesForVisibility = [];
+    foreach ($customFieldsData as $key => $value) {
+        if (strpos($key, 'field_') === 0) {
+            $fieldValuesForVisibility[$key] = $value;
+        } else {
+            $fieldValuesForVisibility['field_' . $key] = $value;
+        }
+    }
+@endphp
 @if (isset($fields))
     @foreach ($fields as $field)
         @if (!is_null($categoryId) && $field->custom_field_category_id != $categoryId)
+            @continue
+        @endif
+        
+        @php
+            // Check visibility rules
+            $isVisible = $visibilityService->evaluate($field->id, $fieldValuesForVisibility);
+        @endphp
+        
+        @if (!$isVisible)
             @continue
         @endif
         @if (in_array($field->type, ['text', 'password', 'number']))

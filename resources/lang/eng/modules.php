@@ -1510,6 +1510,8 @@ return array(
         'category' => 'Category',
         'addCategory' => 'Add Category',
         'editCategory' => 'Edit Category',
+        'basic_info' => 'Basic Info',
+        'visibility_rules' => 'Visibility Rules',
     ),
     'statusFields' => array(
         'defaultStatus' => 'Default Status',
