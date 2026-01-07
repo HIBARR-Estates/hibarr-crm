@@ -78,7 +78,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     // Step 1..N: Dynamic Steps
     const items = [
         {
-            title: "Lead & Deal",
+            title: "Lead Information",
         },
         ...dynamicSteps.map((step) => ({ title: step.title })),
     ];
@@ -168,15 +168,14 @@ const DealInformationGatheringForm: React.FC<Props> = ({
             className="top-8"
         >
             <Skeleton loading={loadingSteps} active paragraph={{ rows: 10 }}>
-                <div className="py-4">
+                <div>
                     <ModernSteps
                         current={current}
                         items={items}
-                        className="mb-10 px-8"
                         onStepClick={handleStepClick}
                         disabledSteps={disabledSteps}
                     />
-                    <div className="px-8 pb-4">{renderContent()}</div>
+                    <div>{renderContent()}</div>
                 </div>
             </Skeleton>
         </Modal>

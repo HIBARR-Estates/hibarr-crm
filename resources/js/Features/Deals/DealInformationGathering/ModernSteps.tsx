@@ -197,7 +197,7 @@ const ModernSteps: React.FC<ModernStepsProps> = ({
                 {/* Steps container */}
                 <div
                     ref={scrollContainerRef}
-                    className="flex items-center overflow-x-auto pb-2 scrollbar-hide no-scrollbar px-1"
+                    className="flex items-center overflow-x-auto p-4 scrollbar-hide no-scrollbar"
                     style={{
                         scrollbarWidth: "none",
                         msOverflowStyle: "none",
