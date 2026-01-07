@@ -178,7 +178,7 @@
                                                             <label>Reference Field</label>
                                                             <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_field_id]" class="form-control select-picker reference-field-select" data-live-search="true" data-size="8">
                                                                 <option value="">Select field...</option>
-                                                                @foreach($availableFields as $availableField)
+                                                                @foreach($otherFields as $availableField)
                                                                     <option value="{{ $availableField->id }}" 
                                                                             {{ $criterion->reference_field_id == $availableField->id ? 'selected' : '' }}>
                                                                         {{ $availableField->label }} ({{ $availableField->type }})
@@ -452,7 +452,7 @@ $(document).ready(function() {
                                 <label>Reference Field</label>
                                 <select name="groups[${groupIdx}][criteria][${criterionIdx}][reference_field_id]" class="form-control select-picker reference-field-select" data-live-search="true" data-size="8">
                                     <option value="">Select field...</option>
-                                    @foreach($availableFields as $availableField)
+                                    @foreach($otherFields as $availableField)
                                         <option value="{{ $availableField->id }}">{{ $availableField->label }} ({{ $availableField->type }})</option>
                                     @endforeach
                                 </select>
