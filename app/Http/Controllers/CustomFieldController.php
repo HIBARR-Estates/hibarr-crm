@@ -141,9 +141,13 @@ class CustomFieldController extends AccountBaseController
         $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
         
         // Get all fields in the same group for visibility rules
-        $this->availableFields = CustomField::where('custom_field_group_id', $this->field->custom_field_group_id)
+        // Ensure otherFields is always set, even if empty, to prevent undefined variable errors
+        $this->otherFields = CustomField::where('custom_field_group_id', $this->field->custom_field_group_id)
             ->where('id', '!=', $id)
             ->get();
+        
+        // Explicitly ensure otherFields is in the data array (magic __set should handle this, but being explicit)
+        $this->data['otherFields'] = $this->otherFields;
         
         // Categories will be loaded dynamically based on the selected module
 
