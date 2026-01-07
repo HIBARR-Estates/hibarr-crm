@@ -1117,11 +1117,11 @@ class DealController extends AccountBaseController
 
         Deal::destroy($id);
 
-        // return Reply::success(__('messages.deleteSuccess'));
-        return to_route('deals.index')->with([
-            'status' => 'success',
-            'message' => __('messages.deleteSuccess')
-        ]);
+        return Reply::success(__('messages.deleteSuccess'));
+        // return to_route('deals.index')->with([
+        //     'status' => 'success',
+        //     'message' => __('messages.deleteSuccess')
+        // ]);
     }
 
     /**
