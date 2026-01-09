@@ -12,6 +12,7 @@ declare module "@inertiajs/core" {
             error?: string;
         };
         currencies?: Currency[];
+        company?: Company;
         languages?: Array<{ language_code: string; language_name: string }>;
         salutations?: Array<{ value: string; label: string }>;
         countries?: Array<Country>;

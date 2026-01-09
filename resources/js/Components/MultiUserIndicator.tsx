@@ -14,7 +14,7 @@ interface UserData {
 }
 
 interface MultiUserIndicatorProps {
-    users: UserData[];
+    users?: UserData[];
     size?: MultiUserIndicatorSize;
     maxCount?: number;
     className?: string;

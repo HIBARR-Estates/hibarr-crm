@@ -26,44 +26,19 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { motion } from "framer-motion";
+import { Task } from "@/Types/Task";
+// import QuickTaskAdd from "./QuickTaskAdd";
 
-interface Task {
-    id: number;
-    heading: string;
-    description?: string;
-    due_date?: string;
-    start_date?: string;
-    priority: "low" | "medium" | "high";
-    status: string;
-    board_column_id?: number;
-    completed_on?: string;
-    project?: {
-        id: number;
-        project_name: string;
-        project_short_code?: string;
-    };
-    category?: {
-        id: number;
-        category_name: string;
-    };
-    users?: Array<{
-        id: number;
-        name: string;
-        image?: string;
-    }>;
-    labels?: Array<{
-        id: number;
-        label_name: string;
-        label_color: string;
-    }>;
-    files_count?: number;
-    notes_count?: number;
-    comments_count?: number;
-    subtasks_count?: number;
-    completed_subtasks_count?: number;
-    created_at: string;
-    updated_at: string;
-    added_by?: number;
+// Types based on Laravel Task model (Deprecated)
+// interface Task { ... }
+
+interface TaskboardColumn {
+    //     comments_count?: number;
+    //     subtasks_count?: number;
+    //     completed_subtasks_count?: number;
+    //     created_at: string;
+    //     updated_at: string;
+    //     added_by?: number;
 }
 
 interface TaskboardColumn {
@@ -354,7 +329,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                                         <Tooltip
                                             title={`Due: ${dayjs(
                                                 task.due_date
-                                            ).format("MMM D, YYYY")}`}
+                                            ).format("MMM D, YYYY h:mm A")}`}
                                         >
                                             <div
                                                 className={`flex items-center text-xs ${
@@ -365,7 +340,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                                             >
                                                 <ClockCircleOutlined className="mr-1" />
                                                 {dayjs(task.due_date).format(
-                                                    "MMM D"
+                                                    "MMM D, h:mm A"
                                                 )}
                                             </div>
                                         </Tooltip>
@@ -435,6 +410,12 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                                         (task, index) => renderTask(task, index)
                                     )}
                                     {provided.placeholder}
+                                    <div className="mt-2">
+                                        {/* <QuickTaskAdd
+                                            boardColumnId={column.id}
+                                            placeholder="Add task to column..."
+                                        /> */}
+                                    </div>
                                 </div>
                             )}
                         </Droppable>

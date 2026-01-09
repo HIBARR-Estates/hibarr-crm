@@ -53,7 +53,7 @@ class StoreTask extends CoreRequest
 
         $rules = [
             'heading' => 'required',
-            'start_date' => 'nullable|date_format:"' . $setting->date_format . '"',
+            'start_date' => 'nullable|date_format:"' . $setting->date_format . ' ' . $setting->time_format . '"',
             'priority' => 'required'
         ];
 
@@ -76,26 +76,26 @@ class StoreTask extends CoreRequest
         {
             if(is_null($milestoneEndDate))
             {
-                $rules['due_date'] = 'required|date_format:"' . $setting->date_format . '"|after_or_equal:start_date';
+                $rules['due_date'] = 'required|date_format:"' . $setting->date_format . ' ' . $setting->time_format . '"|after_or_equal:start_date';
             }
             else
             {
-                $rules['due_date'] = 'required|date_format:"' . $setting->date_format . '"|after_or_equal:start_date|before_or_equal:'.$milestoneEndDate;
+                $rules['due_date'] = 'required|date_format:"' . $setting->date_format . ' ' . $setting->time_format . '"|after_or_equal:start_date|before_or_equal:'.$milestoneEndDate->format($setting->date_format . ' ' . $setting->time_format);
             }
         }
 
 
         if (request()->has('project_id') && request()->project_id != 'all' && request()->project_id != '') {
-            $startDate = $project->start_date->format($setting->date_format);
-            $rules['start_date'] = 'required|date_format:"' . $setting->date_format . '"|after_or_equal:' . $startDate;
+            $startDate = $project->start_date->format($setting->date_format . ' ' . $setting->time_format);
+            $rules['start_date'] = 'required|date_format:"' . $setting->date_format . ' ' . $setting->time_format . '"|after_or_equal:' . $startDate;
         }
         else {
-            $rules['start_date'] = 'nullable|date_format:"' . $setting->date_format;
+            $rules['start_date'] = 'nullable|date_format:"' . $setting->date_format . ' ' . $setting->time_format . '"';
         }
 
         if ($this->has('dependent') && $this->dependent_task_id != '') {
             $dependentTask = Task::findOrFail($this->dependent_task_id);
-            $rules['start_date'] = 'nullable|date_format:"' . $setting->date_format . '"|after_or_equal:"' . $dependentTask->due_date->format($setting->date_format) . '"';
+            $rules['start_date'] = 'nullable|date_format:"' . $setting->date_format . ' ' . $setting->time_format . '"|after_or_equal:"' . $dependentTask->due_date->format($setting->date_format . ' ' . $setting->time_format) . '"';
         }
 
         $rules['user_id.0'] = 'required_with:is_private';

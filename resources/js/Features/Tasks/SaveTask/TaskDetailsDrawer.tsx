@@ -13,6 +13,7 @@ import {
     List,
     Tooltip,
     Empty,
+    Skeleton,
 } from "antd";
 import {
     CalendarOutlined,
@@ -28,11 +29,12 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getStatusColor } from "@/lib/utils";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
 
 const { Text, Title } = Typography;
 
 // Match the Task interface from columns
-interface Task {
+export interface Task {
     id: number;
     heading: string;
     description?: string;
@@ -110,13 +112,26 @@ interface TaskDetailsDrawerProps {
 }
 
 const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
-    task,
-    loading,
+    task: initialTask,
+    loading: initialLoading,
 }) => {
+    // Fetch full task details
+    const { data: fetchedTaskData, isLoading: isFetchingTask } = useApiQuery<{
+        task: Task;
+    }>({
+        path: initialTask?.id ? route("tasks.data", initialTask.id) : "",
+        options: {
+            enabled: !!initialTask?.id,
+        },
+    });
+
+    const task = fetchedTaskData?.task || initialTask;
+    const loading = initialLoading || isFetchingTask;
+
     if (loading) {
         return (
             <div style={{ padding: "24px", textAlign: "center" }}>
-                <Text>Loading task details...</Text>
+                <Skeleton active paragraph={{ rows: 10 }} />
             </div>
         );
     }
@@ -291,13 +306,17 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 <Descriptions size="small" column={1}>
                     <Descriptions.Item label="Start Date">
                         {task.start_date
-                            ? dayjs(task.start_date).format("MMM DD, YYYY")
+                            ? dayjs(task.start_date).format(
+                                  "MMM DD, YYYY h:mm A"
+                              )
                             : "Not set"}
                     </Descriptions.Item>
                     <Descriptions.Item label="Due Date">
                         {task.due_date ? (
                             <Space>
-                                {dayjs(task.due_date).format("MMM DD, YYYY")}
+                                {dayjs(task.due_date).format(
+                                    "MMM DD, YYYY h:mm A"
+                                )}
                                 {dayjs().isAfter(dayjs(task.due_date)) && (
                                     <Tag color="red">Overdue</Tag>
                                 )}

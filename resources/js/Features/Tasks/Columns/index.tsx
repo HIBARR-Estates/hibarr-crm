@@ -25,7 +25,7 @@ import dayjs from "dayjs";
 import { Link, usePage } from "@inertiajs/react";
 
 import PageDataSorter from "@/Components/PageDataSorter";
-import { Task } from "@/Types/api/tasks";
+import { Task } from "@/Types/Task";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 
 const { Text, Title } = Typography;
