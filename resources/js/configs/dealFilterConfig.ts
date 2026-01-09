@@ -19,7 +19,6 @@ export const createDealFilterConfig = (
             label: "Search",
             type: "text" as const,
             placeholder: "Search deals by contact name, company, deal name...",
-            section: "Search & General",
             span: 24,
         },
         {
@@ -27,7 +26,6 @@ export const createDealFilterConfig = (
             label: "Pipeline",
             type: "select" as const,
             placeholder: "Select pipeline",
-            section: "Pipeline & Stage",
             span: 12,
             options:
                 props.leadPipelines?.map((pipeline: any) => ({
@@ -40,7 +38,6 @@ export const createDealFilterConfig = (
             label: "Stage",
             type: "select" as const,
             placeholder: "Select stage",
-            section: "Pipeline & Stage",
             span: 12,
             dependsOn: "lead_pipeline_id",
             filterOptions: (pipelineId: number) => {
@@ -62,7 +59,6 @@ export const createDealFilterConfig = (
             label: "Category",
             type: "select" as const,
             placeholder: "Select category",
-            section: "Categorization",
             span: 24,
             options:
                 props.categories?.map((category: any) => ({
@@ -74,7 +70,6 @@ export const createDealFilterConfig = (
             key: "start_date",
             label: "Created Date Range",
             type: "daterange" as const,
-            section: "Date Range",
             span: 24,
             formatDisplayValue: (value: any, options?: any) => {
                 // This will be handled by the daterange type automatically
@@ -86,7 +81,6 @@ export const createDealFilterConfig = (
             label: "Agent Status",
             type: "select" as const,
             placeholder: "Select status",
-            section: "Assignment",
             span: 12,
             options: [
                 { value: "active", label: "Active Agents" },
@@ -101,7 +95,6 @@ export const createDealFilterConfig = (
             label: "Assigned Agent",
             type: "select" as const,
             placeholder: "Select agent",
-            section: "Assignment",
             span: 12,
             dependsOn: "agent_status",
             filterOptions: (agentStatus: string) => {
@@ -131,7 +124,6 @@ export const createDealFilterConfig = (
             key: "value_range",
             label: "Deal Value",
             type: "numberrange" as const,
-            section: "Financial",
             span: 24,
             formatDisplayValue: (value: any) => {
                 return `$${value.toLocaleString()}`;

@@ -11,10 +11,12 @@ export const createPropertyAssetFilterConfig = (
     }));
 
     // Convert types object to options array
-    const typeOptions = Object.entries(availableTypes).map(([value, label]) => ({
-        value,
-        label,
-    }));
+    const typeOptions = Object.entries(availableTypes).map(
+        ([value, label]) => ({
+            value,
+            label,
+        })
+    );
 
     return {
         routeName: "properties.assets.index",
@@ -25,7 +27,6 @@ export const createPropertyAssetFilterConfig = (
                 label: "Search",
                 type: "text",
                 placeholder: "Search assets by name...",
-                section: "Search",
                 span: 24,
             },
             {
@@ -33,7 +34,6 @@ export const createPropertyAssetFilterConfig = (
                 label: "Asset Type",
                 type: "select",
                 placeholder: "All types",
-                section: "Asset Details",
                 span: 12,
                 options: typeOptions,
             },
@@ -42,7 +42,6 @@ export const createPropertyAssetFilterConfig = (
                 label: "Tags",
                 type: "multiselect",
                 placeholder: "Select tags",
-                section: "Asset Details",
                 span: 12,
                 options: tagOptions,
             },
@@ -51,7 +50,6 @@ export const createPropertyAssetFilterConfig = (
                 label: "Sort By",
                 type: "select",
                 placeholder: "Sort by",
-                section: "Sorting",
                 span: 12,
                 options: [
                     { value: "created_at", label: "Date Added" },
@@ -64,7 +62,6 @@ export const createPropertyAssetFilterConfig = (
                 label: "Sort Order",
                 type: "select",
                 placeholder: "Sort order",
-                section: "Sorting",
                 span: 12,
                 options: [
                     { value: "desc", label: "Descending" },
