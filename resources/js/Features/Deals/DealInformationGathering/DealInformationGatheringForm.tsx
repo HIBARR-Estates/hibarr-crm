@@ -6,7 +6,6 @@ import ModernSteps from "./ModernSteps";
 import { router } from "@inertiajs/react";
 import { useApiQuery } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
 import { Deal } from "@/Types/api/deals";
 
 interface Props {
