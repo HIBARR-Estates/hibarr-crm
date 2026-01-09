@@ -42,15 +42,19 @@ use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\Property;
 use Inertia\Inertia;
+use App\Services\TaskService;
 
 class TaskController extends AccountBaseController
 {
 
     use ProjectProgress;
 
-    public function __construct()
+    protected $taskService;
+
+    public function __construct(TaskService $taskService)
     {
         parent::__construct();
+        $this->taskService = $taskService;
         $this->pageTitle = 'app.menu.tasks';
         $this->middleware(
             function ($request, $next) {
@@ -181,20 +185,39 @@ class TaskController extends AccountBaseController
             $tasksQuery->orderBy('created_at', 'desc');
         }
 
-        $tasks = $tasksQuery->get();
+        $kanbanQuery = clone $tasksQuery;
 
-        // Transform tasks for frontend
-        $tasks = $tasks->map(function ($task) {
+        $tableTasks = $tasksQuery->paginate(request('per_page', 50))->withQueryString();
+        $kanbanTasks = $kanbanQuery->get();
+
+        // Calculate Stats
+        $stats = [
+            'total' => $kanbanTasks->count(),
+            'completed' => $kanbanTasks->filter(function ($task) {
+                return ($task->boardColumn->slug ?? '') === 'completed';
+            })->count(),
+            'overdue' => $kanbanTasks->filter(function ($task) {
+                return $task->due_date 
+                    && $task->due_date->isPast() 
+                    && ($task->boardColumn->slug ?? '') !== 'completed';
+            })->count(),
+            'dueToday' => $kanbanTasks->filter(function ($task) {
+                return $task->due_date 
+                    && $task->due_date->isToday();
+            })->count(),
+        ];
+
+        $transformCallback = function ($task) {
             return [
                 'id' => $task->id,
                 'heading' => $task->heading,
                 'description' => $task->description,
-                'due_date' => $task->due_date?->format('Y-m-d'),
-                'start_date' => $task->start_date?->format('Y-m-d'),
+                'due_date' => $task->due_date?->format('Y-m-d H:i:s'),
+                'start_date' => $task->start_date?->format('Y-m-d H:i:s'),
                 'priority' => $task->priority,
                 'status' => $task->boardColumn->slug ?? 'incomplete',
                 'board_column_id' => $task->board_column_id,
-                'completed_on' => $task->completed_on?->format('Y-m-d'),
+                'completed_on' => $task->completed_on?->format('Y-m-d H:i:s'),
                 'project' => $task->project ? [
                     'id' => $task->project->id,
                     'project_name' => $task->project->project_name,
@@ -246,7 +269,11 @@ class TaskController extends AccountBaseController
                     ];
                 })->toArray(),
             ];
-        });
+        };
+
+        // Transform tasks for frontend
+        $tableTasks->through($transformCallback);
+        $kanbanTasks = $kanbanTasks->map($transformCallback);
 
         // Fetch supporting data
         $projects = Project::allProjects()->map(function ($project) {
@@ -317,7 +344,8 @@ class TaskController extends AccountBaseController
         ];
 
         return Inertia::render('Tasks/Index', [
-            'tasks' => $tasks,
+            'tableTasks' => $tableTasks,
+            'kanbanTasks' => $kanbanTasks,
             'categories' => $categories,
             'labels' => $labels,
             'columns' => $taskBoardColumns,
@@ -328,6 +356,7 @@ class TaskController extends AccountBaseController
             'properties' => $properties,
             'filters' => $filters,
             'permissions' => $permissions,
+            'stats' => $stats,
         ]);
     }
 
@@ -399,6 +428,41 @@ class TaskController extends AccountBaseController
     }
 
     public function changeStatus(Request $request)
+    {
+        $taskId = $request->taskId;
+        $status = $request->status;
+        $task = Task::withTrashed()->with('project', 'users')->findOrFail($taskId);
+        
+        $taskUsers = $task->users->pluck('id')->toArray();
+        $changeStatusPermission = user()->permission('change_status');
+        
+        abort_403(
+            !(
+                $changeStatusPermission == 'all'
+                || ($changeStatusPermission == 'added' && $task->added_by == user()->id)
+                || ($changeStatusPermission == 'owned' && in_array(user()->id, $taskUsers))
+                || ($changeStatusPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
+                || ($task->project && $task->project->project_admin == user()->id)
+            )
+        );
+
+        $taskBoardColumn = TaskboardColumn::where('slug', $status)->first();
+        
+        if ($taskBoardColumn) {
+            $this->taskService->changeStatus($task, $taskBoardColumn->id);
+            
+            $this->selfActiveTimer = ProjectTimeLog::selfActiveTimer();
+            // Data for view
+             $this->data['selfActiveTimer'] = $this->selfActiveTimer; // ensure data is available
+            $clockHtml = view('sections.timer_clock', $this->data)->render();
+
+            return Reply::successWithData(__('messages.taskUpdated').' '.$status, ['clockHtml' => $clockHtml]);
+        }
+        
+        return Reply::error('Column not found');
+    }
+
+    public function changeStatusDeprecated(Request $request)
     {
         $taskId = $request->taskId;
         $status = $request->status;
@@ -513,6 +577,29 @@ class TaskController extends AccountBaseController
 
     public function destroy(Request $request, $id)
     {
+        $task = Task::with('subtasks', 'boardColumn')->findOrFail($id);
+        $this->deletePermission = user()->permission('delete_tasks');
+
+        $taskUsers = $task->users->pluck('id')->toArray();
+
+        // Permission Check
+        abort_403(!($this->deletePermission == 'all'
+            || ($this->deletePermission == 'owned' && in_array(user()->id, $taskUsers))
+            || ($this->deletePermission == 'added' && $task->added_by == user()->id)
+            || ($task->project && ($task->project->project_admin == user()->id))
+            || ($this->deletePermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
+            || ($this->deletePermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
+            || ($this->deletePermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
+        ));
+
+        // Delegate to Service
+        $this->taskService->deleteTask($task);
+
+        return Reply::success(__('messages.taskDeleted'));
+    }
+
+    public function destroyDeprecated(Request $request, $id)
+    {
         $task = Task::with('project')->findOrFail($id);
 
         $this->deletePermission = user()->permission('delete_tasks');
@@ -537,6 +624,49 @@ class TaskController extends AccountBaseController
         $task->delete();
 
         return Reply::successWithData(__('messages.deleteSuccess'), ['redirectUrl' => route('tasks.index')]);
+    }
+
+    /**
+     * Get task details for the modal
+     *
+     * @param int $id
+     * @return mixed
+     */
+    public function data($id)
+    {
+        $task = Task::with([
+            'users', 
+            'label', 
+            'project', 
+            'category', 
+            'deals', 
+            'leads', 
+            'properties'
+        ])->find($id);
+
+        if ($task) {
+            $task->withCustomFields();
+        }
+
+        if (!$task) {
+           return Reply::error('Task not found');
+        }
+
+        $editTaskPermission = user()->permission('edit_tasks');
+        $taskUsers = $task->users->pluck('id')->toArray();
+
+        abort_403(
+            !($editTaskPermission == 'all'
+                || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
+                || ($editTaskPermission == 'added' && $task->added_by == user()->id)
+                || ($task->project && ($task->project->project_admin == user()->id))
+                || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
+                || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
+                || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
+            )
+        );
+
+        return Reply::dataOnly(['task' => $task]);
     }
 
     /**
@@ -659,8 +789,48 @@ class TaskController extends AccountBaseController
         return view('tasks.create', $this->data);
     }
 
-    // The function is called for duplicate code also
     public function store(StoreTask $request)
+    {
+        // Permission Check
+        $project = request('project_id') ? Project::findOrFail(request('project_id')) : null;
+        if (is_null($project) || ($project->project_admin != user()->id)) {
+            $this->addPermission = user()->permission('add_tasks');
+            abort_403(!in_array($this->addPermission, ['all', 'added']));
+        }
+
+        try {
+            // Prepare Data
+            $data = $request->all(); // Using all() to catch everything, validated() is strict
+            
+            // Delegate to Service
+            $task = $this->taskService->createTask($data, user());
+
+            // Handle Response Logic
+            if (request()->add_more == 'true') {
+                $html = $this->create();
+                return Reply::successWithData(__('messages.taskSaved'), ['html' => $html, 'add_more' => true, 'taskID' => $task->id]);
+            }
+
+            if ($request->page_name && $request->page_name == 'ganttChart') {
+                // For full Gantt support, we'd need to regenerate the gantt array here or in service.
+                // For now returning success.
+                return Reply::success(__('messages.taskSaved'));
+            }
+
+            $redirectUrl = urldecode($request->redirect_url);
+            if ($redirectUrl == '') {
+                $redirectUrl = route('tasks.index');
+            }
+
+            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
+
+        } catch (\Exception $e) {
+            return Reply::error($e->getMessage());
+        }
+    }
+
+    // The function is called for duplicate code also
+    public function storeDeprecated(StoreTask $request)
     {
         $project = request('project_id') ? Project::findOrFail(request('project_id')) : null;
 
@@ -677,8 +847,8 @@ class TaskController extends AccountBaseController
         $task = new Task();
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
-        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
-        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format, $request->start_date) : null;
+        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $request->due_date);
+        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $request->start_date) : null;
         $task->due_date = $dueDate;
         $task->project_id = $request->project_id;
         $task->task_category_id = $request->category_id;
@@ -1022,6 +1192,40 @@ class TaskController extends AccountBaseController
     public function update(UpdateTask $request, $id)
     {
         $task = Task::with('users', 'label', 'project')->findOrFail($id);
+        
+        // Permission Check
+        $taskUsers = $task->users->pluck('id')->toArray();
+        $editTaskPermission = user()->permission('edit_tasks');
+
+        if (!($editTaskPermission == 'all'
+            || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
+            || ($editTaskPermission == 'added' && $task->added_by == user()->id)
+            || ($task->project && ($task->project->project_admin == user()->id))
+            || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
+            || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
+            || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
+        )) {
+            return Reply::error(__('messages.permissionDenied'));
+        }
+
+        try {
+            $data = $request->all();
+            $task = $this->taskService->updateTask($task, $data, user());
+
+            return Reply::successWithData(__('messages.taskUpdated'), [
+                'project' => $task->project, 
+                'data' => $task, 
+                'redirectUrl' => route('tasks.show', $task->id)
+            ]);
+
+        } catch (\Exception $e) {
+            return Reply::error($e->getMessage());
+        }
+    }
+
+    public function updateDeprecated(UpdateTask $request, $id)
+    {
+        $task = Task::with('users', 'label', 'project')->findOrFail($id);
         $editTaskPermission = user()->permission('edit_tasks');
         $taskUsers = $task->users->pluck('id')->toArray();
 
@@ -1036,10 +1240,10 @@ class TaskController extends AccountBaseController
             return Reply::error(__('messages.permissionDenied'));
         }
 
-        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format, $request->due_date);
+        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $request->due_date);
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
-        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format, $request->start_date) : null;
+        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $request->start_date) : null;
         $task->due_date = $dueDate;
         $task->task_category_id = $request->category_id;
         $task->priority = $request->priority;

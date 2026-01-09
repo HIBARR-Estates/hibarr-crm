@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { router } from "@inertiajs/react";
-import { Drawer } from "antd";
+import { router, usePage } from "@inertiajs/react";
+import { Drawer, Skeleton } from "antd";
 import { IModalProps } from "@/Types/common";
 import TaskForm from "./TaskForm";
 import { useApiMutate } from "@/lib/api/client";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
@@ -113,7 +114,7 @@ interface CreateTaskFormData {
 }
 
 interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
-    task?: Task;
+    task?: { id: number } | Task;
     isDuplicate?: boolean;
     setTask?: (task: Task | undefined) => void;
     onClose: () => void;
@@ -147,6 +148,8 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     properties = [],
     relatedEntity,
 }) => {
+    const { props } = usePage();
+
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateTaskFormData | null>(null);
 
@@ -154,6 +157,21 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     const isEditing = !!task && !isDuplicate;
     const isCreating = !task;
     const isDuplicating = !!task && isDuplicate;
+
+    // Fetch full task details if editing
+    const { data: fetchedTaskData, isLoading: isFetchingTask } = useApiQuery<{
+        task: Task;
+    }>({
+        path: isEditing && task?.id ? route("tasks.data", task.id) : "",
+        options: {
+            enabled: isEditing && !!task?.id && open,
+        },
+    });
+
+    const activeTask =
+        isEditing && fetchedTaskData?.task
+            ? fetchedTaskData.task
+            : (task as Task | undefined);
 
     const getTitle = () => {
         if (isEditing) return "Edit Task";
@@ -166,24 +184,27 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     // Initialize form data
     const getInitialData = (): CreateTaskFormData => ({
         heading: isDuplicating
-            ? `${task?.heading} (Copy)`
-            : task?.heading || "",
-        description: task?.description || "",
-        start_date: task?.start_date || "",
-        due_date: isDuplicating ? "" : task?.due_date || "",
-        priority: task?.priority || "medium",
-        project_id: task?.project?.id,
-        user_ids: task?.users?.map((u) => u.id) || [],
-        category_id: task?.category?.id,
-        task_labels: task?.labels?.map((l) => l.id) || [],
-        estimate_hours: task?.estimate_hours || 0,
-        estimate_minutes: task?.estimate_minutes || 0,
+            ? `${activeTask?.heading} (Copy)`
+            : activeTask?.heading || "",
+        description: activeTask?.description || "",
+        start_date: activeTask?.start_date || "",
+        due_date: isDuplicating ? "" : activeTask?.due_date || "",
+        priority: activeTask?.priority || "medium",
+        project_id: activeTask?.project?.id,
+        user_ids: activeTask?.users?.map((u) => u.id) || [],
+        category_id: activeTask?.category?.id,
+        task_labels: activeTask?.labels?.map((l) => l.id) || [],
+        estimate_hours: activeTask?.estimate_hours || 0,
+        estimate_minutes: activeTask?.estimate_minutes || 0,
         board_column_id:
-            task?.board_column_id ||
+            activeTask?.board_column_id ||
             columns.find((col) => col.slug === "incomplete")?.id,
-        is_private: task?.is_private || false,
-        billable: task?.billable || false,
-        without_duedate: task?.without_duedate || false,
+        is_private: activeTask?.is_private || false,
+        billable: activeTask?.billable || false,
+        without_duedate: activeTask?.without_duedate || false,
+        deal_id: (activeTask as any)?.deals?.[0]?.id,
+        lead_id: (activeTask as any)?.leads?.[0]?.id,
+        property_id: (activeTask as any)?.properties?.[0]?.id,
     });
 
     // Setup API mutation
@@ -197,28 +218,77 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         CreateTaskFormData,
         Task,
         ApiResponse<Task>
-    >(isEditing ? route("tasks.update", task!.id) : "", "PUT");
+    >(isEditing ? route("tasks.update", (task as any)?.id) : "", "PUT");
 
     // Update form data when task changes
     useEffect(() => {
-        if (open) {
+        if (open && !isFetchingTask) {
             const initialData = getInitialData();
             setFormData(initialData);
         }
-    }, [task, isDuplicate, open]);
+    }, [activeTask, isDuplicate, open, isFetchingTask]);
 
     const handleSubmit = (values: any) => {
         // Clear previous errors
         setErrors([]);
 
-        // dates should be d-m-Y
+        const company = props.company;
+
+        // Helper to convert PHP date format to Dayjs format
+        const mapPhpToDayjsFormat = (format: string) => {
+            if (!format) return "YYYY-MM-DD HH:mm";
+
+            const replacements: Record<string, string> = {
+                d: "DD",
+                D: "ddd",
+                j: "D",
+                l: "dddd",
+                N: "E",
+                S: "Do",
+                w: "d",
+                z: "DDD",
+                W: "W",
+                F: "MMMM",
+                m: "MM",
+                M: "MMM",
+                n: "M",
+                t: "Days in month",
+                L: "Leap year",
+                o: "GGGG",
+                Y: "YYYY",
+                y: "YY",
+                a: "a",
+                A: "A",
+                B: "Swatch",
+                g: "h",
+                G: "H",
+                h: "hh",
+                H: "HH",
+                i: "mm",
+                s: "ss",
+                u: "SSS",
+                e: "zz",
+            };
+
+            return format
+                .split("")
+                .map((char) => replacements[char] || char)
+                .join("");
+        };
+
+        const phpDateFormat =
+            (company?.date_format || "d-m-Y") +
+            " " +
+            (company?.time_format || "H:i");
+        const dateFormat = mapPhpToDayjsFormat(phpDateFormat);
+
         const submitData = {
             ...values,
             start_date: values.start_date?.format
-                ? values.start_date.format("DD-MM-YYYY")
+                ? values.start_date.format(dateFormat)
                 : values.start_date,
             due_date: values.due_date?.format
-                ? values.due_date.format("DD-MM-YYYY")
+                ? values.due_date.format(dateFormat)
                 : values.due_date,
             estimate_hours: values.estimate_hours || 0,
             estimate_minutes: values.estimate_minutes || 0,
@@ -270,41 +340,47 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
             onClose={handleCancel}
             destroyOnHidden
         >
-            {/* show errors */}
-            {errors.length > 0 && (
-                <div className="mb-4">
-                    {errors.map((error, index) => (
-                        <div key={index} className="text-red-600">
-                            {error}
+            {isFetchingTask ? (
+                <Skeleton active paragraph={{ rows: 10 }} />
+            ) : (
+                <>
+                    {/* show errors */}
+                    {errors.length > 0 && (
+                        <div className="mb-4">
+                            {errors.map((error, index) => (
+                                <div key={index} className="text-red-600">
+                                    {error}
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    )}
+                    <TaskForm
+                        data={formData || undefined}
+                        visible={open}
+                        onCancel={handleCancel}
+                        onSubmit={handleSubmit}
+                        submitText={submitText}
+                        cancelText="Cancel"
+                        errors={errors}
+                        setErrors={(newErrors) => {
+                            if (Array.isArray(newErrors)) {
+                                setErrors(newErrors);
+                            }
+                        }}
+                        onErrorsClear={handleErrorsClear}
+                        loading={isLoading}
+                        categories={categories}
+                        labels={labels}
+                        columns={columns}
+                        users={users}
+                        projects={projects}
+                        deals={deals}
+                        leads={leads}
+                        properties={properties}
+                        relatedEntity={relatedEntity}
+                    />
+                </>
             )}
-            <TaskForm
-                data={formData || undefined}
-                visible={open}
-                onCancel={handleCancel}
-                onSubmit={handleSubmit}
-                submitText={submitText}
-                cancelText="Cancel"
-                errors={errors}
-                setErrors={(newErrors) => {
-                    if (Array.isArray(newErrors)) {
-                        setErrors(newErrors);
-                    }
-                }}
-                onErrorsClear={handleErrorsClear}
-                loading={isLoading}
-                categories={categories}
-                labels={labels}
-                columns={columns}
-                users={users}
-                projects={projects}
-                deals={deals}
-                leads={leads}
-                properties={properties}
-                relatedEntity={relatedEntity}
-            />
         </Drawer>
     );
 };

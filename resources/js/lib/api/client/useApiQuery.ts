@@ -40,11 +40,12 @@ export const useApiQuery = <
 >(input: {
     path: string;
     params?: Params;
+    options?: any;
 }) => {
     const { props } = usePage();
     const { auth } = props;
 
-    const { params, path } = input;
+    const { params, path, options } = input;
 
     const queryData = useQuery({
         queryKey: [path, params],
@@ -54,6 +55,7 @@ export const useApiQuery = <
                 params,
                 path,
             }),
+        ...options,
     });
 
     return queryData;
