@@ -23,6 +23,7 @@ import dayjs from "dayjs";
 import { Note } from "@/Types/api/note";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import UserIndicator from "@/Components/UserIndicator";
+import { truncateText } from "@/lib/utils";
 
 const { Title, Text } = Typography;
 
@@ -108,8 +109,12 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                     <div className="flex-1 min-w-0">
                         <Title
                             level={5}
-                            className="mb-1 text-gray-800 group-hover:text-blue-700 transition-colors truncate cursor-pointer hover:underline hover:text-blue-600"
+                            className="mb-1 text-gray-800 group-hover:text-blue-700 transition-colors cursor-pointer hover:underline hover:text-blue-600"
                             onClick={() => onView(note)}
+                            ellipsis={{
+                                tooltip: note.title,
+                                rows: 1,
+                            }}
                         >
                             {note.title}
                         </Title>
