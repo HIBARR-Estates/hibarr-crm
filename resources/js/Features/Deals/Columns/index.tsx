@@ -18,77 +18,24 @@ export const DEAL_TABLE_COLUMNS = (
     {
         title: (
             <span className="flex items-center">
-                Deal & Lead
+                Deal Name
                 <PageDataSorter field="name" routeName="deals.index" />
             </span>
         ),
         dataIndex: "name",
-        key: "deal_lead",
+        key: "deal_name",
         width: 280,
         render: (_, record) => {
-            const hasContact = !!record.contact;
-            const isClient =
-                hasContact &&
-                record.contact.client_id !== null &&
-                record.contact.client_id !== 0;
-
-            let displayName = hasContact ? record.contact.client_name : null;
-            if (hasContact && record.contact.salutation) {
-                displayName = `${record.contact.salutation} ${displayName}`;
-            }
-
             return (
-                <div className="space-y-2 max-w-full">
-                    {/* Deal Name */}
-                    <div>
-                        <Tooltip title={record.name}>
-                            <Link
-                                href={route("deals.show", record.id)}
-                                className="block text-gray-900 hover:text-blue-600 hover:underline transition-colors duration-200 truncate font-medium max-w-full"
-                            >
-                                {record.name}
-                            </Link>
-                        </Tooltip>
-                    </div>
-
-                    {/* Lead Name */}
-                    <div className="space-y-1">
-                        {hasContact ? (
-                            <>
-                                <div className="flex items-center space-x-2">
-                                    <Tooltip title={displayName}>
-                                        <Link
-                                            href={route(
-                                                "lead-contact.show",
-                                                record.contact.id
-                                            )}
-                                            className="text-xs text-gray-500 truncate max-w-full"
-                                        >
-                                            {displayName}
-                                        </Link>
-                                    </Tooltip>
-                                    {/* {isClient && (
-                                        <Tag color="blue" className="text-xs">
-                                            Client
-                                        </Tag>
-                                    )} */}
-                                </div>
-                                {record.contact.company_name && (
-                                    <Tooltip
-                                        title={record.contact.company_name}
-                                    >
-                                        <div className="text-xs text-gray-500 truncate max-w-full">
-                                            {record.contact.company_name}
-                                        </div>
-                                    </Tooltip>
-                                )}
-                            </>
-                        ) : (
-                            <span className="text-gray-400 text-xs">
-                                No lead assigned
-                            </span>
-                        )}
-                    </div>
+                <div>
+                    <Tooltip title={record.name}>
+                        <Link
+                            href={route("deals.show", record.id)}
+                            className="block text-gray-900 hover:text-blue-600 hover:underline transition-colors duration-200 truncate font-medium max-w-full"
+                        >
+                            {record.name}
+                        </Link>
+                    </Tooltip>
                 </div>
             );
         },
@@ -175,25 +122,47 @@ export const DEAL_TABLE_COLUMNS = (
         },
     },
     {
-        title: (
-            <span className="flex items-center">
-                Deal Value
-                <PageDataSorter field="value" routeName="deals.index" />
-            </span>
-        ),
-        dataIndex: "value",
-        key: "value",
-        width: 120,
+        title: <span className="flex items-center">Lead Name</span>,
+        dataIndex: "lead_name",
+        key: "lead_name",
+        width: 200,
         render: (_, record) => {
-            if (!record.value) return <span className="text-gray-400">--</span>;
-
-            const currencySymbol = record.currency?.currency_symbol || "£";
-            const value = record.value;
+            const hasContact = !!record.contact;
+            let displayName = hasContact ? record.contact.client_name : null;
+            if (hasContact && record.contact.salutation) {
+                displayName = `${record.contact.salutation} ${displayName}`;
+            }
 
             return (
-                <div className="font-medium text-gray-900">
-                    {currencySymbol}
-                    {value.toLocaleString()}
+                <div className="space-y-1">
+                    {hasContact ? (
+                        <>
+                            <div className="flex items-center space-x-2">
+                                <Tooltip title={displayName}>
+                                    <Link
+                                        href={route(
+                                            "lead-contact.show",
+                                            record.contact.id
+                                        )}
+                                        className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline truncate max-w-full"
+                                    >
+                                        {displayName}
+                                    </Link>
+                                </Tooltip>
+                            </div>
+                            {record.contact.company_name && (
+                                <Tooltip title={record.contact.company_name}>
+                                    <div className="text-xs text-gray-500 truncate max-w-full">
+                                        {record.contact.company_name}
+                                    </div>
+                                </Tooltip>
+                            )}
+                        </>
+                    ) : (
+                        <span className="text-gray-400 text-xs">
+                            No lead assigned
+                        </span>
+                    )}
                 </div>
             );
         },
@@ -221,44 +190,6 @@ export const DEAL_TABLE_COLUMNS = (
                             {record.lead_stage.name}
                         </span>
                     </Tooltip>
-                </div>
-            );
-        },
-    },
-
-    {
-        title: (
-            <span className="flex items-center">
-                Next Meeting
-                <PageDataSorter
-                    field="next_follow_up_date"
-                    routeName="deals.index"
-                />
-            </span>
-        ),
-        dataIndex: "next_follow_up_date",
-        key: "next_follow_up_date",
-        width: 150,
-        render: (_, record) => {
-            if (!record.next_follow_up_date)
-                return <span className="text-gray-400">--</span>;
-
-            const currentDate = dayjs();
-            const followUpDate = dayjs(record.next_follow_up_date);
-            const isPending =
-                record.next_follow_up_status === "incomplete" &&
-                followUpDate.isBefore(currentDate, "day");
-
-            return (
-                <div className="space-y-1">
-                    <div className="text-gray-900">
-                        {followUpDate.format("MMM DD, YYYY")}
-                    </div>
-                    {isPending && (
-                        <Tag color="red" className="text-xs">
-                            Pending
-                        </Tag>
-                    )}
                 </div>
             );
         },

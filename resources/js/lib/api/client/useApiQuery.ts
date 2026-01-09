@@ -40,7 +40,7 @@ export const useApiQuery = <
 >(input: {
     path: string;
     params?: Params;
-    options?: any;
+    options?: { enabled?: boolean };
 }) => {
     const { props } = usePage();
     const { auth } = props;
