@@ -1,6 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 
 import { Card, Row, Col, Divider, Typography } from "antd";
+import { RightOutlined } from "@ant-design/icons";
 import DealInfoSection from "./Components/DealInfoSection";
 import DealTabs from "./Components/DealTabs";
 import ActivitySidebar from "./Components/ActivitySidebar";
@@ -38,7 +39,7 @@ interface Props extends PageProps {
 }
 const { Title } = Typography;
 
-export const  Show = ({
+export const Show = ({
     deal,
     productNames,
     customFieldCategories,
@@ -59,7 +60,7 @@ export const  Show = ({
     taskBoardColumns,
     employees,
     projects,
-}: Props) =>{
+}: Props) => {
     return (
         <>
             <PageLayout
@@ -84,7 +85,7 @@ export const  Show = ({
                                             {deal.pipeline?.name}
                                         </div>
 
-                                        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar mask-linear-fade">
+                                        <div className="flex items-center gap-2 flex-wrap">
                                             {deal.pipeline?.stages?.map(
                                                 (stage, index) => {
                                                     const currentPriority =
@@ -138,13 +139,30 @@ export const  Show = ({
                                                                     ?.length ||
                                                                     0) -
                                                                     1 && (
-                                                                <div
-                                                                    className={`w-4 h-0.5 mx-1 rounded-full shrink-0 ${
-                                                                        isCompleted
-                                                                            ? "bg-gray-300"
-                                                                            : "bg-gray-100"
-                                                                    }`}
-                                                                />
+                                                                <div className="flex items-center gap-2 mx-2">
+                                                                    <div className="flex items-center justify-center text-sm font-semibold text-black leading-none">
+                                                                        +
+                                                                    </div>
+                                                                    <div className="grid grid-cols-4 gap-0.5">
+                                                                        {[
+                                                                            ...Array(
+                                                                                8
+                                                                            ),
+                                                                        ].map(
+                                                                            (
+                                                                                _,
+                                                                                i
+                                                                            ) => (
+                                                                                <div
+                                                                                    key={
+                                                                                        i
+                                                                                    }
+                                                                                    className="w-0.5 h-0.5 bg-black rounded-full"
+                                                                                />
+                                                                            )
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     );
@@ -247,8 +265,7 @@ export const  Show = ({
             </PageLayout>
         </>
     );
-}
-
+};
 
 Show.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>
