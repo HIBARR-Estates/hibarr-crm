@@ -221,7 +221,9 @@ export default function DealInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Package(s)">
-                            {currentDeal.packages?.join(", ") || "--"}
+                            {currentDeal.packages
+                                ?.map((pkg: any) => pkg?.name || pkg)
+                                .join(", ") || "--"}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Lead Contact">
