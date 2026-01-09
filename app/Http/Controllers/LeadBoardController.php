@@ -116,8 +116,8 @@ class LeadBoardController extends AccountBaseController
                         ->where('lead_products.product_id', $request->product);
                 }
 
-                if ($request->lead_pipeline_id != 'all' && $request->lead_pipeline_id != '') {
-                    $q->where('deals.lead_pipeline_id', $request->lead_pipeline_id);
+                if ($this->pipelineId != 'all' && $this->pipelineId != '') {
+                    $q->where('deals.lead_pipeline_id', $this->pipelineId);
                 }
 
                 if ($request->deal_watcher_id !== null && $request->deal_watcher_id != 'all' && $request->deal_watcher_id != '') {
@@ -264,8 +264,8 @@ class LeadBoardController extends AccountBaseController
                     }
                 });
 
-            if ($request->lead_pipeline_id != 'all' && $request->lead_pipeline_id != '') {
-                $boardColumns->where('lead_pipeline_id', $request->lead_pipeline_id);
+            if ($this->pipelineId != 'all' && $this->pipelineId != '') {
+                $boardColumns->where('lead_pipeline_id', $this->pipelineId);
             }
 
             $boardColumns = $boardColumns->with('userSetting')->orderBy('priority', 'asc')->get();
