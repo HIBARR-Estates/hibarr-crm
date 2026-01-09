@@ -297,7 +297,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         >
                             <DatePicker
                                 style={{ width: "100%" }}
-                                format="YYYY-MM-DD"
+                                showTime={{ format: "HH:mm" }}
                                 placeholder="Select start date"
                             />
                         </Form.Item>
@@ -310,7 +310,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         >
                             <DatePicker
                                 style={{ width: "100%" }}
-                                format="YYYY-MM-DD"
+                                showTime={{ format: "HH:mm" }}
                                 placeholder="Select due date"
                             />
                         </Form.Item>
@@ -471,7 +471,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                 name="user_ids"
                                 label="Assignees"
                                 extra="Select team members to assign this task"
-                                hidden={!isAdmin} // THis currecntly only admins and managers can assign tasks, TOODO: Need to implement permission properly and check and enforce on BE ....
                             >
                                 {/* can select multiple users */}
                                 <Select
