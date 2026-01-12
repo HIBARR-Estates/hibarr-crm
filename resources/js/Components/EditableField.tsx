@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input, Typography, message, Select, Skeleton } from "antd";
-import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
+import { CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
 
@@ -50,7 +50,7 @@ export default function EditableField({
 
     const isLocked = disabled || loading || saving;
 
-    const handleDoubleClick = () => {
+    const startEditing = () => {
         if (isLocked) return;
         setEditing(true);
         // For date fields, convert to YYYY-MM-DD format if value exists
@@ -246,15 +246,23 @@ export default function EditableField({
 
     return (
         <Skeleton active loading={loading} paragraph={{ rows: 1 }}>
-            <Text
-                onDoubleClick={handleDoubleClick}
-                className={`cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors ${
+            <div
+                className={`group flex items-center justify-between gap-2 px-2 py-1 rounded transition-colors hover:bg-gray-50 cursor-pointer ${
                     isLocked ? "cursor-not-allowed opacity-50" : ""
                 } ${className}`}
-                title={isLocked ? "" : "Double-click to edit"}
+                onDoubleClick={startEditing}
             >
-                {displayText}
-            </Text>
+                <Text className="flex-1 break-words">{displayText}</Text>
+                {!isLocked && (
+                    <EditOutlined
+                        className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing();
+                        }}
+                    />
+                )}
+            </div>
         </Skeleton>
     );
 }
