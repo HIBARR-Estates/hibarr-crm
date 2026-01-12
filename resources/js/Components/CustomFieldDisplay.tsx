@@ -2,12 +2,13 @@ import { Descriptions, Tag } from "antd";
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { CustomField } from "@/Types";
+import EditableField from "@/Components/EditableField";
 
 interface Field {
     id: string | number;
     label: string;
     type: string;
-    values?: Record<string, string>;
+    values?: Record<string, string> | string; // Updated to handle string (JSON) or object
     custom_field_category_id?: string | number;
     show_rule_set?: any; // Visibility rules
 }
@@ -17,6 +18,9 @@ interface Props {
     customFieldsData?: Record<string, any>;
     categoryId?: string | number;
     column?: number;
+    onUpdate?: (field: string, value: any) => Promise<void>;
+    editable?: boolean;
+    loading?: boolean;
 }
 
 export default function CustomFieldDisplay({
@@ -24,6 +28,9 @@ export default function CustomFieldDisplay({
     customFieldsData,
     categoryId,
     column = 2,
+    onUpdate,
+    editable = false,
+    loading = false,
 }: Props) {
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
@@ -41,41 +48,47 @@ export default function CustomFieldDisplay({
             if (key.startsWith("field_")) {
                 fieldValuesForVisibility[key] = customFieldsData[key];
             } else {
-                fieldValuesForVisibility[`field_${key}`] = customFieldsData[key];
+                fieldValuesForVisibility[`field_${key}`] =
+                    customFieldsData[key];
             }
         });
     }
 
     // Evaluate visibility for all fields
     // Convert Field[] to CustomField[] format for evaluation
-    const customFieldsForEvaluation: CustomField[] = filteredFields.map((field) => {
-        // Handle values: may already be a JSON string from backend, or an object
-        let valuesString: string | null = null;
-        if (field.values) {
-            if (typeof field.values === 'string') {
-                // Already a string, use as-is (may be JSON string or plain string)
-                valuesString = field.values;
-            } else {
-                // Object/array, stringify it
-                valuesString = JSON.stringify(field.values);
+    const customFieldsForEvaluation: CustomField[] = filteredFields.map(
+        (field) => {
+            // Handle values: may already be a JSON string from backend, or an object
+            let valuesString: string | null = null;
+            if (field.values) {
+                if (typeof field.values === "string") {
+                    // Already a string, use as-is (may be JSON string or plain string)
+                    valuesString = field.values;
+                } else {
+                    // Object/array, stringify it
+                    valuesString = JSON.stringify(field.values);
+                }
             }
+
+            return {
+                id:
+                    typeof field.id === "string"
+                        ? parseInt(field.id)
+                        : field.id,
+                label: field.label,
+                name: `field_${field.id}`,
+                type: field.type,
+                required: "no",
+                values: valuesString,
+                custom_field_group_id: 0,
+                show_table: "no",
+                field_display_name: field.label,
+                field_order: 0,
+                display_order: 0,
+                show_rule_set: field.show_rule_set,
+            };
         }
-        
-        return {
-            id: typeof field.id === "string" ? parseInt(field.id) : field.id,
-            label: field.label,
-            name: `field_${field.id}`,
-            type: field.type,
-            required: "no",
-            values: valuesString,
-            custom_field_group_id: 0,
-            show_table: "no",
-            field_display_name: field.label,
-            field_order: 0,
-            display_order: 0,
-            show_rule_set: field.show_rule_set,
-        };
-    });
+    );
 
     const visibilityMap = evaluateAllFieldsVisibility(
         customFieldsForEvaluation,
@@ -84,7 +97,8 @@ export default function CustomFieldDisplay({
 
     // Filter out fields that are not visible
     filteredFields = filteredFields.filter((field) => {
-        const fieldId = typeof field.id === "string" ? parseInt(field.id) : field.id;
+        const fieldId =
+            typeof field.id === "string" ? parseInt(field.id) : field.id;
         return visibilityMap[fieldId] !== false;
     });
 
@@ -153,7 +167,8 @@ export default function CustomFieldDisplay({
     // Format field value based on type
     const formatFieldValue = (field: Field, value: any) => {
         if (!value && value !== 0) {
-            return <span className="text-gray-500">--</span>;
+            if (!editable) return <span className="text-gray-500">--</span>;
+            // If editable, proceed to render component or empty string wrapper
         }
 
         switch (field.type) {
@@ -164,10 +179,20 @@ export default function CustomFieldDisplay({
                 return dayjs(value).format("MMM DD, YYYY HH:mm");
 
             case "select":
-                if (field.values && field.values[value]) {
+                let label = value;
+                // Parse values if string
+                let valuesObj = field.values;
+                if (typeof valuesObj === "string") {
+                    try {
+                        valuesObj = JSON.parse(valuesObj);
+                    } catch (e) {}
+                }
+
+                if (valuesObj && (valuesObj as any)[value]) {
+                    label = (valuesObj as any)[value];
                     return (
                         <Tag color="blue" className="font-medium">
-                            {field.values[value]}
+                            {label}
                         </Tag>
                     );
                 }
@@ -175,11 +200,19 @@ export default function CustomFieldDisplay({
 
             case "multiselect":
                 if (Array.isArray(value)) {
+                    // Parse values map if needed
+                    let valuesMap = field.values;
+                    if (typeof valuesMap === "string") {
+                        try {
+                            valuesMap = JSON.parse(valuesMap);
+                        } catch (e) {}
+                    }
+
                     return (
                         <div className="flex flex-wrap gap-1">
                             {value.map((item, index) => (
                                 <Tag key={index} color="blue">
-                                    {field.values?.[item] || item}
+                                    {(valuesMap as any)?.[item] || item}
                                 </Tag>
                             ))}
                         </div>
@@ -188,6 +221,7 @@ export default function CustomFieldDisplay({
                 return value;
 
             case "file":
+                if (!value) return null;
                 return (
                     <a
                         href={`/storage/custom_fields/${value}`}
@@ -278,6 +312,77 @@ export default function CustomFieldDisplay({
         }
     };
 
+    const renderEditable = (field: Field, value: any) => {
+        if (!editable || !onUpdate) {
+            return formatFieldValue(field, value);
+        }
+
+        // Logic to select input type based on field type
+        let type:
+            | "text"
+            | "number"
+            | "date"
+            | "select"
+            | "boolean"
+            | "textarea"
+            | "email" = "text";
+        let options: { label: string; value: string | number }[] = [];
+
+        switch (field.type) {
+            case "number":
+            case "currency":
+                type = "number";
+                break;
+            case "date":
+                type = "date";
+                break;
+            case "textarea":
+                type = "textarea";
+                break;
+            case "email":
+                type = "email";
+                break;
+            case "select":
+            case "radio":
+                type = "select";
+                let valuesObj = field.values;
+                if (typeof valuesObj === "string") {
+                    try {
+                        valuesObj = JSON.parse(valuesObj);
+                    } catch (e) {}
+                }
+                if (valuesObj) {
+                    options = Object.entries(valuesObj).map(([k, v]) => ({
+                        label: v as string,
+                        value: k,
+                    }));
+                }
+                break;
+            case "checkbox":
+            case "boolean":
+                type = "boolean";
+                break;
+            default:
+                type = "text";
+        }
+
+        if (["file", "multiselect", "time"].includes(field.type)) {
+            return formatFieldValue(field, value);
+        }
+
+        return (
+            <EditableField
+                value={value}
+                fieldName={`field_${field.id}`}
+                fieldType={type}
+                onSave={(val) => onUpdate!(`field_${field.id}`, val)}
+                options={options}
+                displayValue={formatFieldValue(field, value)}
+                loading={loading}
+            />
+        );
+    };
+
     if (filteredFields.length === 0) {
         return (
             <div className="text-center py-8">
@@ -293,7 +398,6 @@ export default function CustomFieldDisplay({
             {filteredFields.map((field) => {
                 const value = customFieldsData?.[`field_${field.id}`];
                 const span = calculateSpan(field, value);
-                const formattedValue = formatFieldValue(field, value);
 
                 return (
                     <Descriptions.Item
@@ -305,7 +409,7 @@ export default function CustomFieldDisplay({
                         }
                         span={span}
                     >
-                        {formattedValue}
+                        {renderEditable(field, value)}
                     </Descriptions.Item>
                 );
             })}

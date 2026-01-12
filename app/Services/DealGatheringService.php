@@ -7,6 +7,7 @@ use App\Models\Lead;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use Illuminate\Support\Str;
+use App\Enums\DealUpdateType;
 use DB;
 
 class DealGatheringService
@@ -152,5 +153,74 @@ class DealGatheringService
                 ];
             })
             ->values();
+    }
+
+    /**
+     * Inline update for deal fields
+     */
+    public function updateDealInline(Deal $deal, DealUpdateType $type, array $data)
+    {
+        switch ($type) {
+            case DealUpdateType::DETAILS:
+                // Handle basic deal details
+                $cleanData = [];
+                $fillable = [
+                    'name', 'value', 'close_date', 'category_id', 'agent_id', 
+                    'lead_id', 'lead_pipeline_id', 'pipeline_stage_id', 
+                    'note', 'next_follow_up', 'status', 'currency_id'
+                ];
+                
+                foreach ($fillable as $field) {
+                    if (array_key_exists($field, $data)) {
+                        $cleanData[$field] = $data[$field];
+                    }
+                }
+
+                if (!empty($cleanData)) {
+                    $deal->update($cleanData);
+                }
+
+                // Handle relationships
+                if (array_key_exists('product_id', $data)) {
+                    $deal->products()->sync($data['product_id']);
+                }
+                
+                if (array_key_exists('package_id', $data)) {
+                    $deal->packages()->sync($data['package_id']);
+                }
+
+                if (array_key_exists('deal_watcher', $data)) {
+                    $deal->dealWatchers()->sync($data['deal_watcher']);
+                }
+                break;
+
+            case DealUpdateType::CONTACT:
+                // Handle contact updates
+                $contactData = [];
+                if (isset($data['client_email'])) $contactData['client_email'] = $data['client_email'];
+                if (isset($data['mobile'])) $contactData['mobile'] = $data['mobile'];
+                if (isset($data['company_name'])) $contactData['company_name'] = $data['company_name'];
+
+                if (!empty($contactData) && $deal->contact) {
+                    $deal->contact->update($contactData);
+                }
+                break;
+
+            case DealUpdateType::CUSTOM_FIELD:
+                // Handle dynamic custom fields
+                // Data should be key-value pairs of field_id => value
+                $deal->updateCustomFieldData($data);
+                break;
+
+            case DealUpdateType::HIBARR_FIELD:
+                // Handle Hibarr specific fields
+                $deal->hibarrFields()->updateOrCreate(
+                    ['deal_id' => $deal->id],
+                    $data
+                );
+                break;
+        }
+
+        return $deal;
     }
 }

@@ -1,40 +1,57 @@
 import { useState } from "react";
-import { Input, Typography, message } from "antd";
+import { Input, Typography, message, Select, Skeleton } from "antd";
 import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
+import FormDataSelector from "./FormDataSelector";
+import { FormDataType } from "@/Hooks/useFormData";
 
 const { Text } = Typography;
 
 interface EditableFieldProps {
-    value: string | number | null | undefined;
+    value: string | number | null | undefined | any[]; // Updated to accept array
     fieldName: string;
-    fieldType?: "text" | "email" | "number" | "date";
-    onSave: (value: string) => Promise<void>;
-    displayValue?: string;
+    fieldType?:
+        | "text"
+        | "email"
+        | "number"
+        | "date"
+        | "select"
+        | "boolean"
+        | "textarea";
+    selectorType?: FormDataType;
+    mode?: "multiple" | "tags";
+    onSave: (value: any) => Promise<void>;
+    displayValue?: React.ReactNode;
     placeholder?: string;
     className?: string;
     disabled?: boolean;
-    formatValue?: (value: string | number | null | undefined) => string;
+    formatValue?: (value: any) => string;
+    options?: { label: string; value: string | number }[];
+    loading?: boolean;
 }
 
 export default function EditableField({
     value,
     fieldName,
     fieldType = "text",
+    selectorType,
+    mode,
     onSave,
     displayValue,
     placeholder = "Click to edit",
     className = "",
     disabled = false,
     formatValue,
+    options = [],
+    loading = false,
 }: EditableFieldProps) {
     const [editing, setEditing] = useState(false);
-    const [inputValue, setInputValue] = useState(
-        value?.toString() || ""
-    );
+    const [inputValue, setInputValue] = useState<any>(value);
     const [saving, setSaving] = useState(false);
 
+    const isLocked = disabled || loading || saving;
+
     const handleDoubleClick = () => {
-        if (disabled) return;
+        if (isLocked) return;
         setEditing(true);
         // For date fields, convert to YYYY-MM-DD format if value exists
         if (fieldType === "date" && value) {
@@ -95,8 +112,21 @@ export default function EditableField({
 
     if (editing) {
         return (
-            <div className="flex items-center gap-2">
-                {fieldType === "number" ? (
+            <div className="flex items-center gap-2 w-full">
+                {selectorType ? (
+                    <FormDataSelector
+                        type={selectorType}
+                        value={inputValue}
+                        onChange={(val) => setInputValue(val)}
+                        mode={mode} // Pass mode
+                        className="flex-1 min-w-[200px]"
+                        disabled={saving || loading}
+                        // autoFocus
+                        // isOpen={true} // Add prop to force open if possible, but FormDataSelector wraps Select which has defaultOpen
+                        // FormDataSelector doesn't have autoFocus prop, but Select has.
+                        // We might need to handle focus or defaultOpen in FormDataSelector
+                    />
+                ) : fieldType === "number" ? (
                     <Input
                         type="number"
                         value={inputValue}
@@ -105,7 +135,7 @@ export default function EditableField({
                         onKeyDown={handleKeyPress}
                         autoFocus
                         className="flex-1"
-                        disabled={saving}
+                        disabled={saving || loading}
                     />
                 ) : fieldType === "email" ? (
                     <Input
@@ -116,7 +146,7 @@ export default function EditableField({
                         onKeyDown={handleKeyPress}
                         autoFocus
                         className="flex-1"
-                        disabled={saving}
+                        disabled={saving || loading}
                     />
                 ) : fieldType === "date" ? (
                     <Input
@@ -127,7 +157,59 @@ export default function EditableField({
                         onKeyDown={handleKeyPress}
                         autoFocus
                         className="flex-1"
-                        disabled={saving}
+                        disabled={saving || loading}
+                    />
+                ) : fieldType === "select" ? (
+                    <Select
+                        value={inputValue}
+                        onChange={(val) => {
+                            setInputValue(val);
+                            // Auto save on select change? or wait for check?
+                            // Wait for check usually better for consistent UX, but often Select is auto-save.
+                            // Keeping consistent with others: require explicit save click or enter?
+                            // Enter doesn't work well on Select.
+                            // Let's rely on the check button.
+                        }}
+                        options={options}
+                        className="flex-1 min-w-[120px]"
+                        disabled={saving || loading}
+                        defaultOpen
+                        onBlur={() => {
+                            // Delay to allow check button click
+                            setTimeout(() => {
+                                // handleSave(); // Optional: auto save on blur
+                            }, 200);
+                        }}
+                    />
+                ) : fieldType === "boolean" ? (
+                    <Select
+                        value={inputValue}
+                        onChange={(val) => setInputValue(val)}
+                        options={[
+                            { label: "Yes", value: 1 },
+                            { label: "No", value: 0 },
+                        ]}
+                        className="flex-1 min-w-[80px]"
+                        disabled={saving || loading}
+                        defaultOpen
+                    />
+                ) : fieldType === "textarea" ? (
+                    <Input.TextArea
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onBlur={handleSave}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSave();
+                            } else if (e.key === "Escape") {
+                                handleCancel();
+                            }
+                        }}
+                        autoFocus
+                        className="flex-1"
+                        disabled={saving || loading}
+                        autoSize={{ minRows: 2, maxRows: 6 }}
                     />
                 ) : (
                     <Input
@@ -137,41 +219,42 @@ export default function EditableField({
                         onKeyDown={handleKeyPress}
                         autoFocus
                         className="flex-1"
-                        disabled={saving}
+                        disabled={saving || loading}
                     />
                 )}
                 <CheckOutlined
-                    onClick={saving ? undefined : handleSave}
+                    onClick={saving || loading ? undefined : handleSave}
                     className={`${
-                        saving
+                        saving || loading
                             ? "cursor-not-allowed opacity-50 pointer-events-none"
                             : "cursor-pointer text-green-600 hover:text-green-700"
                     }`}
-                    aria-disabled={saving}
+                    aria-disabled={saving || loading}
                 />
                 <CloseOutlined
-                    onClick={saving ? undefined : handleCancel}
+                    onClick={saving || loading ? undefined : handleCancel}
                     className={`${
-                        saving
+                        saving || loading
                             ? "cursor-not-allowed opacity-50 pointer-events-none"
                             : "cursor-pointer text-red-600 hover:text-red-700"
                     }`}
-                    aria-disabled={saving}
+                    aria-disabled={saving || loading}
                 />
             </div>
         );
     }
 
     return (
-        <Text
-            onDoubleClick={handleDoubleClick}
-            className={`cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors ${
-                disabled ? "cursor-not-allowed opacity-50" : ""
-            } ${className}`}
-            title={disabled ? "" : "Double-click to edit"}
-        >
-            {displayText}
-        </Text>
+        <Skeleton active loading={loading} paragraph={{ rows: 1 }}>
+            <Text
+                onDoubleClick={handleDoubleClick}
+                className={`cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors ${
+                    isLocked ? "cursor-not-allowed opacity-50" : ""
+                } ${className}`}
+                title={isLocked ? "" : "Double-click to edit"}
+            >
+                {displayText}
+            </Text>
+        </Skeleton>
     );
 }
-

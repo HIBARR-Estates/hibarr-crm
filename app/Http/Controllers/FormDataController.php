@@ -41,7 +41,7 @@ class FormDataController extends Controller
         $allowedTypes = [
             'salutations', 'genders', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries',
-            'lead-agents', 'client-categories', 'languages', 'leads'
+            'lead-agents', 'client-categories', 'languages', 'leads', 'packages'
         ];
 
         if (!in_array($type, $allowedTypes)) {
@@ -88,7 +88,7 @@ class FormDataController extends Controller
         $allowedTypes = [
             'salutations', 'genders', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries',
-            'lead-agents', 'client-categories', 'languages', 'leads'
+            'lead-agents', 'client-categories', 'languages', 'leads', 'packages'
         ];
 
         $types = $request->get('types');

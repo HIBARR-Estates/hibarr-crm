@@ -12,6 +12,7 @@ use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use App\Models\LeadPipeline;
 use App\Models\LeadSource;
+use App\Models\Package;
 use App\Models\PipelineStage;
 use App\Models\Product;
 use App\Models\User;
@@ -56,6 +57,8 @@ class FormDataService
                 return $this->getLanguages($request);
             case 'leads':
                 return $this->getLeads($request);
+            case 'packages':
+                return $this->getPackages($request);
             default:
                 return collect();
         }
@@ -236,6 +239,18 @@ class FormDataService
     /**
      * Helper to paginate if requested
      */
+
+    private function getPackages(Request $request) {
+        $query = Package::select('id', 'name', 'currency_id', 'monthly_price', 'annual_price')
+            ->orderBy('sort', 'asc');
+
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->get('search') . '%');
+        }
+
+        return $this->paginateIfRequested($query, $request);
+    }
+
     private function paginateIfRequested($query, Request $request)
     {
         if ($request->filled('paginate') && $request->get('paginate')) {

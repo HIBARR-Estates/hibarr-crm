@@ -7,6 +7,8 @@ use App\Services\DealGatheringService;
 use Illuminate\Http\Request;
 use App\Models\Lead;
 use App\Models\Deal;
+use App\Enums\DealUpdateType;
+use Illuminate\Validation\Rules\Enum;
 
 class DealGatheringController extends AccountBaseController
 {
@@ -137,6 +139,30 @@ class DealGatheringController extends AccountBaseController
         return response()->json([
             'status' => 'success',
             'custom_fields_data' => $customFieldsData
+        ]);
+    }
+
+    /**
+     * Inline update for deal fields
+     */
+    public function updateInline(Request $request, $id)
+    {
+        $request->validate([
+            'type' => ['required', new Enum(DealUpdateType::class)],
+            'data' => 'required|array',
+        ]);
+
+        $deal = Deal::findOrFail($id);
+
+        $updatedDeal = $this->service->updateDealInline(
+            $deal,
+            DealUpdateType::from($request->type),
+            $request->data
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $updatedDeal->fresh(['contact', 'hibarrFields', 'leadAgent', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products', 'dealWatchers']),
         ]);
     }
 }
