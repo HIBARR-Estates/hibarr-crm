@@ -15,6 +15,7 @@ interface FormDataSelectorProps {
     allowClear?: boolean;
     disabled?: boolean;
     className?: string;
+    mode?: "multiple" | "tags";
 }
 
 /**
@@ -30,6 +31,7 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
     allowClear = true,
     disabled = false,
     className,
+    mode,
 }) => {
     // Memoize params to ensure referential stability and prevent infinite loops
     const params = React.useMemo(
@@ -92,6 +94,7 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
             loading={loading}
             disabled={disabled || loading}
             options={options}
+            mode={mode}
             showSearch
             filterOption={(input, option) =>
                 (option?.label ?? "")
