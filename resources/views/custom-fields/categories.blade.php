@@ -20,6 +20,7 @@
                     <table class="table table-bordered">
                         <thead>
                             <tr>
+                                <th>@lang('modules.customFields.orderSequence')</th>
                                 <th>@lang('app.name')</th>
                                 <th>@lang('app.module')</th>
                                 <th>@lang('app.action')</th>
@@ -28,6 +29,7 @@
                         <tbody>
                             @forelse($categories as $category)
                                 <tr>
+                                    <td>{{ $category->order ?? 0 }}</td>
                                     <td>{{ $category->name }}</td>
                                     <td>{{ $category->customFieldGroup->name ?? 'N/A' }}</td>
                                     <td>
@@ -39,8 +41,7 @@
                                             </a>
                                             <div class="dropdown-menu dropdown-menu-right border-grey rounded b-shadow-4 p-0"
                                                 aria-labelledby="dropdownMenuLink" tabindex="0">
-                                                <a class="dropdown-item openRightModal" href="javascript:;"
-                                                    data-url="{{ route('custom-field-categories.edit', $category->id) }}">
+                                                <a class="dropdown-item" href="{{ route('custom-field-categories.edit', $category->id) }}">
                                                     <i class="fa fa-edit mr-2"></i>@lang('app.edit')
                                                 </a>
                                                 <a class="dropdown-item delete-category" href="javascript:;"
@@ -53,7 +54,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="3" class="text-center">@lang('messages.noRecordFound')</td>
+                                    <td colspan="4" class="text-center">@lang('messages.noRecordFound')</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -89,6 +90,11 @@
                                         <option value="{{ $group->id }}">{{ $group->name }}</option>
                                     @endforeach
                                 </x-forms.select>
+                            </div>
+                            <div class="col-lg-12">
+                                <x-forms.number :fieldLabel="__('modules.customFields.orderSequence')" fieldName="order" 
+                                    fieldId="order" :fieldValue="0" 
+                                    :fieldPlaceholder="__('modules.customFields.orderSequencePlaceholder')" />
                             </div>
                         </div>
                     </div>

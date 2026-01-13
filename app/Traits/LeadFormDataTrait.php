@@ -7,6 +7,7 @@ use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use App\Models\Lead;
 use App\Models\LeadAgent;
+use Illuminate\Support\Facades\DB;
 use App\Models\LeadCategory;
 use App\Models\LeadPipeline;
 use App\Models\LeadSource;
@@ -36,6 +37,8 @@ trait LeadFormDataTrait
         if ($leadCustomFieldGroup) {
             $customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
                 ->where('company_id', company()->id)
+                ->orderBy(DB::raw('`order`'), 'asc')
+                ->orderBy('id', 'asc')
                 ->get();
         }
 

@@ -18,6 +18,7 @@ use App\Models\Deal;
 use App\Models\LeadNote;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
+use Illuminate\Support\Facades\DB;
 use App\Models\Lead;
 use App\Models\LeadCustomForm;
 use App\Models\LeadPipeline;
@@ -1021,6 +1022,8 @@ class LeadContactController extends AccountBaseController
         if ($leadCustomFieldGroup) {
             return CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
                 ->where('company_id', company()->id)
+                ->orderBy(DB::raw('`order`'), 'asc')
+                ->orderBy('id', 'asc')
                 ->get();
         }
         return collect();

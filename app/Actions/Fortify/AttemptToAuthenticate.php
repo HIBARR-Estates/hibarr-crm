@@ -81,16 +81,18 @@ class AttemptToAuthenticate
 
         if($authUser->company){
             $attendanceSetting = $authUser->company->attendanceSetting;
-            $checkAutoClockinConditions = $this->checkAutoClockinConditions($authUser);
+            if ($attendanceSetting) {
+                $checkAutoClockinConditions = $this->checkAutoClockinConditions($authUser);
 
-            if ($attendanceSetting->auto_clock_in == 'yes' && $checkAutoClockinConditions) {
-                if (($attendanceSetting->radius_check == 'yes' && $this->isInRadius($request, $attendanceSetting)) || $attendanceSetting->radius_check == 'no') {
-                    $this->storeClockIn($request, $authUser->id);
+                if ($attendanceSetting->auto_clock_in == 'yes' && $checkAutoClockinConditions) {
+                    if (($attendanceSetting->radius_check == 'yes' && $this->isInRadius($request, $attendanceSetting)) || $attendanceSetting->radius_check == 'no') {
+                        $this->storeClockIn($request, $authUser->id);
+                    }
                 }
             }
         }
 
-        if ($globalSetting->google_recaptcha_status == 'active') {
+        if ($globalSetting && $globalSetting->google_recaptcha_status == 'active') {
             $gRecaptchaResponseInput = 'g-recaptcha-response';
             $gRecaptchaResponse = $request->{$gRecaptchaResponseInput};
 
@@ -162,9 +164,22 @@ class AttemptToAuthenticate
     {
 
         $globalSetting = GlobalSetting::first();
+        
+        if (!$globalSetting) {
+            return false;
+        }
+        
         $showClockIn = $authUser->company->attendanceSetting;
 
+        if (!$showClockIn) {
+            return false;
+        }
+
         $attendanceSettings = $this->attendanceShift($showClockIn, $authUser->id, $authUser->company);
+
+        if (!$attendanceSettings) {
+            return false;
+        }
 
         $startTimestamp = now()->format('Y-m-d') . ' ' . $attendanceSettings->office_start_time;
         $endTimestamp = now()->format('Y-m-d') . ' ' . $attendanceSettings->office_end_time;
@@ -237,8 +252,22 @@ class AttemptToAuthenticate
         $company = User::with('employeeDetails')->where('id', $authUser)->first();
         $authUserCompany = User::withoutGlobalScope(ActiveScope::class)->where('id', $authUser)->first();
         $showClockIn = AttendanceSetting::where('company_id', $company->company_id)->first();
+        
+        if (!$showClockIn) {
+            return Reply::error(__('messages.attendanceSettingNotConfigured'));
+        }
+        
         $globalSetting = GlobalSetting::first();
+        
+        if (!$globalSetting) {
+            return Reply::error(__('messages.globalSettingNotConfigured'));
+        }
+        
         $attendanceSettings = $this->attendanceShift($showClockIn, $authUser, $authUserCompany->company);
+        
+        if (!$attendanceSettings) {
+            return Reply::error(__('messages.attendanceShiftNotConfigured'));
+        }
         $attendanceUser = User::find($authUser);
 
         $startTimestamp = now()->format('Y-m-d') . ' ' . $attendanceSettings->office_start_time;
@@ -391,6 +420,11 @@ class AttemptToAuthenticate
 
     public function attendanceShift($defaultAttendanceSettings, $authUser, $company)
     {
+        // Return null if default attendance settings are not configured
+        if (!$defaultAttendanceSettings) {
+            return null;
+        }
+
         $globalSetting = GlobalSetting::first();
 
         $checkPreviousDayShift = EmployeeShiftSchedule::with('shift')->where('user_id', $authUser)
