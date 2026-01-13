@@ -1,11 +1,29 @@
 import React, { useState } from "react";
-import { Form, Input, Select, Radio, Button, Row, Col, Divider } from "antd";
-import { SearchOutlined, UserOutlined, ShopOutlined } from "@ant-design/icons";
+import {
+    Form,
+    Input,
+    Select,
+    Radio,
+    Button,
+    Row,
+    Col,
+    Divider,
+    Empty,
+} from "antd";
+import {
+    SearchOutlined,
+    UserOutlined,
+    ShopOutlined,
+    PlusOutlined,
+    ArrowLeftOutlined,
+} from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import axios from "axios";
 import FormDataSelector from "@/Components/FormDataSelector";
+
+type FlowStep = "search" | "create" | "selected";
 
 interface StepOneProps {
     onNext: (deal: any, lead: any) => void;
@@ -20,23 +38,18 @@ const StepOne: React.FC<StepOneProps> = ({
 }) => {
     const [form] = Form.useForm();
     const [leadType, setLeadType] = useState<"client" | "agent">("client");
-    // Track if user explicitly selected a lead from search (not just editing existing)
-    const [selectedLead, setSelectedLead] = useState<any>(null);
-    // Track if we're in "edit mode" for the existing lead
-    const [isEditingExisting, setIsEditingExisting] = useState<boolean>(false);
+    // Track the current flow step
+    const [flowStep, setFlowStep] = useState<FlowStep>(
+        existingLead ? "selected" : "search"
+    );
+    // Track selected lead
+    const [selectedLead, setSelectedLead] = useState<any>(existingLead || null);
 
     // Initialize form with existing lead data when component mounts or existingLead changes
     React.useEffect(() => {
         if (existingLead) {
-            // Pre-fill form but DON'T set selectedLead - allow editing
-            setIsEditingExisting(true);
-            form.setFieldsValue({
-                name: existingLead.client_name,
-                email: existingLead.client_email,
-                phone: existingLead.mobile,
-                company_name: existingLead.company_name,
-                referral: existingLead.note,
-            });
+            setSelectedLead(existingLead);
+            setFlowStep("selected");
             // Auto-detect lead type based on company name
             if (existingLead.company_name) {
                 setLeadType("agent");
@@ -44,7 +57,7 @@ const StepOne: React.FC<StepOneProps> = ({
                 setLeadType("client");
             }
         }
-    }, [existingLead, form]);
+    }, [existingLead]);
 
     const { mutate, status } = useApiMutate<any, any, ApiResponse<any>>(
         route("deals.gathering.init"),
@@ -54,38 +67,35 @@ const StepOne: React.FC<StepOneProps> = ({
     const loading = isLoading({ status });
 
     const handleSelectLead = (lead: any) => {
-        console.log(lead, "LLLLL");
         if (lead) {
             setSelectedLead(lead);
-            form.setFieldsValue({
-                name: lead.client_name,
-                email: lead.client_email,
-                phone: lead.mobile,
-                company_name: lead.company_name,
-                referral: lead.note,
-            });
+            setFlowStep("selected");
             // Auto-detect lead type based on company name
             if (lead.company_name) {
                 setLeadType("agent");
             } else {
                 setLeadType("client");
             }
-        } else {
-            handleClearLead();
         }
     };
 
-    const handleClearLead = () => {
+    const handleCreateNew = () => {
         setSelectedLead(null);
-        setIsEditingExisting(false);
-        form.resetFields([
-            "name",
-            "email",
-            "phone",
-            "company_name",
-            "referral",
-        ]);
+        setFlowStep("create");
+        form.resetFields();
         setLeadType("client");
+    };
+
+    const handleBackToSearch = () => {
+        setSelectedLead(null);
+        setFlowStep("search");
+        form.resetFields();
+        setLeadType("client");
+    };
+
+    const handleChangeLead = () => {
+        setSelectedLead(null);
+        setFlowStep("search");
     };
 
     const onFinish = (values: any) => {
@@ -100,7 +110,7 @@ const StepOne: React.FC<StepOneProps> = ({
         }
 
         // If a lead is selected (existing lead), send lead_id
-        // Otherwise send lead_data for creation/update
+        // Otherwise send lead_data for creation
         if (selectedLead?.id) {
             payload.lead_id = selectedLead.id;
         } else {
@@ -116,96 +126,147 @@ const StepOne: React.FC<StepOneProps> = ({
         });
     };
 
-    const isFieldDisabled = !!selectedLead;
+    // Render search step
+    const renderSearchStep = () => (
+        <div className="py-8">
+            <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
+                    <SearchOutlined className="text-2xl text-blue-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    Find an Existing Lead
+                </h3>
+                <p className="text-gray-500 max-w-md mx-auto">
+                    Search for an existing lead by name, email, or company. If
+                    you can't find them, you can create a new lead.
+                </p>
+            </div>
 
-    return (
+            <div className="max-w-md mx-auto mb-8">
+                <FormDataSelector
+                    type="leads"
+                    placeholder="Search by name, email, or company..."
+                    className="w-full"
+                    onSelect={(_, entity) => handleSelectLead(entity)}
+                />
+            </div>
+
+            <Divider className="my-8">
+                <span className="text-gray-400 text-sm">or</span>
+            </Divider>
+
+            <div className="text-center">
+                <Button
+                    type="default"
+                    icon={<PlusOutlined />}
+                    onClick={handleCreateNew}
+                    className="px-8"
+                >
+                    Create New Lead
+                </Button>
+            </div>
+        </div>
+    );
+
+    // Render selected lead step
+    const renderSelectedStep = () => (
+        <div className="py-6">
+            {/* Selected Lead Card */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 mb-6">
+                <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-lg font-semibold">
+                            {selectedLead?.client_name
+                                ?.charAt(0)
+                                ?.toUpperCase() || "?"}
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-800">
+                                {selectedLead?.client_name || "Unknown"}
+                            </h3>
+                            <div className="text-sm text-gray-500 space-y-0.5">
+                                {selectedLead?.client_email && (
+                                    <div>{selectedLead.client_email}</div>
+                                )}
+                                {selectedLead?.mobile && (
+                                    <div>{selectedLead.mobile}</div>
+                                )}
+                                {selectedLead?.company_name && (
+                                    <div className="text-blue-600 font-medium">
+                                        {selectedLead.company_name}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <Button
+                        type="link"
+                        onClick={handleChangeLead}
+                        className="text-blue-600 hover:text-blue-800"
+                    >
+                        Change Lead
+                    </Button>
+                </div>
+            </div>
+
+            {/* Continue Button */}
+            <div className="flex justify-end">
+                <Button
+                    type="primary"
+                    onClick={() => onFinish({})}
+                    loading={loading}
+                >
+                    Continue with this Lead
+                </Button>
+            </div>
+        </div>
+    );
+
+    // Render create new lead form
+    const renderCreateStep = () => (
         <Form
             form={form}
             layout="vertical"
             onFinish={onFinish}
-            className="space-y-6"
+            className="py-4"
         >
-            {/* Header Section: Lead Type + Search */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-gray-100">
-                {/* Left: Lead Type Question (only visible when creating new) */}
-                <div
-                    className={`transition-opacity duration-300 ${
-                        selectedLead
-                            ? "opacity-40 pointer-events-none"
-                            : "opacity-100"
-                    }`}
+            {/* Back Button */}
+            <div className="mb-6">
+                <Button
+                    type="text"
+                    icon={<ArrowLeftOutlined />}
+                    onClick={handleBackToSearch}
+                    className="text-gray-500 hover:text-gray-700 -ml-2"
                 >
-                    <div className="text-sm font-medium text-gray-700 mb-2">
-                        Is this a Client or an Agent?
-                    </div>
-                    <Radio.Group
-                        value={leadType}
-                        onChange={(e) => setLeadType(e.target.value)}
-                        disabled={isFieldDisabled}
-                        optionType="button"
-                        buttonStyle="solid"
-                        size="middle"
-                    >
-                        <Radio.Button value="client">
-                            <UserOutlined className="mr-1.5" />
-                            Client
-                        </Radio.Button>
-                        <Radio.Button value="agent">
-                            <ShopOutlined className="mr-1.5" />
-                            Agent
-                        </Radio.Button>
-                    </Radio.Group>
-                </div>
-
-                {/* Right: Search Existing Lead */}
-                <div className="md:w-72">
-                    <div className="text-sm font-medium text-gray-700 mb-2">
-                        Or select an existing lead
-                    </div>
-                    <div className="">
-                        <FormDataSelector
-                            type="leads"
-                            placeholder="Search for Leads"
-                            className="w-full"
-                            onSelect={(_, entity) => handleSelectLead(entity)}
-                        />
-                    </div>
-                </div>
+                    Back to Search
+                </Button>
             </div>
 
-            {/* Selected Lead Indicator (from search) */}
-            {selectedLead && (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-sm text-blue-700 flex items-center justify-between">
-                    <div>
-                        <span className="font-medium">
-                            Using existing lead:
-                        </span>{" "}
-                        {selectedLead.client_name}
-                        {selectedLead.company_name &&
-                            ` • ${selectedLead.company_name}`}
-                    </div>
-                    <Button
-                        type="link"
-                        size="small"
-                        onClick={handleClearLead}
-                        className="text-blue-600 hover:text-blue-800"
-                    >
-                        Clear & Enter New
-                    </Button>
+            {/* Lead Type Selection */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="text-sm font-medium text-gray-700 mb-3">
+                    What type of lead is this?
                 </div>
-            )}
-
-            {/* Editing Existing Lead Indicator */}
-            {isEditingExisting && !selectedLead && (
-                <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 text-sm text-amber-700">
-                    <span className="font-medium">Editing lead info:</span> You
-                    can update the details below or search for a different lead
-                    above.
-                </div>
-            )}
+                <Radio.Group
+                    value={leadType}
+                    onChange={(e) => setLeadType(e.target.value)}
+                    optionType="button"
+                    buttonStyle="solid"
+                    size="middle"
+                >
+                    <Radio.Button value="client">
+                        <UserOutlined className="mr-1.5" />
+                        Client
+                    </Radio.Button>
+                    <Radio.Button value="agent">
+                        <ShopOutlined className="mr-1.5" />
+                        Agent
+                    </Radio.Button>
+                </Radio.Group>
+            </div>
 
             {/* Form Fields */}
-            <div className="pt-2">
+            <div>
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item
@@ -213,15 +274,12 @@ const StepOne: React.FC<StepOneProps> = ({
                             label="Name"
                             rules={[
                                 {
-                                    required: !selectedLead,
+                                    required: true,
                                     message: "Name is required",
                                 },
                             ]}
                         >
-                            <Input
-                                disabled={isFieldDisabled}
-                                placeholder="Enter full name"
-                            />
+                            <Input placeholder="Enter full name" />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
@@ -235,10 +293,7 @@ const StepOne: React.FC<StepOneProps> = ({
                                 },
                             ]}
                         >
-                            <Input
-                                disabled={isFieldDisabled}
-                                placeholder="email@example.com"
-                            />
+                            <Input placeholder="email@example.com" />
                         </Form.Item>
                     </Col>
                 </Row>
@@ -246,10 +301,7 @@ const StepOne: React.FC<StepOneProps> = ({
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item name="phone" label="Phone">
-                            <Input
-                                disabled={isFieldDisabled}
-                                placeholder="Phone number"
-                            />
+                            <Input placeholder="Phone number" />
                         </Form.Item>
                     </Col>
                     {leadType === "agent" && (
@@ -259,16 +311,13 @@ const StepOne: React.FC<StepOneProps> = ({
                                 label="Company / Agency Name"
                                 rules={[
                                     {
-                                        required: !selectedLead,
+                                        required: true,
                                         message:
                                             "Company name is required for agents",
                                     },
                                 ]}
                             >
-                                <Input
-                                    disabled={isFieldDisabled}
-                                    placeholder="Company or agency name"
-                                />
+                                <Input placeholder="Company or agency name" />
                             </Form.Item>
                         </Col>
                     )}
@@ -278,10 +327,7 @@ const StepOne: React.FC<StepOneProps> = ({
                     <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item name="referral" label="Referral Source">
-                                <Input
-                                    disabled={isFieldDisabled}
-                                    placeholder="How did they find you?"
-                                />
+                                <Input placeholder="How did they find you?" />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -293,10 +339,18 @@ const StepOne: React.FC<StepOneProps> = ({
             {/* Submit */}
             <div className="flex justify-end">
                 <Button type="primary" htmlType="submit" loading={loading}>
-                    Save & Continue
+                    Create Lead & Continue
                 </Button>
             </div>
         </Form>
+    );
+
+    return (
+        <div>
+            {flowStep === "search" && renderSearchStep()}
+            {flowStep === "selected" && renderSelectedStep()}
+            {flowStep === "create" && renderCreateStep()}
+        </div>
     );
 };
 

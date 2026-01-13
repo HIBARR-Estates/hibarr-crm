@@ -137,7 +137,21 @@ trait CustomFieldsTrait
             $fieldType = CustomField::findOrFail($id)->type;
             $company = $company_id ? Company::findOrFail($company_id) : company();
 
-            $value = ($fieldType == 'date') ? Carbon::createFromFormat($company->date_format, $value)->format('Y-m-d') : $value;
+            // Handle date fields - support both ISO format (Y-m-d) and company date format
+            if ($fieldType == 'date' && !empty($value)) {
+                try {
+                    // First try ISO format (from inline editing / HTML date input)
+                    $value = Carbon::createFromFormat('Y-m-d', $value)->format('Y-m-d');
+                } catch (\Exception $e) {
+                    try {
+                        // Fallback to company date format
+                        $value = Carbon::createFromFormat($company->date_format, $value)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        // If both fail, try Carbon's natural parsing
+                        $value = Carbon::parse($value)->format('Y-m-d');
+                    }
+                }
+            }
             $value = ($fieldType == 'file' && !is_string($value) && !is_null($value)) ? Files::uploadLocalOrS3($value, 'custom_fields') : $value;
             
             // Handle checkbox and other array-based fields - convert arrays to comma-separated strings

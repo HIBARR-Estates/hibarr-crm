@@ -241,8 +241,8 @@ class FormDataService
      */
 
     private function getPackages(Request $request) {
-        $query = Package::select('id', 'name', 'currency_id', 'monthly_price', 'annual_price')
-            ->orderBy('sort', 'asc');
+        $query = Package::select('id', 'name', 'value')
+            ->orderBy('name', 'asc');
 
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->get('search') . '%');
