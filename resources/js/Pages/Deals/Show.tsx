@@ -105,32 +105,33 @@ export const Show = ({
                                                         >
                                                             <div
                                                                 className={`
-                                                                flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border
+                                                                flex items-center px-3 py-1.5 rounded-md text-sm font-bold transition-all duration-200 border
                                                                 ${
                                                                     isCurrent
-                                                                        ? "shadow-sm scale-105 font-bold"
+                                                                        ? "shadow-sm scale-105"
                                                                         : isCompleted
-                                                                        ? "opacity-80"
-                                                                        : "opacity-50 grayscale"
+                                                                        ? ""
+                                                                        : "opacity-60"
                                                                 }
                                                             `}
                                                                 style={{
                                                                     backgroundColor:
                                                                         isCurrent ||
                                                                         isCompleted
-                                                                            ? `${stage.label_color}15`
-                                                                            : "#f3f4f6",
+                                                                            ? `${stage.label_color}25`
+                                                                            : "#e5e7eb",
                                                                     color:
                                                                         isCurrent ||
                                                                         isCompleted
                                                                             ? stage.label_color
-                                                                            : "#6b7280",
+                                                                            : "#4b5563",
                                                                     borderColor:
                                                                         isCurrent
                                                                             ? stage.label_color
                                                                             : "transparent",
                                                                 }}
                                                             >
+                                                                <span className="mr-1.5">•</span>
                                                                 {stage.name}
                                                             </div>
                                                             {index <
@@ -139,30 +140,7 @@ export const Show = ({
                                                                     ?.length ||
                                                                     0) -
                                                                     1 && (
-                                                                <div className="flex items-center gap-2 mx-2">
-                                                                    <div className="flex items-center justify-center text-sm font-semibold text-black leading-none">
-                                                                        +
-                                                                    </div>
-                                                                    <div className="grid grid-cols-4 gap-0.5">
-                                                                        {[
-                                                                            ...Array(
-                                                                                8
-                                                                            ),
-                                                                        ].map(
-                                                                            (
-                                                                                _,
-                                                                                i
-                                                                            ) => (
-                                                                                <div
-                                                                                    key={
-                                                                                        i
-                                                                                    }
-                                                                                    className="w-0.5 h-0.5 bg-black rounded-full"
-                                                                                />
-                                                                            )
-                                                                        )}
-                                                                    </div>
-                                                                </div>
+                                                                <div className="w-6 h-0.5 bg-gray-300 mx-1" />
                                                             )}
                                                         </div>
                                                     );
@@ -173,13 +151,14 @@ export const Show = ({
                                                 deal.pipeline.stages.length ===
                                                     0) && (
                                                 <div
-                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
                                                     style={{
-                                                        backgroundColor: `${deal.lead_stage?.label_color}20`,
+                                                        backgroundColor: `${deal.lead_stage?.label_color}25`,
                                                         color: deal.lead_stage
                                                             ?.label_color,
                                                     }}
                                                 >
+                                                    <span className="mr-1.5">•</span>
                                                     {deal.lead_stage?.name}
                                                 </div>
                                             )}
