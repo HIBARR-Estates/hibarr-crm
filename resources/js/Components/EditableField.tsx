@@ -15,6 +15,7 @@ interface EditableFieldProps {
         | "number"
         | "date"
         | "select"
+        | "multiselect"
         | "boolean"
         | "textarea";
     selectorType?: FormDataType;
@@ -65,13 +66,22 @@ export default function EditableField({
             } catch {
                 setInputValue("");
             }
+        } else if (fieldType === "multiselect" || Array.isArray(value)) {
+            // Keep array values as arrays for multiselect
+            setInputValue(Array.isArray(value) ? value : value ? [value] : []);
         } else {
-            setInputValue(value?.toString() || "");
+            setInputValue(value ?? "");
         }
     };
 
     const handleSave = async () => {
-        if (inputValue === (value?.toString() || "")) {
+        // Compare values properly for arrays
+        const isArrayValue = Array.isArray(value) || Array.isArray(inputValue);
+        const valuesEqual = isArrayValue
+            ? JSON.stringify(inputValue) === JSON.stringify(value)
+            : inputValue === value;
+
+        if (valuesEqual) {
             setEditing(false);
             return;
         }
@@ -92,7 +102,12 @@ export default function EditableField({
 
     const handleCancel = () => {
         setEditing(false);
-        setInputValue(value?.toString() || "");
+        // Restore original value, keeping arrays as arrays
+        if (fieldType === "multiselect" || Array.isArray(value)) {
+            setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else {
+            setInputValue(value ?? "");
+        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -162,24 +177,24 @@ export default function EditableField({
                 ) : fieldType === "select" ? (
                     <Select
                         value={inputValue}
-                        onChange={(val) => {
-                            setInputValue(val);
-                            // Auto save on select change? or wait for check?
-                            // Wait for check usually better for consistent UX, but often Select is auto-save.
-                            // Keeping consistent with others: require explicit save click or enter?
-                            // Enter doesn't work well on Select.
-                            // Let's rely on the check button.
-                        }}
+                        onChange={(val) => setInputValue(val)}
                         options={options}
                         className="flex-1 min-w-[120px]"
                         disabled={saving || loading}
                         defaultOpen
-                        onBlur={() => {
-                            // Delay to allow check button click
-                            setTimeout(() => {
-                                // handleSave(); // Optional: auto save on blur
-                            }, 200);
-                        }}
+                        allowClear
+                    />
+                ) : fieldType === "multiselect" ? (
+                    <Select
+                        value={inputValue}
+                        onChange={(val) => setInputValue(val)}
+                        options={options}
+                        mode="multiple"
+                        className="flex-1 min-w-[200px]"
+                        disabled={saving || loading}
+                        defaultOpen
+                        allowClear
+                        placeholder="Select options..."
                     />
                 ) : fieldType === "boolean" ? (
                     <Select
