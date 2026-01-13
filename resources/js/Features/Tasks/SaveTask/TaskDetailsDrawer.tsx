@@ -26,10 +26,12 @@ import {
     EyeOutlined,
     LockOutlined,
     DollarOutlined,
+    LinkOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getStatusColor } from "@/lib/utils";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { Link } from "@inertiajs/react";
 
 const { Text, Title } = Typography;
 
@@ -563,7 +565,15 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 dataSource={task.deals}
                                 renderItem={(deal: any) => (
                                     <List.Item style={{ padding: "4px 0" }}>
-                                        <Text>{deal.name}</Text>
+                                        <Link
+                                            href={route("deals.show", deal.id)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                        >
+                                            <LinkOutlined
+                                                style={{ fontSize: 12 }}
+                                            />
+                                            {deal.name}
+                                        </Link>
                                     </List.Item>
                                 )}
                             />
@@ -583,12 +593,21 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 dataSource={task.leads}
                                 renderItem={(lead: any) => (
                                     <List.Item style={{ padding: "4px 0" }}>
-                                        <Text>
+                                        <Link
+                                            href={route(
+                                                "lead-contact.show",
+                                                lead.id
+                                            )}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                        >
+                                            <LinkOutlined
+                                                style={{ fontSize: 12 }}
+                                            />
                                             {lead.client_name}{" "}
                                             {lead.company_name
                                                 ? `(${lead.company_name})`
                                                 : ""}
-                                        </Text>
+                                        </Link>
                                     </List.Item>
                                 )}
                             />
@@ -603,7 +622,18 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 dataSource={task.properties}
                                 renderItem={(property: any) => (
                                     <List.Item style={{ padding: "4px 0" }}>
-                                        <Text>{property.name}</Text>
+                                        <Link
+                                            href={route(
+                                                "products.show",
+                                                property.id
+                                            )}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                        >
+                                            <LinkOutlined
+                                                style={{ fontSize: 12 }}
+                                            />
+                                            {property.name}
+                                        </Link>
                                     </List.Item>
                                 )}
                             />
