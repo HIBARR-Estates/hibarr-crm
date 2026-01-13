@@ -48,6 +48,13 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
     // Generate options with better error handling and type checking
     const options = organizeddata?.map((item) => {
         let label = "Unknown";
+        if (type === "packages") {
+            label = item.name || "Unknown Package";
+            return {
+                label,
+                value: item.id,
+            };
+        }
 
         // Handle different data structures
         if (item.label) {

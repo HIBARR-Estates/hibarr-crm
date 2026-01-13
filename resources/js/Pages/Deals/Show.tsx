@@ -219,6 +219,7 @@ export const Show = ({
                                             taskBoardColumns={taskBoardColumns}
                                             employees={employees}
                                             projects={projects}
+                                            
                                         />
                                     </Card>
 

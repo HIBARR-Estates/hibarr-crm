@@ -230,7 +230,7 @@ export default function DealInfoSection({
                                     ) || []
                                 }
                                 fieldName="package_id"
-                                // selectorType="packages"
+                                selectorType="packages"
                                 mode="multiple"
                                 displayValue={
                                     currentDeal.packages?.length

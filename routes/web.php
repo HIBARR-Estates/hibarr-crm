@@ -901,6 +901,21 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
     Route::post('show-notifications', [NotificationController::class, 'showNotifications'])->name('show_notifications');
 
+    // Notification API Routes (for React/Inertia)
+    Route::prefix('api/notifications')->name('notifications.api.')->group(function () {
+        Route::get('/', [NotificationController::class, 'apiIndex'])->name('index');
+        Route::get('/unread-summary', [NotificationController::class, 'apiUnreadSummary'])->name('unread_summary');
+        Route::get('/types', [NotificationController::class, 'apiTypes'])->name('types');
+        Route::post('/mark-read', [NotificationController::class, 'apiMarkRead'])->name('mark_read');
+        Route::post('/mark-multiple-read', [NotificationController::class, 'apiMarkMultipleRead'])->name('mark_multiple_read');
+        Route::post('/mark-all-read', [NotificationController::class, 'apiMarkAllRead'])->name('mark_all_read');
+        Route::post('/delete', [NotificationController::class, 'apiDelete'])->name('delete');
+        Route::post('/delete-multiple', [NotificationController::class, 'apiDeleteMultiple'])->name('delete_multiple');
+        Route::post('/delete-all-read', [NotificationController::class, 'apiDeleteAllRead'])->name('delete_all_read');
+    });
+
+    // Notification Page Route (Inertia)
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
 
     Route::get('gdpr/lead/approve-reject/{id}/{type}', [GdprSettingsController::class, 'approveRejectLead'])->name('gdpr.lead.approve_reject');
     Route::get('gdpr/customer/approve-reject/{id}/{type}', [GdprSettingsController::class, 'approveRejectClient'])->name('gdpr.customer.approve_reject');
