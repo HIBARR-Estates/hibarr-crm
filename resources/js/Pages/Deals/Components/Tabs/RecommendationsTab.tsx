@@ -288,10 +288,9 @@ function RecommendationCard({
     getStatusColor,
 }: RecommendationCardProps) {
     const { property, match_percentage, rank, factors } = recommendation;
+    const [imageError, setImageError] = useState(false);
 
-    // Placeholder image for properties without photos
-    const placeholderImage =
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect fill='%23f0f0f0' width='200' height='150'/%3E%3Ctext fill='%23999' font-family='sans-serif' font-size='14' text-anchor='middle' x='100' y='75'%3ENo Image%3C/text%3E%3C/svg%3E";
+    const hasImage = property?.primary_photo && !imageError;
 
     return (
         <Card
@@ -324,20 +323,28 @@ function RecommendationCard({
                         </div>
                     )}
 
-                    {/* Property image */}
-                    <img
-                        src={property?.primary_photo || placeholderImage}
-                        alt={property?.title || `Property #${rank}`}
-                        style={{
-                            height: 150,
-                            width: "100%",
-                            objectFit: "cover",
-                        }}
-                        onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                                placeholderImage;
-                        }}
-                    />
+                    {/* Property image or placeholder */}
+                    {hasImage ? (
+                        <img
+                            src={property.primary_photo!}
+                            alt={property?.title || `Property #${rank}`}
+                            style={{
+                                height: 150,
+                                width: "100%",
+                                objectFit: "cover",
+                            }}
+                            onError={() => setImageError(true)}
+                        />
+                    ) : (
+                        <div
+                            className="flex items-center justify-center bg-gray-100"
+                            style={{ height: 150, width: "100%" }}
+                        >
+                            <HomeOutlined
+                                style={{ fontSize: 48, color: "#d9d9d9" }}
+                            />
+                        </div>
+                    )}
                 </div>
             }
         >
