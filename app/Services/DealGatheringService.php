@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\Package;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use Illuminate\Support\Str;
@@ -12,6 +13,13 @@ use Illuminate\Support\Facades\DB;
 
 class DealGatheringService
 {
+    protected DealNotificationService $notificationService;
+
+    public function __construct(DealNotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Search for existing leads
      */
@@ -188,7 +196,32 @@ class DealGatheringService
                 }
                 
                 if (array_key_exists('package_id', $data)) {
-                    $deal->packages()->sync($data['package_id']);
+                    // Get current and new package IDs
+                    $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
+                    $newPackageIds = is_array($data['package_id']) ? $data['package_id'] : [$data['package_id']];
+                    $newPackageIds = array_filter($newPackageIds); // Remove empty values
+                    
+                    // Detect added and removed packages
+                    $addedPackageIds = array_diff($newPackageIds, $currentPackageIds);
+                    $removedPackageIds = array_diff($currentPackageIds, $newPackageIds);
+                    
+                    // Sync packages
+                    $deal->packages()->sync($newPackageIds);
+                    
+                    // Send notifications for package changes
+                    if (!empty($addedPackageIds)) {
+                        $addedNames = Package::whereIn('id', $addedPackageIds)->pluck('name')->toArray();
+                        if (!empty($addedNames)) {
+                            $this->notificationService->notifyPackageAssigned($deal, $addedNames);
+                        }
+                    }
+                    
+                    if (!empty($removedPackageIds)) {
+                        $removedNames = Package::whereIn('id', $removedPackageIds)->pluck('name')->toArray();
+                        if (!empty($removedNames)) {
+                            $this->notificationService->notifyPackageRemoved($deal, $removedNames);
+                        }
+                    }
                 }
 
                 if (array_key_exists('deal_watcher', $data)) {

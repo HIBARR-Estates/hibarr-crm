@@ -8,7 +8,7 @@ import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import { Deal, PipelineStage, Product } from "@/Types/api/deals";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { User } from "@/Types";
-import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
+import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
 import DeleteColumn from "./Components/DeleteColumn";
@@ -179,10 +179,10 @@ const LeadBoardIndex = ({
 
     return (
         <>
-            <SaveDealModal
-                open={["add", "edit"].includes(action || "")}
-                deal={deal}
-                onClose={() => handleClose()}
+            <DealInformationGatheringForm
+                open={action === "add" || action === "edit"}
+                onClose={handleClose}
+                deal={action === "edit" ? deal : null}
             />
             <div className="bg-gray-50 min-h-screen">
                 <PageLayout

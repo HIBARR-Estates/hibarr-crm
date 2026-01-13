@@ -20,7 +20,8 @@ interface Props {
     column?: number;
     onUpdate?: (field: string, value: any) => Promise<void>;
     editable?: boolean;
-    loading?: boolean;
+    loading?: boolean; // Deprecated: use loadingField instead
+    loadingField?: string | null; // The specific field currently being updated
 }
 
 export default function CustomFieldDisplay({
@@ -31,6 +32,7 @@ export default function CustomFieldDisplay({
     onUpdate,
     editable = false,
     loading = false,
+    loadingField = null,
 }: Props) {
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
@@ -179,44 +181,99 @@ export default function CustomFieldDisplay({
                 return dayjs(value).format("MMM DD, YYYY HH:mm");
 
             case "select":
-                let label = value;
-                // Parse values if string
-                let valuesObj = field.values;
-                if (typeof valuesObj === "string") {
+                // Parse values - can be JSON string array or object
+                let selectValues = field.values;
+                if (typeof selectValues === "string") {
                     try {
-                        valuesObj = JSON.parse(valuesObj);
+                        selectValues = JSON.parse(selectValues);
                     } catch (e) {}
                 }
 
-                if (valuesObj && (valuesObj as any)[value]) {
-                    label = (valuesObj as any)[value];
-                    return (
-                        <Tag color="blue" className="font-medium">
-                            {label}
-                        </Tag>
-                    );
+                // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
+                if (Array.isArray(selectValues)) {
+                    // Array format - value is the string itself
+                    if (selectValues.includes(value)) {
+                        return (
+                            <Tag color="blue" className="font-medium">
+                                {value}
+                            </Tag>
+                        );
+                    }
+                } else if (selectValues && typeof selectValues === "object") {
+                    // Object format - lookup by key
+                    if ((selectValues as any)[value]) {
+                        return (
+                            <Tag color="blue" className="font-medium">
+                                {(selectValues as any)[value]}
+                            </Tag>
+                        );
+                    }
                 }
-                return value;
+                return value ? (
+                    <Tag color="blue" className="font-medium">
+                        {value}
+                    </Tag>
+                ) : (
+                    <span className="text-gray-500">--</span>
+                );
 
             case "multiselect":
-                if (Array.isArray(value)) {
-                    // Parse values map if needed
-                    let valuesMap = field.values;
-                    if (typeof valuesMap === "string") {
+            case "checkbox":
+                if (Array.isArray(value) && value.length > 0) {
+                    // Parse values - can be JSON string array or object
+                    let multiValues = field.values;
+                    if (typeof multiValues === "string") {
                         try {
-                            valuesMap = JSON.parse(valuesMap);
+                            multiValues = JSON.parse(multiValues);
                         } catch (e) {}
                     }
 
                     return (
                         <div className="flex flex-wrap gap-1">
-                            {value.map((item, index) => (
-                                <Tag key={index} color="blue">
-                                    {(valuesMap as any)?.[item] || item}
-                                </Tag>
-                            ))}
+                            {value.map((item, index) => {
+                                // For array format, item is the display value
+                                // For object format, lookup label by key
+                                let displayLabel = item;
+                                if (
+                                    multiValues &&
+                                    !Array.isArray(multiValues) &&
+                                    typeof multiValues === "object"
+                                ) {
+                                    displayLabel =
+                                        (multiValues as any)[item] || item;
+                                }
+                                return (
+                                    <Tag key={index} color="blue">
+                                        {displayLabel}
+                                    </Tag>
+                                );
+                            })}
                         </div>
                     );
+                }
+                // Empty array or no value
+                if (Array.isArray(value) && value.length === 0) {
+                    return <span className="text-gray-500">--</span>;
+                }
+                // Single checkbox value (boolean-like)
+                if (
+                    typeof value === "boolean" ||
+                    value === "1" ||
+                    value === "0" ||
+                    value === 1 ||
+                    value === 0
+                ) {
+                    const boolVal =
+                        value === true || value === "1" || value === 1;
+                    return (
+                        <Tag color={boolVal ? "green" : "red"}>
+                            {boolVal ? "Yes" : "No"}
+                        </Tag>
+                    );
+                }
+                // No value at all
+                if (!value) {
+                    return <span className="text-gray-500">--</span>;
                 }
                 return value;
 
@@ -282,7 +339,6 @@ export default function CustomFieldDisplay({
                     </div>
                 );
 
-            case "checkbox":
             case "boolean":
                 return (
                     <Tag color={value ? "green" : "red"}>
@@ -323,6 +379,7 @@ export default function CustomFieldDisplay({
             | "number"
             | "date"
             | "select"
+            | "multiselect"
             | "boolean"
             | "textarea"
             | "email" = "text";
@@ -352,13 +409,55 @@ export default function CustomFieldDisplay({
                     } catch (e) {}
                 }
                 if (valuesObj) {
-                    options = Object.entries(valuesObj).map(([k, v]) => ({
-                        label: v as string,
-                        value: k,
-                    }));
+                    // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
+                    if (Array.isArray(valuesObj)) {
+                        options = valuesObj.map((v: string) => ({
+                            label: v,
+                            value: v,
+                        }));
+                    } else {
+                        options = Object.entries(valuesObj).map(([k, v]) => ({
+                            label: v as string,
+                            value: k,
+                        }));
+                    }
                 }
                 break;
+            case "multiselect":
             case "checkbox":
+                // Check if checkbox/multiselect has values (options)
+                let multiCheckboxValues = field.values;
+                if (typeof multiCheckboxValues === "string") {
+                    try {
+                        multiCheckboxValues = JSON.parse(multiCheckboxValues);
+                    } catch (e) {}
+                }
+                // If it has values array/object, it's a multi-select
+                if (
+                    multiCheckboxValues &&
+                    (Array.isArray(multiCheckboxValues)
+                        ? multiCheckboxValues.length > 0
+                        : Object.keys(multiCheckboxValues).length > 0)
+                ) {
+                    type = "multiselect";
+                    if (Array.isArray(multiCheckboxValues)) {
+                        options = multiCheckboxValues.map((v: string) => ({
+                            label: v,
+                            value: v,
+                        }));
+                    } else {
+                        options = Object.entries(multiCheckboxValues).map(
+                            ([k, v]) => ({
+                                label: v as string,
+                                value: k,
+                            })
+                        );
+                    }
+                } else {
+                    // No values means simple boolean checkbox
+                    type = "boolean";
+                }
+                break;
             case "boolean":
                 type = "boolean";
                 break;
@@ -366,19 +465,24 @@ export default function CustomFieldDisplay({
                 type = "text";
         }
 
-        if (["file", "multiselect", "time"].includes(field.type)) {
+        // Only skip file and time types - these need special handling
+        if (["file", "time"].includes(field.type)) {
             return formatFieldValue(field, value);
         }
+
+        const fieldKey = `field_${field.id}`;
+        const isFieldLoading =
+            loadingField === fieldKey || (loading && !loadingField);
 
         return (
             <EditableField
                 value={value}
-                fieldName={`field_${field.id}`}
+                fieldName={fieldKey}
                 fieldType={type}
-                onSave={(val) => onUpdate!(`field_${field.id}`, val)}
+                onSave={(val) => onUpdate!(fieldKey, val)}
                 options={options}
                 displayValue={formatFieldValue(field, value)}
-                loading={loading}
+                loading={isFieldLoading}
             />
         );
     };

@@ -253,6 +253,13 @@ class EmailNotificationSetting extends BaseModel
             'send_slack' => 'no',
             'setting_name' => 'Daily Schedule Notification',
             'slug' => 'daily-schedule-notification',
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'setting_name' => 'Deal Activity Notification',
+            'slug' => 'deal-activity-notification',
         ]
     ];
 

@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { Input, Typography, message, Select, Skeleton } from "antd";
-import { CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
+import { Input, Typography, message, Select, Skeleton, Spin } from "antd";
+import {
+    CheckOutlined,
+    CloseOutlined,
+    EditOutlined,
+    LoadingOutlined,
+} from "@ant-design/icons";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
 
@@ -15,6 +20,7 @@ interface EditableFieldProps {
         | "number"
         | "date"
         | "select"
+        | "multiselect"
         | "boolean"
         | "textarea";
     selectorType?: FormDataType;
@@ -65,13 +71,22 @@ export default function EditableField({
             } catch {
                 setInputValue("");
             }
+        } else if (fieldType === "multiselect" || Array.isArray(value)) {
+            // Keep array values as arrays for multiselect
+            setInputValue(Array.isArray(value) ? value : value ? [value] : []);
         } else {
-            setInputValue(value?.toString() || "");
+            setInputValue(value ?? "");
         }
     };
 
     const handleSave = async () => {
-        if (inputValue === (value?.toString() || "")) {
+        // Compare values properly for arrays
+        const isArrayValue = Array.isArray(value) || Array.isArray(inputValue);
+        const valuesEqual = isArrayValue
+            ? JSON.stringify(inputValue) === JSON.stringify(value)
+            : inputValue === value;
+
+        if (valuesEqual) {
             setEditing(false);
             return;
         }
@@ -92,7 +107,12 @@ export default function EditableField({
 
     const handleCancel = () => {
         setEditing(false);
-        setInputValue(value?.toString() || "");
+        // Restore original value, keeping arrays as arrays
+        if (fieldType === "multiselect" || Array.isArray(value)) {
+            setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else {
+            setInputValue(value ?? "");
+        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -112,140 +132,146 @@ export default function EditableField({
 
     if (editing) {
         return (
-            <div className="flex items-center gap-2 w-full">
-                {selectorType ? (
-                    <FormDataSelector
-                        type={selectorType}
-                        value={inputValue}
-                        onChange={(val) => setInputValue(val)}
-                        mode={mode} // Pass mode
-                        className="flex-1 min-w-[200px]"
-                        disabled={saving || loading}
-                        // autoFocus
-                        // isOpen={true} // Add prop to force open if possible, but FormDataSelector wraps Select which has defaultOpen
-                        // FormDataSelector doesn't have autoFocus prop, but Select has.
-                        // We might need to handle focus or defaultOpen in FormDataSelector
+            <Spin
+                spinning={saving}
+                indicator={<LoadingOutlined spin />}
+                size="small"
+            >
+                <div className="flex items-center gap-2 w-full">
+                    {selectorType ? (
+                        <FormDataSelector
+                            type={selectorType}
+                            value={inputValue}
+                            onChange={(val) => setInputValue(val)}
+                            mode={mode} // Pass mode
+                            className="flex-1 min-w-[200px]"
+                            disabled={saving || loading}
+                            // autoFocus
+                            // isOpen={true} // Add prop to force open if possible, but FormDataSelector wraps Select which has defaultOpen
+                            // FormDataSelector doesn't have autoFocus prop, but Select has.
+                            // We might need to handle focus or defaultOpen in FormDataSelector
+                        />
+                    ) : fieldType === "number" ? (
+                        <Input
+                            type="number"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onBlur={handleSave}
+                            onKeyDown={handleKeyPress}
+                            autoFocus
+                            className="flex-1"
+                            disabled={saving || loading}
+                        />
+                    ) : fieldType === "email" ? (
+                        <Input
+                            type="email"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onBlur={handleSave}
+                            onKeyDown={handleKeyPress}
+                            autoFocus
+                            className="flex-1"
+                            disabled={saving || loading}
+                        />
+                    ) : fieldType === "date" ? (
+                        <Input
+                            type="date"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onBlur={handleSave}
+                            onKeyDown={handleKeyPress}
+                            autoFocus
+                            className="flex-1"
+                            disabled={saving || loading}
+                        />
+                    ) : fieldType === "select" ? (
+                        <Select
+                            value={inputValue}
+                            onChange={(val) => setInputValue(val)}
+                            options={options}
+                            className="flex-1 min-w-[120px]"
+                            disabled={saving || loading}
+                            defaultOpen
+                            allowClear
+                        />
+                    ) : fieldType === "multiselect" ? (
+                        <Select
+                            value={inputValue}
+                            onChange={(val) => setInputValue(val)}
+                            options={options}
+                            mode="multiple"
+                            className="flex-1 min-w-[200px]"
+                            disabled={saving || loading}
+                            defaultOpen
+                            allowClear
+                            placeholder="Select options..."
+                        />
+                    ) : fieldType === "boolean" ? (
+                        <Select
+                            value={inputValue}
+                            onChange={(val) => setInputValue(val)}
+                            options={[
+                                { label: "Yes", value: 1 },
+                                { label: "No", value: 0 },
+                            ]}
+                            className="flex-1 min-w-[80px]"
+                            disabled={saving || loading}
+                            defaultOpen
+                        />
+                    ) : fieldType === "textarea" ? (
+                        <Input.TextArea
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onBlur={handleSave}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSave();
+                                } else if (e.key === "Escape") {
+                                    handleCancel();
+                                }
+                            }}
+                            autoFocus
+                            className="flex-1"
+                            disabled={saving || loading}
+                            autoSize={{ minRows: 2, maxRows: 6 }}
+                        />
+                    ) : (
+                        <Input
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onBlur={handleSave}
+                            onKeyDown={handleKeyPress}
+                            autoFocus
+                            className="flex-1"
+                            disabled={saving || loading}
+                        />
+                    )}
+                    <CheckOutlined
+                        onClick={saving || loading ? undefined : handleSave}
+                        className={`${
+                            saving || loading
+                                ? "cursor-not-allowed opacity-50 pointer-events-none"
+                                : "cursor-pointer text-green-600 hover:text-green-700"
+                        }`}
+                        aria-disabled={saving || loading}
                     />
-                ) : fieldType === "number" ? (
-                    <Input
-                        type="number"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onBlur={handleSave}
-                        onKeyDown={handleKeyPress}
-                        autoFocus
-                        className="flex-1"
-                        disabled={saving || loading}
+                    <CloseOutlined
+                        onClick={saving || loading ? undefined : handleCancel}
+                        className={`${
+                            saving || loading
+                                ? "cursor-not-allowed opacity-50 pointer-events-none"
+                                : "cursor-pointer text-red-600 hover:text-red-700"
+                        }`}
+                        aria-disabled={saving || loading}
                     />
-                ) : fieldType === "email" ? (
-                    <Input
-                        type="email"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onBlur={handleSave}
-                        onKeyDown={handleKeyPress}
-                        autoFocus
-                        className="flex-1"
-                        disabled={saving || loading}
-                    />
-                ) : fieldType === "date" ? (
-                    <Input
-                        type="date"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onBlur={handleSave}
-                        onKeyDown={handleKeyPress}
-                        autoFocus
-                        className="flex-1"
-                        disabled={saving || loading}
-                    />
-                ) : fieldType === "select" ? (
-                    <Select
-                        value={inputValue}
-                        onChange={(val) => {
-                            setInputValue(val);
-                            // Auto save on select change? or wait for check?
-                            // Wait for check usually better for consistent UX, but often Select is auto-save.
-                            // Keeping consistent with others: require explicit save click or enter?
-                            // Enter doesn't work well on Select.
-                            // Let's rely on the check button.
-                        }}
-                        options={options}
-                        className="flex-1 min-w-[120px]"
-                        disabled={saving || loading}
-                        defaultOpen
-                        onBlur={() => {
-                            // Delay to allow check button click
-                            setTimeout(() => {
-                                // handleSave(); // Optional: auto save on blur
-                            }, 200);
-                        }}
-                    />
-                ) : fieldType === "boolean" ? (
-                    <Select
-                        value={inputValue}
-                        onChange={(val) => setInputValue(val)}
-                        options={[
-                            { label: "Yes", value: 1 },
-                            { label: "No", value: 0 },
-                        ]}
-                        className="flex-1 min-w-[80px]"
-                        disabled={saving || loading}
-                        defaultOpen
-                    />
-                ) : fieldType === "textarea" ? (
-                    <Input.TextArea
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onBlur={handleSave}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSave();
-                            } else if (e.key === "Escape") {
-                                handleCancel();
-                            }
-                        }}
-                        autoFocus
-                        className="flex-1"
-                        disabled={saving || loading}
-                        autoSize={{ minRows: 2, maxRows: 6 }}
-                    />
-                ) : (
-                    <Input
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onBlur={handleSave}
-                        onKeyDown={handleKeyPress}
-                        autoFocus
-                        className="flex-1"
-                        disabled={saving || loading}
-                    />
-                )}
-                <CheckOutlined
-                    onClick={saving || loading ? undefined : handleSave}
-                    className={`${
-                        saving || loading
-                            ? "cursor-not-allowed opacity-50 pointer-events-none"
-                            : "cursor-pointer text-green-600 hover:text-green-700"
-                    }`}
-                    aria-disabled={saving || loading}
-                />
-                <CloseOutlined
-                    onClick={saving || loading ? undefined : handleCancel}
-                    className={`${
-                        saving || loading
-                            ? "cursor-not-allowed opacity-50 pointer-events-none"
-                            : "cursor-pointer text-red-600 hover:text-red-700"
-                    }`}
-                    aria-disabled={saving || loading}
-                />
-            </div>
+                </div>
+            </Spin>
         );
     }
 
     return (
-        <Skeleton active loading={loading} paragraph={{ rows: 1 }}>
+        <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
             <div
                 className={`group flex items-center justify-between gap-2 px-2 py-1 rounded transition-colors hover:bg-gray-50 cursor-pointer ${
                     isLocked ? "cursor-not-allowed opacity-50" : ""

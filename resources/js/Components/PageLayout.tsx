@@ -108,7 +108,7 @@ export default function PageLayout({
         <>
             <Head title={title} />
 
-            <div className="min-h-screen bg-blue-100/20">
+            <div className="min-h-screen bg-gray-100">
                 {/* Page Header/Topbar */}
                 <div className="bg-white border-b border-gray-200 px-6 py-4">
                     <div className="flex items-center gap-x-6">
