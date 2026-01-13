@@ -6,6 +6,10 @@ import {
     CalendarOutlined,
     UserOutlined,
     DownOutlined,
+    EyeOutlined,
+    EditOutlined,
+    CopyOutlined,
+    DeleteOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getStatusColor } from "@/lib/utils";
@@ -167,19 +171,20 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         {
                             key: "view",
                             label: "View Details",
-                            icon: <UserOutlined />,
+                            icon: <EyeOutlined />,
                             onClick: () => onView(task),
                         },
                         {
                             key: "edit",
                             label: "Edit",
-                            icon: <UserOutlined />,
+                            icon: <EditOutlined />,
                             onClick: () => onEdit(task),
                             disabled: !canEdit,
                         },
                         {
                             key: "duplicate",
                             label: "Duplicate",
+                            icon: <CopyOutlined />,
                             onClick: () => onDuplicate(task),
                             disabled: permissions["add_tasks"] === "none",
                         },
@@ -189,6 +194,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         {
                             key: "delete",
                             label: "Delete",
+                            icon: <DeleteOutlined />,
                             danger: true,
                             onClick: () => onDelete(task),
                             disabled: !canDelete,
