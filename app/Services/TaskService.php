@@ -12,6 +12,7 @@ use App\Models\TaskFile;
 use App\Models\TaskHistory;
 use App\Models\User;
 use App\Traits\ProjectProgress;
+use App\Services\DealNotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -327,7 +328,7 @@ class TaskService
     /**
      * Handle Polymorphic relations for Deal, Lead, Property
      */
-    protected function handlePolymorphicRelations(Task $task, array $data)
+    protected function handlePolymorphicRelations(Task $task, array $data, bool $isNewTask = true)
     {
         if (isset($data['taskable_type']) && isset($data['taskable_id'])) {
             $type = $data['taskable_type'];
@@ -350,6 +351,15 @@ class TaskService
                         $agentUserId = \App\Models\LeadAgent::find($entity->agent_id)?->user_id;
                         if ($agentUserId) {
                             $task->users()->syncWithoutDetaching([$agentUserId]);
+                        }
+                        
+                        // Send notification to deal watchers/agent about new task
+                        if ($isNewTask) {
+                            app(DealNotificationService::class)->notifyTaskAdded(
+                                $entity,
+                                $task->heading,
+                                $task->id
+                            );
                         }
                     }
                 }
