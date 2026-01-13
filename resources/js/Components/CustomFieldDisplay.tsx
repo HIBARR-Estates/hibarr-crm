@@ -20,7 +20,8 @@ interface Props {
     column?: number;
     onUpdate?: (field: string, value: any) => Promise<void>;
     editable?: boolean;
-    loading?: boolean;
+    loading?: boolean; // Deprecated: use loadingField instead
+    loadingField?: string | null; // The specific field currently being updated
 }
 
 export default function CustomFieldDisplay({
@@ -31,6 +32,7 @@ export default function CustomFieldDisplay({
     onUpdate,
     editable = false,
     loading = false,
+    loadingField = null,
 }: Props) {
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
@@ -468,15 +470,19 @@ export default function CustomFieldDisplay({
             return formatFieldValue(field, value);
         }
 
+        const fieldKey = `field_${field.id}`;
+        const isFieldLoading =
+            loadingField === fieldKey || (loading && !loadingField);
+
         return (
             <EditableField
                 value={value}
-                fieldName={`field_${field.id}`}
+                fieldName={fieldKey}
                 fieldType={type}
-                onSave={(val) => onUpdate!(`field_${field.id}`, val)}
+                onSave={(val) => onUpdate!(fieldKey, val)}
                 options={options}
                 displayValue={formatFieldValue(field, value)}
-                loading={loading}
+                loading={isFieldLoading}
             />
         );
     };

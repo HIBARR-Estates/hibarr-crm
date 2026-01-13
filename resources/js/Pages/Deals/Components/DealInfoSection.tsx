@@ -20,10 +20,8 @@ import DealDetailsTab from "./DealDetailsTab";
 import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import { Task } from "@/Types/api/tasks";
 import EditableField from "@/Components/EditableField";
-import axios from "axios";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
-import { isLoading } from "@/lib/utils";
 
 interface Props {
     deal: Deal;
@@ -57,6 +55,7 @@ export default function DealInfoSection({
     const [activeTab, setActiveTab] = useState("overview");
     const { action, handleAction, handleClose } = useGenericEntityAction();
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
+    const [updatingField, setUpdatingField] = useState<string | null>(null);
 
     // API Mutation for inline updates
     const { mutateAsync: updateDeal, status } = useApiMutate<
@@ -74,9 +73,13 @@ export default function DealInfoSection({
                 // Update local state with fresh data
                 setCurrentDeal(response.data);
             }
+            // Clear the updating field after completion
+            setUpdatingField(null);
         }
     );
-    const isUpdating = isLoading({ status });
+
+    // Helper to check if a specific field is loading
+    const isFieldLoading = (fieldName: string) => updatingField === fieldName;
 
     // Sync currentDeal state when deal prop changes
     useEffect(() => {
@@ -125,6 +128,9 @@ export default function DealInfoSection({
             | "custom_field"
             | "hibarr_field" = "details"
     ): Promise<void> => {
+        // Set the updating field to show loading only for this field
+        setUpdatingField(fieldName);
+
         // Infer type and api field name if not explicitly set (for compatibility)
         let effectiveType = type;
         let apiFieldName = fieldName;
@@ -152,6 +158,8 @@ export default function DealInfoSection({
                 data: payloadData,
             });
         } catch (error: any) {
+            // Clear the updating field on error
+            setUpdatingField(null);
             // Error managed by useApiMutate, but re-throwing for EditableField state management
             throw error;
         }
@@ -217,7 +225,7 @@ export default function DealInfoSection({
                                     handleFieldUpdate("name", value)
                                 }
                                 className="font-medium text-gray-900"
-                                loading={isUpdating}
+                                loading={isFieldLoading("name")}
                                 // disabled={!canEdit}
                             />
                         </Descriptions.Item>
@@ -245,7 +253,7 @@ export default function DealInfoSection({
                                     handleFieldUpdate("package_id", value)
                                 }
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("package_id")}
                             />
                         </Descriptions.Item>
 
@@ -288,7 +296,7 @@ export default function DealInfoSection({
                                     handleFieldUpdate("lead_id", value)
                                 }
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("lead_id")}
                             />
                         </Descriptions.Item>
 
@@ -305,7 +313,7 @@ export default function DealInfoSection({
                                         }
                                         className="text-blue-600 hover:text-blue-800"
                                         disabled={!canEdit}
-                                        loading={isUpdating}
+                                        loading={isFieldLoading("email")}
                                     />
                                 </div>
                             ) : (
@@ -327,7 +335,7 @@ export default function DealInfoSection({
                                             handleFieldUpdate("mobile", value)
                                         }
                                         disabled={!canEdit}
-                                        loading={isUpdating}
+                                        loading={isFieldLoading("mobile")}
                                     />
                                 </div>
                             ) : (
@@ -344,7 +352,7 @@ export default function DealInfoSection({
                                     handleFieldUpdate("company_name", value)
                                 }
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("company_name")}
                             />
                         </Descriptions.Item>
 
@@ -364,7 +372,7 @@ export default function DealInfoSection({
                                     handleFieldUpdate("category_id", value)
                                 }
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("category_id")}
                             />
                         </Descriptions.Item>
 
@@ -389,7 +397,7 @@ export default function DealInfoSection({
                                     handleFieldUpdate("agent_id", value)
                                 }
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("agent_id")}
                             />
                         </Descriptions.Item>
 
@@ -430,7 +438,7 @@ export default function DealInfoSection({
                                     handleFieldUpdate("deal_watcher", value)
                                 }
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("deal_watcher")}
                             />
                         </Descriptions.Item>
 
@@ -461,7 +469,7 @@ export default function DealInfoSection({
                                         : "--"
                                 }
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("close_date")}
                             />
                         </Descriptions.Item>
 
@@ -484,7 +492,7 @@ export default function DealInfoSection({
                                 }
                                 className="font-semibold"
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("value")}
                             />
                         </Descriptions.Item>
 
@@ -522,7 +530,7 @@ export default function DealInfoSection({
                                     handleFieldUpdate("product_id", value)
                                 }
                                 disabled={!canEdit}
-                                loading={isUpdating}
+                                loading={isFieldLoading("product_id")}
                             />
                         </Descriptions.Item>
                     </Descriptions>
@@ -539,7 +547,7 @@ export default function DealInfoSection({
                         handleFieldUpdate(field, value, "hibarr_field")
                     }
                     editable={canEdit}
-                    loading={isUpdating}
+                    loadingField={updatingField}
                 />
             ),
         },
@@ -558,7 +566,7 @@ export default function DealInfoSection({
                             handleFieldUpdate(field, value, "custom_field")
                         }
                         editable={canEdit}
-                        loading={isUpdating}
+                        loadingField={updatingField}
                     />
                 </div>
             ),
