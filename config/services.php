@@ -80,4 +80,10 @@ return [
         'access_token' => env('META_ACCESS_TOKEN'),
         'api_version' => env('META_CONVERSIONS_API_VERSION', 'v18.0'),
     ],
+
+    'property_recommendation' => [
+        'base_url' => env('PROPERTY_RECOMMENDATION_API_URL', 'https://pre.hibarr.org'),
+        'timeout' => env('PROPERTY_RECOMMENDATION_API_TIMEOUT', 30),
+        'cache_ttl' => env('PROPERTY_RECOMMENDATION_CACHE_TTL', 900), // 15 minutes
+    ],
 ];
