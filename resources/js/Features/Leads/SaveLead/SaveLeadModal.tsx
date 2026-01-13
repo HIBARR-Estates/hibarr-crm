@@ -139,7 +139,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
 
     return (
         <Drawer
-            title={isEditing ? "Edit Contact" : "Add Contact"}
+            title={isEditing ? "Edit Lead" : "Add Lead"}
             placement="right"
             size="large"
             open={open}
