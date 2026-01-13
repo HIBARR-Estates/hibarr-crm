@@ -24,7 +24,7 @@ import {
 } from "@ant-design/icons";
 import { ColumnsType } from "antd/es/table";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
-import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
+import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import dayjs from "dayjs";
 
@@ -316,25 +316,12 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                 </div>
             )}
 
-            {/* Add Deal Modal */}
-            <SaveDealModal
-                open={action === "add"}
-                onClose={() => handleClose()}
-                lead_id={lead.id}
-                deal={undefined}
-                disableFields={["lead_contact"]}
+            {/* Add/Edit Deal Modal */}
+            <DealInformationGatheringForm
+                open={action === "add" || action === "edit"}
+                onClose={handleClose}
+                deal={action === "edit" ? deal : null}
             />
-
-            {/* Edit Deal Modal */}
-            {deal && (
-                <SaveDealModal
-                    open={action === "edit"}
-                    onClose={() => handleClose()}
-                    lead_id={lead.id}
-                    deal={deal}
-                    disableFields={["lead_contact"]}
-                />
-            )}
 
             {/* Delete Deal Modal */}
             <DeleteDeal
