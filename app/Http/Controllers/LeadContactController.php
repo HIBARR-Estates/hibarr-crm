@@ -802,6 +802,34 @@ class LeadContactController extends AccountBaseController
             \DB::commit();
 
             // Return success response for API calls or redirect for web
+            if ($request->ajax() || $request->wantsJson() || $request->header('X-Inertia') || $request->header('X-Requested-With')) {
+                // Return only the ID and updated fields to avoid any serialization issues
+                // Frontend will merge these into existing state
+                $responseData = [
+                    'id' => $leadContact->id,
+                ];
+                
+                // Add only the fields that were in the request
+                $allowedFields = [
+                    'client_name', 'client_email', 'mobile', 'office', 'cell',
+                    'company_name', 'website', 'address', 'city', 'state', 'country',
+                    'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
+                    'source_id', 'agent_id', 'value', 'currency_id', 'salutation'
+                ];
+                
+                foreach ($allowedFields as $field) {
+                    if ($request->has($field)) {
+                        $responseData[$field] = $leadContact->getAttribute($field);
+                    }
+                }
+                
+                return response()->json([
+                    'status' => 'success',
+                    'data' => [
+                        'lead' => $responseData,
+                    ],
+                ]);
+            }
             
             return Reply::successWithData(__('messages.leadUpdateSuccess'), [
                 'lead' => $leadContact->fresh(),
