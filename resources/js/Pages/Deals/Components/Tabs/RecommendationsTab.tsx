@@ -6,7 +6,6 @@ import {
 import {
     Empty,
     Button,
-    Spin,
     Alert,
     Progress,
     Tag,
@@ -26,8 +25,10 @@ import {
     CheckCircleOutlined,
     InfoCircleOutlined,
 } from "@ant-design/icons";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import axios from "axios";
+import { useQueryClient } from "@tanstack/react-query";
 
 const { Text, Title } = Typography;
 
@@ -41,72 +42,41 @@ interface Props {
  * Displays AI-powered property recommendations based on customer preferences
  */
 export default function RecommendationsTab({ deal, permissions }: Props) {
-    const [loading, setLoading] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
-    const [recommendations, setRecommendations] = useState<
-        PropertyRecommendation[]
-    >([]);
-    const [cached, setCached] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [hasLoaded, setHasLoaded] = useState(false);
+    const queryClient = useQueryClient();
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Fetch recommendations from the API
-    const fetchRecommendations = useCallback(
-        async (refresh = false) => {
-            if (refresh) {
-                setRefreshing(true);
-            } else {
-                setLoading(true);
-            }
-            setError(null);
+    const queryPath = route("deals.recommendations.index", { deal: deal.id });
 
-            try {
-                const endpoint = refresh
-                    ? route("deals.recommendations.refresh", { deal: deal.id })
-                    : route("deals.recommendations.index", { deal: deal.id });
+    // Fetch recommendations using useApiQuery
+    const { data, isLoading, isError, error, refetch, isFetching } =
+        useApiQuery<RecommendationsResponse>({
+            path: queryPath,
+            params: { limit: 10 },
+        });
 
-                const response = await axios.request<RecommendationsResponse>({
-                    method: refresh ? "POST" : "GET",
-                    url: endpoint,
-                    params: { limit: 10 },
-                });
+    const recommendations = data?.recommendations ?? [];
+    const cached = data?.cached ?? false;
+    const apiError =
+        data?.error || (isError ? (error as Error)?.message : null);
 
-                if (response.data.status === "success") {
-                    setRecommendations(response.data.recommendations);
-                    setCached(response.data.cached);
-                    setError(null);
-                } else {
-                    setError(
-                        response.data.error || "Failed to fetch recommendations"
-                    );
-                }
-            } catch (err: any) {
-                console.error("Failed to fetch recommendations:", err);
-                setError(
-                    err.response?.data?.error ||
-                        err.message ||
-                        "Failed to fetch recommendations"
-                );
-            } finally {
-                setLoading(false);
-                setRefreshing(false);
-                setHasLoaded(true);
-            }
-        },
-        [deal.id]
-    );
-
-    // Load recommendations on mount
-    useEffect(() => {
-        if (!hasLoaded) {
-            fetchRecommendations();
+    // Handle refresh - calls the refresh endpoint to invalidate server cache, then refetches
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await axios.post(
+                route("deals.recommendations.refresh", { deal: deal.id }),
+                { limit: 10 }
+            );
+            // Invalidate the query cache and refetch
+            queryClient.invalidateQueries({ queryKey: [queryPath] });
+        } catch (err) {
+            console.error("Failed to refresh recommendations:", err);
+        } finally {
+            setIsRefreshing(false);
         }
-    }, [fetchRecommendations, hasLoaded]);
-
-    // Handle refresh
-    const handleRefresh = () => {
-        fetchRecommendations(true);
     };
+
+    const loading = isRefreshing || isFetching;
 
     // Format price for display
     const formatPrice = (price: number | null | undefined): string => {
@@ -140,7 +110,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     };
 
     // Render loading skeleton
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="p-6">
                 <Row gutter={[16, 16]}>
@@ -161,19 +131,16 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     }
 
     // Render error state
-    if (error && recommendations.length === 0) {
+    if (apiError && recommendations.length === 0) {
         return (
             <div className="p-6">
                 <Alert
                     message="Unable to Load Recommendations"
-                    description={error}
+                    description={apiError}
                     type="warning"
                     showIcon
                     action={
-                        <Button
-                            size="small"
-                            onClick={() => fetchRecommendations()}
-                        >
+                        <Button size="small" onClick={() => refetch()}>
                             Try Again
                         </Button>
                     }
@@ -183,7 +150,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     }
 
     // Render empty state
-    if (!loading && recommendations.length === 0) {
+    if (!isLoading && recommendations.length === 0) {
         return (
             <div className="p-8">
                 <Empty
@@ -204,7 +171,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                         type="primary"
                         icon={<ReloadOutlined />}
                         onClick={handleRefresh}
-                        loading={refreshing}
+                        loading={loading}
                     >
                         Generate Recommendations
                     </Button>
@@ -234,9 +201,9 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                         </Tooltip>
                     )}
                     <Button
-                        icon={<ReloadOutlined spin={refreshing} />}
+                        icon={<ReloadOutlined spin={loading} />}
                         onClick={handleRefresh}
-                        loading={refreshing}
+                        loading={loading}
                     >
                         Refresh
                     </Button>
@@ -244,9 +211,9 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
             </div>
 
             {/* Error banner (if we have results but also an error) */}
-            {error && (
+            {apiError && (
                 <Alert
-                    message={error}
+                    message={apiError}
                     type="warning"
                     showIcon
                     className="mb-4"
