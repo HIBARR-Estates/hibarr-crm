@@ -131,7 +131,9 @@ export const Show = ({
                                                                             : "transparent",
                                                                 }}
                                                             >
-                                                                <span className="mr-1.5">•</span>
+                                                                <span className="mr-1.5">
+                                                                    •
+                                                                </span>
                                                                 {stage.name}
                                                             </div>
                                                             {index <
@@ -158,7 +160,9 @@ export const Show = ({
                                                             ?.label_color,
                                                     }}
                                                 >
-                                                    <span className="mr-1.5">•</span>
+                                                    <span className="mr-1.5">
+                                                        •
+                                                    </span>
                                                     {deal.lead_stage?.name}
                                                 </div>
                                             )}
@@ -198,7 +202,6 @@ export const Show = ({
                                             taskBoardColumns={taskBoardColumns}
                                             employees={employees}
                                             projects={projects}
-                                            
                                         />
                                     </Card>
 
