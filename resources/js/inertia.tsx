@@ -16,6 +16,9 @@ declare global {
 // You can safely remove this line.
 window.route = route;
 
+
+
+
 // createInertiaApp({
 //     resolve: async (name) => {
 //         const pages = import.meta.glob("./Pages/**/*.tsx");

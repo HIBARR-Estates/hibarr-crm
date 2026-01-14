@@ -81,11 +81,13 @@ class AttemptToAuthenticate
 
         if($authUser->company){
             $attendanceSetting = $authUser->company->attendanceSetting;
-            $checkAutoClockinConditions = $this->checkAutoClockinConditions($authUser);
+            if ($attendanceSetting) {
+                $checkAutoClockinConditions = $this->checkAutoClockinConditions($authUser);
 
-            if ($attendanceSetting->auto_clock_in == 'yes' && $checkAutoClockinConditions) {
-                if (($attendanceSetting->radius_check == 'yes' && $this->isInRadius($request, $attendanceSetting)) || $attendanceSetting->radius_check == 'no') {
-                    $this->storeClockIn($request, $authUser->id);
+                if ($attendanceSetting->auto_clock_in == 'yes' && $checkAutoClockinConditions) {
+                    if (($attendanceSetting->radius_check == 'yes' && $this->isInRadius($request, $attendanceSetting)) || $attendanceSetting->radius_check == 'no') {
+                        $this->storeClockIn($request, $authUser->id);
+                    }
                 }
             }
         }
@@ -162,6 +164,7 @@ class AttemptToAuthenticate
     {
 
         $globalSetting = GlobalSetting::first();
+
         $showClockIn = $authUser->company->attendanceSetting;
 
         $attendanceSettings = $this->attendanceShift($showClockIn, $authUser->id, $authUser->company);
@@ -237,7 +240,6 @@ class AttemptToAuthenticate
         $company = User::with('employeeDetails')->where('id', $authUser)->first();
         $authUserCompany = User::withoutGlobalScope(ActiveScope::class)->where('id', $authUser)->first();
         $showClockIn = AttendanceSetting::where('company_id', $company->company_id)->first();
-        $globalSetting = GlobalSetting::first();
         $attendanceSettings = $this->attendanceShift($showClockIn, $authUser, $authUserCompany->company);
         $attendanceUser = User::find($authUser);
 

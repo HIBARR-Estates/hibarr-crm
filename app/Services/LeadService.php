@@ -10,6 +10,7 @@ use App\Models\CustomFieldCategory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class LeadService
 {
@@ -113,6 +114,8 @@ class LeadService
         if ($leadCustomFieldGroup) {
             $customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
                 ->where('company_id', company()->id)
+                ->orderBy(DB::raw('`order`'), 'asc')
+                ->orderBy('id', 'asc')
                 ->get();
         }
 

@@ -178,6 +178,7 @@ return array(
         'waiting-approval' => 'Waiting Approval',
         'calendar' => 'Calendar',
         'messages' => 'Messages',
+        'customFieldCategories' => 'Custom Field Categories',
         'customFields' => 'Custom Fields',
         'events' => 'Events',
         'event' => 'Event',
