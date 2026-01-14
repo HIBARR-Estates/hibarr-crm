@@ -667,6 +667,9 @@ class LeadContactController extends AccountBaseController
             if ($request->has('salutation')) {
                 $leadContact->salutation = $request->salutation;
             }
+            if ($request->has('gender')) {
+                $leadContact->gender = $request->gender;
+            }
             if ($request->has('client_name')) {
                 $leadContact->client_name = $request->client_name;
             }
@@ -821,6 +824,12 @@ class LeadContactController extends AccountBaseController
                     if ($request->has($field)) {
                         $responseData[$field] = $leadContact->getAttribute($field);
                     }
+                }
+                
+                // If custom fields were updated, include the updated custom_fields_data
+                if ($request->has('custom_fields')) {
+                    $leadContact->withCustomFields();
+                    $responseData['custom_fields_data'] = $leadContact->custom_fields_data;
                 }
                 
                 return response()->json([

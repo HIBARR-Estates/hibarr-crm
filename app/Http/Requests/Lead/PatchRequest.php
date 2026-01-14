@@ -37,6 +37,7 @@ class PatchRequest extends CoreRequest
             'country' => 'sometimes|string|max:100',
             'postal_code' => 'sometimes|string|max:20',
             'salutation' => ['sometimes', 'string', Rule::in(['mr', 'mrs', 'miss', 'ms', 'dr', 'prof'])],
+            'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
             
             // Lead Information (all optional for patch)
             'value' => 'sometimes|numeric|min:0',
