@@ -1,4 +1,5 @@
 import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
+import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
@@ -307,14 +308,18 @@ const Index = ({
                 </div>
             </PageLayout>
 
-            {/* Save Deal Modal - Only for Edit */}
-            {/* Removed SaveDealModal - now using DealInformationGatheringForm for edit too */}
-
-            {/* Deal Gathering Form - For Add and Edit */}
-            <DealInformationGatheringForm
-                open={action === "add" || action === "edit"}
+            {/* Save Deal Modal - For Edit */}
+            <SaveDealModal
+                open={action === "edit"}
                 onClose={handleClose}
-                deal={action === "edit" ? deal : null}
+                deal={deal}
+            />
+
+            {/* Deal Gathering Form - For Add */}
+            <DealInformationGatheringForm
+                open={action === "add"}
+                onClose={handleClose}
+                deal={null}
             />
 
             <DeleteDeal
