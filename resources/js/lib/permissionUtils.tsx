@@ -1,10 +1,14 @@
 import React, { ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
 import { AppProps } from "@/Types";
-import { AppModule, AppPermission, PermissionKey, PermissionScope } from "@/Types/permission";
+import {
+    AppModule,
+    AppPermission,
+    PermissionKey,
+    PermissionScope,
+} from "@/Types/permission";
 
 // Define types based on the application structure
-
 
 export interface User {
     id: number;
@@ -103,7 +107,7 @@ const hasAccess = (
  */
 export const checkPermission = (
     options: PermissionCheckOptions,
-    context: {  
+    context: {
         user: User;
         permissions: AppPermission;
         userModules: string[];
@@ -167,7 +171,7 @@ export const usePermission = () => {
     const permissions = auth.permissions;
     const userModules = auth.modules || [];
 
-    const can = (options: PermissionCheckOptions ): boolean => {
+    const can = (options: PermissionCheckOptions): boolean => {
         // Allow passing a simple string as a shortcut for { permissions: string }
         const opts =
             typeof options === "string" ? { permissions: options } : options;
@@ -182,7 +186,15 @@ export const usePermission = () => {
         return userModules.includes(moduleName);
     };
 
-    return { can, hasModule, user, permissions, userModules };
+    // helper to check if user has a specific permission
+    const hasPermission = (
+        permissionKey: PermissionKey,
+        requiredScope?: PermissionScope
+    ): boolean => {
+        return hasAccess(permissions[permissionKey], requiredScope);
+    };
+
+    return { can, hasModule, user, permissions, userModules, hasPermission };
 };
 
 interface PermissionGateProps extends PermissionCheckOptions {

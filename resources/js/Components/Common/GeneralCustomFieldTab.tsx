@@ -14,6 +14,7 @@ import {
 } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
+import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
 
 interface CustomFieldTabProps<CustomFormData = any> {
     data: CustomFormData;
@@ -35,15 +36,29 @@ const GeneralCustomFieldTab = <
     const { props } = usePage<any>();
     const { customFields = [], countries, dealCustomFields = [] } = props;
 
-    // Get form instance and watch custom_fields_data for real-time visibility updates
+    // Get form instance from parent Form context (may be null if no Form context)
+    // Call hook once at top level to comply with Rules of Hooks
     const form = Form.useFormInstance();
     const watchedCustomFieldsData = Form.useWatch("custom_fields_data", form);
     const currentCustomFieldsData =
         watchedCustomFieldsData || data?.custom_fields_data || {};
 
     const [otherValues, setOtherValues] = useState<Record<string, string>>({});
+    
+    // Get all fields (including those from other categories) for visibility evaluation
+    const allFields = customFields.concat(dealCustomFields).filter(
+        (field: any, index: number, self: any[]) =>
+            index === self.findIndex((f) => f.id === field.id)
+    );
+    
+    // Use visibility hook (form may be null, hook handles this gracefully)
+    const { isFieldVisible } = useCustomFieldVisibility({
+        fields: allFields,
+        form: form || undefined, // Convert null to undefined for type safety
+        namePrefix: 'custom_fields_data',
+    });
 
-    // Filter fields for this category and sort by field type
+    // Filter fields for this category and sort by display_order, then by ID
     const categoryFields =
         customFields
             .concat(dealCustomFields)
@@ -56,104 +71,24 @@ const GeneralCustomFieldTab = <
                 (field: any) => field.custom_field_category_id === categoryId
             )
             .sort((a: any, b: any) => {
-                // Define the order priority for field types
-                const typeOrder = {
-                    select: 1,
-                    text: 2,
-                    textarea: 3,
-                    radio: 4,
-                    checkbox: 5,
-                    number: 0, // Same priority as text
-                    date: 2, // Same priority as text
-                    country: 1, // Same priority as select
-                    phone: 2, // Same priority as text
-                    file: 3, // Same priority as textarea
-                };
-
-                const aOrder = typeOrder[a.type as keyof typeof typeOrder] || 6;
-                const bOrder = typeOrder[b.type as keyof typeof typeOrder] || 6;
-
-                return aOrder - bOrder;
+                // First sort by display_order if available
+                const orderA = a.display_order ?? 0;
+                const orderB = b.display_order ?? 0;
+                
+                if (orderA !== orderB) {
+                    return orderA - orderB;
+                }
+                
+                // If display_order is the same or not set, sort by ID
+                return a.id - b.id;
             }) || [];
-
-    const checkVisibility = (field: any) => {
-        if (
-            !field.visibility ||
-            !field.conditions ||
-            field.conditions.length === 0
-        ) {
-            return true; // Visible by default if no rules
-        }
-
-        const { logic_string } = field.visibility;
-        const { conditions } = field;
-        const formValues = currentCustomFieldsData;
-
-        // Evaluate each condition
-        const conditionResults = conditions.map((condition: any) => {
-            const targetFieldId = condition.target_field_id;
-            // Find the target field definition to get its name
-            const targetField = customFields
-                .concat(dealCustomFields)
-                .find((f: any) => f.id === targetFieldId);
-            if (!targetField) return false;
-
-            const targetKey = `${targetField.name}_${targetField.id}`;
-            const targetValue = formValues[targetKey];
-
-            switch (condition.operator) {
-                case "==":
-                    return targetValue == condition.value;
-                case "!=":
-                    return targetValue != condition.value;
-                case ">":
-                    return Number(targetValue) > Number(condition.value);
-                case "<":
-                    return Number(targetValue) < Number(condition.value);
-                case "contains":
-                    return String(targetValue || "").includes(condition.value);
-                default:
-                    return false;
-            }
-        });
-
-        let evalString = logic_string;
-        // Sort conditions by index descending to avoid replacing "1" in "10"
-        const indices = conditions
-            .map((_: any, i: number) => i + 1)
-            .sort((a: number, b: number) => b - a);
-
-        for (const index of indices) {
-            const result = conditionResults[index - 1];
-            evalString = evalString.replace(
-                new RegExp(`\\b${index}\\b`, "g"),
-                String(result)
-            );
-        }
-
-        try {
-            // Sanitize: ensure only allowed chars remain (true, false, space, (, ), &, |, !)
-            if (!/^[truefalse\s\(\)\&\|!]+$/.test(evalString)) {
-                console.error(
-                    "Invalid logic string after substitution:",
-                    evalString
-                );
-                return false;
-            }
-
-            return new Function(`return ${evalString}`)();
-        } catch (e) {
-            console.error("Error evaluating visibility logic:", e);
-            return true; // Fallback to visible
-        }
-    };
 
     const renderTextField = (field: any) => (
         <Form.Item
             label={field.label}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -161,7 +96,7 @@ const GeneralCustomFieldTab = <
                 errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
             }
             help={errors[`custom_fields_data.field_${field.id}`]}
-            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            name={[`custom_fields_data`, `field_${field.id}`]}
         >
             <Input placeholder={field.label} />
         </Form.Item>
@@ -174,10 +109,10 @@ const GeneralCustomFieldTab = <
                 errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
             }
             help={errors[`custom_fields_data.field_${field.id}`]}
-            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -202,10 +137,10 @@ const GeneralCustomFieldTab = <
                 errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
             }
             help={errors[`custom_fields_data.field_${field.id}`]}
-            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -232,10 +167,10 @@ const GeneralCustomFieldTab = <
                         : ""
                 }
                 help={errors[`custom_fields_data.field_${field.id}`]}
-                name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+                name={[`custom_fields_data`, `field_${field.id}`]}
                 rules={[
                     {
-                        required: field.required === "yes",
+                        required: field.required === "yes" && isFieldVisible(field.id),
                         message: `Please enter ${field.label}`,
                     },
                 ]}
@@ -269,10 +204,10 @@ const GeneralCustomFieldTab = <
                         : ""
                 }
                 help={errors[`custom_fields_data.field_${field.id}`]}
-                name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+                name={[`custom_fields_data`, `field_${field.id}`]}
                 rules={[
                     {
-                        required: field.required === "yes",
+                        required: field.required === "yes" && isFieldVisible(field.id),
                         message: `Please enter ${field.label}`,
                     },
                 ]}
@@ -302,7 +237,7 @@ const GeneralCustomFieldTab = <
         return (
             <Form.Item
                 label={field.label}
-                name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+                name={[`custom_fields_data`, `field_${field.id}`]}
                 validateStatus={
                     errors[`custom_fields_data.field_${field.id}`]
                         ? "error"
@@ -311,7 +246,7 @@ const GeneralCustomFieldTab = <
                 help={errors[`custom_fields_data.field_${field.id}`]}
                 rules={[
                     {
-                        required: field.required === "yes",
+                        required: field.required === "yes" && isFieldVisible(field.id),
                         message: `Please enter ${field.label}`,
                     },
                 ]}
@@ -336,10 +271,10 @@ const GeneralCustomFieldTab = <
                 errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
             }
             help={errors[`custom_fields_data.field_${field.id}`]}
-            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -358,10 +293,10 @@ const GeneralCustomFieldTab = <
                 errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
             }
             help={errors[`custom_fields_data.field_${field.id}`]}
-            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -394,10 +329,10 @@ const GeneralCustomFieldTab = <
                 errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
             }
             help={errors[`custom_fields_data.field_${field.id}`]}
-            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -417,7 +352,7 @@ const GeneralCustomFieldTab = <
                 errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
             }
             help={errors[`custom_fields_data.field_${field.id}`]}
-            name={[`custom_fields_data`, `${field.name}_${field.id}`]}
+            name={[`custom_fields_data`, `field_${field.id}`]}
             valuePropName="fileList"
             getValueFromEvent={(e: any) => {
                 if (Array.isArray(e)) {
@@ -427,7 +362,7 @@ const GeneralCustomFieldTab = <
             }}
             rules={[
                 {
-                    required: field.required === "yes",
+                    required: field.required === "yes" && isFieldVisible(field.id),
                     message: `Please upload ${field.label}`,
                 },
             ]}
@@ -439,6 +374,11 @@ const GeneralCustomFieldTab = <
     );
 
     const renderField = (field: any) => {
+        // Check visibility - if field is not visible, don't render it
+        if (!isFieldVisible(field.id)) {
+            return null;
+        }
+        
         switch (field.type) {
             case "text":
                 return renderTextField(field);
@@ -473,14 +413,19 @@ const GeneralCustomFieldTab = <
         );
     }
 
+    // Filter out hidden fields before rendering to avoid layout issues
+    const visibleFields = categoryFields.filter((field: any) => isFieldVisible(field.id));
+
     return (
         <div className="space-y-6">
             <Row gutter={[24, 16]}>
-                {categoryFields.map((field: any) => {
-                    if (!checkVisibility(field)) return null;
+                {visibleFields.map((field: any) => {
+                    const fieldElement = renderField(field);
+                    if (!fieldElement) return null;
+                    
                     return (
                         <Col span={determineSpan(field.type)} key={field.id}>
-                            {renderField(field)}
+                            {fieldElement}
                         </Col>
                     );
                 })}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
     Form,
     Input,
@@ -10,7 +10,7 @@ import {
     Col,
 } from 'antd';
 import { CustomField } from '@/Types';
-import dayjs from 'dayjs';
+import { useCustomFieldVisibility } from '@/Hooks/useCustomFieldVisibility';
 
 interface Props {
     fields: CustomField[];
@@ -23,14 +23,32 @@ const CustomFieldRenderer: React.FC<Props> = ({
     form, 
     namePrefix = 'custom_fields_data' 
 }) => {
-    const [otherValues, setOtherValues] = useState<Record<string, string>>({});
+    // Get visibility map
+    const { visibilityMap, isFieldVisible } = useCustomFieldVisibility({
+        fields,
+        form,
+        namePrefix,
+    });
+
+    // Sort fields by display_order
+    const sortedFields = useMemo(() => {
+        return [...fields].sort((a, b) => {
+            const orderA = a.display_order || 0;
+            const orderB = b.display_order || 0;
+            return orderA - orderB;
+        });
+    }, [fields]);
 
     const renderTextField = (field: CustomField) => (
         <Form.Item
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={field.required === '1' ? [{ required: true, message: `${field.label} is required` }] : []}
+            rules={
+                field.required === 'yes' && isFieldVisible(field.id)
+                    ? [{ required: true, message: `${field.label} is required` }]
+                    : []
+            }
         >
             <Input placeholder={`Enter ${field.label}`} />
         </Form.Item>
@@ -41,7 +59,11 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={field.required === '1' ? [{ required: true, message: `${field.label} is required` }] : []}
+            rules={
+                field.required === 'yes' && isFieldVisible(field.id)
+                    ? [{ required: true, message: `${field.label} is required` }]
+                    : []
+            }
         >
             <Input type="number" placeholder={`Enter ${field.label}`} />
         </Form.Item>
@@ -52,7 +74,11 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={field.required === '1' ? [{ required: true, message: `${field.label} is required` }] : []}
+            rules={
+                field.required === 'yes' && isFieldVisible(field.id)
+                    ? [{ required: true, message: `${field.label} is required` }]
+                    : []
+            }
         >
             <Input.TextArea 
                 placeholder={`Enter ${field.label}`}
@@ -71,7 +97,11 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 key={field.id}
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
-                rules={field.required === '1' ? [{ required: true, message: `${field.label} is required` }] : []}
+                rules={
+                    field.required === 'yes' && isFieldVisible(field.id)
+                        ? [{ required: true, message: `${field.label} is required` }]
+                        : []
+                }
             >
                 <Select
                     placeholder={`Select ${field.label}`}
@@ -95,7 +125,11 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 key={field.id}
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
-                rules={field.required === '1' ? [{ required: true, message: `${field.label} is required` }] : []}
+                rules={
+                    field.required === 'yes' && isFieldVisible(field.id)
+                        ? [{ required: true, message: `${field.label} is required` }]
+                        : []
+                }
             >
                 <Radio.Group>
                     {values.map((value: string, index: number) => (
@@ -118,7 +152,11 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 key={field.id}
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
-                rules={field.required === '1' ? [{ required: true, message: `${field.label} is required` }] : []}
+                rules={
+                    field.required === 'yes' && isFieldVisible(field.id)
+                        ? [{ required: true, message: `${field.label} is required` }]
+                        : []
+                }
             >
                 <Checkbox.Group>
                     {values.map((value: string, index: number) => (
@@ -136,7 +174,11 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={field.required === '1' ? [{ required: true, message: `${field.label} is required` }] : []}
+            rules={
+                field.required === 'yes' && isFieldVisible(field.id)
+                    ? [{ required: true, message: `${field.label} is required` }]
+                    : []
+            }
         >
             <DatePicker 
                 placeholder={`Select ${field.label}`}
@@ -146,6 +188,11 @@ const CustomFieldRenderer: React.FC<Props> = ({
     );
 
     const renderField = (field: CustomField) => {
+        // Check visibility
+        if (!isFieldVisible(field.id)) {
+            return null;
+        }
+
         switch (field.type) {
             case 'text':
                 return renderTextField(field);
@@ -168,11 +215,16 @@ const CustomFieldRenderer: React.FC<Props> = ({
 
     return (
         <Row gutter={[16, 16]}>
-            {fields.map(field => (
-                <Col key={field.id} span={field.type === 'textarea' ? 24 : 12}>
-                    {renderField(field)}
-                </Col>
-            ))}
+            {sortedFields.map(field => {
+                const fieldElement = renderField(field);
+                if (!fieldElement) return null;
+
+                return (
+                    <Col key={field.id} span={field.type === 'textarea' ? 24 : 12}>
+                        {fieldElement}
+                    </Col>
+                );
+            })}
         </Row>
     );
 };

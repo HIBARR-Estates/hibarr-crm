@@ -9,7 +9,6 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             label: "Search",
             type: "text",
             placeholder: "Search properties by title, area, description ...",
-            section: "Search & General",
             span: 24,
         },
         {
@@ -17,7 +16,6 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             label: "Property Type",
             type: "select",
             placeholder: "Select property type",
-            section: "Property Details",
             span: 12,
             options: [
                 { value: "apartment", label: "Apartment" },
@@ -34,7 +32,6 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             label: "Sale Type",
             type: "select",
             placeholder: "Select sale type",
-            section: "Property Details",
             span: 12,
             options: [
                 { value: "for_sale", label: "For Sale" },
@@ -47,7 +44,6 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             label: "Status",
             type: "select",
             placeholder: "Select status",
-            section: "Property Details",
             span: 12,
             options: [
                 { value: "available", label: "Available" },
@@ -62,14 +58,12 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             label: "City",
             type: "text",
             placeholder: "Enter city name",
-            section: "Location",
             span: 12,
         },
         {
             key: "price_range",
             label: "Price Range",
             type: "numberrange",
-            section: "Financial",
             span: 24,
             formatDisplayValue: (value: any) => {
                 if (Array.isArray(value)) {
@@ -83,7 +77,6 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             label: "Bedrooms",
             type: "select",
             placeholder: "Select bedrooms",
-            section: "Property Features",
             span: 12,
             options: [
                 { value: "studio", label: "Studio" },
@@ -99,7 +92,6 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             label: "Bathrooms",
             type: "select",
             placeholder: "Select bathrooms",
-            section: "Property Features",
             span: 12,
             options: [
                 { value: "1", label: "1 Bathroom" },
@@ -113,7 +105,6 @@ export const createPropertyFilterConfig = (props: any): FilterConfig => ({
             key: "created_date",
             label: "Created Date Range",
             type: "daterange",
-            section: "Date Range",
             span: 24,
         },
     ],

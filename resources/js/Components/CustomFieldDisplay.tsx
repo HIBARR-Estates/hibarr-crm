@@ -1,12 +1,16 @@
 import { Descriptions, Tag } from "antd";
 import dayjs from "dayjs";
+import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { CustomField } from "@/Types";
+import EditableField from "@/Components/EditableField";
 
 interface Field {
     id: string | number;
     label: string;
     type: string;
-    values?: Record<string, string>;
+    values?: Record<string, string> | string; // Updated to handle string (JSON) or object
     custom_field_category_id?: string | number;
+    show_rule_set?: any; // Visibility rules
 }
 
 interface Props {
@@ -14,6 +18,10 @@ interface Props {
     customFieldsData?: Record<string, any>;
     categoryId?: string | number;
     column?: number;
+    onUpdate?: (field: string, value: any) => Promise<void>;
+    editable?: boolean;
+    loading?: boolean; // Deprecated: use loadingField instead
+    loadingField?: string | null; // The specific field currently being updated
 }
 
 export default function CustomFieldDisplay({
@@ -21,13 +29,80 @@ export default function CustomFieldDisplay({
     customFieldsData,
     categoryId,
     column = 2,
+    onUpdate,
+    editable = false,
+    loading = false,
+    loadingField = null,
 }: Props) {
     // Filter fields by category if categoryId is provided
-    const filteredFields = categoryId
+    let filteredFields = categoryId
         ? fields.filter(
               (field) => field.custom_field_category_id === categoryId
           )
         : fields;
+
+    // Apply visibility rules if customFieldsData is provided
+    // Convert customFieldsData to the format expected by visibility evaluator
+    const fieldValuesForVisibility: Record<string, any> = {};
+    if (customFieldsData) {
+        Object.keys(customFieldsData).forEach((key) => {
+            // Ensure keys are in format "field_47"
+            if (key.startsWith("field_")) {
+                fieldValuesForVisibility[key] = customFieldsData[key];
+            } else {
+                fieldValuesForVisibility[`field_${key}`] =
+                    customFieldsData[key];
+            }
+        });
+    }
+
+    // Evaluate visibility for all fields
+    // Convert Field[] to CustomField[] format for evaluation
+    const customFieldsForEvaluation: CustomField[] = filteredFields.map(
+        (field) => {
+            // Handle values: may already be a JSON string from backend, or an object
+            let valuesString: string | null = null;
+            if (field.values) {
+                if (typeof field.values === "string") {
+                    // Already a string, use as-is (may be JSON string or plain string)
+                    valuesString = field.values;
+                } else {
+                    // Object/array, stringify it
+                    valuesString = JSON.stringify(field.values);
+                }
+            }
+
+            return {
+                id:
+                    typeof field.id === "string"
+                        ? parseInt(field.id)
+                        : field.id,
+                label: field.label,
+                name: `field_${field.id}`,
+                type: field.type,
+                required: "no",
+                values: valuesString,
+                custom_field_group_id: 0,
+                show_table: "no",
+                field_display_name: field.label,
+                field_order: 0,
+                display_order: 0,
+                show_rule_set: field.show_rule_set,
+            };
+        }
+    );
+
+    const visibilityMap = evaluateAllFieldsVisibility(
+        customFieldsForEvaluation,
+        fieldValuesForVisibility
+    );
+
+    // Filter out fields that are not visible
+    filteredFields = filteredFields.filter((field) => {
+        const fieldId =
+            typeof field.id === "string" ? parseInt(field.id) : field.id;
+        return visibilityMap[fieldId] !== false;
+    });
 
     // Calculate optimal span based on content length and field type
     const calculateSpan = (field: Field, value: any): number => {
@@ -94,7 +169,8 @@ export default function CustomFieldDisplay({
     // Format field value based on type
     const formatFieldValue = (field: Field, value: any) => {
         if (!value && value !== 0) {
-            return <span className="text-gray-500">--</span>;
+            if (!editable) return <span className="text-gray-500">--</span>;
+            // If editable, proceed to render component or empty string wrapper
         }
 
         switch (field.type) {
@@ -105,30 +181,104 @@ export default function CustomFieldDisplay({
                 return dayjs(value).format("MMM DD, YYYY HH:mm");
 
             case "select":
-                if (field.values && field.values[value]) {
+                // Parse values - can be JSON string array or object
+                let selectValues = field.values;
+                if (typeof selectValues === "string") {
+                    try {
+                        selectValues = JSON.parse(selectValues);
+                    } catch (e) {}
+                }
+
+                // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
+                if (Array.isArray(selectValues)) {
+                    // Array format - value is the string itself
+                    if (selectValues.includes(value)) {
+                        return (
+                            <Tag color="blue" className="font-medium">
+                                {value}
+                            </Tag>
+                        );
+                    }
+                } else if (selectValues && typeof selectValues === "object") {
+                    // Object format - lookup by key
+                    if ((selectValues as any)[value]) {
+                        return (
+                            <Tag color="blue" className="font-medium">
+                                {(selectValues as any)[value]}
+                            </Tag>
+                        );
+                    }
+                }
+                return value ? (
+                    <Tag color="blue" className="font-medium">
+                        {value}
+                    </Tag>
+                ) : (
+                    <span className="text-gray-500">--</span>
+                );
+
+            case "multiselect":
+            case "checkbox":
+                if (Array.isArray(value) && value.length > 0) {
+                    // Parse values - can be JSON string array or object
+                    let multiValues = field.values;
+                    if (typeof multiValues === "string") {
+                        try {
+                            multiValues = JSON.parse(multiValues);
+                        } catch (e) {}
+                    }
+
                     return (
-                        <Tag color="blue" className="font-medium">
-                            {field.values[value]}
+                        <div className="flex flex-wrap gap-1">
+                            {value.map((item, index) => {
+                                // For array format, item is the display value
+                                // For object format, lookup label by key
+                                let displayLabel = item;
+                                if (
+                                    multiValues &&
+                                    !Array.isArray(multiValues) &&
+                                    typeof multiValues === "object"
+                                ) {
+                                    displayLabel =
+                                        (multiValues as any)[item] || item;
+                                }
+                                return (
+                                    <Tag key={index} color="blue">
+                                        {displayLabel}
+                                    </Tag>
+                                );
+                            })}
+                        </div>
+                    );
+                }
+                // Empty array or no value
+                if (Array.isArray(value) && value.length === 0) {
+                    return <span className="text-gray-500">--</span>;
+                }
+                // Single checkbox value (boolean-like)
+                if (
+                    typeof value === "boolean" ||
+                    value === "1" ||
+                    value === "0" ||
+                    value === 1 ||
+                    value === 0
+                ) {
+                    const boolVal =
+                        value === true || value === "1" || value === 1;
+                    return (
+                        <Tag color={boolVal ? "green" : "red"}>
+                            {boolVal ? "Yes" : "No"}
                         </Tag>
                     );
                 }
-                return value;
-
-            case "multiselect":
-                if (Array.isArray(value)) {
-                    return (
-                        <div className="flex flex-wrap gap-1">
-                            {value.map((item, index) => (
-                                <Tag key={index} color="blue">
-                                    {field.values?.[item] || item}
-                                </Tag>
-                            ))}
-                        </div>
-                    );
+                // No value at all
+                if (!value) {
+                    return <span className="text-gray-500">--</span>;
                 }
                 return value;
 
             case "file":
+                if (!value) return null;
                 return (
                     <a
                         href={`/storage/custom_fields/${value}`}
@@ -189,7 +339,6 @@ export default function CustomFieldDisplay({
                     </div>
                 );
 
-            case "checkbox":
             case "boolean":
                 return (
                     <Tag color={value ? "green" : "red"}>
@@ -219,6 +368,125 @@ export default function CustomFieldDisplay({
         }
     };
 
+    const renderEditable = (field: Field, value: any) => {
+        if (!editable || !onUpdate) {
+            return formatFieldValue(field, value);
+        }
+
+        // Logic to select input type based on field type
+        let type:
+            | "text"
+            | "number"
+            | "date"
+            | "select"
+            | "multiselect"
+            | "boolean"
+            | "textarea"
+            | "email" = "text";
+        let options: { label: string; value: string | number }[] = [];
+
+        switch (field.type) {
+            case "number":
+            case "currency":
+                type = "number";
+                break;
+            case "date":
+                type = "date";
+                break;
+            case "textarea":
+                type = "textarea";
+                break;
+            case "email":
+                type = "email";
+                break;
+            case "select":
+            case "radio":
+                type = "select";
+                let valuesObj = field.values;
+                if (typeof valuesObj === "string") {
+                    try {
+                        valuesObj = JSON.parse(valuesObj);
+                    } catch (e) {}
+                }
+                if (valuesObj) {
+                    // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
+                    if (Array.isArray(valuesObj)) {
+                        options = valuesObj.map((v: string) => ({
+                            label: v,
+                            value: v,
+                        }));
+                    } else {
+                        options = Object.entries(valuesObj).map(([k, v]) => ({
+                            label: v as string,
+                            value: k,
+                        }));
+                    }
+                }
+                break;
+            case "multiselect":
+            case "checkbox":
+                // Check if checkbox/multiselect has values (options)
+                let multiCheckboxValues = field.values;
+                if (typeof multiCheckboxValues === "string") {
+                    try {
+                        multiCheckboxValues = JSON.parse(multiCheckboxValues);
+                    } catch (e) {}
+                }
+                // If it has values array/object, it's a multi-select
+                if (
+                    multiCheckboxValues &&
+                    (Array.isArray(multiCheckboxValues)
+                        ? multiCheckboxValues.length > 0
+                        : Object.keys(multiCheckboxValues).length > 0)
+                ) {
+                    type = "multiselect";
+                    if (Array.isArray(multiCheckboxValues)) {
+                        options = multiCheckboxValues.map((v: string) => ({
+                            label: v,
+                            value: v,
+                        }));
+                    } else {
+                        options = Object.entries(multiCheckboxValues).map(
+                            ([k, v]) => ({
+                                label: v as string,
+                                value: k,
+                            })
+                        );
+                    }
+                } else {
+                    // No values means simple boolean checkbox
+                    type = "boolean";
+                }
+                break;
+            case "boolean":
+                type = "boolean";
+                break;
+            default:
+                type = "text";
+        }
+
+        // Only skip file and time types - these need special handling
+        if (["file", "time"].includes(field.type)) {
+            return formatFieldValue(field, value);
+        }
+
+        const fieldKey = `field_${field.id}`;
+        const isFieldLoading =
+            loadingField === fieldKey || (loading && !loadingField);
+
+        return (
+            <EditableField
+                value={value}
+                fieldName={fieldKey}
+                fieldType={type}
+                onSave={(val) => onUpdate!(fieldKey, val)}
+                options={options}
+                displayValue={formatFieldValue(field, value)}
+                loading={isFieldLoading}
+            />
+        );
+    };
+
     if (filteredFields.length === 0) {
         return (
             <div className="text-center py-8">
@@ -234,7 +502,6 @@ export default function CustomFieldDisplay({
             {filteredFields.map((field) => {
                 const value = customFieldsData?.[`field_${field.id}`];
                 const span = calculateSpan(field, value);
-                const formattedValue = formatFieldValue(field, value);
 
                 return (
                     <Descriptions.Item
@@ -246,7 +513,7 @@ export default function CustomFieldDisplay({
                         }
                         span={span}
                     >
-                        {formattedValue}
+                        {renderEditable(field, value)}
                     </Descriptions.Item>
                 );
             })}

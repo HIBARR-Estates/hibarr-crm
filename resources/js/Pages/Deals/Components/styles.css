@@ -2,15 +2,23 @@
 
 /* Custom card styling */
 .deal-info-tabs .ant-tabs-tab {
-    @apply px-6 py-3 font-medium;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    font-weight: 500;
 }
 
 .deal-info-tabs .ant-tabs-tab-active {
-    @apply text-blue-600;
+    color: #2563eb;
 }
 
 .deal-detail-tabs .ant-tabs-tab {
-    @apply px-6 py-3 font-medium;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    font-weight: 500;
 }
 
 .deal-detail-tabs .ant-tabs-tab-active {
@@ -55,11 +63,19 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .deal-info-tabs .ant-tabs-tab {
-        @apply px-3 py-2 text-sm;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        font-size: 0.875rem;
     }
 
     .deal-detail-tabs .ant-tabs-tab {
-        @apply px-3 py-2 text-sm;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        font-size: 0.875rem;
     }
 }
 

@@ -10,9 +10,12 @@ interface FormDataSelectorProps {
     type: FormDataType;
     value?: any;
     onChange?: (value: any) => void;
+    onSelect?: (value: any, entity?: any) => void;
     placeholder?: string;
     allowClear?: boolean;
     disabled?: boolean;
+    className?: string;
+    mode?: "multiple" | "tags";
 }
 
 /**
@@ -23,9 +26,12 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
     type,
     value,
     onChange,
+    onSelect,
     placeholder,
     allowClear = true,
     disabled = false,
+    className,
+    mode,
 }) => {
     // Memoize params to ensure referential stability and prevent infinite loops
     const params = React.useMemo(
@@ -38,47 +44,64 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
 
     // Only fetch data with minimal parameters to reduce unnecessary calls
     const { data, loading, error } = useFormData(type, params);
-
+    const organizeddata = Array.isArray(data) ? data : [];
     // Generate options with better error handling and type checking
-    const options = Array.isArray(data)
-        ? data?.map((item) => {
-              let label = "Unknown";
+    const options = organizeddata?.map((item) => {
+        let label = "Unknown";
+        if (type === "packages") {
+            label = item.name || "Unknown Package";
+            return {
+                label,
+                value: item.id,
+            };
+        }
 
-              // Handle different data structures
-              if (item.label) {
-                  label = item.label;
-              } else if (item.name) {
-                  label = item.name;
-              } else if (item.type) {
-                  label = item.type;
-              } else if (item.category_name) {
-                  label = item.category_name;
-              } else if (item.first_name && item.last_name) {
-                  label = `${item.first_name} ${item.last_name}`;
-              } else if (item.first_name) {
-                  label = item.first_name;
-              } else if (item.language_name) {
-                  label = item.language_name;
-              } else if (typeof item === "string") {
-                  label = item;
-              }
+        // Handle different data structures
+        if (item.label) {
+            label = item.label;
+        } else if (item.name) {
+            label = item.name;
+        } else if (item.type) {
+            label = item.type;
+        } else if (item.category_name) {
+            label = item.category_name;
+        } else if (item.first_name && item.last_name) {
+            label = `${item.first_name} ${item.last_name}`;
+        } else if (item.first_name) {
+            label = item.first_name;
+        } else if (item.language_name) {
+            label = item.language_name;
+        } else if (item.user) {
+            label = item?.user?.name_salutation || item?.user?.name;
+        } else if (item.client_name) {
+            label = item.client_name;
+        } else if (typeof item === "string") {
+            label = item;
+        }
 
-              return {
-                  label,
-                  value: item.value || item.id,
-              };
-          })
-        : [];
+        return {
+            label,
+            value: item.value || item.id,
+        };
+    });
 
     return (
         <Select
+            className={className}
             value={value}
+            onSelect={(value) =>
+                onSelect?.(
+                    value,
+                    organizeddata.find((d: any) => (d.id || d.value) === value)
+                )
+            }
             onChange={onChange}
             placeholder={placeholder || `Select ${type.replace("-", " ")}`}
             allowClear={allowClear}
             loading={loading}
             disabled={disabled || loading}
             options={options}
+            mode={mode}
             showSearch
             filterOption={(input, option) =>
                 (option?.label ?? "")

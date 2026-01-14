@@ -1,6 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 
 import { Card, Row, Col, Divider, Typography } from "antd";
+import { RightOutlined } from "@ant-design/icons";
 import DealInfoSection from "./Components/DealInfoSection";
 import DealTabs from "./Components/DealTabs";
 import ActivitySidebar from "./Components/ActivitySidebar";
@@ -38,7 +39,7 @@ interface Props extends PageProps {
 }
 const { Title } = Typography;
 
-export const  Show = ({
+export const Show = ({
     deal,
     productNames,
     customFieldCategories,
@@ -59,7 +60,7 @@ export const  Show = ({
     taskBoardColumns,
     employees,
     projects,
-}: Props) =>{
+}: Props) => {
     return (
         <>
             <PageLayout
@@ -84,7 +85,7 @@ export const  Show = ({
                                             {deal.pipeline?.name}
                                         </div>
 
-                                        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar mask-linear-fade">
+                                        <div className="flex items-center gap-2 flex-wrap">
                                             {deal.pipeline?.stages?.map(
                                                 (stage, index) => {
                                                     const currentPriority =
@@ -104,32 +105,35 @@ export const  Show = ({
                                                         >
                                                             <div
                                                                 className={`
-                                                                flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border
+                                                                flex items-center px-3 py-1.5 rounded-md text-sm font-bold transition-all duration-200 border
                                                                 ${
                                                                     isCurrent
-                                                                        ? "shadow-sm scale-105 font-bold"
+                                                                        ? "shadow-sm scale-105"
                                                                         : isCompleted
-                                                                        ? "opacity-80"
-                                                                        : "opacity-50 grayscale"
+                                                                        ? ""
+                                                                        : "opacity-60"
                                                                 }
                                                             `}
                                                                 style={{
                                                                     backgroundColor:
                                                                         isCurrent ||
                                                                         isCompleted
-                                                                            ? `${stage.label_color}15`
-                                                                            : "#f3f4f6",
+                                                                            ? `${stage.label_color}25`
+                                                                            : "#e5e7eb",
                                                                     color:
                                                                         isCurrent ||
                                                                         isCompleted
                                                                             ? stage.label_color
-                                                                            : "#6b7280",
+                                                                            : "#4b5563",
                                                                     borderColor:
                                                                         isCurrent
                                                                             ? stage.label_color
                                                                             : "transparent",
                                                                 }}
                                                             >
+                                                                <span className="mr-1.5">
+                                                                    •
+                                                                </span>
                                                                 {stage.name}
                                                             </div>
                                                             {index <
@@ -138,13 +142,7 @@ export const  Show = ({
                                                                     ?.length ||
                                                                     0) -
                                                                     1 && (
-                                                                <div
-                                                                    className={`w-4 h-0.5 mx-1 rounded-full shrink-0 ${
-                                                                        isCompleted
-                                                                            ? "bg-gray-300"
-                                                                            : "bg-gray-100"
-                                                                    }`}
-                                                                />
+                                                                <div className="w-6 h-0.5 bg-gray-300 mx-1" />
                                                             )}
                                                         </div>
                                                     );
@@ -155,13 +153,16 @@ export const  Show = ({
                                                 deal.pipeline.stages.length ===
                                                     0) && (
                                                 <div
-                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
                                                     style={{
-                                                        backgroundColor: `${deal.lead_stage?.label_color}20`,
+                                                        backgroundColor: `${deal.lead_stage?.label_color}25`,
                                                         color: deal.lead_stage
                                                             ?.label_color,
                                                     }}
                                                 >
+                                                    <span className="mr-1.5">
+                                                        •
+                                                    </span>
                                                     {deal.lead_stage?.name}
                                                 </div>
                                             )}
@@ -247,8 +248,7 @@ export const  Show = ({
             </PageLayout>
         </>
     );
-}
-
+};
 
 Show.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>

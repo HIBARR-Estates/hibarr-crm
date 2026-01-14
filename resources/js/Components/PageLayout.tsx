@@ -4,6 +4,7 @@ import { Head, Link, router, usePage } from "@inertiajs/react";
 import { HomeOutlined } from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import NotificationDropdown from "./NotificationDropdown";
 
 interface BreadcrumbItem {
     name: string;
@@ -107,7 +108,7 @@ export default function PageLayout({
         <>
             <Head title={title} />
 
-            <div className="min-h-screen bg-blue-100/20">
+            <div className="min-h-screen bg-gray-100">
                 {/* Page Header/Topbar */}
                 <div className="bg-white border-b border-gray-200 px-6 py-4">
                     <div className="flex items-center gap-x-6">
@@ -139,36 +140,38 @@ export default function PageLayout({
                                 </div>
                             </div>
                         )}
-
-                        <Dropdown
-                            menu={{ items: userMenuItems }}
-                            placement="bottomLeft"
-                        >
-                            {/* ensure this always at the end */}
-                            <div className="flex items-center justify-between cursor-pointer ml-auto">
-                                <div className="flex items-center gap-x-2">
-                                    <Avatar
-                                        src={user?.image_url}
-                                        size="small"
-                                        alt={user?.name}
-                                    >
-                                        {user?.name?.charAt(0)}
-                                    </Avatar>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-medium truncate">
-                                            {user?.name}
-                                        </span>
-                                        <span className="text-xs text-gray-500 truncate">
-                                            {user?.employee_detail?.designation
-                                                ?.name ??
-                                                user?.roles?.[0]
-                                                    ?.display_name ??
-                                                appName}
-                                        </span>
+                        <div className="ml-auto flex items-center gap-4">
+                            <NotificationDropdown pollingInterval={30000} />
+                            <Dropdown
+                                menu={{ items: userMenuItems }}
+                                placement="bottomLeft"
+                            >
+                                {/* ensure this always at the end */}
+                                <div className="flex items-center justify-between cursor-pointer ml-auto">
+                                    <div className="flex items-center gap-x-2">
+                                        <Avatar
+                                            src={user?.image_url}
+                                            size="small"
+                                            alt={user?.name}
+                                        >
+                                            {user?.name?.charAt(0)}
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium truncate">
+                                                {user?.name}
+                                            </span>
+                                            <span className="text-xs text-gray-500 truncate">
+                                                {user?.employee_detail
+                                                    ?.designation?.name ??
+                                                    user?.roles?.[0]
+                                                        ?.display_name ??
+                                                    appName}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </Dropdown>
+                            </Dropdown>
+                        </div>
                     </div>
                 </div>
 

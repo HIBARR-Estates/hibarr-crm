@@ -10,7 +10,6 @@ const createTaskFilterConfig = (
             label: "Search",
             type: "text",
             placeholder: "Search tasks...",
-            section: "Search & General",
             span: 24,
         },
         {

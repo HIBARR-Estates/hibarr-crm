@@ -18,6 +18,8 @@ jobs:
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGIN_SSH_PRIVATE_KEY }}
           port: 2244
+          timeout: 30m
+          command_timeout: 30m
           script: |
             cd ~/hibarr-crm-staging
             make deploy-staging
@@ -33,6 +35,8 @@ jobs:
           host: ${{ secrets.PRODUCTION_HOST }}
           username: ${{ secrets.PRODUCTION_USER }}
           key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          timeout: 30m
+          command_timeout: 30m
           script: |
             cd /var/www/html
             git fetch origin

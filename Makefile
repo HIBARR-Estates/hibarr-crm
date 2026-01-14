@@ -26,18 +26,18 @@ checkout-branch:
 	@echo "Switching to branch: $(BRANCH)"
 	git fetch origin
 	git checkout -f $(BRANCH) || git checkout -b $(BRANCH) origin/$(BRANCH)
-	git clean -fd -e storage
+	git clean -fd -e storage -e node_modules -e vendor
 
 reset-and-pull:
 	@echo "Resetting and pulling latest changes from $(BRANCH)"
 	git fetch origin
 	git reset --hard origin/$(BRANCH)
-	git clean -fd -e storage
+	git clean -fd -e storage -e node_modules -e vendor
 
 reset-repo:
 	git restore --staged .
 	git restore .
-	git clean -fd -e storage
+	git clean -fd -e storage -e node_modules -e vendor
 
 
 
@@ -79,7 +79,6 @@ deploy-staging:
 	git pull origin staging && \
 	$(MAKE) sync-to-webroot && \
 	cd $(WEBROOT) && \
-	$(MAKE) ensure-storage && \
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
 	$(MAKE) migrate && \
@@ -90,7 +89,7 @@ deploy-production:
 	git fetch origin && \
 	git checkout -f main && \
 	git reset --hard origin/main && \
-	git clean -fd -e storage && \
+	git clean -fd -e storage -e node_modules -e vendor && \
 	$(MAKE) ensure-storage && \
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
