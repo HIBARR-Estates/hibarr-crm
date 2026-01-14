@@ -9,7 +9,7 @@ use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use Illuminate\Support\Str;
 use App\Enums\DealUpdateType;
-use DB;
+use Illuminate\Support\Facades\DB;
 
 class DealGatheringService
 {
@@ -129,6 +129,8 @@ class DealGatheringService
         }
 
         $categories = CustomFieldCategory::where('custom_field_group_id', $group->id)
+            ->orderBy(DB::raw('`order`'), 'asc')
+            ->orderBy('id', 'asc')
             ->with(['customFields' => function($q) {
                 // Order by display_order, don't filter by 'visible' as that's for table display
                 $q->orderBy('display_order')

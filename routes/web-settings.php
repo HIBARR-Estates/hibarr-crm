@@ -168,6 +168,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     
     // Custom Field Categories
     Route::get('custom-field-categories/get-by-group', [CustomFieldCategoryController::class, 'getCategoriesByGroup'])->name('custom-field-categories.get-by-group');
+    Route::post('custom-field-categories/sort', [CustomFieldCategoryController::class, 'sortCategories'])->name('custom-field-categories.sort');
     Route::resource('custom-field-categories', CustomFieldCategoryController::class);
 
     // Tax Settings

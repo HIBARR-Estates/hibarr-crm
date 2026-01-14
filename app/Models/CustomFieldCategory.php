@@ -37,7 +37,8 @@ class CustomFieldCategory extends BaseModel
     protected $fillable = [
         'name',
         'custom_field_group_id',
-        'company_id'
+        'company_id',
+        'order'
     ];
 
     protected $table = 'custom_field_categories';

@@ -10,7 +10,7 @@ class HandleInertiaRequests extends Middleware
     /**
      * The root template that's loaded on the first page visit.
      */
-    // protected $rootView = 'layouts.inertia_vite';
+    //protected $rootView = 'layouts.inertia_vite';
     protected $rootView = 'layouts.inertia_alt';
 
     /**

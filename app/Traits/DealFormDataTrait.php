@@ -7,6 +7,7 @@ use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
 use App\Models\Lead;
+use Illuminate\Support\Facades\DB;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use App\Models\LeadPipeline;
@@ -40,6 +41,8 @@ trait DealFormDataTrait
         if ($dealCustomFieldGroup) {
             $customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $dealCustomFieldGroup->id)
                 ->where('company_id', company()->id)
+                ->orderBy(DB::raw('`order`'), 'asc')
+                ->orderBy('id', 'asc')
                 ->get();
         }
 
