@@ -12,6 +12,7 @@ import {
     Divider,
     Space,
     Tooltip,
+    message,
 } from "antd";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import {
@@ -35,8 +36,8 @@ import dayjs from "dayjs";
 import { icons } from "antd/es/image/PreviewGroup";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { ApiResponse } from "@/lib/api/types";
 import UserIndicator from "@/Components/UserIndicator";
+import axios from "axios";
 
 interface Props {
     lead: Lead;
@@ -80,24 +81,25 @@ export default function LeadInfoSection({
     // API Mutation for inline updates
     const { mutateAsync: updateLead, status } = useApiMutate<
         Record<string, any>,
-        Lead,
-        ApiResponse<{ lead: Lead }>
+        { lead: Lead },
+        any
     >(
         route("lead-contact.patch", { lead_contact: currentLeadState.id }),
         "PATCH",
-        (response) => {
+        (response: any) => {
             if (response?.status === "success" && response?.data?.lead) {
                 // Merge only the updated attributes into current state
                 // This preserves relationships and custom fields that weren't reloaded
                 setCurrentLeadState((prev) => {
-                    const updated = { ...prev };
+                    const updated = { ...prev } as Record<string, any>;
                     // Only update the fields that were returned
-                    Object.keys(response.data.lead).forEach((key) => {
-                        if (response.data.lead[key] !== undefined) {
-                            updated[key] = response.data.lead[key];
+                    const leadData = response.data.lead as Record<string, any>;
+                    Object.keys(leadData).forEach((key) => {
+                        if (leadData[key] !== undefined) {
+                            updated[key] = leadData[key];
                         }
                     });
-                    return updated;
+                    return updated as Lead;
                 });
             }
             // Clear the updating field after completion
@@ -145,35 +147,84 @@ export default function LeadInfoSection({
 
         // Check if this is a custom field (starts with "field_")
         const isCustomField = fieldName.startsWith("field_");
-        
-        let payloadData: Record<string, any>;
 
-        if (isCustomField) {
-            // Handle custom fields
-            payloadData = {
-                custom_fields: {
-                    [fieldName]: value,
-                },
-            };
-        } else {
-            // Map frontend field names to API field names
-            const apiFieldName = fieldName;
-            let processedValue = value;
-
-            // Process value based on field type
-            if (fieldName === "mobile") {
-                // Keep mobile as is, backend will handle JSON formatting if needed
-                processedValue = value;
-            } else if (fieldName === "close_date" || fieldName === "next_follow_up") {
-                processedValue = value || null;
-            } else if (fieldName === "value") {
-                processedValue = value ? parseFloat(value.toString()) : 0;
-            }
-
-            payloadData = { [apiFieldName]: processedValue };
-        }
+        // Check if value is a File (for file uploads)
+        const isFile = value instanceof File;
 
         try {
+            if (isFile) {
+                // Handle file upload via FormData
+                const formData = new FormData();
+                formData.append(`custom_fields[${fieldName}]`, value);
+
+                const response = await axios.patch(
+                    route("lead-contact.patch", {
+                        lead_contact: currentLeadState.id,
+                    }),
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                            Accept: "application/json",
+                        },
+                    }
+                );
+
+                if (
+                    response.data?.status === "success" &&
+                    response.data?.data?.lead
+                ) {
+                    setCurrentLeadState((prev) => {
+                        const updated = { ...prev } as Record<string, any>;
+                        const leadData = response.data.data.lead as Record<
+                            string,
+                            any
+                        >;
+                        Object.keys(leadData).forEach((key) => {
+                            if (leadData[key] !== undefined) {
+                                updated[key] = leadData[key];
+                            }
+                        });
+                        return updated as Lead;
+                    });
+                    message.success("File uploaded successfully");
+                }
+                setUpdatingField(null);
+                return;
+            }
+
+            let payloadData: Record<string, any>;
+
+            if (isCustomField) {
+                // Handle custom fields - send as custom_fields object
+                payloadData = {
+                    custom_fields: {
+                        [fieldName]: value,
+                    },
+                };
+            } else {
+                // Map frontend field names to API field names and process values
+                let processedValue = value;
+
+                // Process value based on field type
+                if (fieldName === "mobile") {
+                    // Keep mobile as is, backend will handle JSON formatting if needed
+                    processedValue = value;
+                } else if (
+                    fieldName === "close_date" ||
+                    fieldName === "next_follow_up"
+                ) {
+                    processedValue = value || null;
+                } else if (fieldName === "value") {
+                    processedValue = value ? parseFloat(value.toString()) : 0;
+                } else if (fieldName === "gender") {
+                    // Ensure gender is sent as the actual value (male/female) or null
+                    processedValue = value || null;
+                }
+
+                payloadData = { [fieldName]: processedValue };
+            }
+
             await updateLead(payloadData);
         } catch (error: any) {
             // Clear the updating field on error
@@ -276,7 +327,10 @@ export default function LeadInfoSection({
                         {/* Contact Information */}
                         <Descriptions.Item label="Name">
                             <EditableField
-                                value={currentLeadState.client_name_salutation || currentLeadState.client_name}
+                                value={
+                                    currentLeadState.client_name_salutation ||
+                                    currentLeadState.client_name
+                                }
                                 fieldName="client_name"
                                 fieldType="text"
                                 onSave={(value) =>
@@ -297,7 +351,10 @@ export default function LeadInfoSection({
                                         fieldName="client_email"
                                         fieldType="email"
                                         onSave={(value) =>
-                                            handleFieldUpdate("client_email", value)
+                                            handleFieldUpdate(
+                                                "client_email",
+                                                value
+                                            )
                                         }
                                         className="text-blue-600 hover:text-blue-800"
                                         disabled={!canEdit}
@@ -323,7 +380,13 @@ export default function LeadInfoSection({
                             <div className="flex items-center gap-x-2">
                                 <PhoneOutlined className="text-gray-400" />
                                 <EditableField
-                                    value={getMobileNumber(currentLeadState.mobile) || currentLeadState.mobile_with_phonecode || ""}
+                                    value={
+                                        getMobileNumber(
+                                            currentLeadState.mobile
+                                        ) ||
+                                        currentLeadState.mobile_with_phonecode ||
+                                        ""
+                                    }
                                     fieldName="mobile"
                                     fieldType="text"
                                     onSave={(value) =>
@@ -338,7 +401,11 @@ export default function LeadInfoSection({
 
                         <Descriptions.Item label="Office Phone">
                             <EditableField
-                                value={currentLeadState.office_phone_formatted || currentLeadState.office || ""}
+                                value={
+                                    currentLeadState.office_phone_formatted ||
+                                    currentLeadState.office ||
+                                    ""
+                                }
                                 fieldName="office"
                                 fieldType="text"
                                 onSave={(value) =>
@@ -362,13 +429,17 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("gender", value)
                                 }
-                                displayValue={currentLeadState.gender ? (
-                                    <span className="capitalize">
-                                        {currentLeadState.gender}
-                                    </span>
-                                ) : (
-                                    <span className="text-gray-500">--</span>
-                                )}
+                                displayValue={
+                                    currentLeadState.gender ? (
+                                        <span className="capitalize">
+                                            {currentLeadState.gender}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
+                                    )
+                                }
                                 disabled={!canEdit}
                                 loading={isFieldLoading("gender")}
                             />
@@ -399,7 +470,9 @@ export default function LeadInfoSection({
                                     }
                                     displayValue={
                                         <a
-                                            href={String(currentLeadState.website)}
+                                            href={String(
+                                                currentLeadState.website
+                                            )}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-blue-600 hover:text-blue-800"
@@ -429,7 +502,15 @@ export default function LeadInfoSection({
                         {/* Lead Details */}
                         <Descriptions.Item label="Lead Owner">
                             <EditableField
-                                value={currentLeadState.lead_owner?.id || currentLeadState.lead_owner || null}
+                                value={
+                                    currentLeadState.lead_owner &&
+                                    typeof currentLeadState.lead_owner ===
+                                        "object"
+                                        ? currentLeadState.lead_owner.id
+                                        : (currentLeadState.lead_owner as
+                                              | number
+                                              | null) ?? null
+                                }
                                 fieldName="lead_owner"
                                 selectorType="employees"
                                 onSave={(value) =>
@@ -442,7 +523,9 @@ export default function LeadInfoSection({
                                             size="sm"
                                         />
                                     ) : (
-                                        <span className="text-gray-500">--</span>
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
                                     )
                                 }
                                 disabled={!canEdit}
@@ -455,10 +538,14 @@ export default function LeadInfoSection({
                                 <div className="flex items-center gap-x-2">
                                     <Avatar
                                         size="small"
-                                        src={currentLeadState.added_by?.image_url}
+                                        src={
+                                            currentLeadState.added_by?.image_url
+                                        }
                                         icon={<UserOutlined />}
                                     />
-                                    <span>{currentLeadState.added_by?.name}</span>
+                                    <span>
+                                        {currentLeadState.added_by?.name}
+                                    </span>
                                 </div>
                             ) : (
                                 <span className="text-gray-500">--</span>
@@ -466,10 +553,34 @@ export default function LeadInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Lead Source">
-                            {currentLeadState.leadSource?.type ||
-                                currentLeadState.lead_source?.type || (
-                                    <span className="text-gray-500">--</span>
-                                )}
+                            <EditableField
+                                value={currentLeadState.source_id || null}
+                                fieldName="source_id"
+                                selectorType="sources"
+                                onSave={(value) =>
+                                    handleFieldUpdate("source_id", value)
+                                }
+                                displayValue={
+                                    currentLeadState.leadSource?.type ||
+                                    currentLeadState.lead_source?.type ? (
+                                        <Tag
+                                            color="green"
+                                            className="font-medium"
+                                        >
+                                            {currentLeadState.leadSource
+                                                ?.type ||
+                                                currentLeadState.lead_source
+                                                    ?.type}
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
+                                    )
+                                }
+                                disabled={!canEdit}
+                                loading={isFieldLoading("source_id")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Category">
@@ -482,11 +593,19 @@ export default function LeadInfoSection({
                                 }
                                 displayValue={
                                     currentLeadState.category?.category_name ? (
-                                        <Tag color="blue" className="font-medium">
-                                            {currentLeadState.category.category_name}
+                                        <Tag
+                                            color="blue"
+                                            className="font-medium"
+                                        >
+                                            {
+                                                currentLeadState.category
+                                                    .category_name
+                                            }
                                         </Tag>
                                     ) : (
-                                        <span className="text-gray-500">--</span>
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
                                     )
                                 }
                                 disabled={!canEdit}
@@ -498,7 +617,9 @@ export default function LeadInfoSection({
                             {currentLeadState.created_at ? (
                                 <span>
                                     <CalendarOutlined className="mr-1" />
-                                    {dayjs(currentLeadState.created_at).format("MMM DD, YYYY HH:mm")}
+                                    {dayjs(currentLeadState.created_at).format(
+                                        "MMM DD, YYYY HH:mm"
+                                    )}
                                 </span>
                             ) : (
                                 <span className="text-gray-500">--</span>
@@ -509,7 +630,9 @@ export default function LeadInfoSection({
                             {currentLeadState.updated_at ? (
                                 <span>
                                     <CalendarOutlined className="mr-1" />
-                                    {dayjs(currentLeadState.updated_at).format("MMM DD, YYYY HH:mm")}
+                                    {dayjs(currentLeadState.updated_at).format(
+                                        "MMM DD, YYYY HH:mm"
+                                    )}
                                 </span>
                             ) : (
                                 <span className="text-gray-500">--</span>
@@ -588,7 +711,9 @@ export default function LeadInfoSection({
                                             {currentLeadState.address}
                                         </span>
                                     ) : (
-                                        <span className="text-gray-500">--</span>
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
                                     )
                                 }
                                 placeholder="Add address"
