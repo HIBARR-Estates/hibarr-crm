@@ -1,12 +1,16 @@
 import React from "react";
-import { FloatButton, Popover, List } from "antd";
+import { Popover, List, Button } from "antd";
 import {
     QuestionCircleOutlined,
     BugOutlined,
     BulbOutlined,
 } from "@ant-design/icons";
 
-const SupportWidget: React.FC = () => {
+interface SupportWidgetProps {
+    collapsed?: boolean;
+}
+
+const SupportWidget: React.FC<SupportWidgetProps> = ({ collapsed = false }) => {
     const content = (
         <div className="w-64">
             <List
@@ -42,19 +46,37 @@ const SupportWidget: React.FC = () => {
     );
 
     return (
-        <Popover
-            content={content}
-            title="Support & Feedback"
-            trigger="click"
-            placement="topRight"
+        <div
+            style={{
+                padding: 12,
+                borderTop: "1px solid rgba(255,255,255,0.1)",
+            }}
         >
-            <FloatButton
-                icon={<QuestionCircleOutlined />}
-                type="primary"
-                style={{ right: 24, bottom: 24 }}
-                tooltip="Support"
-            />
-        </Popover>
+            <Popover
+                content={content}
+                title="Support & Feedback"
+                trigger="click"
+                placement="topRight"
+            >
+                <Button
+                    icon={<QuestionCircleOutlined style={{ fontSize: 16 }} />}
+                    style={{
+                        width: "100%",
+                        height: 40,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: collapsed ? "center" : "flex-start",
+                        backgroundColor: "rgba(255,255,255,0.1)",
+                        border: "none",
+                        color: "rgba(255,255,255,0.85)",
+                    }}
+                >
+                    {!collapsed && (
+                        <span style={{ marginLeft: 8 }}>Support</span>
+                    )}
+                </Button>
+            </Popover>
+        </div>
     );
 };
 

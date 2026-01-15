@@ -43,6 +43,8 @@ const siderStyle: React.CSSProperties = {
     bottom: 0,
     scrollbarWidth: "thin",
     maxWidth: "250px",
+    display: "flex",
+    flexDirection: "column",
     // scrollbarGutter: "stable",
 };
 
@@ -59,13 +61,11 @@ const DashboardLayout: React.FC<{
     } = theme.useToken();
     const [collapsed, setCollapsed] = useState(false);
 
-    const {activeMenuKeys, menuItems, defaultOpenKeys} = useDashboardLayoutProps();
+    const { activeMenuKeys, menuItems, defaultOpenKeys } =
+        useDashboardLayoutProps();
 
-
-
-   
-console.log(permissions, modules, 'what are the permissions ...')
-console.log(auth, 'what are the user permissions ...')
+    console.log(permissions, modules, "what are the permissions ...");
+    console.log(auth, "what are the user permissions ...");
 
     return (
         <Layout hasSider>
@@ -76,34 +76,39 @@ console.log(auth, 'what are the user permissions ...')
                 onCollapse={(value) => setCollapsed(value)}
                 theme={"dark"}
             >
-                {/* Sidebar Brand */}
-                <div className="px-4 flex items-center justify-center h-[69px]">
-                    <Image
-                        src={company?.logo_url}
-                        alt={appName}
-                        preview={false}
-                        style={{
-                            maxHeight: "50px",
-                            maxWidth: "100%",
-                            objectFit: "contain",
-                        }}
-                    />
-                </div>
+                <div className="flex flex-col h-full">
+                    {/* Sidebar Brand */}
+                    <div className="px-4 flex items-center justify-center h-[69px]">
+                        <Image
+                            src={company?.logo_url}
+                            alt={appName}
+                            preview={false}
+                            style={{
+                                maxHeight: "50px",
+                                maxWidth: "100%",
+                                objectFit: "contain",
+                            }}
+                        />
+                    </div>
 
-                {/* Navigation Menu */}
-                <Menu
-                    // theme={user?.dark_theme ? "dark" : "light"}
-                    // TODO: Update once work is finished on the dashboard layout
-                    theme={"dark"}
-                    mode="inline"
-                    selectedKeys={activeMenuKeys}
-                    defaultOpenKeys={defaultOpenKeys.filter((key) =>
-                        ["dashboard", "hr", "work", "finance"].includes(key)
-                    )}
-                    items={menuItems}
-                    className="border-none"
-                    style={{ padding: "12px 8px" }}
-                />
+                    {/* Navigation Menu */}
+                    <Menu
+                        // theme={user?.dark_theme ? "dark" : "light"}
+                        // TODO: Update once work is finished on the dashboard layout
+                        theme={"dark"}
+                        mode="inline"
+                        selectedKeys={activeMenuKeys}
+                        defaultOpenKeys={defaultOpenKeys.filter((key) =>
+                            ["dashboard", "hr", "work", "finance"].includes(key)
+                        )}
+                        items={menuItems}
+                        className="border-none flex-1 overflow-y-auto"
+                        style={{ padding: "12px 8px" }}
+                    />
+
+                    {/* Support Widget at bottom */}
+                    <SupportWidget collapsed={collapsed} />
+                </div>
             </Sider>
 
             <Layout>
@@ -125,7 +130,6 @@ console.log(auth, 'what are the user permissions ...')
                     </div>
                 </Content>
             </Layout>
-            <SupportWidget />
         </Layout>
     );
 };
