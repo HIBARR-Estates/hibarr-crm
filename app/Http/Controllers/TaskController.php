@@ -81,6 +81,12 @@ class TaskController extends AccountBaseController
             'deals',
             'leads',
             'properties'
+        ])->withCount([
+            'files',
+            'notes',
+            'comments',
+            'subtasks',
+            'completedSubtasks'
         ]);
 
         // Apply permission-based filtering
@@ -189,6 +195,15 @@ class TaskController extends AccountBaseController
 
         $tableTasks = $tasksQuery->paginate(request('per_page', 50))->withQueryString();
         $kanbanTasks = $kanbanQuery->get();
+        
+        // Ensure kanban tasks also have the counts
+        $kanbanTasks->loadCount([
+            'files',
+            'notes',
+            'comments',
+            'subtasks',
+            'completedSubtasks'
+        ]);
 
         // Calculate Stats
         $stats = [
@@ -236,16 +251,16 @@ class TaskController extends AccountBaseController
                 })->toArray(),
                 'labels' => $task->labels->map(function ($label) {
                     return [
-                        'id' => $label->label->id,
-                        'label_name' => $label->label->label_name,
-                        'label_color' => $label->label->label_color,
+                        'id' => $label->id,
+                        'label_name' => $label->label_name,
+                        'label_color' => $label->label_color,
                     ];
                 })->toArray(),
-                'files_count' => $task->files->count(),
-                'notes_count' => $task->notes->count(),
-                'comments_count' => $task->comments->count(),
-                'subtasks_count' => $task->subtasks->count(),
-                'completed_subtasks_count' => $task->completedSubtasks->count(),
+                'files_count' => $task->files_count ?? 0,
+                'notes_count' => $task->notes_count ?? 0,
+                'comments_count' => $task->comments_count ?? 0,
+                'subtasks_count' => $task->subtasks_count ?? 0,
+                'completed_subtasks_count' => $task->completed_subtasks_count ?? 0,
                 'created_at' => $task->created_at->toISOString(),
                 'updated_at' => $task->updated_at->toISOString(),
                 'added_by' => $task->added_by,
@@ -272,7 +287,7 @@ class TaskController extends AccountBaseController
         };
 
         // Transform tasks for frontend
-        $tableTasks->through($transformCallback);
+        $tableTasks->getCollection()->transform($transformCallback);
         $kanbanTasks = $kanbanTasks->map($transformCallback);
 
         // Fetch supporting data
