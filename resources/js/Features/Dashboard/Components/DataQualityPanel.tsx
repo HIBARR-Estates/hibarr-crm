@@ -77,9 +77,8 @@ interface DataQualityPanelProps {
     records: DataQualityRecord[];
     stats?: DataQualityStats;
     loading?: boolean;
-    products?: any[];
-    packages?: any[];
     countries?: any[];
+    leadAgents?: any[];
 }
 
 interface QuickFixFormData {
@@ -96,9 +95,8 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
     records = [],
     stats,
     loading = false,
-    products = [],
-    packages = [],
     countries = [],
+    leadAgents = [],
 }) => {
     const {
         action,
@@ -475,9 +473,8 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                 record={selectedRecord}
                 open={action === "quick_update"}
                 onClose={() => handleClose()}
-                products={products}
-                packages={packages}
                 countries={countries}
+                leadAgents={leadAgents}
             />
         </>
     );

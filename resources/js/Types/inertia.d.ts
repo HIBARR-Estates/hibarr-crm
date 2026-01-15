@@ -21,5 +21,6 @@ declare module "@inertiajs/core" {
         default_currency_symbol?: string;
         default_currency_code?: string;
         isDarkMode?: boolean; // Example additional prop, not implemented yet
+        pipelines?: Array<{ id: number; name: string; default: number }>;
     }
 }

@@ -154,6 +154,7 @@ interface ComprehensiveDashboardProps extends PageProps {
     products: any[];
     packages: any[];
     countries: any[];
+    leadAgents: any[];
 }
 
 const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
@@ -170,6 +171,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     products,
     packages,
     countries,
+    leadAgents,
 }) => {
     const { props } = usePage<PageProps>();
     const company = props.company as any;
@@ -391,7 +393,27 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                                 tasks={tasks}
                                             />
                                         </motion.div>
-                                    )}
+                                    </div>
+                                </Col>
+
+                                {/* Data Quality Panel */}
+                                <Col xs={24} lg={16}>
+                                    <motion.div
+                                        initial={{ opacity: 0, x: 50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{
+                                            duration: 0.7,
+                                            delay: 0.3,
+                                        }}
+                                        className="h-full"
+                                    >
+                                        <DataQualityPanel
+                                            records={poorDataQualityDeals}
+                                            stats={dataQualityStats}
+                                            countries={countries}
+                                            leadAgents={leadAgents}
+                                        />
+                                    </motion.div>
                                 </Col>
                             </Row>
 
