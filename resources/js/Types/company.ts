@@ -58,6 +58,7 @@ export interface Company {
     pm_type: null;
     pm_last_four: null;
     employee_can_export_data: number;
+    enable_data_quality_monitor: number;
     headers: string;
     register_ip: null;
     location_details: null;
