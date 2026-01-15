@@ -7,6 +7,7 @@ import FollowUpTab from "./Tabs/FollowUpTab";
 import FilesTab from "./Tabs/FilesTab";
 import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
+import RecommendationsTab from "./Tabs/RecommendationsTab";
 import { Note } from "@/Types/api/note";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { DealFile } from "@/Types/api/file";
@@ -127,6 +128,15 @@ export default function DealTabs({
                 ),
             });
         }
+
+        // Recommendations Tab - AI-powered property recommendations
+        items.push({
+            key: "recommendations",
+            label: "Recommendations",
+            children: (
+                <RecommendationsTab deal={deal} permissions={permissions} />
+            ),
+        });
 
         // Proposals Tab
         // TODO: Enable proposals tab when ready
