@@ -309,7 +309,7 @@ class PropertyApiController extends Controller
         foreach ($requestedFields as $field) {
             // Handle nested agent field
             if ($field === 'agent') {
-                if (isset($data['agent'])) {
+                if (array_key_exists('agent', $data)) {
                     $filtered['agent'] = $data['agent'];
                 }
                 continue;
