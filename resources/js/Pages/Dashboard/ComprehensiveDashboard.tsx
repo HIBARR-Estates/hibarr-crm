@@ -154,6 +154,7 @@ interface ComprehensiveDashboardProps extends PageProps {
     products: any[];
     packages: any[];
     countries: any[];
+    leadAgents: any[];
 }
 
 const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
@@ -170,6 +171,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     products,
     packages,
     countries,
+    leadAgents,
 }) => {
     const [activeMetric, setActiveMetric] = useState<string | null>(null);
 
@@ -361,9 +363,8 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         <DataQualityPanel
                                             records={poorDataQualityDeals}
                                             stats={dataQualityStats}
-                                            products={products}
-                                            packages={packages}
                                             countries={countries}
+                                            leadAgents={leadAgents}
                                         />
                                     </motion.div>
                                 </Col>
