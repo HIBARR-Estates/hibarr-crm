@@ -7,6 +7,7 @@ return array(
     // resolution status
 
     'dealWatcher' => 'Deal Watchers',
+    'changedBy' => 'Changed By',
 
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
