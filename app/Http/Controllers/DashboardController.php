@@ -263,6 +263,7 @@ class DashboardController extends AccountBaseController
                     ] : null,
                     'agent' => $deal->leadAgent && $deal->leadAgent->user ? [
                         'id' => $deal->leadAgent->user->id,
+                        'lead_agent_id' => $deal->leadAgent->id,
                         'name' => $deal->leadAgent->user->name,
                         'image' => $deal->leadAgent->user->image_url,
                     ] : null,
@@ -294,34 +295,6 @@ class DashboardController extends AccountBaseController
             $dataIssues = [];
             $totalFields = 0;
             $filledFields = 0;
-
-            // Check products
-            $totalFields++;
-            if ($deal['products_count'] > 0) {
-                $filledFields++;
-            } else {
-                $missingFields[] = 'Products';
-                $dataIssues[] = [
-                    'field' => 'products',
-                    'issue' => 'No products associated',
-                    'severity' => 'high',
-                    'suggestion' => 'Add products to the deal'
-                ];
-            }
-
-            // Check package
-            $totalFields++;
-            if (!empty($deal['packages']) && count($deal['packages']) > 0) {
-                $filledFields++;
-            } else {
-                $missingFields[] = 'Package';
-                $dataIssues[] = [
-                    'field' => 'packages',
-                    'issue' => 'No package selected',
-                    'severity' => 'high',
-                    'suggestion' => 'Select a package for the deal'
-                ];
-            }
 
             // Contact information validation (Lead connected to deal)
             if ($deal['contact']) {
@@ -365,21 +338,7 @@ class DashboardController extends AccountBaseController
                 ];
             }
 
-            // Category and agent validation
-            if (!$deal['category']) {
-                $totalFields++;
-                $missingFields[] = 'Category';
-                $dataIssues[] = [
-                    'field' => 'category',
-                    'issue' => 'Deal category not specified',
-                    'severity' => 'low',
-                    'suggestion' => 'Categorize deal for better reporting'
-                ];
-            } else {
-                $totalFields++;
-                $filledFields++;
-            }
-
+            // Agent validation
             if (!$deal['agent']) {
                 $totalFields++;
                 $missingFields[] = 'Agent';
