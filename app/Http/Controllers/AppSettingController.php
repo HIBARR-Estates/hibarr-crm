@@ -123,6 +123,7 @@ class AppSettingController extends AccountBaseController
         $setting->moment_format = $this->momentFormat($setting->date_format);
         $setting->dashboard_clock = $request->has('dashboard_clock') && $request->dashboard_clock == 'on' ? 1 : 0;
         $setting->employee_can_export_data = $request->has('employee_can_export_data') && $request->employee_can_export_data == 'on' ? 1 : 0;
+        $setting->enable_data_quality_monitor = $request->has('enable_data_quality_monitor') && $request->enable_data_quality_monitor == 'on' ? 1 : 0;
         $setting->datatable_row_limit = $request->datatable_row_limit;
         $setting->save();
         $setting->refresh();

@@ -90,6 +90,8 @@
         @endif
 
         @if (user()->permission('manage_custom_field_setting') == 'all')
+            <x-setting-menu-item :active="$activeMenu" menu="custom_field_categories" :href="route('custom-field-categories.index')"
+                                 :text="__('app.menu.customFieldCategories')"/>
             <x-setting-menu-item :active="$activeMenu" menu="custom_fields" :href="route('custom-fields.index')"
                                  :text="__('app.menu.customFields')"/>
         @endif

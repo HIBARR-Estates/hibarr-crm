@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { usePage } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
@@ -103,6 +104,9 @@ const Index: React.FC<IndexProps> = ({
     recentActivities,
     stats,
 }) => {
+    const { props } = usePage<PageProps>();
+    const company = props.company as any;
+    const enableDataQualityMonitor = company?.enable_data_quality_monitor === 1; // Check if explicitly enabled (1)
     return (
         <DashboardLayout>
             <PageLayout
@@ -226,13 +230,15 @@ const Index: React.FC<IndexProps> = ({
                             </div>
 
                             {/* Main Widgets Grid */}
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                                {/* Left Column */}
-                                <div className="space-y-8">
-                                    <DataQualityWidget
-                                        deals={poorDataQualityDeals}
-                                    />
-                                </div>
+                            <div className={`grid grid-cols-1 ${enableDataQualityMonitor ? 'xl:grid-cols-2' : 'xl:grid-cols-1'} gap-8`}>
+                                {/* Left Column - Data Quality Widget (only when enabled) */}
+                                {enableDataQualityMonitor && (
+                                    <div className="space-y-8">
+                                        <DataQualityWidget
+                                            deals={poorDataQualityDeals}
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Right Column */}
                                 <div className="space-y-8">

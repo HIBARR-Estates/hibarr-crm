@@ -1850,6 +1850,8 @@ class DealController extends AccountBaseController
         if ($dealCustomFieldGroup) {
             return CustomFieldCategory::where('custom_field_group_id', $dealCustomFieldGroup->id)
                 ->where('company_id', company()->id)
+                ->orderBy(DB::raw('`order`'), 'asc')
+                ->orderBy('id', 'asc')
                 ->get();
         }
         return collect();

@@ -70,6 +70,7 @@ class HandleInertiaRequests extends Middleware
                 'worksuitePlugins' => function_exists('user') ? $this->getWorksuitePlugins() : [],
             ],
             'currentRouteName' => $request->route() ? $request->route()->getName() : '',
+            'pipelines' => fn () => $this->getPipelines(),
         ]);
     }
      /**
@@ -144,6 +145,25 @@ class HandleInertiaRequests extends Middleware
     {
         // Return worksuite plugins
         return []; // Placeholder
+    }
+
+    /**
+     * Get pipelines for sidebar navigation
+     */
+    private function getPipelines(): array
+    {
+        try {
+            if (!function_exists('user') || !user()) {
+                return [];
+            }
+
+            return \App\Models\LeadPipeline::has('stages')
+                ->select('id', 'name', 'default')
+                ->get()
+                ->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     private function getAllPermissions()

@@ -1,6 +1,15 @@
 import { Deal } from "@/Types/api/deals";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Descriptions, Tag, Avatar, Tooltip, Tabs, Button, Space } from "antd";
+import {
+    Descriptions,
+    Tag,
+    Avatar,
+    Tooltip,
+    Tabs,
+    Button,
+    Space,
+    message,
+} from "antd";
 import {
     MailOutlined,
     PhoneOutlined,
@@ -22,6 +31,7 @@ import { Task } from "@/Types/api/tasks";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
+import axios from "axios";
 
 interface Props {
     deal: Deal;
@@ -131,28 +141,61 @@ export default function DealInfoSection({
         // Set the updating field to show loading only for this field
         setUpdatingField(fieldName);
 
-        // Infer type and api field name if not explicitly set (for compatibility)
-        let effectiveType = type;
-        let apiFieldName = fieldName;
-        let processedValue = value;
-
-        // Backward compatibility inference
-        if (fieldName === "email") {
-            effectiveType = "contact";
-            apiFieldName = "client_email";
-        } else if (fieldName === "mobile") {
-            effectiveType = "contact";
-        } else if (fieldName === "company_name") {
-            effectiveType = "contact";
-        } else if (fieldName === "value") {
-            processedValue = value ? parseFloat(value.toString()) : 0;
-        } else if (fieldName === "close_date") {
-            processedValue = value || null;
-        }
-
-        const payloadData = { [apiFieldName]: processedValue };
+        // Check if value is a File (for file uploads)
+        const isFile = value instanceof File;
 
         try {
+            if (isFile && type === "custom_field") {
+                // Handle file upload via FormData for custom fields
+                const formData = new FormData();
+                formData.append("type", "custom_field");
+                formData.append(`data[${fieldName}]`, value);
+
+                const response = await axios.patch(
+                    route("deals.gathering.inline_update", {
+                        id: currentDeal.id,
+                    }),
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                            Accept: "application/json",
+                        },
+                    }
+                );
+
+                if (
+                    response.data?.status === "success" &&
+                    response.data?.data
+                ) {
+                    setCurrentDeal(response.data.data);
+                    message.success("File uploaded successfully");
+                }
+                setUpdatingField(null);
+                return;
+            }
+
+            // Infer type and api field name if not explicitly set (for compatibility)
+            let effectiveType = type;
+            let apiFieldName = fieldName;
+            let processedValue = value;
+
+            // Backward compatibility inference
+            if (fieldName === "email") {
+                effectiveType = "contact";
+                apiFieldName = "client_email";
+            } else if (fieldName === "mobile") {
+                effectiveType = "contact";
+            } else if (fieldName === "company_name") {
+                effectiveType = "contact";
+            } else if (fieldName === "value") {
+                processedValue = value ? parseFloat(value.toString()) : 0;
+            } else if (fieldName === "close_date") {
+                processedValue = value || null;
+            }
+
+            const payloadData = { [apiFieldName]: processedValue };
+
             await updateDeal({
                 type: effectiveType,
                 data: payloadData,

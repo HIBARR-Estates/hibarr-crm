@@ -1,5 +1,12 @@
 import { CustomField, ShowRuleSet, ShowCriterion } from '@/Types';
 
+// Type declaration for process (may not be available in browser)
+declare const process: {
+    env?: {
+        NODE_ENV?: string;
+    };
+} | undefined;
+
 /**
  * Evaluate a single criterion
  */
@@ -303,7 +310,9 @@ export function evaluateAllFieldsVisibility(
         visibilityMap[field.id] = evaluateFieldVisibility(field, allFieldValues);
         
         // Debug logging (can be removed in production)
-        if (process.env.NODE_ENV === 'development' && field.show_rule_set) {
+        // Check for development mode
+        const isDevelopment = typeof process !== 'undefined' && process?.env?.NODE_ENV === 'development';
+        if (isDevelopment && field.show_rule_set) {
             const groups = field.show_rule_set.groups && field.show_rule_set.groups.length > 0 
                 ? field.show_rule_set.groups 
                 : (field.show_rule_set.group ? [field.show_rule_set.group] : []);

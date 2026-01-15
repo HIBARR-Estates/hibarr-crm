@@ -1,8 +1,118 @@
-import { Descriptions, Tag } from "antd";
+import { Descriptions, Tag, Upload, Button, message, Spin, Space } from "antd";
+import {
+    UploadOutlined,
+    DeleteOutlined,
+    DownloadOutlined,
+    FileOutlined,
+} from "@ant-design/icons";
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { CustomField } from "@/Types";
 import EditableField from "@/Components/EditableField";
+import { useState } from "react";
+import axios from "axios";
+
+// Editable File Field Component
+interface EditableFileFieldProps {
+    value: string | null;
+    fieldKey: string;
+    onSave: (fieldKey: string, value: File | string | null) => Promise<void>;
+    loading?: boolean;
+    editable?: boolean;
+}
+
+const EditableFileField: React.FC<EditableFileFieldProps> = ({
+    value,
+    fieldKey,
+    onSave,
+    loading = false,
+    editable = true,
+}) => {
+    const [uploading, setUploading] = useState(false);
+
+    const handleUpload = async (file: File) => {
+        setUploading(true);
+        try {
+            // Upload file using FormData
+            const formData = new FormData();
+            formData.append("custom_fields[" + fieldKey + "]", file);
+
+            // Get the current URL's model info - we need to determine the endpoint
+            // For now, we'll use a generic custom field upload approach
+            await onSave(fieldKey, file);
+            message.success("File uploaded successfully");
+        } catch (error) {
+            message.error("Failed to upload file");
+        } finally {
+            setUploading(false);
+        }
+        return false; // Prevent default upload behavior
+    };
+
+    const handleRemove = async () => {
+        setUploading(true);
+        try {
+            // Send empty string to clear the file
+            await onSave(fieldKey, "");
+            message.success("File removed successfully");
+        } catch (error) {
+            message.error("Failed to remove file");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const isLoading = loading || uploading;
+
+    if (isLoading) {
+        return <Spin size="small" />;
+    }
+
+    if (value) {
+        const fileUrl = `/user-uploads/custom_fields/${value}`;
+        return (
+            <Space size="small">
+                <a
+                    href={fileUrl}
+                    className="text-blue-600 hover:text-blue-800"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <FileOutlined className="mr-1" />
+                    View File
+                </a>
+                <a
+                    href={fileUrl}
+                    className="text-blue-600 hover:text-blue-800"
+                    download
+                >
+                    <DownloadOutlined />
+                </a>
+                {editable && (
+                    <Button
+                        type="text"
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={handleRemove}
+                    />
+                )}
+            </Space>
+        );
+    }
+
+    if (!editable) {
+        return <span className="text-gray-500">--</span>;
+    }
+
+    return (
+        <Upload beforeUpload={handleUpload} showUploadList={false} accept="*/*">
+            <Button size="small" icon={<UploadOutlined />}>
+                Upload File
+            </Button>
+        </Upload>
+    );
+};
 
 interface Field {
     id: string | number;
@@ -281,7 +391,7 @@ export default function CustomFieldDisplay({
                 if (!value) return null;
                 return (
                     <a
-                        href={`/storage/custom_fields/${value}`}
+                        href={`/user-uploads/custom_fields/${value}`}
                         className="text-blue-600 hover:text-blue-800"
                         download
                     >
@@ -465,14 +575,27 @@ export default function CustomFieldDisplay({
                 type = "text";
         }
 
-        // Only skip file and time types - these need special handling
-        if (["file", "time"].includes(field.type)) {
-            return formatFieldValue(field, value);
-        }
-
         const fieldKey = `field_${field.id}`;
         const isFieldLoading =
             loadingField === fieldKey || (loading && !loadingField);
+
+        // Handle file type with EditableFileField
+        if (field.type === "file") {
+            return (
+                <EditableFileField
+                    value={value}
+                    fieldKey={fieldKey}
+                    onSave={onUpdate!}
+                    loading={isFieldLoading}
+                    editable={editable}
+                />
+            );
+        }
+
+        // Skip time type for now - needs special handling
+        if (field.type === "time") {
+            return formatFieldValue(field, value);
+        }
 
         return (
             <EditableField

@@ -38,6 +38,7 @@ use App\Http\Controllers\ClientDocController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventFileController;
 use App\Http\Controllers\LeadBoardController;
+use App\Http\Controllers\PropertyRecommendationController;
 use App\Http\Controllers\LeaveFileController;
 use App\Http\Controllers\QuickbookController;
 use App\Http\Controllers\TaskBoardController;
@@ -589,6 +590,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::resource('deals', DealController::class);
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
+
+    // Property Recommendations
+    Route::group(['prefix' => 'deals/{deal}/recommendations', 'as' => 'deals.recommendations.'], function () {
+        Route::get('/', [PropertyRecommendationController::class, 'getRecommendations'])->name('index');
+        Route::post('/refresh', [PropertyRecommendationController::class, 'refreshRecommendations'])->name('refresh');
+        Route::get('/compatibility/{property}', [PropertyRecommendationController::class, 'getCompatibility'])->name('compatibility');
+    });
+    Route::get('property-recommendations/health', [PropertyRecommendationController::class, 'healthCheck'])->name('property-recommendations.health');
     
 // Meeting Summary Routes
 Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');

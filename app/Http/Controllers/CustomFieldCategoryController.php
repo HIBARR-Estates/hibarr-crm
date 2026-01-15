@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CustomFieldCategoryController extends AccountBaseController
 {
@@ -13,7 +14,7 @@ class CustomFieldCategoryController extends AccountBaseController
     {
         parent::__construct();
         $this->pageTitle = 'Custom Field Categories';
-        $this->activeSettingMenu = 'custom_fields';
+        $this->activeSettingMenu = 'custom_field_categories';
         $this->middleware(function ($request, $next) {
             abort_403(user()->permission('manage_custom_field_setting') !== 'all');
             return $next($request);
@@ -27,10 +28,12 @@ class CustomFieldCategoryController extends AccountBaseController
     {
         $this->categories = CustomFieldCategory::with('customFieldGroup')
             ->where('company_id', company()->id)
+            ->orderBy(DB::raw('`order`'), 'asc')
+            ->orderBy('id', 'asc')
             ->get();
         $this->customFieldGroups = CustomFieldGroup::all();
 
-        return view('custom-fields.categories', $this->data);
+        return view('custom-fields.categories-index', $this->data);
     }
 
     /**
@@ -46,6 +49,8 @@ class CustomFieldCategoryController extends AccountBaseController
 
         $categories = CustomFieldCategory::where('custom_field_group_id', $groupId)
             ->where('company_id', company()->id)
+            ->orderBy(DB::raw('`order`'), 'asc')
+            ->orderBy('id', 'asc')
             ->get(['id', 'name']);
 
         return Reply::dataOnly(['categories' => $categories]);
@@ -58,13 +63,24 @@ class CustomFieldCategoryController extends AccountBaseController
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'custom_field_group_id' => 'required|exists:custom_field_groups,id'
+            'custom_field_group_id' => 'required|exists:custom_field_groups,id',
+            'order' => 'nullable|integer|min:0'
         ]);
+
+        // If order is not provided, set it to the next available order (max + 1)
+        $order = $request->order;
+        if ($order === null || $order === '') {
+            $maxOrder = CustomFieldCategory::where('company_id', company()->id)
+                ->where('custom_field_group_id', $request->custom_field_group_id)
+                ->max(DB::raw('`order`'));
+            $order = ($maxOrder !== null) ? $maxOrder + 1 : 0;
+        }
 
         $category = CustomFieldCategory::create([
             'name' => $request->name,
             'custom_field_group_id' => $request->custom_field_group_id,
-            'company_id' => company()->id
+            'company_id' => company()->id,
+            'order' => $order
         ]);
 
         return Reply::successWithData('Category created successfully', ['category' => $category]);
@@ -75,8 +91,15 @@ class CustomFieldCategoryController extends AccountBaseController
      */
     public function edit($id)
     {
-        $category = CustomFieldCategory::where('company_id', company()->id)->findOrFail($id);
-        return Reply::dataOnly(['category' => $category]);
+        $this->category = CustomFieldCategory::where('company_id', company()->id)->findOrFail($id);
+        $this->customFieldGroups = CustomFieldGroup::all();
+        $this->pageTitle = __('modules.customFields.editCategory');
+
+        if (request()->ajax()) {
+            return $this->returnAjax('custom-fields.ajax.edit-category');
+        }
+
+        return view('custom-fields.edit-category', $this->data);
     }
 
     /**
@@ -86,13 +109,15 @@ class CustomFieldCategoryController extends AccountBaseController
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'custom_field_group_id' => 'required|exists:custom_field_groups,id'
+            'custom_field_group_id' => 'required|exists:custom_field_groups,id',
+            'order' => 'nullable|integer|min:0'
         ]);
 
         $category = CustomFieldCategory::where('company_id', company()->id)->findOrFail($id);
         $category->update([
             'name' => $request->name,
-            'custom_field_group_id' => $request->custom_field_group_id
+            'custom_field_group_id' => $request->custom_field_group_id,
+            'order' => $request->order ?? 0
         ]);
 
         return Reply::success('Category updated successfully');
@@ -112,5 +137,28 @@ class CustomFieldCategoryController extends AccountBaseController
 
         $category->delete();
         return Reply::success('Category deleted successfully');
+    }
+
+    /**
+     * Sort categories order
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function sortCategories(Request $request)
+    {
+        $sortedIds = $request->sortedIds;
+
+        if (!is_array($sortedIds)) {
+            return Reply::error('Invalid sorted IDs');
+        }
+
+        foreach ($sortedIds as $index => $categoryId) {
+            CustomFieldCategory::where('id', $categoryId)
+                ->where('company_id', company()->id)
+                ->update(['order' => $index + 1]);
+        }
+
+        return Reply::success('Category order updated successfully');
     }
 }

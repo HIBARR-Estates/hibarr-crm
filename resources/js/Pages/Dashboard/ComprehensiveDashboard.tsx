@@ -9,7 +9,7 @@ import MeetingsPanel from "@/Features/Dashboard/Components/MeetingsPanel";
 import DataQualityPanel from "@/Features/Dashboard/Components/DataQualityPanel";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Activity, CheckCircle, Trophy } from "lucide-react";
@@ -154,6 +154,7 @@ interface ComprehensiveDashboardProps extends PageProps {
     products: any[];
     packages: any[];
     countries: any[];
+    leadAgents: any[];
 }
 
 const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
@@ -170,7 +171,12 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     products,
     packages,
     countries,
+    leadAgents,
 }) => {
+    const { props } = usePage<PageProps>();
+    const company = props.company as any;
+    const enableDataQualityMonitor = company?.enable_data_quality_monitor === 1; // Check if explicitly enabled (1)
+    
     const [activeMetric, setActiveMetric] = useState<string | null>(null);
 
     // Handle metric click for filtering
@@ -315,23 +321,26 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                             />
 
                             {/* Main Workflow Panels */}
-                            <Row gutter={[24, 24]} className="mb-8">
-                                {/* Meetings & Tasks Panel */}
-                                <Col xs={24} lg={8}>
-                                    <div className="flex flex-col gap-6">
-                                        <motion.div
-                                            initial={{ opacity: 0, x: -50 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{
-                                                duration: 0.7,
-                                                delay: 0.2,
-                                            }}
-                                        >
-                                            <MeetingsPanel
-                                                meetings={upcomingMeetings}
-                                            />
-                                        </motion.div>
+                            <Row gutter={[24, 24]} className="mb-8" style={{ display: 'flex', alignItems: 'stretch' }}>
+                                {/* Left Column: Upcoming Meetings */}
+                                <Col xs={24} lg={8} style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{
+                                            duration: 0.7,
+                                            delay: 0.2,
+                                        }}
+                                        className="h-full"
+                                        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                                    >
+                                        <MeetingsPanel
+                                            meetings={upcomingMeetings}
+                                        />
+                                    </motion.div>
 
+                                    {/* Tasks & Activities - Only show here when Data Quality Monitor is enabled (stacked) */}
+                                    {enableDataQualityMonitor && (
                                         <motion.div
                                             initial={{ opacity: 0, x: -50 }}
                                             animate={{ opacity: 1, x: 0 }}
@@ -339,6 +348,46 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                                 duration: 0.7,
                                                 delay: 0.3,
                                             }}
+                                            className="mt-6"
+                                        >
+                                            <TasksActivitiesPanel
+                                                tasks={tasks}
+                                            />
+                                        </motion.div>
+                                    )}
+                                </Col>
+
+                                {/* Right Column: Data Quality Monitor (when enabled) OR Tasks & Activities (when disabled) */}
+                                <Col xs={24} lg={16} style={{ display: 'flex', flexDirection: 'column' }}>
+                                    {enableDataQualityMonitor ? (
+                                        <motion.div
+                                            initial={{ opacity: 0, x: 50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{
+                                                duration: 0.7,
+                                                delay: 0.3,
+                                            }}
+                                            className="h-full"
+                                            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                                        >
+                                            <DataQualityPanel
+                                                records={poorDataQualityDeals}
+                                                stats={dataQualityStats}
+                                                products={products}
+                                                packages={packages}
+                                                countries={countries}
+                                            />
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            initial={{ opacity: 0, x: 50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{
+                                                duration: 0.7,
+                                                delay: 0.2,
+                                            }}
+                                            className="h-full"
+                                            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
                                         >
                                             <TasksActivitiesPanel
                                                 tasks={tasks}
@@ -361,37 +410,12 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         <DataQualityPanel
                                             records={poorDataQualityDeals}
                                             stats={dataQualityStats}
-                                            products={products}
-                                            packages={packages}
                                             countries={countries}
+                                            leadAgents={leadAgents}
                                         />
                                     </motion.div>
                                 </Col>
                             </Row>
-
-                            {/* Deals Tracker */}
-                            {/* <Row gutter={[24, 24]}>
-                                <Col span={24}>
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 50 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{
-                                            duration: 0.7,
-                                            delay: 0.4,
-                                        }}
-                                        className="h-full"
-                                    >
-                                        <DealsTracker
-                                            deals={deals}
-                                            stages={pipelineStages}
-                                            onStageChange={
-                                                handleDealStageChange
-                                            }
-                                            canEdit={true}
-                                        />
-                                    </motion.div>
-                                </Col>
-                            </Row> */}
 
                             {/* Quick Stats Footer */}
                             <motion.div
