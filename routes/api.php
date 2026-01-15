@@ -57,6 +57,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         
         // Property API Routes
         ApiRoute::get('properties', ['as' => 'api.properties.index', 'uses' => 'Api\PropertyApiController@index']);
+        ApiRoute::get('properties/{id}', ['as' => 'api.properties.show', 'uses' => 'Api\PropertyApiController@show']);
  
     });
 
