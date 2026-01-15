@@ -1128,6 +1128,8 @@ return array(
     'proposals' => 'Proposals',
     'proposalTemplate' => 'Proposal Template',
     'employeeCanExportData' => 'Employee can export data',
+    'enableDataQualityMonitor' => 'Enable Data Quality Monitor',
+    'enableDataQualityMonitorInfo' => 'Show the data quality monitor panel on the dashboard to track and improve data quality of deals and leads.',
     'activity' => 'Activity',
     'ticketActivity' => 'Ticket Activity',
     'moduleVersion' => 'Version',

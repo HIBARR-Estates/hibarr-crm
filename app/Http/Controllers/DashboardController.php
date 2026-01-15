@@ -275,7 +275,8 @@ class DashboardController extends AccountBaseController
 
         $recentDeals = $allDeals->take(10);
 
-        // Enhanced data quality analysis
+        // Enhanced data quality analysis (only if enabled)
+        $enableDataQualityMonitor = company()->enable_data_quality_monitor ?? true;
         $dataQualityRecords = collect();
         
         // Get all leads
@@ -288,8 +289,8 @@ class DashboardController extends AccountBaseController
             $q->select('id')->from('custom_field_groups')->where('model', 'App\Models\Lead');
         })->where('required', 'yes')->get();
 
-        // Analyze deals for data quality
-        $poorDataQualityDeals = $allDeals->map(function ($deal) {
+        // Analyze deals for data quality (only if enabled)
+        $poorDataQualityDeals = $enableDataQualityMonitor ? $allDeals->map(function ($deal) {
             $missingFields = [];
             $dataIssues = [];
             $totalFields = 0;
@@ -415,10 +416,10 @@ class DashboardController extends AccountBaseController
                 'updated_at' => $deal['updated_at'],
                 'priority_score' => round($priorityScore),
             ];
-        });
+        }) : collect();
 
-        // Analyze leads for data quality
-        $poorDataQualityLeads = $allLeads->map(function ($lead) use ($leadCustomFields) {
+        // Analyze leads for data quality (only if enabled)
+        $poorDataQualityLeads = $enableDataQualityMonitor ? $allLeads->map(function ($lead) use ($leadCustomFields) {
             $missingFields = [];
             $dataIssues = [];
             $totalFields = 0;
@@ -520,22 +521,29 @@ class DashboardController extends AccountBaseController
                 'updated_at' => $lead->updated_at,
                 'priority_score' => round($priorityScore),
             ];
-        });
+        }) : collect();
 
-        $mergedQualityRecords = $poorDataQualityDeals->merge($poorDataQualityLeads)
+        // Merge deals and leads (only if enabled)
+        $mergedQualityRecords = $enableDataQualityMonitor ? $poorDataQualityDeals->merge($poorDataQualityLeads)
             ->filter(function ($deal) {
             return $deal['data_quality_score'] < 80; // Only show records that need improvement
-        });
+        }) : collect();
 
-        $dataQualityStats = [
+        $dataQualityStats = $enableDataQualityMonitor ? [
             'total' => $mergedQualityRecords->count(),
             'critical' => $mergedQualityRecords->filter(fn($r) => $r['data_quality_score'] < 40)->count(),
             'poor' => $mergedQualityRecords->filter(fn($r) => $r['data_quality_score'] >= 40 && $r['data_quality_score'] < 60)->count(),
             'fair' => $mergedQualityRecords->filter(fn($r) => $r['data_quality_score'] >= 60 && $r['data_quality_score'] < 80)->count(),
             'average_score' => $mergedQualityRecords->count() > 0 ? round($mergedQualityRecords->avg('data_quality_score')) : 0
+        ] : [
+            'total' => 0,
+            'critical' => 0,
+            'poor' => 0,
+            'fair' => 0,
+            'average_score' => 0
         ];
 
-        $poorDataQualityDeals = $mergedQualityRecords->sortByDesc('priority_score')->take(100)->values();
+        $poorDataQualityDeals = $enableDataQualityMonitor ? $mergedQualityRecords->sortByDesc('priority_score')->take(100)->values() : collect();
         // TODO: Show 100 and once user scrolls, load more using pagination or infinite scroll
 
         // Get recent communication activities

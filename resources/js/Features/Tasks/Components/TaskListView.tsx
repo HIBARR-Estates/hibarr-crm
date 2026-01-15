@@ -149,13 +149,12 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         onChange={handleSelectAll}
                     />
                 </div>
-                <div className="w-8 ml-2">Prio</div>
-                <div className="w-24 ml-4">ID</div>
-                <div className="w-24 ml-4">Status</div>
-                <div className="flex-1 ml-4">Title</div>
-                <div className="w-32 hidden md:block">Assignee</div>
-                <div className="w-24 hidden lg:block">Due</div>
-                <div className="w-10"></div>
+                <div className="w-8 ml-6 flex items-center justify-center">Priority</div>
+                <div className="flex-1 ml-6">Title</div>
+                <div className="w-24 ml-6 flex items-center justify-center">Status</div>
+                <div className="w-32 ml-6 hidden md:flex items-center justify-center">Assignee</div>
+                <div className="w-24 ml-6 hidden lg:flex items-center justify-center">Due</div>
+                <div className="w-10 ml-6"></div>
             </div>
 
             {/* List */}
@@ -224,17 +223,39 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                             </div>
 
                             {/* Priority */}
-                            <div className="w-8 ml-2 flex items-center justify-center">
+                            <div className="w-8 ml-6 flex items-center justify-center">
                                 <PriorityIcon priority={task.priority} />
                             </div>
 
-                            {/* ID */}
-                            <div className="w-24 ml-4 text-gray-500 font-mono text-xs truncate">
-                                {task.task_short_code || `#${task.id}`}
+                            {/* Title & Tags */}
+                            <div className="flex-1 ml-6 min-w-0 flex items-center gap-2">
+                                <span
+                                    className="font-medium text-gray-900 truncate cursor-pointer hover:underline"
+                                    onClick={() => onView(task)}
+                                >
+                                    {task.heading}
+                                </span>
+                                {task.labels && task.labels.length > 0 && (
+                                    <div className="flex gap-1 overflow-hidden">
+                                        {task.labels
+                                            .slice(0, 3)
+                                            .map((label) => (
+                                                <div
+                                                    key={label.id}
+                                                    className="w-2 h-2 rounded-full"
+                                                    style={{
+                                                        backgroundColor:
+                                                            label.label_color,
+                                                    }}
+                                                    title={label.label_name}
+                                                />
+                                            ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Status */}
-                            <div className="w-24 ml-4">
+                            <div className="w-24 ml-6 flex items-center justify-center">
                                 <Dropdown
                                     menu={{
                                         items: columns.map((col) => ({
@@ -289,35 +310,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                 </Dropdown>
                             </div>
 
-                            {/* Title & Tags */}
-                            <div className="flex-1 ml-4 min-w-0 flex items-center gap-2">
-                                <span
-                                    className="font-medium text-gray-900 truncate cursor-pointer hover:underline"
-                                    onClick={() => onView(task)}
-                                >
-                                    {task.heading}
-                                </span>
-                                {task.labels && task.labels.length > 0 && (
-                                    <div className="flex gap-1 overflow-hidden">
-                                        {task.labels
-                                            .slice(0, 3)
-                                            .map((label) => (
-                                                <div
-                                                    key={label.id}
-                                                    className="w-2 h-2 rounded-full"
-                                                    style={{
-                                                        backgroundColor:
-                                                            label.label_color,
-                                                    }}
-                                                    title={label.label_name}
-                                                />
-                                            ))}
-                                    </div>
-                                )}
-                            </div>
-
                             {/* Assignee */}
-                            <div className="w-32 hidden md:flex items-center">
+                            <div className="w-32 ml-6 hidden md:flex items-center justify-center">
                                 <MultiUserIndicator
                                     users={task?.users}
                                     size="xs"
@@ -325,7 +319,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                             </div>
 
                             {/* Due Date */}
-                            <div className="w-24 hidden lg:block text-gray-500 text-xs">
+                            <div className="w-24 ml-6 hidden lg:flex items-center justify-center text-gray-500 text-xs">
                                 {task.due_date ? (
                                     <span
                                         className={clsx(
@@ -346,7 +340,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                             </div>
 
                             {/* Actions */}
-                            <div className="w-10 flex justify-end">
+                            <div className="w-10 ml-6 flex items-center justify-center">
                                 <Dropdown
                                     menu={{ items: actions }}
                                     trigger={["click"]}
