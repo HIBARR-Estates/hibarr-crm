@@ -8,6 +8,7 @@ import {
 } from "@ant-design/icons";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
+import { usePage } from "@inertiajs/react";
 
 const { Text } = Typography;
 
@@ -22,7 +23,8 @@ interface EditableFieldProps {
         | "select"
         | "multiselect"
         | "boolean"
-        | "textarea";
+        | "textarea"
+        | "country"
     selectorType?: FormDataType;
     mode?: "multiple" | "tags";
     onSave: (value: any) => Promise<void>;
@@ -50,6 +52,8 @@ export default function EditableField({
     options = [],
     loading = false,
 }: EditableFieldProps) {
+    const { props } = usePage<any>();
+    const { countries = [] } = props;
     const [editing, setEditing] = useState(false);
     const [inputValue, setInputValue] = useState<any>(value);
     const [saving, setSaving] = useState(false);
@@ -236,6 +240,53 @@ export default function EditableField({
                             disabled={saving || loading}
                             autoSize={{ minRows: 2, maxRows: 6 }}
                         />
+                    ) : fieldType === "country" ? (
+                        <Select
+                            value={inputValue}
+                            onChange={(val) => setInputValue(val)}
+                            className="flex-1 min-w-[200px]"
+                            disabled={saving || loading}
+                            defaultOpen
+                            allowClear
+                            showSearch
+                            placeholder="Select country"
+                            filterOption={(input, option) => {
+                                const searchText = input.toLowerCase();
+                                const countryValue = option?.value as string;
+                                const country = countries?.find((c: any) => c.nicename === countryValue);
+                                
+                                if (!country) return false;
+                                
+                                // Search by nicename, name, iso, iso3, or nationality
+                                return (
+                                    country.nicename?.toLowerCase().includes(searchText) ||
+                                    country.name?.toLowerCase().includes(searchText) ||
+                                    country.iso?.toLowerCase().includes(searchText) ||
+                                    country.iso3?.toLowerCase().includes(searchText) ||
+                                    country.nationality?.toLowerCase().includes(searchText)
+                                );
+                            }}
+                        >
+                            {countries && countries.length > 0 ? (
+                                countries.map((country: any) => (
+                                    <Select.Option key={country.iso || country.id} value={country.nicename}>
+                                        <span className="flex items-center gap-2">
+                                            <span className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`} />
+                                            {country.nicename}
+                                            {country.nationality && country.nationality !== 'unknown' && (
+                                                <span className="text-gray-500 text-xs">
+                                                    ({country.nationality})
+                                                </span>
+                                            )}
+                                        </span>
+                                    </Select.Option>
+                                ))
+                            ) : (
+                                <Select.Option disabled value="">
+                                    No countries available
+                                </Select.Option>
+                            )}
+                        </Select>
                     ) : (
                         <Input
                             value={inputValue}

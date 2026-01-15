@@ -644,11 +644,11 @@ export default function LeadInfoSection({
                             <EditableField
                                 value={currentLeadState.country || ""}
                                 fieldName="country"
-                                fieldType="text"
+                                fieldType="country"
                                 onSave={(value) =>
                                     handleFieldUpdate("country", value)
                                 }
-                                placeholder="Add country"
+                                placeholder="Select country"
                                 disabled={!canEdit}
                                 loading={isFieldLoading("country")}
                             />
