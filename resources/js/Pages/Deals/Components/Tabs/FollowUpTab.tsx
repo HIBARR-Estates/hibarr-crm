@@ -180,7 +180,9 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             key: "summary_status",
             width: 140,
            render: (_, record) => {
-            if (record.location === "office" || !record.meeting_link) {
+            // Office, phone, and physical meetings don't have meeting summaries
+            const nonVideoMeetingLocations = ['office', 'phone', 'physical'];
+            if (nonVideoMeetingLocations.includes(record.location) || !record.meeting_link) {
                 return <span className="text-gray-500">--</span>;
             }else{
                 if (record.meeting_summary) {

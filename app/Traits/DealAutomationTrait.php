@@ -109,8 +109,10 @@ trait DealAutomationTrait
             }
 
             // For online meetings, require meeting_link in response
+            // Office, phone, and physical meetings don't require meeting links
+            $nonVideoMeetingLocations = ['office', 'phone', 'physical'];
             if (isset($payload['followUpInformation']['location']) && 
-                $payload['followUpInformation']['location'] !== 'office' && 
+                !in_array($payload['followUpInformation']['location'], $nonVideoMeetingLocations) && 
                 (!isset($result['meeting_link']) || empty($result['meeting_link']))) {
                 throw new \Exception("Meeting link is required for online meetings but was not provided in webhook response");
             }
