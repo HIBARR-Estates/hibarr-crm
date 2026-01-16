@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Http\Requests\Settings\UpdateOrganisationSettings;
 use App\Traits\CurrencyExchange;
 use App\Models\User;
+use App\Models\DealAutomation;
 
 class SettingsController extends AccountBaseController
 {
@@ -31,6 +32,16 @@ class SettingsController extends AccountBaseController
     {
         $this->employees = User::allEmployees(null, false);
         return view('company-settings.index', $this->data);
+    }
+
+    public function deal_automations()
+    {
+        $this->employees = User::allEmployees(null, false);
+        $this->automations = DealAutomation::with(['pipeline', 'actions.targetStage', 'actions.targetPipeline'])
+            ->orderBy('priority', 'desc')
+            ->get();
+            
+        return view('company-settings.deal_automations', $this->data);
     }
 
     // phpcs:ignore
