@@ -123,7 +123,7 @@ export const Show = ({
                                                                     color:
                                                                         isCurrent ||
                                                                         isCompleted
-                                                                            ? stage.label_color
+                                                                            ? "#00000085"
                                                                             : "#4b5563",
                                                                     borderColor:
                                                                         isCurrent
@@ -131,9 +131,7 @@ export const Show = ({
                                                                             : "transparent",
                                                                 }}
                                                             >
-                                                                <span className="mr-1.5">
-                                                                    •
-                                                                </span>
+                                                                <div className="mr-1.5 h-2 w-2 rounded-full bg-[#00000085]" />
                                                                 {stage.name}
                                                             </div>
                                                             {index <
