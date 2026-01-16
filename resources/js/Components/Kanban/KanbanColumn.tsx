@@ -80,7 +80,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             },
             { pipeline_stage_id?: number; page: number }
         >({
-            path: route("leadboards.deals"),
+            path: route("deals.kanban_deals"),
             params: {
                 pipeline_stage_id: column.id,
                 page: 1,

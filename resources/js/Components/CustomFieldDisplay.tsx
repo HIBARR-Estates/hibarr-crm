@@ -436,11 +436,6 @@ export default function CustomFieldDisplay({
                     ? value.toLocaleString()
                     : value;
 
-            case "currency":
-                return typeof value === "number"
-                    ? `$${value.toLocaleString()}`
-                    : value;
-
             case "textarea":
                 // Preserve line breaks for textarea content
                 return (
@@ -492,12 +487,12 @@ export default function CustomFieldDisplay({
             | "multiselect"
             | "boolean"
             | "textarea"
+            | "country"
             | "email" = "text";
         let options: { label: string; value: string | number }[] = [];
 
         switch (field.type) {
             case "number":
-            case "currency":
                 type = "number";
                 break;
             case "date":
@@ -508,6 +503,9 @@ export default function CustomFieldDisplay({
                 break;
             case "email":
                 type = "email";
+                break;
+            case "country":
+                type = "country";
                 break;
             case "select":
             case "radio":

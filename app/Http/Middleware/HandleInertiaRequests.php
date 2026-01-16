@@ -47,6 +47,7 @@ class HandleInertiaRequests extends Middleware
             'default_currency_symbol' => fn () => $this->getDefaultCurrencySymbol(),
             'default_currency_code' => fn () => $this->getDefaultCurrencyCode(),
             'currencies' => fn () => $this->getCompanyCurrencies(),
+            'countries' => fn () => $this->getCountries(),
             'errors' => fn () => $request->session()->get('errors')
                 ? $request->session()->get('errors')->getBag('default')->getMessages()
                 : (object) [],
@@ -121,7 +122,51 @@ class HandleInertiaRequests extends Middleware
                 return [];
             }
 
-            return $company?->currencies ?? [];
+            // Load currencies relationship and convert to array
+            $currencies = $company->currencies()->get();
+            
+            // Return as array with all necessary fields
+            return $currencies->map(function ($currency) {
+                return [
+                    'id' => $currency->id,
+                    'company_id' => $currency->company_id,
+                    'currency_name' => $currency->currency_name,
+                    'currency_symbol' => $currency->currency_symbol,
+                    'currency_code' => $currency->currency_code,
+                    'exchange_rate' => $currency->exchange_rate,
+                    'is_cryptocurrency' => $currency->is_cryptocurrency,
+                    'usd_price' => $currency->usd_price,
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get countries safely
+     */
+    private function getCountries()
+    {
+        try {
+            // Use cache to avoid querying database on every request
+            $countries = \Illuminate\Support\Facades\Cache::remember('countries_list', 3600, function () {
+                return \App\Models\Country::all();
+            });
+            
+            // Return as array with all necessary fields (including nationality)
+            return $countries->map(function ($country) {
+                return [
+                    'id' => $country->id,
+                    'iso' => $country->iso,
+                    'name' => $country->name,
+                    'nicename' => $country->nicename,
+                    'iso3' => $country->iso3,
+                    'numcode' => $country->numcode,
+                    'phonecode' => $country->phonecode,
+                    'nationality' => $country->nationality, // Include nationality attribute
+                ];
+            })->toArray();
         } catch (\Exception $e) {
             return [];
         }

@@ -173,7 +173,7 @@ const useDashboardLayoutProps = () => {
                         "Deals"
                     ) : (
                         <Link
-                            href={`/account/deals/kanban${
+                            href={`/account/deals${
                                 defaultPipeline
                                     ? `?lead_pipeline_id=${defaultPipeline.id}`
                                     : ""
@@ -181,7 +181,7 @@ const useDashboardLayoutProps = () => {
                             onClick={(e) => {
                                 e.preventDefault();
                                 router.visit(
-                                    `/account/deals/kanban${
+                                    `/account/deals${
                                         defaultPipeline
                                             ? `?lead_pipeline_id=${defaultPipeline.id}`
                                             : ""
@@ -199,11 +199,11 @@ const useDashboardLayoutProps = () => {
                               key: `deals-pipeline-${pipeline.id}`,
                               label: (
                                   <Link
-                                      href={`/account/deals/kanban?lead_pipeline_id=${pipeline.id}`}
+                                      href={`/account/deals?lead_pipeline_id=${pipeline.id}`}
                                       onClick={(e) => {
                                           e.preventDefault();
                                           router.visit(
-                                              `/account/deals/kanban?lead_pipeline_id=${pipeline.id}`
+                                              `/account/deals?lead_pipeline_id=${pipeline.id}`
                                           );
                                       }}
                                   >
