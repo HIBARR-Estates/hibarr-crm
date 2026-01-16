@@ -156,7 +156,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('/pusher/beams-auth', [DashboardController::class, 'beamAuth'])->name('dashboard.beam_auth');
 
     Route::get('settings/change-language', [SettingsController::class, 'changeLanguage'])->name('settings.change_language');
-    Route::resource('settings', SettingsController::class)->only(['edit', 'update', 'index', 'change_language']);
+    Route::get('settings/deal-automations', [SettingsController::class, 'deal_automations'])->name('settings.deal_automations');
+    Route::resource('settings', SettingsController::class)->only(['edit', 'update', 'index', 'change_language', 'deal_automations']);
 
 
     Route::post('approve/{id}', [ClientController::class, 'approve'])->name('clients.approve');

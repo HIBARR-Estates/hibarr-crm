@@ -25,24 +25,9 @@ class DealFollowUpObserver
      */
     public function created(DealFollowUp $dealFollowUp): void
     {
-        // Deal automation trigger
-        $this->dealAutomation->automate($dealFollowUp->lead);
-
-        // Send notification for meeting/follow-up scheduled
-        if (!isRunningInConsoleOrSeeding() && user()) {
-            $deal = Deal::find($dealFollowUp->deal_id);
-            if ($deal) {
-                $meetingDate = $dealFollowUp->next_follow_up_date 
-                    ? $dealFollowUp->next_follow_up_date->format('M d, Y H:i') 
-                    : null;
-                
-                $this->notificationService->notifyMeetingScheduled(
-                    $deal,
-                    $dealFollowUp->remark ?? 'Follow-up scheduled',
-                    $meetingDate,
-                    $dealFollowUp->id
-                );
-            }
+        //deal automation trigger
+        if ($dealFollowUp->deal) {
+            $this->dealAutomation->process($dealFollowUp->deal, 'followup_created');
         }
     }
 

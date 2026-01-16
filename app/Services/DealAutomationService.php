@@ -3,128 +3,166 @@
 namespace App\Services;
 
 use App\Models\Deal;
-use App\Models\LeadPipeline;
+use App\Models\DealAutomation;
+use App\Models\PipelineStage;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use App\Enums\MeetingType; 
 
-/**
- * Service to automate the progression of deals through pipeline stages
- * based on predefined business rules.
- */
 class DealAutomationService
 {
-    private array $stages = [];
+    protected FieldResolverService $fieldResolver;
+    protected ConditionEvaluatorService $conditionEvaluator;
 
-    public function __construct()
-    {
-        // Stages will be initialized dynamically from pipeline, as opposed to defaulting to first pipeline stage or pipeline with id of 1.
+    public function __construct(
+        FieldResolverService $fieldResolver,
+        ConditionEvaluatorService $conditionEvaluator
+    ) {
+        $this->fieldResolver = $fieldResolver;
+        $this->conditionEvaluator = $conditionEvaluator;
     }
 
     /**
-     * Automate deal progression through stages.
+     * Process automations for a deal based on its current state and an optional trigger.
+     *
+     * @param Deal $deal
+     * @param string|null $trigger
+     * @return void
      */
-    public function automate(Deal $deal): void
+    public function process(Deal $deal, ?string $trigger = null): void
     {
-        $this->initializeStages($deal);
+        Log::info("Processing automations for Deal ID: {$deal->id}, Trigger: " . ($trigger ?? 'None'));
 
-        $currentStage = $this->defineStage($deal);
-        $currentStageId = $currentStage['id'] ?? null;
+        // Fetch active automations for the deal's pipeline and trigger
+        $automations = $this->getAutomations($deal->lead_pipeline_id, $trigger);
 
-        DB::transaction(function () use ($deal, $currentStageId) {
-            switch ($currentStageId) {
-                case $this->stages['stage_1']['id']:
-                    $this->moveTo('stage_2', $deal);
-                    break;
-                case $this->stages['stage_2']['id']:
-                    $this->moveTo('stage_3', $deal);
-                    break;
-                case $this->stages['stage_3']['id']:
-                    $this->moveTo('stage_4', $deal);
-                    break;
-                case $this->stages['stage_4']['id']:
-                    $this->moveTo('stage_5', $deal);
-                    break;
-                default:
-                    Log::warning("Deal ID {$deal->id}: stage could not be determined or already final.");
+        foreach ($automations as $automation) {
+            if ($this->evaluateConditions($deal, $automation)) {
+                Log::info("Automation matched: {$automation->name} (ID: {$automation->id})");
+                $this->executeActions($deal, $automation);
             }
-        });
+        }
     }
 
     /**
-     * Initialize stages from pipeline (must have at least 5).
+     * Fetch automations from the database.
+     *
+     * @param int $pipelineId
+     * @param string|null $trigger
+     * @return \Illuminate\Database\Eloquent\Collection
      */
-    private function initializeStages(Deal $deal): void
+    protected function getAutomations(int $pipelineId, ?string $trigger)
     {
-        $pipeline = $deal->lead_pipeline_id
-            ? LeadPipeline::find($deal->lead_pipeline_id)
-            : LeadPipeline::first();
-
-        if (!$pipeline) {
-            Log::warning("Deal ID {$deal->id}: no pipeline found; skipping automation");
-            $this->stages = [];
-            return;
-        }
-
-        $stages = $pipeline->stages()->orderBy('priority')->get();
-
-        if ($stages->count() < 5) {
-            Log::warning("Deal ID {$deal->id}: pipeline has insufficient stages ({$stages->count()}); skipping automation");
-            $this->stages = [];
-            return;
-        }
-
-        
-        $this->stages = [
-            'stage_1' => ['id' => $stages[0]->id, 'name' => $stages[0]->name],
-            'stage_2' => ['id' => $stages[1]->id, 'name' => $stages[1]->name],
-            'stage_3' => ['id' => $stages[2]->id, 'name' => $stages[2]->name],
-            'stage_4' => ['id' => $stages[3]->id, 'name' => $stages[3]->name],
-            'stage_5' => ['id' => $stages[4]->id, 'name' => $stages[4]->name],
-        ];
+        return DealAutomation::where('active', true)
+            ->where('pipeline_id', $pipelineId)
+            ->where(function ($query) use ($trigger) {
+                $query->where('trigger', $trigger)
+                      ->orWhereNull('trigger');
+            })
+            ->orderBy('priority', 'desc') // Higher priority runs first
+            ->with(['conditions', 'actions'])
+            ->get();
     }
 
     /**
-     * Define current stage based on deal attributes & business rules.
+     * Evaluate all conditions for a given automation.
+     *
+     * @param Deal $deal
+     * @param DealAutomation $automation
+     * @return bool
      */
-    private function defineStage(Deal $deal): array
+    protected function evaluateConditions(Deal $deal, DealAutomation $automation): bool
     {
-        if (!$deal->followup || $deal->followup?->meeting_type !== MeetingType::KickOff->value) {
-            return $this->stages['stage_1'];
+        if ($automation->conditions->isEmpty()) {
+            return true; // No conditions means it always runs if triggered
         }
 
-        if ($deal->followup && $deal->pipeline_stage_id === $this->stages['stage_2']['id'] && !$deal->strategy_accepted) {
-            return $this->stages['stage_2'];
+        foreach ($automation->conditions as $condition) {
+            $fieldValue = $this->fieldResolver->resolve($deal, $condition->field);
+            
+            $passed = $this->conditionEvaluator->evaluate(
+                $fieldValue,
+                $condition->operator,
+                $condition->value
+            );
+
+            if (!$passed) {
+                return false; // All conditions must pass (AND logic)
+            }
         }
 
-        if ($deal->strategy_accepted && $deal->pipeline_stage_id === $this->stages['stage_3']['id'] && !$deal->downpayment_confirmed) {
-            return $this->stages['stage_3'];
-        }
-
-        if ($deal->pipeline_stage_id === $this->stages['stage_4']['id'] && $deal->downpayment_confirmed) {
-            return $this->stages['stage_4'];
-        }
-
-        // Stage 5 is considered final — no automation beyond this
-        if ($deal->pipeline_stage_id === $this->stages['stage_5']['id']) {
-            return $this->stages['stage_5'];
-        }
-
-        return []; // Undefined state
+        return true;
     }
 
     /**
-     * Move deal to a new stage and log it.
+     * Execute actions defined in the automation.
+     *
+     * @param Deal $deal
+     * @param DealAutomation $automation
+     * @return void
      */
-    private function moveTo(string $targetStage, Deal $deal): void
+    protected function executeActions(Deal $deal, DealAutomation $automation): void
     {
-        if (!isset($this->stages[$targetStage])) {
-            throw new \InvalidArgumentException("Target stage {$targetStage} not defined.");
+        foreach ($automation->actions as $action) {
+            $this->performAction($deal, $action);
+        }
+    }
+
+    /**
+     * Perform a single action on the deal.
+     *
+     * @param Deal $deal
+     * @param \App\Models\DealAutomationAction $action
+     * @return void
+     */
+    protected function performAction(Deal $deal, $action): void
+    {
+        $targetStageId = $action->target_stage_id;
+        $targetPipelineId = $action->target_pipeline_id ?? $deal->lead_pipeline_id;
+        $forwardOnly = $action->forward_only;
+
+        $shouldUpdate = true;
+
+        if ($forwardOnly) {
+            // If staying in the same pipeline, check stage priority
+            if ($targetPipelineId == $deal->lead_pipeline_id) {
+                $currentStage = $this->getStage($deal->pipeline_stage_id);
+                $targetStage = $this->getStage($targetStageId);
+
+                if ($currentStage && $targetStage) {
+                    if ($targetStage->priority <= $currentStage->priority) {
+                        $shouldUpdate = false;
+                        Log::info("Skipping action for Deal ID: {$deal->id}. Forward only rule prevented move from {$currentStage->name} (Priority: {$currentStage->priority}) to {$targetStage->name} (Priority: {$targetStage->priority}).");
+                    }
+                }
+            }
         }
 
-        $deal->pipeline_stage_id = $this->stages[$targetStage]['id'];
-        $deal->saveQuietly();
+        if ($shouldUpdate) {
+            $changes = [];
+            if ($deal->pipeline_stage_id != $targetStageId) {
+                $deal->pipeline_stage_id = $targetStageId;
+                $changes[] = "Stage changed to ID: {$targetStageId}";
+            }
+            
+            if ($deal->lead_pipeline_id != $targetPipelineId) {
+                $deal->lead_pipeline_id = $targetPipelineId;
+                $changes[] = "Pipeline changed to ID: {$targetPipelineId}";
+            }
 
-        Log::info("Deal ID {$deal->id} moved to {$this->stages[$targetStage]['name']}");
+            if (!empty($changes)) {
+                $deal->save();
+                Log::info("Action executed for Deal ID: {$deal->id}. " . implode(', ', $changes));
+            }
+        }
+    }
+
+    /**
+     * Fetch a pipeline stage by ID.
+     *
+     * @param int $id
+     * @return PipelineStage|null
+     */
+    protected function getStage($id)
+    {
+        return PipelineStage::find($id);
     }
 }
