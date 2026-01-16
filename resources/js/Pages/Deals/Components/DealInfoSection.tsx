@@ -16,12 +16,13 @@ import {
     EditOutlined,
     DeleteOutlined,
     CheckSquareOutlined,
+    CloseOutlined,
+    CheckOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
-import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import UserIndicator from "@/Components/UserIndicator";
@@ -68,6 +69,9 @@ export default function DealInfoSection({
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
 
+    // Edit mode state - when true, all fields become editable
+    const [isEditMode, setIsEditMode] = useState(false);
+
     // API Mutation for inline updates
     const { mutateAsync: updateDeal, status } = useApiMutate<
         {
@@ -103,6 +107,19 @@ export default function DealInfoSection({
     // Check edit permission - only creator and agent can edit
     const canEdit = dealPermissions.canEdit;
     const canDelete = dealPermissions.canDelete;
+
+    // Fields are editable only when in edit mode AND user has permission
+    const isFieldEditable = isEditMode && canEdit;
+
+    // Toggle edit mode
+    const handleToggleEditMode = () => {
+        setIsEditMode(!isEditMode);
+    };
+
+    // Exit edit mode
+    const handleExitEditMode = () => {
+        setIsEditMode(false);
+    };
 
     // Format currency
     const formatCurrency = (value: number, currencySymbol: string = "£") => {
@@ -215,17 +232,27 @@ export default function DealInfoSection({
             label: <span>Add Task</span>,
             onClick: () => handleAction("add_task"),
         },
-        // Only show edit button if user can edit
-        ...(canEdit
+        // Toggle edit mode button - only show if user can edit
+        ...(canEdit && !isEditMode
             ? [
                   {
                       key: "edit",
                       icon: <EditOutlined />,
                       tooltip: "Edit Deal",
                       type: "text" as const,
-                      onClick: () => {
-                          handleAction("edit");
-                      },
+                      onClick: handleToggleEditMode,
+                  },
+              ]
+            : []),
+        // Cancel edit mode button - only show when in edit mode
+        ...(isEditMode
+            ? [
+                  {
+                      key: "cancel_edit",
+                      icon: <CloseOutlined />,
+                      tooltip: "Cancel Edit",
+                      type: "text" as const,
+                      onClick: handleExitEditMode,
                   },
               ]
             : []),
@@ -290,7 +317,7 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("package_id", value)
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("package_id")}
                             />
                         </Descriptions.Item>
@@ -333,7 +360,7 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("lead_id", value)
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("lead_id")}
                             />
                         </Descriptions.Item>
@@ -350,7 +377,7 @@ export default function DealInfoSection({
                                             handleFieldUpdate("email", value)
                                         }
                                         className="text-blue-600 hover:text-blue-800"
-                                        disabled={!canEdit}
+                                        disabled={!isFieldEditable}
                                         loading={isFieldLoading("email")}
                                     />
                                 </div>
@@ -372,7 +399,7 @@ export default function DealInfoSection({
                                         onSave={(value) =>
                                             handleFieldUpdate("mobile", value)
                                         }
-                                        disabled={!canEdit}
+                                        disabled={!isFieldEditable}
                                         loading={isFieldLoading("mobile")}
                                     />
                                 </div>
@@ -389,7 +416,7 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("company_name", value)
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("company_name")}
                             />
                         </Descriptions.Item>
@@ -409,7 +436,7 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("category_id", value)
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("category_id")}
                             />
                         </Descriptions.Item>
@@ -434,7 +461,7 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("agent_id", value)
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("agent_id")}
                             />
                         </Descriptions.Item>
@@ -475,7 +502,7 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("deal_watcher", value)
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("deal_watcher")}
                             />
                         </Descriptions.Item>
@@ -516,7 +543,7 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("deal_participant", value)
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("deal_participant")}
                             />
                         </Descriptions.Item>
@@ -547,7 +574,7 @@ export default function DealInfoSection({
                                           )
                                         : "--"
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("close_date")}
                             />
                         </Descriptions.Item>
@@ -570,7 +597,7 @@ export default function DealInfoSection({
                                         : "--"
                                 }
                                 className="font-semibold"
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("value")}
                             />
                         </Descriptions.Item>
@@ -608,7 +635,7 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("product_id", value)
                                 }
-                                disabled={!canEdit}
+                                disabled={!isFieldEditable}
                                 loading={isFieldLoading("product_id")}
                             />
                         </Descriptions.Item>
@@ -625,7 +652,7 @@ export default function DealInfoSection({
                     onUpdate={(field, value) =>
                         handleFieldUpdate(field, value, "hibarr_field")
                     }
-                    editable={canEdit}
+                    editable={isFieldEditable}
                     loadingField={updatingField}
                 />
             ),
@@ -644,7 +671,7 @@ export default function DealInfoSection({
                         onUpdate={(field, value) =>
                             handleFieldUpdate(field, value, "custom_field")
                         }
-                        editable={canEdit}
+                        editable={isFieldEditable}
                         loadingField={updatingField}
                     />
                 </div>
@@ -654,11 +681,6 @@ export default function DealInfoSection({
 
     return (
         <>
-            <DealInformationGatheringForm
-                open={action === "edit"}
-                onClose={handleClose}
-                deal={currentDeal}
-            />
             <SaveTaskModal
                 open={action === "add_task"}
                 onClose={handleClose}
@@ -680,10 +702,21 @@ export default function DealInfoSection({
             />
             <div>
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                        Deal Information
-                    </h2>
+                <div
+                    className={`flex items-center justify-between p-6 border-b border-gray-200 ${
+                        isEditMode ? "bg-blue-50" : "bg-white"
+                    }`}
+                >
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                            Deal Information
+                        </h2>
+                        {isEditMode && (
+                            <Tag color="blue" className="text-xs">
+                                Edit Mode
+                            </Tag>
+                        )}
+                    </div>
                     <Space size="small">
                         {actionItems.map((item) => (
                             <Tooltip key={item.key} title={item.tooltip}>
