@@ -49,8 +49,29 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
     } = useGenericEntityAction<DealFollowup>();
 
     const renderMeetingLink = (record: DealFollowup) => {
-        if (record.location === "office" || !record.meeting_link) {
-            return <span className="text-gray-500">Office Meeting</span>;
+        // Get platform label based on location
+        const getPlatformLabel = (location: string) => {
+            switch (location) {
+                case "office":
+                    return "Office Meeting";
+                case "phone":
+                    return "Phone Meeting";
+                case "physical":
+                    return "Physical Meeting";
+                default:
+                    return null;
+            }
+        };
+
+        const platformLabel = getPlatformLabel(record.location);
+        
+        // If it's a non-video meeting platform or no meeting link, show the platform label
+        if (platformLabel || !record.meeting_link) {
+            return (
+                <span className="text-gray-500">
+                    {platformLabel || "Office Meeting"}
+                </span>
+            );
         }
 
         const getMeetingIcon = (location: string) => {
@@ -102,19 +123,20 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             title: "Meeting Date",
             dataIndex: "next_follow_up_date",
             key: "next_follow_up_date",
-            width: "18%",
+            width: 160,
+            fixed: "left" as const,
             render: (_, record) => (
                 <div
                     className="flex items-center space-x-2 cursor-pointer hover:text-blue-600 transition-colors"
                     onClick={() => handleAction("view", record)}
                 >
                     <div>
-                        <div className="font-medium">
+                        <div className="font-medium whitespace-nowrap">
                             {dayjs(record.next_follow_up_date).format(
                                 "MMM DD, YYYY"
                             )}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 whitespace-nowrap">
                             {dayjs(record.next_follow_up_date).format("h:mm A")}
                         </div>
                     </div>
@@ -125,29 +147,10 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             title: "Meeting Type",
             dataIndex: "meeting_type",
             key: "meeting_type",
-            width: "13%",
+            width: 140,
             render: (_, record) =>
                 record.meeting_type?.name ? (
-                    <Tag color="blue">{record.meeting_type.name}</Tag>
-                ) : (
-                    <span className="text-gray-500">--</span>
-                ),
-        },
-        {
-            title: "Remarks",
-            dataIndex: "remark",
-            key: "remark",
-            width: "22%",
-            render: (_, { remark: summary }) =>
-                summary ? (
-                    <div className="max-w-xs">
-                        <ContentRenderer
-                            content={summary}
-                            maxLength={150}
-                            showFullContent={false}
-                            className="text-sm"
-                        />
-                    </div>
+                    <span className="">{record.meeting_type.name}</span>
                 ) : (
                     <span className="text-gray-500">--</span>
                 ),
@@ -156,17 +159,17 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             title: "Meeting Link",
             dataIndex: "meeting_link",
             key: "meeting_link",
-            width: "12%",
+            width: 150,
             render: (_, record) => renderMeetingLink(record),
         },
         {
             title: "Status",
             dataIndex: "status",
             key: "status",
-            width: "8%",
+            width: 120,
             render: (_, { status }) => {
                 return (
-                    <Tag color={getStatusColor(status)} className="capitalize">
+                    <Tag color={getStatusColor(status)} className="capitalize whitespace-nowrap">
                         {status}
                     </Tag>
                 );
@@ -175,14 +178,17 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
         {
             title: "Summary Status",
             key: "summary_status",
-            width: "12%",
-            render: (_, record) => {
+            width: 140,
+           render: (_, record) => {
+            if (record.location === "office" || !record.meeting_link) {
+                return <span className="text-gray-500">--</span>;
+            }else{
                 if (record.meeting_summary) {
                     return (
                         <Button
                             type="link"
                             size="small"
-                            className="text-green-600 hover:text-green-800 p-0 h-auto"
+                            className="text-green-600 hover:text-green-800 p-0 h-auto whitespace-nowrap"
                             onClick={() => handleAction("view", record)}
                         >
                             View Summary
@@ -190,17 +196,19 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                     );
                 }
                 return (
-                    <Tag color="orange" className="text-xs">
+                    <Tag color="orange" className="text-xs whitespace-nowrap">
                         Pending
                     </Tag>
                 );
-            },
+            }
+        }
         },
 
         {
             title: "Actions",
             key: "actions",
-            width: "5%",
+            width: 80,
+            fixed: "right" as const,
             render: (_, record) => {
                 if (!record.added_by) {
                     return null;
@@ -324,20 +332,23 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                             />
                         )}
                     </div>
-                    <Table
-                        columns={columns}
-                        dataSource={followUps}
-                        rowKey="id"
-                        pagination={{
-                            pageSize: 10,
-                            showSizeChanger: true,
-                            showQuickJumper: true,
-                            showTotal: (total) => `Total ${total} follow-ups`,
-                        }}
-                        className="follow-ups-table"
-                        size="small"
-                        rowSelection={rowSelection}
-                    />
+                    <div className="overflow-x-auto">
+                        <Table
+                            columns={columns}
+                            dataSource={followUps}
+                            rowKey="id"
+                            pagination={{
+                                pageSize: 10,
+                                showSizeChanger: true,
+                                showQuickJumper: true,
+                                showTotal: (total) => `Total ${total} follow-ups`,
+                            }}
+                            className="follow-ups-table"
+                            size="small"
+                            rowSelection={rowSelection}
+                            scroll={{ x: 900 }}
+                        />
+                    </div>
                 </div>
             )}
             {/* Add Follow-up Modal */}

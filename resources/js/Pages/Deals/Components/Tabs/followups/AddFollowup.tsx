@@ -1,7 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 import { IModalProps } from "@/Types/common";
 import { Drawer } from "antd";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SaveFollowup from "./SaveFollowup";
 import { useApiMutate } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
@@ -28,9 +28,18 @@ interface Props extends IModalProps {
 
 const AddFollowup: React.FC<Props> = ({ deal, onClose, open }) => {
     const [errors, setErrors] = useState<string[]>([]);
+    const [formKey, setFormKey] = useState(0);
+
+    // Reset form when modal opens
+    useEffect(() => {
+        if (open) {
+            setFormKey(prev => prev + 1);
+        }
+    }, [open]);
 
     const handleCancel = () => {
         setErrors([]);
+        setFormKey(prev => prev + 1); // Force form reset on close
         onClose();
     };
 
@@ -46,6 +55,7 @@ const AddFollowup: React.FC<Props> = ({ deal, onClose, open }) => {
         mutate(data, {
             onSuccess: () => {
                 setErrors([]);
+                setFormKey(prev => prev + 1); // Reset form after successful submission
                 console.log("Follow-up created successfully");
                 router.reload();
             },
@@ -69,6 +79,7 @@ const AddFollowup: React.FC<Props> = ({ deal, onClose, open }) => {
             onClose={handleCancel}
         >
             <SaveFollowup
+                key={formKey}
                 deal={deal}
                 onSubmit={onSubmit}
                 onCancel={handleCancel}
