@@ -8,6 +8,8 @@ return array(
 
     'dealWatcher' => 'Deal Watchers',
     'changedBy' => 'Changed By',
+    'newLeadSubject' => 'New Lead Contact Created',
+
 
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
