@@ -148,7 +148,7 @@ export const createDealFilterConfig = (
                     label: agent.user?.name || agent.name,
                 }));
             },
-            options: props.leadAgentsmap((agent: any) => ({
+            options: props.leadAgents?.map((agent: any) => ({
                 value: agent.user?.id || agent.user_id, // Use user_id as value because backend filters by user_id
                 label: agent.user?.name || agent.name,
             })),
