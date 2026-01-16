@@ -65,6 +65,7 @@ export interface Deal {
     pipeline?: Pipeline | null;
     currency?: Currency;
     deal_watchers: DealWatcher[];
+    deal_participants?: DealParticipant[];
     products?: Product[];
     services?: any[];
     lead_status?: LeadStatus | null;
@@ -111,6 +112,14 @@ interface LeadAgent {
 }
 
 interface DealWatcher {
+    id: number;
+    name: string;
+    image?: string;
+    image_url?: string;
+    email?: string;
+}
+
+interface DealParticipant {
     id: number;
     name: string;
     image?: string;
@@ -276,6 +285,7 @@ export interface CreateDealFormData {
     package_id?: number[];
     services?: number[];
     deal_watcher?: number[];
+    deal_participant?: number[];
     strategy_accepted?: boolean;
     downpayment_confirmed?: boolean;
     custom_fields_data?: Record<string, any>;

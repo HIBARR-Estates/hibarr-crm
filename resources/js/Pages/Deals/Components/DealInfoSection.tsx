@@ -20,6 +20,7 @@ import {
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
@@ -96,16 +97,12 @@ export default function DealInfoSection({
         setCurrentDeal(deal);
     }, [deal]);
 
-    // Check edit permission
-    const canEdit = true;
-    // const canEdit =
-    //     permissions.edit_deals === "all" ||
-    //     (permissions.edit_deals === "added" && deal.added_by === user?.id) ||
-    //     (permissions.edit_deals === "owned" &&
-    //         deal.lead_agent?.user_id === user?.id) ||
-    //     (permissions.edit_deals === "both" &&
-    //         (deal.added_by === user?.id ||
-    //             deal.lead_agent?.user_id === user?.id));
+    // Use the deal permissions hook
+    const dealPermissions = useDealPermissions(currentDeal);
+
+    // Check edit permission - only creator and agent can edit
+    const canEdit = dealPermissions.canEdit;
+    const canDelete = dealPermissions.canDelete;
 
     // Format currency
     const formatCurrency = (value: number, currencySymbol: string = "£") => {
@@ -208,7 +205,7 @@ export default function DealInfoSection({
         }
     };
 
-    // Action menu items
+    // Action menu items - only show edit/delete for users with appropriate permissions
     const actionItems = [
         {
             key: "add_task",
@@ -218,24 +215,22 @@ export default function DealInfoSection({
             label: <span>Add Task</span>,
             onClick: () => handleAction("add_task"),
         },
-        {
-            key: "edit",
-            icon: <EditOutlined />,
-            tooltip: "Edit Deal",
-            type: "text" as const,
-            onClick: () => {
-                handleAction("edit");
-            },
-        },
-        ...(permissions.delete_deals === "all" ||
-        (permissions.delete_deals === "added" && deal.added_by === user?.id) ||
-        (permissions.delete_deals === "owned" &&
-            (deal.lead_agent?.user_id === user?.id ||
-                deal.deal_watchers?.some((w: any) => w.id === user?.id))) ||
-        (permissions.delete_deals === "both" &&
-            (deal.added_by === user?.id ||
-                deal.lead_agent?.user_id === user?.id ||
-                deal.deal_watchers?.some((w: any) => w.id === user?.id)))
+        // Only show edit button if user can edit
+        ...(canEdit
+            ? [
+                  {
+                      key: "edit",
+                      icon: <EditOutlined />,
+                      tooltip: "Edit Deal",
+                      type: "text" as const,
+                      onClick: () => {
+                          handleAction("edit");
+                      },
+                  },
+              ]
+            : []),
+        // Only show delete button if user can delete
+        ...(canDelete
             ? [
                   {
                       key: "delete",
@@ -482,6 +477,47 @@ export default function DealInfoSection({
                                 }
                                 disabled={!canEdit}
                                 loading={isFieldLoading("deal_watcher")}
+                            />
+                        </Descriptions.Item>
+
+                        <Descriptions.Item label="Deal Participants" span={2}>
+                            <EditableField
+                                value={
+                                    currentDeal.deal_participants?.map(
+                                        (p: any) => p.id
+                                    ) || []
+                                }
+                                fieldName="deal_participant"
+                                selectorType="employees"
+                                mode="multiple"
+                                displayValue={
+                                    currentDeal.deal_participants &&
+                                    currentDeal.deal_participants.length > 0 ? (
+                                        <MultiUserIndicator
+                                            users={currentDeal.deal_participants.map(
+                                                (participant: any) => ({
+                                                    id: participant.id,
+                                                    image_url:
+                                                        participant.image_url ||
+                                                        participant.image,
+                                                    name: participant.name,
+                                                })
+                                            )}
+                                            size="sm"
+                                            maxCount={2}
+                                            showTooltip={true}
+                                        />
+                                    ) : (
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("deal_participant", value)
+                                }
+                                disabled={!canEdit}
+                                loading={isFieldLoading("deal_participant")}
                             />
                         </Descriptions.Item>
 

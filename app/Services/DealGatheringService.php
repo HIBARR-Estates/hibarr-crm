@@ -243,6 +243,10 @@ class DealGatheringService
                 if (array_key_exists('deal_watcher', $data)) {
                     $deal->dealWatchers()->sync($data['deal_watcher']);
                 }
+
+                if (array_key_exists('deal_participant', $data)) {
+                    $deal->dealParticipants()->sync($data['deal_participant']);
+                }
                 break;
 
             case DealUpdateType::CONTACT:

@@ -490,6 +490,13 @@ class DealController extends AccountBaseController
                       ->with('employeeDetail.designation:id,name')
                       ->where('users.status', '!=', 'deactive')
                       ->orderBy('users.name');
+            },
+            'dealParticipants' => function ($query) {
+                $query->withoutGlobalScope(ActiveScope::class)
+                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
+                      ->with('employeeDetail.designation:id,name')
+                      ->where('users.status', '!=', 'deactive')
+                      ->orderBy('users.name');
             }
         ])->findOrFail($id);
         $this->loadDataForView();
@@ -798,6 +805,11 @@ class DealController extends AccountBaseController
             $deal->dealWatchers()->sync($request->deal_watcher);
         }
 
+        // Handle deal participants
+        if ($request->deal_participant && is_array($request->deal_participant)) {
+            $deal->dealParticipants()->sync($request->deal_participant);
+        }
+
         if (!is_null($request->product_id)) {
 
             $products = $request->product_id;
@@ -1018,6 +1030,11 @@ class DealController extends AccountBaseController
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
             $deal->dealWatchers()->sync($request->deal_watcher);
+        }
+
+        // Handle deal participants
+        if ($request->deal_participant && is_array($request->deal_participant)) {
+            $deal->dealParticipants()->sync($request->deal_participant);
         }
 
         $deal->products()->sync($request->product_id);
