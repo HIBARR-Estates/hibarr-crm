@@ -9,6 +9,7 @@ import { Deal, PipelineStage, Product } from "@/Types/api/deals";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { User } from "@/Types";
 import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
+import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
 import DeleteColumn from "./Components/DeleteColumn";
@@ -179,8 +180,16 @@ const LeadBoardIndex = ({
 
     return (
         <>
+            {/* Save Deal Modal - For Edit */}
+            <SaveDealModal
+                open={action === "edit"}
+                onClose={handleClose}
+                deal={deal}
+            />
+
+            {/* Deal Gathering Form - For Add */}
             <DealInformationGatheringForm
-                open={action === "add" || action === "edit"}
+                open={action === "add"}
                 onClose={handleClose}
                 deal={action === "edit" ? deal : null}
                 pipelineId={valueLeadPipelineId}
