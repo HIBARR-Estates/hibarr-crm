@@ -183,6 +183,7 @@ const LeadBoardIndex = ({
                 open={action === "add" || action === "edit"}
                 onClose={handleClose}
                 deal={action === "edit" ? deal : null}
+                pipelineId={valueLeadPipelineId}
             />
             <div className="bg-gray-50 min-h-screen">
                 <PageLayout

@@ -577,6 +577,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::get('deals/kanban', [LeadBoardController::class, 'index'])->name('deals.kanban_index');
+    Route::get('deals/kanban-deals', [DealController::class, 'getKanbanDeals'])->name('deals.kanban_deals');
     
     Route::group(['prefix' => 'deals', 'as' => 'deals.'], function () {
         Route::post('gathering/init', [DealGatheringController::class, 'init'])->name('gathering.init');

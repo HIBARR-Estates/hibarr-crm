@@ -96,16 +96,32 @@ class DealGatheringService
 
     /**
      * Initialize a Deal for a Lead
+     * 
+     * @param Lead $lead The lead to associate with the deal
+     * @param int|null $pipelineId Optional pipeline ID. If null, uses default pipeline.
      */
-    public function initializeDeal(Lead $lead)
+    public function initializeDeal(Lead $lead, ?int $pipelineId = null)
     {
         $dealName = 'New Deal - ' . $lead->client_name;
+        
+        // Get the pipeline ID: use provided, or fall back to default
+        $leadPipelineId = $pipelineId;
+        if (!$leadPipelineId) {
+            $defaultPipeline = \App\Models\LeadPipeline::where('default', 1)->first();
+            $leadPipelineId = $defaultPipeline?->id ?? 1;
+        }
+
+        // Get the first stage for the selected pipeline
+        $firstStage = \App\Models\PipelineStage::where('lead_pipeline_id', $leadPipelineId)
+            ->orderBy('priority', 'asc')
+            ->first();
+        $pipelineStageId = $firstStage?->id ?? 1;
         
         $deal = Deal::create([
             'lead_id' => $lead->id,
             'name' => $dealName,
-            'lead_pipeline_id' => 1, // Default pipeline, should probably be dynamic or first available
-            'pipeline_stage_id' => 1, // Default stage
+            'lead_pipeline_id' => $leadPipelineId,
+            'pipeline_stage_id' => $pipelineStageId,
             'value' => 0,
             'added_by' => user()->id,
             'close_date' => now()->addDays(30),
