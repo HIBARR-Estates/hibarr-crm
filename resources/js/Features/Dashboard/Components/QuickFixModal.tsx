@@ -35,6 +35,7 @@ interface DataQualityRecord {
     stage_id?: number;
     agent?: {
         id: number;
+        lead_agent_id?: number;
         name: string;
         image?: string;
     };
@@ -48,18 +49,16 @@ interface QuickFixFormData {
 
 interface QuickFixModalProps extends IModalProps {
     record?: DataQualityRecord;
-    products?: any[];
-    packages?: any[];
     countries?: any[];
+    leadAgents?: any[];
 }
 
 const QuickFixModal: React.FC<QuickFixModalProps> = ({
     record,
     open: visible,
     onClose: onCancel,
-    products = [],
-    packages = [],
     countries = [],
+    leadAgents = [],
 }) => {
     const [form] = Form.useForm<QuickFixFormData>();
     const [errors, setErrors] = useState<string[]>([]);
@@ -160,8 +159,13 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
             }
 
             // Add deal-specific data
-            if (record.type === "deal" && record.value) {
-                initialValues.value = record.value;
+            if (record.type === "deal") {
+                if (record.value) {
+                    initialValues.value = record.value;
+                }
+                if (record.agent?.lead_agent_id) {
+                    initialValues.lead_agent_id = record.agent.lead_agent_id;
+                }
             }
 
             form.setFieldsValue(initialValues);
@@ -233,42 +237,29 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                                 Deal Information
                             </h4>
 
-                            <Form.Item name="package_id" label="Package">
-                                <Select placeholder="Select package">
-                                    {packages.map((pkg) => (
-                                        <Select.Option
-                                            key={pkg.id}
-                                            value={pkg.id}
-                                        >
-                                            {pkg.name}
-                                        </Select.Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
-
-                            <Form.Item name="product_id" label="Products">
+                            <Form.Item
+                                name="lead_agent_id"
+                                label="Assigned Agent"
+                            >
                                 <Select
-                                    mode="multiple"
-                                    placeholder="Select products"
+                                    showSearch
+                                    placeholder="Select an agent"
                                     optionFilterProp="children"
+                                    filterOption={(input, option) =>
+                                        (option?.children as unknown as string)
+                                            ?.toLowerCase()
+                                            ?.includes(input.toLowerCase())
+                                    }
                                 >
-                                    {products.map((prod) => (
+                                    {leadAgents.map((agent: any) => (
                                         <Select.Option
-                                            key={prod.id}
-                                            value={prod.id}
+                                            key={agent.id}
+                                            value={agent.id}
                                         >
-                                            {prod.name}
+                                            {agent.user?.name || agent.name}
                                         </Select.Option>
                                     ))}
                                 </Select>
-                            </Form.Item>
-
-                            <Form.Item name="value" label="Deal Value">
-                                <Input
-                                    type="number"
-                                    placeholder="Enter deal value"
-                                    prefix="$"
-                                />
                             </Form.Item>
                         </div>
                     )}

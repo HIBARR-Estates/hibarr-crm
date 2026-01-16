@@ -61,6 +61,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         package_id: deal?.packages?.map((p) => p.id) || [],
         services: deal?.services?.map((s) => s.id) || [],
         deal_watcher: deal?.deal_watchers?.map((w) => w.id) || [],
+        deal_participant: deal?.deal_participants?.map((p) => p.id) || [],
         strategy_accepted: !!deal?.strategy_accepted,
         downpayment_confirmed: !!deal?.downpayment_confirmed,
         custom_fields_data:

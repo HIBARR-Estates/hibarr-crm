@@ -12,6 +12,7 @@ declare module "@inertiajs/core" {
             error?: string;
         };
         currencies?: Currency[];
+        company?: Company;
         languages?: Array<{ language_code: string; language_name: string }>;
         salutations?: Array<{ value: string; label: string }>;
         countries?: Array<Country>;
@@ -20,5 +21,6 @@ declare module "@inertiajs/core" {
         default_currency_symbol?: string;
         default_currency_code?: string;
         isDarkMode?: boolean; // Example additional prop, not implemented yet
+        pipelines?: Array<{ id: number; name: string; default: number }>;
     }
 }

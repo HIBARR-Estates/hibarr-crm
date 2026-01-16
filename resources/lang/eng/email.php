@@ -24,6 +24,11 @@ return array(
         'newSubject' => 'New Expense has been Submitted',
         'action' => 'View Expense',
     ),
+    'leadAgentAssigned' => array(
+        'subject' => 'You have been assigned as lead agent',
+        'text' => 'You have been assigned as lead agent for the lead',
+        'action' => 'View Lead',
+    ),
     'newExpenseRecurring' => array(
         'subject' => 'New Recurring Expense Submitted for Approval',
         'action' => 'View Recurring Expense',

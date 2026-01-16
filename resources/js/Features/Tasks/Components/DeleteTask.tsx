@@ -25,7 +25,7 @@ const DeleteTask: React.FC<Props> = ({ task, onClose, open }) => {
                 onSuccess: () => {
                     onClose();
                     // refreshes data on the current page
-                    router.reload();
+                    router.reload({ only: ["tasks"] });
                 },
             }
         );

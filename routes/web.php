@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\DealController;
+use App\Http\Controllers\DealGatheringController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AwardController;
@@ -37,6 +38,7 @@ use App\Http\Controllers\ClientDocController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventFileController;
 use App\Http\Controllers\LeadBoardController;
+use App\Http\Controllers\PropertyRecommendationController;
 use App\Http\Controllers\LeaveFileController;
 use App\Http\Controllers\QuickbookController;
 use App\Http\Controllers\TaskBoardController;
@@ -450,6 +452,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('tasks/members/{id}', [TaskController::class, 'members'])->name('tasks.members');
     Route::get('tasks/project_tasks/{id}', [TaskController::class, 'projectTasks'])->name('tasks.project_tasks');
     Route::get('tasks/check-leaves', [TaskController::class, 'checkLeaves'])->name('tasks.checkLeaves');
+    Route::get('tasks/data/{id}', [TaskController::class, 'data'])->name('tasks.data');
     Route::get('tasks/waiting-approval', [TaskController::class, 'waitingApproval'])->name('tasks.waiting-approval');
     Route::get('tasks/show-waiting-approval-change-status-modal', [TaskController::class, 'statusReason'])->name('tasks.show_status_reason_modal');
     Route::post('tasks/store-status-reason', [TaskController::class, 'storeStatusReason'])->name('tasks.store_comment_on_change_status');
@@ -575,10 +578,28 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::get('deals/kanban', [LeadBoardController::class, 'index'])->name('deals.kanban_index');
+    Route::get('deals/kanban-deals', [DealController::class, 'getKanbanDeals'])->name('deals.kanban_deals');
     
+    Route::group(['prefix' => 'deals', 'as' => 'deals.'], function () {
+        Route::post('gathering/init', [DealGatheringController::class, 'init'])->name('gathering.init');
+        Route::get('gathering/steps', [DealGatheringController::class, 'getSteps'])->name('gathering.steps');
+        Route::get('gathering/search-leads', [DealGatheringController::class, 'searchLeads'])->name('gathering.search_leads');
+        Route::patch('gathering/update-step/{id}', [DealGatheringController::class, 'updateStep'])->name('gathering.update_step');
+        Route::get('gathering/custom-fields/{id}', [DealGatheringController::class, 'getDealCustomFields'])->name('gathering.get_custom_fields');
+        Route::patch('gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
+    });
+
     Route::resource('deals', DealController::class);
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
+
+    // Property Recommendations
+    Route::group(['prefix' => 'deals/{deal}/recommendations', 'as' => 'deals.recommendations.'], function () {
+        Route::get('/', [PropertyRecommendationController::class, 'getRecommendations'])->name('index');
+        Route::post('/refresh', [PropertyRecommendationController::class, 'refreshRecommendations'])->name('refresh');
+        Route::get('/compatibility/{property}', [PropertyRecommendationController::class, 'getCompatibility'])->name('compatibility');
+    });
+    Route::get('property-recommendations/health', [PropertyRecommendationController::class, 'healthCheck'])->name('property-recommendations.health');
     
 // Meeting Summary Routes
 Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
@@ -891,6 +912,21 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
     Route::post('show-notifications', [NotificationController::class, 'showNotifications'])->name('show_notifications');
 
+    // Notification API Routes (for React/Inertia)
+    Route::prefix('api/notifications')->name('notifications.api.')->group(function () {
+        Route::get('/', [NotificationController::class, 'apiIndex'])->name('index');
+        Route::get('/unread-summary', [NotificationController::class, 'apiUnreadSummary'])->name('unread_summary');
+        Route::get('/types', [NotificationController::class, 'apiTypes'])->name('types');
+        Route::post('/mark-read', [NotificationController::class, 'apiMarkRead'])->name('mark_read');
+        Route::post('/mark-multiple-read', [NotificationController::class, 'apiMarkMultipleRead'])->name('mark_multiple_read');
+        Route::post('/mark-all-read', [NotificationController::class, 'apiMarkAllRead'])->name('mark_all_read');
+        Route::post('/delete', [NotificationController::class, 'apiDelete'])->name('delete');
+        Route::post('/delete-multiple', [NotificationController::class, 'apiDeleteMultiple'])->name('delete_multiple');
+        Route::post('/delete-all-read', [NotificationController::class, 'apiDeleteAllRead'])->name('delete_all_read');
+    });
+
+    // Notification Page Route (Inertia)
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
 
     Route::get('gdpr/lead/approve-reject/{id}/{type}', [GdprSettingsController::class, 'approveRejectLead'])->name('gdpr.lead.approve_reject');
     Route::get('gdpr/customer/approve-reject/{id}/{type}', [GdprSettingsController::class, 'approveRejectClient'])->name('gdpr.customer.approve_reject');

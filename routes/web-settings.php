@@ -162,9 +162,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     // Custom Fields Settings
     Route::resource('custom-fields', CustomFieldController::class);
+    Route::get('custom-fields/{id}/rule-set', [CustomFieldController::class, 'getRuleSet'])->name('custom-fields.rule-set');
+    Route::post('custom-fields/{id}/rule-set', [CustomFieldController::class, 'saveRuleSet'])->name('custom-fields.save-rule-set');
+    Route::post('custom-fields/evaluate-visibility', [CustomFieldController::class, 'evaluateVisibility'])->name('custom-fields.evaluate-visibility');
+    Route::post('custom-fields/sort-fields', [CustomFieldController::class, 'sortFields'])->name('custom-fields.sort-fields');
     
     // Custom Field Categories
     Route::get('custom-field-categories/get-by-group', [CustomFieldCategoryController::class, 'getCategoriesByGroup'])->name('custom-field-categories.get-by-group');
+    Route::post('custom-field-categories/sort', [CustomFieldCategoryController::class, 'sortCategories'])->name('custom-field-categories.sort');
     Route::resource('custom-field-categories', CustomFieldCategoryController::class);
 
     // Tax Settings

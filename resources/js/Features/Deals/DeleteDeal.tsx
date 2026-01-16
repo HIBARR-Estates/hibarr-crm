@@ -17,7 +17,7 @@ const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
         unknown,
         unknown,
         ApiResponse<unknown>
-    >(deal ? route("deals.destroy", deal.id) : "", "DELETE");
+    >(`/account/deals/${deal?.id}`, "DELETE");
 
     const loading = getLoadingStatus({ status });
 

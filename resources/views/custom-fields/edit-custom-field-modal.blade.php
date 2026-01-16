@@ -4,7 +4,25 @@
 </div>
 <div class="modal-body">
     <div class="portlet-body">
-        <x-form id="editForm" method="PUT" class="form-horizontal">
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-3" id="customFieldTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link active" id="basic-tab" data-toggle="tab" href="#basic" role="tab" aria-controls="basic" aria-selected="true">
+                    @lang('modules.customFields.basic_info')
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="visibility-tab" data-toggle="tab" href="#visibility" role="tab" aria-controls="visibility" aria-selected="false">
+                    @lang('modules.customFields.visibility_rules')
+                </a>
+            </li>
+        </ul>
+
+        <!-- Tabs Content -->
+        <div class="tab-content" id="customFieldTabsContent">
+            <!-- Basic Info Tab -->
+            <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                <x-form id="editForm" method="PUT" class="form-horizontal">
 
             <div class="row">
                 <input type="hidden" name="id" value="{{ $field->id }}" />
@@ -47,12 +65,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-4">
-                    <div class="form-group my-5">
-                        <x-forms.checkbox fieldId="important" :fieldLabel="__('modules.customFields.important')" fieldName="important" fieldValue="1"
-                            :checked="$field->important == 1" />
-                    </div>
-                </div>
                 <div class="col-lg-6">
                     <div class="form-group my-5">
                         <x-forms.checkbox fieldId="visible" :fieldLabel="__('modules.customFields.showInTable')" fieldName="visible" fieldValue="true"
@@ -64,6 +76,16 @@
                         <x-forms.checkbox fieldId="export" :fieldLabel="__('modules.customFields.export')" fieldName="export" fieldValue="1"
                             :checked="$field->export == 1" />
                     </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="form-group my-5">
+                        <x-forms.checkbox fieldId="important" :fieldLabel="__('app.important')" fieldName="important" fieldValue="1"
+                            :checked="$field->important == 1" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <x-forms.number class="" :fieldLabel="__('modules.customFields.displayOrder')" fieldName="display_order" fieldId="display_order" 
+                        :fieldValue="$field->display_order ?? 0" :fieldPlaceholder="__('modules.customFields.displayOrderPlaceholder')" />
                 </div>
                
             </div>
@@ -99,48 +121,14 @@
                 </div>
             </div>
 
-            <hr>
-            <h5 class="mb-3">Visibility Conditions</h5>
-            <div id="conditions-container">
-                @foreach($field->conditions as $index => $condition)
-                    <div class="row condition-row mb-2" id="condition-{{ $index + 1 }}">
-                        <div class="col-md-1 d-flex align-items-center justify-content-center">
-                            <span class="condition-number font-weight-bold">{{ $index + 1 }}</span>
-                        </div>
-                        <div class="col-md-4">
-                            <select name="conditions[{{ $index }}][target_field_id]" class="form-control select-picker">
-                                @foreach($otherFields as $otherField)
-                                    <option value="{{ $otherField->id }}" {{ $condition->target_field_id == $otherField->id ? 'selected' : '' }}>{{ $otherField->label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <select name="conditions[{{ $index }}][operator]" class="form-control select-picker">
-                                <option value="==" {{ $condition->operator == '==' ? 'selected' : '' }}>Equals</option>
-                                <option value="!=" {{ $condition->operator == '!=' ? 'selected' : '' }}>Not Equals</option>
-                                <option value=">" {{ $condition->operator == '>' ? 'selected' : '' }}>Greater Than</option>
-                                <option value="<" {{ $condition->operator == '<' ? 'selected' : '' }}>Less Than</option>
-                                <option value="contains" {{ $condition->operator == 'contains' ? 'selected' : '' }}>Contains</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <input type="text" name="conditions[{{ $index }}][value]" class="form-control" value="{{ $condition->value }}" placeholder="Value">
-                        </div>
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-danger btn-sm remove-condition" onclick="removeCondition({{ $index + 1 }})"><i class="fa fa-trash"></i></button>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-            <button type="button" class="btn btn-secondary btn-sm mt-2" id="add-condition">Add Condition</button>
-
-            <div class="form-group mt-3">
-                <label>Logic (e.g., (1 && 2) || 3)</label>
-                <input type="text" name="logic_string" class="form-control" value="{{ $field->visibility->logic_string ?? '' }}" placeholder="(1 && 2) || 3">
-                <small class="form-text text-muted">Use condition numbers (1, 2, 3...) and operators (&&, ||, !, (, )).</small>
+                </x-form>
             </div>
 
-        </x-form>
+            <!-- Visibility Rules Tab -->
+            <div class="tab-pane fade" id="visibility" role="tabpanel" aria-labelledby="visibility-tab">
+                @include('custom-fields.visibility-rules-tab')
+            </div>
+        </div>
     </div>
 </div>
 <div class="modal-footer">

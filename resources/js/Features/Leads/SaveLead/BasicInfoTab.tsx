@@ -213,6 +213,44 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     {createDeal && <LeadDealCreation />}
                 </Card>
 
+                {/* Address Information */}
+                <Card title="Address Information" size="small">
+                    <Row gutter={[24, 16]}>
+                        <Col span={24}>
+                            <Form.Item label="Address" name="address">
+                                <Input.TextArea
+                                    rows={2}
+                                    placeholder="Enter street address"
+                                />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={8}>
+                            <Form.Item label="City" name="city">
+                                <Input placeholder="Enter city" />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={8}>
+                            <Form.Item label="State/Province" name="state">
+                                <Input placeholder="Enter state or province" />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={8}>
+                            <Form.Item label="Postal Code" name="postal_code">
+                                <Input placeholder="Enter postal code" />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={8}>
+                            <Form.Item label="Country" name="country">
+                                <Input placeholder="Enter country" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </Card>
+
                 <Divider />
 
                 <Row justify="end" gutter={8} style={{ marginTop: 24 }}>

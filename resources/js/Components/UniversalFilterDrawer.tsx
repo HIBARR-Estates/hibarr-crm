@@ -1,5 +1,5 @@
 import React from "react";
-import { Drawer, Button, Space, Skeleton } from "antd";
+import { Drawer, Button, Space, Skeleton, Modal } from "antd";
 import { FilterOutlined } from "@ant-design/icons";
 import { useFilter, FilterConfig } from "@/contexts/FilterContext";
 import UniversalFilterForm from "@/Components/UniversalFilterForm";
@@ -26,7 +26,7 @@ const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
     const activeFilterCount = getActiveFilterCount();
 
     return (
-        <Drawer
+        <Modal
             title={
                 <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2">
@@ -41,9 +41,9 @@ const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
                 </div>
             }
             open={isDrawerOpen}
-            onClose={closeDrawer}
+            onCancel={closeDrawer}
             width={width}
-            placement="right"
+            // placement="right"
             footer={
                 <div className="flex justify-between">
                     <Button onClick={resetFilters}>Reset All</Button>
@@ -59,7 +59,7 @@ const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
             <Skeleton active loading={loading} paragraph={{ rows: 6 }}>
                 <UniversalFilterForm config={config} />
             </Skeleton>
-        </Drawer>
+        </Modal>
     );
 };
 

@@ -56,7 +56,7 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({ children }) => {
     const [searchConfig, setSearchConfigState] = useState<SearchConfig | null>(
         null
     );
-    const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(
+    const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(
         null
     );
 

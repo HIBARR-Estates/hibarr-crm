@@ -201,7 +201,7 @@ class DealCreationService
             }
         }
         
-        $packageId = $this->resolvePackageId($request, $companyId);
+        $packageIds = $this->resolvePackageId($request, $companyId);
         
         // Wrap in try-catch to ensure locks are released on any error
         // Note: DB transaction starts inside the try block, so rollbacks only occur
@@ -227,7 +227,7 @@ class DealCreationService
                 ]);
             }
             
-            $result = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $contactLockKey, $startTime, $pipelineId, $firstStageId, $agentId, $packageId, &$currentHash, &$hashChanged, &$isNewDeal, &$newCacheKey, &$newLockAcquired) {
+            $result = DB::transaction(function () use ($contactId, $companyId, $request, $dealName, $dealHash, $cacheKey, $contactLockKey, $startTime, $pipelineId, $firstStageId, $agentId, $packageIds, &$currentHash, &$hashChanged, &$isNewDeal, &$newCacheKey, &$newLockAcquired) {
                 // Helper function to refresh cache locks if needed 
                 // Refresh if we're within threshold of expiration to prevent mid-transaction expiration
                 // Note: $newCacheKey and $newLockAcquired are captured by reference so they see updates when hash changes
@@ -346,7 +346,6 @@ class DealCreationService
                 $deal->lead_pipeline_id = $pipelineId;
                 $deal->pipeline_stage_id = $request->input('pipeline_stage_id') ?? $firstStageId ?? $deal->pipeline_stage_id;
                 $deal->agent_id = $agentId ?? $deal->agent_id;
-                $deal->package_id = $packageId;
                 $deal->next_follow_up = 'yes';
                 $deal->create_client = 0;
                 
@@ -355,6 +354,11 @@ class DealCreationService
                 
                 // Save quietly to bypass observers
                 $deal->saveQuietly();
+                
+                // Attach packages using pivot table relationship (package_id column was removed in migration 2025_12_26_000002)
+                if (!empty($packageIds)) {
+                    $deal->packages()->syncWithoutDetaching($packageIds);
+                }
 
                 // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
                 // Use lockForUpdate() to prevent race conditions with concurrent requests
@@ -407,6 +411,9 @@ class DealCreationService
                 try {
                     // Upsert Hibarr fields (non-critical, can be retried)
                     $this->upsertHibarrFields($deal, $request);
+                    
+                    // Handle custom fields (non-critical, can be retried)
+                    $this->upsertCustomFields($deal, $request);
                     
                     // Sync deal watchers (non-critical)
                     $dealWatchers = $request->input('deal_watcher', []);
@@ -826,32 +833,50 @@ class DealCreationService
     }
 
     /**
-     * Resolve package_id from package_id or package_name.
+     * Resolve package_ids from package_id (array) or package_name.
      *
      * @param Request $request
      * @param int $companyId
-     * @return int|null
+     * @return array
      */
-    private function resolvePackageId(Request $request, int $companyId): ?int
+    private function resolvePackageId(Request $request, int $companyId): array
     {
-        // First check if package_id is provided directly
-        $packageId = $request->input('package_id');
-        if ($request->has('package_id') && is_numeric($packageId)) {
-            $package = Package::where('company_id', $companyId)->where('id', $packageId)->first();
-            if ($package) {
-                return $package->id;
+        $packageIds = [];
+        
+        // First check if package_id is provided as an array
+        if ($request->has('package_id')) {
+            $packageIdInput = $request->input('package_id');
+            
+            // Handle array input
+            if (is_array($packageIdInput)) {
+                $packageIds = array_filter(array_map('intval', $packageIdInput));
+                // Validate that all package IDs exist and belong to the company
+                if (!empty($packageIds)) {
+                    $validPackages = Package::where('company_id', $companyId)
+                        ->whereIn('id', $packageIds)
+                        ->pluck('id')
+                        ->toArray();
+                    return $validPackages;
+                }
+            }
+            // Handle single integer (backward compatibility)
+            elseif (is_numeric($packageIdInput)) {
+                $package = Package::where('company_id', $companyId)->where('id', $packageIdInput)->first();
+                if ($package) {
+                    return [$package->id];
+                }
             }
         }
 
-        // Fallback to package_name if provided
+        // Fallback to package_name if provided (single package by name)
         if ($request->has('package_name')) {
             $package = Package::where('company_id', $companyId)->where('name', $request->input('package_name'))->first();
             if ($package) {
-                return $package->id;
+                return [$package->id];
             }
         }
 
-        return null;
+        return [];
     }
 
     /**
@@ -884,6 +909,67 @@ class DealCreationService
     }
 
     /**
+     * Upsert custom fields for a deal.
+     * Accepts any key-value pairs in custom_fields format (e.g., {"131": "value", "132": "value", "200": "another value"}).
+     * The key is the custom field ID, and the value will be stored for that field.
+     * Also handles custom_fields_data format for backward compatibility.
+     *
+     * @param Deal $deal
+     * @param Request $request
+     * @return void
+     */
+    private function upsertCustomFields(Deal $deal, Request $request): void
+    {
+        if (!$deal->id) {
+            Log::warning('DealCreationService: Cannot upsert custom fields for unsaved deal', [
+                'deal_name' => $deal->name,
+                'lead_id' => $deal->lead_id,
+            ]);
+            return;
+        }
+        
+        $customFieldsData = [];
+        
+        // Handle custom_fields format - accepts any field ID and value
+        // Format: {"131": "value", "132": "value", "200": "another value", ...}
+        // The key is the custom field ID, value can be any type (string, number, array, etc.)
+        if ($request->has('custom_fields') && is_array($request->input('custom_fields'))) {
+            foreach ($request->input('custom_fields') as $fieldId => $value) {
+                // Convert field ID to string and ensure it's a valid key
+                $fieldId = (string) $fieldId;
+                
+                // Skip null values, but allow empty strings, 0, false, etc.
+                if ($value !== null) {
+                    $customFieldsData['field_' . $fieldId] = $value;
+                }
+            }
+        }
+        
+        // Handle standard custom_fields_data format if provided (field_131, field_132, etc.)
+        // This format uses "field_{id}" as the key directly
+        if ($request->has('custom_fields_data') && is_array($request->input('custom_fields_data'))) {
+            // Merge with existing custom fields data, with custom_fields_data taking precedence
+            $customFieldsData = array_merge($customFieldsData, $request->input('custom_fields_data'));
+        }
+        
+        // Update custom fields if we have any data
+        if (!empty($customFieldsData)) {
+            try {
+                // Pass company_id to ensure correct date formatting for date-type custom fields
+                // This prevents issues when company() helper returns a different company
+                $deal->updateCustomFieldData($customFieldsData, $deal->company_id);
+            } catch (\Exception $e) {
+                Log::error('DealCreationService: Error updating custom fields', [
+                    'deal_id' => $deal->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'custom_fields_data' => $customFieldsData,
+                ]);
+            }
+        }
+    }
+
+    /**
      * Create a meeting (DealFollowUp) for a deal.
      *
      * @param Deal $deal
@@ -897,6 +983,10 @@ class DealCreationService
         if (empty($meetingData['meeting_date'])) {
             return;
         }
+        // Normalize empty strings and whitespace-only strings to null to prevent matching records with empty meeting_id
+        $meetingId = isset($meetingData['meeting_id']) && trim($meetingData['meeting_id']) !== '' 
+            ? trim($meetingData['meeting_id']) 
+            : null;
 
         // Resolve meeting_type_id
         $meetingTypeId = $this->resolveMeetingTypeId($meetingData, $companyId);
@@ -912,19 +1002,104 @@ class DealCreationService
             }
         }
 
-        // Create DealFollowUp
-        $followUp = new DealFollowUp();
-        $followUp->deal_id = $deal->id;
-        $followUp->meeting_type_id = $meetingTypeId;
-        $followUp->location = $meetingData['meeting_location'] ?? 'office';
-        $followUp->meeting_link = $meetingData['meeting_link'] ?? null;
-        $followUp->meeting_id = $meetingData['meeting_id'] ?? null;
-        $followUp->next_follow_up_date = $meetingDate;
-        $followUp->status = 'scheduled';
-        $followUp->added_by = $deal->agent_id ? LeadAgent::find($deal->agent_id)?->user_id : null;
-        
-        // Save quietly to bypass observers
-        $followUp->saveQuietly();
+        // Use transaction with row-level locking to prevent race conditions
+        // This ensures only one request can create/update a follow-up for the same meeting_id/deal_id combination
+        DB::transaction(function () use ($meetingId, $deal, $meetingTypeId, $meetingDate, $meetingData) {
+            $followUp = null;
+            
+            if ($meetingId !== null) {
+                // Lock the row if it exists to prevent concurrent creation
+                // This ensures atomicity: only one request can proceed with create/update
+                $followUp = DealFollowUp::where('meeting_id', $meetingId)
+                    ->where('deal_id', $deal->id)
+                    ->lockForUpdate()
+                    ->first();
+            }
+                    
+            if ($followUp) {
+                // Update existing follow-up
+                $updateData = [];
+                
+                // Only update meeting_type_id if it's not null
+                if ($meetingTypeId !== null) {
+                    $updateData['meeting_type_id'] = $meetingTypeId;
+                }
+                
+                // Only update next_follow_up_date if it's not null
+                if ($meetingDate !== null) {
+                    $updateData['next_follow_up_date'] = $meetingDate;
+                }
+                
+                if (isset($meetingData['meeting_location'])) $updateData['location'] = $meetingData['meeting_location'];
+                if (isset($meetingData['meeting_link'])) $updateData['meeting_link'] = $meetingData['meeting_link'];
+                
+                // Only update status if current status is 'scheduled' or null
+                // Preserve 'completed' or 'cancelled' status
+                $currentStatus = $followUp->status;
+                if ($currentStatus !== 'completed' && $currentStatus !== 'cancelled') {
+                    $updateData['status'] = 'scheduled';
+                    
+                    // If status is explicitly provided in request and current status is not final, use it
+                    if (isset($meetingData['status']) && in_array($meetingData['status'], ['scheduled', 'completed', 'cancelled'])) {
+                        $updateData['status'] = $meetingData['status'];
+                    }
+                }
+                // Note: Explicit status override is only allowed when current status is not a final state
+                // This prevents accidentally rescheduling completed or cancelled meetings
+                
+                if (!empty($updateData)) {
+                    $followUp->update($updateData);
+                }
+            } else {
+                // Double-check pattern: After lock, check again to handle race condition
+                // where another concurrent request created the record between our check and now
+                if ($meetingId !== null) {
+                    $existingFollowUp = DealFollowUp::where('meeting_id', $meetingId)
+                        ->where('deal_id', $deal->id)
+                        ->first();
+                        
+                    if ($existingFollowUp) {
+                        // Another request created it during our transaction, update it instead
+                        $updateData = [];
+                        if ($meetingTypeId !== null) {
+                            $updateData['meeting_type_id'] = $meetingTypeId;
+                        }
+                        if ($meetingDate !== null) {
+                            $updateData['next_follow_up_date'] = $meetingDate;
+                        }
+                        if (isset($meetingData['meeting_location'])) $updateData['location'] = $meetingData['meeting_location'];
+                        if (isset($meetingData['meeting_link'])) $updateData['meeting_link'] = $meetingData['meeting_link'];
+                        
+                        $currentStatus = $existingFollowUp->status;
+                        if ($currentStatus !== 'completed' && $currentStatus !== 'cancelled') {
+                            $updateData['status'] = 'scheduled';
+                            if (isset($meetingData['status']) && in_array($meetingData['status'], ['scheduled', 'completed', 'cancelled'])) {
+                                $updateData['status'] = $meetingData['status'];
+                            }
+                        }
+                        
+                        if (!empty($updateData)) {
+                            $existingFollowUp->update($updateData);
+                        }
+                        return;
+                    }
+                }
+
+                // Create new DealFollowUp (only if it doesn't exist after all checks)
+                $followUp = new DealFollowUp();
+                $followUp->deal_id = $deal->id;
+                $followUp->meeting_type_id = $meetingTypeId;
+                $followUp->location = $meetingData['meeting_location'] ?? 'office';
+                $followUp->meeting_link = $meetingData['meeting_link'] ?? null;
+                $followUp->meeting_id = $meetingId;
+                $followUp->next_follow_up_date = $meetingDate;
+                $followUp->status = 'scheduled';
+                $followUp->added_by = $deal->agent_id ? LeadAgent::find($deal->agent_id)?->user_id : null;
+                
+                // Save quietly to bypass observers
+                $followUp->saveQuietly();
+            }
+        });
     }
 
     /**

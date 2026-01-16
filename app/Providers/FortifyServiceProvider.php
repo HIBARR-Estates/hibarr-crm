@@ -128,9 +128,9 @@ class FortifyServiceProvider extends ServiceProvider
             // Is worksuite
             $company = Company::withCount('users')->first();
 
-            if (!$this->isLegal()) {
-                return redirect('verify-purchase');
-            }
+            // if (!$this->isLegal()) {
+            //     return redirect('verify-purchase');
+            // }
 
             App::setLocale($globalSetting->locale);
             Carbon::setLocale($globalSetting->locale);

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\CustomFieldCondition;
+use App\Models\CustomFieldVisibility;
 
 /**
  * App\Models\CustomField
@@ -75,11 +77,33 @@ class CustomField extends BaseModel
         return $this->belongsTo(CustomFieldGroup::class, 'custom_field_group_id');
     }
 
+    /**
+     * Get the visibility rule set for this field
+     */
+    public function showRuleSet(): HasOne
+    {
+        return $this->hasOne(ShowRuleSet::class, 'field_id');
+    }
+
+    /**
+     * Check if field has visibility rules
+     */
+    public function hasVisibilityRules(): bool
+    {
+        return $this->showRuleSet && $this->showRuleSet->enabled;
+    }
+
+    /**
+     * Get conditions for this custom field (legacy/alternative visibility system)
+     */
     public function conditions(): HasMany
     {
         return $this->hasMany(CustomFieldCondition::class, 'custom_field_id');
     }
 
+    /**
+     * Get visibility rules for this custom field (legacy/alternative visibility system)
+     */
     public function visibility(): HasOne
     {
         return $this->hasOne(CustomFieldVisibility::class, 'custom_field_id');

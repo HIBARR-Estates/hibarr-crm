@@ -1,7 +1,8 @@
+import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
+import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
-import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageSort from "@/Hooks/usePageSort";
@@ -32,8 +33,21 @@ import ImportDeals from "@/Features/Deals/ImportDeals";
 import { User } from "@/Types";
 import AddFollowup from "./Components/Tabs/followups/AddFollowup";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
+import React from "react";
 import PipelineSelector from "@/Features/Deals/PipelineSelector";
+import KanbanBoard from "@/Components/Kanban/KanbanBoard";
+
+interface BoardColumn extends PipelineStage {
+    deals: Deal[];
+    deals_count: number;
+    total_value: number;
+    default?: boolean;
+    slug?: string;
+    userSetting?: {
+        collapsed: boolean;
+    };
+}
 
 interface LeadAgent {
     id: number;
@@ -52,6 +66,7 @@ interface Pipeline {
 export interface IndexProps extends PageProps {
     pageTitle: string;
     deals: PaginatedDealResponse;
+    boardColumns: BoardColumn[];
     categories: LeadCategory[];
     sources: LeadSource[];
     stages: PipelineStage[];
@@ -60,17 +75,32 @@ export interface IndexProps extends PageProps {
     countries: Array<{ iso: string; nicename: string; iso3: string }>;
     salutations: Array<{ value: string; label: string }>;
     pipelines: Pipeline[];
+    addLeadPermission?: string;
 }
 
 const Index = ({
     pageTitle,
     deals,
+    boardColumns: initialBoardColumns,
     stages,
     leadAgents,
     pipelines,
     defaultPipeline,
+    addLeadPermission = "all",
     ...props
 }: IndexProps) => {
+    // View mode state: table or kanban
+    const [view, setView] = useState<"kanban" | "table">("table");
+
+    // Board columns state for kanban view
+    const [boardColumns, setBoardColumns] =
+        useState<BoardColumn[]>(initialBoardColumns);
+
+    // Update board columns when props change
+    React.useEffect(() => {
+        setBoardColumns(initialBoardColumns);
+    }, [initialBoardColumns]);
+
     const {
         handleAction,
         handleClose,
@@ -205,6 +235,23 @@ const Index = ({
     const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
         ? Number((props as any).filters?.lead_pipeline_id)
         : defaultPipeline?.id;
+
+    // Kanban view handlers
+    const handleColumnsUpdate = useCallback((updatedColumns: BoardColumn[]) => {
+        setBoardColumns(updatedColumns);
+    }, []);
+
+    const handleEditColumn = useCallback((columnId: number) => {
+        // Column editing functionality - can be extended later
+    }, []);
+
+    const handleDeleteColumn = useCallback((columnId: number) => {
+        // Column deletion functionality - can be extended later
+    }, []);
+
+    const isTableView = view === "table";
+    const isKanbanView = view === "kanban";
+
     return (
         <>
             <PageLayout
@@ -251,11 +298,14 @@ const Index = ({
                                 >
                                     Filters
                                 </Button>
-                                <DealsModeSwitcher />
+                                <DealsModeSwitcher
+                                    view={view}
+                                    onChange={setView}
+                                />
                             </div>
 
-                            {/* Bulk Actions - Only show when items are selected */}
-                            {selectedEntities.length > 0 && (
+                            {/* Bulk Actions - Only show when items are selected (table view only) */}
+                            {isTableView && selectedEntities.length > 0 && (
                                 <BulkDealActionSelector
                                     selectedEntityIds={selectedEntities?.map(
                                         ({ id }) => id
@@ -267,54 +317,81 @@ const Index = ({
                             )}
                         </div>
                     </div>
-                    {/* Properties Table */}
-                    <div className="bg-white rounded-lg border border-gray-200">
-                        <Table
-                            columns={columns}
-                            dataSource={deals.data}
-                            rowKey="id"
-                            rowSelection={rowSelection}
-                            pagination={{
-                                current: deals.current_page,
-                                total: deals.total,
-                                pageSize: deals.per_page,
-                                showSizeChanger: false,
-                                showQuickJumper: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}-${range[1]} of ${total} entries`,
-                                onChange: (page, pageSize) => {
-                                    router.get(
-                                        route("deals.index"),
-                                        {
-                                            ...filters,
-                                            lead_pipeline_id:
-                                                valueLeadPipelineId,
-                                            ...sortParams,
-                                            page,
-                                            per_page: pageSize,
-                                        },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                        }
-                                    );
-                                },
-                            }}
-                            scroll={{ x: 1200 }}
-                            size="small"
-                        />
-                    </div>
+
+                    {/* Table View */}
+                    {isTableView && (
+                        <div className="bg-white rounded-lg border border-gray-200">
+                            <Table
+                                columns={columns}
+                                dataSource={deals.data}
+                                rowKey="id"
+                                rowSelection={rowSelection}
+                                pagination={{
+                                    current: deals.current_page,
+                                    total: deals.total,
+                                    pageSize: deals.per_page,
+                                    showSizeChanger: false,
+                                    showQuickJumper: false,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}-${range[1]} of ${total} entries`,
+                                    onChange: (page, pageSize) => {
+                                        router.get(
+                                            route("deals.index"),
+                                            {
+                                                ...filters,
+                                                lead_pipeline_id:
+                                                    valueLeadPipelineId,
+                                                ...sortParams,
+                                                page,
+                                                per_page: pageSize,
+                                            },
+                                            {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                            }
+                                        );
+                                    },
+                                }}
+                                scroll={{ x: 1200 }}
+                                size="small"
+                            />
+                        </div>
+                    )}
+
+                    {/* Kanban View */}
+                    {isKanbanView && (
+                        <div className="bg-white rounded-lg border border-gray-200 p-4">
+                            <KanbanBoard
+                                columns={boardColumns}
+                                addLeadPermission={addLeadPermission}
+                                onCreateDeal={handleCreateDeal}
+                                onEditDeal={handleEditDeal}
+                                onEditColumn={handleEditColumn}
+                                onDeleteColumn={handleDeleteColumn}
+                                onColumnsUpdate={handleColumnsUpdate}
+                                filters={{
+                                    ...filters,
+                                    lead_pipeline_id: valueLeadPipelineId,
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
             </PageLayout>
 
-            {/* Save Deal Modal */}
+            {/* Save Deal Modal - For Edit */}
             <SaveDealModal
-                open={["add", "edit"].includes(action ?? "")}
+                open={action === "edit"}
                 onClose={handleClose}
                 deal={deal}
-                setDeal={(deal) => {
-                    if (deal) handleEditDeal(deal);
-                }}
+            />
+
+            {/* Deal Gathering Form - For Add */}
+            <DealInformationGatheringForm
+                open={action === "add"}
+                onClose={handleClose}
+                deal={action === "edit" ? deal : null}
+                pipelineId={valueLeadPipelineId}
             />
 
             <DeleteDeal

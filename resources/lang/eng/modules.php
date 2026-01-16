@@ -1510,6 +1510,12 @@ return array(
         'category' => 'Category',
         'addCategory' => 'Add Category',
         'editCategory' => 'Edit Category',
+        'basic_info' => 'Basic Info',
+        'visibility_rules' => 'Visibility Rules',
+        'orderSequence' => 'Order Sequence',
+        'orderSequencePlaceholder' => 'Enter order sequence (lower numbers appear first)',
+        'displayOrder' => 'Display Order',
+        'displayOrderPlaceholder' => 'Enter display order (lower numbers appear first)',
     ),
     'statusFields' => array(
         'defaultStatus' => 'Default Status',

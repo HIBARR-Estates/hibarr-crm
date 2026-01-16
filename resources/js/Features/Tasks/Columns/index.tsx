@@ -7,6 +7,7 @@ import {
     Tooltip,
     Dropdown,
     Button,
+    Avatar,
 } from "antd";
 import { ColumnsType } from "antd/es/table";
 import {
@@ -17,13 +18,15 @@ import {
     MoreOutlined,
     CheckSquareOutlined,
     ClockCircleOutlined,
+    UserOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
 import { Link, usePage } from "@inertiajs/react";
 
 import PageDataSorter from "@/Components/PageDataSorter";
-import { Task } from "@/Types/api/tasks";
+import { Task } from "@/Types/Task";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 
 const { Text, Title } = Typography;
 
@@ -207,39 +210,14 @@ export const useTasksTableColumns = ({
             },
         },
         {
-            title: "Progress",
-            key: "progress",
+            title: "Assignee",
+            key: "assignee",
             render: (_: string, record: Task) => {
-                if (!record.subtasks_count)
+                if (!record.users || record.users.length === 0) {
                     return <span className="text-gray-400">--</span>;
+                }
 
-                const progress =
-                    record.completed_subtasks_count && record.subtasks_count
-                        ? (record.completed_subtasks_count /
-                              record.subtasks_count) *
-                          100
-                        : 0;
-
-                return (
-                    <Tooltip
-                        title={`${record.completed_subtasks_count || 0} of ${
-                            record.subtasks_count
-                        } subtasks completed`}
-                    >
-                        <Progress
-                            percent={Math.round(progress)}
-                            size="small"
-                            showInfo={false}
-                            strokeColor={
-                                progress === 100
-                                    ? "#52c41a"
-                                    : progress >= 50
-                                    ? "#1890ff"
-                                    : "#faad14"
-                            }
-                        />
-                    </Tooltip>
-                );
+                return <MultiUserIndicator users={record.users} />;
             },
         },
         {
@@ -278,7 +256,7 @@ export const useTasksTableColumns = ({
                     (permissions?.edit_tasks === "both" &&
                         (record.added_by === userId ||
                             record.users?.some((u) => u.id === userId)));
-
+                // Check permission before displaying the ability to delete a task
                 const canDelete =
                     permissions?.delete_tasks === "all" ||
                     (permissions?.delete_tasks === "added" &&
@@ -296,11 +274,13 @@ export const useTasksTableColumns = ({
                         label: "View Details",
                         onClick: () => onView(record),
                     },
-                    canEdit && {
+                    {
                         key: "edit",
                         icon: <EditOutlined />,
                         label: "Edit Task",
                         onClick: () => onEdit(record),
+                        //
+                        // disabled: !canEdit,
                     },
                     {
                         key: "duplicate",
@@ -308,20 +288,20 @@ export const useTasksTableColumns = ({
                         label: "Duplicate",
                         onClick: () => onDuplicate(record),
                     },
-                    ...(canDelete
-                        ? [
-                              {
-                                  type: "divider",
-                              },
-                              {
-                                  key: "delete",
-                                  icon: <DeleteOutlined />,
-                                  label: "Delete",
-                                  danger: true,
-                                  onClick: () => onDelete(record),
-                              },
-                          ]
-                        : []),
+
+                    {
+                        type: "divider",
+                    },
+                    {
+                        key: "delete",
+                        icon: <DeleteOutlined />,
+                        label: "Delete",
+                        danger: true,
+                        onClick: () => onDelete(record),
+                        // disabled: !canDelete,
+                    },
+
+                    ,
                 ].filter(Boolean) as MenuProps["items"];
 
                 return (

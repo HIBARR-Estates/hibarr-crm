@@ -54,6 +54,10 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         
         // Contact API Routes
         ApiRoute::post('contact/create', ['as' => 'api.contacts.createOrUpdate', 'uses' => 'Api\DealContactApiController@createOrUpdateContact']);
+        
+        // Property API Routes
+        ApiRoute::get('properties', ['as' => 'api.properties.index', 'uses' => 'Api\PropertyApiController@index']);
+        ApiRoute::get('properties/{id}', ['as' => 'api.properties.show', 'uses' => 'Api\PropertyApiController@show']);
  
     });
 

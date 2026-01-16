@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Lead } from "@/Types/api/leads";
 import { router, usePage } from "@inertiajs/react";
 import {
@@ -12,6 +12,7 @@ import {
     Divider,
     Space,
     Tooltip,
+    message,
 } from "antd";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import {
@@ -33,6 +34,10 @@ import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import SaveTaskModal from "@/Features/Tasks/SaveTask/SaveTaskModal";
 import dayjs from "dayjs";
 import { icons } from "antd/es/image/PreviewGroup";
+import EditableField from "@/Components/EditableField";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import UserIndicator from "@/Components/UserIndicator";
+import axios from "axios";
 
 interface Props {
     lead: Lead;
@@ -70,6 +75,45 @@ export default function LeadInfoSection({
     } = useGenericEntityAction<Lead>();
 
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const [currentLeadState, setCurrentLeadState] = useState<Lead>(lead);
+    const [updatingField, setUpdatingField] = useState<string | null>(null);
+
+    // API Mutation for inline updates
+    const { mutateAsync: updateLead, status } = useApiMutate<
+        Record<string, any>,
+        { lead: Lead },
+        any
+    >(
+        route("lead-contact.patch", { lead_contact: currentLeadState.id }),
+        "PATCH",
+        (response: any) => {
+            if (response?.status === "success" && response?.data?.lead) {
+                // Merge only the updated attributes into current state
+                // This preserves relationships and custom fields that weren't reloaded
+                setCurrentLeadState((prev) => {
+                    const updated = { ...prev } as Record<string, any>;
+                    // Only update the fields that were returned
+                    const leadData = response.data.lead as Record<string, any>;
+                    Object.keys(leadData).forEach((key) => {
+                        if (leadData[key] !== undefined) {
+                            updated[key] = leadData[key];
+                        }
+                    });
+                    return updated as Lead;
+                });
+            }
+            // Clear the updating field after completion
+            setUpdatingField(null);
+        }
+    );
+
+    // Helper to check if a specific field is loading
+    const isFieldLoading = (fieldName: string) => updatingField === fieldName;
+
+    // Sync currentLeadState when lead prop changes
+    useEffect(() => {
+        setCurrentLeadState(lead);
+    }, [lead]);
 
     const canEdit = ["all", "added", "owned", "both"].includes(
         editLeadPermission
@@ -91,6 +135,103 @@ export default function LeadInfoSection({
             }
         }
         return mobile;
+    };
+
+    // Handle field update
+    const handleFieldUpdate = async (
+        fieldName: string,
+        value: any
+    ): Promise<void> => {
+        // Set the updating field to show loading only for this field
+        setUpdatingField(fieldName);
+
+        // Check if this is a custom field (starts with "field_")
+        const isCustomField = fieldName.startsWith("field_");
+
+        // Check if value is a File (for file uploads)
+        const isFile = value instanceof File;
+
+        try {
+            if (isFile) {
+                // Handle file upload via FormData
+                const formData = new FormData();
+                formData.append(`custom_fields[${fieldName}]`, value);
+
+                const response = await axios.patch(
+                    route("lead-contact.patch", {
+                        lead_contact: currentLeadState.id,
+                    }),
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                            Accept: "application/json",
+                        },
+                    }
+                );
+
+                if (
+                    response.data?.status === "success" &&
+                    response.data?.data?.lead
+                ) {
+                    setCurrentLeadState((prev) => {
+                        const updated = { ...prev } as Record<string, any>;
+                        const leadData = response.data.data.lead as Record<
+                            string,
+                            any
+                        >;
+                        Object.keys(leadData).forEach((key) => {
+                            if (leadData[key] !== undefined) {
+                                updated[key] = leadData[key];
+                            }
+                        });
+                        return updated as Lead;
+                    });
+                    message.success("File uploaded successfully");
+                }
+                setUpdatingField(null);
+                return;
+            }
+
+            let payloadData: Record<string, any>;
+
+            if (isCustomField) {
+                // Handle custom fields - send as custom_fields object
+                payloadData = {
+                    custom_fields: {
+                        [fieldName]: value,
+                    },
+                };
+            } else {
+                // Map frontend field names to API field names and process values
+                let processedValue = value;
+
+                // Process value based on field type
+                if (fieldName === "mobile") {
+                    // Keep mobile as is, backend will handle JSON formatting if needed
+                    processedValue = value;
+                } else if (
+                    fieldName === "close_date" ||
+                    fieldName === "next_follow_up"
+                ) {
+                    processedValue = value || null;
+                } else if (fieldName === "value") {
+                    processedValue = value ? parseFloat(value.toString()) : 0;
+                } else if (fieldName === "gender") {
+                    // Ensure gender is sent as the actual value (male/female) or null
+                    processedValue = value || null;
+                }
+
+                payloadData = { [fieldName]: processedValue };
+            }
+
+            await updateLead(payloadData);
+        } catch (error: any) {
+            // Clear the updating field on error
+            setUpdatingField(null);
+            // Error managed by useApiMutate, but re-throwing for EditableField state management
+            throw error;
+        }
     };
 
     // Action menu items
@@ -185,136 +326,225 @@ export default function LeadInfoSection({
                     <Descriptions column={2} bordered size="middle">
                         {/* Contact Information */}
                         <Descriptions.Item label="Name">
-                            <span className="font-medium text-gray-900">
-                                {currentLead?.client_name_salutation ||
-                                    lead.client_name_salutation ||
-                                    "--"}
-                            </span>
+                            <EditableField
+                                value={
+                                    currentLeadState.client_name_salutation ||
+                                    currentLeadState.client_name
+                                }
+                                fieldName="client_name"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("client_name", value)
+                                }
+                                className="font-medium text-gray-900"
+                                loading={isFieldLoading("client_name")}
+                                disabled={!canEdit}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Email">
-                            {currentLead?.client_email || lead.client_email ? (
+                            {currentLeadState.client_email ? (
                                 <div className="flex items-center gap-x-2">
                                     <MailOutlined className="text-gray-400" />
-                                    <a
-                                        href={`mailto:${
-                                            currentLead?.client_email ||
-                                            lead.client_email
-                                        }`}
+                                    <EditableField
+                                        value={currentLeadState.client_email}
+                                        fieldName="client_email"
+                                        fieldType="email"
+                                        onSave={(value) =>
+                                            handleFieldUpdate(
+                                                "client_email",
+                                                value
+                                            )
+                                        }
                                         className="text-blue-600 hover:text-blue-800"
-                                    >
-                                        {currentLead?.client_email ||
-                                            lead.client_email}
-                                    </a>
+                                        disabled={!canEdit}
+                                        loading={isFieldLoading("client_email")}
+                                    />
                                 </div>
                             ) : (
-                                <span className="text-gray-500">--</span>
+                                <EditableField
+                                    value=""
+                                    fieldName="client_email"
+                                    fieldType="email"
+                                    onSave={(value) =>
+                                        handleFieldUpdate("client_email", value)
+                                    }
+                                    placeholder="Add email"
+                                    disabled={!canEdit}
+                                    loading={isFieldLoading("client_email")}
+                                />
                             )}
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Mobile">
                             <div className="flex items-center gap-x-2">
                                 <PhoneOutlined className="text-gray-400" />
-                                <span>
-                                    {getMobileNumber(
-                                        currentLead?.mobile || lead.mobile
-                                    ) ||
-                                        currentLead?.mobile_with_phonecode ||
-                                        lead.mobile_with_phonecode ||
-                                        "--"}
-                                </span>
+                                <EditableField
+                                    value={
+                                        getMobileNumber(
+                                            currentLeadState.mobile
+                                        ) ||
+                                        currentLeadState.mobile_with_phonecode ||
+                                        ""
+                                    }
+                                    fieldName="mobile"
+                                    fieldType="text"
+                                    onSave={(value) =>
+                                        handleFieldUpdate("mobile", value)
+                                    }
+                                    placeholder="Add mobile"
+                                    disabled={!canEdit}
+                                    loading={isFieldLoading("mobile")}
+                                />
                             </div>
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Office Phone">
-                            {currentLead?.office_phone_formatted ||
-                                lead.office_phone_formatted || (
-                                    <span className="text-gray-500">--</span>
-                                )}
+                            <EditableField
+                                value={
+                                    currentLeadState.office_phone_formatted ||
+                                    currentLeadState.office ||
+                                    ""
+                                }
+                                fieldName="office"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("office", value)
+                                }
+                                placeholder="Add office phone"
+                                disabled={!canEdit}
+                                loading={isFieldLoading("office")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Gender">
-                            {currentLead?.gender || lead.gender ? (
-                                <span className="capitalize">
-                                    {currentLead?.gender || lead.gender}
-                                </span>
-                            ) : (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentLeadState.gender || ""}
+                                fieldName="gender"
+                                fieldType="select"
+                                options={[
+                                    { label: "Male", value: "male" },
+                                    { label: "Female", value: "female" },
+                                ]}
+                                onSave={(value) =>
+                                    handleFieldUpdate("gender", value)
+                                }
+                                displayValue={
+                                    currentLeadState.gender ? (
+                                        <span className="capitalize">
+                                            {currentLeadState.gender}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
+                                    )
+                                }
+                                disabled={!canEdit}
+                                loading={isFieldLoading("gender")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Company">
-                            {currentLead?.company_name || lead.company_name || (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentLeadState.company_name || ""}
+                                fieldName="company_name"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("company_name", value)
+                                }
+                                placeholder="Add company name"
+                                disabled={!canEdit}
+                                loading={isFieldLoading("company_name")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Website">
-                            {currentLead?.website || lead.website ? (
-                                <a
-                                    href={String(
-                                        currentLead?.website || lead.website
-                                    )}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800"
-                                >
-                                    <GlobalOutlined className="mr-1" />
-                                    {currentLead?.website || lead.website}
-                                </a>
+                            {currentLeadState.website ? (
+                                <EditableField
+                                    value={currentLeadState.website}
+                                    fieldName="website"
+                                    fieldType="text"
+                                    onSave={(value) =>
+                                        handleFieldUpdate("website", value)
+                                    }
+                                    displayValue={
+                                        <a
+                                            href={String(
+                                                currentLeadState.website
+                                            )}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-800"
+                                        >
+                                            <GlobalOutlined className="mr-1" />
+                                            {currentLeadState.website}
+                                        </a>
+                                    }
+                                    disabled={!canEdit}
+                                    loading={isFieldLoading("website")}
+                                />
                             ) : (
-                                <span className="text-gray-500">--</span>
+                                <EditableField
+                                    value=""
+                                    fieldName="website"
+                                    fieldType="text"
+                                    onSave={(value) =>
+                                        handleFieldUpdate("website", value)
+                                    }
+                                    placeholder="Add website"
+                                    disabled={!canEdit}
+                                    loading={isFieldLoading("website")}
+                                />
                             )}
                         </Descriptions.Item>
 
                         {/* Lead Details */}
                         <Descriptions.Item label="Lead Owner">
-                            {currentLead?.lead_owner || lead.lead_owner ? (
-                                <div className="flex items-center gap-x-2">
-                                    <Avatar
-                                        size="small"
-                                        src={
-                                            (
-                                                currentLead?.lead_owner ||
-                                                lead.lead_owner
-                                            )?.image_url
-                                        }
-                                        icon={<UserOutlined />}
-                                    />
-                                    <span>
-                                        {
-                                            (
-                                                currentLead?.lead_owner ||
-                                                lead.lead_owner
-                                            )?.name
-                                        }
-                                    </span>
-                                </div>
-                            ) : (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={
+                                    currentLeadState.lead_owner &&
+                                    typeof currentLeadState.lead_owner ===
+                                        "object"
+                                        ? currentLeadState.lead_owner.id
+                                        : (currentLeadState.lead_owner as
+                                              | number
+                                              | null) ?? null
+                                }
+                                fieldName="lead_owner"
+                                selectorType="employees"
+                                onSave={(value) =>
+                                    handleFieldUpdate("lead_owner", value)
+                                }
+                                displayValue={
+                                    currentLeadState.lead_owner ? (
+                                        <UserIndicator
+                                            data={currentLeadState.lead_owner}
+                                            size="sm"
+                                        />
+                                    ) : (
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
+                                    )
+                                }
+                                disabled={!canEdit}
+                                loading={isFieldLoading("lead_owner")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Added By">
-                            {currentLead?.added_by || lead.added_by ? (
+                            {currentLeadState.added_by ? (
                                 <div className="flex items-center gap-x-2">
                                     <Avatar
                                         size="small"
                                         src={
-                                            (
-                                                currentLead?.added_by ||
-                                                lead.added_by
-                                            )?.image_url
+                                            currentLeadState.added_by?.image_url
                                         }
                                         icon={<UserOutlined />}
                                     />
                                     <span>
-                                        {
-                                            (
-                                                currentLead?.added_by ||
-                                                lead.added_by
-                                            )?.name
-                                        }
+                                        {currentLeadState.added_by?.name}
                                     </span>
                                 </div>
                             ) : (
@@ -323,34 +553,73 @@ export default function LeadInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Lead Source">
-                            {currentLead?.leadSource?.type ||
-                                currentLead?.lead_source?.type ||
-                                lead.leadSource?.type ||
-                                lead.lead_source?.type || (
-                                    <span className="text-gray-500">--</span>
-                                )}
+                            <EditableField
+                                value={currentLeadState.source_id || null}
+                                fieldName="source_id"
+                                selectorType="sources"
+                                onSave={(value) =>
+                                    handleFieldUpdate("source_id", value)
+                                }
+                                displayValue={
+                                    currentLeadState.leadSource?.type ||
+                                    currentLeadState.lead_source?.type ? (
+                                        <Tag
+                                            color="green"
+                                            className="font-medium"
+                                        >
+                                            {currentLeadState.leadSource
+                                                ?.type ||
+                                                currentLeadState.lead_source
+                                                    ?.type}
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
+                                    )
+                                }
+                                disabled={!canEdit}
+                                loading={isFieldLoading("source_id")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Category">
-                            {currentLead?.category?.category_name ||
-                            lead.category?.category_name ? (
-                                <Tag color="blue" className="font-medium">
-                                    {currentLead?.category?.category_name ||
-                                        lead.category?.category_name}
-                                </Tag>
-                            ) : (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentLeadState.category_id || null}
+                                fieldName="category_id"
+                                selectorType="categories"
+                                onSave={(value) =>
+                                    handleFieldUpdate("category_id", value)
+                                }
+                                displayValue={
+                                    currentLeadState.category?.category_name ? (
+                                        <Tag
+                                            color="blue"
+                                            className="font-medium"
+                                        >
+                                            {
+                                                currentLeadState.category
+                                                    .category_name
+                                            }
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
+                                    )
+                                }
+                                disabled={!canEdit}
+                                loading={isFieldLoading("category_id")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Created At">
-                            {currentLead?.created_at || lead.created_at ? (
+                            {currentLeadState.created_at ? (
                                 <span>
                                     <CalendarOutlined className="mr-1" />
-                                    {dayjs(
-                                        currentLead?.created_at ||
-                                            lead.created_at
-                                    ).format("MMM DD, YYYY HH:mm")}
+                                    {dayjs(currentLeadState.created_at).format(
+                                        "MMM DD, YYYY HH:mm"
+                                    )}
                                 </span>
                             ) : (
                                 <span className="text-gray-500">--</span>
@@ -358,13 +627,12 @@ export default function LeadInfoSection({
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Updated At">
-                            {currentLead?.updated_at || lead.updated_at ? (
+                            {currentLeadState.updated_at ? (
                                 <span>
                                     <CalendarOutlined className="mr-1" />
-                                    {dayjs(
-                                        currentLead?.updated_at ||
-                                            lead.updated_at
-                                    ).format("MMM DD, YYYY HH:mm")}
+                                    {dayjs(currentLeadState.updated_at).format(
+                                        "MMM DD, YYYY HH:mm"
+                                    )}
                                 </span>
                             ) : (
                                 <span className="text-gray-500">--</span>
@@ -373,46 +641,101 @@ export default function LeadInfoSection({
 
                         {/* Address Information */}
                         <Descriptions.Item label="Country">
-                            {currentLead?.country || lead.country || (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentLeadState.country || ""}
+                                fieldName="country"
+                                fieldType="country"
+                                onSave={(value) =>
+                                    handleFieldUpdate("country", value)
+                                }
+                                placeholder="Select country"
+                                disabled={!canEdit}
+                                loading={isFieldLoading("country")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="State">
-                            {currentLead?.state || lead.state || (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentLeadState.state || ""}
+                                fieldName="state"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("state", value)
+                                }
+                                placeholder="Add state"
+                                disabled={!canEdit}
+                                loading={isFieldLoading("state")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="City">
-                            {currentLead?.city || lead.city || (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentLeadState.city || ""}
+                                fieldName="city"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("city", value)
+                                }
+                                placeholder="Add city"
+                                disabled={!canEdit}
+                                loading={isFieldLoading("city")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Postal Code">
-                            {currentLead?.postal_code || lead.postal_code || (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentLeadState.postal_code || ""}
+                                fieldName="postal_code"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("postal_code", value)
+                                }
+                                placeholder="Add postal code"
+                                disabled={!canEdit}
+                                loading={isFieldLoading("postal_code")}
+                            />
                         </Descriptions.Item>
 
                         <Descriptions.Item label="Address" span={2}>
-                            {currentLead?.address || lead.address ? (
-                                <span>
-                                    <HomeOutlined className="mr-1" />
-                                    {currentLead?.address || lead.address}
-                                </span>
-                            ) : (
-                                <span className="text-gray-500">--</span>
-                            )}
+                            <EditableField
+                                value={currentLeadState.address || ""}
+                                fieldName="address"
+                                fieldType="textarea"
+                                onSave={(value) =>
+                                    handleFieldUpdate("address", value)
+                                }
+                                displayValue={
+                                    currentLeadState.address ? (
+                                        <span>
+                                            <HomeOutlined className="mr-1" />
+                                            {currentLeadState.address}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-500">
+                                            --
+                                        </span>
+                                    )
+                                }
+                                placeholder="Add address"
+                                disabled={!canEdit}
+                                loading={isFieldLoading("address")}
+                            />
                         </Descriptions.Item>
 
                         {/* Notes */}
-                        {(currentLead?.note || lead.note) && (
-                            <Descriptions.Item label="Notes" span={2}>
-                                {currentLead?.note || lead.note}
-                            </Descriptions.Item>
-                        )}
+                        <Descriptions.Item label="Notes" span={2}>
+                            <EditableField
+                                value={currentLeadState.note || ""}
+                                fieldName="note"
+                                fieldType="textarea"
+                                onSave={(value) =>
+                                    handleFieldUpdate("note", value)
+                                }
+                                placeholder="Add notes"
+                                disabled={!canEdit}
+                                loading={isFieldLoading("note")}
+                            />
+                        </Descriptions.Item>
                     </Descriptions>
                 </div>
             ),
@@ -426,10 +749,15 @@ export default function LeadInfoSection({
                     <CustomFieldDisplay
                         fields={fields}
                         customFieldsData={
-                            (currentLead || lead).custom_fields_data || {}
+                            currentLeadState.custom_fields_data || {}
                         }
                         categoryId={category.id}
                         column={2}
+                        onUpdate={(field, value) =>
+                            handleFieldUpdate(field, value)
+                        }
+                        editable={canEdit}
+                        loadingField={updatingField}
                     />
                 </div>
             ),
@@ -470,7 +798,7 @@ export default function LeadInfoSection({
                 columns={taskBoardColumns}
                 users={employees}
                 projects={projects}
-                relatedEntity={{ type: "lead", id: lead.id }}
+                relatedEntity={{ type: "lead", id: currentLeadState.id }}
             />
 
             <div>

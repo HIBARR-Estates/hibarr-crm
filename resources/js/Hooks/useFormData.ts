@@ -30,8 +30,10 @@ export type FormDataType =
     | "languages"
     | "currencies"
     | "lead-agents"
+    | "leads"
     | "lead-statuses"
-    | "genders";
+    | "genders"
+    | "packages";
 
 type FormDataParams = {
     page?: number;

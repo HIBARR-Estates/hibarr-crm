@@ -1,13 +1,13 @@
 import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
 import { Providers } from "./providers";
-import {route} from 'ziggy-js';
-import { Ziggy } from './ziggy';
+import { route } from "ziggy-js";
+import { Ziggy } from "./ziggy";
 
 // Declare global route function
 declare global {
     interface Window {
-         route: typeof route;
+        route: typeof route;
     }
 }
 

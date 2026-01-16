@@ -1,7 +1,40 @@
 @extends('layouts.app')
 
 @push('styles')
-
+<style>
+    .sortable-fields tr[draggable="true"] {
+        cursor: move;
+        transition: background-color 0.2s;
+    }
+    
+    .sortable-fields tr[draggable="true"]:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .sortable-fields tr.dragging {
+        opacity: 0.5;
+        background-color: #e3f2fd;
+    }
+    
+    .sortable-fields tr.drag-over {
+        border-top: 3px solid #2196F3;
+        background-color: #f0f7ff;
+    }
+    
+    .sortable-fields tr[draggable="true"] td:first-child {
+        user-select: none;
+        width: 40px;
+    }
+    
+    .sortable-fields tr[draggable="true"] td:first-child i {
+        color: #6c757d;
+        transition: color 0.2s;
+    }
+    
+    .sortable-fields tr[draggable="true"]:hover td:first-child i {
+        color: #2196F3;
+    }
+</style>
 @endpush
 
 @section('content')
@@ -60,6 +93,7 @@
                         <div class="custom-fields-table" data-module="{{ $module }}" style="display: none;">
                             <x-table class="table-bordered" id="removeModuleColumns{{ $module }}">
                                 <x-slot name="thead">
+                                    <th style="width: 30px;"></th>
                                     <th>@lang('modules.customFields.moduleLabel')</th>
                                     <th>@lang('modules.customFields.type')</th>
                                     <th>@lang('modules.customFields.values')</th>
@@ -68,8 +102,14 @@
                                     <th>@lang('modules.customFields.export')</th>
                                     <th>@lang('app.action')</th>
                                 </x-slot>
+                                <tbody class="sortable-fields" data-module="{{ $module }}">
                                 @forelse($fields as $field)
-                                    <tr class="row{{ $field->id }}">
+                                    <tr class="row{{ $field->id }}" data-field-id="{{ $field->id }}" draggable="true">
+                                        <td>
+                                            <div class="d-flex align-items-center justify-content-center" style="cursor: move;">
+                                                <i class="fa fa-arrows-alt text-gray-400" style="font-size: 16px;"></i>
+                                            </div>
+                                        </td>
                                         <td>{{ $field->label }}</td>
                                         <td>{{ $field->type }}</td>
                                         <td>
@@ -127,11 +167,12 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7">
+                                        <td colspan="8">
                                             <x-cards.no-record icon="list" :message="__('messages.noCustomField')" />
                                         </td>
                                     </tr>
                                 @endforelse
+                                </tbody>
                             </x-table>
                         </div>
                     @empty
@@ -158,6 +199,115 @@
 
             // Hide all custom field tables initially
             $('.custom-fields-table').hide();
+
+            // Drag and drop functionality
+            var draggedElement = null;
+            var draggedIndex = null;
+
+            $('body').on('dragstart', '.sortable-fields tr[draggable="true"]', function(e) {
+                draggedElement = this;
+                draggedIndex = $(this).index();
+                $(this).addClass('dragging');
+                e.originalEvent.dataTransfer.effectAllowed = 'move';
+                e.originalEvent.dataTransfer.setData('text/plain', ''); // Required for Firefox
+            });
+
+            $('body').on('dragend', '.sortable-fields tr[draggable="true"]', function(e) {
+                $(this).removeClass('dragging');
+                $('.sortable-fields tr').removeClass('drag-over');
+                draggedElement = null;
+                draggedIndex = null;
+            });
+
+            $('body').on('dragover', '.sortable-fields', function(e) {
+                if (e.preventDefault) {
+                    e.preventDefault();
+                }
+                e.originalEvent.dataTransfer.dropEffect = 'move';
+                
+                if (!draggedElement) return false;
+                
+                var $target = $(e.target).closest('tr[draggable="true"]');
+                if ($target.length === 0) return false;
+                
+                var $tbody = $(this);
+                var $dragged = $(draggedElement);
+                
+                if (draggedElement !== $target[0] && $target.closest('tbody').is($tbody)) {
+                    $('.sortable-fields tr').removeClass('drag-over');
+                    $target.addClass('drag-over');
+                    
+                    var targetIndex = $target.index();
+                    var draggedRowIndex = $dragged.index();
+                    
+                    if (targetIndex < draggedRowIndex) {
+                        $target.before($dragged);
+                    } else {
+                        $target.after($dragged);
+                    }
+                }
+                return false;
+            });
+
+            $('body').on('dragleave', '.sortable-fields tr[draggable="true"]', function(e) {
+                // Only remove class if we're actually leaving the row
+                var relatedTarget = e.originalEvent.relatedTarget;
+                if (!$(this).find(relatedTarget).length && !$(this).is(relatedTarget)) {
+                    $(this).removeClass('drag-over');
+                }
+            });
+
+            $('body').on('drop', '.sortable-fields', function(e) {
+                if (e.stopPropagation) {
+                    e.stopPropagation();
+                }
+                e.preventDefault();
+                
+                var $tbody = $(this);
+                $('.sortable-fields tr').removeClass('drag-over');
+                
+                if (draggedElement) {
+                    saveFieldOrder($tbody);
+                }
+                return false;
+            });
+
+            function saveFieldOrder($tbody) {
+                var module = $tbody.data('module');
+                var sortedIds = [];
+                $tbody.find('tr[draggable="true"]').each(function() {
+                    var fieldId = $(this).data('field-id');
+                    if (fieldId) {
+                        sortedIds.push(fieldId);
+                    }
+                });
+
+                if (sortedIds.length > 0) {
+                    const token = "{{ csrf_token() }}";
+                    const url = "{{ route('custom-fields.sort-fields') }}";
+
+                    $.easyAjax({
+                        type: 'POST',
+                        url: url,
+                        data: {
+                            '_token': token,
+                            'sortedValues': sortedIds,
+                            'module': module
+                        },
+                        blockUI: false,
+                        success: function (response) {
+                            if (response.status == "success") {
+                                $.showToastr(response.message || 'Field order updated successfully', 'success');
+                            }
+                        },
+                        error: function (response) {
+                            $.showToastr('Failed to update field order', 'error');
+                            // Reload page to restore original order
+                            location.reload();
+                        }
+                    });
+                }
+            }
 
             // Toggle visibility of the custom fields table on module header click
             $('.module-header').click(function() {

@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Notification;
 use App\Traits\EmployeeActivityTrait;
 use App\Notifications\LeadImported;
 use App\Services\DealAutomationService;
+use App\Services\DealNotificationService;
 use App\Services\DealTaskService;
 use App\Models\MetaConversionTrigger;
 use App\Jobs\SendMetaConversionEventJob;
@@ -28,13 +29,16 @@ class DealObserver
     use EmployeeActivityTrait;
 
     protected DealAutomationService $dealAutomation;
+    protected DealNotificationService $notificationService;
     protected DealTaskService $dealTaskService;
 
     public function __construct(
         DealAutomationService $dealAutomation,
+        DealNotificationService $notificationService,
         DealTaskService $dealTaskService
     ) {
         $this->dealAutomation = $dealAutomation;
+        $this->notificationService = $notificationService;
         $this->dealTaskService = $dealTaskService;
     }
 
@@ -152,6 +156,13 @@ class DealObserver
                 event(new DealEvent($deal, $deal->leadAgent, 'StageUpdated'));
             }
 
+            // Send notification for stage change to watchers and agent
+            if ($deal->isDirty('pipeline_stage_id')) {
+                $fromStage = PipelineStage::find($deal->getOriginal('pipeline_stage_id'))?->name ?? 'Unknown';
+                $toStage = PipelineStage::find($deal->pipeline_stage_id)?->name ?? 'Unknown';
+                $this->notificationService->notifyStageChanged($deal, $fromStage, $toStage);
+            }
+
             // Meta Conversions API trigger
             if ($deal->isDirty('pipeline_stage_id')) {
                 $this->triggerMetaConversionEvent($deal);
@@ -198,6 +209,11 @@ class DealObserver
             }
 
             $this->createClient($deal);
+
+            // Meta Conversions API trigger for new deals
+            if ($deal->pipeline_stage_id) {
+                $this->triggerMetaConversionEvent($deal);
+            }
 
             // Create default tasks for the deal
             $this->dealTaskService->createDefaultTasks($deal);

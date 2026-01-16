@@ -7,6 +7,9 @@ return array(
     // resolution status
 
     'dealWatcher' => 'Deal Watchers',
+    'changedBy' => 'Changed By',
+    'newLeadSubject' => 'New Lead Contact Created',
+
 
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
@@ -178,6 +181,7 @@ return array(
         'waiting-approval' => 'Waiting Approval',
         'calendar' => 'Calendar',
         'messages' => 'Messages',
+        'customFieldCategories' => 'Custom Field Categories',
         'customFields' => 'Custom Fields',
         'events' => 'Events',
         'event' => 'Event',
@@ -1129,6 +1133,8 @@ return array(
     'proposals' => 'Proposals',
     'proposalTemplate' => 'Proposal Template',
     'employeeCanExportData' => 'Employee can export data',
+    'enableDataQualityMonitor' => 'Enable Data Quality Monitor',
+    'enableDataQualityMonitorInfo' => 'Show the data quality monitor panel on the dashboard to track and improve data quality of deals and leads.',
     'activity' => 'Activity',
     'ticketActivity' => 'Ticket Activity',
     'moduleVersion' => 'Version',

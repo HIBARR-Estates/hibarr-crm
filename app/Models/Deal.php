@@ -173,6 +173,11 @@ class Deal extends BaseModel
         return $this->belongsToMany(User::class, 'deal_watchers', 'deal_id', 'user_id')->using(DealWatcher::class)->first();
     }
 
+    public function dealParticipants()
+    {
+        return $this->belongsToMany(User::class, 'deal_participants', 'deal_id', 'user_id')->using(DealParticipant::class);
+    }
+
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Lead::class, 'lead_id');

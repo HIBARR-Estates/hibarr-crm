@@ -1,4 +1,4 @@
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import type { MenuProps } from "antd";
 import {
     HouseIcon,
@@ -17,7 +17,17 @@ const getCurrentPath = () => {
     return "";
 };
 
+interface Pipeline {
+    id: number;
+    name: string;
+    default: number;
+}
+
 const useDashboardLayoutProps = () => {
+    const { props } = usePage();
+    const pipelines = (props.pipelines || []) as Pipeline[];
+    const defaultPipeline = pipelines.find((p) => p.default === 1);
+
     const getActiveMenuKeys = (): string[] => {
         const currentPath = getCurrentPath();
         const activeKeys: string[] = [];
@@ -46,6 +56,18 @@ const useDashboardLayoutProps = () => {
             currentPath.includes("/leadboards")
         ) {
             activeKeys.push("deals");
+
+            // Also add the specific pipeline key for submenu highlighting
+            if (typeof window !== "undefined") {
+                const urlParams = new URLSearchParams(window.location.search);
+                const pipelineId = urlParams.get("lead_pipeline_id");
+                if (pipelineId) {
+                    activeKeys.push(`deals-pipeline-${pipelineId}`);
+                } else if (defaultPipeline) {
+                    // If no pipeline in URL, use default pipeline
+                    activeKeys.push(`deals-pipeline-${defaultPipeline.id}`);
+                }
+            }
         }
 
         // Check clients routes
@@ -146,18 +168,50 @@ const useDashboardLayoutProps = () => {
             },
             {
                 key: "deals",
-                label: (
-                    <Link
-                        href={`/account/deals/kanban`}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            router.visit(`/account/deals/kanban`);
-                        }}
-                    >
-                        Deals
-                    </Link>
-                ),
+                label:
+                    pipelines.length > 0 ? (
+                        "Deals"
+                    ) : (
+                        <Link
+                            href={`/account/deals${
+                                defaultPipeline
+                                    ? `?lead_pipeline_id=${defaultPipeline.id}`
+                                    : ""
+                            }`}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.visit(
+                                    `/account/deals${
+                                        defaultPipeline
+                                            ? `?lead_pipeline_id=${defaultPipeline.id}`
+                                            : ""
+                                    }`
+                                );
+                            }}
+                        >
+                            Deals
+                        </Link>
+                    ),
                 icon: <BriefcaseIcon />,
+                children:
+                    pipelines.length > 0
+                        ? pipelines.map((pipeline) => ({
+                              key: `deals-pipeline-${pipeline.id}`,
+                              label: (
+                                  <Link
+                                      href={`/account/deals?lead_pipeline_id=${pipeline.id}`}
+                                      onClick={(e) => {
+                                          e.preventDefault();
+                                          router.visit(
+                                              `/account/deals?lead_pipeline_id=${pipeline.id}`
+                                          );
+                                      }}
+                                  >
+                                      {pipeline.name}
+                                  </Link>
+                              ),
+                          }))
+                        : undefined,
             },
             {
                 key: "tasks",
@@ -198,7 +252,7 @@ const useDashboardLayoutProps = () => {
         menuItems: buildMenuItems(),
         activeMenuKeys: getActiveMenuKeys(),
         defaultOpenKeys: getActiveMenuKeys().filter((key) =>
-            ["dashboard", "hr", "work", "finance"].includes(key)
+            ["dashboard", "hr", "work", "finance", "deals"].includes(key)
         ),
     };
 };

@@ -1,32 +1,40 @@
 import React from "react";
 import { Deal, HibarrDealFields } from "@/Types/api/deals";
-import { Descriptions, Tag, Empty } from "antd";
-import {
-    CheckCircleOutlined,
-    CloseCircleOutlined,
-    CalendarOutlined,
-    FileTextOutlined,
-    DollarOutlined,
-    InfoCircleOutlined,
-} from "@ant-design/icons";
+import { Descriptions, Tag } from "antd";
+import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import EditableField from "@/Components/EditableField";
 
 interface Props {
     deal: Deal;
+    onUpdate?: (field: string, value: any) => Promise<void>;
+    editable?: boolean;
+    loading?: boolean; // Deprecated: use loadingField instead
+    loadingField?: string | null; // The specific field currently being updated
 }
 
-const DealDetailsTab: React.FC<Props> = ({ deal }) => {
-    const fields = deal.hibarr_fields;
+const DealDetailsTab: React.FC<Props> = ({
+    deal,
+    onUpdate,
+    editable = false,
+    loading = false,
+    loadingField = null,
+}) => {
+    // Cast to Partial to allow working with potentially undefined properties
+    // when hibarr_fields is null/undefined (e.g. for new deals or data gaps)
+    const fields: Partial<HibarrDealFields> = deal.hibarr_fields || {};
 
-    if (!fields) {
-        return (
-            <div className="p-8 text-center">
-                <Empty description="No additional details available for this deal" />
-            </div>
-        );
-    }
+    // Helper to check if a specific field is loading
+    const isFieldLoading = (fieldName: string) =>
+        loadingField === fieldName || (loading && !loadingField);
 
-    const renderBoolean = (value: boolean) => {
+    const handleSave = async (field: string, value: any) => {
+        if (onUpdate) {
+            await onUpdate(field, value);
+        }
+    };
+
+    const renderBoolean = (value: boolean | undefined) => {
         return value ? (
             <Tag color="success" icon={<CheckCircleOutlined />}>
                 Yes
@@ -46,50 +54,142 @@ const DealDetailsTab: React.FC<Props> = ({ deal }) => {
                 size="middle"
             >
                 <Descriptions.Item label="Interested In">
-                    {fields.interested_in || "--"}
+                    <EditableField
+                        value={fields.interested_in}
+                        fieldName="interested_in"
+                        fieldType="text"
+                        onSave={(value) => handleSave("interested_in", value)}
+                        disabled={!editable}
+                        loading={isFieldLoading("interested_in")}
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Budget Range">
-                    {fields.budget_range || "--"}
+                    <EditableField
+                        value={fields.budget_range}
+                        fieldName="budget_range"
+                        fieldType="text"
+                        onSave={(value) => handleSave("budget_range", value)}
+                        disabled={!editable}
+                        loading={isFieldLoading("budget_range")}
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Purchase Timeline">
-                    {fields.purchase_timeline || "--"}
+                    <EditableField
+                        value={fields.purchase_timeline}
+                        fieldName="purchase_timeline"
+                        fieldType="text"
+                        onSave={(value) =>
+                            handleSave("purchase_timeline", value)
+                        }
+                        disabled={!editable}
+                        loading={isFieldLoading("purchase_timeline")}
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Motivation">
-                    {fields.motivation || "--"}
+                    <EditableField
+                        value={fields.motivation}
+                        fieldName="motivation"
+                        fieldType="textarea"
+                        onSave={(value) => handleSave("motivation", value)}
+                        disabled={!editable}
+                        loading={isFieldLoading("motivation")}
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Strategy Meeting Booked">
-                    {renderBoolean(fields.strategy_meeting_booked)}
+                    <EditableField
+                        value={fields.strategy_meeting_booked ? 1 : 0}
+                        fieldName="strategy_meeting_booked"
+                        fieldType="boolean"
+                        onSave={(value) =>
+                            handleSave("strategy_meeting_booked", value)
+                        }
+                        displayValue={renderBoolean(
+                            fields.strategy_meeting_booked
+                        )}
+                        disabled={!editable}
+                        loading={isFieldLoading("strategy_meeting_booked")}
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Downpayment Paid">
-                    {renderBoolean(fields.downpayment_paid)}
+                    <EditableField
+                        value={fields.downpayment_paid ? 1 : 0}
+                        fieldName="downpayment_paid"
+                        fieldType="boolean"
+                        onSave={(value) =>
+                            handleSave("downpayment_paid", value)
+                        }
+                        displayValue={renderBoolean(fields.downpayment_paid)}
+                        disabled={!editable}
+                        loading={isFieldLoading("downpayment_paid")}
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Inspection Trip Date">
-                    {fields.inspection_trip_date
-                        ? dayjs(fields.inspection_trip_date).format(
-                              "MMM DD, YYYY"
-                          )
-                        : "--"}
+                    <EditableField
+                        value={fields.inspection_trip_date}
+                        fieldName="inspection_trip_date"
+                        fieldType="date"
+                        onSave={(value) =>
+                            handleSave("inspection_trip_date", value)
+                        }
+                        disabled={!editable}
+                        loading={isFieldLoading("inspection_trip_date")}
+                        formatValue={(val) =>
+                            val ? dayjs(val).format("MMM DD, YYYY") : "--"
+                        }
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Deposit Confirmation">
-                    {fields.deposit_confirmation || "--"}
+                    <EditableField
+                        value={fields.deposit_confirmation}
+                        fieldName="deposit_confirmation"
+                        fieldType="text"
+                        onSave={(value) =>
+                            handleSave("deposit_confirmation", value)
+                        }
+                        disabled={!editable}
+                        loading={isFieldLoading("deposit_confirmation")}
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Reservation Agreement">
-                    {fields.reservation_agreement || "--"}
+                    <EditableField
+                        value={fields.reservation_agreement}
+                        fieldName="reservation_agreement"
+                        fieldType="text"
+                        onSave={(value) =>
+                            handleSave("reservation_agreement", value)
+                        }
+                        disabled={!editable}
+                        loading={isFieldLoading("reservation_agreement")}
+                    />
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Sales Contract">
-                    {fields.sales_contract || "--"}
+                    <EditableField
+                        value={fields.sales_contract}
+                        fieldName="sales_contract"
+                        fieldType="text"
+                        onSave={(value) => handleSave("sales_contract", value)}
+                        disabled={!editable}
+                        loading={isFieldLoading("sales_contract")}
+                    />
                 </Descriptions.Item>
                 <Descriptions.Item label="Message">
-                    {fields?.message || "--"}
+                    <EditableField
+                        value={fields.message}
+                        fieldName="message"
+                        fieldType="textarea"
+                        onSave={(value) => handleSave("message", value)}
+                        disabled={!editable}
+                        loading={isFieldLoading("message")}
+                    />
                 </Descriptions.Item>
             </Descriptions>
         </div>

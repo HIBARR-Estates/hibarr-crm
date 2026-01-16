@@ -13,6 +13,7 @@ import {
     List,
     Tooltip,
     Empty,
+    Skeleton,
 } from "antd";
 import {
     CalendarOutlined,
@@ -25,14 +26,17 @@ import {
     EyeOutlined,
     LockOutlined,
     DollarOutlined,
+    LinkOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getStatusColor } from "@/lib/utils";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { Link } from "@inertiajs/react";
 
 const { Text, Title } = Typography;
 
 // Match the Task interface from columns
-interface Task {
+export interface Task {
     id: number;
     heading: string;
     description?: string;
@@ -110,13 +114,26 @@ interface TaskDetailsDrawerProps {
 }
 
 const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
-    task,
-    loading,
+    task: initialTask,
+    loading: initialLoading,
 }) => {
+    // Fetch full task details
+    const { data: fetchedTaskData, isLoading: isFetchingTask } = useApiQuery<{
+        task: Task;
+    }>({
+        path: initialTask?.id ? route("tasks.data", initialTask.id) : "",
+        options: {
+            enabled: !!initialTask?.id,
+        },
+    });
+
+    const task = fetchedTaskData?.task || initialTask;
+    const loading = initialLoading || isFetchingTask;
+
     if (loading) {
         return (
             <div style={{ padding: "24px", textAlign: "center" }}>
-                <Text>Loading task details...</Text>
+                <Skeleton active paragraph={{ rows: 10 }} />
             </div>
         );
     }
@@ -291,13 +308,17 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 <Descriptions size="small" column={1}>
                     <Descriptions.Item label="Start Date">
                         {task.start_date
-                            ? dayjs(task.start_date).format("MMM DD, YYYY")
+                            ? dayjs(task.start_date).format(
+                                  "MMM DD, YYYY h:mm A"
+                              )
                             : "Not set"}
                     </Descriptions.Item>
                     <Descriptions.Item label="Due Date">
                         {task.due_date ? (
                             <Space>
-                                {dayjs(task.due_date).format("MMM DD, YYYY")}
+                                {dayjs(task.due_date).format(
+                                    "MMM DD, YYYY h:mm A"
+                                )}
                                 {dayjs().isAfter(dayjs(task.due_date)) && (
                                     <Tag color="red">Overdue</Tag>
                                 )}
@@ -544,7 +565,15 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 dataSource={task.deals}
                                 renderItem={(deal: any) => (
                                     <List.Item style={{ padding: "4px 0" }}>
-                                        <Text>{deal.name}</Text>
+                                        <Link
+                                            href={route("deals.show", deal.id)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                        >
+                                            <LinkOutlined
+                                                style={{ fontSize: 12 }}
+                                            />
+                                            {deal.name}
+                                        </Link>
                                     </List.Item>
                                 )}
                             />
@@ -564,12 +593,21 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 dataSource={task.leads}
                                 renderItem={(lead: any) => (
                                     <List.Item style={{ padding: "4px 0" }}>
-                                        <Text>
+                                        <Link
+                                            href={route(
+                                                "lead-contact.show",
+                                                lead.id
+                                            )}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                        >
+                                            <LinkOutlined
+                                                style={{ fontSize: 12 }}
+                                            />
                                             {lead.client_name}{" "}
                                             {lead.company_name
                                                 ? `(${lead.company_name})`
                                                 : ""}
-                                        </Text>
+                                        </Link>
                                     </List.Item>
                                 )}
                             />
@@ -584,7 +622,18 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 dataSource={task.properties}
                                 renderItem={(property: any) => (
                                     <List.Item style={{ padding: "4px 0" }}>
-                                        <Text>{property.name}</Text>
+                                        <Link
+                                            href={route(
+                                                "products.show",
+                                                property.id
+                                            )}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                        >
+                                            <LinkOutlined
+                                                style={{ fontSize: 12 }}
+                                            />
+                                            {property.name}
+                                        </Link>
                                     </List.Item>
                                 )}
                             />

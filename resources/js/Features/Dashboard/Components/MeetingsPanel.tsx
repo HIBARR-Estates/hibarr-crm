@@ -40,12 +40,20 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({ meetings = [] }) => {
                     </Tag>
                 </div>
             }
-            className="h-full shadow-sm hover:shadow-md transition-shadow duration-300"
-            bodyStyle={{ maxHeight: "400px", overflowY: "auto" }}
+            className="h-full flex flex-col"
+            variant="outlined"
+            bodyStyle={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                overflow: 'hidden',
+                padding: '24px'
+            }}
         >
-            <List
-                dataSource={meetings}
-                renderItem={(meeting) => (
+            <div className="flex-1 overflow-y-auto min-h-0">
+                <List
+                    dataSource={meetings}
+                    renderItem={(meeting) => (
                     <List.Item className="px-6 py-4 hover:bg-gray-50 transition-colors border-b last:border-b-0">
                         <div className="w-full">
                             <div className="flex justify-between items-start mb-2">
@@ -108,7 +116,8 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({ meetings = [] }) => {
                         </div>
                     ),
                 }}
-            />
+                />
+            </div>
         </Card>
     );
 };

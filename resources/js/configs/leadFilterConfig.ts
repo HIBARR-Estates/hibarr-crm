@@ -9,7 +9,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Search",
             type: "text",
             placeholder: "Search leads by contact name, email, company...",
-            section: "Search & General",
             span: 24,
         },
         {
@@ -17,7 +16,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Lead Type",
             type: "select",
             placeholder: "Select lead type",
-            section: "Search & General",
             span: 12,
             options: [
                 { value: "lead", label: "Lead" },
@@ -29,7 +27,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Lead Source",
             type: "select",
             placeholder: "Select lead source",
-            section: "Search & General",
             span: 12,
             options:
                 props.sources?.map((source: any) => ({
@@ -42,7 +39,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Category",
             type: "select",
             placeholder: "Select category",
-            section: "Categorization",
             span: 24,
             options:
                 props.categories?.map((category: any) => ({
@@ -55,7 +51,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Lead Owner",
             type: "select",
             placeholder: "Select lead owner",
-            section: "Assignment & Ownership",
             span: 12,
             options:
                 props.employees?.map((employee: any) => ({
@@ -68,7 +63,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Added By",
             type: "select",
             placeholder: "Select who added",
-            section: "Assignment & Ownership",
             span: 12,
             options:
                 props.employees?.map((employee: any) => ({
@@ -80,7 +74,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             key: "start_date",
             label: "Created Date Range",
             type: "daterange",
-            section: "Date Range",
             span: 24,
             formatDisplayValue: (value: any) => {
                 if (Array.isArray(value)) {
@@ -94,7 +87,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Country",
             type: "select",
             placeholder: "Select country",
-            section: "Location",
             span: 12,
             options:
                 props.countries?.map((country: any) => ({
@@ -107,7 +99,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Status",
             type: "select",
             placeholder: "Select status",
-            section: "Status & Priority",
             span: 12,
             options: [
                 { value: "active", label: "Active" },
@@ -121,7 +112,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Client Category",
             type: "select",
             placeholder: "Select client category",
-            section: "Advanced",
             span: 12,
             options:
                 props.clientCategories?.map((category: any) => ({
@@ -134,7 +124,6 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             label: "Language",
             type: "select",
             placeholder: "Select language",
-            section: "Advanced",
             span: 12,
             options:
                 props.languages?.map((language: any) => ({

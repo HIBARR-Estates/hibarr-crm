@@ -124,6 +124,13 @@
                                 fieldName="employee_can_export_data"
                                 fieldId="employee_can_export_data"/>
             </div>
+            <div class="col-lg-3 mt-lg-5">
+                <x-forms.checkbox :checked="company()->enable_data_quality_monitor"
+                                :fieldLabel="__('app.enableDataQualityMonitor')"
+                                fieldName="enable_data_quality_monitor"
+                                :popover="__('app.enableDataQualityMonitorInfo')"
+                                fieldId="enable_data_quality_monitor"/>
+            </div>
         @endif
 
     </div>

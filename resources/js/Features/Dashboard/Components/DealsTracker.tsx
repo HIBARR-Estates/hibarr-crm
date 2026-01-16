@@ -35,7 +35,7 @@ import {
 import dayjs from "dayjs";
 import { router } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
-import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
+import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import { Deal } from "@/Types";
 
 interface PipelineStage {
@@ -429,10 +429,10 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
 
     return (
         <>
-            <SaveDealModal
-                onClose={() => handleClose()}
-                open={["add", "edit"].includes(action || "")}
-                deal={deal}
+            <DealInformationGatheringForm
+                open={action === "add" || action === "edit"}
+                onClose={handleClose}
+                deal={action === "edit" ? deal : null}
             />
             <Card
                 variant="outlined"

@@ -10,6 +10,7 @@ use Carbon\Carbon;
 
 class DealTaskService
 {
+    // Define task types
     public const TASK_SCHEDULE_MEETING = 'schedule_meeting';
     public const TASK_SEND_PROPERTY_DETAILS = 'send_property_details';
     public const TASK_SETUP_WATCHER = 'setup_watcher';
@@ -30,18 +31,18 @@ class DealTaskService
                 'priority' => 'medium',
                 'label' => 'Send Property Details',
             ],
-            self::TASK_SETUP_WATCHER => [
-                'heading' => 'Set up a deal watcher',
-                'description' => 'Add relevant watchers to this deal.',
-                'priority' => 'medium',
-                'label' => 'Set Up Watcher',
-            ],
-            self::TASK_ASSIGN_AGENT => [
-                'heading' => 'Assign Deal Agent',
-                'description' => 'Assign an agent to this deal.',
-                'priority' => 'high',
-                'label' => 'Assign Agent',
-            ],
+            // self::TASK_SETUP_WATCHER => [
+            //     'heading' => 'Set up a deal watcher',
+            //     'description' => 'Add relevant watchers to this deal.',
+            //     'priority' => 'medium',
+            //     'label' => 'Set Up Watcher',
+            // ],
+            // self::TASK_ASSIGN_AGENT => [
+            //     'heading' => 'Assign Deal Agent',
+            //     'description' => 'Assign an agent to this deal.',
+            //     'priority' => 'high',
+            //     'label' => 'Assign Agent',
+            // ],
         ];
     }
 

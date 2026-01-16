@@ -2,18 +2,24 @@
 
 namespace App\Observers;
 
+use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Services\DealAutomationService;
+use App\Services\DealNotificationService;
 
 class DealFollowUpObserver
 {
     protected DealAutomationService $dealAutomation;
+    protected DealNotificationService $notificationService;
 
     public function __construct(
-    DealAutomationService $dealAutomation
+        DealAutomationService $dealAutomation,
+        DealNotificationService $notificationService
     ) {
         $this->dealAutomation = $dealAutomation;
+        $this->notificationService = $notificationService;
     }
+
     /**
      * Handle the DealFollowUp "created" event.
      */
@@ -30,7 +36,22 @@ class DealFollowUpObserver
      */
     public function updated(DealFollowUp $dealFollowUp): void
     {
-        //
+        // Send notification for meeting/follow-up updated
+        if (!isRunningInConsoleOrSeeding() && user()) {
+            $deal = Deal::find($dealFollowUp->deal_id);
+            if ($deal) {
+                $meetingDate = $dealFollowUp->next_follow_up_date 
+                    ? $dealFollowUp->next_follow_up_date->format('M d, Y H:i') 
+                    : null;
+                
+                $this->notificationService->notifyMeetingUpdated(
+                    $deal,
+                    $dealFollowUp->remark ?? 'Follow-up updated',
+                    $meetingDate,
+                    $dealFollowUp->id
+                );
+            }
+        }
     }
 
     /**

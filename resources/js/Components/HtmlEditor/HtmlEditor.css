@@ -18,11 +18,15 @@
     border: none;
     border-bottom: 1px solid #d9d9d9;
     padding: 8px;
+    flex-shrink: 0;
 }
 
 .html-editor .ql-container {
     border: none;
     font-family: inherit;
+    flex-grow: 1;
+    overflow: hidden;
+    height: auto !important; /* Ensure container fits in flex parent */
 }
 
 .html-editor .ql-editor {
@@ -30,6 +34,16 @@
     min-height: 120px;
     font-size: 14px;
     line-height: 1.5;
+    height: 100%;
+    overflow-y: auto;
+    overflow-wrap: break-word; /* Prevent horizontal overflow */
+    word-break: break-word;
+}
+
+.html-editor .quill {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .html-editor .ql-editor.ql-blank::before {

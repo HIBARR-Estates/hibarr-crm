@@ -18,6 +18,7 @@ use App\Models\Deal;
 use App\Models\LeadNote;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
+use Illuminate\Support\Facades\DB;
 use App\Models\Lead;
 use App\Models\LeadCustomForm;
 use App\Models\LeadPipeline;
@@ -666,6 +667,9 @@ class LeadContactController extends AccountBaseController
             if ($request->has('salutation')) {
                 $leadContact->salutation = $request->salutation;
             }
+            if ($request->has('gender')) {
+                $leadContact->gender = $request->gender;
+            }
             if ($request->has('client_name')) {
                 $leadContact->client_name = $request->client_name;
             }
@@ -801,6 +805,40 @@ class LeadContactController extends AccountBaseController
             \DB::commit();
 
             // Return success response for API calls or redirect for web
+            if ($request->ajax() || $request->wantsJson() || $request->header('X-Inertia') || $request->header('X-Requested-With')) {
+                // Return only the ID and updated fields to avoid any serialization issues
+                // Frontend will merge these into existing state
+                $responseData = [
+                    'id' => $leadContact->id,
+                ];
+                
+                // Add only the fields that were in the request
+                $allowedFields = [
+                    'client_name', 'client_email', 'mobile', 'office', 'cell',
+                    'company_name', 'website', 'address', 'city', 'state', 'country',
+                    'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
+                    'source_id', 'agent_id', 'value', 'currency_id', 'salutation'
+                ];
+                
+                foreach ($allowedFields as $field) {
+                    if ($request->has($field)) {
+                        $responseData[$field] = $leadContact->getAttribute($field);
+                    }
+                }
+                
+                // If custom fields were updated, include the updated custom_fields_data
+                if ($request->has('custom_fields')) {
+                    $leadContact->withCustomFields();
+                    $responseData['custom_fields_data'] = $leadContact->custom_fields_data;
+                }
+                
+                return response()->json([
+                    'status' => 'success',
+                    'data' => [
+                        'lead' => $responseData,
+                    ],
+                ]);
+            }
             
             return Reply::successWithData(__('messages.leadUpdateSuccess'), [
                 'lead' => $leadContact->fresh(),
@@ -1021,6 +1059,8 @@ class LeadContactController extends AccountBaseController
         if ($leadCustomFieldGroup) {
             return CustomFieldCategory::where('custom_field_group_id', $leadCustomFieldGroup->id)
                 ->where('company_id', company()->id)
+                ->orderBy(DB::raw('`order`'), 'asc')
+                ->orderBy('id', 'asc')
                 ->get();
         }
         return collect();

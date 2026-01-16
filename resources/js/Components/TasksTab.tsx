@@ -1,16 +1,16 @@
-import { Table, Drawer, Empty, Button } from "antd";
+import { Drawer, Empty, Button } from "antd";
 import { Task } from "@/Types/api/tasks";
 import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
-import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import BulkTaskActionSelector from "@/Features/Tasks/BulkActions/BulkTaskActionSelector";
-import { useTasksTableColumns } from "@/Features/Tasks/Columns";
+import TaskListView from "@/Features/Tasks/Components/TaskListView";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import { PlusOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { isLoading } from "@/lib/utils";
 import { useState } from "react";
 import { router } from "@inertiajs/react";
+import { taskApi } from "@/lib/api/tasks";
 
 interface TaskboardColumn {
     id: number;
@@ -58,24 +58,51 @@ export default function TasksTab({
     const {
         action,
         handleAction,
-        handleClose,
+        handleClose: closeAction,
         selected: selectedTask,
     } = useGenericEntityAction<Task>();
 
-    // Table row selection
-    const { selectedEntities, rowSelection, clearSelected } =
-        useGenericTableRowSelection<Task>();
+    const handleClose = () => {
+        router.reload({ only: ["tasks"] });
+        closeAction();
+    };
 
-    // Table columns using the hook
-    const columns = useTasksTableColumns({
-        columns: taskBoardColumns,
-        permissions,
-        onEdit: (selectedTask) => handleAction("edit", selectedTask),
-        onView: (selectedTask) => handleAction("view", selectedTask),
-        onDuplicate: (selectedTask) => handleAction("duplicate", selectedTask),
-        onDelete: (selectedTask) => handleAction("delete", selectedTask),
-        exclude: ["due_date", "progress", "created_at"],
-    });
+    // Selection state for TaskListView
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [selectedTasks, setSelectedTasks] = useState<Task[]>([]);
+
+    // Handle selection change from TaskListView
+    const handleSelectionChange = (ids: number[], tasks: Task[]) => {
+        setSelectedIds(ids);
+        setSelectedTasks(tasks);
+    };
+
+    // Clear selection
+    const clearSelected = () => {
+        setSelectedIds([]);
+        setSelectedTasks([]);
+    };
+
+    // Task status change handler
+    const { mutate: updateTaskStatus } = taskApi.useUpdateStatus();
+
+    const handleStatusChange = (
+        task: Task,
+        newStatus: string,
+        newColumnId: number
+    ) => {
+        updateTaskStatus(
+            {
+                taskId: task.id,
+                status: newStatus,
+            },
+            {
+                onSuccess: () => {
+                    router.reload({ only: ["tasks"] });
+                },
+            }
+        );
+    };
 
     const defaultTaskUrl =
         relatedEntity.type === "deal"
@@ -92,8 +119,8 @@ export default function TasksTab({
     const defaultTasks = [
         { key: "schedule_meeting", label: "Schedule Meeting" },
         { key: "send_property_details", label: "Send Property Details" },
-        { key: "setup_watcher", label: "Set Up Watcher" },
-        { key: "assign_agent", label: "Assign Agent" },
+        // { key: "setup_watcher", label: "Set Up Watcher" },
+        // { key: "assign_agent", label: "Assign Agent" },
     ];
 
     return (
@@ -175,7 +202,9 @@ export default function TasksTab({
                                                             setSelectedTaskType(
                                                                 ""
                                                             );
-                                                            router.reload();
+                                                            router.reload({
+                                                                only: ["tasks"],
+                                                            });
                                                         },
                                                     }
                                                 );
@@ -192,27 +221,24 @@ export default function TasksTab({
                                 </div>
                             )}
                         </div>
-                        {selectedEntities.length > 0 && (
+                        {selectedTasks.length > 0 && (
                             <BulkTaskActionSelector
-                                selectedEntityIds={selectedEntities.map(
-                                    (e) => e.id
-                                )}
+                                selectedEntityIds={selectedIds}
                                 columns={taskBoardColumns}
-                                clearSelected={() => clearSelected()}
+                                clearSelected={clearSelected}
                             />
                         )}
                     </div>
-                    <Table
-                        columns={columns}
-                        dataSource={tasks}
-                        rowKey="id"
-                        pagination={{
-                            pageSize: 10,
-                            showSizeChanger: true,
-                            showQuickJumper: true,
-                            showTotal: (total) => `Total ${total} tasks`,
-                        }}
-                        rowSelection={rowSelection}
+                    <TaskListView
+                        tasks={tasks}
+                        columns={taskBoardColumns}
+                        selectedIds={selectedIds}
+                        onSelectionChange={handleSelectionChange}
+                        onEdit={(task) => handleAction("edit", task)}
+                        onView={(task) => handleAction("view", task)}
+                        onDelete={(task) => handleAction("delete", task)}
+                        onDuplicate={(task) => handleAction("duplicate", task)}
+                        onStatusChange={handleStatusChange}
                     />
                 </div>
             )}
