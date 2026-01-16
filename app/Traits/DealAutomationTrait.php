@@ -30,6 +30,7 @@ trait DealAutomationTrait
                     'meeting_type' => $followUp->meetingType ? $followUp->meetingType->name : null,
                     'meeting_type_id' => $followUp->meeting_type_id,
                     'location' => $followUp->location,
+                    'platform' => $followUp->location,
                     'meeting_link' => $followUp->meeting_link,
                     'next_follow_up_date' => $followUp->next_follow_up_date?->format('Y-m-d H:i:s'),
                     'remark' => $followUp->remark,
