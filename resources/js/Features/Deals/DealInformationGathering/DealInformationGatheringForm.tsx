@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Modal, message, Button, Skeleton } from "antd";
 import StepOne from "./StepOne";
 import CustomFieldStep from "./CustomFieldStep";
@@ -49,6 +49,9 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     const dynamicSteps = stepsData?.steps || [];
     const loadingSteps = isLoading({ status });
 
+    // Ref for auto-scrolling content container
+    const contentRef = useRef<HTMLDivElement>(null);
+
     // Initialize state when modal opens with edit deal
     React.useEffect(() => {
         if (open && editDeal) {
@@ -65,6 +68,13 @@ const DealInformationGatheringForm: React.FC<Props> = ({
             setLead(null);
         }
     }, [open, editDeal]);
+
+    // Auto-scroll to top when step changes
+    useEffect(() => {
+        if (contentRef.current) {
+            contentRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    }, [current]);
 
     const handleStepOneNext = (createdDeal: any, createdLead: any) => {
         setDeal(createdDeal);
@@ -101,12 +111,16 @@ const DealInformationGatheringForm: React.FC<Props> = ({
 
     // Calculate which steps should be disabled
     // All steps after step 0 are disabled until a deal is created
-    const disabledSteps = deal ? [] : items.slice(1).map((_, i) => i + 1);
+    // Once a deal is created, step 0 (Lead Information) is disabled to prevent going back
+    const disabledSteps = deal ? [0] : items.slice(1).map((_, i) => i + 1);
 
     // Handle step navigation via click
     const handleStepClick = (stepIndex: number) => {
         // Don't allow navigation to steps beyond current + 1 (can't skip ahead)
-        // But allow going back to any completed step
+        // Don't allow going back to step 0 once a deal is created
+        if (deal && stepIndex === 0) {
+            return; // Prevent going back to step 0 after deal creation
+        }
         if (stepIndex <= current || stepIndex === current + 1) {
             setCurrent(stepIndex);
         }
@@ -164,7 +178,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
             }
         }
 
-        return <div className="min-h-[400px]">{content}</div>;
+        return <div className="min-h-[300px]">{content}</div>;
     };
 
     return (
@@ -192,7 +206,12 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                         onStepClick={handleStepClick}
                         disabledSteps={disabledSteps}
                     />
-                    <div>{renderContent()}</div>
+                    <div
+                        ref={contentRef}
+                        className="overflow-y-auto max-h-[70vh]"
+                    >
+                        {renderContent()}
+                    </div>
                 </div>
             </Skeleton>
         </Modal>

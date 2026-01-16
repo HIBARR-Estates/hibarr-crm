@@ -176,7 +176,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     const { props } = usePage<PageProps>();
     const company = props.company as any;
     const enableDataQualityMonitor = company?.enable_data_quality_monitor === 1; // Check if explicitly enabled (1)
-    
+
     const [activeMetric, setActiveMetric] = useState<string | null>(null);
 
     // Handle metric click for filtering
@@ -321,9 +321,23 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                             />
 
                             {/* Main Workflow Panels */}
-                            <Row gutter={[24, 24]} className="mb-8" style={{ display: 'flex', alignItems: 'stretch' }}>
+                            <Row
+                                gutter={[24, 24]}
+                                className="mb-8"
+                                style={{
+                                    display: "flex",
+                                    alignItems: "stretch",
+                                }}
+                            >
                                 {/* Left Column: Upcoming Meetings */}
-                                <Col xs={24} lg={8} style={{ display: 'flex', flexDirection: 'column' }}>
+                                <Col
+                                    xs={24}
+                                    lg={8}
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                    }}
+                                >
                                     <motion.div
                                         initial={{ opacity: 0, x: -50 }}
                                         animate={{ opacity: 1, x: 0 }}
@@ -332,7 +346,11 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                             delay: 0.2,
                                         }}
                                         className="h-full"
-                                        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                                        style={{
+                                            flex: 1,
+                                            display: "flex",
+                                            flexDirection: "column",
+                                        }}
                                     >
                                         <MeetingsPanel
                                             meetings={upcomingMeetings}
@@ -358,7 +376,14 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                 </Col>
 
                                 {/* Right Column: Data Quality Monitor (when enabled) OR Tasks & Activities (when disabled) */}
-                                <Col xs={24} lg={16} style={{ display: 'flex', flexDirection: 'column' }}>
+                                <Col
+                                    xs={24}
+                                    lg={16}
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                    }}
+                                >
                                     {enableDataQualityMonitor ? (
                                         <motion.div
                                             initial={{ opacity: 0, x: 50 }}
@@ -368,13 +393,17 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                                 delay: 0.3,
                                             }}
                                             className="h-full"
-                                            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                                            style={{
+                                                flex: 1,
+                                                display: "flex",
+                                                flexDirection: "column",
+                                            }}
                                         >
                                             <DataQualityPanel
                                                 records={poorDataQualityDeals}
                                                 stats={dataQualityStats}
-                                                products={products}
-                                                packages={packages}
+                                                // products={products}
+                                                // packages={packages}
                                                 countries={countries}
                                             />
                                         </motion.div>
@@ -387,13 +416,17 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                                 delay: 0.2,
                                             }}
                                             className="h-full"
-                                            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                                            style={{
+                                                flex: 1,
+                                                display: "flex",
+                                                flexDirection: "column",
+                                            }}
                                         >
                                             <TasksActivitiesPanel
                                                 tasks={tasks}
                                             />
                                         </motion.div>
-                                    </div>
+                                    )}
                                 </Col>
 
                                 {/* Data Quality Panel */}

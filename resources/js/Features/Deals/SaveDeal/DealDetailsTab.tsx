@@ -76,6 +76,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 pipeline: data.pipeline,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
                 deal_watcher: data.deal_watcher || [],
+                deal_participant: data.deal_participant || [],
                 product_id: data.product_id || [],
                 package_id: data.packages
                     ? data.packages.map((p: any) => p.id)
@@ -172,6 +173,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 ? values.close_date.format("YYYY-MM-DD")
                 : "",
             deal_watcher: values.deal_watcher || [],
+            deal_participant: values.deal_participant || [],
             product_id: values.product_id || [],
             strategy_accepted: values.strategy_accepted || false,
             downpayment_confirmed: values.downpayment_confirmed || false,
@@ -460,6 +462,30 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             <Select
                                 mode="multiple"
                                 placeholder="Select Watchers"
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
+                            >
+                                {employees.map((employee: any) => (
+                                    <Select.Option
+                                        key={employee.id}
+                                        value={employee.id}
+                                    >
+                                        {employee.name}
+                                    </Select.Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    </Col>
+
+                    <Col span={24}>
+                        <Form.Item
+                            name="deal_participant"
+                            label="Deal Participants"
+                        >
+                            <Select
+                                mode="multiple"
+                                placeholder="Select Participants"
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
