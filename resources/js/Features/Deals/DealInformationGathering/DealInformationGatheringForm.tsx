@@ -3,7 +3,7 @@ import { Modal, message, Button, Skeleton } from "antd";
 import StepOne from "./StepOne";
 import CustomFieldStep from "./CustomFieldStep";
 import ModernSteps from "./ModernSteps";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { useApiQuery } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
 import { Deal } from "@/Types/api/deals";
@@ -12,18 +12,35 @@ interface Props {
     open: boolean;
     onClose: () => void;
     deal?: Deal | null; // Optional deal for edit mode
+    pipelineId?: number; // Pipeline ID for new deals
 }
 
 const DealInformationGatheringForm: React.FC<Props> = ({
     open,
     onClose,
     deal: editDeal,
+    pipelineId: propsPipelineId,
 }) => {
     const [current, setCurrent] = useState(0);
     const [deal, setDeal] = useState<any>(null);
     const [lead, setLead] = useState<any>(null);
 
     const isEditMode = !!editDeal;
+
+    // Get the pipeline ID from URL params if not provided via props
+    const { props } = usePage<any>();
+    const urlParams =
+        typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search)
+            : null;
+    const urlPipelineId = urlParams?.get("lead_pipeline_id");
+    const defaultPipelineId = props.defaultPipeline?.id;
+
+    // Priority: props > URL param > default pipeline
+    const pipelineId =
+        propsPipelineId ||
+        (urlPipelineId ? Number(urlPipelineId) : null) ||
+        defaultPipelineId;
 
     const { data: stepsData, status } = useApiQuery<{ steps: any[] }>({
         path: route("deals.gathering.steps"),
@@ -104,6 +121,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                     onNext={handleStepOneNext}
                     existingLead={lead}
                     existingDeal={deal}
+                    pipelineId={pipelineId}
                 />
             );
         } else {

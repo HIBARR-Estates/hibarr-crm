@@ -29,12 +29,14 @@ interface StepOneProps {
     onNext: (deal: any, lead: any) => void;
     existingLead?: any;
     existingDeal?: any;
+    pipelineId?: number; // Pipeline ID for new deals
 }
 
 const StepOne: React.FC<StepOneProps> = ({
     onNext,
     existingLead,
     existingDeal,
+    pipelineId,
 }) => {
     const [form] = Form.useForm();
     const [leadType, setLeadType] = useState<"client" | "agent">("client");
@@ -107,6 +109,11 @@ const StepOne: React.FC<StepOneProps> = ({
         // If we have an existing deal, include its ID for update logic
         if (existingDeal?.id) {
             payload.deal_id = existingDeal.id;
+        }
+
+        // Include pipeline_id for new deals
+        if (!existingDeal && pipelineId) {
+            payload.pipeline_id = pipelineId;
         }
 
         // If a lead is selected (existing lead), send lead_id
