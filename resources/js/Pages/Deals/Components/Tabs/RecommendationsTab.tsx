@@ -136,7 +136,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
         return (
             <div className="p-6">
                 <Alert
-                    message="Unable to Load Recommendations"
+                    message="Please complete the deal information to generate property recommendations."
                     description={apiError}
                     type="warning"
                     showIcon
