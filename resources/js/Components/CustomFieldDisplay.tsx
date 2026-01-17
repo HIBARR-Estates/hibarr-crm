@@ -130,8 +130,11 @@ interface Props {
     column?: number;
     onUpdate?: (field: string, value: any) => Promise<void>;
     editable?: boolean;
+    alwaysEditing?: boolean; // When true, fields are always in edit mode (for bulk editing)
     loading?: boolean; // Deprecated: use loadingField instead
     loadingField?: string | null; // The specific field currently being updated
+    onChange?: (fieldName: string, value: any) => void; // For tracking changes in edit mode
+    globalLoading?: boolean; // When true, all fields are disabled (e.g., during save all)
 }
 
 export default function CustomFieldDisplay({
@@ -141,8 +144,11 @@ export default function CustomFieldDisplay({
     column = 2,
     onUpdate,
     editable = false,
+    alwaysEditing = false,
     loading = false,
     loadingField = null,
+    onChange,
+    globalLoading = false,
 }: Props) {
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
@@ -575,7 +581,9 @@ export default function CustomFieldDisplay({
 
         const fieldKey = `field_${field.id}`;
         const isFieldLoading =
-            loadingField === fieldKey || (loading && !loadingField);
+            globalLoading ||
+            loadingField === fieldKey ||
+            (loading && !loadingField);
 
         // Handle file type with EditableFileField
         if (field.type === "file") {
@@ -604,6 +612,8 @@ export default function CustomFieldDisplay({
                 options={options}
                 displayValue={formatFieldValue(field, value)}
                 loading={isFieldLoading}
+                alwaysEditing={alwaysEditing}
+                onChange={onChange}
             />
         );
     };

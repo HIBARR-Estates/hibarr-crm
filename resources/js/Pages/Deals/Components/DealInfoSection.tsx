@@ -18,6 +18,7 @@ import {
     CheckSquareOutlined,
     CloseOutlined,
     CheckOutlined,
+    SaveOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
@@ -72,6 +73,15 @@ export default function DealInfoSection({
     // Edit mode state - when true, all fields become editable
     const [isEditMode, setIsEditMode] = useState(false);
 
+    // Track pending changes in edit mode
+    const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
+        {}
+    );
+    const [isSavingAll, setIsSavingAll] = useState(false);
+
+    // Check if there are unsaved changes
+    const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
+
     // API Mutation for inline updates
     const { mutateAsync: updateDeal, status } = useApiMutate<
         {
@@ -114,11 +124,82 @@ export default function DealInfoSection({
     // Toggle edit mode
     const handleToggleEditMode = () => {
         setIsEditMode(!isEditMode);
+        // Clear pending changes when entering edit mode
+        if (!isEditMode) {
+            setPendingChanges({});
+        }
     };
 
     // Exit edit mode
     const handleExitEditMode = () => {
         setIsEditMode(false);
+        setPendingChanges({});
+    };
+
+    // Handle field change in edit mode (track pending changes)
+    const handleFieldChange = (fieldName: string, value: any) => {
+        setPendingChanges((prev) => ({
+            ...prev,
+            [fieldName]: value,
+        }));
+    };
+
+    // Save all pending changes
+    const handleSaveAll = async () => {
+        if (!hasUnsavedChanges) return;
+
+        setIsSavingAll(true);
+        try {
+            // Group changes by type for API calls
+            const detailsChanges: Record<string, any> = {};
+            const contactChanges: Record<string, any> = {};
+
+            // Process each pending change
+            for (const [fieldName, value] of Object.entries(pendingChanges)) {
+                // Determine the type based on field name
+                if (["email", "mobile", "company_name"].includes(fieldName)) {
+                    const apiFieldName =
+                        fieldName === "email" ? "client_email" : fieldName;
+                    contactChanges[apiFieldName] = value;
+                } else {
+                    // Process value transformations
+                    let processedValue = value;
+                    if (fieldName === "value") {
+                        processedValue = value
+                            ? parseFloat(value.toString())
+                            : 0;
+                    } else if (fieldName === "close_date") {
+                        processedValue = value || null;
+                    }
+                    detailsChanges[fieldName] = processedValue;
+                }
+            }
+
+            // Make API calls for each type of change
+            const promises: Promise<any>[] = [];
+
+            if (Object.keys(detailsChanges).length > 0) {
+                promises.push(
+                    updateDeal({ type: "details", data: detailsChanges })
+                );
+            }
+
+            if (Object.keys(contactChanges).length > 0) {
+                promises.push(
+                    updateDeal({ type: "contact", data: contactChanges })
+                );
+            }
+
+            await Promise.all(promises);
+
+            message.success("All changes saved successfully");
+            setPendingChanges({});
+            setIsEditMode(false);
+        } catch (error: any) {
+            message.error(error?.message || "Failed to save changes");
+        } finally {
+            setIsSavingAll(false);
+        }
     };
 
     // Format currency
@@ -244,6 +325,24 @@ export default function DealInfoSection({
                   },
               ]
             : []),
+        // Save all button - only show when in edit mode with changes
+        ...(isEditMode
+            ? [
+                  {
+                      key: "save_all",
+                      icon: <SaveOutlined />,
+                      tooltip: hasUnsavedChanges
+                          ? `Save All Changes (${
+                                Object.keys(pendingChanges).length
+                            })`
+                          : "No changes to save",
+                      type: "primary" as const,
+                      onClick: handleSaveAll,
+                      disabled: !hasUnsavedChanges || isSavingAll,
+                      loading: isSavingAll,
+                  },
+              ]
+            : []),
         // Cancel edit mode button - only show when in edit mode
         ...(isEditMode
             ? [
@@ -290,8 +389,9 @@ export default function DealInfoSection({
                                     handleFieldUpdate("name", value)
                                 }
                                 className="font-medium text-gray-900"
-                                loading={isFieldLoading("name")}
-                                // disabled={!canEdit}
+                                loading={isSavingAll || isFieldLoading("name")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
                             />
                         </Descriptions.Item>
 
@@ -317,8 +417,11 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("package_id", value)
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("package_id")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("package_id")
+                                }
                             />
                         </Descriptions.Item>
 
@@ -360,8 +463,11 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("lead_id", value)
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("lead_id")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("lead_id")
+                                }
                             />
                         </Descriptions.Item>
 
@@ -377,8 +483,12 @@ export default function DealInfoSection({
                                             handleFieldUpdate("email", value)
                                         }
                                         className="text-blue-600 hover:text-blue-800"
-                                        disabled={!isFieldEditable}
-                                        loading={isFieldLoading("email")}
+                                        alwaysEditing={isFieldEditable}
+                                        onChange={handleFieldChange}
+                                        loading={
+                                            isSavingAll ||
+                                            isFieldLoading("email")
+                                        }
                                     />
                                 </div>
                             ) : (
@@ -399,8 +509,12 @@ export default function DealInfoSection({
                                         onSave={(value) =>
                                             handleFieldUpdate("mobile", value)
                                         }
-                                        disabled={!isFieldEditable}
-                                        loading={isFieldLoading("mobile")}
+                                        alwaysEditing={isFieldEditable}
+                                        onChange={handleFieldChange}
+                                        loading={
+                                            isSavingAll ||
+                                            isFieldLoading("mobile")
+                                        }
                                     />
                                 </div>
                             ) : (
@@ -416,8 +530,12 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("company_name", value)
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("company_name")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("company_name")
+                                }
                             />
                         </Descriptions.Item>
 
@@ -436,8 +554,11 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("category_id", value)
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("category_id")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("category_id")
+                                }
                             />
                         </Descriptions.Item>
 
@@ -461,8 +582,11 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("agent_id", value)
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("agent_id")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("agent_id")
+                                }
                             />
                         </Descriptions.Item>
 
@@ -502,8 +626,12 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("deal_watcher", value)
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("deal_watcher")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("deal_watcher")
+                                }
                             />
                         </Descriptions.Item>
 
@@ -543,8 +671,12 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("deal_participant", value)
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("deal_participant")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("deal_participant")
+                                }
                             />
                         </Descriptions.Item>
 
@@ -574,8 +706,11 @@ export default function DealInfoSection({
                                           )
                                         : "--"
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("close_date")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("close_date")
+                                }
                             />
                         </Descriptions.Item>
 
@@ -597,8 +732,9 @@ export default function DealInfoSection({
                                         : "--"
                                 }
                                 className="font-semibold"
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("value")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={isSavingAll || isFieldLoading("value")}
                             />
                         </Descriptions.Item>
 
@@ -635,8 +771,11 @@ export default function DealInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("product_id", value)
                                 }
-                                disabled={!isFieldEditable}
-                                loading={isFieldLoading("product_id")}
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("product_id")
+                                }
                             />
                         </Descriptions.Item>
                     </Descriptions>
@@ -654,6 +793,8 @@ export default function DealInfoSection({
                     }
                     editable={isFieldEditable}
                     loadingField={updatingField}
+                    onChange={handleFieldChange}
+                    globalLoading={isSavingAll}
                 />
             ),
         },
@@ -673,6 +814,8 @@ export default function DealInfoSection({
                         }
                         editable={isFieldEditable}
                         loadingField={updatingField}
+                        onChange={handleFieldChange}
+                        globalLoading={isSavingAll}
                     />
                 </div>
             ),
@@ -716,6 +859,15 @@ export default function DealInfoSection({
                                 Edit Mode
                             </Tag>
                         )}
+                        {isEditMode && hasUnsavedChanges && (
+                            <Tag color="orange" className="text-xs">
+                                {Object.keys(pendingChanges).length} unsaved
+                                change
+                                {Object.keys(pendingChanges).length > 1
+                                    ? "s"
+                                    : ""}
+                            </Tag>
+                        )}
                     </div>
                     <Space size="small">
                         {actionItems.map((item) => (
@@ -726,6 +878,8 @@ export default function DealInfoSection({
                                     danger={item.danger}
                                     onClick={item.onClick}
                                     size="small"
+                                    disabled={item.disabled}
+                                    loading={item.loading}
                                 />
                             </Tooltip>
                         ))}
