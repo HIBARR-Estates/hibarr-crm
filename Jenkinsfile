@@ -15,13 +15,20 @@ pipeline {
                 STAGING_USER = credentials('STAGING_USER')
             }
             steps {
-                sshagent(['STAGIN_SSH_PRIVATE_KEY']) {
+                // sshagent(['STAGIN_SSH_PRIVATE_KEY']) {
+                //     sh """
+                //         ssh -p 2244 -o StrictHostKeyChecking=no ${STAGING_USER}@${STAGING_HOST} \
+                //         'cd ~/hibarr-crm-staging && make deploy-staging'
+                //     """
+                // }
+
+                withCredentials([sshUserPrivateKey(credentialsId: 'STAGIN_SSH_PRIVATE_KEY', keyFileVariable: 'KEY')]) {
                     sh """
-                        ssh -p 2244 -o StrictHostKeyChecking=no ${STAGING_USER}@${STAGING_HOST} \
+                        ssh -i ${KEY} -p 2244 -o StrictHostKeyChecking=no ${STAGING_USER}@${STAGING_HOST} \
                         'cd ~/hibarr-crm-staging && make deploy-staging'
                     """
                 }
-            }
+                
         }
 
         stage('Deploy to Production') {
