@@ -215,8 +215,8 @@ class DealObserver
                 $this->triggerMetaConversionEvent($deal);
             }
 
-            // Create default tasks for the deal
-            $this->dealTaskService->createDefaultTasks($deal);
+            // Note: Default task creation disabled - tasks should be created manually
+            // $this->dealTaskService->createDefaultTasks($deal);
         }
         //deal automation trigger
         $this->dealAutomation->process($deal, 'deal_created');
