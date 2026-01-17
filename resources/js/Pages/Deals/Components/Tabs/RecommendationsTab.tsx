@@ -29,6 +29,7 @@ import { useState } from "react";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@inertiajs/react";
 
 const { Text, Title } = Typography;
 
@@ -318,14 +319,21 @@ function RecommendationCard({
             <Card.Meta
                 title={
                     <div className="flex items-center justify-between">
-                        <Text
-                            strong
-                            ellipsis
-                            style={{ maxWidth: "70%" }}
-                            title={property?.title}
+                        <Link
+                            href={route("properties.show", {
+                                id: property?.id,
+                            })}
+                            target="_blank"
                         >
-                            {property?.title || `Property #${rank}`}
-                        </Text>
+                            <Text
+                                strong
+                                ellipsis
+                                style={{ maxWidth: "70%" }}
+                                title={property?.title}
+                            >
+                                {property?.title || `Property #${rank}`}
+                            </Text>
+                        </Link>
                         {property?.status && (
                             <Tag
                                 color={getStatusColor(property.status)}
