@@ -1,8 +1,15 @@
 import { usePage } from "@inertiajs/react";
 import { useMemo } from "react";
 import { Deal } from "@/Types/api/deals";
+import { AppPermission, PermissionScope } from "@/Types/permission";
 
-export type DealRole = "creator" | "agent" | "watcher" | "participant" | "none";
+export type DealRole =
+    | "creator"
+    | "agent"
+    | "watcher"
+    | "participant"
+    | "admin"
+    | "none";
 
 export interface DealPermissions {
     /** The role(s) the current user has on the deal */
@@ -15,11 +22,13 @@ export interface DealPermissions {
     isWatcher: boolean;
     /** Whether the user is a participant on the deal */
     isParticipant: boolean;
-    /** Whether the user can edit the deal (creator or agent only) */
+    /** Whether the user is an admin */
+    isAdmin: boolean;
+    /** Whether the user can edit the deal (creator, agent, or admin) */
     canEdit: boolean;
-    /** Whether the user can delete the deal (creator or agent only) */
+    /** Whether the user can delete the deal (creator, agent, or admin) */
     canDelete: boolean;
-    /** Whether the user can view the deal (any role) */
+    /** Whether the user can view the deal (any role or admin) */
     canView: boolean;
     /** Whether the user has any role on the deal */
     hasAnyRole: boolean;
@@ -29,6 +38,7 @@ export interface DealPermissions {
  * Hook to determine the current user's permissions on a deal.
  *
  * Rules:
+ * - Admin: Full access (edit, delete, view)
  * - Deal Creator: Full access (edit, delete, view)
  * - Deal Agent: Full access (edit, delete, view)
  * - Deal Watcher: View only
@@ -42,6 +52,7 @@ export function useDealPermissions(
 ): DealPermissions {
     const { props } = usePage<any>();
     const currentUser = props.auth?.user;
+    const permissions = props.auth?.permissions as AppPermission | undefined;
 
     return useMemo(() => {
         // Default permissions (no access)
@@ -51,6 +62,7 @@ export function useDealPermissions(
             isAgent: false,
             isWatcher: false,
             isParticipant: false,
+            isAdmin: false,
             canEdit: false,
             canDelete: false,
             canView: false,
@@ -63,6 +75,11 @@ export function useDealPermissions(
 
         const userId = currentUser.id;
         const roles: DealRole[] = [];
+
+        // Check if user is an admin (has edit_deals permission set to 'all')
+        const isAdmin =
+            permissions?.edit_deals === "all" || permissions?.edit_deals === 4;
+        if (isAdmin) roles.push("admin");
 
         // Check if user is the creator
         const isCreator = deal.added_by === userId;
@@ -96,12 +113,12 @@ export function useDealPermissions(
 
         const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
-        // Only creators and agents can edit/delete
-        const canEdit = isCreator || isAgent;
-        const canDelete = isCreator || isAgent;
+        // Admins, creators, and agents can edit/delete
+        const canEdit = isAdmin || isCreator || isAgent;
+        const canDelete = isAdmin || isCreator || isAgent;
 
-        // Anyone with a role can view
-        const canView = hasAnyRole;
+        // Anyone with a role can view (including admins)
+        const canView = hasAnyRole || isAdmin;
 
         return {
             roles,
@@ -109,12 +126,13 @@ export function useDealPermissions(
             isAgent,
             isWatcher,
             isParticipant,
+            isAdmin,
             canEdit,
             canDelete,
             canView,
             hasAnyRole,
         };
-    }, [deal, currentUser?.id]);
+    }, [deal, currentUser?.id, permissions?.edit_deals]);
 }
 
 /**
@@ -122,11 +140,13 @@ export function useDealPermissions(
  *
  * @param deal - The deal to check permissions for
  * @param userId - The user ID to check permissions for
+ * @param editDealsPermission - The user's edit_deals permission scope (optional)
  * @returns DealPermissions object with role information and permission flags
  */
 export function getDealPermissions(
     deal: Deal | null | undefined,
-    userId: number | null | undefined
+    userId: number | null | undefined,
+    editDealsPermission?: PermissionScope
 ): DealPermissions {
     const defaultPermissions: DealPermissions = {
         roles: ["none"],
@@ -134,6 +154,7 @@ export function getDealPermissions(
         isAgent: false,
         isWatcher: false,
         isParticipant: false,
+        isAdmin: false,
         canEdit: false,
         canDelete: false,
         canView: false,
@@ -145,6 +166,10 @@ export function getDealPermissions(
     }
 
     const roles: DealRole[] = [];
+
+    // Check if user is an admin (has edit_deals permission set to 'all')
+    const isAdmin = editDealsPermission === "all" || editDealsPermission === 4;
+    if (isAdmin) roles.push("admin");
 
     // Check if user is the creator
     const isCreator = deal.added_by === userId;
@@ -176,12 +201,12 @@ export function getDealPermissions(
 
     const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
-    // Only creators and agents can edit/delete
-    const canEdit = isCreator || isAgent;
-    const canDelete = isCreator || isAgent;
+    // Admins, creators, and agents can edit/delete
+    const canEdit = isAdmin || isCreator || isAgent;
+    const canDelete = isAdmin || isCreator || isAgent;
 
-    // Anyone with a role can view
-    const canView = hasAnyRole;
+    // Anyone with a role can view (including admins)
+    const canView = hasAnyRole || isAdmin;
 
     return {
         roles,
@@ -189,6 +214,7 @@ export function getDealPermissions(
         isAgent,
         isWatcher,
         isParticipant,
+        isAdmin,
         canEdit,
         canDelete,
         canView,
