@@ -367,6 +367,11 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                                 delay: 0.3,
                                             }}
                                             className="mt-6"
+                                            style={{
+                                                flex: 1,
+                                                display: "flex",
+                                                flexDirection: "column",
+                                            }}
                                         >
                                             <TasksActivitiesPanel
                                                 tasks={tasks}
@@ -402,8 +407,6 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                             <DataQualityPanel
                                                 records={poorDataQualityDeals}
                                                 stats={dataQualityStats}
-                                                // products={products}
-                                                // packages={packages}
                                                 countries={countries}
                                             />
                                         </motion.div>
@@ -427,26 +430,6 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                             />
                                         </motion.div>
                                     )}
-                                </Col>
-
-                                {/* Data Quality Panel */}
-                                <Col xs={24} lg={16}>
-                                    <motion.div
-                                        initial={{ opacity: 0, x: 50 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{
-                                            duration: 0.7,
-                                            delay: 0.3,
-                                        }}
-                                        className="h-full"
-                                    >
-                                        <DataQualityPanel
-                                            records={poorDataQualityDeals}
-                                            stats={dataQualityStats}
-                                            countries={countries}
-                                            leadAgents={leadAgents}
-                                        />
-                                    </motion.div>
                                 </Col>
                             </Row>
 
