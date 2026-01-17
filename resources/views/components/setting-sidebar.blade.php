@@ -37,7 +37,7 @@
                              :text="__('app.menu.profileSettings')"/>
 
         @if (user()->permission('manage_notification_setting') == 'all')
-            <x-setting-menu-item :active="$activeMenu" menu="notification_settings" :href="route('notifications.index')"
+            <x-setting-menu-item :active="$activeMenu" menu="notification_settings" :href="route('notification-settings.index')"
                                  :text="__('app.menu.notificationSettings')"/>
         @endif
 

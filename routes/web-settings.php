@@ -86,7 +86,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('push-notification-settings/send-test-notification', [PushNotificationController::class, 'sendTestNotification'])->name('push_notification_settings.send_test_notification');
 
     Route::resource('smtp-settings', SmtpSettingController::class);
-    Route::resource('notifications', NotificationSettingController::class);
+    Route::resource('notification-settings', NotificationSettingController::class);
     Route::resource('slack-settings', SlackSettingController::class);
     Route::resource('push-notification-settings', PushNotificationController::class);
     Route::resource('pusher-settings', PusherSettingsController::class);
