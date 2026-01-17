@@ -1,18 +1,18 @@
 pipeline {
     agent any
 
-    environment {
-        
-        STAGING_HOST    = credentials('STAGING_HOST')
-        STAGING_USER    = credentials('STAGING_USER')
-        PRODUCTION_HOST = credentials('PRODUCTION_HOST')
-        PRODUCTION_USER = credentials('PRODUCTION_USER')
-    }
-
     stages {
         stage('Deploy to Staging') {
-            when {
-                branch 'staging'
+            // Only runs if branch is 'staging' OR 'develop' (common for PRs)
+            when { 
+                anyOf {
+                    branch 'staging'
+                    branch 'develop'
+                }
+            }
+            environment {
+                STAGING_HOST = credentials('STAGING_HOST')
+                STAGING_USER = credentials('STAGING_USER')
             }
             steps {
                 sshagent(['STAGIN_SSH_PRIVATE_KEY']) {
@@ -25,8 +25,10 @@ pipeline {
         }
 
         stage('Deploy to Production') {
-            when {
-                branch 'main'
+            when { branch 'main' }
+            environment {
+                PRODUCTION_HOST = credentials('PRODUCTION_HOST')
+                PRODUCTION_USER = credentials('PRODUCTION_USER')
             }
             steps {
                 sshagent(['PRODUCTION_SSH_PRIVATE_KEY']) {
@@ -41,13 +43,16 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            // Safety check: Only clean if we actually have a workspace
+            script {
+                try {
+                    cleanWs()
+                } catch (Exception e) {
+                    echo "Skipping workspace cleanup: No workspace allocated."
+                }
+            }
         }
-        success {
-            echo 'Deployment successful!'
-        }
-        failure {
-            echo 'Deployment failed. Check the logs.'
-        }
+        success { echo 'Deployment successful!' }
+        failure { echo 'Deployment failed. Check the logs.' }
     }
 }
