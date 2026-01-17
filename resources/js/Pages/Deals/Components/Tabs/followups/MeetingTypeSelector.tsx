@@ -32,8 +32,10 @@ export default function MeetingTypeSelector({
 }: Props) {
     // Platform options: zoho or in the office
     const platformOptions = [
-        { value: "zoho", label: "Zoho" },
+        { value: "zoho", label: "Video Meeting" },
         { value: "office", label: "HIBARR Office" },
+        { value: "phone", label: "Phone Meeting" },
+        { value: "physical", label: "Physical Meeting" },
     ];
 
     // Fetch meeting types from API
