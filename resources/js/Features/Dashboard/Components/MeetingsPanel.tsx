@@ -40,84 +40,78 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({ meetings = [] }) => {
                     </Tag>
                 </div>
             }
-            className="h-full flex flex-col"
+            className="h-full"
             variant="outlined"
-            bodyStyle={{ 
-                display: 'flex',
-                flexDirection: 'column',
-                flex: 1,
-                overflow: 'hidden',
-                padding: '24px'
-            }}
         >
-            <div className="flex-1 overflow-y-auto min-h-0">
-                <List
-                    dataSource={meetings}
-                    renderItem={(meeting) => (
-                    <List.Item className="px-6 py-4 hover:bg-gray-50 transition-colors border-b last:border-b-0">
-                        <div className="w-full">
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="font-medium text-gray-900 line-clamp-1">
-                                    {meeting.remark || "Meeting"}
-                                </div>
-                                <Tag
-                                    color={
-                                        dayjs(
-                                            meeting.next_follow_up_date
-                                        ).isBefore(dayjs())
-                                            ? "red"
-                                            : "green"
-                                    }
-                                >
-                                    {dayjs(
-                                        meeting.next_follow_up_date
-                                    ).fromNow()}
-                                </Tag>
-                            </div>
-
-                            <div className="text-xs text-gray-500 mb-3 flex items-center gap-2">
-                                <CalendarOutlined />
-                                {dayjs(meeting.next_follow_up_date).format(
-                                    "MMM D, YYYY h:mm A"
-                                )}
-                            </div>
-
-                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                                <div className="flex items-center gap-2">
-                                    <Avatar
-                                        size="small"
-                                        icon={<UserOutlined />}
-                                    />
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-medium text-gray-700">
-                                            {meeting.deal?.contact
-                                                ?.client_name || "Unknown Lead"}
-                                        </span>
-                                        <Link
-                                            href={route(
-                                                "deals.show",
-                                                meeting.deal_id
-                                            )}
-                                            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+            {meetings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[500px] overflow-hidden">
+                    <div className="text-center py-8 text-gray-500">
+                        <CalendarOutlined className="text-4xl text-gray-300 mb-2" />
+                        <div>No upcoming meetings</div>
+                    </div>
+                </div>
+            ) : (
+                <div className="max-h-96 overflow-y-auto">
+                    <List
+                        dataSource={meetings}
+                        renderItem={(meeting) => (
+                            <List.Item className="px-6 py-4 hover:bg-gray-50 transition-colors border-b last:border-b-0">
+                                <div className="w-full">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="font-medium text-gray-900 line-clamp-1">
+                                            {meeting.remark || "Meeting"}
+                                        </div>
+                                        <Tag
+                                            color={
+                                                dayjs(
+                                                    meeting.next_follow_up_date
+                                                ).isBefore(dayjs())
+                                                    ? "red"
+                                                    : "green"
+                                            }
                                         >
-                                            {meeting.deal?.name}
-                                        </Link>
+                                            {dayjs(
+                                                meeting.next_follow_up_date
+                                            ).fromNow()}
+                                        </Tag>
+                                    </div>
+
+                                    <div className="text-xs text-gray-500 mb-3 flex items-center gap-2">
+                                        <CalendarOutlined />
+                                        {dayjs(meeting.next_follow_up_date).format(
+                                            "MMM D, YYYY h:mm A"
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                                        <div className="flex items-center gap-2">
+                                            <Avatar
+                                                size="small"
+                                                icon={<UserOutlined />}
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-medium text-gray-700">
+                                                    {meeting.deal?.contact
+                                                        ?.client_name || "Unknown Lead"}
+                                                </span>
+                                                <Link
+                                                    href={route(
+                                                        "deals.show",
+                                                        meeting.deal_id
+                                                    )}
+                                                    className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                                                >
+                                                    {meeting.deal?.name}
+                                                </Link>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </List.Item>
-                )}
-                locale={{
-                    emptyText: (
-                        <div className="py-8 text-center text-gray-400">
-                            <CalendarOutlined className="text-2xl mb-2" />
-                            <p>No upcoming meetings</p>
-                        </div>
-                    ),
-                }}
-                />
-            </div>
+                            </List.Item>
+                        )}
+                    />
+                </div>
+            )}
         </Card>
     );
 };

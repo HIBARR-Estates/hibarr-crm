@@ -30,7 +30,7 @@ class StoreRequest extends CoreRequest
 
         $rules = [
             'meeting_type_id' => 'nullable|exists:meeting_types,id',
-            'location' => 'required|in:office,zoom,zoho,zoho_meet,google_meet,teams,meet,phone,skype,other',
+            'location' => 'required|in:office,zoom,zoho,zoho_meet,google_meet,teams,meet,phone,physical,skype,other',
             'meeting_link' => 'nullable|url',
             'start_time' => 'required|date_format:"H:i:s"',
             'reminders' => 'nullable|array',
@@ -38,10 +38,11 @@ class StoreRequest extends CoreRequest
             'reminders.*.type' => 'required_with:reminders|in:minute,hour,day',
         ];
 
-        // Zoho meetings don't require manual meeting link input
-        if ($this->location === 'zoho') {
+        // Zoho, office, phone, and physical meetings don't require meeting link
+        if (in_array($this->location, ['zoho', 'office', 'phone', 'physical'])) {
             $rules['meeting_link'] = 'nullable|url';
-        } elseif ($this->location !== 'office') {
+        } else {
+            // Video meeting platforms (zoom, google_meet, teams, etc.) require meeting link
             $rules['meeting_link'] = 'required|url';
         }
 
