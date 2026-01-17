@@ -208,7 +208,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                     />
                     <div
                         ref={contentRef}
-                        className="overflow-y-auto max-h-[70vh]"
+                        className="overflow-y-auto overflow-x-hidden max-h-[70vh]"
                     >
                         {renderContent()}
                     </div>

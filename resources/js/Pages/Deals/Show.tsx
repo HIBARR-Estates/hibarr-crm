@@ -105,10 +105,10 @@ export const Show = ({
                                                         >
                                                             <div
                                                                 className={`
-                                                                flex items-center px-3 py-1.5 rounded-md text-sm font-bold transition-all duration-200 border
+                                                                flex items-center px-4 py-1.5 rounded-md text-sm font-bold transition-all duration-200
                                                                 ${
                                                                     isCurrent
-                                                                        ? "shadow-sm scale-105"
+                                                                        ? "scale-105"
                                                                         : isCompleted
                                                                         ? ""
                                                                         : "opacity-60"
@@ -118,20 +118,16 @@ export const Show = ({
                                                                     backgroundColor:
                                                                         isCurrent ||
                                                                         isCompleted
-                                                                            ? `${stage.label_color}25`
+                                                                            ? `${stage.label_color}8C`
                                                                             : "#e5e7eb",
                                                                     color:
                                                                         isCurrent ||
                                                                         isCompleted
-                                                                            ? "#00000085"
+                                                                            ? "#0000008F"
                                                                             : "#4b5563",
-                                                                    borderColor:
-                                                                        isCurrent
-                                                                            ? stage.label_color
-                                                                            : "transparent",
                                                                 }}
                                                             >
-                                                                <div className="mr-1.5 h-2 w-2 rounded-full bg-[#00000085]" />
+                                                                <div className="mr-1.5 h-2 w-2 rounded-full bg-[#0000008F]" />
                                                                 {stage.name}
                                                             </div>
                                                             {index <

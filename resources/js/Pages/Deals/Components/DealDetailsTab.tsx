@@ -11,6 +11,8 @@ interface Props {
     editable?: boolean;
     loading?: boolean; // Deprecated: use loadingField instead
     loadingField?: string | null; // The specific field currently being updated
+    onChange?: (fieldName: string, value: any) => void; // For tracking changes in edit mode
+    globalLoading?: boolean; // When true, all fields are disabled (e.g., during save all)
 }
 
 const DealDetailsTab: React.FC<Props> = ({
@@ -19,6 +21,8 @@ const DealDetailsTab: React.FC<Props> = ({
     editable = false,
     loading = false,
     loadingField = null,
+    onChange,
+    globalLoading = false,
 }) => {
     // Cast to Partial to allow working with potentially undefined properties
     // when hibarr_fields is null/undefined (e.g. for new deals or data gaps)
@@ -26,7 +30,9 @@ const DealDetailsTab: React.FC<Props> = ({
 
     // Helper to check if a specific field is loading
     const isFieldLoading = (fieldName: string) =>
-        loadingField === fieldName || (loading && !loadingField);
+        globalLoading ||
+        loadingField === fieldName ||
+        (loading && !loadingField);
 
     const handleSave = async (field: string, value: any) => {
         if (onUpdate) {
@@ -59,7 +65,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         fieldName="interested_in"
                         fieldType="text"
                         onSave={(value) => handleSave("interested_in", value)}
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("interested_in")}
                     />
                 </Descriptions.Item>
@@ -70,7 +77,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         fieldName="budget_range"
                         fieldType="text"
                         onSave={(value) => handleSave("budget_range", value)}
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("budget_range")}
                     />
                 </Descriptions.Item>
@@ -83,7 +91,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         onSave={(value) =>
                             handleSave("purchase_timeline", value)
                         }
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("purchase_timeline")}
                     />
                 </Descriptions.Item>
@@ -94,7 +103,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         fieldName="motivation"
                         fieldType="textarea"
                         onSave={(value) => handleSave("motivation", value)}
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("motivation")}
                     />
                 </Descriptions.Item>
@@ -110,7 +120,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         displayValue={renderBoolean(
                             fields.strategy_meeting_booked
                         )}
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("strategy_meeting_booked")}
                     />
                 </Descriptions.Item>
@@ -124,7 +135,8 @@ const DealDetailsTab: React.FC<Props> = ({
                             handleSave("downpayment_paid", value)
                         }
                         displayValue={renderBoolean(fields.downpayment_paid)}
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("downpayment_paid")}
                     />
                 </Descriptions.Item>
@@ -137,7 +149,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         onSave={(value) =>
                             handleSave("inspection_trip_date", value)
                         }
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("inspection_trip_date")}
                         formatValue={(val) =>
                             val ? dayjs(val).format("MMM DD, YYYY") : "--"
@@ -153,7 +166,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         onSave={(value) =>
                             handleSave("deposit_confirmation", value)
                         }
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("deposit_confirmation")}
                     />
                 </Descriptions.Item>
@@ -166,7 +180,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         onSave={(value) =>
                             handleSave("reservation_agreement", value)
                         }
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("reservation_agreement")}
                     />
                 </Descriptions.Item>
@@ -177,7 +192,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         fieldName="sales_contract"
                         fieldType="text"
                         onSave={(value) => handleSave("sales_contract", value)}
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("sales_contract")}
                     />
                 </Descriptions.Item>
@@ -187,7 +203,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         fieldName="message"
                         fieldType="textarea"
                         onSave={(value) => handleSave("message", value)}
-                        disabled={!editable}
+                        alwaysEditing={editable}
+                        onChange={onChange}
                         loading={isFieldLoading("message")}
                     />
                 </Descriptions.Item>

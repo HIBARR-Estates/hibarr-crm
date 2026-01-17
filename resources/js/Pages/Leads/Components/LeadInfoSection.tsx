@@ -26,6 +26,8 @@ import {
     CalendarOutlined,
     MoreOutlined,
     CheckSquareOutlined,
+    SaveOutlined,
+    CloseOutlined,
 } from "@ant-design/icons";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
@@ -78,6 +80,18 @@ export default function LeadInfoSection({
     const [currentLeadState, setCurrentLeadState] = useState<Lead>(lead);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
 
+    // Edit mode state - when true, all fields become editable
+    const [isEditMode, setIsEditMode] = useState(false);
+
+    // Track pending changes in edit mode
+    const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
+        {}
+    );
+    const [isSavingAll, setIsSavingAll] = useState(false);
+
+    // Check if there are unsaved changes
+    const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
+
     // API Mutation for inline updates
     const { mutateAsync: updateLead, status } = useApiMutate<
         Record<string, any>,
@@ -108,7 +122,8 @@ export default function LeadInfoSection({
     );
 
     // Helper to check if a specific field is loading
-    const isFieldLoading = (fieldName: string) => updatingField === fieldName;
+    const isFieldLoading = (fieldName: string) =>
+        isSavingAll || updatingField === fieldName;
 
     // Sync currentLeadState when lead prop changes
     useEffect(() => {
@@ -121,6 +136,88 @@ export default function LeadInfoSection({
     const canDelete = ["all", "added", "owned", "both"].includes(
         deleteLeadPermission
     );
+
+    // Fields are editable only when in edit mode AND user has permission
+    const isFieldEditable = isEditMode && canEdit;
+
+    // Toggle edit mode
+    const handleToggleEditMode = () => {
+        setIsEditMode(!isEditMode);
+        // Clear pending changes when entering edit mode
+        if (!isEditMode) {
+            setPendingChanges({});
+        }
+    };
+
+    // Exit edit mode
+    const handleExitEditMode = () => {
+        setIsEditMode(false);
+        setPendingChanges({});
+    };
+
+    // Handle field change in edit mode (track pending changes)
+    const handleFieldChange = (fieldName: string, value: any) => {
+        setPendingChanges((prev) => ({
+            ...prev,
+            [fieldName]: value,
+        }));
+    };
+
+    // Save all pending changes
+    const handleSaveAll = async () => {
+        if (!hasUnsavedChanges) return;
+
+        setIsSavingAll(true);
+        try {
+            // Process each pending change
+            const standardChanges: Record<string, any> = {};
+            const customFieldChanges: Record<string, any> = {};
+
+            for (const [fieldName, value] of Object.entries(pendingChanges)) {
+                // Check if this is a custom field
+                if (fieldName.startsWith("cf_")) {
+                    customFieldChanges[fieldName] = value;
+                } else {
+                    // Process value transformations
+                    let processedValue = value;
+                    if (fieldName === "value") {
+                        processedValue = value
+                            ? parseFloat(value.toString())
+                            : 0;
+                    } else if (
+                        fieldName === "close_date" ||
+                        fieldName === "next_follow_up"
+                    ) {
+                        processedValue = value || null;
+                    }
+                    standardChanges[fieldName] = processedValue;
+                }
+            }
+
+            // Make API calls for each type of change
+            const promises: Promise<any>[] = [];
+
+            if (Object.keys(standardChanges).length > 0) {
+                promises.push(updateLead(standardChanges));
+            }
+
+            if (Object.keys(customFieldChanges).length > 0) {
+                promises.push(
+                    updateLead({ custom_fields: customFieldChanges })
+                );
+            }
+
+            await Promise.all(promises);
+
+            message.success("All changes saved successfully");
+            setPendingChanges({});
+            setIsEditMode(false);
+        } catch (error: any) {
+            message.error(error?.message || "Failed to save changes");
+        } finally {
+            setIsSavingAll(false);
+        }
+    };
 
     // Get mobile number from JSON format
     const getMobileNumber = (mobile: string | null | undefined) => {
@@ -236,6 +333,52 @@ export default function LeadInfoSection({
 
     // Action menu items
     const actionItems = [
+        // Save All button (only shown in edit mode with unsaved changes)
+        ...(isEditMode && hasUnsavedChanges
+            ? [
+                  {
+                      key: "save_all",
+                      tooltip: `Save All Changes (${
+                          Object.keys(pendingChanges).length
+                      })`,
+                      type: "primary" as const,
+                      icon: <SaveOutlined />,
+                      label: (
+                          <span>
+                              Save All ({Object.keys(pendingChanges).length})
+                          </span>
+                      ),
+                      onClick: handleSaveAll,
+                      loading: isSavingAll,
+                  },
+              ]
+            : []),
+        // Cancel Edit button (only shown in edit mode)
+        ...(isEditMode
+            ? [
+                  {
+                      key: "cancel_edit",
+                      tooltip: "Cancel Edit",
+                      type: "text" as const,
+                      icon: <CloseOutlined />,
+                      label: <span>Cancel Edit</span>,
+                      onClick: handleExitEditMode,
+                  },
+              ]
+            : []),
+        // Edit button (only shown when not in edit mode)
+        ...(canEdit && !isEditMode
+            ? [
+                  {
+                      key: "toggle_edit",
+                      tooltip: "Edit Mode",
+                      type: "text" as const,
+                      icon: <EditOutlined />,
+                      label: <span>Edit Mode</span>,
+                      onClick: handleToggleEditMode,
+                  },
+              ]
+            : []),
         {
             key: "add_task",
             tooltip: "Add Task",
@@ -336,9 +479,12 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("client_name", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("client_name", value)
+                                }
                                 className="font-medium text-gray-900"
                                 loading={isFieldLoading("client_name")}
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                             />
                         </Descriptions.Item>
 
@@ -356,8 +502,14 @@ export default function LeadInfoSection({
                                                 value
                                             )
                                         }
+                                        onChange={(value) =>
+                                            handleFieldChange(
+                                                "client_email",
+                                                value
+                                            )
+                                        }
                                         className="text-blue-600 hover:text-blue-800"
-                                        disabled={!canEdit}
+                                        alwaysEditing={isFieldEditable}
                                         loading={isFieldLoading("client_email")}
                                     />
                                 </div>
@@ -369,8 +521,11 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("client_email", value)
                                     }
+                                    onChange={(value) =>
+                                        handleFieldChange("client_email", value)
+                                    }
                                     placeholder="Add email"
-                                    disabled={!canEdit}
+                                    alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("client_email")}
                                 />
                             )}
@@ -392,8 +547,11 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("mobile", value)
                                     }
+                                    onChange={(value) =>
+                                        handleFieldChange("mobile", value)
+                                    }
                                     placeholder="Add mobile"
-                                    disabled={!canEdit}
+                                    alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("mobile")}
                                 />
                             </div>
@@ -411,8 +569,11 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("office", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("office", value)
+                                }
                                 placeholder="Add office phone"
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("office")}
                             />
                         </Descriptions.Item>
@@ -429,6 +590,9 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("gender", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("gender", value)
+                                }
                                 displayValue={
                                     currentLeadState.gender ? (
                                         <span className="capitalize">
@@ -440,7 +604,7 @@ export default function LeadInfoSection({
                                         </span>
                                     )
                                 }
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("gender")}
                             />
                         </Descriptions.Item>
@@ -453,8 +617,11 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("company_name", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("company_name", value)
+                                }
                                 placeholder="Add company name"
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("company_name")}
                             />
                         </Descriptions.Item>
@@ -467,6 +634,9 @@ export default function LeadInfoSection({
                                     fieldType="text"
                                     onSave={(value) =>
                                         handleFieldUpdate("website", value)
+                                    }
+                                    onChange={(value) =>
+                                        handleFieldChange("website", value)
                                     }
                                     displayValue={
                                         <a
@@ -481,7 +651,7 @@ export default function LeadInfoSection({
                                             {currentLeadState.website}
                                         </a>
                                     }
-                                    disabled={!canEdit}
+                                    alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("website")}
                                 />
                             ) : (
@@ -492,8 +662,11 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("website", value)
                                     }
+                                    onChange={(value) =>
+                                        handleFieldChange("website", value)
+                                    }
                                     placeholder="Add website"
-                                    disabled={!canEdit}
+                                    alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("website")}
                                 />
                             )}
@@ -516,6 +689,9 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("lead_owner", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("lead_owner", value)
+                                }
                                 displayValue={
                                     currentLeadState.lead_owner ? (
                                         <UserIndicator
@@ -528,7 +704,7 @@ export default function LeadInfoSection({
                                         </span>
                                     )
                                 }
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("lead_owner")}
                             />
                         </Descriptions.Item>
@@ -560,6 +736,9 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("source_id", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("source_id", value)
+                                }
                                 displayValue={
                                     currentLeadState.leadSource?.type ||
                                     currentLeadState.lead_source?.type ? (
@@ -578,7 +757,7 @@ export default function LeadInfoSection({
                                         </span>
                                     )
                                 }
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("source_id")}
                             />
                         </Descriptions.Item>
@@ -590,6 +769,9 @@ export default function LeadInfoSection({
                                 selectorType="categories"
                                 onSave={(value) =>
                                     handleFieldUpdate("category_id", value)
+                                }
+                                onChange={(value) =>
+                                    handleFieldChange("category_id", value)
                                 }
                                 displayValue={
                                     currentLeadState.category?.category_name ? (
@@ -608,7 +790,7 @@ export default function LeadInfoSection({
                                         </span>
                                     )
                                 }
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("category_id")}
                             />
                         </Descriptions.Item>
@@ -648,8 +830,11 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("country", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("country", value)
+                                }
                                 placeholder="Select country"
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("country")}
                             />
                         </Descriptions.Item>
@@ -662,8 +847,11 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("state", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("state", value)
+                                }
                                 placeholder="Add state"
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("state")}
                             />
                         </Descriptions.Item>
@@ -676,8 +864,11 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("city", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("city", value)
+                                }
                                 placeholder="Add city"
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("city")}
                             />
                         </Descriptions.Item>
@@ -690,8 +881,11 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("postal_code", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("postal_code", value)
+                                }
                                 placeholder="Add postal code"
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("postal_code")}
                             />
                         </Descriptions.Item>
@@ -703,6 +897,9 @@ export default function LeadInfoSection({
                                 fieldType="textarea"
                                 onSave={(value) =>
                                     handleFieldUpdate("address", value)
+                                }
+                                onChange={(value) =>
+                                    handleFieldChange("address", value)
                                 }
                                 displayValue={
                                     currentLeadState.address ? (
@@ -717,7 +914,7 @@ export default function LeadInfoSection({
                                     )
                                 }
                                 placeholder="Add address"
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("address")}
                             />
                         </Descriptions.Item>
@@ -731,8 +928,11 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("note", value)
                                 }
+                                onChange={(value) =>
+                                    handleFieldChange("note", value)
+                                }
                                 placeholder="Add notes"
-                                disabled={!canEdit}
+                                alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("note")}
                             />
                         </Descriptions.Item>
@@ -756,8 +956,11 @@ export default function LeadInfoSection({
                         onUpdate={(field, value) =>
                             handleFieldUpdate(field, value)
                         }
+                        onChange={handleFieldChange}
                         editable={canEdit}
+                        alwaysEditing={isFieldEditable}
                         loadingField={updatingField}
+                        globalLoading={isSavingAll}
                     />
                 </div>
             ),
@@ -804,9 +1007,20 @@ export default function LeadInfoSection({
             <div>
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                        Lead Information
-                    </h2>
+                    <div className="flex items-center gap-x-2">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                            Lead Information
+                        </h2>
+                        {isEditMode && <Tag color="blue">Edit Mode</Tag>}
+                        {hasUnsavedChanges && (
+                            <Tag color="orange">
+                                {Object.keys(pendingChanges).length} unsaved{" "}
+                                {Object.keys(pendingChanges).length === 1
+                                    ? "change"
+                                    : "changes"}
+                            </Tag>
+                        )}
+                    </div>
                     <Space size="small">
                         {actionItems.map((item) => (
                             <Tooltip key={item.key} title={item.tooltip}>
@@ -815,6 +1029,7 @@ export default function LeadInfoSection({
                                     icon={item.icon}
                                     danger={item.danger}
                                     onClick={item.onClick}
+                                    loading={item.loading}
                                     size="small"
                                 />
                             </Tooltip>

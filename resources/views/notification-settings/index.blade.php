@@ -14,22 +14,22 @@
                     <nav class="tabs px-4 border-bottom-grey">
                         <div class="nav" id="nav-tab" role="tablist">
                             <a class="nav-item nav-link f-15 active email-setting"
-                                href="{{ route('notifications.index') }}" role="tab" aria-controls="nav-ticketAgents"
+                                href="{{ route('notification-settings.index') }}" role="tab" aria-controls="nav-ticketAgents"
                                 aria-selected="true">@lang('app.email')
                             </a>
                             <a class="nav-item nav-link f-15 slack-setting"
-                                href="{{ route('notifications.index') }}?tab=slack-setting" role="tab"
+                                href="{{ route('notification-settings.index') }}?tab=slack-setting" role="tab"
                                 aria-controls="nav-ticketTypes" aria-selected="true" ajax="false">@lang('app.slack') <i
                                 class="fa fa-circle ml-1 {{ $slackSettings->status == 'active' ? 'text-light-green' : 'text-red' }}"></i>
                             </a>
                             <a class="nav-item nav-link f-15 push-notification-setting"
-                                href="{{ route('notifications.index') }}?tab=push-notification-setting" role="tab"
+                                href="{{ route('notification-settings.index') }}?tab=push-notification-setting" role="tab"
                                 aria-controls="nav-ticketTypes" aria-selected="true"
                                 ajax="false">@lang('app.pushNotification')<i
                                 class="fa fa-circle ml-1 {{ ($pushSettings->status == 'active' || $pushSettings->beams_push_status == 'active') ? 'text-light-green' : 'text-red' }}"></i>
                             </a>
                             <a class="nav-item nav-link f-15 pusher-setting"
-                                href="{{ route('notifications.index') }}?tab=pusher-setting" role="tab"
+                                href="{{ route('notification-settings.index') }}?tab=pusher-setting" role="tab"
                                 aria-controls="nav-ticketTypes" aria-selected="true"
                                 ajax="false">@lang('app.menu.pusherSettings')<i
                                 id="pusher-setting-tab" class="fa fa-circle ml-1 {{ $pusherSettings->status == 1 ? 'text-light-green' : 'text-red' }}"></i>
