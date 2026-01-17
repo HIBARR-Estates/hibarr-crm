@@ -3,7 +3,6 @@ pipeline {
 
     stages {
         stage('Deploy to Staging') {
-            // Only runs if branch is 'staging' OR 'develop' (common for PRs)
             when { 
                 anyOf {
                     branch 'staging'
@@ -15,20 +14,15 @@ pipeline {
                 STAGING_USER = credentials('STAGING_USER')
             }
             steps {
-                // sshagent(['STAGIN_SSH_PRIVATE_KEY']) {
-                //     sh """
-                //         ssh -p 2244 -o StrictHostKeyChecking=no ${STAGING_USER}@${STAGING_HOST} \
-                //         'cd ~/hibarr-crm-staging && make deploy-staging'
-                //     """
-                // }
-
-                withCredentials([sshUserPrivateKey(credentialsId: 'STAGIN_SSH_PRIVATE_KEY', keyFileVariable: 'KEY')]) {
+                // This creates a temporary file containing your private key
+                withCredentials([sshUserPrivateKey(credentialsId: 'STAGIN_SSH_PRIVATE_KEY', keyFileVariable: 'SSH_KEY_FILE')]) {
                     sh """
-                        ssh -i ${KEY} -p 2244 -o StrictHostKeyChecking=no ${STAGING_USER}@${STAGING_HOST} \
+                        chmod 400 ${SSH_KEY_FILE}
+                        ssh -i ${SSH_KEY_FILE} -p 2244 -o StrictHostKeyChecking=no ${STAGING_USER}@${STAGING_HOST} \
                         'cd ~/hibarr-crm-staging && make deploy-staging'
                     """
                 }
-                
+            }
         }
 
         stage('Deploy to Production') {
@@ -38,9 +32,10 @@ pipeline {
                 PRODUCTION_USER = credentials('PRODUCTION_USER')
             }
             steps {
-                sshagent(['PRODUCTION_SSH_PRIVATE_KEY']) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'PRODUCTION_SSH_PRIVATE_KEY', keyFileVariable: 'SSH_KEY_FILE')]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no ${PRODUCTION_USER}@${PRODUCTION_HOST} \
+                        chmod 400 ${SSH_KEY_FILE}
+                        ssh -i ${SSH_KEY_FILE} -o StrictHostKeyChecking=no ${PRODUCTION_USER}@${PRODUCTION_HOST} \
                         'cd /var/www/html && git fetch origin && git reset --hard origin/main && make deploy-production'
                     """
                 }
@@ -50,16 +45,9 @@ pipeline {
 
     post {
         always {
-            // Safety check: Only clean if we actually have a workspace
             script {
-                try {
-                    cleanWs()
-                } catch (Exception e) {
-                    echo "Skipping workspace cleanup: No workspace allocated."
-                }
+                try { cleanWs() } catch (e) { echo "Cleanup skipped." }
             }
         }
-        success { echo 'Deployment successful!' }
-        failure { echo 'Deployment failed. Check the logs.' }
     }
 }
