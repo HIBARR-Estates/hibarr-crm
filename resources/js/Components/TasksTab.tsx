@@ -73,6 +73,7 @@ export default function TasksTab({
 
     // Handle selection change from TaskListView
     const handleSelectionChange = (ids: number[], tasks: Task[]) => {
+        // bulk actions
         setSelectedIds(ids);
         setSelectedTasks(tasks);
     };
