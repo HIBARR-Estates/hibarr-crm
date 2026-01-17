@@ -203,7 +203,7 @@ class TaskService
                 }
                 
                 if ($originalColumnId != $task->board_column_id) {
-                     $this->logTaskActivity($task->id, $user ? $user->id : user()->id, 'statusActivity', $task->board_column_id, $originalColumnId);
+                     $this->logTaskActivity($task->id, $user ? $user->id : user()->id, 'statusActivity', $task->board_column_id);
                 }
             }
              
