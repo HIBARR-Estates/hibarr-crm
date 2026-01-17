@@ -156,7 +156,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('/pusher/beams-auth', [DashboardController::class, 'beamAuth'])->name('dashboard.beam_auth');
 
     Route::get('settings/change-language', [SettingsController::class, 'changeLanguage'])->name('settings.change_language');
-    Route::resource('settings', SettingsController::class)->only(['edit', 'update', 'index', 'change_language']);
+    Route::get('settings/deal-automations', [SettingsController::class, 'deal_automations'])->name('settings.deal_automations');
+    Route::resource('settings', SettingsController::class)->only(['edit', 'update', 'index', 'change_language', 'deal_automations']);
 
 
     Route::post('approve/{id}', [ClientController::class, 'approve'])->name('clients.approve');
@@ -577,6 +578,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
     Route::get('deals/get-agent/{id}', [DealController::class, 'getAgents'])->name('deals.get_agents');
     Route::get('deals/kanban', [LeadBoardController::class, 'index'])->name('deals.kanban_index');
+    Route::get('deals/kanban-deals', [DealController::class, 'getKanbanDeals'])->name('deals.kanban_deals');
     
     Route::group(['prefix' => 'deals', 'as' => 'deals.'], function () {
         Route::post('gathering/init', [DealGatheringController::class, 'init'])->name('gathering.init');

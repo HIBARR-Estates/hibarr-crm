@@ -29,13 +29,19 @@ export interface PropertyRecommendation {
  * A factor that contributed to the property match
  */
 export interface MatchFactor {
-    /** Factor name/key */
+    /** Factor name/key (e.g., "budget", "bedrooms", "type", "features") */
     name: string;
-    /** Factor value or description */
-    value: string | number;
-    /** Weight or importance of this factor */
+    /** Factor score (0-100) */
+    score: number;
+    /** Status label (e.g., "Excellent", "Good", "Standard", "Poor") */
+    status: string;
+    /** Detailed description of the match (e.g., "Well within budget") */
+    detail: string;
+    /** Factor value or description (legacy/optional) */
+    value?: string | number;
+    /** Weight or importance of this factor (optional) */
     weight?: number;
-    /** Whether this factor was a positive match */
+    /** Whether this factor was a positive match (optional) */
     positive?: boolean;
 }
 
@@ -86,9 +92,20 @@ export interface CompatibilityResponse {
     status: "success" | "error";
     deal_id: number;
     property_id: number;
+    /** Customer ID */
+    customer_id?: number;
+    /** Overall compatibility score (0-1) */
     score: number | null;
+    /** Overall score from API (0-1) */
+    overall_score?: number | null;
+    /** Match percentage (0-100) */
     match_percentage: number | null;
+    /** Detailed factors contributing to the score */
     factors: MatchFactor[];
+    /** AI reasoning for the recommendation (if available) */
+    reasoning: string | null;
+    /** Processing time in milliseconds */
+    processing_time_ms?: number;
     error: string | null;
 }
 

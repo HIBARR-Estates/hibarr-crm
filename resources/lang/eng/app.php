@@ -7,6 +7,9 @@ return array(
     // resolution status
 
     'dealWatcher' => 'Deal Watchers',
+    'changedBy' => 'Changed By',
+    'newLeadSubject' => 'New Lead Contact Created',
+
 
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
@@ -197,6 +200,7 @@ return array(
         'invoiceSettings' => 'Invoice Settings',
         'invoiceTemplate' => 'Invoice Template',
         'settings' => 'Settings',
+        'dealAutomations' => 'Deal Automations',
         'leadFiles' => 'Lead Files',
         'leadSource' => 'Lead Source',
         'leadStatus' => 'Lead Status',
@@ -233,6 +237,7 @@ return array(
         'employeeName' => 'Employee Name',
         'timeSettings' => 'Time Settings',
         'accountSettings' => 'Company Settings',
+        'dealAutomations' => 'Deal Automations',
         'moduleSettings' => 'Module Settings',
         'moduleSettingsInstall' => 'Module Install/Update',
         'contacts' => 'Contacts',

@@ -34,7 +34,7 @@
                         <x-cards.onboarding-item :title="$emailSetupTitle"
                                                 :summary="__('modules.checklist.configureEmailSetting')"
                                                 :completed="$emailCompleted"
-                                                :link="route('notifications.index')"
+                                                :link="route('notification-settings.index')"
                                                 class="email-setup-highlight"/>
                     </div>
 

@@ -47,6 +47,7 @@ use App\Http\Controllers\TicketReplyTemplatesController;
 use App\Http\Controllers\DatabaseBackupSettingController;
 use App\Http\Controllers\GoogleCalendarSettingController;
 use App\Http\Controllers\LeadPipelineSettingController;
+use App\Http\Controllers\DealAutomationController;
 use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\OfflinePaymentSettingController;
 use App\Http\Controllers\PaymentGatewayCredentialController;
@@ -86,7 +87,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('push-notification-settings/send-test-notification', [PushNotificationController::class, 'sendTestNotification'])->name('push_notification_settings.send_test_notification');
 
     Route::resource('smtp-settings', SmtpSettingController::class);
-    Route::resource('notifications', NotificationSettingController::class);
+    Route::resource('notification-settings', NotificationSettingController::class);
     Route::resource('slack-settings', SlackSettingController::class);
     Route::resource('push-notification-settings', PushNotificationController::class);
     Route::resource('pusher-settings', PusherSettingsController::class);
@@ -270,7 +271,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
-    Route::resource('company-settings', SettingsController::class)->only(['edit', 'update', 'index', 'change_language']);
+    Route::get('company-settings/deal-automations', [SettingsController::class, 'deal_automations'])->name('company-settings.deal_automations');
+    Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
+    Route::resource('deal-automations', DealAutomationController::class);
+    Route::resource('company-settings', SettingsController::class)->only(['edit', 'update', 'index']);
 
     // Update App
     Route::post('update-settings/deleteFile', [UpdateAppController::class, 'deleteFile'])->name('update-settings.deleteFile');

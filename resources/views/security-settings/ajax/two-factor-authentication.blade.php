@@ -23,7 +23,7 @@
 
                         @if (user()->permission('manage_notification_setting') == 'all')
                             <div>
-                                <x-forms.link-primary :link="route('notifications.index')">
+                                <x-forms.link-primary :link="route('notification-settings.index')">
                                     @lang('app.verify')
                                 </x-forms.link-primary>
                             </div>

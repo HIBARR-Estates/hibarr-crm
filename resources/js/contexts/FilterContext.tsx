@@ -4,6 +4,7 @@ import React, {
     useState,
     useCallback,
     ReactNode,
+    useEffect,
 } from "react";
 import { router } from "@inertiajs/react";
 
@@ -49,11 +50,17 @@ export interface FilterConfig {
 }
 
 interface FilterContextValue {
-    // Current filter values
+    // Applied filter values (shown in ContextualActiveFilters)
     filters: Record<string, any>;
 
-    // Filter metadata with labels and display values
+    // Applied filter metadata with labels and display values
     filterMetadata: Record<string, FilterValue>;
+
+    // Draft filter values (used in form while drawer is open)
+    draftFilters: Record<string, any>;
+
+    // Draft filter metadata
+    draftFilterMetadata: Record<string, FilterValue>;
 
     // Current filter configuration
     config: FilterConfig | null;
@@ -157,12 +164,28 @@ const getDisplayValue = (
 };
 
 export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
+    // Applied filters (shown in ContextualActiveFilters, synced with URL)
     const [filters, setFilters] = useState<Record<string, any>>({});
     const [filterMetadata, setFilterMetadata] = useState<
         Record<string, FilterValue>
     >({});
+
+    // Draft filters (used in form while drawer is open)
+    const [draftFilters, setDraftFilters] = useState<Record<string, any>>({});
+    const [draftFilterMetadata, setDraftFilterMetadata] = useState<
+        Record<string, FilterValue>
+    >({});
+
     const [config, setConfigState] = useState<FilterConfig | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+    // Sync draft state with applied state when drawer opens
+    useEffect(() => {
+        if (isDrawerOpen) {
+            setDraftFilters({ ...filters });
+            setDraftFilterMetadata({ ...filterMetadata });
+        }
+    }, [isDrawerOpen]);
 
     // Helper function to format display value based on field config
     const formatDisplayValue = useCallback(
@@ -201,8 +224,18 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
                 value === "" ||
                 (Array.isArray(value) && value.length === 0)
             ) {
-                // Remove filter if value is empty
-                removeFilter(key);
+                // Remove filter if value is empty (from draft state)
+                setDraftFilters((prev) => {
+                    const newFilters = { ...prev };
+                    delete newFilters[key];
+                    return newFilters;
+                });
+
+                setDraftFilterMetadata((prev) => {
+                    const newMetadata = { ...prev };
+                    delete newMetadata[key];
+                    return newMetadata;
+                });
                 return;
             }
 
@@ -210,12 +243,13 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             const computedDisplayValue =
                 displayValue || formatDisplayValue(key, value);
 
-            setFilters((prev) => ({
+            // Update draft state (not applied state)
+            setDraftFilters((prev) => ({
                 ...prev,
                 [key]: value,
             }));
 
-            setFilterMetadata((prev) => ({
+            setDraftFilterMetadata((prev) => ({
                 ...prev,
                 [key]: {
                     key,
@@ -313,6 +347,8 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const clearAllFilters = useCallback(() => {
         setFilters({});
         setFilterMetadata({});
+        setDraftFilters({});
+        setDraftFilterMetadata({});
 
         if (!config) return;
 
@@ -326,6 +362,10 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const applyFilters = useCallback(() => {
         if (!config) return;
 
+        // Copy draft state to applied state
+        setFilters({ ...draftFilters });
+        setFilterMetadata({ ...draftFilterMetadata });
+
         // Get current URL parameters to preserve them
         const urlParams = new URLSearchParams(window.location.search);
         const currentParams: Record<string, any> = {};
@@ -333,8 +373,8 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             currentParams[key] = value;
         });
 
-        // Clean filters - remove empty values
-        const cleanFilters = Object.entries(filters).reduce(
+        // Clean filters - remove empty values (use draftFilters since applied state hasn't updated yet)
+        const cleanFilters = Object.entries(draftFilters).reduce(
             (acc, [key, value]) => {
                 if (
                     value !== null &&
@@ -383,7 +423,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         });
 
         setIsDrawerOpen(false);
-    }, [config, filters]);
+    }, [config, draftFilters, draftFilterMetadata]);
 
     const resetFilters = useCallback(() => {
         if (!config) return;
@@ -468,8 +508,11 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             }
         });
 
+        // Initialize both applied and draft state from URL
         setFilters(initialFilters);
         setFilterMetadata(initialMetadata);
+        setDraftFilters(initialFilters);
+        setDraftFilterMetadata(initialMetadata);
     }, []);
 
     const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
@@ -496,6 +539,8 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const contextValue: FilterContextValue = {
         filters,
         filterMetadata,
+        draftFilters,
+        draftFilterMetadata,
         config,
         setFilter,
         removeFilter,

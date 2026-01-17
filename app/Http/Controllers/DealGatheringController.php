@@ -30,8 +30,12 @@ class DealGatheringController extends AccountBaseController
             'deal_id' => 'nullable|exists:deals,id',
             'lead_id' => 'nullable|exists:leads,id',
             'lead_data' => 'nullable|array',
-            'lead_type' => 'nullable|in:agent,client'
+            'lead_type' => 'nullable|in:agent,client',
+            'pipeline_id' => 'nullable|exists:lead_pipelines,id',
         ]);
+
+        // Get the pipeline ID from the request (for new deal creation)
+        $pipelineId = $request->filled('pipeline_id') ? (int) $request->pipeline_id : null;
 
         // Determine if we're updating an existing deal or creating new
         $existingDeal = $request->filled('deal_id') 
@@ -81,8 +85,8 @@ class DealGatheringController extends AccountBaseController
             $lead = Lead::findOrFail($existingDeal->lead_id);
         }
 
-        // Create or return existing deal
-        $deal = $existingDeal ?? $this->service->initializeDeal($lead);
+        // Create or return existing deal (passing pipeline_id for new deals)
+        $deal = $existingDeal ?? $this->service->initializeDeal($lead, $pipelineId);
 
         return response()->json([
             'status' => 'success',
@@ -161,7 +165,7 @@ class DealGatheringController extends AccountBaseController
         );
 
         // Refresh deal with all relationships and custom fields data
-        $freshDeal = $updatedDeal->fresh(['contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products', 'dealWatchers']);
+        $freshDeal = $updatedDeal->fresh(['contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products', 'dealWatchers', 'dealParticipants']);
         $freshDeal->withCustomFields();
 
         return response()->json([

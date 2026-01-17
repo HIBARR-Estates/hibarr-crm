@@ -34,7 +34,7 @@ const GeneralCustomFieldTab = <
     categoryName,
 }: CustomFieldTabProps<T>) => {
     const { props } = usePage<any>();
-    const { customFields = [], countries, dealCustomFields = [] } = props;
+    const { customFields = [], countries = [], dealCustomFields = [] } = props;
 
     // Get form instance from parent Form context (may be null if no Form context)
     // Call hook once at top level to comply with Rules of Hooks
@@ -286,41 +286,76 @@ const GeneralCustomFieldTab = <
         </Form.Item>
     );
 
-    const renderCountryField = (field: any) => (
-        <Form.Item
-            label={field.label}
-            validateStatus={
-                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
-            }
-            help={errors[`custom_fields_data.field_${field.id}`]}
-            name={[`custom_fields_data`, `field_${field.id}`]}
-            rules={[
-                {
-                    required: field.required === "yes" && isFieldVisible(field.id),
-                    message: `Please enter ${field.label}`,
-                },
-            ]}
-        >
-            <Select
-                placeholder={`Select ${field.label}`}
-                // value={getFieldValue(field) || undefined}
-                // onChange={(value) => setFieldValue(field, value)}
-                allowClear
-                showSearch
-                filterOption={(input, option) =>
-                    (option?.children as unknown as string)
-                        ?.toLowerCase()
-                        .includes(input.toLowerCase())
+    const renderCountryField = (field: any) => {
+        // Debug: Log if countries are missing
+        if (!countries || countries.length === 0) {
+            console.warn('Countries not loaded for country field:', field.label);
+        }
+
+        return (
+            <Form.Item
+                label={field.label}
+                validateStatus={
+                    errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
                 }
+                help={errors[`custom_fields_data.field_${field.id}`]}
+                name={[`custom_fields_data`, `field_${field.id}`]}
+                rules={[
+                    {
+                        required: field.required === "yes" && isFieldVisible(field.id),
+                        message: `Please enter ${field.label}`,
+                    },
+                ]}
             >
-                {countries?.map((country: any) => (
-                    <Select.Option key={country.iso} value={country.nicename}>
-                        {country.nicename}
-                    </Select.Option>
-                ))}
-            </Select>
-        </Form.Item>
-    );
+                <Select
+                    placeholder={`Select ${field.label}`}
+                    allowClear
+                    showSearch
+                    filterOption={(input, option) => {
+                        const searchText = input.toLowerCase();
+                        const countryValue = option?.value as string;
+                        const country = countries?.find((c: any) => c.nicename === countryValue);
+                        
+                        if (!country) return false;
+                        
+                        // Search by nicename, name, iso, iso3, or nationality
+                        return (
+                            country.nicename?.toLowerCase().includes(searchText) ||
+                            country.name?.toLowerCase().includes(searchText) ||
+                            country.iso?.toLowerCase().includes(searchText) ||
+                            country.iso3?.toLowerCase().includes(searchText) ||
+                            country.nationality?.toLowerCase().includes(searchText)
+                        );
+                    }}
+                    notFoundContent={
+                        !countries || countries.length === 0 
+                            ? "Countries not available" 
+                            : "No countries found"
+                    }
+                >
+                    {countries && countries.length > 0 ? (
+                        countries.map((country: any) => (
+                            <Select.Option key={country.iso || country.id} value={country.nicename}>
+                                <span className="flex items-center gap-2">
+                                    <span className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`} />
+                                    {country.nicename}
+                                    {country.nationality && country.nationality !== 'unknown' && (
+                                        <span className="text-gray-500 text-xs">
+                                            ({country.nationality})
+                                        </span>
+                                    )}
+                                </span>
+                            </Select.Option>
+                        ))
+                    ) : (
+                        <Select.Option disabled value="">
+                            No countries available
+                        </Select.Option>
+                    )}
+                </Select>
+            </Form.Item>
+        );
+    };
 
     const renderPhoneField = (field: any) => (
         <Form.Item

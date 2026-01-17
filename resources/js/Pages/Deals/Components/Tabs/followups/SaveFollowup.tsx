@@ -62,7 +62,21 @@ export default function SaveFollowup({
     const [form] = Form.useForm();
     const [generatingMeetingLink, setGeneratingMeetingLink] = useState(false);
 
+    // Reset form when canceling (only for new meetings, not editing)
+    const handleCancel = () => {
+        if (!followup) {
+            form.resetFields();
+            form.setFieldsValue({
+                location: "zoho",
+                reminders: [],
+            });
+        }
+        onCancel();
+    };
+
     const isEditing = !!followup;
+    const isScheduled = !!(followup && followup.status && 
+        ['scheduled', 'completed', 'cancelled'].includes(followup.status));
     const needsZohoMeetingLink =
         form.getFieldValue("location") === "zoho" &&
         !form.getFieldValue("meeting_link");
@@ -131,8 +145,10 @@ export default function SaveFollowup({
 
     // Standard location options
     const standardLocationOptions = [
-        { value: "zoho", label: "Zoho" },
+        { value: "zoho", label: "Video Meeting" },
         { value: "office", label: "HIBARR Office" },
+        { value: "phone", label: "Phone Meeting" },
+        { value: "physical", label: "Physical Meeting" },
     ];
 
     // Map old location values to readable labels for backward compatibility
@@ -191,7 +207,8 @@ export default function SaveFollowup({
                 remark: followup.remark || "",
             });
         } else {
-            // Set default values for new follow-up
+            // Reset form to default values for new follow-up
+            form.resetFields();
             form.setFieldsValue({
                 location: "zoho",
                 reminders: [], // Start with empty custom reminders array
@@ -207,6 +224,11 @@ export default function SaveFollowup({
     };
 
     const handleSubmit = (values: any) => {
+        // Prevent submission if meeting is already scheduled
+        if (isScheduled) {
+            return;
+        }
+
         // Get custom reminders from form
         const customReminders = values.reminders || [];
 
@@ -223,6 +245,15 @@ export default function SaveFollowup({
         };
 
         onSubmit(formData);
+        
+        // Reset form after submission if creating new meeting (not editing)
+        if (!isEditing) {
+            form.resetFields();
+            form.setFieldsValue({
+                location: "zoho",
+                reminders: [],
+            });
+        }
     };
 
     // Custom validator for HTML content
@@ -272,7 +303,7 @@ export default function SaveFollowup({
                     <DatePicker
                         className="w-full"
                         format="YYYY-MM-DD"
-                        disabled={loading}
+                        disabled={loading || isScheduled}
                         disabledDate={(current) =>
                             current && current < dayjs().startOf("day")
                         }
@@ -295,7 +326,7 @@ export default function SaveFollowup({
                     <TimePicker
                         className="w-full"
                         format="HH:mm"
-                        disabled={loading}
+                        disabled={loading || isScheduled}
                         prefix={<ClockCircleOutlined />}
                         placeholder="Select time"
                     />
@@ -314,7 +345,7 @@ export default function SaveFollowup({
                 ]}
             >
                 <MeetingTypeSelector
-                    disabled={loading}
+                    disabled={loading || isScheduled}
                     placeholder="Select meeting type"
                     showPlatform={false}
                 />
@@ -334,7 +365,7 @@ export default function SaveFollowup({
                 <Select
                     placeholder="Select platform"
                     className="w-full"
-                    disabled={loading}
+                    disabled={loading || isScheduled}
                     onChange={handleLocationChange}
                 >
                     {locationOptions.map((option) => (
@@ -356,8 +387,9 @@ export default function SaveFollowup({
                 {({ getFieldValue }) => {
                     const location = getFieldValue("location");
                     const meetingLink = getFieldValue("meeting_link");
-                    const showMeetingLinkField = location !== "office";
+                    const showMeetingLinkField = location === "zoho";
                     const isZoho = location === "zoho";
+                    const isPhoneOrPhysical = location === "phone" || location === "physical";
                     const needsGeneration = isZoho && !meetingLink && isEditing;
 
                     if (!showMeetingLinkField) return null;
@@ -382,9 +414,24 @@ export default function SaveFollowup({
                                 {
                                     type: "url",
                                     message: "Please enter a valid URL",
+                                    validator: (_, value) => {
+                                        // Don't validate URL format for phone or physical meetings
+                                        if (isPhoneOrPhysical) {
+                                            return Promise.resolve();
+                                        }
+                                        if (!value) {
+                                            return Promise.resolve();
+                                        }
+                                        try {
+                                            new URL(value);
+                                            return Promise.resolve();
+                                        } catch {
+                                            return Promise.reject(new Error("Please enter a valid URL"));
+                                        }
+                                    },
                                 },
                                 {
-                                    required: !isZoho,
+                                    required: !isZoho && !isPhoneOrPhysical,
                                     message: "Please enter a meeting link",
                                 },
                             ]}
@@ -396,8 +443,8 @@ export default function SaveFollowup({
                                             ? "Meeting link will be auto-generated"
                                             : "Enter meeting link (e.g., https://zoom.us/j/...)"
                                     }
-                                    disabled={loading || (isZoho && !isEditing)}
-                                    readOnly={isZoho}
+                                    disabled={loading || (isZoho && !isEditing) || isScheduled}
+                                    readOnly={isZoho || isScheduled}
                                     style={{ flex: 1 }}
                                 />
                                 {needsGeneration && (
@@ -406,7 +453,7 @@ export default function SaveFollowup({
                                         icon={<LinkOutlined />}
                                         loading={generatingMeetingLink}
                                         onClick={handleGenerateMeetingLink}
-                                        disabled={loading}
+                                        disabled={loading || isScheduled}
                                     >
                                         Generate
                                     </Button>
@@ -425,7 +472,7 @@ export default function SaveFollowup({
             >
                 <HtmlEditor
                     placeholder="Enter meeting agenda, details, or remarks..."
-                    disabled={loading}
+                    disabled={loading || isScheduled}
                     height={250}
                 />
             </Form.Item>
@@ -514,7 +561,7 @@ export default function SaveFollowup({
                                                                 max={1440}
                                                                 placeholder="15"
                                                                 disabled={
-                                                                    loading
+                                                                    loading || isScheduled
                                                                 }
                                                                 style={{
                                                                     width: 80,
@@ -541,7 +588,7 @@ export default function SaveFollowup({
                                                             <Select
                                                                 placeholder="Unit"
                                                                 disabled={
-                                                                    loading
+                                                                    loading || isScheduled
                                                                 }
                                                                 style={{
                                                                     width: 100,
@@ -585,7 +632,7 @@ export default function SaveFollowup({
                                                                     )
                                                                 }
                                                                 disabled={
-                                                                    loading
+                                                                    loading || isScheduled
                                                                 }
                                                                 size="small"
                                                             />
@@ -603,7 +650,7 @@ export default function SaveFollowup({
                                         }
                                         icon={<PlusOutlined />}
                                         className="w-full"
-                                        disabled={loading}
+                                        disabled={loading || isScheduled}
                                         size="small"
                                     >
                                         Add Custom Reminder
@@ -617,13 +664,14 @@ export default function SaveFollowup({
 
             {/* Submit Buttons */}
             <div className="flex items-center justify-end gap-x-3 mt-12 mb-4 pt-4 border-t border-gray-200">
-                <Button onClick={onCancel} disabled={loading}>
+                <Button onClick={handleCancel} disabled={loading || isScheduled}>
                     Cancel
                 </Button>
                 <Button
                     type="primary"
                     htmlType="submit"
                     loading={loading}
+                    disabled={loading || isScheduled}
                     icon={<SaveOutlined />}
                     className="bg-blue-600 hover:bg-blue-700"
                 >

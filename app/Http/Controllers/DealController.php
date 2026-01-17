@@ -89,100 +89,8 @@ class DealController extends AccountBaseController
 
         $this->loadDataForView();
 
-        // Get deals with pagination using relationships
-        $dealsQuery = Deal::with([
-            'leadAgent.user:id,name,email,image',
-            'category:id,category_name',
-            'contact:id,client_name,client_email,mobile,company_name,source_id',
-            'contact.leadSource',
-            'pipeline:id,name',
-            'leadStage:id,name,label_color,slug',
-            'currency:id,currency_symbol,currency_code',
-            'products:id,name',
-            'packages',
-            'tasks' => function($q) {
-                $q->with(['deals', 'leads', 'properties']);
-            }
-        ])
-        ->select(
-            'deals.id',
-            'deals.name',
-            'deals.lead_id',
-            'deals.lead_pipeline_id',
-            'deals.agent_id',
-            'deals.added_by',
-            'deals.next_follow_up',
-            'deals.value',
-            'deals.pipeline_stage_id',
-            'deals.created_at',
-            'deals.close_date',
-            'deals.updated_at',
-            'deals.currency_id',
-            'deals.category_id'
-        );
-        
-        // Apply filters from request
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $dealsQuery->where(function($query) use ($searchTerm) {
-                $query->where('deals.name', 'like', '%' . $searchTerm . '%')
-                      ->orWhereHas('contact', function($q) use ($searchTerm) {
-                          $q->where('client_name', 'like', '%' . $searchTerm . '%')
-                            ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
-                            ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
-                      });
-            });
-        }
-
-        if ($request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all') {
-            $dealsQuery->where('deals.lead_pipeline_id', $request->lead_pipeline_id);
-        }
-
-        if ($request->filled('pipeline_stage_id') && $request->pipeline_stage_id !== 'all') {
-            $dealsQuery->where('deals.pipeline_stage_id', $request->pipeline_stage_id);
-        }
-
-        if ($request->filled('category_id') && $request->category_id !== 'all') {
-            $dealsQuery->where('deals.category_id', $request->category_id);
-        }
-
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $dealsQuery->whereBetween('deals.created_at', [
-                $request->start_date . ' 00:00:00',
-                $request->end_date . ' 23:59:59'
-            ]);
-        }
-
-        if ($request->agent_status == 'unassigned') {
-            $dealsQuery->whereNull('deals.agent_id');
-        } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
-            $dealsQuery->whereHas('leadAgent', function ($q) use ($request) {
-                $q->where('user_id', $request->agent_id);
-            });
-        } elseif ($request->agent_status == 'active') {
-            $dealsQuery->whereHas('leadAgent.user', function ($q) {
-                $q->where('status', 'active');
-            });
-        } elseif ($request->agent_status == 'inactive') {
-            $dealsQuery->whereHas('leadAgent.user', function ($q) {
-                $q->where('status', '!=', 'active');
-            });
-        }
-
-        // Apply permission-based filtering
-        $dealRules = [
-            'added' => 'deals.added_by',
-            'owned' => function($q, $user) {
-                $q->where(function($query) use ($user) {
-                    $query->whereHas('leadAgent', function($q) use ($user) {
-                        $q->where('user_id', $user->id);
-                    })->orWhereHas('dealWatchers', function($q) use ($user) {
-                        $q->where('users.id', $user->id);
-                    });
-                });
-            }
-        ];
-        PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
+        // Use shared query builder for table view (paginated)
+        $dealsQuery = $this->getDealsQuery($request);
         
         // Apply sorting if specified
         if ($request->filled('sort_by')) {
@@ -232,6 +140,13 @@ class DealController extends AccountBaseController
             return $dealArray;
         });
 
+        // Get kanban board columns (without deals - they'll be fetched via API)
+        $pipelineId = $request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all' 
+            ? $request->lead_pipeline_id 
+            : optional($this->defaultPipeline)->id;
+        
+        $boardColumns = $this->getBoardColumns($request, $pipelineId);
+
         return Inertia::render('Deals/Index', array_merge([
             'pageTitle' => 'Deals',
             'deals' => [
@@ -243,6 +158,7 @@ class DealController extends AccountBaseController
                 'from' => $paginatedDeals->firstItem(),
                 'to' => $paginatedDeals->lastItem(),
             ],
+            'boardColumns' => $boardColumns,
             'pipelines' => $this->pipelines,
             'defaultPipeline' => $this->defaultPipeline,
             'filters' => $request->only([
@@ -254,6 +170,228 @@ class DealController extends AccountBaseController
                 'end_date',
             ]),
         ], $formData));
+    }
+
+    /**
+     * Shared deal query builder with filters applied
+     * Used by both index (table view) and kanban API endpoint
+     */
+    protected function getDealsQuery(Request $request, $pipelineStageId = null)
+    {
+        $dealsQuery = Deal::with([
+            'leadAgent.user:id,name,email,image',
+            'category:id,category_name',
+            'contact:id,client_name,client_email,mobile,company_name,source_id',
+            'contact.leadSource',
+            'pipeline:id,name',
+            'leadStage:id,name,label_color,slug',
+            'currency:id,currency_symbol,currency_code',
+            'products:id,name',
+            'packages',
+            'tasks' => function($q) {
+                $q->with(['deals', 'leads', 'properties']);
+            }
+        ])
+        ->select(
+            'deals.id',
+            'deals.name',
+            'deals.lead_id',
+            'deals.lead_pipeline_id',
+            'deals.agent_id',
+            'deals.added_by',
+            'deals.next_follow_up',
+            'deals.value',
+            'deals.pipeline_stage_id',
+            'deals.created_at',
+            'deals.close_date',
+            'deals.updated_at',
+            'deals.currency_id',
+            'deals.category_id'
+        );
+
+        // If specific stage is requested (for kanban column)
+        if ($pipelineStageId) {
+            $dealsQuery->where('deals.pipeline_stage_id', $pipelineStageId);
+        }
+        
+        // Apply filters from request
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $dealsQuery->where(function($query) use ($searchTerm) {
+                $query->where('deals.name', 'like', '%' . $searchTerm . '%')
+                      ->orWhereHas('contact', function($q) use ($searchTerm) {
+                          $q->where('client_name', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                      });
+            });
+        }
+
+        if ($request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all') {
+            $dealsQuery->where('deals.lead_pipeline_id', $request->lead_pipeline_id);
+        }
+
+        if ($request->filled('pipeline_stage_id') && $request->pipeline_stage_id !== 'all' && !$pipelineStageId) {
+            $dealsQuery->where('deals.pipeline_stage_id', $request->pipeline_stage_id);
+        }
+
+        if ($request->filled('category_id') && $request->category_id !== 'all') {
+            $dealsQuery->where('deals.category_id', $request->category_id);
+        }
+
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $dealsQuery->whereBetween('deals.created_at', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
+            ]);
+        }
+
+        if ($request->agent_status == 'unassigned') {
+            $dealsQuery->whereNull('deals.agent_id');
+        } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
+            $dealsQuery->whereHas('leadAgent', function ($q) use ($request) {
+                $q->where('user_id', $request->agent_id);
+            });
+        } elseif ($request->agent_status == 'active') {
+            $dealsQuery->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', 'active');
+            });
+        } elseif ($request->agent_status == 'inactive') {
+            $dealsQuery->whereHas('leadAgent.user', function ($q) {
+                $q->where('status', '!=', 'active');
+            });
+        }
+
+        // Apply permission-based filtering
+        $dealRules = [
+            'added' => 'deals.added_by',
+            'owned' => function($q, $user) {
+                $q->where(function($query) use ($user) {
+                    $query->whereHas('leadAgent', function($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    })->orWhereHas('dealWatchers', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    });
+                });
+            }
+        ];
+        PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
+
+        return $dealsQuery;
+    }
+
+    /**
+     * Get board columns with deal counts for kanban view
+     */
+    protected function getBoardColumns(Request $request, $pipelineId)
+    {
+        $boardColumns = PipelineStage::withCount(['deals as deals_count' => function ($q) use ($request, $pipelineId) {
+            // Apply same filters as the main query
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $q->where(function($query) use ($searchTerm) {
+                    $query->where('deals.name', 'like', '%' . $searchTerm . '%')
+                          ->orWhereHas('contact', function($subq) use ($searchTerm) {
+                              $subq->where('client_name', 'like', '%' . $searchTerm . '%')
+                                ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
+                                ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                          });
+                });
+            }
+
+            if ($pipelineId) {
+                $q->where('deals.lead_pipeline_id', $pipelineId);
+            }
+
+            if ($request->filled('category_id') && $request->category_id !== 'all') {
+                $q->where('deals.category_id', $request->category_id);
+            }
+
+            if ($request->agent_status == 'unassigned') {
+                $q->whereNull('deals.agent_id');
+            } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
+                $q->whereHas('leadAgent', function ($subq) use ($request) {
+                    $subq->where('user_id', $request->agent_id);
+                });
+            }
+
+            // Apply permission-based filtering
+            $dealRules = [
+                'added' => 'deals.added_by',
+                'owned' => function($q, $user) {
+                    $q->where(function($query) use ($user) {
+                        $query->whereHas('leadAgent', function($q) use ($user) {
+                            $q->where('user_id', $user->id);
+                        })->orWhereHas('dealWatchers', function($q) use ($user) {
+                            $q->where('users.id', $user->id);
+                        });
+                    });
+                }
+            ];
+            PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
+        }])
+        ->where('lead_pipeline_id', $pipelineId)
+        ->with('userSetting')
+        ->orderBy('priority', 'asc')
+        ->get();
+
+        // Calculate total value per column
+        foreach ($boardColumns as $column) {
+            $totalValueQuery = Deal::where('pipeline_stage_id', $column->id);
+            
+            if ($pipelineId) {
+                $totalValueQuery->where('lead_pipeline_id', $pipelineId);
+            }
+
+            // Apply same filters for total value calculation
+            if ($request->filled('category_id') && $request->category_id !== 'all') {
+                $totalValueQuery->where('category_id', $request->category_id);
+            }
+
+            // Apply permission-based filtering
+            $dealRules = [
+                'added' => 'added_by',
+                'owned' => function($q, $user) {
+                    $q->where(function($query) use ($user) {
+                        $query->whereHas('leadAgent', function($q) use ($user) {
+                            $q->where('user_id', $user->id);
+                        })->orWhereHas('dealWatchers', function($q) use ($user) {
+                            $q->where('users.id', $user->id);
+                        });
+                    });
+                }
+            ];
+            PermissionService::applyScope($totalValueQuery, user(), 'view_deals', $dealRules);
+
+            $column->total_value = $totalValueQuery->sum('value');
+            $column->deals = []; // Deals will be fetched via API for infinite scroll
+        }
+
+        return $boardColumns;
+    }
+
+    /**
+     * API endpoint for kanban column deals with pagination (infinite scroll)
+     */
+    public function getKanbanDeals(Request $request)
+    {
+        $pipelineStageId = $request->pipeline_stage_id;
+        
+        if (!$pipelineStageId) {
+            return Reply::dataOnly(['deals' => ['data' => [], 'next_page_url' => null]]);
+        }
+
+        $dealsQuery = $this->getDealsQuery($request, $pipelineStageId);
+        $dealsQuery->orderBy('deals.created_at', 'desc');
+        
+        $deals = $dealsQuery->paginate(10);
+
+        // Transform deals to include custom fields
+        $deals->getCollection()->transform(function ($deal) {
+            return $deal->withCustomFields();
+        });
+
+        return Reply::dataOnly(['deals' => $deals]);
     }
 
     protected function loadDataForView()
@@ -347,6 +485,13 @@ class DealController extends AccountBaseController
             'communicationActivities',
             'hibarrFields',
             'dealWatchers' => function ($query) {
+                $query->withoutGlobalScope(ActiveScope::class)
+                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
+                      ->with('employeeDetail.designation:id,name')
+                      ->where('users.status', '!=', 'deactive')
+                      ->orderBy('users.name');
+            },
+            'dealParticipants' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
                       ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
                       ->with('employeeDetail.designation:id,name')
@@ -660,6 +805,11 @@ class DealController extends AccountBaseController
             $deal->dealWatchers()->sync($request->deal_watcher);
         }
 
+        // Handle deal participants
+        if ($request->deal_participant && is_array($request->deal_participant)) {
+            $deal->dealParticipants()->sync($request->deal_participant);
+        }
+
         if (!is_null($request->product_id)) {
 
             $products = $request->product_id;
@@ -880,6 +1030,11 @@ class DealController extends AccountBaseController
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
             $deal->dealWatchers()->sync($request->deal_watcher);
+        }
+
+        // Handle deal participants
+        if ($request->deal_participant && is_array($request->deal_participant)) {
+            $deal->dealParticipants()->sync($request->deal_participant);
         }
 
         $deal->products()->sync($request->product_id);

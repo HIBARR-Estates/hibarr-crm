@@ -11,6 +11,7 @@ import {
 } from 'antd';
 import { CustomField } from '@/Types';
 import { useCustomFieldVisibility } from '@/Hooks/useCustomFieldVisibility';
+import { usePage } from '@inertiajs/react';
 
 interface Props {
     fields: CustomField[];
@@ -23,6 +24,9 @@ const CustomFieldRenderer: React.FC<Props> = ({
     form, 
     namePrefix = 'custom_fields_data' 
 }) => {
+    const { props } = usePage<any>();
+    const { countries = [] } = props;
+    
     // Get visibility map
     const { visibilityMap, isFieldVisible } = useCustomFieldVisibility({
         fields,
@@ -187,6 +191,61 @@ const CustomFieldRenderer: React.FC<Props> = ({
         </Form.Item>
     );
 
+    const renderCountryField = (field: CustomField) => (
+        <Form.Item
+            key={field.id}
+            name={[namePrefix, `field_${field.id}`]}
+            label={field.label}
+            rules={
+                field.required === 'yes' && isFieldVisible(field.id)
+                    ? [{ required: true, message: `${field.label} is required` }]
+                    : []
+            }
+        >
+            <Select
+                placeholder={`Select ${field.label}`}
+                allowClear
+                showSearch
+                filterOption={(input, option) => {
+                    const searchText = input.toLowerCase();
+                    const countryValue = option?.value as string;
+                    const country = countries?.find((c: any) => c.nicename === countryValue);
+                    
+                    if (!country) return false;
+                    
+                    // Search by nicename, name, iso, iso3, or nationality
+                    return (
+                        country.nicename?.toLowerCase().includes(searchText) ||
+                        country.name?.toLowerCase().includes(searchText) ||
+                        country.iso?.toLowerCase().includes(searchText) ||
+                        country.iso3?.toLowerCase().includes(searchText) ||
+                        country.nationality?.toLowerCase().includes(searchText)
+                    );
+                }}
+            >
+                {countries && countries.length > 0 ? (
+                    countries.map((country: any) => (
+                        <Select.Option key={country.iso || country.id} value={country.nicename}>
+                            <span className="flex items-center gap-2">
+                                <span className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`} />
+                                {country.nicename}
+                                {country.nationality && country.nationality !== 'unknown' && (
+                                    <span className="text-gray-500 text-xs">
+                                        ({country.nationality})
+                                    </span>
+                                )}
+                            </span>
+                        </Select.Option>
+                    ))
+                ) : (
+                    <Select.Option disabled value="">
+                        No countries available
+                    </Select.Option>
+                )}
+            </Select>
+        </Form.Item>
+    );
+
     const renderField = (field: CustomField) => {
         // Check visibility
         if (!isFieldVisible(field.id)) {
@@ -208,6 +267,8 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 return renderCheckboxField(field);
             case 'date':
                 return renderDateField(field);
+            case 'country':
+                return renderCountryField(field);
             default:
                 return renderTextField(field);
         }

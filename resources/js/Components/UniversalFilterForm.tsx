@@ -25,7 +25,8 @@ interface UniversalFilterFormProps {
 const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
     config,
 }) => {
-    const { filters, setFilter, setConfig } = useFilter();
+    // Use draftFilters for form display (pending changes before Apply)
+    const { draftFilters: filters, setFilter, setConfig } = useFilter();
     const { props } = usePage<any>();
 
     // Initialize config when component mounts
