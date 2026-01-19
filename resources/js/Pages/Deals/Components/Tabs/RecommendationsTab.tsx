@@ -59,7 +59,9 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("cards");
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-    const [isAddingProperties, setIsAddingProperties] = useState(false);
+    const [addingPropertyIds, setAddingPropertyIds] = useState<Set<number>>(
+        new Set()
+    );
 
     const queryPath = route("deals.recommendations.index", { deal: deal.id });
 
@@ -104,7 +106,8 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     const handleAddPropertiesToDeal = async (propertyIds: number[]) => {
         if (propertyIds.length === 0) return;
 
-        setIsAddingProperties(true);
+        // Add property IDs to loading state
+        setAddingPropertyIds((prev) => new Set([...prev, ...propertyIds]));
         try {
             // Merge with existing product IDs (avoiding duplicates)
             const newProductIds = [
@@ -135,8 +138,19 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                 error?.response?.data?.message || "Failed to add properties"
             );
         } finally {
-            setIsAddingProperties(false);
+            // Remove property IDs from loading state
+            setAddingPropertyIds((prev) => {
+                const newSet = new Set(prev);
+                propertyIds.forEach((id) => newSet.delete(id));
+                return newSet;
+            });
         }
+    };
+
+    // Check if a specific property is currently being added
+    const isPropertyAdding = (propertyId: number | null): boolean => {
+        if (!propertyId) return false;
+        return addingPropertyIds.has(propertyId);
     };
 
     // Check if a property is already added to the deal
@@ -366,6 +380,8 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                 const propertyId = record.property?.id;
                 const isInDeal = isPropertyInDeal(propertyId || null);
 
+                const isAdding = isPropertyAdding(propertyId || null);
+
                 return isInDeal ? (
                     <Tag color="green" icon={<CheckCircleOutlined />}>
                         Added
@@ -379,8 +395,8 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                             propertyId &&
                             handleAddPropertiesToDeal([propertyId])
                         }
-                        loading={isAddingProperties}
-                        disabled={!propertyId}
+                        loading={isAdding}
+                        disabled={!propertyId || isAdding}
                     >
                         Add
                     </Button>
@@ -553,7 +569,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                         onClick={() =>
                             handleAddPropertiesToDeal(selectedPropertyIds)
                         }
-                        loading={isAddingProperties}
+                        loading={addingPropertyIds.size > 0}
                     >
                         Add Selected to Deal
                     </Button>
@@ -592,7 +608,9 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                                     rec.property?.id &&
                                     handleAddPropertiesToDeal([rec.property.id])
                                 }
-                                isAddingProperties={isAddingProperties}
+                                isAdding={isPropertyAdding(
+                                    rec.property?.id || null
+                                )}
                             />
                         </Col>
                     ))}
@@ -614,7 +632,7 @@ interface RecommendationCardProps {
     getFactorIcon: (score: number | null | undefined) => React.ReactNode;
     isInDeal: boolean;
     onAddToDeal: () => void;
-    isAddingProperties: boolean;
+    isAdding: boolean;
 }
 
 function RecommendationCard({
@@ -626,7 +644,7 @@ function RecommendationCard({
     getFactorIcon,
     isInDeal,
     onAddToDeal,
-    isAddingProperties,
+    isAdding,
 }: RecommendationCardProps) {
     const { property, match_percentage, rank, factors } = recommendation;
     const [imageError, setImageError] = useState(false);
@@ -826,8 +844,8 @@ function RecommendationCard({
                                         e.stopPropagation();
                                         onAddToDeal();
                                     }}
-                                    loading={isAddingProperties}
-                                    disabled={!property?.id}
+                                    loading={isAdding}
+                                    disabled={!property?.id || isAdding}
                                 >
                                     Add to Deal
                                 </Button>
