@@ -59,8 +59,9 @@ class PropertyApiController extends Controller
                 $propertiesQuery->where('properties.sale_type', $filters['sale_type']);
             }
 
-            // Get paginated results
-            $properties = $propertiesQuery->orderBy('properties.created_at', 'desc')
+            // Get paginated results with images
+            $properties = $propertiesQuery->with('images')
+                ->orderBy('properties.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
 
             // Get all product IDs from the paginated properties
@@ -88,6 +89,20 @@ class PropertyApiController extends Controller
                 
                 // Remove the nested product object if it exists
                 unset($propertyData['product']);
+                
+                // Add images from PropertyAsset relationship
+                $propertyData['images'] = $property->images->map(function ($image) {
+                    return [
+                        'id' => $image->id,
+                        'name' => $image->name,
+                        'url' => $image->url,
+                        'file_path' => $image->file_path,
+                        'external_url' => $image->external_url,
+                        'tags' => $image->tags,
+                        'order' => $image->order,
+                        'formatted_size' => $image->formatted_size,
+                    ];
+                })->values()->toArray();
                 
                 // Get product data and flatten it into the main payload
                 $product = $productsMap->get($property->product_id);
@@ -175,9 +190,10 @@ class PropertyApiController extends Controller
             $companyId = (int) $companyId;
             $propertyId = (int) $id;
 
-            // Find the property by ID and company_id
+            // Find the property by ID and company_id with images
             $property = Property::where('properties.id', $propertyId)
                 ->where('properties.company_id', $companyId)
+                ->with('images')
                 ->first();
 
             if (!$property) {
@@ -210,6 +226,20 @@ class PropertyApiController extends Controller
             
             // Remove the nested product object if it exists
             unset($propertyData['product']);
+            
+            // Add images from PropertyAsset relationship
+            $propertyData['images'] = $property->images->map(function ($image) {
+                return [
+                    'id' => $image->id,
+                    'name' => $image->name,
+                    'url' => $image->url,
+                    'file_path' => $image->file_path,
+                    'external_url' => $image->external_url,
+                    'tags' => $image->tags,
+                    'order' => $image->order,
+                    'formatted_size' => $image->formatted_size,
+                ];
+            })->values()->toArray();
             
             // Get product data and flatten it into the main payload
             $product = $productsMap->get($property->product_id);
