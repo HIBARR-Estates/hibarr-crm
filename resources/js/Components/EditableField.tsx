@@ -6,6 +6,7 @@ import {
     EditOutlined,
     LoadingOutlined,
 } from "@ant-design/icons";
+import PhoneInput, { PhoneNumber } from "antd-phone-input";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
 import { usePage } from "@inertiajs/react";
@@ -19,6 +20,7 @@ interface EditableFieldProps {
         | "text"
         | "email"
         | "number"
+        | "phone"
         | "date"
         | "select"
         | "multiselect"
@@ -280,6 +282,18 @@ export default function EditableField({
                             autoFocus
                             className="flex-1"
                             disabled={saving || loading}
+                        />
+                    ) : fieldType === "phone" ? (
+                        <PhoneInput
+                            value={inputValue as PhoneNumber | string | undefined}
+                            onChange={(val) => handleValueChange(val)}
+                            onBlur={handleBlur}
+                            onKeyDown={handleKeyPress}
+                            placeholder={placeholder}
+                            className="flex-1"
+                            disabled={saving || loading}
+                            enableSearch
+                            allowClear
                         />
                     ) : fieldType === "date" ? (
                         <Input
