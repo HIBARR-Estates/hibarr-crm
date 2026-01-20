@@ -9,6 +9,7 @@ import {
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
 import { usePage } from "@inertiajs/react";
+import CurrencyInput from "./CurrencyInput";
 
 const { Text } = Typography;
 
@@ -24,7 +25,8 @@ interface EditableFieldProps {
         | "multiselect"
         | "boolean"
         | "textarea"
-        | "country";
+        | "country"
+        | "currency";
     selectorType?: FormDataType;
     mode?: "multiple" | "tags";
     onSave: (value: any) => Promise<void>;
@@ -89,6 +91,19 @@ export default function EditableField({
                 setInputValue(
                     Array.isArray(value) ? value : value ? [value] : []
                 );
+            } else if (fieldType === "currency") {
+                // Handle currency value - can be object {amount, currency} or JSON string
+                if (value && typeof value === "object") {
+                    setInputValue(value);
+                } else if (value && typeof value === "string") {
+                    try {
+                        setInputValue(JSON.parse(value));
+                    } catch {
+                        setInputValue({ amount: value, currency: "USD" });
+                    }
+                } else {
+                    setInputValue({ amount: null, currency: "USD" });
+                }
             } else {
                 setInputValue(value ?? "");
             }
@@ -124,6 +139,19 @@ export default function EditableField({
         } else if (fieldType === "multiselect" || Array.isArray(value)) {
             // Keep array values as arrays for multiselect
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else if (fieldType === "currency") {
+            // Handle currency value - can be object {amount, currency} or JSON string
+            if (value && typeof value === "object") {
+                setInputValue(value);
+            } else if (value && typeof value === "string") {
+                try {
+                    setInputValue(JSON.parse(value));
+                } catch {
+                    setInputValue({ amount: value, currency: "USD" });
+                }
+            } else {
+                setInputValue({ amount: null, currency: "USD" });
+            }
         } else {
             setInputValue(value ?? "");
         }
@@ -205,6 +233,19 @@ export default function EditableField({
         // Restore original value, keeping arrays as arrays
         if (fieldType === "multiselect" || Array.isArray(value)) {
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else if (fieldType === "currency") {
+            // Handle currency value restoration
+            if (value && typeof value === "object") {
+                setInputValue(value);
+            } else if (value && typeof value === "string") {
+                try {
+                    setInputValue(JSON.parse(value));
+                } catch {
+                    setInputValue({ amount: value, currency: "USD" });
+                }
+            } else {
+                setInputValue({ amount: null, currency: "USD" });
+            }
         } else {
             setInputValue(value ?? "");
         }
@@ -410,6 +451,16 @@ export default function EditableField({
                                 </Select.Option>
                             )}
                         </Select>
+                    ) : fieldType === "currency" ? (
+                        <div className="flex items-center gap-2">
+                            <CurrencyInput
+                                value={inputValue}
+                                onChange={(val) => handleValueChange(val)}
+                                placeholder="Enter amount"
+                                noFormItem={true}
+                                disabled={saving || loading}
+                            />
+                        </div>
                     ) : (
                         <Input
                             value={inputValue}

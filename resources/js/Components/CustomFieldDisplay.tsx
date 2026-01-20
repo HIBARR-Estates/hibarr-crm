@@ -11,6 +11,7 @@ import { CustomField } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import { useState } from "react";
 import axios from "axios";
+import { usePage } from "@inertiajs/react";
 
 // Editable File Field Component
 interface EditableFileFieldProps {
@@ -150,6 +151,8 @@ export default function CustomFieldDisplay({
     onChange,
     globalLoading = false,
 }: Props) {
+    const { props } = usePage<any>();
+    const { currencies = [] } = props;
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
         ? fields.filter(
@@ -470,6 +473,55 @@ export default function CustomFieldDisplay({
             case "password":
                 return <span className="text-gray-500">••••••••</span>;
 
+            case "currency":
+                let currencyData: { amount: string | number | null; currency: string } | null = null;
+                
+                if (value && typeof value === "object" && value.amount !== undefined) {
+                    currencyData = value;
+                } else if (value && typeof value === "string") {
+                    try {
+                        currencyData = JSON.parse(value);
+                    } catch {
+                        currencyData = { amount: value, currency: "USD" };
+                    }
+                }
+
+                if (currencyData && currencyData.amount !== null && currencyData.amount !== "") {
+                    const defaultSymbols: Record<string, string> = {
+                        USD: "$",
+                        EUR: "€",
+                        GBP: "£",
+                    };
+                    
+                    let symbol = defaultSymbols[currencyData.currency] || "";
+                    if (currencies.length > 0) {
+                        const currency = currencies.find(
+                            (c: any) => 
+                                c.currency_code === currencyData!.currency || 
+                                c.currency_name?.toUpperCase() === currencyData!.currency.toUpperCase()
+                        );
+                        symbol = currency?.currency_symbol || symbol;
+                    }
+                    
+                    // Format amount with commas
+                    const amount = typeof currencyData.amount === "number" 
+                        ? currencyData.amount 
+                        : parseFloat(String(currencyData.amount).replace(/,/g, ""));
+                    
+                    if (!isNaN(amount)) {
+                        const formatted = amount.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                        });
+                        return (
+                            <span className="font-medium">
+                                {symbol}{formatted}
+                            </span>
+                        );
+                    }
+                }
+                return <span className="text-gray-500">--</span>;
+
             default:
                 // Handle long text content with word breaking
                 if (typeof value === "string" && value.length > 50) {
@@ -494,7 +546,8 @@ export default function CustomFieldDisplay({
             | "boolean"
             | "textarea"
             | "country"
-            | "email" = "text";
+            | "email"
+            | "currency" = "text";
         let options: { label: string; value: string | number }[] = [];
 
         switch (field.type) {
@@ -512,6 +565,9 @@ export default function CustomFieldDisplay({
                 break;
             case "country":
                 type = "country";
+                break;
+            case "currency":
+                type = "currency";
                 break;
             case "select":
             case "radio":
