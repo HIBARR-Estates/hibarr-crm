@@ -18,7 +18,7 @@ import {
 import { Lead, Country, ClientCategory, Salutation, Language } from "@/Types";
 import { IModalProps } from "@/Types/common";
 import { router, usePage } from "@inertiajs/react";
-import PhoneInput from "@/Components/PhoneInput";
+import PhoneInput from "antd-phone-input";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
@@ -277,15 +277,15 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                             <Input placeholder="Enter email address" />
                         </Form.Item>
                     </Col>
-                    {/* TODO: Add when you're refactoring and standardizing phone input ... */}
-                    {/* <Col span={12}>
-                        <PhoneInput
-                            fieldName="mobile"
-                            placeholder="Enter mobile number"
-                            showLabel={true}
-                            label="Mobile"
-                        />
-                    </Col> */}
+                    <Col span={12}>
+                        <Form.Item name="mobile" label="Mobile">
+                            <PhoneInput 
+                                enableSearch 
+                                placeholder="Enter mobile number"
+                                country=""
+                            />
+                        </Form.Item>
+                    </Col>
                 </Row>
 
                 <Row gutter={16}>
@@ -442,12 +442,13 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                     </Select> */}
                 </Form.Item>
 
-                <PhoneInput
-                    fieldName="office"
-                    placeholder="Enter office phone number"
-                    showLabel={true}
-                    label="Office Phone"
-                />
+                <Form.Item name="office" label="Office Phone">
+                    <PhoneInput 
+                        enableSearch 
+                        placeholder="Enter office phone number"
+                        country=""
+                    />
+                </Form.Item>
             </Card>
         </div>
     );

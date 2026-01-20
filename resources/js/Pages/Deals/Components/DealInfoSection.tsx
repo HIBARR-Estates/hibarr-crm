@@ -505,7 +505,7 @@ export default function DealInfoSection({
                                             currentDeal.contact.mobile
                                         )}
                                         fieldName="mobile"
-                                        fieldType="text"
+                                        fieldType="phone"
                                         onSave={(value) =>
                                             handleFieldUpdate("mobile", value)
                                         }

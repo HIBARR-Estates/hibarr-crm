@@ -126,6 +126,9 @@ export default function EditableField({
         } else if (fieldType === "multiselect" || Array.isArray(value)) {
             // Keep array values as arrays for multiselect
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else if (fieldType === "phone") {
+            // For phone, keep as string if it's a plain number, or pass object as-is
+            setInputValue(value ?? "");
         } else {
             setInputValue(value ?? "");
         }
@@ -284,17 +287,83 @@ export default function EditableField({
                             disabled={saving || loading}
                         />
                     ) : fieldType === "phone" ? (
-                        <PhoneInput
-                            value={inputValue as PhoneNumber | string | undefined}
-                            onChange={(val) => handleValueChange(val)}
-                            onBlur={handleBlur}
-                            onKeyDown={handleKeyPress}
-                            placeholder={placeholder}
-                            className="flex-1"
-                            disabled={saving || loading}
-                            enableSearch
-                            allowClear
-                        />
+                        (() => {
+                            // Helper function to extract and validate country code
+                            const getCountryFromPhoneNumber = (phoneStr: string): string => {
+                                if (!phoneStr || typeof phoneStr !== "string" || !phoneStr.startsWith("+")) {
+                                    return ""; // No country code to validate
+                                }
+
+                                // Extract potential country codes (1-4 digits after +)
+                                const phoneWithoutPlus = phoneStr.substring(1);
+                                
+                                // Try to match country codes from longest to shortest (up to 4 digits)
+                                for (let len = 4; len >= 1; len--) {
+                                    const potentialCode = phoneWithoutPlus.substring(0, len);
+                                    // Check if this code matches any country's phonecode
+                                    const matchingCountry = countries.find(
+                                        (country: any) => 
+                                            country.phonecode?.toString() === potentialCode ||
+                                            country.phonecode === parseInt(potentialCode, 10)
+                                    );
+                                    
+                                    if (matchingCountry && matchingCountry.iso) {
+                                        return matchingCountry.iso.toLowerCase();
+                                    }
+                                }
+                                
+                                // If no valid country code found, return Afghanistan as fallback
+                                return "af";
+                            };
+
+                            // Determine country prop based on phone number
+                            const countryProp = typeof inputValue === "string" && inputValue.startsWith("+")
+                                ? getCountryFromPhoneNumber(inputValue)
+                                : "";
+
+                            return (
+                                <PhoneInput
+                                    value={
+                                        // antd-phone-input accepts both PhoneNumber objects and strings
+                                        // Pass string values directly (like "0909090900" or "+08144893734")
+                                        typeof inputValue === "string" 
+                                            ? inputValue 
+                                            : (inputValue as PhoneNumber | undefined)
+                                    }
+                                    onChange={(val) => {
+                                        // Always save as string to preserve the exact format
+                                        // This bypasses country code validation and keeps the number as-is
+                                        if (val && typeof val === "object" && "phoneNumber" in val) {
+                                            // If PhoneNumber object is returned, reconstruct the full number
+                                            const countryCode = val.countryCode || "";
+                                            const phoneNum = val.phoneNumber || "";
+                                            const areaCode = val.areaCode || "";
+                                            // If original had + prefix, preserve it; otherwise just save the number
+                                            const originalHasPlus = typeof inputValue === "string" && inputValue.startsWith("+");
+                                            if (originalHasPlus && countryCode) {
+                                                handleValueChange(`+${countryCode}${areaCode}${phoneNum}`);
+                                            } else {
+                                                handleValueChange(phoneNum || val);
+                                            }
+                                        } else if (typeof val === "string") {
+                                            // Save string as-is (preserves + prefix and full format)
+                                            handleValueChange(val);
+                                        } else {
+                                            handleValueChange(val);
+                                        }
+                                    }}
+                                    onBlur={handleBlur}
+                                    onKeyDown={handleKeyPress}
+                                    placeholder={placeholder}
+                                    className="flex-1"
+                                    disabled={saving || loading}
+                                    enableSearch
+                                    allowClear
+                                    // Set country to Afghanistan if country code is invalid, otherwise use detected country
+                                    country={countryProp}
+                                />
+                            );
+                        })()
                     ) : fieldType === "date" ? (
                         <Input
                             type="date"

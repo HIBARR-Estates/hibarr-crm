@@ -2,6 +2,7 @@ import React from "react";
 import { Form, Input, Select, Row, Col } from "antd";
 import { CreateLeadFormData } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
+import PhoneInput from "antd-phone-input";
 
 interface ContactDetailsTabProps {
     data: CreateLeadFormData;
@@ -55,10 +56,12 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
                         validateStatus={errors.cell ? "error" : ""}
                         help={errors.cell}
                     >
-                        <Input
+                        <PhoneInput
+                            enableSearch
                             placeholder="Enter cell phone number"
                             value={data.cell}
-                            onChange={(e) => setData("cell", e.target.value)}
+                            onChange={(val) => setData("cell", val)}
+                            country=""
                         />
                     </Form.Item>
                 </Col>
@@ -69,10 +72,12 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
                         validateStatus={errors.office ? "error" : ""}
                         help={errors.office}
                     >
-                        <Input
+                        <PhoneInput
+                            enableSearch
                             placeholder="Enter office phone number"
                             value={data.office}
-                            onChange={(e) => setData("office", e.target.value)}
+                            onChange={(val) => setData("office", val)}
+                            country=""
                         />
                     </Form.Item>
                 </Col>

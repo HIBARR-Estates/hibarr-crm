@@ -22,6 +22,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import axios from "axios";
 import FormDataSelector from "@/Components/FormDataSelector";
+import PhoneInput from "antd-phone-input";
 
 type FlowStep = "search" | "create" | "selected";
 
@@ -308,7 +309,11 @@ const StepOne: React.FC<StepOneProps> = ({
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item name="phone" label="Phone">
-                            <Input placeholder="Phone number" />
+                            <PhoneInput 
+                                enableSearch 
+                                placeholder="Phone number"
+                                country=""
+                            />
                         </Form.Item>
                     </Col>
                     {leadType === "agent" && (

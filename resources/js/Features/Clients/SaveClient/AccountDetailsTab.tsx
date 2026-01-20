@@ -19,7 +19,7 @@ import {
     UploadOutlined,
 } from "@ant-design/icons";
 import { Lead, Country, ClientCategory, Salutation, Language } from "@/Types";
-import PhoneInput from "@/Components/PhoneInput";
+import PhoneInput from "antd-phone-input";
 import { usePage } from "@inertiajs/react";
 
 const { Title } = Typography;
@@ -192,11 +192,13 @@ const AccountDetailsTab: React.FC<Props> = ({
                         </Col>
 
                         <Col span={8}>
-                            <PhoneInput
-                                fieldName="mobile"
-                                showLabel={true}
-                                label="Mobile"
-                            />
+                            <Form.Item name="mobile" label="Mobile">
+                                <PhoneInput 
+                                    enableSearch 
+                                    placeholder="Enter mobile number"
+                                    country=""
+                                />
+                            </Form.Item>
                         </Col>
                     </Row>
                 </Col>

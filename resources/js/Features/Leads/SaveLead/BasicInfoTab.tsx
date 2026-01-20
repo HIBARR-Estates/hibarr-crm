@@ -17,6 +17,7 @@ import { LeadFormProps } from "./LeadForm";
 import LeadDealCreation from "./LeadDealCreation";
 import dayjs from "dayjs";
 import FormDataSelector from "@/Components/FormDataSelector";
+import PhoneInput from "antd-phone-input";
 
 interface BasicInfoTabProps
     extends Pick<
@@ -145,7 +146,11 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         <Col span={8}>
                             <Form.Item label="Mobile" name="mobile">
-                                <Input placeholder="Enter mobile number" />
+                                <PhoneInput 
+                                    enableSearch 
+                                    placeholder="Enter mobile number"
+                                    country=""
+                                />
                             </Form.Item>
                         </Col>
 

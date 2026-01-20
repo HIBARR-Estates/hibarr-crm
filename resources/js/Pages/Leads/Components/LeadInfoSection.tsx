@@ -543,7 +543,7 @@ export default function LeadInfoSection({
                                         ""
                                     }
                                     fieldName="mobile"
-                                    fieldType="text"
+                                    fieldType="phone"
                                     onSave={(value) =>
                                         handleFieldUpdate("mobile", value)
                                     }
@@ -565,7 +565,7 @@ export default function LeadInfoSection({
                                     ""
                                 }
                                 fieldName="office"
-                                fieldType="text"
+                                fieldType="phone"
                                 onSave={(value) =>
                                     handleFieldUpdate("office", value)
                                 }

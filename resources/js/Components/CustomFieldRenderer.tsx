@@ -258,8 +258,10 @@ const CustomFieldRenderer: React.FC<Props> = ({
                     : []
             }
         >
-            <PhoneInput enableSearch
+            <PhoneInput 
+                enableSearch
                 placeholder={`Enter ${field.label}`}
+                country=""
             />
         </Form.Item>
     );

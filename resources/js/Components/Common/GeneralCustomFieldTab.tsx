@@ -373,7 +373,11 @@ const GeneralCustomFieldTab = <
                 },
             ]}
         >
-            <PhoneInput enableSearch placeholder={field.label} />
+            <PhoneInput 
+                enableSearch 
+                placeholder={field.label}
+                country=""
+            />
         </Form.Item>
     );
 

@@ -16,6 +16,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { IModalProps } from "@/Types/common";
+import PhoneInput from "antd-phone-input";
 
 interface DataQualityRecord {
     id: number;
@@ -226,7 +227,11 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                         </Form.Item>
 
                         <Form.Item name="mobile" label="Phone Number">
-                            <Input placeholder="Enter phone number" />
+                            <PhoneInput 
+                                enableSearch 
+                                placeholder="Enter phone number"
+                                country=""
+                            />
                         </Form.Item>
                     </div>
 
