@@ -4,11 +4,18 @@ import { IModalProps } from "@/Types/common";
 import { router, usePage } from "@inertiajs/react";
 import { Button, Form, message, Modal, Select } from "antd";
 import { useState } from "react";
+import type { DeveloperProjectOption } from "@/Types/developerProject";
 
 interface Props extends IModalProps {
     ids: number[];
 }
 
+/**
+ * Modal for bulk assigning properties to a Developer Project.
+ *
+ * Updated to use DeveloperProject model instead of legacy Project.
+ * Developer selection is temporarily hidden (pinned for future implementation).
+ */
 const BulkAssignPropertiesToProject: React.FC<Props> = ({
     ids,
     open,
@@ -16,20 +23,12 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
 }) => {
     const { props } = usePage<IndexProps>();
 
-    const developers = props?.developers;
-    const projects = props?.projects;
+    // Use developerProjects from props (updated in PropertyController)
+    const developerProjects = (props?.developerProjects ||
+        []) as DeveloperProjectOption[];
 
     const [assignProjectLoading, setAssignProjectLoading] = useState(false);
     const [projectForm] = Form.useForm();
-    const [selectedDeveloper, setSelectedDeveloper] = useState<number | null>(
-        null
-    );
-
-    const filteredProjects = selectedDeveloper
-        ? projects.filter(
-              (project) => project.project_admin?.id === selectedDeveloper
-          )
-        : projects;
 
     const handleAssignToProject = () => {
         projectForm.validateFields().then((values) => {
@@ -44,7 +43,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                 {
                     onSuccess: () => {
                         message.success(
-                            "Properties assigned to project successfully"
+                            "Properties assigned to project successfully",
                         );
 
                         onClose(true);
@@ -57,14 +56,14 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                     onFinish: () => {
                         setAssignProjectLoading(false);
                     },
-                }
+                },
             );
         });
     };
 
     return (
         <Modal
-            title="Assign Properties to Project"
+            title="Assign Properties to Developer Project"
             open={open}
             onCancel={() => !assignProjectLoading && onClose()}
             footer={[
@@ -89,43 +88,16 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                 <p>
                     You are about to assign{" "}
                     {pluralOrSingular(ids.length, "a property", "properties")}{" "}
-                    to a project.
+                    to a developer project.
+                </p>
+                <p className="text-gray-500 text-sm mt-1">
+                    Note: Properties can only belong to one project at a time.
                 </p>
             </div>
             <Form form={projectForm} layout="vertical">
                 <Form.Item
-                    name="developer_id"
-                    label="Select Developer"
-                    rules={[
-                        {
-                            required: true,
-                            message: "Please select a developer",
-                        },
-                    ]}
-                >
-                    <Select
-                        placeholder="Choose a developer"
-                        onChange={(value) => {
-                            setSelectedDeveloper(value);
-                            projectForm.setFieldsValue({
-                                project_id: undefined,
-                            });
-                        }}
-                        showSearch
-                        // filterOption={(input, option) =>
-                        //     (option?.children as string)
-                        //         ?.toLowerCase()
-                        //         .includes(input.toLowerCase())
-                        // }
-                        options={developers?.map((developer) => ({
-                            label: `${developer.name} (${developer.email})`,
-                            value: developer.id,
-                        }))}
-                    />
-                </Form.Item>
-                <Form.Item
                     name="project_id"
-                    label="Select Project"
+                    label="Select Developer Project"
                     rules={[
                         {
                             required: true,
@@ -134,17 +106,17 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                     ]}
                 >
                     <Select
-                        placeholder="Choose a project"
-                        disabled={!selectedDeveloper}
+                        placeholder="Choose a developer project"
                         showSearch
-                        // filterOption={(input, option) =>
-                        //     (option?.children as string)
-                        //         ?.toLowerCase()
-                        //         .includes(input.toLowerCase())
-                        // }
-
-                        options={filteredProjects.map((project) => ({
-                            label: project.project_name,
+                        filterOption={(input, option) =>
+                            (option?.label as string)
+                                ?.toLowerCase()
+                                .includes(input.toLowerCase())
+                        }
+                        options={developerProjects.map((project) => ({
+                            label: project.location
+                                ? `${project.name} (${project.location.name})`
+                                : project.name,
                             value: project.id,
                         }))}
                     />
