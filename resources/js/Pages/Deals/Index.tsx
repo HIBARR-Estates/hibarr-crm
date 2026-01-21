@@ -130,7 +130,7 @@ const Index = ({
             leadAgents,
             props.employees,
             pipelines,
-        ]
+        ],
     );
 
     // Setup search and filter contexts
@@ -308,7 +308,7 @@ const Index = ({
                             {isTableView && selectedEntities.length > 0 && (
                                 <BulkDealActionSelector
                                     selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id
+                                        ({ id }) => id,
                                     )}
                                     stages={stages}
                                     leadAgents={leadAgents}
@@ -348,7 +348,7 @@ const Index = ({
                                             {
                                                 preserveState: true,
                                                 preserveScroll: true,
-                                            }
+                                            },
                                         );
                                     },
                                 }}
@@ -360,7 +360,8 @@ const Index = ({
 
                     {/* Kanban View */}
                     {isKanbanView && (
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
+                        <div className="">
+                            {/* <div className="bg-white rounded-lg border border-gray-200 p-4"> */}
                             <KanbanBoard
                                 columns={boardColumns}
                                 addLeadPermission={addLeadPermission}

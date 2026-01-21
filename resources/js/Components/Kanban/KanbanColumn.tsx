@@ -38,6 +38,7 @@ interface KanbanColumnProps {
     onDeleteColumn: (columnId: number) => void;
     onCreateDeal: (columnId?: number) => void;
     onEditDeal: (deal: Deal) => void;
+    onAssignAgent?: (deal: Deal) => void;
     onLoadMore?: (columnId: number) => void;
     addLeadPermission: string;
     canDelete?: boolean;
@@ -53,6 +54,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     onDeleteColumn,
     onCreateDeal,
     onEditDeal,
+    onAssignAgent,
     onLoadMore,
     addLeadPermission,
     canDelete = true,
@@ -161,7 +163,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
     if (isCollapsed) {
         return (
-            <div className="bg-gray-50 rounded-xl mr-3 w-16">
+            <div className="bg-white rounded-xl mr-3 w-16">
                 <div className="flex flex-col items-center mt-4 mx-1 p-2">
                     {/* <Button
                         type="text"
@@ -191,21 +193,14 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     }
 
     return (
-        <div className="bg-gray-50 rounded-xl mr-3 w-80 flex-shrink-0 flex flex-col max-h-full">
+        <div className="bg-white rounded-xl mr-3 w-80 flex-shrink-0 flex flex-col max-h-full">
             {/* Column Header */}
-            <div className="mx-3 mt-3 mb-1 flex-shrink-0">
+            <div className="mx-3 mt-3 mb-4 flex-shrink-0">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                        <div
-                            className="w-3 h-3 rounded-sm mr-2"
-                            style={{ backgroundColor: column.label_color }}
-                        />
-                        <p className="text-sm font-normal text-gray-600 truncate">
+                        <p className="text-base font-medium text-gray-400 truncate uppercase">
                             {column.name}
                         </p>
-                        <span className="bg-gray-200 text-xs px-2 py-1 rounded font-medium ml-2">
-                            {column.deals_count}
-                        </span>
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -221,7 +216,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                             <Dropdown
                                 menu={{ items: dropdownItems }}
                                 trigger={["click"]}
-                                placement="bottomRight"
                             >
                                 <Button
                                     type="text"
@@ -234,7 +228,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </div>
 
                 <div className="my-1 text-xl font-semibold text-gray-900">
-                    {formatCurrency(column.total_value)}
+                    <span>{formatCurrency(column.total_value)}</span>
+                    <span className="text-xs font-medium text-gray-400 ml-2">
+                        {column.deals_count} deals
+                    </span>
                 </div>
             </div>
 
@@ -282,6 +279,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                                 deal={deal}
                                 draggable={draggingEnabled}
                                 onEdit={onEditDeal}
+                                onAssignAgent={onAssignAgent || onEditDeal}
                             />
                         ))}
                     </SortableContext>

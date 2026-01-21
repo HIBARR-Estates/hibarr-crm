@@ -181,7 +181,7 @@ class DealController extends AccountBaseController
         $dealsQuery = Deal::with([
             'leadAgent.user:id,name,email,image',
             'category:id,category_name',
-            'contact:id,client_name,client_email,mobile,company_name,source_id',
+            'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id',
             'contact.leadSource',
             'pipeline:id,name',
             'leadStage:id,name,label_color,slug',
@@ -207,7 +207,12 @@ class DealController extends AccountBaseController
             'deals.updated_at',
             'deals.currency_id',
             'deals.category_id'
-        );
+        )
+        ->withCount([
+            'tasks as tasks_count',
+            'followups as meetings_count',
+            'communicationActivities as activities_count'
+        ]);
 
         // If specific stage is requested (for kanban column)
         if ($pipelineStageId) {

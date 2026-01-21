@@ -39,6 +39,7 @@ interface KanbanBoardProps {
     addLeadPermission: string;
     onCreateDeal: (columnId?: number) => void;
     onEditDeal: (deal: Deal) => void;
+    onAssignAgent?: (deal: Deal) => void;
     onEditColumn: (columnId: number) => void;
     onDeleteColumn: (columnId: number) => void;
     onLoadMore?: (columnId: number) => void;
@@ -52,6 +53,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     addLeadPermission,
     onCreateDeal,
     onEditDeal,
+    onAssignAgent,
     onEditColumn,
     onDeleteColumn,
     onLoadMore,
@@ -85,19 +87,19 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     };
                 }
                 return col;
-            })
+            }),
         );
     }, []);
 
     // API Mutations
     const { mutate: updateDealPosition } = useApiMutate(
         route("leadboards.update_index"),
-        "POST"
+        "POST",
     );
 
     const { mutate: toggleColumnCollapse } = useApiMutate(
         route("leadboards.collapse_column"),
-        "POST"
+        "POST",
     );
 
     // Drag and drop sensors - conditionally enabled
@@ -113,7 +115,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       coordinateGetter: sortableKeyboardCoordinates,
                   }),
               ]
-            : [])
+            : []),
     );
 
     const handleCollapse = useCallback(
@@ -131,7 +133,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         };
                     }
                     return col;
-                })
+                }),
             );
 
             // API call
@@ -155,13 +157,13 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                     };
                                 }
                                 return col;
-                            })
+                            }),
                         );
                     },
-                }
+                },
             );
         },
-        [toggleColumnCollapse]
+        [toggleColumnCollapse],
     );
 
     // Find the deal and column by ID
@@ -209,32 +211,32 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                     // Remove from source column
                     const sourceColumnIndex = newColumns.findIndex(
-                        (col) => col.id === result.column.id
+                        (col) => col.id === result.column.id,
                     );
                     const sourceColumn = { ...newColumns[sourceColumnIndex] };
                     sourceColumn.deals = sourceColumn.deals.filter(
-                        (d) => d.id.toString() !== dealId
+                        (d) => d.id.toString() !== dealId,
                     );
                     sourceColumn.deals_count = Math.max(
                         0,
-                        sourceColumn.deals_count - 1
+                        sourceColumn.deals_count - 1,
                     );
                     sourceColumn.total_value = sourceColumn.deals.reduce(
                         (sum, d) => sum + (d.value || 0),
-                        0
+                        0,
                     );
                     newColumns[sourceColumnIndex] = sourceColumn;
 
                     // Add to target column
                     const targetColumnIndex = newColumns.findIndex(
-                        (col) => col.id === overColumn.id
+                        (col) => col.id === overColumn.id,
                     );
                     const targetColumn = { ...newColumns[targetColumnIndex] };
                     targetColumn.deals = [...targetColumn.deals, result.deal];
                     targetColumn.deals_count = targetColumn.deals_count + 1;
                     targetColumn.total_value = targetColumn.deals.reduce(
                         (sum, d) => sum + (d.value || 0),
-                        0
+                        0,
                     );
                     newColumns[targetColumnIndex] = targetColumn;
 
@@ -255,15 +257,15 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 setColumns((prev) => {
                     const newColumns = [...prev];
                     const columnIndex = newColumns.findIndex(
-                        (col) => col.id === result.column.id
+                        (col) => col.id === result.column.id,
                     );
                     const column = { ...newColumns[columnIndex] };
 
                     const oldIndex = column.deals.findIndex(
-                        (d) => d.id.toString() === dealId
+                        (d) => d.id.toString() === dealId,
                     );
                     const newIndex = column.deals.findIndex(
-                        (d) => d.id.toString() === overId
+                        (d) => d.id.toString() === overId,
                     );
 
                     column.deals = arrayMove(column.deals, oldIndex, newIndex);
@@ -310,7 +312,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 onError: () => {
                     // Optionally handle error (e.g., revert UI changes)
                 },
-            }
+            },
         );
 
         // Notify parent component of changes
@@ -321,7 +323,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
     // Get all deal IDs for sortable context
     const allDealIds = columns.flatMap((column) =>
-        column.deals.map((deal) => deal.id.toString())
+        column.deals.map((deal) => deal.id.toString()),
     );
 
     return (
@@ -349,6 +351,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             onDeleteColumn={onDeleteColumn}
                             onCreateDeal={onCreateDeal}
                             onEditDeal={onEditDeal}
+                            onAssignAgent={onAssignAgent}
                             onLoadMore={onLoadMore}
                             addLeadPermission={addLeadPermission}
                             draggingEnabled={draggingEnabled}
@@ -371,6 +374,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         deal={activeDeal}
                         draggable={false}
                         onEdit={onEditDeal}
+                        onAssignAgent={onAssignAgent || onEditDeal}
                     />
                 ) : null}
             </DragOverlay>

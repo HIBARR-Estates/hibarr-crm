@@ -411,7 +411,7 @@ class TaskController extends AccountBaseController
 
     protected function changeBulkStatus($request)
     {
-        abort_403(user()->permission('edit_tasks') != 'all');
+        // abort_403(user()->permission('edit_tasks') != 'all');
 
         $taskBoardColumn = TaskboardColumn::findOrFail(request()->status);
 
