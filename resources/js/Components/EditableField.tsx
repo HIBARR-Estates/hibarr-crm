@@ -61,7 +61,7 @@ export default function EditableField({
     onChange,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
-    const { countries = [] } = props;
+    const { countries = [], default_currency_code } = props;
     const [editing, setEditing] = useState(alwaysEditing);
     const [inputValue, setInputValue] = useState<any>(value);
     const [saving, setSaving] = useState(false);
@@ -99,10 +99,10 @@ export default function EditableField({
                     try {
                         setInputValue(JSON.parse(value));
                     } catch {
-                        setInputValue({ amount: value, currency: "USD" });
+                        setInputValue({ amount: value, currency: default_currency_code });
                     }
                 } else {
-                    setInputValue({ amount: null, currency: "USD" });
+                    setInputValue({ amount: null, currency: default_currency_code });
                 }
             } else {
                 setInputValue(value ?? "");
@@ -147,10 +147,10 @@ export default function EditableField({
                 try {
                     setInputValue(JSON.parse(value));
                 } catch {
-                    setInputValue({ amount: value, currency: "USD" });
+                    setInputValue({ amount: value, currency: default_currency_code });
                 }
             } else {
-                setInputValue({ amount: null, currency: "USD" });
+                setInputValue({ amount: null, currency: default_currency_code  });
             }
         } else {
             setInputValue(value ?? "");
@@ -241,10 +241,10 @@ export default function EditableField({
                 try {
                     setInputValue(JSON.parse(value));
                 } catch {
-                    setInputValue({ amount: value, currency: "USD" });
+                    setInputValue({ amount: value, currency: default_currency_code });
                 }
             } else {
-                setInputValue({ amount: null, currency: "USD" });
+                setInputValue({ amount: null, currency: default_currency_code });
             }
         } else {
             setInputValue(value ?? "");

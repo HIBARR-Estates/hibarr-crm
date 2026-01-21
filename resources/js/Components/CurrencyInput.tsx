@@ -40,11 +40,11 @@ const CurrencyInput: React.FC<Props> = ({
     noFormItem = false,
 }) => {
     const { props } = usePage<any>();
-    const { currencies = [] } = props;
+    const { currencies = [], default_currency_code } = props;
 
     const [currencyData, setCurrencyData] = useState<CurrencyData>({
         amount: null,
-        currency: "USD",
+        currency: default_currency_code,
     });
 
     // Default currency symbols if currencies array is empty
@@ -74,53 +74,84 @@ const CurrencyInput: React.FC<Props> = ({
                 .map((c: CurrencyType) => c.currency_code || c.currency_name?.toUpperCase())
                 .filter((code: string | undefined): code is string => !!code);
         }
-        return ["USD", "EUR", "GBP"];
+        return [default_currency_code, "EUR", "GBP"].filter(Boolean);
     };
 
     // Parse value prop (from Form.Item or parent)
     useEffect(() => {
         if (value !== undefined) {
-            let parsedData: CurrencyData | null = null;
-
             // If value is null/undefined, reset
             if (value === null || value === undefined) {
                 setCurrencyData({
                     amount: null,
-                    currency: "USD",
+                    currency: default_currency_code,
                 });
                 return;
             }
 
-            try {
-                // Try to parse as JSON string first
-                if (typeof value === "string") {
-                    parsedData = JSON.parse(value);
-                } else if (typeof value === "object" && (value.amount !== undefined || value.currency)) {
-                    parsedData = value;
-                }
-            } catch {
-                // If not JSON and not object, treat as plain number
-                if (typeof value === "string" && !isNaN(Number(value))) {
+            // Handle plain numbers (most common case from DB)
+            if (typeof value === "number") {
+                setCurrencyData({
+                    amount: value,
+                    currency: default_currency_code,
+                });
+                return;
+            }
+
+            // Handle string numbers (e.g., "3235242")
+            if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
+                const numValue = Number(value);
+                if (!isNaN(numValue)) {
                     setCurrencyData({
-                        amount: value,
-                        currency: "USD", // default
-                    });
-                    return;
-                } else if (typeof value === "number") {
-                    setCurrencyData({
-                        amount: value,
-                        currency: "USD", // default
+                        amount: numValue,
+                        currency: default_currency_code,
                     });
                     return;
                 }
             }
 
-            if (parsedData) {
+            // Try to parse as JSON string or object
+            let parsedData: CurrencyData | null = null;
+            try {
+                if (typeof value === "string") {
+                    const parsed = JSON.parse(value);
+                    // If JSON.parse returns a number, treat it as amount
+                    if (typeof parsed === "number") {
+                        setCurrencyData({
+                            amount: parsed,
+                            currency: default_currency_code,
+                        });
+                        return;
+                    }
+                    // If it's an object with amount/currency, use it
+                    if (typeof parsed === "object" && parsed !== null) {
+                        parsedData = parsed;
+                    }
+                } else if (typeof value === "object" && value !== null) {
+                    // Check if it has the expected structure
+                    if (value.amount !== undefined || value.currency !== undefined) {
+                        parsedData = value as CurrencyData;
+                    }
+                }
+            } catch {
+                // If JSON parsing fails, treat as plain string/number
+                // This case is already handled above, so we can safely ignore
+            }
+
+            // If we have parsed data with amount/currency structure
+            if (parsedData && (parsedData.amount !== undefined || parsedData.currency !== undefined)) {
                 setCurrencyData({
                     amount: parsedData.amount ?? null,
-                    currency: parsedData.currency || "USD",
+                    currency: parsedData.currency || default_currency_code,
                 });
+                return;
             }
+
+            // Fallback: if we couldn't parse it, reset to default
+            setCurrencyData({
+                amount: null,
+                currency: default_currency_code,
+            });
         }
     }, [value]);
 
@@ -234,6 +265,45 @@ const CurrencyInput: React.FC<Props> = ({
         }
     };
 
+    // Prevent non-numeric characters from being typed
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const char = e.key;
+        // Allow: digits (0-9), decimal point (.), backspace, delete, tab, escape, enter, arrow keys
+        const allowedKeys = [
+            "Backspace", "Delete", "Tab", "Escape", "Enter",
+            "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+            "Home", "End"
+        ];
+        
+        // Allow control keys (Ctrl, Alt, Meta)
+        if (e.ctrlKey || e.altKey || e.metaKey) {
+            return;
+        }
+        
+        // Allow allowed keys
+        if (allowedKeys.includes(char)) {
+            return;
+        }
+        
+        // Allow digits
+        if (/^\d$/.test(char)) {
+            return;
+        }
+        
+        // Allow single decimal point only if one doesn't already exist
+        if (char === ".") {
+            const currentValue = String(currencyData.amount || "");
+            if (currentValue.includes(".")) {
+                e.preventDefault();
+                return;
+            }
+            return;
+        }
+        
+        // Prevent all other characters
+        e.preventDefault();
+    };
+
     const inputComponent = (
         <InputNumber
             value={currencyData.amount}
@@ -247,7 +317,7 @@ const CurrencyInput: React.FC<Props> = ({
                         value: code,
                         label: code,
                     }))}
-                    bordered={false}
+                    variant="borderless"
                     style={{ width: 90 }}
                     dropdownMatchSelectWidth={false}
                     disabled={disabled}
@@ -258,6 +328,7 @@ const CurrencyInput: React.FC<Props> = ({
             formatter={formatter}
             parser={parser}
             onChange={handleAmountChange}
+            onKeyDown={handleKeyPress}
             disabled={disabled}
             min={0}
             step="0.01"

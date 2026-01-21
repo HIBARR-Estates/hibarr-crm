@@ -152,7 +152,10 @@ export default function CustomFieldDisplay({
     globalLoading = false,
 }: Props) {
     const { props } = usePage<any>();
-    const { currencies = [] } = props;
+    const { currencies = [], default_currency_code } = props;
+
+    // Use the application's default currency (current company setting)
+    const appDefaultCurrency: string = default_currency_code;
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
         ? fields.filter(
@@ -473,17 +476,42 @@ export default function CustomFieldDisplay({
             case "password":
                 return <span className="text-gray-500">••••••••</span>;
 
-            case "currency":
+            case "currency": {
                 let currencyData: { amount: string | number | null; currency: string } | null = null;
                 
-                if (value && typeof value === "object" && value.amount !== undefined) {
-                    currencyData = value;
-                } else if (value && typeof value === "string") {
-                    try {
-                        currencyData = JSON.parse(value);
-                    } catch {
-                        currencyData = { amount: value, currency: "USD" };
+                // Handle plain numbers (most common case from DB)
+                if (typeof value === "number") {
+                    currencyData = { amount: value, currency: appDefaultCurrency };
+                } 
+                // Handle string numbers (e.g., "3235242")
+                else if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
+                    const numValue = Number(value);
+                    if (!isNaN(numValue)) {
+                        currencyData = { amount: numValue, currency: appDefaultCurrency };
                     }
+                }
+                // Handle objects with amount property
+                else if (value && typeof value === "object" && value.amount !== undefined) {
+                    currencyData = value;
+                } 
+                // Handle JSON strings
+                else if (value && typeof value === "string") {
+                    try {
+                        const parsed = JSON.parse(value);
+                        // If JSON.parse returns a number, treat it as amount
+                        if (typeof parsed === "number") {
+                            currencyData = { amount: parsed, currency: appDefaultCurrency };
+                        } else if (typeof parsed === "object" && parsed !== null) {
+                            currencyData = parsed;
+                        }
+                    } catch {
+                        currencyData = { amount: value, currency: appDefaultCurrency };
+                    }
+                }
+
+                // Ensure currencyData has a currency property with a default
+                if (currencyData) {
+                    currencyData.currency = currencyData.currency || appDefaultCurrency;
                 }
 
                 if (currencyData && currencyData.amount !== null && currencyData.amount !== "") {
@@ -493,12 +521,13 @@ export default function CustomFieldDisplay({
                         GBP: "£",
                     };
                     
-                    let symbol = defaultSymbols[currencyData.currency] || "";
-                    if (currencies.length > 0) {
+                    const currencyCode = currencyData.currency || appDefaultCurrency;
+                    let symbol = defaultSymbols[currencyCode] || "";
+                    if (currencies.length > 0 && currencyCode) {
                         const currency = currencies.find(
                             (c: any) => 
-                                c.currency_code === currencyData!.currency || 
-                                c.currency_name?.toUpperCase() === currencyData!.currency.toUpperCase()
+                                c.currency_code === currencyCode || 
+                                (c.currency_name && c.currency_name.toUpperCase() === currencyCode.toUpperCase())
                         );
                         symbol = currency?.currency_symbol || symbol;
                     }
@@ -521,6 +550,7 @@ export default function CustomFieldDisplay({
                     }
                 }
                 return <span className="text-gray-500">--</span>;
+            }
 
             default:
                 // Handle long text content with word breaking
