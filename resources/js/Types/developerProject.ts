@@ -1,0 +1,344 @@
+/**
+ * Developer Project & Expose Configuration Types
+ *
+ * These types correspond to the backend models and the ExposeProjectConfigData
+ * interface used for PDF expose generation.
+ */
+
+// ============================================
+// Project Location Types
+// ============================================
+
+export interface LocationAddress {
+    street?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postalCode?: string;
+}
+
+export interface LocationAttraction {
+    name: string;
+    content: string[];
+    images: {
+        primary: string;
+        secondary: string;
+    };
+}
+
+export interface LocationInfrastructure {
+    name: string;
+    travelTimeInMin: number;
+    image: string;
+}
+
+export interface LocationAirport {
+    name: string;
+    travelTimeInMin: number;
+    image: string;
+}
+
+export interface ProjectLocation {
+    id: number;
+    company_id: number;
+    name: string;
+    description: string | null;
+    address: LocationAddress | null;
+    map_url: string | null;
+    attractions: LocationAttraction[];
+    infrastructure: LocationInfrastructure[];
+    airports: LocationAirport[];
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    // Computed attributes
+    full_address?: string;
+    city?: string;
+    country?: string;
+}
+
+// Minimal version for dropdowns
+export interface ProjectLocationOption {
+    id: number;
+    name: string;
+    full_address?: string;
+    city?: string;
+}
+
+// ============================================
+// Developer Project Types
+// ============================================
+
+export interface DeveloperProject {
+    id: number;
+    company_id: number;
+    name: string;
+    description: string | null;
+    project_location_id: number | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    // Relations (when loaded)
+    location?: ProjectLocation;
+    expose_config?: DeveloperProjectExposeConfig;
+    properties?: Property[];
+    // Computed
+    properties_count?: number;
+}
+
+// Minimal version for dropdowns
+export interface DeveloperProjectOption {
+    id: number;
+    name: string;
+    project_location_id: number | null;
+    location?: {
+        id: number;
+        name: string;
+    };
+}
+
+// ============================================
+// Expose Configuration Types
+// ============================================
+
+// Keys for grouped images - must match backend constants
+export const GROUPED_IMAGE_KEYS = [
+    "3-block-images",
+    "floor-plans",
+    "site-images",
+    "other-images",
+] as const;
+
+export type GroupedImageKey = (typeof GROUPED_IMAGE_KEYS)[number];
+
+// Keys for info blocks - must match backend constants
+export const INFO_BLOCK_KEYS = ["garden-serenity"] as const;
+
+export type InfoBlockKey = (typeof INFO_BLOCK_KEYS)[number];
+
+export interface InfoBlock {
+    title: string;
+    subTitle: string;
+    content: string[];
+}
+
+export interface ExposeLogoConfig {
+    dark: string;
+    light: string;
+}
+
+export interface ExposeFacility {
+    name: string;
+    image: string;
+}
+
+export interface ExposeProjectOverview {
+    city: string;
+    propertyTypes: string[];
+    completionDate: string;
+    facilities: ExposeFacility[];
+    propertyOverviewImage: string;
+}
+
+export interface ExposeCostProperty {
+    type: string;
+    floor: string;
+    price: number;
+    units: number;
+}
+
+export interface ExposeAdditionalCost {
+    type: string;
+    amount: number;
+}
+
+export interface ExposeRentalProperty {
+    type: string;
+    floor: string;
+    expectedRent: number;
+    units: number;
+}
+
+export interface ExposeDeductible {
+    type: string;
+    amount: number;
+}
+
+export interface ExposeMonetaryEvaluation {
+    cost: {
+        properties: ExposeCostProperty[];
+        additionalCosts: ExposeAdditionalCost[];
+        totalCost: number;
+    };
+    expectedRentalIncome: {
+        properties: ExposeRentalProperty[];
+        deductibles: ExposeDeductible[];
+        totalIncome: number;
+    };
+    expectedCapitalGrowth: Record<string, number>; // year -> growth amount
+}
+
+export interface ExposeAgent {
+    name: string;
+    position: string;
+}
+
+export interface ExposeContactDetails {
+    agent: ExposeAgent;
+    phones: string[];
+    emails: string[];
+    websites: string[];
+    addresses: string[];
+}
+
+export interface ExposeClientDetails {
+    name: string;
+    email: string;
+}
+
+// The full expose config as stored in the database
+export interface DeveloperProjectExposeConfig {
+    id: number;
+    developer_project_id: number;
+    logo: ExposeLogoConfig | null;
+    project_overview: ExposeProjectOverview | null;
+    grouped_images: Record<GroupedImageKey, string[]> | null;
+    generic_images: string[] | null;
+    info_blocks: Record<InfoBlockKey, InfoBlock> | null;
+    monetary_evaluation: ExposeMonetaryEvaluation | null;
+    contact_details: ExposeContactDetails | null;
+    created_at: string;
+    updated_at: string;
+    // Computed from relation
+    location_details?: LocationConfig | null;
+}
+
+// LocationConfig as expected by the expose template
+export interface LocationConfig {
+    name: string;
+    description: string;
+    address: LocationAddress;
+    map: string;
+    attractions: LocationAttraction[];
+    infrastructure: LocationInfrastructure[];
+    airports: LocationAirport[];
+}
+
+// The complete expose data structure sent to PDF templates
+export interface ExposeProjectConfigData {
+    logo: ExposeLogoConfig;
+    projectOverview: ExposeProjectOverview;
+    groupedImages: Record<GroupedImageKey, string[]>;
+    genericImages: string[];
+    infoBlocks: Record<InfoBlockKey, InfoBlock>;
+    monetaryEvaluation: ExposeMonetaryEvaluation;
+    locationDetails: LocationConfig;
+    contactDetails: ExposeContactDetails;
+    clientDetails: ExposeClientDetails;
+}
+
+// ============================================
+// Form/Input Types for UI
+// ============================================
+
+export interface CreateProjectLocationInput {
+    name: string;
+    description?: string;
+    address?: LocationAddress;
+    map_url?: string;
+    attractions?: LocationAttraction[];
+    infrastructure?: LocationInfrastructure[];
+    airports?: LocationAirport[];
+}
+
+export interface UpdateProjectLocationInput extends Partial<CreateProjectLocationInput> {}
+
+export interface CreateDeveloperProjectInput {
+    name: string;
+    description?: string;
+    project_location_id?: number;
+}
+
+export interface UpdateDeveloperProjectInput extends Partial<CreateDeveloperProjectInput> {}
+
+export interface AssignPropertiesInput {
+    property_ids: number[];
+}
+
+export interface UpdateExposeConfigInput {
+    logo?: ExposeLogoConfig;
+    project_overview?: ExposeProjectOverview;
+    grouped_images?: Record<GroupedImageKey, string[]>;
+    generic_images?: string[];
+    info_blocks?: Record<InfoBlockKey, InfoBlock>;
+    monetary_evaluation?: ExposeMonetaryEvaluation;
+    contact_details?: ExposeContactDetails;
+}
+
+export interface UpdateExposeSectionInput {
+    data: any; // The section-specific data
+}
+
+export interface ExposePreviewInput {
+    client_name?: string;
+    client_email?: string;
+}
+
+// ============================================
+// API Response Types
+// ============================================
+
+export interface ProjectLocationListResponse {
+    status: "success";
+    message: string;
+    locations: {
+        data: ProjectLocation[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
+}
+
+export interface DeveloperProjectListResponse {
+    status: "success";
+    message: string;
+    projects: {
+        data: DeveloperProject[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
+}
+
+export interface ExposeConfigResponse {
+    status: "success";
+    message: string;
+    config: DeveloperProjectExposeConfig | null;
+    project: DeveloperProject;
+}
+
+export interface ExposePreviewResponse {
+    status: "success";
+    message: string;
+    exposeData: ExposeProjectConfigData;
+    project: {
+        id: number;
+        name: string;
+        property_count: number;
+    };
+}
+
+export interface ExposeValidationResponse {
+    status: "success" | "fail";
+    message: string;
+    data?: {
+        missing: string[];
+    };
+}
+
+// Import Property type from existing types (for relations)
+import type { Property } from "./index";
+
+export type { Property };

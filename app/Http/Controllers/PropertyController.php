@@ -885,7 +885,7 @@ class PropertyController extends AccountBaseController
             'property_ids' => 'required|array|min:1',
             'property_ids.*' => 'integer|exists:properties,id',
             'action_type' => 'required|string|in:assign_to_project,change_status,delete',
-            'project_id' => 'required_if:action_type,assign_to_project|integer|exists:projects,id',
+            'project_id' => 'required_if:action_type,assign_to_project|integer|exists:developer_projects,id',
             'status' => 'required_if:action_type,change_status|string|in:Available,Under offer,Sold,Withdrawn',
         ]);
 
