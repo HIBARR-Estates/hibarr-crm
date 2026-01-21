@@ -83,6 +83,7 @@ class Property extends BaseModel
 
     protected $fillable = [
         'product_id',
+        'developer_project_id',
         'property_type',
         'sale_type',
         'price',
@@ -142,6 +143,25 @@ class Property extends BaseModel
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Get the developer project this property belongs to.
+     * 
+     * A property can only belong to one project at a time.
+     * Properties inherit location context from their project.
+     */
+    public function developerProject(): BelongsTo
+    {
+        return $this->belongsTo(DeveloperProject::class);
+    }
+
+    /**
+     * Check if property is assigned to a project.
+     */
+    public function isAssignedToProject(): bool
+    {
+        return $this->developer_project_id !== null;
     }
 
     public function assets(): HasMany

@@ -8,6 +8,7 @@ import {
     // GearIcon,
     CheckSquareIcon,
 } from "../Components/icons";
+import { BuildingIcon } from "../Components/icons";
 
 // Get current path and determine active menu items
 const getCurrentPath = () => {
@@ -124,6 +125,16 @@ const useDashboardLayoutProps = () => {
             activeKeys.push("properties");
         }
 
+        // Check developer projects routes
+        if (currentPath.includes("/developer-projects")) {
+            activeKeys.push("developer-projects");
+        }
+
+        // Check project locations routes
+        if (currentPath.includes("/project-locations")) {
+            activeKeys.push("project-locations");
+        }
+
         // Check settings routes
         if (currentPath.includes("/settings")) {
             activeKeys.push("settings");
@@ -185,7 +196,7 @@ const useDashboardLayoutProps = () => {
                                         defaultPipeline
                                             ? `?lead_pipeline_id=${defaultPipeline.id}`
                                             : ""
-                                    }`
+                                    }`,
                                 );
                             }}
                         >
@@ -203,7 +214,7 @@ const useDashboardLayoutProps = () => {
                                       onClick={(e) => {
                                           e.preventDefault();
                                           router.visit(
-                                              `/account/deals?lead_pipeline_id=${pipeline.id}`
+                                              `/account/deals?lead_pipeline_id=${pipeline.id}`,
                                           );
                                       }}
                                   >
@@ -243,6 +254,21 @@ const useDashboardLayoutProps = () => {
                 ),
                 icon: <HouseDoorIcon />,
             },
+            {
+                key: "developer-projects",
+                label: (
+                    <Link
+                        href={route("developer-projects.index")}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            router.visit(route("developer-projects.index"));
+                        }}
+                    >
+                        Developer Projects
+                    </Link>
+                ),
+                icon: <BuildingIcon />,
+            },
         ].filter((item) => item.disabled !== true);
 
         return items;
@@ -252,7 +278,7 @@ const useDashboardLayoutProps = () => {
         menuItems: buildMenuItems(),
         activeMenuKeys: getActiveMenuKeys(),
         defaultOpenKeys: getActiveMenuKeys().filter((key) =>
-            ["dashboard", "hr", "work", "finance", "deals"].includes(key)
+            ["dashboard", "hr", "work", "finance", "deals"].includes(key),
         ),
     };
 };
