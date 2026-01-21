@@ -79,23 +79,27 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
             size="small"
             loading={isLoading}
             className={`
-                transition-all duration-200 cursor-pointer
-                ${isDragging ? "shadow-xl ring-2 ring-blue-400 ring-opacity-50 rotate-1" : "hover:shadow-lg hover:border-gray-300"}
-                ${isOverdue ? "border-red-200 bg-gradient-to-br from-red-50 to-white" : "border-gray-200 bg-white"}
+                transition-all duration-150 cursor-pointer rounded-lg
+                ${isDragging ? "shadow-lg ring-1 ring-blue-400 rotate-1 opacity-60" : "hover:shadow-sm hover:border-gray-300"}
+                ${isOverdue ? "border-red-200" : "border border-gray-200"}
                 ${className}
             `}
             styles={{
                 body: {
-                    padding: "14px 16px",
+                    padding: "10px 12px",
+                    backgroundColor: "#f3f4f545",
                 },
+            }}
+            style={{
+                backgroundColor: "#f3f4f545",
             }}
             variant="outlined"
         >
             {/* Header: Users + Actions */}
-            <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
                     {users.length > 0 ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                             <MultiUserIndicator
                                 users={users.map((u) => ({
                                     id: u.id,
@@ -103,7 +107,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                                     image: u.image,
                                     image_url: u.image_url,
                                 }))}
-                                size="sm"
+                                size="xs"
                                 maxCount={3}
                                 showNames={false}
                                 showTooltip={true}
@@ -112,7 +116,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                                 {users.length === 1 ? (
                                     <Tooltip title={users[0].name}>
                                         <Text
-                                            className="text-xs text-gray-600 block truncate max-w-[120px]"
+                                            className="text-[11px] text-gray-600 block truncate max-w-[100px]"
                                             ellipsis
                                         >
                                             {users[0].name}
@@ -125,11 +129,11 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                                             .join(", ")}
                                     >
                                         <Text
-                                            className="text-xs text-gray-600 block truncate max-w-[120px]"
+                                            className="text-[11px] text-gray-600 block truncate max-w-[100px]"
                                             ellipsis
                                         >
                                             {users[0].name}
-                                            <span className="text-gray-400 ml-1">
+                                            <span className="text-gray-400 ml-0.5">
                                                 +{users.length - 1}
                                             </span>
                                         </Text>
@@ -138,13 +142,13 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                             </div>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-2 h-6">
-                            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-                                <span className="text-gray-400 text-[10px]">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center">
+                                <span className="text-gray-400 text-[8px]">
                                     ?
                                 </span>
                             </div>
-                            <Text className="text-xs text-gray-400 italic">
+                            <Text className="text-[11px] text-gray-400 italic">
                                 Unassigned
                             </Text>
                         </div>
@@ -159,9 +163,9 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                     >
                         <Button
                             type="text"
-                            icon={<MoreOutlined />}
+                            icon={<MoreOutlined className="text-[14px]" />}
                             size="small"
-                            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 -mr-1 -mt-1 flex-shrink-0"
+                            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 -mr-1 flex-shrink-0 w-6 h-6 min-w-0 p-0"
                             onClick={(e) => e.stopPropagation()}
                         />
                     </Dropdown>
@@ -169,10 +173,10 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
             </div>
 
             {/* Title */}
-            <div className="mb-2" onClick={onClick}>
+            <div className="mb-1.5" onClick={onClick}>
                 <Text
                     strong
-                    className="text-sm text-gray-800 leading-snug block hover:text-blue-600 transition-colors"
+                    className="text-[13px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors font-medium"
                     ellipsis={{ tooltip: title }}
                     style={{
                         display: "-webkit-box",
@@ -188,55 +192,49 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
             {/* Description */}
             {description && (
                 <Paragraph
-                    className="text-xs text-gray-500 mb-3 leading-relaxed"
+                    className="text-[11px] text-gray-500 mb-2 leading-snug"
                     ellipsis={{
                         rows: 2,
                         tooltip: description,
                     }}
-                    style={{ marginBottom: "12px" }}
+                    style={{ marginBottom: "8px" }}
                 >
                     {description}
                 </Paragraph>
             )}
 
             {/* Footer: Due Date + Priority */}
-            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 {/* Due Date */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center">
                     {formattedDueDate ? (
                         <Tooltip title={`Due: ${fullDueDate}`}>
                             <div
-                                className={`flex items-center gap-1.5 text-xs ${
+                                className={`flex items-center gap-1 text-[10px] ${
                                     isOverdue
                                         ? "text-red-500 font-medium"
-                                        : "text-gray-500"
+                                        : "text-gray-400"
                                 }`}
                             >
-                                <CalendarOutlined
-                                    className={
-                                        isOverdue
-                                            ? "text-red-500"
-                                            : "text-gray-400"
-                                    }
-                                />
+                                <CalendarOutlined className="text-[10px]" />
                                 <span>{formattedDueDate}</span>
                             </div>
                         </Tooltip>
                     ) : (
-                        <span className="text-xs text-gray-400">
+                        <span className="text-[10px] text-gray-300">
                             No due date
                         </span>
                     )}
                 </div>
 
                 {/* Priority */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                     <span
                         className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: priorityInfo.color }}
                     />
                     <span
-                        className={`text-xs font-medium ${priorityInfo.textColor}`}
+                        className={`text-[10px] font-medium ${priorityInfo.textColor}`}
                     >
                         {priorityInfo.label}
                     </span>

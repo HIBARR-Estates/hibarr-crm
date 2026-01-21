@@ -252,6 +252,14 @@ class Deal extends BaseModel
         return $this->hasOne(DealFollowUp::class, 'deal_id')->orderByDesc('created_at');
     }
 
+    /**
+     * Simple followups relationship for counting (without permission checks)
+     */
+    public function followups(): HasMany
+    {
+        return $this->hasMany(DealFollowUp::class, 'deal_id');
+    }
+
     public function files(): HasMany
     {
         return $this->hasMany(DealFile::class, 'deal_id')->orderByDesc('created_at');
