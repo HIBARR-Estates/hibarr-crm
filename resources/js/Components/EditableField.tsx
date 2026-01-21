@@ -456,6 +456,8 @@ export default function EditableField({
                             <CurrencyInput
                                 value={inputValue}
                                 onChange={(val) => handleValueChange(val)}
+                                onBlur={handleBlur}
+                                onKeyDown={handleKeyPress}
                                 placeholder="Enter amount"
                                 noFormItem={true}
                                 disabled={saving || loading}

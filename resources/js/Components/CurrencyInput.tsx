@@ -15,6 +15,8 @@ interface Props {
     fieldName?: string;
     value?: string | any;
     onChange?: (value: any) => void;
+    onBlur?: React.FocusEventHandler<HTMLInputElement>;
+    onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
     placeholder?: string;
     showLabel?: boolean;
     label?: string;
@@ -32,6 +34,8 @@ const CurrencyInput: React.FC<Props> = ({
     fieldName,
     value,
     onChange,
+    onBlur,
+    onKeyDown,
     placeholder = "Enter the Amount in Numbers",
     showLabel = false,
     label = "Amount",
@@ -153,7 +157,7 @@ const CurrencyInput: React.FC<Props> = ({
                 currency: default_currency_code,
             });
         }
-    }, [value]);
+    }, [value, default_currency_code]);
 
     // Update form value when currency data changes
     // Note: We don't call onChange here to avoid infinite loops
@@ -304,6 +308,15 @@ const CurrencyInput: React.FC<Props> = ({
         e.preventDefault();
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Allow parent (EditableField) to handle Enter/Escape save/cancel
+        if (onKeyDown) {
+            onKeyDown(e);
+        }
+        // Keep our numeric restrictions
+        handleKeyPress(e);
+    };
+
     const inputComponent = (
         <InputNumber
             value={currencyData.amount}
@@ -328,7 +341,8 @@ const CurrencyInput: React.FC<Props> = ({
             formatter={formatter}
             parser={parser}
             onChange={handleAmountChange}
-            onKeyDown={handleKeyPress}
+            onBlur={onBlur}
+            onKeyDown={handleKeyDown}
             disabled={disabled}
             min={0}
             step="0.01"
