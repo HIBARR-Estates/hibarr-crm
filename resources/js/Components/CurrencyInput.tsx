@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { InputNumber, Select, Form } from "antd";
 import { usePage } from "@inertiajs/react";
 
@@ -45,11 +45,62 @@ const CurrencyInput: React.FC<Props> = ({
 }) => {
     const { props } = usePage<any>();
     const { currencies = [], default_currency_code } = props;
+    const effectiveDefaultCurrencyCode = default_currency_code || "TRY";
 
-    const [currencyData, setCurrencyData] = useState<CurrencyData>({
-        amount: null,
-        currency: default_currency_code,
-    });
+    // Use useMemo to stabilize the default currency code
+    const stableDefaultCurrency = useMemo(() => effectiveDefaultCurrencyCode, [effectiveDefaultCurrencyCode]);
+
+    // Parse value prop directly in render (no useEffect to avoid loops)
+    const parsedValue = useMemo((): CurrencyData => {
+        if (value === null || value === undefined) {
+            return { amount: null, currency: stableDefaultCurrency };
+        }
+
+        if (typeof value === "number") {
+            return { amount: value, currency: stableDefaultCurrency };
+        }
+
+        if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
+            const numValue = Number(value);
+            if (!isNaN(numValue)) {
+                return { amount: numValue, currency: stableDefaultCurrency };
+            }
+        }
+
+        let parsedData: CurrencyData | null = null;
+        try {
+            if (typeof value === "string") {
+                const parsed = JSON.parse(value);
+                if (typeof parsed === "number") {
+                    return { amount: parsed, currency: stableDefaultCurrency };
+                }
+                if (typeof parsed === "object" && parsed !== null) {
+                    parsedData = parsed;
+                }
+            } else if (typeof value === "object" && value !== null) {
+                if ((value as any).amount !== undefined || (value as any).currency !== undefined) {
+                    parsedData = value as CurrencyData;
+                }
+            }
+        } catch {
+            // ignore
+        }
+
+        if (parsedData && (parsedData.amount !== undefined || parsedData.currency !== undefined)) {
+            return {
+                amount: (parsedData as any).amount ?? null,
+                currency: (parsedData as any).currency || stableDefaultCurrency,
+            };
+        }
+
+        return { amount: null, currency: stableDefaultCurrency };
+    }, [value, stableDefaultCurrency]);
+
+    // Internal state only for uncontrolled mode or when value is undefined
+    const [internalCurrencyData, setInternalCurrencyData] = useState<CurrencyData>(parsedValue);
+
+    // Use parsed value if provided, otherwise use internal state
+    const currencyData = value !== undefined ? parsedValue : internalCurrencyData;
 
     // Default currency symbols if currencies array is empty
     const defaultSymbols: Record<string, string> = {
@@ -81,87 +132,27 @@ const CurrencyInput: React.FC<Props> = ({
         return [default_currency_code, "EUR", "GBP"].filter(Boolean);
     };
 
-    // Parse value prop (from Form.Item or parent)
+    // Update internal state when parsed value changes (only for uncontrolled mode)
+    // Use ref to track previous value to prevent unnecessary updates
+    const previousParsedValueRef = useRef<string | null>(null);
+    
     useEffect(() => {
-        if (value !== undefined) {
-            // If value is null/undefined, reset
-            if (value === null || value === undefined) {
-                setCurrencyData({
-                    amount: null,
-                    currency: default_currency_code,
-                });
+        if (value === undefined) {
+            // Create a stable key for comparison
+            const parsedKey = JSON.stringify(parsedValue);
+            
+            // Skip if value hasn't actually changed
+            if (previousParsedValueRef.current === parsedKey) {
                 return;
             }
-
-            // Handle plain numbers (most common case from DB)
-            if (typeof value === "number") {
-                setCurrencyData({
-                    amount: value,
-                    currency: default_currency_code,
-                });
-                return;
-            }
-
-            // Handle string numbers (e.g., "3235242")
-            if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
-                const numValue = Number(value);
-                if (!isNaN(numValue)) {
-                    setCurrencyData({
-                        amount: numValue,
-                        currency: default_currency_code,
-                    });
-                    return;
-                }
-            }
-
-            // Try to parse as JSON string or object
-            let parsedData: CurrencyData | null = null;
-            try {
-                if (typeof value === "string") {
-                    const parsed = JSON.parse(value);
-                    // If JSON.parse returns a number, treat it as amount
-                    if (typeof parsed === "number") {
-                        setCurrencyData({
-                            amount: parsed,
-                            currency: default_currency_code,
-                        });
-                        return;
-                    }
-                    // If it's an object with amount/currency, use it
-                    if (typeof parsed === "object" && parsed !== null) {
-                        parsedData = parsed;
-                    }
-                } else if (typeof value === "object" && value !== null) {
-                    // Check if it has the expected structure
-                    if (value.amount !== undefined || value.currency !== undefined) {
-                        parsedData = value as CurrencyData;
-                    }
-                }
-            } catch {
-                // If JSON parsing fails, treat as plain string/number
-                // This case is already handled above, so we can safely ignore
-            }
-
-            // If we have parsed data with amount/currency structure
-            if (parsedData && (parsedData.amount !== undefined || parsedData.currency !== undefined)) {
-                setCurrencyData({
-                    amount: parsedData.amount ?? null,
-                    currency: parsedData.currency || default_currency_code,
-                });
-                return;
-            }
-
-            // Fallback: if we couldn't parse it, reset to default
-            setCurrencyData({
-                amount: null,
-                currency: default_currency_code,
-            });
+            
+            previousParsedValueRef.current = parsedKey;
+            setInternalCurrencyData(parsedValue);
+        } else {
+            // Reset when switching to controlled mode
+            previousParsedValueRef.current = null;
         }
-    }, [value, default_currency_code]);
-
-    // Update form value when currency data changes
-    // Note: We don't call onChange here to avoid infinite loops
-    // onChange is handled directly in handleAmountChange and handleCurrencyChange
+    }, [parsedValue, value]);
 
     const handleAmountChange = (amount: string | number | null) => {
         try {
@@ -183,7 +174,11 @@ const CurrencyInput: React.FC<Props> = ({
             }
             
             const newData = { ...currencyData, amount: normalizedAmount };
-            setCurrencyData(newData);
+            
+            // Update internal state only if uncontrolled
+            if (value === undefined) {
+                setInternalCurrencyData(newData);
+            }
             
             if (onChange) {
                 if (normalizedAmount !== null && normalizedAmount !== "") {
@@ -202,7 +197,12 @@ const CurrencyInput: React.FC<Props> = ({
 
     const handleCurrencyChange = (currency: string) => {
         const newData = { ...currencyData, currency };
-        setCurrencyData(newData);
+        
+        // Update internal state only if uncontrolled
+        if (value === undefined) {
+            setInternalCurrencyData(newData);
+        }
+        
         if (onChange) {
             if (newData.amount !== null && newData.amount !== "") {
                 onChange({
@@ -331,8 +331,7 @@ const CurrencyInput: React.FC<Props> = ({
                         label: code,
                     }))}
                     variant="borderless"
-                    style={{ width: 90 }}
-                    dropdownMatchSelectWidth={false}
+                    popupMatchSelectWidth={false}
                     disabled={disabled}
                 />
             }

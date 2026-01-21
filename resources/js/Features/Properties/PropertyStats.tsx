@@ -7,21 +7,39 @@ import {
     CalendarOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
+import { usePage } from "@inertiajs/react";
+import { formatCurrencyWithSymbol, parsePropertyPrice } from "@/lib/utils";
 
 interface PropertyStatsProps {
     property: Property;
 }
 
 export default function PropertyStats({ property }: PropertyStatsProps) {
-    const formatCurrency = (amount: number): string => {
-        return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-            minimumFractionDigits: 0,
-        }).format(amount);
-    };
+    const { props } = usePage<any>();
+    const {
+        default_currency_code: defaultCurrencyCode,
+        default_currency_symbol: defaultCurrencySymbol,
+        currencies = [],
+    } = props || {};
+
+    const { amount: priceAmount, currency: priceCurrency } = parsePropertyPrice(
+        (property as any).price,
+        defaultCurrencyCode || "TRY"
+    );
+
+    const priceSymbol =
+        currencies.find((c: any) => c?.currency_code === priceCurrency)?.currency_symbol ||
+        defaultCurrencySymbol ||
+        "";
 
     const stats = [
+        {
+            title: "Price",
+            value: formatCurrencyWithSymbol(priceAmount, priceSymbol),
+            icon: <BankOutlined className="text-green-600" />,
+            // Always show price (it can be 0 for legacy nulls)
+            show: true,
+        },
         {
             title: "Bedrooms",
             value: property.bedrooms || "N/A",

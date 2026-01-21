@@ -123,7 +123,7 @@ class Property extends BaseModel
     protected $hidden = ["pivot"];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        // price is now VARCHAR storing JSON string, so no cast needed
         'land_size' => 'decimal:2',
         'minimal_rental_period' => 'integer',
         'building_age' => 'integer',

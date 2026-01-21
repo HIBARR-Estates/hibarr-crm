@@ -1,8 +1,9 @@
 import {
-    formatCurrency,
     getPropertyTypeColor,
     getStatusColor,
     truncateText,
+    parsePropertyPrice,
+    formatCurrencyWithSymbol,
 } from "@/lib/utils";
 import { Property } from "@/Types";
 import { Link } from "@inertiajs/react";
@@ -14,7 +15,9 @@ import dayjs from "dayjs";
 
 export const PROPERTY_TABLE_COLUMNS = (
     actionItems?: (item: Property) => MenuProps["items"],
-    currencyCode: string | null | undefined = "GBP"
+    currencies: any[] = [],
+    defaultCurrencyCode: string | null | undefined = "TRY",
+    defaultCurrencySymbol: string | null | undefined = ""
 ): ColumnsType<Property> => [
     {
         title: (
@@ -67,14 +70,25 @@ export const PROPERTY_TABLE_COLUMNS = (
         dataIndex: "price",
         key: "price",
         width: 120,
-        render: (price: number, record: Property) => (
-            <div className="font-medium">
-                {formatCurrency(price, currencyCode)}
-                {record.sale_type === "rent" && (
-                    <span className="text-xs text-gray-500">/month</span>
-                )}
-            </div>
-        ),
+        render: (price: any, record: Property) => {
+            const { amount, currency } = parsePropertyPrice(
+                price,
+                defaultCurrencyCode || "TRY"
+            );
+            const symbol =
+                currencies.find((c: any) => c?.currency_code === currency)?.currency_symbol ||
+                defaultCurrencySymbol ||
+                "";
+
+            return (
+                <div className="font-medium">
+                    {formatCurrencyWithSymbol(amount, symbol)}
+                    {record.sale_type === "rent" && (
+                        <span className="text-xs text-gray-500">/month</span>
+                    )}
+                </div>
+            );
+        },
     },
     {
         title: "Location",

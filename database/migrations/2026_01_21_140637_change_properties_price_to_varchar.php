@@ -1,0 +1,109 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use App\Models\Property;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // First, convert existing decimal prices to JSON format
+        // Get default currency code from company settings
+        $defaultCurrencyCode = 'TRY'; // Default fallback
+        
+        try {
+            if (function_exists('company')) {
+                $company = company();
+                if ($company && $company->currency) {
+                    $defaultCurrencyCode = $company->currency->currency_code ?? 'TRY';
+                }
+            }
+        } catch (\Exception $e) {
+            // Use default if company() fails
+        }
+
+        // Convert all existing decimal prices to JSON format
+        DB::table('properties')
+            ->whereNotNull('price')
+            ->chunkById(100, function ($properties) use ($defaultCurrencyCode) {
+                foreach ($properties as $property) {
+                    $priceValue = $property->price;
+                    
+                    // Skip if already null or empty
+                    if ($priceValue === null || $priceValue === '') {
+                        continue;
+                    }
+                    
+                    // If it's already a JSON string, skip
+                    if (is_string($priceValue) && (strpos(trim($priceValue), '{') === 0 || strpos(trim($priceValue), '[') === 0)) {
+                        try {
+                            json_decode($priceValue, true);
+                            continue; // Valid JSON, skip
+                        } catch (\Exception $e) {
+                            // Not valid JSON, continue to conversion
+                        }
+                    }
+                    
+                    // Convert decimal/numeric to JSON format
+                    $amount = is_numeric($priceValue) ? (float) $priceValue : 0;
+                    $priceData = [
+                        'amount' => $amount,
+                        'currency' => $defaultCurrencyCode
+                    ];
+                    
+                    DB::table('properties')
+                        ->where('id', $property->id)
+                        ->update(['price' => json_encode($priceData)]);
+                }
+            });
+
+        // Change the column type from decimal to varchar
+        Schema::table('properties', function (Blueprint $table) {
+            $table->string('price', 255)->nullable()->change();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        // Convert JSON prices back to decimal (extract amount)
+        DB::table('properties')
+            ->whereNotNull('price')
+            ->chunkById(100, function ($properties) {
+                foreach ($properties as $property) {
+                    $priceValue = $property->price;
+                    
+                    if ($priceValue === null || $priceValue === '') {
+                        continue;
+                    }
+                    
+                    // Try to parse as JSON
+                    $decoded = json_decode($priceValue, true);
+                    if (is_array($decoded) && isset($decoded['amount'])) {
+                        $amount = (float) $decoded['amount'];
+                    } elseif (is_numeric($priceValue)) {
+                        $amount = (float) $priceValue;
+                    } else {
+                        $amount = 0;
+                    }
+                    
+                    DB::table('properties')
+                        ->where('id', $property->id)
+                        ->update(['price' => $amount]);
+                }
+            });
+
+        // Change the column type back to decimal
+        Schema::table('properties', function (Blueprint $table) {
+            $table->decimal('price', 15, 2)->nullable()->change();
+        });
+    }
+};

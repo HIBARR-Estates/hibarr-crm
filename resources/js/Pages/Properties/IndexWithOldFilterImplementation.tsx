@@ -66,6 +66,8 @@ export default function Index({
     pageTitle,
     properties,
     default_currency_code: currencyCode,
+    default_currency_symbol: currencySymbol,
+    currencies = [],
 }: IndexProps) {
     const {
         handleAction,
@@ -151,7 +153,7 @@ export default function Index({
     ];
 
     // Table columns
-    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencyCode);
+    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencies, currencyCode, currencySymbol);
 
     return (
         <DashboardLayout>

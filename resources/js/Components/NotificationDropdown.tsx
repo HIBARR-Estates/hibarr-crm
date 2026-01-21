@@ -319,7 +319,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
     return (
         <Dropdown
-            dropdownRender={() => dropdownContent}
+            popupRender={() => dropdownContent}
             trigger={["click"]}
             open={open}
             onOpenChange={setOpen}
