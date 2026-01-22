@@ -13,7 +13,7 @@ interface DealFilterProps {
 }
 
 export const createDealFilterConfig = (
-    props: DealFilterProps
+    props: DealFilterProps,
 ): FilterConfig => {
     const fields = [
         {
@@ -47,7 +47,7 @@ export const createDealFilterConfig = (
                     props.stages
                         ?.filter(
                             (stage: any) =>
-                                stage.lead_pipeline_id === pipelineId
+                                stage.lead_pipeline_id === pipelineId,
                         )
                         .map((stage: any) => ({
                             value: stage.id,
@@ -86,10 +86,11 @@ export const createDealFilterConfig = (
             type: "select" as const,
             placeholder: "Select agent",
             span: 12,
-            options: props.leadAgents?.map((agent: any) => ({
-                value: agent.user?.id || agent.user_id,
-                label: agent.user?.name || agent.name,
-            })) || [],
+            options:
+                props.leadAgents?.map((agent: any) => ({
+                    value: agent.user?.id || agent.user_id,
+                    label: agent.user?.name || agent.name,
+                })) || [],
         },
         {
             key: "package_id",
