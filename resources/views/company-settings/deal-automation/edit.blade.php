@@ -17,18 +17,18 @@
 
             <div class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100 p-4 ">
                 @if(isset($automation->id))
-                    <form method="POST" id="save-automation-form" action="{{ route('deal-automations.update', $automation->id) }}">
-                    @method('PUT')
+                    <input type="hidden" name="_form_action" id="form-action-url" value="{{ route('deal-automations.update', $automation->id) }}">
+                    <input type="hidden" name="_form_method" id="form-method" value="PUT">
                 @else
-                    <form method="POST" id="save-automation-form" action="{{ route('deal-automations.store') }}">
+                    <input type="hidden" name="_form_action" id="form-action-url" value="{{ route('deal-automations.store') }}">
+                    <input type="hidden" name="_form_method" id="form-method" value="POST">
                 @endif
-                @csrf
 
                 <div class="alert alert-info mb-4">
                     <h5 class="alert-heading f-14 font-weight-bold"><i class="fa fa-info-circle"></i> How Automations Work</h5>
                     <p class="mb-0 f-13">
                         This rule runs only when the selected trigger event happens. It does not lock the deal state. 
-                        If a user manually moves a deal, this automation will not revert it unless a new event triggers the rule again.
+                        If a user manually movejbjkjhs a deal, this automation will not revert it unless a new event triggers the rule again.
                     </p>
                 </div>
 
@@ -112,7 +112,6 @@
                 </div>
                 <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-action"><i class="fa fa-plus"></i> Add Action</button>
 
-                </form>
             </div>
 
             <x-slot name="action">
@@ -298,14 +297,28 @@
             $('.forward-only-check').trigger('change');
 
             $('#save-automation').click(function() {
+                // Get form data and replace _method with the correct one for this action
+                var formData = $('#editSettings').serializeArray();
+                
+                // Remove any existing _method entries
+                formData = formData.filter(function(item) {
+                    return item.name !== '_method';
+                });
+                
+                // Add the correct _method based on create vs update
+                var method = $('#form-method').val();
+                if (method === 'PUT') {
+                    formData.push({ name: '_method', value: 'PUT' });
+                }
+                
                 $.easyAjax({
-                    url: $('#save-automation-form').attr('action'),
-                    container: '#save-automation-form',
+                    url: $('#form-action-url').val(),
+                    container: '#editSettings',
                     type: "POST",
                     disableButton: true,
                     blockUI: true,
                     buttonSelector: "#save-automation",
-                    data: $('#save-automation-form').serialize(),
+                    data: $.param(formData),
                     redirect: true
                 })
             });
