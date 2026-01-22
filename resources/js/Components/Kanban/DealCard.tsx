@@ -10,12 +10,14 @@ import {
     MessageOutlined,
     EditOutlined,
     UserAddOutlined,
+    EyeOutlined,
 } from "@ant-design/icons";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import MultiUserIndicator from "../MultiUserIndicator";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 
 const { Text } = Typography;
 
@@ -44,6 +46,9 @@ const DealCard: React.FC<DealCardProps> = ({
         disabled: !draggable,
     });
 
+    // Get deal permissions to check if user can edit
+    const { canEdit } = useDealPermissions(deal);
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
@@ -68,28 +73,46 @@ const DealCard: React.FC<DealCardProps> = ({
           ]
         : [];
 
-    // Action items for dropdown
+    // Action items for dropdown - conditionally include edit based on permissions
     const actionItems: MenuProps["items"] = [
+        // View deal - always available
         {
-            key: "edit",
-            icon: <EditOutlined />,
-            label: "Edit Deal",
-            onClick: (e) => {
-                e.domEvent.stopPropagation();
-                e.domEvent.preventDefault();
-                onEdit?.(deal);
-            },
+            key: "view",
+            icon: <EyeOutlined />,
+            label: <Link href={route("deals.show", deal.id)}>View Deal</Link>,
         },
-        {
-            key: "assign",
-            icon: <UserAddOutlined />,
-            label: deal.lead_agent ? "Reassign Agent" : "Assign Agent",
-            onClick: (e) => {
-                e.domEvent.stopPropagation();
-                e.domEvent.preventDefault();
-                onAssignAgent?.(deal);
-            },
-        },
+        // Edit deal - only if user has edit permission (not for watchers)
+        ...(canEdit
+            ? [
+                  {
+                      key: "edit",
+                      icon: <EditOutlined />,
+                      label: "Edit Deal",
+                      onClick: (e: any) => {
+                          e.domEvent.stopPropagation();
+                          e.domEvent.preventDefault();
+                          onEdit?.(deal);
+                      },
+                  },
+              ]
+            : []),
+        // Assign agent - only if user has edit permission (not for watchers)
+        ...(canEdit
+            ? [
+                  {
+                      key: "assign",
+                      icon: <UserAddOutlined />,
+                      label: deal.lead_agent
+                          ? "Reassign Agent"
+                          : "Assign Agent",
+                      onClick: (e: any) => {
+                          e.domEvent.stopPropagation();
+                          e.domEvent.preventDefault();
+                          onAssignAgent?.(deal);
+                      },
+                  },
+              ]
+            : []),
     ];
 
     return (
