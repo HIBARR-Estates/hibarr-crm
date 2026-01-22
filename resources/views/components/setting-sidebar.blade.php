@@ -27,6 +27,9 @@
             <x-setting-menu-item :active="$activeMenu" menu="business_address" :href="route('business-address.index')"
                                  :text="__('app.menu.businessAddresses')"/>
 
+            <x-setting-menu-item :active="$activeMenu" menu="packages" :href="route('packages.index')"
+                                 :text="__('app.menu.packages')"/>
+
             <x-setting-menu-item :active="$activeMenu" menu="deal_automations" :href="route('company-settings.deal_automations')"
                                                       :text="__('app.menu.dealAutomations')"/>
 
