@@ -603,6 +603,10 @@ export default function CustomFieldDisplay({
             return formatFieldValue(field, value);
         }
 
+        // Use editable prop as alwaysEditing when alwaysEditing is not explicitly set
+        // This ensures edit mode works the same as DealDetailsTab
+        const effectiveAlwaysEditing = alwaysEditing || editable;
+
         return (
             <EditableField
                 value={value}
@@ -612,7 +616,7 @@ export default function CustomFieldDisplay({
                 options={options}
                 displayValue={formatFieldValue(field, value)}
                 loading={isFieldLoading}
-                alwaysEditing={alwaysEditing}
+                alwaysEditing={effectiveAlwaysEditing}
                 onChange={onChange}
             />
         );
