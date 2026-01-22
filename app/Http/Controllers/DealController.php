@@ -165,6 +165,9 @@ class DealController extends AccountBaseController
                 'lead_pipeline_id',
                 'pipeline_stage_id',
                 'category_id',
+                'source_id',
+                'package_id',
+                'agent_id',
                 'search',
                 'start_date',
                 'end_date',
@@ -242,6 +245,20 @@ class DealController extends AccountBaseController
 
         if ($request->filled('category_id') && $request->category_id !== 'all') {
             $dealsQuery->where('deals.category_id', $request->category_id);
+        }
+
+        // Filter by lead source (via contact)
+        if ($request->filled('source_id') && $request->source_id !== 'all') {
+            $dealsQuery->whereHas('contact', function ($q) use ($request) {
+                $q->where('source_id', $request->source_id);
+            });
+        }
+
+        // Filter by package
+        if ($request->filled('package_id') && $request->package_id !== 'all') {
+            $dealsQuery->whereHas('packages', function ($q) use ($request) {
+                $q->where('packages.id', $request->package_id);
+            });
         }
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
