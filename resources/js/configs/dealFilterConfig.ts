@@ -4,6 +4,8 @@ interface DealFilterProps {
     leadPipelines?: any[];
     stages?: any[];
     categories?: any[];
+    sources?: any[];
+    packages?: any[];
     leadAgents?: any[];
     nonActiveLeadAgents?: any[];
     excludeFields?: string[];
@@ -59,11 +61,46 @@ export const createDealFilterConfig = (
             label: "Category",
             type: "select" as const,
             placeholder: "Select category",
-            span: 24,
+            span: 12,
             options:
                 props.categories?.map((category: any) => ({
                     value: category.id,
                     label: category.category_name,
+                })) || [],
+        },
+        {
+            key: "source_id",
+            label: "Lead Source",
+            type: "select" as const,
+            placeholder: "Select lead source",
+            span: 12,
+            options:
+                props.sources?.map((source: any) => ({
+                    value: source.id,
+                    label: source.type,
+                })) || [],
+        },
+        {
+            key: "agent_id",
+            label: "Assigned Agent",
+            type: "select" as const,
+            placeholder: "Select agent",
+            span: 12,
+            options: props.leadAgents?.map((agent: any) => ({
+                value: agent.user?.id || agent.user_id,
+                label: agent.user?.name || agent.name,
+            })) || [],
+        },
+        {
+            key: "package_id",
+            label: "Package",
+            type: "select" as const,
+            placeholder: "Select package",
+            span: 12,
+            options:
+                props.packages?.map((pkg: any) => ({
+                    value: pkg.id,
+                    label: pkg.name,
                 })) || [],
         },
         {
@@ -75,83 +112,6 @@ export const createDealFilterConfig = (
                 // This will be handled by the daterange type automatically
                 return value;
             },
-        },
-        // {
-        //     key: "agent_status",
-        //     label: "Agent Status",
-        //     type: "select" as const,
-        //     placeholder: "Select status",
-        //     span: 12,
-        //     options: [
-        //         { value: "active", label: "Active Agents" },
-        //         { value: "inactive", label: "Inactive Agents" },
-        //         { value: "all", label: "All Agents" },
-        //         { value: "unassigned", label: "No Lead Agent" },
-        //     ],
-        //     defaultValue: "active",
-        // },
-        // {
-        //     key: "agent_id",
-        //     label: "Assigned Agent",
-        //     type: "select" as const,
-        //     placeholder: "Select agent",
-        //     span: 12,
-        //     dependsOn: "agent_status",
-        //     filterOptions: (agentStatus: string) => {
-        //         if (agentStatus === "unassigned") return [];
-
-        //         let agents = [];
-        //         if (agentStatus === "active" || !agentStatus) {
-        //             agents = props.leadAgents || [];
-        //         } else if (agentStatus === "inactive") {
-        //             agents = props.nonActiveLeadAgents || [];
-        //         } else {
-        //             // All
-        //             agents = [
-        //                 ...(props.leadAgents || []),
-        //                 ...(props.nonActiveLeadAgents || []),
-        //             ];
-        //         }
-
-        //         return agents.map((agent: any) => ({
-        //             value: agent.user?.id || agent.user_id, // Use user_id as value because backend filters by user_id
-        //             label: agent.user?.name || agent.name,
-        //         }));
-        //     },
-        //     options: [], // Options are handled by filterOptions
-        // },
-        {
-            key: "agent_id",
-            label: "Assigned Agent",
-            type: "select" as const,
-            placeholder: "Select agent",
-            span: 12,
-            dependsOn: "agent_status",
-            filterOptions: (agentStatus: string) => {
-                if (agentStatus === "unassigned") return [];
-
-                let agents = [];
-                if (agentStatus === "active" || !agentStatus) {
-                    agents = props.leadAgents || [];
-                } else if (agentStatus === "inactive") {
-                    agents = props.nonActiveLeadAgents || [];
-                } else {
-                    // All
-                    agents = [
-                        ...(props.leadAgents || []),
-                        ...(props.nonActiveLeadAgents || []),
-                    ];
-                }
-
-                return agents.map((agent: any) => ({
-                    value: agent.user?.id || agent.user_id, // Use user_id as value because backend filters by user_id
-                    label: agent.user?.name || agent.name,
-                }));
-            },
-            options: props.leadAgents?.map((agent: any) => ({
-                value: agent.user?.id || agent.user_id, // Use user_id as value because backend filters by user_id
-                label: agent.user?.name || agent.name,
-            })),
         },
         {
             key: "value_range",
