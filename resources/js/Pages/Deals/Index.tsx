@@ -14,6 +14,7 @@ import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createDealFilterConfig from "@/configs/dealFilterConfig";
 import { createDealSearchConfig } from "@/configs/searchConfigs";
+import { getDealPermissions } from "@/Hooks/useDealPermissions";
 import {
     UserOutlined,
     PlusOutlined,
@@ -24,7 +25,7 @@ import {
     ImportOutlined,
     FilterOutlined,
 } from "@ant-design/icons";
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Button, MenuProps, Select, Table } from "antd";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
@@ -89,6 +90,11 @@ const Index = ({
     addLeadPermission = "all",
     ...props
 }: IndexProps) => {
+    // Get current user and permissions for deal permission checks
+    const { props: pageProps } = usePage<any>();
+    const currentUser = pageProps.auth?.user;
+    const editDealsPermission = pageProps.auth?.permissions?.edit_deals;
+
     // View mode state: table or kanban
     const [view, setView] = useState<"kanban" | "table">("table");
 
@@ -178,57 +184,77 @@ const Index = ({
     const handleImportDeals = () => {
         handleAction("import");
     };
-    // Action dropdown for each row
-    const getActionItems = (record: Deal): MenuProps["items"] => [
-        {
-            key: "view",
-            label: (
-                <Link href={route("deals.show", record.id)}>
-                    <EyeOutlined className="mr-2" />
-                    View
-                </Link>
-            ),
-        },
-        {
-            key: "edit",
-            label: (
-                <span>
-                    <EditOutlined className="mr-2" />
-                    Edit
-                </span>
-            ),
-            onClick: () => {
-                handleEditDeal(record);
+
+    // Action dropdown for each row - respects deal permissions (watchers can't edit/delete)
+    const getActionItems = (record: Deal): MenuProps["items"] => {
+        // Get permissions for this specific deal
+        const { canEdit, canDelete } = getDealPermissions(
+            record,
+            currentUser?.id,
+            editDealsPermission,
+        );
+
+        return [
+            {
+                key: "view",
+                label: (
+                    <Link href={route("deals.show", record.id)}>
+                        <EyeOutlined className="mr-2" />
+                        View
+                    </Link>
+                ),
             },
-        },
-        {
-            key: "add_follow_up",
-            label: (
-                <span>
-                    <UserOutlined className="mr-2" />
-                    Schedule Meeting
-                </span>
-            ),
-            onClick: () => {
-                handleAction("add_follow_up", record);
+            // Edit - only show if user has edit permission (not for watchers)
+            ...(canEdit
+                ? [
+                      {
+                          key: "edit",
+                          label: (
+                              <span>
+                                  <EditOutlined className="mr-2" />
+                                  Edit
+                              </span>
+                          ),
+                          onClick: () => {
+                              handleEditDeal(record);
+                          },
+                      },
+                  ]
+                : []),
+            {
+                key: "add_follow_up",
+                label: (
+                    <span>
+                        <UserOutlined className="mr-2" />
+                        Schedule Meeting
+                    </span>
+                ),
+                onClick: () => {
+                    handleAction("add_follow_up", record);
+                },
             },
-        },
-        {
-            type: "divider",
-        },
-        {
-            key: "delete",
-            label: (
-                <span className="text-red-600">
-                    <DeleteOutlined className="mr-2" />
-                    Delete
-                </span>
-            ),
-            onClick: () => {
-                handleAction("delete", record);
-            },
-        },
-    ];
+            // Delete - only show if user has delete permission (not for watchers)
+            ...(canDelete
+                ? [
+                      {
+                          type: "divider" as const,
+                      },
+                      {
+                          key: "delete",
+                          label: (
+                              <span className="text-red-600">
+                                  <DeleteOutlined className="mr-2" />
+                                  Delete
+                              </span>
+                          ),
+                          onClick: () => {
+                              handleAction("delete", record);
+                          },
+                      },
+                  ]
+                : []),
+        ];
+    };
 
     const columns = DEAL_TABLE_COLUMNS(getActionItems);
 
