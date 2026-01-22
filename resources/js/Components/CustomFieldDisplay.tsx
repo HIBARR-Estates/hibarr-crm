@@ -153,7 +153,7 @@ export default function CustomFieldDisplay({
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
         ? fields.filter(
-              (field) => field.custom_field_category_id === categoryId
+              (field) => field.custom_field_category_id === categoryId,
           )
         : fields;
 
@@ -205,12 +205,12 @@ export default function CustomFieldDisplay({
                 display_order: 0,
                 show_rule_set: field.show_rule_set,
             };
-        }
+        },
     );
 
     const visibilityMap = evaluateAllFieldsVisibility(
         customFieldsForEvaluation,
-        fieldValuesForVisibility
+        fieldValuesForVisibility,
     );
 
     // Filter out fields that are not visible
@@ -564,7 +564,7 @@ export default function CustomFieldDisplay({
                             ([k, v]) => ({
                                 label: v as string,
                                 value: k,
-                            })
+                            }),
                         );
                     }
                 } else {
