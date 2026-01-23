@@ -436,7 +436,7 @@ class PropertyController extends AccountBaseController
                 break;
         }
 
-        // abort_403(!$canDelete); //Removed permission check for deletion temporarily, as per request of Ayo on 22-01-2026
+        // abort_403(!$canDelete); //Removed permission check for deletion temporarily, as per request on 22-01-2026
 
         // TODO: COnsider implementing reintroducing permission check above via Permission service, and ensure its applicable to the bulk action as well, also just refactor permissions to be a permission middleware thing and free all controllers ....
 
