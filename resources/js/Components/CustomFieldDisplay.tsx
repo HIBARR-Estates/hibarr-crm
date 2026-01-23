@@ -427,7 +427,7 @@ export default function CustomFieldDisplay({
                     </a>
                 );
 
-            case "phone":
+            case "phone": {
                 // Supports:
                 // - plain string "+905338773001"
                 // - JSON string / object from antd-phone-input:
@@ -496,6 +496,7 @@ export default function CustomFieldDisplay({
                         {display}
                     </a>
                 );
+            }
 
             case "number":
                 return typeof value === "number"

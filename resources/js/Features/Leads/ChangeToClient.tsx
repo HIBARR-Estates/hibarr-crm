@@ -282,7 +282,15 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                             <PhoneInput 
                                 enableSearch 
                                 placeholder="Enter mobile number"
-                                country=""
+                                onChange={(value) => {
+                                    if (value && typeof value === 'object') {
+                                        form.setFieldValue('mobile', {
+                                            phone: value.phoneNumber || '',
+                                            country_code: value.countryCode || '',
+                                            country_identifier: value.isoCode || ''
+                                        });
+                                    }
+                                }}
                             />
                         </Form.Item>
                     </Col>
@@ -446,7 +454,15 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                     <PhoneInput 
                         enableSearch 
                         placeholder="Enter office phone number"
-                        country=""
+                        onChange={(value) => {
+                            if (value && typeof value === 'object') {
+                                form.setFieldValue('office', {
+                                    phone: value.phoneNumber || '',
+                                    country_code: value.countryCode || '',
+                                    country_identifier: value.isoCode || ''
+                                });
+                            }
+                        }}
                     />
                 </Form.Item>
             </Card>

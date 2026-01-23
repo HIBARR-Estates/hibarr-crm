@@ -60,8 +60,19 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
                             enableSearch
                             placeholder="Enter cell phone number"
                             value={data.cell}
-                            onChange={(val) => setData("cell", val)}
-                            country=""
+                            onChange={(val) => {
+                                // Convert PhoneInput object to string format
+                                if (val && typeof val === 'object') {
+                                    const parts = [
+                                        val.countryCode,
+                                        val.areaCode,
+                                        val.phoneNumber
+                                    ].filter(Boolean);
+                                    setData("cell", parts.length > 0 ? `+${parts.join('')}` : '');
+                                } else {
+                                    setData("cell", val || '');
+                                }
+                            }}
                         />
                     </Form.Item>
                 </Col>
@@ -76,8 +87,19 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
                             enableSearch
                             placeholder="Enter office phone number"
                             value={data.office}
-                            onChange={(val) => setData("office", val)}
-                            country=""
+                            onChange={(val) => {
+                                // Convert PhoneInput object to string format
+                                if (val && typeof val === 'object') {
+                                    const parts = [
+                                        val.countryCode,
+                                        val.areaCode,
+                                        val.phoneNumber
+                                    ].filter(Boolean);
+                                    setData("office", parts.length > 0 ? `+${parts.join('')}` : '');
+                                } else {
+                                    setData("office", val || '');
+                                }
+                            }}
                         />
                     </Form.Item>
                 </Col>
