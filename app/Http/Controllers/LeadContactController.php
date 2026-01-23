@@ -791,8 +791,65 @@ class LeadContactController extends AccountBaseController
             }
 
             // Handle custom fields
-            if ($request->has('custom_fields')) {
-                $leadContact->updateCustomFieldData($request->custom_fields);
+            if ($request->has('custom_fields') || $request->hasFile('custom_fields') || isset($request->allFiles()['custom_fields'])) {
+                // Get custom field data - files may be in input or allFiles
+                $allInput = $request->all();
+                $allFiles = $request->allFiles();
+                
+                // Start with input data (for non-file fields)
+                $customFieldsData = [];
+                
+                // Check if custom_fields contains files (UploadedFile objects)
+                if (isset($allInput['custom_fields']) && is_array($allInput['custom_fields'])) {
+                    foreach ($allInput['custom_fields'] as $fieldKey => $fieldValue) {
+                        if (is_array($fieldValue)) {
+                            // Check if it's an array of UploadedFile objects
+                            $uploadedFiles = [];
+                            foreach ($fieldValue as $item) {
+                                if ($item instanceof \Illuminate\Http\UploadedFile) {
+                                    $uploadedFiles[] = $item;
+                                }
+                            }
+                            if (!empty($uploadedFiles)) {
+                                $customFieldsData[$fieldKey] = $uploadedFiles;
+                            } else {
+                                // Regular array value
+                                $customFieldsData[$fieldKey] = $fieldValue;
+                            }
+                        } elseif ($fieldValue instanceof \Illuminate\Http\UploadedFile) {
+                            // Single file
+                            $customFieldsData[$fieldKey] = $fieldValue;
+                        } else {
+                            // Regular value
+                            $customFieldsData[$fieldKey] = $fieldValue;
+                        }
+                    }
+                }
+                
+                // Also check allFiles for any files that might be there
+                if (isset($allFiles['custom_fields']) && is_array($allFiles['custom_fields'])) {
+                    foreach ($allFiles['custom_fields'] as $fieldKey => $fileOrFiles) {
+                        if (!isset($customFieldsData[$fieldKey])) {
+                            if (is_array($fileOrFiles)) {
+                                $uploadedFiles = [];
+                                foreach ($fileOrFiles as $file) {
+                                    if ($file instanceof \Illuminate\Http\UploadedFile) {
+                                        $uploadedFiles[] = $file;
+                                    }
+                                }
+                                if (!empty($uploadedFiles)) {
+                                    $customFieldsData[$fieldKey] = $uploadedFiles;
+                                }
+                            } elseif ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
+                                $customFieldsData[$fieldKey] = $fileOrFiles;
+                            }
+                        }
+                    }
+                }
+                
+                if (!empty($customFieldsData)) {
+                    $leadContact->updateCustomFieldData($customFieldsData);
+                }
             }
 
             // Handle tags (if your system supports them)
@@ -826,8 +883,8 @@ class LeadContactController extends AccountBaseController
                     }
                 }
                 
-                // If custom fields were updated, include the updated custom_fields_data
-                if ($request->has('custom_fields')) {
+                // If custom fields were updated (including file uploads), include the updated custom_fields_data
+                if ($request->has('custom_fields') || $request->hasFile('custom_fields')) {
                     $leadContact->withCustomFields();
                     $responseData['custom_fields_data'] = $leadContact->custom_fields_data;
                 }
