@@ -116,7 +116,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                                 {users.length === 1 ? (
                                     <Tooltip title={users[0].name}>
                                         <Text
-                                            className="text-[11px] text-gray-600 block truncate max-w-[100px]"
+                                            className="text-[13px] text-gray-600 block truncate max-w-[100px]"
                                             ellipsis
                                         >
                                             {users[0].name}
@@ -129,7 +129,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                                             .join(", ")}
                                     >
                                         <Text
-                                            className="text-[11px] text-gray-600 block truncate max-w-[100px]"
+                                            className="text-[13px] text-gray-600 block truncate max-w-[100px]"
                                             ellipsis
                                         >
                                             {users[0].name}
@@ -143,12 +143,12 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                         </div>
                     ) : (
                         <div className="flex items-center gap-1.5">
-                            <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                <span className="text-gray-400 text-[8px]">
+                            <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                                <span className="text-gray-400 text-[10px]">
                                     ?
                                 </span>
                             </div>
-                            <Text className="text-[11px] text-gray-400 italic">
+                            <Text className="text-[13px] text-gray-400 italic">
                                 Unassigned
                             </Text>
                         </div>
@@ -176,7 +176,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
             <div className="mb-1.5" onClick={onClick}>
                 <Text
                     strong
-                    className="text-[13px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors font-medium"
+                    className="text-[15px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors font-medium"
                     ellipsis={{ tooltip: title }}
                     style={{
                         display: "-webkit-box",
@@ -192,7 +192,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
             {/* Description */}
             {description && (
                 <Paragraph
-                    className="text-[11px] text-gray-500 mb-2 leading-snug"
+                    className="text-[13px] text-gray-500 mb-2 leading-snug"
                     ellipsis={{
                         rows: 2,
                         tooltip: description,
@@ -210,18 +210,18 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                     {formattedDueDate ? (
                         <Tooltip title={`Due: ${fullDueDate}`}>
                             <div
-                                className={`flex items-center gap-1 text-[10px] ${
+                                className={`flex items-center gap-1 text-[12px] ${
                                     isOverdue
                                         ? "text-red-500 font-medium"
                                         : "text-gray-400"
                                 }`}
                             >
-                                <CalendarOutlined className="text-[10px]" />
+                                <CalendarOutlined className="text-[12px]" />
                                 <span>{formattedDueDate}</span>
                             </div>
                         </Tooltip>
                     ) : (
-                        <span className="text-[10px] text-gray-300">
+                        <span className="text-[12px] text-gray-300">
                             No due date
                         </span>
                     )}
@@ -230,11 +230,11 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                 {/* Priority */}
                 <div className="flex items-center gap-1">
                     <span
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        className="w-2 h-2 rounded-full flex-shrink-0"
                         style={{ backgroundColor: priorityInfo.color }}
                     />
                     <span
-                        className={`text-[10px] font-medium ${priorityInfo.textColor}`}
+                        className={`text-[12px] font-medium ${priorityInfo.textColor}`}
                     >
                         {priorityInfo.label}
                     </span>

@@ -228,11 +228,39 @@ class DealGatheringController extends AccountBaseController
                 ], 422);
             }
 
-            $updatedDeal = $this->service->updateDealInline(
-                $deal,
-                DealUpdateType::from($request->type),
-                $data
-            );
+        // Get regular data values
+        $data = $request->input('data', []);
+        
+        // Merge file uploads into data array for custom field file uploads
+        // Files uploaded as data[field_X] or data[field_X][0], [1], etc. for multiple
+        if ($request->hasFile('data')) {
+            $dataFiles = $request->file('data');
+            if (is_array($dataFiles)) {
+                foreach ($dataFiles as $fieldKey => $fileOrFiles) {
+                    if ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
+                        // Single file
+                        $data[$fieldKey] = $fileOrFiles;
+                    } elseif (is_array($fileOrFiles)) {
+                        // Multiple files - array of UploadedFile objects
+                        $uploadedFiles = [];
+                        foreach ($fileOrFiles as $file) {
+                            if ($file instanceof \Illuminate\Http\UploadedFile) {
+                                $uploadedFiles[] = $file;
+                            }
+                        }
+                        if (!empty($uploadedFiles)) {
+                            $data[$fieldKey] = $uploadedFiles;
+                        }
+                    }
+                }
+            }
+        }
+
+        $updatedDeal = $this->service->updateDealInline(
+            $deal,
+            DealUpdateType::from($request->type),
+            $data
+        );
 
             // Refresh deal with all relationships and custom fields data
             $freshDeal = $updatedDeal->fresh(['contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products', 'dealWatchers', 'dealParticipants']);
