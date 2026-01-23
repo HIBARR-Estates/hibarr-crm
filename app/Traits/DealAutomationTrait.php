@@ -25,31 +25,10 @@ trait DealAutomationTrait
             
             // First, try to get timezone from the request (sent from browser/React form)
             if (function_exists('user') && user()) {
-                // Try to get from request input first (sent from React form with browser timezone)
                 $userTimezone = request()->input('timezone');
                 
-                // If not in request, try session
-                if (!$userTimezone) {
-                    try {
-                        if (request()->hasSession()) {
-                            $userTimezone = request()->session()->get('timezone');
-                        }
-                    } catch (\Exception $e) {
-                        // Session not available (e.g., in console/background job)
-                    }
-                }
-                
-                // If still not found, try request header
-                if (!$userTimezone) {
-                    $userTimezone = request()->header('X-User-Timezone');
-                }
             }
             
-            // If not in session/request, try to get from the user who created the follow-up
-            if (!$userTimezone && $followUp->added_by) {
-                // Could check user's timezone preference here if it exists in the future
-                // For now, we'll fall through to company timezone
-            }
 
             // Fallback to company timezone if user timezone not available
             if (!$userTimezone) {

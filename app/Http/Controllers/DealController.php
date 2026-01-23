@@ -1441,11 +1441,10 @@ class DealController extends AccountBaseController
         }
 
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
-        // TODO: @kasicodes - check if this is correct
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
             $request->next_follow_up_date . ' ' . $request->start_time,
-            company()->timezone
+            $request->timezone ?: company()->timezone
         )->setTimezone('UTC'); // Convert to UTC for database storage
 
         // Prepare reminders data - combine defaults with custom reminders
@@ -1459,7 +1458,6 @@ class DealController extends AccountBaseController
         $followUp->meeting_type_id = $request->meeting_type_id;
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
-        // Assign Carbon instance directly - Laravel will handle the conversion
         $followUp->next_follow_up_date = $next_follow_up_date;
         $followUp->remark = $request->remark;
         
