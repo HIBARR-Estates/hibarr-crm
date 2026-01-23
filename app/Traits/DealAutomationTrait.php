@@ -20,8 +20,59 @@ trait DealAutomationTrait
                 $followUp->load('deal');
             }
 
+            // Get timezone of the user making the request
+            $userTimezone = null;
+            
+            // First, try to get timezone from the request (sent from browser/React form)
+            if (function_exists('user') && user()) {
+                // Try to get from request input first (sent from React form with browser timezone)
+                $userTimezone = request()->input('timezone');
+                
+                // If not in request, try session
+                if (!$userTimezone) {
+                    try {
+                        if (request()->hasSession()) {
+                            $userTimezone = request()->session()->get('timezone');
+                        }
+                    } catch (\Exception $e) {
+                        // Session not available (e.g., in console/background job)
+                    }
+                }
+                
+                // If still not found, try request header
+                if (!$userTimezone) {
+                    $userTimezone = request()->header('X-User-Timezone');
+                }
+            }
+            
+            // If not in session/request, try to get from the user who created the follow-up
+            if (!$userTimezone && $followUp->added_by) {
+                // Could check user's timezone preference here if it exists in the future
+                // For now, we'll fall through to company timezone
+            }
+
+            // Fallback to company timezone if user timezone not available
+            if (!$userTimezone) {
+                if ($followUp->deal && $followUp->deal->company) {
+                    $userTimezone = $followUp->deal->company->timezone;
+                } elseif (function_exists('company')) {
+                    $company = company();
+                    $userTimezone = $company ? $company->timezone : null;
+                }
+            }
+
+            // Final fallback to UTC
+            if (!$userTimezone) {
+                $userTimezone = 'UTC';
+            }
+
             $agentInfo = $this->getAgentInformation($followUp->deal);
             $watcherInfo = $this->getWatcherInformation($followUp->deal);
+
+            // Send next_follow_up_date in UTC (as stored in database) and timezone separately
+            $nextFollowUpDate = $followUp->next_follow_up_date
+                ? $followUp->next_follow_up_date->setTimezone('UTC')->format('Y-m-d H:i:s')
+                : null;
 
             $result = $this->sendFollowUpAutomationWebhook('followup', [
                 'followUpInformation' => [
@@ -32,7 +83,8 @@ trait DealAutomationTrait
                     'location' => $followUp->location,
                     'platform' => $followUp->location,
                     'meeting_link' => $followUp->meeting_link,
-                    'next_follow_up_date' => $followUp->next_follow_up_date?->format('Y-m-d H:i:s'),
+                    'next_follow_up_date' => $nextFollowUpDate,
+                    'next_follow_up_date_timezone' => $userTimezone,
                     'remark' => $followUp->remark,
                     'status' => $followUp->status,
                     'created_at' => $followUp->created_at->format('Y-m-d H:i:s'),
@@ -117,9 +169,14 @@ trait DealAutomationTrait
                 throw new \Exception("Meeting link is required for online meetings but was not provided in webhook response");
             }
 
-            // Handle meeting link from webhook response
+            // Handle meeting link and meeting ID from webhook response
             if (isset($result['meeting_link']) && !empty($result['meeting_link'])) {
                 $this->updateFollowUpMeetingLink($payload['followUpInformation']['id'], $result['meeting_link']);
+            }
+            
+            // Handle meeting ID from webhook response
+            if (isset($result['meeting_id']) && !empty($result['meeting_id'])) {
+                $this->updateFollowUpMeetingId($payload['followUpInformation']['id'], $result['meeting_id']);
             }
 
             return $result;

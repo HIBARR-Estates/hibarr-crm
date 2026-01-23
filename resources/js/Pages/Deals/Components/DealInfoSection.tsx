@@ -240,34 +240,63 @@ export default function DealInfoSection({
         const isFile = value instanceof File;
 
         try {
-            if (isFile && type === "custom_field") {
-                // Handle file upload via FormData for custom fields
+            if (isFile && (type === "custom_field" || type === "hibarr_field")) {
                 const formData = new FormData();
-                formData.append("type", "custom_field");
+                // Ensure type is a string
+                formData.append("type", String(type));
                 formData.append(`data[${fieldName}]`, value);
+                formData.append("_method", "PATCH"); 
 
-                const response = await axios.patch(
-                    route("deals.gathering.inline_update", {
-                        id: currentDeal.id,
-                    }),
-                    formData,
-                    {
-                        headers: {
-                            "Content-Type": "multipart/form-data",
-                            Accept: "application/json",
-                        },
+                try {
+                    const response = await axios.post(
+                        route("deals.gathering.inline_update", {
+                            id: currentDeal.id,
+                        }),
+                        formData,
+                        {
+                            headers: {
+                                Accept: "application/json",
+                            },
+                            timeout: 300000, 
+                        }
+                    );
+
+                    if (
+                        response.data?.status === "success" &&
+                        response.data?.data
+                    ) {
+                        setCurrentDeal(response.data.data);
+                        message.success("File uploaded successfully");
                     }
-                );
-
-                if (
-                    response.data?.status === "success" &&
-                    response.data?.data
-                ) {
-                    setCurrentDeal(response.data.data);
-                    message.success("File uploaded successfully");
+                    setUpdatingField(null);
+                    return;
+                } catch (uploadError: any) {
+                    setUpdatingField(null);
+                    
+                    // Handle specific error cases
+                    if (uploadError?.response?.status === 413) {
+                        message.error(
+                            "File is too large. Please check your server's upload_max_filesize and post_max_size settings."
+                        );
+                    } else if (uploadError?.response?.status === 422) {
+                        const errorMessage =
+                            uploadError?.response?.data?.message ||
+                            uploadError?.response?.data?.errors?.type?.[0] ||
+                            "Validation error. Please check the file and try again.";
+                        message.error(errorMessage);
+                    } else if (uploadError?.code === "ERR_INCOMPLETE_CHUNKED_ENCODING") {
+                        message.error(
+                            "Upload failed. The file may be too large or the connection was interrupted."
+                        );
+                    } else {
+                        message.error(
+                            uploadError?.response?.data?.message ||
+                            uploadError?.message ||
+                            "Failed to upload file"
+                        );
+                    }
+                    throw uploadError; 
                 }
-                setUpdatingField(null);
-                return;
             }
 
             // Infer type and api field name if not explicitly set (for compatibility)

@@ -1443,8 +1443,9 @@ class DealController extends AccountBaseController
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
-            $request->next_follow_up_date . ' ' . $request->start_time
-        );
+            $request->next_follow_up_date . ' ' . $request->start_time,
+            company()->timezone
+        )->setTimezone('UTC'); // Convert to UTC for database storage
 
         // Prepare reminders data - combine defaults with custom reminders
         $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
@@ -1457,7 +1458,8 @@ class DealController extends AccountBaseController
         $followUp->meeting_type_id = $request->meeting_type_id;
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
-        $followUp->next_follow_up_date = $next_follow_up_date->format('Y-m-d H:i:s');
+        // Assign Carbon instance directly - Laravel will handle the conversion
+        $followUp->next_follow_up_date = $next_follow_up_date;
         $followUp->remark = $request->remark;
         
         // Set traditional reminder fields for backward compatibility (use first custom reminder or defaults)
@@ -1533,7 +1535,16 @@ class DealController extends AccountBaseController
         $followUp->meeting_link = $request->meeting_link;
 
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
-        $followUp->next_follow_up_date = Carbon::createFromFormat('d-m-Y H:i:s', $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
+        // Use browser timezone if provided, otherwise fall back to company timezone
+        $timezone = $request->input('timezone') ?: company()->timezone;
+        
+        $next_follow_up_date = Carbon::createFromFormat(
+            'd-m-Y H:i:s',
+            $request->next_follow_up_date . ' ' . $request->start_time,
+            $timezone
+        )->setTimezone('UTC'); // Convert to UTC for database storage
+        // Assign Carbon instance directly - Laravel will handle the conversion
+        $followUp->next_follow_up_date = $next_follow_up_date;
 
         $followUp->remark = $request->remark;
         $followUp->status = $request->status ?? 'scheduled';

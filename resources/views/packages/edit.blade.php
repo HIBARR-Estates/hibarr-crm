@@ -49,6 +49,9 @@
 
 <script>
     $('#save-package-setting').click(function () {
+        var formData = $('#editPackage').serialize();
+        formData += '&_method=PUT';
+        
         $.easyAjax({
             container: '#editPackage',
             type: "POST",
@@ -56,7 +59,7 @@
             blockUI: true,
             buttonSelector: "#save-package-setting",
             url: "{{ route('packages.update', $package->id) }}",
-            data: $('#editPackage').serialize(),
+            data: formData,
             success: function (response) {
                 if (response.status === 'success') {
                     window.location.reload();
