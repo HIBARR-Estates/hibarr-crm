@@ -1184,8 +1184,38 @@ class DealController extends AccountBaseController
             }
             
             // 4. Handle Custom Fields
-            if (array_key_exists('custom_fields', $validatedData) && is_array($validatedData['custom_fields'])) {
-                $deal->updateCustomFieldData($validatedData['custom_fields']);
+            if (array_key_exists('custom_fields', $validatedData) || $request->hasFile('custom_fields')) {
+                // Get regular custom field values
+                $customFieldsData = $validatedData['custom_fields'] ?? [];
+                
+                // Merge file uploads into custom fields data
+                // Files uploaded as custom_fields[field_X] or custom_fields[field_X][0], [1], etc. for multiple
+                if ($request->hasFile('custom_fields')) {
+                    $customFieldFiles = $request->file('custom_fields');
+                    if (is_array($customFieldFiles)) {
+                        foreach ($customFieldFiles as $fieldKey => $fileOrFiles) {
+                            if ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
+                                // Single file
+                                $customFieldsData[$fieldKey] = $fileOrFiles;
+                            } elseif (is_array($fileOrFiles)) {
+                                // Multiple files - array of UploadedFile objects
+                                $uploadedFiles = [];
+                                foreach ($fileOrFiles as $file) {
+                                    if ($file instanceof \Illuminate\Http\UploadedFile) {
+                                        $uploadedFiles[] = $file;
+                                    }
+                                }
+                                if (!empty($uploadedFiles)) {
+                                    $customFieldsData[$fieldKey] = $uploadedFiles;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (!empty($customFieldsData)) {
+                    $deal->updateCustomFieldData($customFieldsData);
+                }
             }
             
             // Handle tags if provided
