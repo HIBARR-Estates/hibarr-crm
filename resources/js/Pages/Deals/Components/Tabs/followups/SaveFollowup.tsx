@@ -190,15 +190,11 @@ export default function SaveFollowup({
         { value: "day", label: "Days" },
     ];
 
-    // Helper function to get default participants (deal agent, participants, watchers)
+    // Helper function to get default participants (participants, watchers)
     const getDefaultParticipants = (): number[] => {
         const participantIds: number[] = [];
         
-        // Add deal agent if exists
-        if (deal.lead_agent?.user_id) {
-            participantIds.push(deal.lead_agent.user_id);
-        }
-        
+      
         // Add deal participants
         if (deal.deal_participants && deal.deal_participants.length > 0) {
             deal.deal_participants.forEach((participant: any) => {
