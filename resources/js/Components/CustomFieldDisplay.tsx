@@ -521,15 +521,48 @@ export default function CustomFieldDisplay({
                 return value;
 
             case "file":
-                if (!value) return null;
+                // Parse file value - can be single string, JSON array, or comma-separated
+                const files = parseFileValue(value);
+                if (files.length === 0) {
+                    return <span className="text-gray-500">--</span>;
+                }
+
                 return (
-                    <a
-                        href={`/user-uploads/custom_fields/${value}`}
-                        className="text-blue-600 hover:text-blue-800"
-                        download
-                    >
-                        Download File
-                    </a>
+                    <div className="space-y-1">
+                        {files.map((filename, index) => {
+                            const fileUrl = `/user-uploads/custom_fields/${filename}`;
+                            const displayName = getDisplayName(filename);
+
+                            return (
+                                <div
+                                    key={filename}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Tooltip title={filename}>
+                                        <a
+                                            href={fileUrl}
+                                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm truncate max-w-[150px]"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <FileOutlined className="flex-shrink-0" />
+                                            <span className="truncate">
+                                                {displayName}
+                                            </span>
+                                        </a>
+                                    </Tooltip>
+                                    <a
+                                        href={fileUrl}
+                                        className="text-blue-600 hover:text-blue-800 flex-shrink-0"
+                                        download
+                                        title="Download"
+                                    >
+                                        <DownloadOutlined />
+                                    </a>
+                                </div>
+                            );
+                        })}
+                    </div>
                 );
 
             case "url":
