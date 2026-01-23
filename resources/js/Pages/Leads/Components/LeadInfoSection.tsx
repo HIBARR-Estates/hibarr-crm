@@ -979,8 +979,7 @@ export default function LeadInfoSection({
                             handleFieldUpdate(field, value)
                         }
                         onChange={handleFieldChange}
-                        editable={canEdit}
-                        alwaysEditing={isFieldEditable}
+                        editable={isFieldEditable}
                         loadingField={updatingField}
                         globalLoading={isSavingAll}
                     />
