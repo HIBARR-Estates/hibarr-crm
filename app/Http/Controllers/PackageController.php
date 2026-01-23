@@ -68,7 +68,15 @@ class PackageController extends AccountBaseController
 
     public function destroy($id)
     {
-        Package::destroy($id);
+        // Find the package - return error if not found
+        $package = Package::find($id);
+        
+        if (!$package) {
+            return Reply::error('Package not found.');
+        }
+
+        // Soft delete the package
+        $package->delete();
 
         return Reply::success(__('messages.deleteSuccess'));
     }

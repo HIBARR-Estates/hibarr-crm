@@ -25,7 +25,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                 <tbody id="followUpTableBody">
                     @forelse ($dealFollowUps as $folllowUp)
                         <tr class="follow-up-row" data-created-at="{{ $folllowUp->created_at->timestamp }}" style="display: none;">
-                            <td>{{ $folllowUp->next_follow_up_date->timezone(company()->timezone)->format(company()->date_format . ' ' . company()->time_format) }}</td>
+                            <td>{{ $folllowUp->next_follow_up_date->timezone(company()->timezone)->format(company()->date_format . ' ' . company()->time_format) ?? '--' }}</td>
                             <td>
                                 @if ($folllowUp->meetingType)
                                     <span style="text-color:black;">

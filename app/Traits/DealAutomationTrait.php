@@ -48,10 +48,6 @@ trait DealAutomationTrait
             $agentInfo = $this->getAgentInformation($followUp->deal);
             $watcherInfo = $this->getWatcherInformation($followUp->deal);
 
-            // Send next_follow_up_date in UTC (as stored in database) and timezone separately
-            $nextFollowUpDate = $followUp->next_follow_up_date
-                ? $followUp->next_follow_up_date->setTimezone('UTC')->format('Y-m-d H:i:s')
-                : null;
 
             $result = $this->sendFollowUpAutomationWebhook('followup', [
                 'followUpInformation' => [
@@ -62,7 +58,7 @@ trait DealAutomationTrait
                     'location' => $followUp->location,
                     'platform' => $followUp->location,
                     'meeting_link' => $followUp->meeting_link,
-                    'next_follow_up_date' => $nextFollowUpDate,
+                    'next_follow_up_date' => $followUp->next_follow_up_date,
                     'next_follow_up_date_timezone' => $userTimezone,
                     'remark' => $followUp->remark,
                     'status' => $followUp->status,

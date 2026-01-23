@@ -73,8 +73,9 @@ class ParsePatchMultipart
             return false;
         }
 
-        // Split by boundary
-        $parts = preg_split("/-+{$boundary}/", $rawInput);
+        // Split by boundary - escape boundary to prevent regex injection
+        $escapedBoundary = preg_quote($boundary, '/');
+        $parts = preg_split("/-+{$escapedBoundary}/", $rawInput);
         
         // Remove first and last empty parts
         if (count($parts) < 2) {

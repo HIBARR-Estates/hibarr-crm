@@ -255,7 +255,6 @@ class DealGatheringController extends AccountBaseController
             ]);
             return response()->json([
                 'status' => 'error',
-                'message' => 'An error occurred: ' . $e->getMessage()
             ], 500);
         }
     }

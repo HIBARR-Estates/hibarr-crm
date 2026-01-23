@@ -151,7 +151,7 @@
             $.ajaxModal(MODAL_XL, url);
         });
 
-        $(MODAL_LG).on('shown.bs.modal', function () {
+        $(MODAL_XL).on('shown.bs.modal', function () {
             $('#page_reload').val('true')
         })
 
