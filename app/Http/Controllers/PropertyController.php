@@ -440,6 +440,8 @@ class PropertyController extends AccountBaseController
 
         // TODO: COnsider implementing reintroducing permission check above via Permission service, and ensure its applicable to the bulk action as well, also just refactor permissions to be a permission middleware thing and free all controllers ....
 
+
+        // TODO: Refactor to use service and let the response be strictly JSON for consistency
         // Don't allow deletion if property is sold or rented
         if ($property->isSold() || $property->isRented()) {
             return back()->with([
