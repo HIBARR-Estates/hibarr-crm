@@ -245,7 +245,7 @@ export default function DealInfoSection({
                 // Ensure type is a string
                 formData.append("type", String(type));
                 formData.append(`data[${fieldName}]`, value);
-                formData.append("_method", "PATCH"); 
+                // Use POST only - PATCH with multipart/form-data doesn't work well in PHP 
 
                 try {
                     const response = await axios.post(
@@ -255,6 +255,7 @@ export default function DealInfoSection({
                         formData,
                         {
                             headers: {
+                                "Content-Type": "multipart/form-data",
                                 Accept: "application/json",
                             },
                             timeout: 300000, 

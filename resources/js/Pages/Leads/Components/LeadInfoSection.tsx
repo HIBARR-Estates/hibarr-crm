@@ -251,10 +251,11 @@ export default function LeadInfoSection({
         try {
             if (isFile) {
                 // Handle file upload via FormData
+                // Use POST only - PATCH with multipart/form-data doesn't work well in PHP
                 const formData = new FormData();
                 formData.append(`custom_fields[${fieldName}]`, value);
 
-                const response = await axios.patch(
+                const response = await axios.post(
                     route("lead-contact.patch", {
                         lead_contact: currentLeadState.id,
                     }),
@@ -264,6 +265,7 @@ export default function LeadInfoSection({
                             "Content-Type": "multipart/form-data",
                             Accept: "application/json",
                         },
+                        timeout: 300000,
                     }
                 );
 
