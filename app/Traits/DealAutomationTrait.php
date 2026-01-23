@@ -401,6 +401,23 @@ trait DealAutomationTrait
         }
     }
 
+    private function updateFollowUpMeetingId(int $followUpId, string $meetingId): void
+    {
+        try {
+            $followUp = DealFollowUp::find($followUpId);
+            if ($followUp) {
+                $followUp->meeting_id = $meetingId;
+                $followUp->save();
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update meeting ID from webhook response", [
+                'follow_up_id' => $followUpId,
+                'meeting_id' => $meetingId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     private function getCustomerInfo(?int $leadId): array
     {
         if (!$leadId) {

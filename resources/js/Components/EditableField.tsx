@@ -341,7 +341,7 @@ export default function EditableField({
             ? displayValue
             : formatValue
             ? formatValue(value)
-            : value?.toString();
+            : value?.toString() ?? "--";
 
     if (editing) {
         return (

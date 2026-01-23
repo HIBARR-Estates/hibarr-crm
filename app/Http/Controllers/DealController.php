@@ -1441,6 +1441,7 @@ class DealController extends AccountBaseController
         }
 
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
+        // TODO: @kasicodes - check if this is correct
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
             $request->next_follow_up_date . ' ' . $request->start_time,
