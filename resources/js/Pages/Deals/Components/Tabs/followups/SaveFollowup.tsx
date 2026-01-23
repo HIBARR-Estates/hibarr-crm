@@ -187,6 +187,31 @@ export default function SaveFollowup({
         { value: "day", label: "Days" },
     ];
 
+    // Helper function to get default participants (participants and watchers, excluding agent)
+    const getDefaultParticipants = (): number[] => {
+        const participantIds: number[] = [];
+        
+        // Add deal participants
+        if (deal.deal_participants && deal.deal_participants.length > 0) {
+            deal.deal_participants.forEach((participant: any) => {
+                if (participant.id && !participantIds.includes(participant.id)) {
+                    participantIds.push(participant.id);
+                }
+            });
+        }
+        
+        // Add deal watchers
+        if (deal.deal_watchers && deal.deal_watchers.length > 0) {
+            deal.deal_watchers.forEach((watcher: any) => {
+                if (watcher.id && !participantIds.includes(watcher.id)) {
+                    participantIds.push(watcher.id);
+                }
+            });
+        }
+        
+        return participantIds;
+    };
+
     // Initialize form with followup data if editing
     useEffect(() => {
         if (followup) {
@@ -231,6 +256,9 @@ export default function SaveFollowup({
 
         // Get custom reminders from form
         const customReminders = values.reminders || [];
+
+        // Get browser timezone
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         const formData: SaveFollowupFormData = {
             next_follow_up_date:
