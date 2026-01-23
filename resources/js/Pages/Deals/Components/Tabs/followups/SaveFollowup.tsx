@@ -283,6 +283,8 @@ export default function SaveFollowup({
         // Get custom reminders from form
         const customReminders = values.reminders || [];
 
+        // Get browser timezone
+
         const formData: SaveFollowupFormData = {
             next_follow_up_date:
                 values.next_follow_up_date.format("DD-MM-YYYY"),
@@ -293,7 +295,6 @@ export default function SaveFollowup({
             reminders: customReminders, // Only send custom reminders, defaults are handled server-side
             remark: values.remark || "",
             deal_id: deal.id,
-            timezone: browserTimezone,
             participants: participants,
         };
 
