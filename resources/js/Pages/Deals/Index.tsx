@@ -64,6 +64,11 @@ interface Pipeline {
     default: number;
 }
 
+interface Package {
+    id: number;
+    name: string;
+}
+
 export interface IndexProps extends PageProps {
     pageTitle: string;
     deals: PaginatedDealResponse;
@@ -76,6 +81,7 @@ export interface IndexProps extends PageProps {
     countries: Array<{ iso: string; nicename: string; iso3: string }>;
     salutations: Array<{ value: string; label: string }>;
     pipelines: Pipeline[];
+    packages: Package[];
     addLeadPermission?: string;
 }
 
@@ -86,6 +92,8 @@ const Index = ({
     stages,
     leadAgents,
     pipelines,
+    packages,
+    sources,
     defaultPipeline,
     addLeadPermission = "all",
     ...props
@@ -120,9 +128,10 @@ const Index = ({
             createDealFilterConfig({
                 ...props,
                 stages,
-
                 leadPipelines: pipelines,
                 leadAgents,
+                sources,
+                packages,
                 excludeFields: [
                     "pipeline_stage_id",
                     "lead_pipeline_id",
@@ -136,6 +145,8 @@ const Index = ({
             leadAgents,
             props.employees,
             pipelines,
+            sources,
+            packages,
         ],
     );
 

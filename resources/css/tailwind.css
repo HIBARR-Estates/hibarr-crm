@@ -70,7 +70,8 @@
 
     .modern-card-hover:hover {
         transform: translateY(-2px);
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        box-shadow:
+            0 20px 25px -5px rgba(0, 0, 0, 0.1),
             0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
 
@@ -93,7 +94,8 @@
 
     /* Modern Shadows */
     .shadow-modern {
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        box-shadow:
+            0 10px 15px -3px rgba(0, 0, 0, 0.1),
             0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
 
@@ -315,4 +317,127 @@
 }
 .tw-focus\:outline-none {
     @apply focus:outline-none;
+}
+
+/* Sidebar Refactor Custom Styles */
+.custom-dashboard-sider .ant-layout-sider-children {
+    display: flex;
+    flex-direction: column;
+}
+
+.custom-sidebar-menu.ant-menu-dark {
+    background: transparent !important;
+}
+
+/* Room to breathe */
+.custom-sidebar-menu .ant-menu-item,
+.custom-sidebar-menu .ant-menu-submenu-title {
+    height: 48px !important;
+    line-height: 48px !important;
+    margin-bottom: 8px !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    color: #9ca3af !important; /* gray-400 */
+}
+
+/* Active/Hover states */
+.custom-sidebar-menu .ant-menu-item-selected {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: white !important;
+    font-weight: 600;
+}
+
+.custom-sidebar-menu .ant-menu-item:hover,
+.custom-sidebar-menu .ant-menu-submenu-title:hover {
+    color: white !important;
+}
+
+/* Icons spacing */
+.custom-sidebar-menu .ant-menu-item .anticon,
+.custom-sidebar-menu .ant-menu-submenu-title .anticon {
+    font-size: 18px !important;
+    margin-right: 16px !important;
+}
+
+/* Submenu Styling */
+.custom-sidebar-menu .ant-menu-sub {
+    background: transparent !important;
+    position: relative;
+    padding-left: 34px !important; /* Indent for line */
+    /* Remove default bg */
+}
+
+/* Vertical Line */
+.custom-sidebar-menu .ant-menu-sub::before {
+    content: "";
+    position: absolute;
+    left: 33px; /* Slightly adjusted to center on indentation */
+    top: 4px;
+    bottom: 4px;
+    width: 1px;
+    background-color: #4b5563; /* gray-600 */
+}
+
+/* Submenu items */
+.custom-sidebar-menu .ant-menu-sub .ant-menu-item {
+    padding-left: 16px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    margin-bottom: 4px !important;
+    font-size: 13.5px;
+    width: 100% !important;
+    margin-left: 0 !important;
+}
+
+/* Remove icons from submenu items if any are auto-added (usually not in antd unless specified) */
+
+.custom-sidebar-menu .ant-menu-sub .ant-menu-item-selected {
+    background-color: transparent !important;
+    color: white !important;
+    font-weight: 600;
+}
+.custom-sidebar-menu .ant-menu-sub .ant-menu-item-selected::before {
+    /* Optional: active dot on the line? */
+    content: "";
+    position: absolute;
+    left: -18px; /* On the line */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 5px;
+    background-color: white;
+    border-radius: 50%;
+}
+
+/* Custom Scrollbar Styles for Sidebar */
+.scrollbar-thin {
+    scrollbar-width: thin;
+}
+
+.scrollbar-thumb-slate-700::-webkit-scrollbar-thumb {
+    background-color: rgb(51 65 85);
+    border-radius: 4px;
+}
+
+.scrollbar-track-transparent::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(51 65 85);
+    border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(71 85 105);
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background-color: transparent;
 }
