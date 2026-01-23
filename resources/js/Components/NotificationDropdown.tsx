@@ -107,7 +107,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
             e.stopPropagation();
             onMarkRead(notification.id);
         },
-        [notification.id, onMarkRead]
+        [notification.id, onMarkRead],
     );
 
     return (
@@ -212,10 +212,11 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         (notification: Notification) => {
             setOpen(false);
             if (notification.link) {
-                router.visit(notification.link);
+                // Use standard navigation to support both Inertia and non-Inertia pages
+                window.location.href = notification.link;
             }
         },
-        []
+        [],
     );
 
     // Handle mark as read
@@ -223,7 +224,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         (id: string) => {
             markAsRead({ id });
         },
-        [markAsRead]
+        [markAsRead],
     );
 
     // Handle mark all as read
@@ -234,7 +235,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     // Handle view all click
     const handleViewAll = useCallback(() => {
         setOpen(false);
-        router.visit(route("notifications.index"));
+        // Use standard navigation to support both Inertia and non-Inertia pages
+        window.location.href = route("notifications.index");
     }, []);
 
     // Dropdown content
