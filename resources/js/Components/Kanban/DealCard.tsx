@@ -1,6 +1,6 @@
 import React from "react";
 import { Deal } from "@/Types/api/deals";
-import { Card, Dropdown, Button, Typography, Tooltip } from "antd";
+import { Card, Dropdown, Button, Typography, Tooltip, Avatar } from "antd";
 import type { MenuProps } from "antd";
 import {
     EllipsisOutlined as MoreOutlined,
@@ -9,13 +9,15 @@ import {
     VideoCameraOutlined,
     MessageOutlined,
     EditOutlined,
-    UserAddOutlined,
+    EyeOutlined,
+    UserOutlined,
 } from "@ant-design/icons";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import MultiUserIndicator from "../MultiUserIndicator";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import AgentSelector from "../AgentSelector";
 
 const { Text } = Typography;
 
@@ -23,14 +25,16 @@ interface DealCardProps {
     deal: Deal;
     draggable?: boolean;
     onEdit?: (deal: Deal) => void;
-    onAssignAgent?: (deal: Deal) => void;
+    onScheduleMeeting?: (deal: Deal) => void;
+    onAgentChange?: (deal: Deal, agentId: number | null) => void;
 }
 
 const DealCard: React.FC<DealCardProps> = ({
     deal,
     draggable = true,
     onEdit,
-    onAssignAgent,
+    onScheduleMeeting,
+    onAgentChange,
 }) => {
     const {
         attributes,
@@ -43,6 +47,9 @@ const DealCard: React.FC<DealCardProps> = ({
         id: deal.id.toString(),
         disabled: !draggable,
     });
+
+    // Get deal permissions to check if user can edit
+    const { canEdit } = useDealPermissions(deal);
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -57,37 +64,47 @@ const DealCard: React.FC<DealCardProps> = ({
         ? dayjs(deal.created_at).format("MMM D, YYYY")
         : null;
 
-    // Prepare agent user for MultiUserIndicator
-    const agentUser = deal.lead_agent?.user
-        ? [
-              {
-                  id: deal.lead_agent.user.id,
-                  name: deal.lead_agent.user.name,
-                  image_url: deal.lead_agent.user.image_url,
-              },
-          ]
-        : [];
+    // Prepare current agent for AgentSelector
+    const currentAgent = deal.lead_agent?.user
+        ? {
+              id: deal.lead_agent.user.id,
+              name: deal.lead_agent.user.name,
+              image_url: deal.lead_agent.user.image_url,
+          }
+        : null;
 
-    // Action items for dropdown
+    // Action items for dropdown - conditionally include edit based on permissions
     const actionItems: MenuProps["items"] = [
+        // View deal - always available
         {
-            key: "edit",
-            icon: <EditOutlined />,
-            label: "Edit Deal",
-            onClick: (e) => {
-                e.domEvent.stopPropagation();
-                e.domEvent.preventDefault();
-                onEdit?.(deal);
-            },
+            key: "view",
+            icon: <EyeOutlined />,
+            label: <Link href={route("deals.show", deal.id)}>View Deal</Link>,
         },
+        // Edit deal - only if user has edit permission (not for watchers)
+        ...(canEdit
+            ? [
+                  {
+                      key: "edit",
+                      icon: <EditOutlined />,
+                      label: "Edit Deal",
+                      onClick: (e: any) => {
+                          e.domEvent.stopPropagation();
+                          e.domEvent.preventDefault();
+                          onEdit?.(deal);
+                      },
+                  },
+              ]
+            : []),
+        // Schedule Meeting - replaces Assign Agent (now available via inline agent selector)
         {
-            key: "assign",
-            icon: <UserAddOutlined />,
-            label: deal.lead_agent ? "Reassign Agent" : "Assign Agent",
-            onClick: (e) => {
+            key: "schedule_meeting",
+            icon: <CalendarOutlined />,
+            label: "Schedule Meeting",
+            onClick: (e: any) => {
                 e.domEvent.stopPropagation();
                 e.domEvent.preventDefault();
-                onAssignAgent?.(deal);
+                onScheduleMeeting?.(deal);
             },
         },
     ];
@@ -129,13 +146,13 @@ const DealCard: React.FC<DealCardProps> = ({
                         >
                             <Text
                                 strong
-                                className="text-[13px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors"
+                                className="text-[15px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors"
                                 ellipsis={{ tooltip: deal.name }}
                             >
                                 <span className="font-medium">{deal.name}</span>
                                 {deal.contact?.client_id && (
                                     <i
-                                        className="fa fa-check-circle text-green-500 ml-1 text-[10px]"
+                                        className="fa fa-check-circle text-green-500 ml-1 text-[12px]"
                                         title="Converted Client"
                                     />
                                 )}
@@ -165,7 +182,7 @@ const DealCard: React.FC<DealCardProps> = ({
                 {deal.contact?.client_name && (
                     <div className="mb-2">
                         <Text
-                            className="text-[11px] text-gray-500 leading-tight"
+                            className="text-[13px] text-gray-500 leading-tight"
                             ellipsis={{
                                 tooltip: `${deal.contact.salutation ? deal.contact.salutation + " " : ""}${deal.contact.client_name}`,
                             }}
@@ -180,46 +197,46 @@ const DealCard: React.FC<DealCardProps> = ({
                 {/* Agent + Deal Value Row */}
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex-1 min-w-0">
-                        {agentUser.length > 0 ? (
+                        {canEdit && onAgentChange ? (
+                            // Interactive agent selector using useFormData
+                            <AgentSelector
+                                currentAgent={currentAgent}
+                                onSelect={(agentId) =>
+                                    onAgentChange(deal, agentId)
+                                }
+                                size="small"
+                            />
+                        ) : // Read-only agent display
+                        currentAgent ? (
                             <div className="flex items-center gap-1.5">
-                                <MultiUserIndicator
-                                    users={agentUser}
-                                    size="xs"
-                                    maxCount={1}
-                                    showNames={false}
-                                    showTooltip={true}
+                                <Avatar
+                                    size={20}
+                                    src={currentAgent.image_url}
+                                    icon={<UserOutlined />}
                                 />
-                                <Tooltip title={agentUser[0].name}>
+                                <Tooltip title={currentAgent.name}>
                                     <Text
-                                        className="text-[11px] text-gray-600 truncate max-w-[70px]"
+                                        className="text-[13px] text-gray-600 truncate max-w-[80px]"
                                         ellipsis
                                     >
-                                        {agentUser[0].name}
+                                        {currentAgent.name}
                                     </Text>
                                 </Tooltip>
                             </div>
                         ) : (
                             <div className="flex items-center gap-1.5">
-                                <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <span className="text-gray-400 text-[8px]">
-                                        ?
-                                    </span>
+                                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <UserOutlined className="text-gray-400 text-[10px]" />
                                 </div>
-                                <Text
-                                    className="text-[11px] text-blue-600 cursor-pointer hover:text-blue-700 font-medium"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onAssignAgent?.(deal);
-                                    }}
-                                >
-                                    Assign
+                                <Text className="text-[13px] text-gray-400">
+                                    Unassigned
                                 </Text>
                             </div>
                         )}
                     </div>
 
                     <div className="flex items-center">
-                        <Text strong className="text-[13px] text-gray-800">
+                        <Text strong className="text-[15px] text-gray-800">
                             {formattedValue}
                         </Text>
                     </div>
@@ -233,24 +250,24 @@ const DealCard: React.FC<DealCardProps> = ({
                             <Tooltip
                                 title={`Created: ${dayjs(deal.created_at).format("MMM D, YYYY h:mm A")}`}
                             >
-                                <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                                    <CalendarOutlined className="text-[10px]" />
+                                <div className="flex items-center gap-1 text-[12px] text-gray-400">
+                                    <CalendarOutlined className="text-[12px]" />
                                     <span>{formattedDate}</span>
                                 </div>
                             </Tooltip>
                         ) : (
-                            <span className="text-[10px] text-gray-300">
+                            <span className="text-[12px] text-gray-300">
                                 No date
                             </span>
                         )}
                     </div>
 
                     {/* Stats: Tasks, Meetings, Activities */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                         {(deal.tasks_count ?? 0) > 0 && (
                             <Tooltip title={`${deal.tasks_count} Tasks`}>
-                                <div className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                                    <CheckSquareOutlined className="text-[10px]" />
+                                <div className="flex items-center gap-1 text-[12px] text-gray-400">
+                                    <CheckSquareOutlined className="text-[12px]" />
                                     <span>{deal.tasks_count}</span>
                                 </div>
                             </Tooltip>
@@ -258,8 +275,8 @@ const DealCard: React.FC<DealCardProps> = ({
 
                         {(deal.meetings_count ?? 0) > 0 && (
                             <Tooltip title={`${deal.meetings_count} Meetings`}>
-                                <div className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                                    <VideoCameraOutlined className="text-[10px]" />
+                                <div className="flex items-center gap-1 text-[12px] text-gray-400">
+                                    <VideoCameraOutlined className="text-[12px]" />
                                     <span>{deal.meetings_count}</span>
                                 </div>
                             </Tooltip>
@@ -269,8 +286,8 @@ const DealCard: React.FC<DealCardProps> = ({
                             <Tooltip
                                 title={`${deal.activities_count} Activities`}
                             >
-                                <div className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                                    <MessageOutlined className="text-[10px]" />
+                                <div className="flex items-center gap-1 text-[12px] text-gray-400">
+                                    <MessageOutlined className="text-[12px]" />
                                     <span>{deal.activities_count}</span>
                                 </div>
                             </Tooltip>
@@ -280,7 +297,7 @@ const DealCard: React.FC<DealCardProps> = ({
                         {(deal.tasks_count ?? 0) === 0 &&
                             (deal.meetings_count ?? 0) === 0 &&
                             (deal.activities_count ?? 0) === 0 && (
-                                <span className="text-[10px] text-gray-300">
+                                <span className="text-[12px] text-gray-300">
                                     —
                                 </span>
                             )}

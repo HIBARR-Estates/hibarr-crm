@@ -75,7 +75,7 @@ export default function DealInfoSection({
 
     // Track pending changes in edit mode
     const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
-        {}
+        {},
     );
     const [isSavingAll, setIsSavingAll] = useState(false);
 
@@ -100,7 +100,7 @@ export default function DealInfoSection({
             }
             // Clear the updating field after completion
             setUpdatingField(null);
-        }
+        },
     );
 
     // Helper to check if a specific field is loading
@@ -180,13 +180,13 @@ export default function DealInfoSection({
 
             if (Object.keys(detailsChanges).length > 0) {
                 promises.push(
-                    updateDeal({ type: "details", data: detailsChanges })
+                    updateDeal({ type: "details", data: detailsChanges }),
                 );
             }
 
             if (Object.keys(contactChanges).length > 0) {
                 promises.push(
-                    updateDeal({ type: "contact", data: contactChanges })
+                    updateDeal({ type: "contact", data: contactChanges }),
                 );
             }
 
@@ -231,72 +231,55 @@ export default function DealInfoSection({
             | "details"
             | "contact"
             | "custom_field"
-            | "hibarr_field" = "details"
+            | "hibarr_field" = "details",
     ): Promise<void> => {
         // Set the updating field to show loading only for this field
         setUpdatingField(fieldName);
 
-        // Check if value is a File (for file uploads)
+        // Check if value is a File or array of Files (for file uploads)
         const isFile = value instanceof File;
+        const isFileArray =
+            Array.isArray(value) &&
+            value.length > 0 &&
+            value[0] instanceof File;
 
         try {
-            if (isFile && (type === "custom_field" || type === "hibarr_field")) {
+            if ((isFile || isFileArray) && type === "custom_field") {
+                // Handle file upload via FormData for custom fields
+                // Use POST with _method=PATCH for file uploads (Laravel method spoofing)
                 const formData = new FormData();
-                // Ensure type is a string
-                formData.append("type", String(type));
-                formData.append(`data[${fieldName}]`, value);
-                // Use POST only - PATCH with multipart/form-data doesn't work well in PHP 
+                formData.append("_method", "PATCH");
+                formData.append("type", "custom_field");
 
-                try {
-                    const response = await axios.post(
-                        route("deals.gathering.inline_update", {
-                            id: currentDeal.id,
-                        }),
-                        formData,
-                        {
-                            headers: {
-                                "Content-Type": "multipart/form-data",
-                                Accept: "application/json",
-                            },
-                            timeout: 300000, 
-                        }
-                    );
+                if (isFileArray) {
+                    // Multiple files - append each with array notation
+                    (value as File[]).forEach((file, index) => {
+                        formData.append(`data[${fieldName}][${index}]`, file);
+                    });
+                } else if (isFile) {
+                    // Single file - cast to File type
+                    formData.append(`data[${fieldName}]`, value as File);
+                }
 
-                    if (
-                        response.data?.status === "success" &&
-                        response.data?.data
-                    ) {
-                        setCurrentDeal(response.data.data);
-                        message.success("File uploaded successfully");
-                    }
-                    setUpdatingField(null);
-                    return;
-                } catch (uploadError: any) {
-                    setUpdatingField(null);
-                    
-                    // Handle specific error cases
-                    if (uploadError?.response?.status === 413) {
-                        message.error(
-                            "File is too large. Please check your server's upload_max_filesize and post_max_size settings."
-                        );
-                    } else if (uploadError?.response?.status === 422) {
-                        const errorMessage =
-                            uploadError?.response?.data?.message ||
-                            uploadError?.response?.data?.errors?.type?.[0] ||
-                            "Validation error. Please check the file and try again.";
-                        message.error(errorMessage);
-                    } else if (uploadError?.code === "ERR_INCOMPLETE_CHUNKED_ENCODING") {
-                        message.error(
-                            "Upload failed. The file may be too large or the connection was interrupted."
-                        );
-                    } else {
-                        message.error(
-                            uploadError?.response?.data?.message ||
-                            uploadError?.message ||
-                            "Failed to upload file"
-                        );
-                    }
-                    throw uploadError; 
+                const response = await axios.post(
+                    route("deals.gathering.inline_update", {
+                        id: currentDeal.id,
+                    }),
+                    formData,
+                    {
+                        headers: {
+                            // Let axios set the Content-Type with proper boundary for FormData
+                            Accept: "application/json",
+                        },
+                    },
+                );
+
+                if (
+                    response.data?.status === "success" &&
+                    response.data?.data
+                ) {
+                    setCurrentDeal(response.data.data);
+                    message.success("File uploaded successfully");
                 }
             }
 
@@ -429,7 +412,7 @@ export default function DealInfoSection({
                             <EditableField
                                 value={
                                     currentDeal.packages?.map(
-                                        (p: any) => p.id
+                                        (p: any) => p.id,
                                     ) || []
                                 }
                                 fieldName="package_id"
@@ -439,7 +422,8 @@ export default function DealInfoSection({
                                     currentDeal.packages?.length
                                         ? currentDeal.packages
                                               .map(
-                                                  (pkg: any) => pkg?.name || pkg
+                                                  (pkg: any) =>
+                                                      pkg?.name || pkg,
                                               )
                                               .join(", ")
                                         : "--"
@@ -466,7 +450,7 @@ export default function DealInfoSection({
                                             <Link
                                                 href={route(
                                                     "lead-contact.show",
-                                                    currentDeal.contact.id
+                                                    currentDeal.contact.id,
                                                 )}
                                                 className="text-blue-600 hover:text-blue-800 font-medium"
                                             >
@@ -532,7 +516,7 @@ export default function DealInfoSection({
                                     <PhoneOutlined className="text-gray-400" />
                                     <EditableField
                                         value={getMobileNumber(
-                                            currentDeal.contact.mobile
+                                            currentDeal.contact.mobile,
                                         )}
                                         fieldName="mobile"
                                         fieldType="text"
@@ -624,7 +608,7 @@ export default function DealInfoSection({
                             <EditableField
                                 value={
                                     currentDeal.deal_watchers?.map(
-                                        (w: any) => w.id
+                                        (w: any) => w.id,
                                     ) || []
                                 }
                                 fieldName="deal_watcher"
@@ -641,7 +625,7 @@ export default function DealInfoSection({
                                                         watcher.image_url ||
                                                         watcher.image, // Handle both structures
                                                     name: watcher.name,
-                                                })
+                                                }),
                                             )}
                                             size="sm"
                                             maxCount={2}
@@ -669,7 +653,7 @@ export default function DealInfoSection({
                             <EditableField
                                 value={
                                     currentDeal.deal_participants?.map(
-                                        (p: any) => p.id
+                                        (p: any) => p.id,
                                     ) || []
                                 }
                                 fieldName="deal_participant"
@@ -686,7 +670,7 @@ export default function DealInfoSection({
                                                         participant.image_url ||
                                                         participant.image,
                                                     name: participant.name,
-                                                })
+                                                }),
                                             )}
                                             size="sm"
                                             maxCount={2}
@@ -732,7 +716,7 @@ export default function DealInfoSection({
                                 formatValue={(value) =>
                                     value
                                         ? dayjs(value.toString()).format(
-                                              "MMM DD, YYYY"
+                                              "MMM DD, YYYY",
                                           )
                                         : "--"
                                 }
@@ -757,7 +741,7 @@ export default function DealInfoSection({
                                         ? formatCurrency(
                                               Number(value),
                                               currentDeal.currency
-                                                  ?.currency_symbol
+                                                  ?.currency_symbol,
                                           )
                                         : "--"
                                 }
@@ -772,7 +756,7 @@ export default function DealInfoSection({
                             <EditableField
                                 value={
                                     currentDeal.products?.map(
-                                        (p: any) => p.id
+                                        (p: any) => p.id,
                                     ) || []
                                 }
                                 fieldName="product_id"
@@ -789,7 +773,7 @@ export default function DealInfoSection({
                                                     >
                                                         {product}
                                                     </Tag>
-                                                )
+                                                ),
                                             )}
                                         </div>
                                     ) : (

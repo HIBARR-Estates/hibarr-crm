@@ -165,7 +165,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
             e.stopPropagation();
             onSelect(notification.id, e.target.checked);
         },
-        [notification.id, onSelect]
+        [notification.id, onSelect],
     );
 
     const handleMarkRead = useCallback(
@@ -173,7 +173,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
             e?.stopPropagation();
             onMarkRead(notification.id);
         },
-        [notification.id, onMarkRead]
+        [notification.id, onMarkRead],
     );
 
     const handleDelete = useCallback(
@@ -181,7 +181,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
             e?.stopPropagation();
             onDelete(notification.id);
         },
-        [notification.id, onDelete]
+        [notification.id, onDelete],
     );
 
     const actionItems: MenuProps["items"] = [
@@ -235,7 +235,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                 <div
                     className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${getIconBackground(
                         notification.icon,
-                        notification.is_read
+                        notification.is_read,
                     )}`}
                 >
                     <span className="text-lg">
@@ -587,10 +587,11 @@ const NotificationsPage: React.FC = () => {
                 markAsRead(notification.id);
             }
             if (notification.link) {
-                router.visit(notification.link);
+                // Use standard navigation to support both Inertia and non-Inertia pages
+                window.location.href = notification.link;
             }
         },
-        [markAsRead]
+        [markAsRead],
     );
 
     // Handle search with debounce
@@ -598,7 +599,7 @@ const NotificationsPage: React.FC = () => {
         (search: string) => {
             updateFilters({ search });
         },
-        [updateFilters]
+        [updateFilters],
     );
 
     // Check if there are unread/read notifications
@@ -699,7 +700,7 @@ const NotificationsPage: React.FC = () => {
                                             key={notification.id}
                                             notification={notification}
                                             selected={selectedIds.includes(
-                                                notification.id
+                                                notification.id,
                                             )}
                                             showCheckbox={showCheckboxes}
                                             onSelect={selectNotification}
@@ -729,8 +730,8 @@ const NotificationsPage: React.FC = () => {
                                                     {filters.status === "unread"
                                                         ? "You're all caught up! No unread notifications."
                                                         : filters.search
-                                                        ? "Try adjusting your search or filters."
-                                                        : "When you receive notifications, they'll appear here."}
+                                                          ? "Try adjusting your search or filters."
+                                                          : "When you receive notifications, they'll appear here."}
                                                 </Paragraph>
                                             </div>
                                         }

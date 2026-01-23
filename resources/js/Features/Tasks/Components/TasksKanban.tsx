@@ -254,7 +254,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
 
     return (
         <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="flex space-x-4 overflow-x-auto pb-4 h-full min-h-[calc(100vh-250px)]">
+            <div className="flex space-x-4 overflow-x-auto pb-4 min-h-[calc(100vh-250px)]">
                 {columns.map((column) => (
                     <div
                         key={column.id}
@@ -295,7 +295,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                                 <div
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
-                                    className={`flex-1 overflow-y-auto min-h-[100px] rounded-md transition-colors ${
+                                    className={`flex-1 max-h-[calc(100vh-250px)] overflow-x-hidden overflow-y-auto min-h-[100px] rounded-md transition-colors ${
                                         snapshot.isDraggingOver
                                             ? "bg-blue-50"
                                             : ""

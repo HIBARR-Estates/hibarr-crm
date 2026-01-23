@@ -39,7 +39,8 @@ interface KanbanBoardProps {
     addLeadPermission: string;
     onCreateDeal: (columnId?: number) => void;
     onEditDeal: (deal: Deal) => void;
-    onAssignAgent?: (deal: Deal) => void;
+    onScheduleMeeting?: (deal: Deal) => void;
+    onAgentChange?: (deal: Deal, agentId: number | null) => void;
     onEditColumn: (columnId: number) => void;
     onDeleteColumn: (columnId: number) => void;
     onLoadMore?: (columnId: number) => void;
@@ -53,7 +54,8 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     addLeadPermission,
     onCreateDeal,
     onEditDeal,
-    onAssignAgent,
+    onScheduleMeeting,
+    onAgentChange,
     onEditColumn,
     onDeleteColumn,
     onLoadMore,
@@ -342,8 +344,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     items={allDealIds}
                     strategy={verticalListSortingStrategy}
                 >
-                    {columns.map((column) => (
+                    {columns.map((column, i) => (
                         <KanbanColumn
+                            columnIsDealAddable={i === 0}
                             key={column.id}
                             column={column}
                             onCollapse={handleCollapse}
@@ -351,7 +354,8 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             onDeleteColumn={onDeleteColumn}
                             onCreateDeal={onCreateDeal}
                             onEditDeal={onEditDeal}
-                            onAssignAgent={onAssignAgent}
+                            onScheduleMeeting={onScheduleMeeting}
+                            onAgentChange={onAgentChange}
                             onLoadMore={onLoadMore}
                             addLeadPermission={addLeadPermission}
                             draggingEnabled={draggingEnabled}
@@ -374,7 +378,8 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         deal={activeDeal}
                         draggable={false}
                         onEdit={onEditDeal}
-                        onAssignAgent={onAssignAgent || onEditDeal}
+                        onScheduleMeeting={onScheduleMeeting}
+                        onAgentChange={onAgentChange}
                     />
                 ) : null}
             </DragOverlay>
