@@ -28,7 +28,7 @@ export const taskApi = {
             { status: string; taskId: number },
             { status: string; data?: Task; clockHtml?: string },
             ApiResponse<{ status: string; data?: Task; clockHtml?: string }>
-        >(route("tasks.change_status"), "POST"),
+        >(route("tasks.change_status"), "POST"), //TODO: Most routes specified here are incorrect and will need to use the route function or be mapped correctly.
 
     useBulkAction: () =>
         useApiMutate<TaskBulkActionPayload, any, ApiResponse<any>>(
