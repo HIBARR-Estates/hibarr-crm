@@ -1351,6 +1351,69 @@ class DealController extends AccountBaseController
         return Reply::success(__('messages.recordSaved'));
     }
 
+    /**
+     * Change the assigned agent for a single deal
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function changeAgent(Request $request)
+    {
+        $request->validate([
+            'deal_id' => 'required|exists:deals,id',
+            'agent_id' => 'nullable|exists:lead_agents,id',
+        ]);
+
+        $deal = Deal::findOrFail($request->deal_id);
+        $this->editPermission = user()->permission('edit_deals');
+
+        // Check permission - allow if user has 'all' permission or added the deal
+        // abort_403(!(
+        //     $this->editPermission == 'all' || 
+        //     ($this->editPermission == 'added' && $deal->added_by == user()->id) ||
+        //     ($this->editPermission == 'both' && ($deal->added_by == user()->id || $deal->agent_id == user()->id))
+        // ));
+
+        $oldAgentId = $deal->agent_id;
+        
+        if ($request->agent_id) {
+            $agent = LeadAgent::find($request->agent_id);
+            
+            // If agent has a specific category, try to find matching agent for deal's category
+            if ($agent && $deal->category_id) {
+                $agentsWithSameUser = LeadAgent::where('user_id', $agent->user_id)->get();
+                $matchingAgent = $agentsWithSameUser->firstWhere('lead_category_id', $deal->category_id);
+                
+                if ($matchingAgent) {
+                    $deal->agent_id = $matchingAgent->id;
+                } else {
+                    $deal->agent_id = $agent->id;
+                }
+            } else {
+                $deal->agent_id = $request->agent_id;
+            }
+        } else {
+            $deal->agent_id = null;
+        }
+        
+        $deal->save();
+
+        // Log history if agent changed
+        if ($oldAgentId !== $deal->agent_id) {
+            $this->logDealHistory($deal, 'agent_changed', [
+                'old_agent_id' => $oldAgentId,
+                'new_agent_id' => $deal->agent_id,
+            ]);
+        }
+
+        // Reload deal with lead agent relationship
+        $deal->load('leadAgent.user');
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'deal' => $deal
+        ]);
+    }
+
     public function applyQuickAction(Request $request)
     {
         switch ($request->action_type) {

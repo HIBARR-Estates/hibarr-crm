@@ -193,7 +193,7 @@ class TaskController extends AccountBaseController
 
         $kanbanQuery = clone $tasksQuery;
 
-        $tableTasks = $tasksQuery->paginate(request('per_page', 50))->withQueryString();
+        $tableTasks = $tasksQuery->paginate(request('per_page', 15))->withQueryString();
         $kanbanTasks = $kanbanQuery->get();
         
         // Ensure kanban tasks also have the counts

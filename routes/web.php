@@ -515,6 +515,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('stage-change/{id}', [DealController::class, 'stageChange'])->name('deals.stage_change');
     Route::post('save-stage-change', [DealController::class, 'saveStageChange'])->name('deals.save_stage_change');
     Route::post('deals/change-stage', [DealController::class, 'changeStage'])->name('deals.change_stage');
+    Route::post('deals/change-agent', [DealController::class, 'changeAgent'])->name('deals.change_agent');
     Route::post('deals/apply-quick-action', [DealController::class, 'applyQuickAction'])->name('deals.apply_quick_action');
 
     Route::get('deals/gdpr-consent', [DealController::class, 'consent'])->name('deals.gdpr_consent');
