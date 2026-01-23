@@ -45,6 +45,7 @@ interface KanbanColumnProps {
     draggingEnabled?: boolean;
     filters?: Record<string, any>;
     onDealsLoaded?: (columnId: number, deals: Deal[]) => void;
+    columnIsDealAddable?: boolean;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -61,6 +62,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     draggingEnabled = true,
     filters,
     onDealsLoaded,
+    columnIsDealAddable = false,
 }) => {
     const isCollapsed = column.userSetting?.collapsed || false;
 
@@ -201,6 +203,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                         <p className="text-base font-medium text-gray-400 truncate uppercase">
                             {column.name}
                         </p>
+
+                        <div
+                            className="w-3 h-3 rounded-full ml-2"
+                            style={{ backgroundColor: column.label_color }}
+                        />
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -212,18 +219,17 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                             title="Collapse"
                         /> */}
 
-                        {addLeadPermission !== "none" && (
-                            <Dropdown
-                                menu={{ items: dropdownItems }}
-                                trigger={["click"]}
-                            >
+                        {addLeadPermission !== "none" &&
+                            columnIsDealAddable && (
                                 <Button
                                     type="text"
                                     size="small"
-                                    icon={<MoreOutlined />}
-                                />
-                            </Dropdown>
-                        )}
+                                    icon={<PlusOutlined />}
+                                    onClick={() => onCreateDeal(column.id)}
+                                >
+                                    Add Deal
+                                </Button>
+                            )}
                     </div>
                 </div>
 

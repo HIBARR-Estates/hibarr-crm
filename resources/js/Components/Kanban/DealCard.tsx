@@ -152,13 +152,13 @@ const DealCard: React.FC<DealCardProps> = ({
                         >
                             <Text
                                 strong
-                                className="text-[13px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors"
+                                className="text-[15px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors"
                                 ellipsis={{ tooltip: deal.name }}
                             >
                                 <span className="font-medium">{deal.name}</span>
                                 {deal.contact?.client_id && (
                                     <i
-                                        className="fa fa-check-circle text-green-500 ml-1 text-[10px]"
+                                        className="fa fa-check-circle text-green-500 ml-1 text-[12px]"
                                         title="Converted Client"
                                     />
                                 )}
@@ -188,7 +188,7 @@ const DealCard: React.FC<DealCardProps> = ({
                 {deal.contact?.client_name && (
                     <div className="mb-2">
                         <Text
-                            className="text-[11px] text-gray-500 leading-tight"
+                            className="text-[13px] text-gray-500 leading-tight"
                             ellipsis={{
                                 tooltip: `${deal.contact.salutation ? deal.contact.salutation + " " : ""}${deal.contact.client_name}`,
                             }}
@@ -214,7 +214,7 @@ const DealCard: React.FC<DealCardProps> = ({
                                 />
                                 <Tooltip title={agentUser[0].name}>
                                     <Text
-                                        className="text-[11px] text-gray-600 truncate max-w-[70px]"
+                                        className="text-[13px] text-gray-600 truncate max-w-[80px]"
                                         ellipsis
                                     >
                                         {agentUser[0].name}
@@ -223,13 +223,13 @@ const DealCard: React.FC<DealCardProps> = ({
                             </div>
                         ) : (
                             <div className="flex items-center gap-1.5">
-                                <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <span className="text-gray-400 text-[8px]">
+                                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <span className="text-gray-400 text-[10px]">
                                         ?
                                     </span>
                                 </div>
                                 <Text
-                                    className="text-[11px] text-blue-600 cursor-pointer hover:text-blue-700 font-medium"
+                                    className="text-[13px] text-blue-600 cursor-pointer hover:text-blue-700 font-medium"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onAssignAgent?.(deal);
@@ -242,7 +242,7 @@ const DealCard: React.FC<DealCardProps> = ({
                     </div>
 
                     <div className="flex items-center">
-                        <Text strong className="text-[13px] text-gray-800">
+                        <Text strong className="text-[15px] text-gray-800">
                             {formattedValue}
                         </Text>
                     </div>
@@ -256,24 +256,24 @@ const DealCard: React.FC<DealCardProps> = ({
                             <Tooltip
                                 title={`Created: ${dayjs(deal.created_at).format("MMM D, YYYY h:mm A")}`}
                             >
-                                <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                                    <CalendarOutlined className="text-[10px]" />
+                                <div className="flex items-center gap-1 text-[12px] text-gray-400">
+                                    <CalendarOutlined className="text-[12px]" />
                                     <span>{formattedDate}</span>
                                 </div>
                             </Tooltip>
                         ) : (
-                            <span className="text-[10px] text-gray-300">
+                            <span className="text-[12px] text-gray-300">
                                 No date
                             </span>
                         )}
                     </div>
 
                     {/* Stats: Tasks, Meetings, Activities */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                         {(deal.tasks_count ?? 0) > 0 && (
                             <Tooltip title={`${deal.tasks_count} Tasks`}>
-                                <div className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                                    <CheckSquareOutlined className="text-[10px]" />
+                                <div className="flex items-center gap-1 text-[12px] text-gray-400">
+                                    <CheckSquareOutlined className="text-[12px]" />
                                     <span>{deal.tasks_count}</span>
                                 </div>
                             </Tooltip>
@@ -281,8 +281,8 @@ const DealCard: React.FC<DealCardProps> = ({
 
                         {(deal.meetings_count ?? 0) > 0 && (
                             <Tooltip title={`${deal.meetings_count} Meetings`}>
-                                <div className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                                    <VideoCameraOutlined className="text-[10px]" />
+                                <div className="flex items-center gap-1 text-[12px] text-gray-400">
+                                    <VideoCameraOutlined className="text-[12px]" />
                                     <span>{deal.meetings_count}</span>
                                 </div>
                             </Tooltip>
@@ -292,8 +292,8 @@ const DealCard: React.FC<DealCardProps> = ({
                             <Tooltip
                                 title={`${deal.activities_count} Activities`}
                             >
-                                <div className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                                    <MessageOutlined className="text-[10px]" />
+                                <div className="flex items-center gap-1 text-[12px] text-gray-400">
+                                    <MessageOutlined className="text-[12px]" />
                                     <span>{deal.activities_count}</span>
                                 </div>
                             </Tooltip>
@@ -303,7 +303,7 @@ const DealCard: React.FC<DealCardProps> = ({
                         {(deal.tasks_count ?? 0) === 0 &&
                             (deal.meetings_count ?? 0) === 0 &&
                             (deal.activities_count ?? 0) === 0 && (
-                                <span className="text-[10px] text-gray-300">
+                                <span className="text-[12px] text-gray-300">
                                     —
                                 </span>
                             )}

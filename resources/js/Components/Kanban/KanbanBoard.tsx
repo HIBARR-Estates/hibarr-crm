@@ -342,8 +342,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     items={allDealIds}
                     strategy={verticalListSortingStrategy}
                 >
-                    {columns.map((column) => (
+                    {columns.map((column, i) => (
                         <KanbanColumn
+                            columnIsDealAddable={i === 0}
                             key={column.id}
                             column={column}
                             onCollapse={handleCollapse}
