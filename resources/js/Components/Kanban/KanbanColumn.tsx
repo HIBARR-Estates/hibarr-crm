@@ -38,7 +38,8 @@ interface KanbanColumnProps {
     onDeleteColumn: (columnId: number) => void;
     onCreateDeal: (columnId?: number) => void;
     onEditDeal: (deal: Deal) => void;
-    onAssignAgent?: (deal: Deal) => void;
+    onScheduleMeeting?: (deal: Deal) => void;
+    onAgentChange?: (deal: Deal, agentId: number | null) => void;
     onLoadMore?: (columnId: number) => void;
     addLeadPermission: string;
     canDelete?: boolean;
@@ -55,7 +56,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     onDeleteColumn,
     onCreateDeal,
     onEditDeal,
-    onAssignAgent,
+    onScheduleMeeting,
+    onAgentChange,
     onLoadMore,
     addLeadPermission,
     canDelete = true,
@@ -285,7 +287,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                                 deal={deal}
                                 draggable={draggingEnabled}
                                 onEdit={onEditDeal}
-                                onAssignAgent={onAssignAgent || onEditDeal}
+                                onScheduleMeeting={onScheduleMeeting}
+                                onAgentChange={onAgentChange}
                             />
                         ))}
                     </SortableContext>
