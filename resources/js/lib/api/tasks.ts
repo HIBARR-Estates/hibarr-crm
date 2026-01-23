@@ -17,7 +17,7 @@ export const taskApi = {
     useUpdateTask: (id: number) =>
         useApiMutate<TaskPayload, Task, ApiResponse<Task>>(
             `/tasks/${id}`,
-            "PUT"
+            "PUT",
         ),
 
     useDeleteTask: (id: number) =>
@@ -28,7 +28,7 @@ export const taskApi = {
             { status: string; taskId: number },
             { status: string; data?: Task; clockHtml?: string },
             ApiResponse<{ status: string; data?: Task; clockHtml?: string }>
-        >("/tasks/change-status", "POST"),
+        >(route("tasks.change_status"), "POST"),
 
     useBulkAction: () =>
         useApiMutate<TaskBulkActionPayload, any, ApiResponse<any>>(
@@ -37,6 +37,6 @@ export const taskApi = {
             // We'll stick to legacy compatible endpoints for now or the new one if created.
             // The prompt architecture suggests 'tasks/bulk-action'. Let's assume we might need to route this correctly or create it.
             // For now, mapping to what likely exists or will be created:
-            "POST"
+            "POST",
         ),
 };
