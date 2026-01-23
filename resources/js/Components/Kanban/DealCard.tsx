@@ -1,6 +1,6 @@
 import React from "react";
 import { Deal } from "@/Types/api/deals";
-import { Card, Dropdown, Button, Typography, Tooltip } from "antd";
+import { Card, Dropdown, Button, Typography, Tooltip, Avatar } from "antd";
 import type { MenuProps } from "antd";
 import {
     EllipsisOutlined as MoreOutlined,
@@ -9,15 +9,15 @@ import {
     VideoCameraOutlined,
     MessageOutlined,
     EditOutlined,
-    UserAddOutlined,
     EyeOutlined,
+    UserOutlined,
 } from "@ant-design/icons";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import MultiUserIndicator from "../MultiUserIndicator";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import AgentSelector from "../AgentSelector";
 
 const { Text } = Typography;
 
@@ -25,14 +25,16 @@ interface DealCardProps {
     deal: Deal;
     draggable?: boolean;
     onEdit?: (deal: Deal) => void;
-    onAssignAgent?: (deal: Deal) => void;
+    onScheduleMeeting?: (deal: Deal) => void;
+    onAgentChange?: (deal: Deal, agentId: number | null) => void;
 }
 
 const DealCard: React.FC<DealCardProps> = ({
     deal,
     draggable = true,
     onEdit,
-    onAssignAgent,
+    onScheduleMeeting,
+    onAgentChange,
 }) => {
     const {
         attributes,
@@ -62,16 +64,14 @@ const DealCard: React.FC<DealCardProps> = ({
         ? dayjs(deal.created_at).format("MMM D, YYYY")
         : null;
 
-    // Prepare agent user for MultiUserIndicator
-    const agentUser = deal.lead_agent?.user
-        ? [
-              {
-                  id: deal.lead_agent.user.id,
-                  name: deal.lead_agent.user.name,
-                  image_url: deal.lead_agent.user.image_url,
-              },
-          ]
-        : [];
+    // Prepare current agent for AgentSelector
+    const currentAgent = deal.lead_agent?.user
+        ? {
+              id: deal.lead_agent.user.id,
+              name: deal.lead_agent.user.name,
+              image_url: deal.lead_agent.user.image_url,
+          }
+        : null;
 
     // Action items for dropdown - conditionally include edit based on permissions
     const actionItems: MenuProps["items"] = [
@@ -96,23 +96,17 @@ const DealCard: React.FC<DealCardProps> = ({
                   },
               ]
             : []),
-        // Assign agent - only if user has edit permission (not for watchers)
-        ...(canEdit
-            ? [
-                  {
-                      key: "assign",
-                      icon: <UserAddOutlined />,
-                      label: deal.lead_agent
-                          ? "Reassign Agent"
-                          : "Assign Agent",
-                      onClick: (e: any) => {
-                          e.domEvent.stopPropagation();
-                          e.domEvent.preventDefault();
-                          onAssignAgent?.(deal);
-                      },
-                  },
-              ]
-            : []),
+        // Schedule Meeting - replaces Assign Agent (now available via inline agent selector)
+        {
+            key: "schedule_meeting",
+            icon: <CalendarOutlined />,
+            label: "Schedule Meeting",
+            onClick: (e: any) => {
+                e.domEvent.stopPropagation();
+                e.domEvent.preventDefault();
+                onScheduleMeeting?.(deal);
+            },
+        },
     ];
 
     return (
@@ -203,39 +197,39 @@ const DealCard: React.FC<DealCardProps> = ({
                 {/* Agent + Deal Value Row */}
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex-1 min-w-0">
-                        {agentUser.length > 0 ? (
+                        {canEdit && onAgentChange ? (
+                            // Interactive agent selector using useFormData
+                            <AgentSelector
+                                currentAgent={currentAgent}
+                                onSelect={(agentId) =>
+                                    onAgentChange(deal, agentId)
+                                }
+                                size="small"
+                            />
+                        ) : // Read-only agent display
+                        currentAgent ? (
                             <div className="flex items-center gap-1.5">
-                                <MultiUserIndicator
-                                    users={agentUser}
-                                    size="xs"
-                                    maxCount={1}
-                                    showNames={false}
-                                    showTooltip={true}
+                                <Avatar
+                                    size={20}
+                                    src={currentAgent.image_url}
+                                    icon={<UserOutlined />}
                                 />
-                                <Tooltip title={agentUser[0].name}>
+                                <Tooltip title={currentAgent.name}>
                                     <Text
                                         className="text-[13px] text-gray-600 truncate max-w-[80px]"
                                         ellipsis
                                     >
-                                        {agentUser[0].name}
+                                        {currentAgent.name}
                                     </Text>
                                 </Tooltip>
                             </div>
                         ) : (
                             <div className="flex items-center gap-1.5">
                                 <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <span className="text-gray-400 text-[10px]">
-                                        ?
-                                    </span>
+                                    <UserOutlined className="text-gray-400 text-[10px]" />
                                 </div>
-                                <Text
-                                    className="text-[13px] text-blue-600 cursor-pointer hover:text-blue-700 font-medium"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onAssignAgent?.(deal);
-                                    }}
-                                >
-                                    Assign
+                                <Text className="text-[13px] text-gray-400">
+                                    Unassigned
                                 </Text>
                             </div>
                         )}

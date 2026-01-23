@@ -15,6 +15,7 @@ import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createDealFilterConfig from "@/configs/dealFilterConfig";
 import { createDealSearchConfig } from "@/configs/searchConfigs";
 import { getDealPermissions } from "@/Hooks/useDealPermissions";
+import { dealApi } from "@/lib/api/deals";
 import {
     UserOutlined,
     PlusOutlined,
@@ -196,6 +197,45 @@ const Index = ({
         handleAction("import");
     };
 
+    // Handle schedule meeting (follow up)
+    const handleScheduleMeeting = useCallback(
+        (deal: Deal) => {
+            handleAction("add_follow_up", deal);
+        },
+        [handleAction],
+    );
+
+    // Change Agent Mutation
+    const { mutate: changeAgent } = dealApi.useChangeAgent();
+
+    // Handle agent change from table or card
+    const handleAgentChange = useCallback(
+        (deal: Deal, agentId: number | null) => {
+            changeAgent(
+                { deal_id: deal.id, agent_id: agentId },
+                {
+                    onSuccess: () => {
+                        router.reload({ only: ["deals", "boardColumns"] });
+                    },
+                },
+            );
+        },
+        [changeAgent],
+    );
+
+    // Helper to check if user can edit a specific deal
+    const canEditDeal = useCallback(
+        (deal: Deal): boolean => {
+            const { canEdit } = getDealPermissions(
+                deal,
+                currentUser?.id,
+                editDealsPermission,
+            );
+            return canEdit;
+        },
+        [currentUser?.id, editDealsPermission],
+    );
+
     // Action dropdown for each row - respects deal permissions (watchers can't edit/delete)
     const getActionItems = (record: Deal): MenuProps["items"] => {
         // Get permissions for this specific deal
@@ -267,7 +307,11 @@ const Index = ({
         ];
     };
 
-    const columns = DEAL_TABLE_COLUMNS(getActionItems);
+    const columns = DEAL_TABLE_COLUMNS({
+        actionItems: getActionItems,
+        onAgentChange: handleAgentChange,
+        canEdit: canEditDeal,
+    });
 
     const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
         ? Number((props as any).filters?.lead_pipeline_id)
@@ -404,6 +448,8 @@ const Index = ({
                                 addLeadPermission={addLeadPermission}
                                 onCreateDeal={handleCreateDeal}
                                 onEditDeal={handleEditDeal}
+                                onScheduleMeeting={handleScheduleMeeting}
+                                onAgentChange={handleAgentChange}
                                 onEditColumn={handleEditColumn}
                                 onDeleteColumn={handleDeleteColumn}
                                 onColumnsUpdate={handleColumnsUpdate}
