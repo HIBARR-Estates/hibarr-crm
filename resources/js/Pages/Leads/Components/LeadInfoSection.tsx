@@ -245,23 +245,45 @@ export default function LeadInfoSection({
         // Check if this is a custom field (starts with "field_")
         const isCustomField = fieldName.startsWith("field_");
 
-        // Check if value is a File (for file uploads)
+        // Check if value is a File or array of Files (for file uploads)
         const isFile = value instanceof File;
+        const isFileArray =
+            Array.isArray(value) &&
+            value.length > 0 &&
+            value[0] instanceof File;
 
         try {
-            if (isFile) {
+            if (isFile || isFileArray) {
                 // Handle file upload via FormData
+                // Use POST with _method=PATCH for file uploads (Laravel method spoofing)
+                // PATCH with multipart/form-data can have issues with some servers
                 const formData = new FormData();
-                formData.append(`custom_fields[${fieldName}]`, value);
+                formData.append("_method", "PATCH");
 
-                const response = await axios.patch(
+                if (isFileArray) {
+                    // Multiple files - append each with array notation
+                    (value as File[]).forEach((file, index) => {
+                        formData.append(
+                            `custom_fields[${fieldName}][${index}]`,
+                            file,
+                        );
+                    });
+                } else if (isFile) {
+                    // Single file - cast to File type
+                    formData.append(
+                        `custom_fields[${fieldName}]`,
+                        value as File,
+                    );
+                }
+
+                const response = await axios.post(
                     route("lead-contact.patch", {
                         lead_contact: currentLeadState.id,
                     }),
                     formData,
                     {
                         headers: {
-                            "Content-Type": "multipart/form-data",
+                            // Let axios set the Content-Type with proper boundary for FormData
                             Accept: "application/json",
                         },
                     },
