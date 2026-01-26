@@ -104,8 +104,8 @@ export const NoteCard: React.FC<NoteCardProps> = ({
             // hoverable
             variant="outlined"
         >
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex items-start space-x-3 flex-1">
+            <div className="flex justify-between items-start mb-3 gap-2">
+                <div className="flex items-start space-x-3 flex-1 min-w-0">
                     <div className="flex-1 min-w-0">
                         <Title
                             level={5}
