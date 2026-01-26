@@ -32,5 +32,6 @@ export interface DealFollowup {
     };
     remark?: string;
     reminders?: Reminder[];
+    participants?: number[]; // Array of user IDs
     meeting_summary?: MeetingSummary;
 }

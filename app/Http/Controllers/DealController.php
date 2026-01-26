@@ -1579,6 +1579,12 @@ class DealController extends AccountBaseController
         
         // Set the new reminders JSON field with custom reminders only
         $followUp->setCustomReminders($customReminders);
+        
+        // Set participants if provided
+        if ($request->has('participants') && is_array($request->participants)) {
+            $followUp->participants = $request->participants;
+        }
+        
         $followUp->status = 'scheduled';
 
         $followUp->save();
@@ -1665,6 +1671,11 @@ class DealController extends AccountBaseController
         
         // Set the new reminders JSON field with custom reminders only
         $followUp->setCustomReminders($customReminders);
+        
+        // Set participants if provided
+        if ($request->has('participants') && is_array($request->participants)) {
+            $followUp->participants = $request->participants;
+        }
 
         $followUp->save();
 

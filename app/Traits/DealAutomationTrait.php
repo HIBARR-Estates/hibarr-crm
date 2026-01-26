@@ -47,6 +47,7 @@ trait DealAutomationTrait
 
             $agentInfo = $this->getAgentInformation($followUp->deal);
             $watcherInfo = $this->getWatcherInformation($followUp->deal);
+            $participantsInfo = $this->getParticipantsInformation($followUp);
 
 
             $result = $this->sendFollowUpAutomationWebhook('followup', [
@@ -68,6 +69,7 @@ trait DealAutomationTrait
                 'contactInformation' => $followUp->deal ? $this->getCustomerInfo($followUp->deal->lead_id) : null,
                 'agentInformation' => $agentInfo,
                 'watcherInformation' => $watcherInfo,
+                'participantsInformation' => $participantsInfo,
             ]);
 
             return $result;
@@ -231,6 +233,47 @@ trait DealAutomationTrait
         }
     }
 
+    private function getParticipantsInformation(DealFollowUp $followUp): array
+    {
+        try {
+            $participants = $followUp->participants ?? [];
+            
+            if (empty($participants) || !is_array($participants)) {
+                return [];
+            }
+
+            $participantsInfo = [];
+            
+            foreach ($participants as $userId) {
+                if (!is_numeric($userId)) {
+                    continue;
+                }
+                
+                $user = User::find($userId);
+                if (!$user) {
+                    continue;
+                }
+
+                $participantsInfo[] = [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'mobile' => $user->mobile,
+                    'status' => $user->status,
+                    'role' => $user->role ? (is_object($user->role) && method_exists($user->role, 'first') ? $user->role->first()?->display_name : $user->role->display_name) : null,
+                ];
+            }
+
+            return $participantsInfo;
+        } catch (\Throwable $e) {
+            Log::error("Failed to get participants information for follow-up ID: {$followUp->id}", [
+                'exception' => $e,
+                'participants' => $followUp->participants ?? null,
+            ]);
+            return [];
+        }
+    }
+
     /**
      * Trigger automation for deal creation
      */
@@ -246,11 +289,17 @@ trait DealAutomationTrait
         //     return null;
         // }
 
+        // Get deal if lead_contact is provided
+        $deal = null;
+        if (isset($validatedData['lead_contact'])) {
+            $deal = Deal::where('lead_id', $validatedData['lead_contact'])->first();
+        }
+
         return $this->sendAutomationWebhook('create', [
             'contactInformation' => $this->getCustomerInfo($validatedData['lead_contact'] ?? null),
             'dealCustomFields'     => $validatedData,
-            'agentInformation' => $this->getAgentInformation($followUp->deal),
-            'watcherInformation' => $this->getWatcherInformation($followUp->deal),
+            'agentInformation' => $deal ? $this->getAgentInformation($deal) : null,
+            'watcherInformation' => $deal ? $this->getWatcherInformation($deal) : null,
         ]);
     }
 

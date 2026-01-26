@@ -20,7 +20,8 @@ interface SaveFollowupFormData {
     remind_time?: number;
     remind_type?: string;
     remark?: string;
-    timezone?: string; 
+    timezone?: string;
+    participants?: number[];
 }
 
 interface Props extends IModalProps {
