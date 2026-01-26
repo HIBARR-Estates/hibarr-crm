@@ -12,6 +12,7 @@ import {
 import { CustomField } from '@/Types';
 import { useCustomFieldVisibility } from '@/Hooks/useCustomFieldVisibility';
 import { usePage } from '@inertiajs/react';
+import RepeatableFieldRenderer from '@/Components/RepeatableFieldRenderer';
 
 interface Props {
     fields: CustomField[];
@@ -269,6 +270,17 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 return renderDateField(field);
             case 'country':
                 return renderCountryField(field);
+            case 'repeatable':
+                return (
+                    <RepeatableFieldRenderer
+                        key={field.id}
+                        field={field as any}
+                        form={form}
+                        namePrefix={namePrefix}
+                        errors={{}}
+                        isFieldVisible={isFieldVisible}
+                    />
+                );
             default:
                 return renderTextField(field);
         }
@@ -281,7 +293,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 if (!fieldElement) return null;
 
                 return (
-                    <Col key={field.id} span={field.type === 'textarea' ? 24 : 12}>
+                    <Col key={field.id} span={field.type === 'textarea' || field.type === 'repeatable' ? 24 : 12}>
                         {fieldElement}
                     </Col>
                 );

@@ -78,6 +78,14 @@ class CustomField extends BaseModel
     }
 
     /**
+     * For type=repeatable: the field whose value (N) dictates how many blocks to render.
+     */
+    public function linkedField(): BelongsTo
+    {
+        return $this->belongsTo(CustomField::class, 'linked_field_id');
+    }
+
+    /**
      * Get the visibility rule set for this field
      */
     public function showRuleSet(): HasOne

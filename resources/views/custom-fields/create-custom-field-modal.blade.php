@@ -100,6 +100,20 @@
                     </div>
                 </div>
             </div>
+            <div class="form-group mt-repeater-repeatable d-none">
+                <label class="control-label">@lang('modules.customFields.linkedField')</label>
+                <select name="linked_field_id" class="form-control select-picker" id="createLinkedFieldId">
+                    <option value="">@lang('app.select') @lang('modules.customFields.linkedField')</option>
+                </select>
+                <label class="control-label mt-3">@lang('modules.customFields.itemSchema')</label>
+                <div id="createSchemaContainer"></div>
+                <div id="createSchemaInsertBefore"></div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <a class="f-15 f-w-500" href="javascript:;" id="createAddSchemaRow"><i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.customFields.addSchemaRow')</a>
+                    </div>
+                </div>
+            </div>
         </x-form>
     </div>
 </div>
@@ -109,6 +123,10 @@
 </div>
 
 <script>
+    @php
+        $schemaTypeOptions = collect($schemaTypes ?? [])->map(fn ($t) => ['value' => $t, 'label' => __("app.{$t}")])->values()->all();
+    @endphp
+    var schemaTypeOptions = @json($schemaTypeOptions);
 
     $(".select-picker").selectpicker();
 
@@ -127,8 +145,60 @@
         $('#addMoreBox' + index).remove();
     }
 
+    var createSchemaIndex = 0;
+    function loadFieldsForRepeatable(moduleId) {
+        var $sel = $('#createLinkedFieldId');
+        $sel.empty().append('<option value="">@lang('app.select') @lang('modules.customFields.linkedField')</option>');
+        if (!moduleId) { $sel.selectpicker('refresh'); return; }
+        $.easyAjax({
+            url: "{{ route('custom-fields.fields-by-group') }}",
+            type: "GET",
+            data: { group_id: moduleId },
+            success: function (r) {
+                $sel.empty().append('<option value="">@lang('app.select') @lang('modules.customFields.linkedField')</option>');
+                if (r.fields && r.fields.length) {
+                    $.each(r.fields, function (i, f) {
+                        $sel.append('<option value="' + f.id + '">' + (f.label || f.name) + ' (' + (f.type || '') + ')</option>');
+                    });
+                }
+                $sel.selectpicker('refresh');
+            },
+            error: function () { $sel.selectpicker('refresh'); }
+        });
+    }
+    function addCreateSchemaRow() {
+        var typeOpts = (schemaTypeOptions || []).map(function (o) {
+            return '<option value="' + o.value + '">' + (o.label || o.value) + '</option>';
+        }).join('');
+        var html = '<div class="row mt-2 schema-row" id="createSchemaRow' + createSchemaIndex + '">' +
+            '<div class="col-md-3"><input class="form-control height-35 f-14" name="value[' + createSchemaIndex + '][key]" type="text" placeholder="key" /></div>' +
+            '<div class="col-md-3"><select class="form-control height-35 f-14" name="value[' + createSchemaIndex + '][type]">' + typeOpts + '</select></div>' +
+            '<div class="col-md-4"><input class="form-control height-35 f-14" name="value[' + createSchemaIndex + '][label]" type="text" placeholder="Label" /></div>' +
+            '<div class="col-md-1"><a href="javascript:;" class="task_view_more d-flex align-items-center mt-2" onclick="jQuery(\'#createSchemaRow' + createSchemaIndex + '\').remove()"><i class="fa fa-trash"></i></a></div></div>';
+        $(html).insertBefore('#createSchemaInsertBefore');
+        createSchemaIndex++;
+    }
+    $('#createAddSchemaRow').on('click', function () { addCreateSchemaRow(); });
+
     $('#type').on('change', function () {
-        (this.value === 'select' || this.value === 'radio' || this.value === 'checkbox') ? $('.mt-repeater').removeClass('d-none') : $('.mt-repeater').addClass('d-none');
+        var v = this.value;
+        $('.mt-repeater input, .mt-repeater select').prop('disabled', false);
+        $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', false);
+        if (v === 'select' || v === 'radio' || v === 'checkbox') {
+            $('.mt-repeater').removeClass('d-none');
+            $('.mt-repeater-repeatable').addClass('d-none');
+            $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);
+        } else if (v === 'repeatable') {
+            $('.mt-repeater').addClass('d-none');
+            $('.mt-repeater-repeatable').removeClass('d-none');
+            $('.mt-repeater input, .mt-repeater select').prop('disabled', true);
+            loadFieldsForRepeatable($('#module').val());
+        } else {
+            $('.mt-repeater').addClass('d-none');
+            $('.mt-repeater-repeatable').addClass('d-none');
+            $('.mt-repeater input, .mt-repeater select').prop('disabled', true);
+            $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);
+        }
     });
 
     function convertToSlug(Text) {
@@ -184,6 +254,7 @@
     $('#module').on('change', function() {
         var moduleId = $(this).val();
         loadCategoriesForModule(moduleId);
+        if ($('#type').val() === 'repeatable') loadFieldsForRepeatable(moduleId);
     });
 
     // Load categories when modal opens (if module is pre-selected)

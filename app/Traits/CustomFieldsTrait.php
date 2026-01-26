@@ -103,25 +103,24 @@ trait CustomFieldsTrait
 
     public function getCustomFieldsData()
     {
-
         $modelId = $this->id;
+        $modelName = $this->getModelName();
 
-        // Get custom fields for this modal
-        /** @var \Illuminate\Database\Eloquent\Collection $data */
-        $data = DB::table('custom_fields_data')
-            ->rightJoin('custom_fields', function ($query) use ($modelId) {
-                $query->on('custom_fields_data.custom_field_id', '=', 'custom_fields.id');
-                $query->on('model_id', '=', DB::raw($modelId));
+        // Get all custom fields for this model's group, LEFT join data so we have every field key (null when no data)
+        $data = DB::table('custom_fields')
+            ->join('custom_field_groups', 'custom_fields.custom_field_group_id', '=', 'custom_field_groups.id')
+            ->leftJoin('custom_fields_data', function ($query) use ($modelId, $modelName) {
+                $query->on('custom_fields_data.custom_field_id', '=', 'custom_fields.id')
+                    ->where('custom_fields_data.model', '=', $modelName)
+                    ->where('custom_fields_data.model_id', '=', $modelId);
             })
-            ->rightJoin('custom_field_groups', 'custom_fields.custom_field_group_id', '=', 'custom_field_groups.id')
-            ->select('custom_fields.id', DB::raw('CONCAT("field_", custom_fields.id) as field_id'), 'custom_fields.type', 'custom_fields_data.value')
-            ->where('custom_field_groups.model', $this->getModelName())
+            ->where('custom_field_groups.model', $modelName)
+            ->select('custom_fields.id', DB::raw('CONCAT("field_", custom_fields.id) as field_id'), 'custom_fields_data.value')
             ->get();
 
         $data = collect($data);
 
-        // Convert collection to an associative array
-        // of format ['field_{id}' => $value]
+        // Convert to ['field_{id}' => $value]; value is null when no custom_fields_data row exists
         $result = $data->pluck('value', 'field_id');
 
         return $result;
@@ -232,6 +231,9 @@ trait CustomFieldsTrait
             if (is_array($value)) {
                 if ($fieldType == 'checkbox') {
                     $value = implode(', ', $value);
+                } elseif ($fieldType == 'repeatable') {
+                    // Repeatable: store array of objects as JSON (same as multiselect pattern)
+                    $value = json_encode($value);
                 } else {
                     // For other array types, convert to JSON string
                     $value = json_encode($value);

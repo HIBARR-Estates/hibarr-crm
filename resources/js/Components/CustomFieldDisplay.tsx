@@ -359,6 +359,15 @@ export default function CustomFieldDisplay({
             valueString = String(value || "");
         } else if (field.type === "multiselect" && Array.isArray(value)) {
             valueString = value.join(", ");
+        } else if (field.type === "repeatable" && Array.isArray(value)) {
+            valueString = value
+                .map((obj: Record<string, any>) =>
+                    obj && typeof obj === "object"
+                        ? Object.values(obj).filter(Boolean).join(", ")
+                        : ""
+                )
+                .filter(Boolean)
+                .join("; ");
         } else {
             valueString = String(value || "");
         }
@@ -373,6 +382,7 @@ export default function CustomFieldDisplay({
             "text",
             "url",
             "multiselect",
+            "repeatable",
         ];
 
         // Content length thresholds (adjusted for better UX)
@@ -403,6 +413,14 @@ export default function CustomFieldDisplay({
             value.length > 3
         ) {
             baseSpan = column; // Full width for multiple selections
+        }
+
+        if (
+            field.type === "repeatable" &&
+            Array.isArray(value) &&
+            value.length > 1
+        ) {
+            baseSpan = column; // Full width for multiple repeatable items
         }
 
         // Ensure span doesn't exceed column count and is at least 1
@@ -602,6 +620,63 @@ export default function CustomFieldDisplay({
                     ? value.toLocaleString()
                     : value;
 
+            case "repeatable": {
+                let items: Record<string, any>[] = [];
+                if (Array.isArray(value)) {
+                    items = value;
+                } else if (typeof value === "string" && value.trim()) {
+                    try {
+                        const parsed = JSON.parse(value);
+                        items = Array.isArray(parsed)
+                            ? parsed
+                            : parsed && typeof parsed === "object"
+                              ? [parsed]
+                              : [];
+                    } catch {
+                        items = [];
+                    }
+                } else if (value && typeof value === "object" && !Array.isArray(value)) {
+                    items = [value];
+                }
+                if (items.length === 0) {
+                    return <span className="text-gray-500">--</span>;
+                }
+                const formatPart = (v: any): string => {
+                    if (v == null || v === "") return "";
+                    if (typeof v === "boolean") return v ? "Yes" : "No";
+                    if (Array.isArray(v)) {
+                        const files = v.filter((x: any) => x?.name);
+                        return files.length ? files.map((f: any) => f.name).join(", ") : "";
+                    }
+                    return String(v);
+                };
+                return (
+                    <div className="space-y-2">
+                        {items.map((obj, index) => {
+                            if (!obj || typeof obj !== "object") return null;
+                            const parts = Object.entries(obj)
+                                .map(([k, v]) => ({ k, s: formatPart(v) }))
+                                .filter(({ s }) => s !== "")
+                                .map(({ k, s }) => (
+                                    <span key={k}>
+                                        <span className="text-gray-500 capitalize">{k}:</span> {s}
+                                    </span>
+                                ));
+                            if (parts.length === 0) return null;
+                            return (
+                                <div key={index} className="text-sm">
+                                    {field.label} {index + 1}:{" "}
+                                    {parts.reduce<React.ReactNode[]>(
+                                        (acc, el, i) => (i === 0 ? [el] : [...acc, ", ", el]),
+                                        []
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            }
+
             case "textarea":
                 // Preserve line breaks for textarea content
                 return (
@@ -763,6 +838,11 @@ export default function CustomFieldDisplay({
             return formatFieldValue(field, value);
         }
 
+        // Repeatable: display-only for now (modal edit can be added later)
+        if (field.type === "repeatable") {
+            return formatFieldValue(field, value);
+        }
+
         // Use editable prop as alwaysEditing when alwaysEditing is not explicitly set
         // This ensures edit mode works the same as DealDetailsTab
         const effectiveAlwaysEditing = alwaysEditing || editable;
@@ -795,7 +875,10 @@ export default function CustomFieldDisplay({
     return (
         <Descriptions column={column} bordered size="middle">
             {filteredFields.map((field) => {
-                const value = customFieldsData?.[`field_${field.id}`];
+                const fieldKey = `field_${field.id}`;
+                const value =
+                    customFieldsData?.[fieldKey] ??
+                    customFieldsData?.[String(field.id)];
                 const span = calculateSpan(field, value);
 
                 return (

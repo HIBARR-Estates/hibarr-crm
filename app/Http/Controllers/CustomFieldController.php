@@ -75,7 +75,8 @@ class CustomFieldController extends AccountBaseController
     public function create()
         {
             $this->customFieldGroups = CustomFieldGroup::all();
-            $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
+            $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file', 'repeatable'];
+            $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => $t !== 'repeatable'));
         return view('custom-fields.create-custom-field-modal', $this->data);
     }
 
@@ -87,24 +88,24 @@ class CustomFieldController extends AccountBaseController
     {
 
         $name = CustomField::generateUniqueSlug($request->get('label'), $request->module);
-        $group = [
-            'fields' => [
-                [
-                    'name' => $name,
-                    'custom_field_group_id' => $request->module,
-                    'custom_field_category_id' => $request->get('category'),
-                    'label' => $request->get('label'),
-                    'type' => $request->get('type'),
-                    'required' => $request->get('required'),
-                    'values' => $request->get('value'),
-                    'export' => $request->get('export'),
-                    'visible' => $request->get('visible'),
-                    'important' => $request->get('important', 0),
-                    'display_order' => $request->get('display_order', 0),
-                ]
-            ],
-
+        $fieldData = [
+            'name' => $name,
+            'custom_field_group_id' => $request->module,
+            'custom_field_category_id' => $request->get('category'),
+            'label' => $request->get('label'),
+            'type' => $request->get('type'),
+            'required' => $request->get('required'),
+            'values' => $request->get('value'),
+            'export' => $request->get('export'),
+            'visible' => $request->get('visible'),
+            'important' => $request->get('important', 0),
+            'display_order' => $request->get('display_order', 0),
         ];
+        if ($request->get('type') === 'repeatable' && $request->has('linked_field_id')) {
+            $fieldData['linked_field_id'] = $request->get('linked_field_id');
+            $fieldData['values'] = is_array($request->get('value')) ? json_encode($request->get('value')) : $request->get('value');
+        }
+        $group = ['fields' => [$fieldData]];
 
         $createdFields = $this->addCustomField($group);
 
@@ -138,9 +139,10 @@ class CustomFieldController extends AccountBaseController
         $decodedValues = json_decode($this->field->values, true);
         $this->field->values = is_array($decodedValues) ? $decodedValues : [];
         $this->customFieldGroups = CustomFieldGroup::all();
-        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file'];
-        
-        // Get all fields in the same group for visibility rules
+        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'currency', 'phone', 'file', 'repeatable'];
+        $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => $t !== 'repeatable'));
+
+        // Get all fields in the same group for visibility rules (and linked-field dropdown for repeatable)
         // Ensure otherFields is always set, even if empty, to prevent undefined variable errors
         $this->otherFields = CustomField::where('custom_field_group_id', $this->field->custom_field_group_id)
             ->where('id', '!=', $id)
@@ -168,12 +170,17 @@ class CustomFieldController extends AccountBaseController
         $field->name = $name;
         $field->type = $request->type;
         $field->custom_field_category_id = $request->category;
-        $field->values = json_encode($request->value);
+        $field->values = json_encode($request->value ?? []);
         $field->required = $request->required;
         $field->export = $request->export;
         $field->visible = $request->visible;
         $field->important = $request->important ?? 0;
         $field->display_order = $request->display_order ?? 0;
+        if ($request->type === 'repeatable') {
+            $field->linked_field_id = $request->linked_field_id ?: null;
+        } else {
+            $field->linked_field_id = null;
+        }
         $field->save();
 
         if ($request->has('conditions')) {
@@ -257,18 +264,38 @@ class CustomFieldController extends AccountBaseController
             // Single value should be stored as text (multi value JSON encoded)
             if (isset($field['values'])) {
                 if (is_array($field['values'])) {
-                    $insertData['values'] = \GuzzleHttp\json_encode($field['values']);
-
-                }
-                else {
+                    $insertData['values'] = json_encode($field['values']);
+                } else {
                     $insertData['values'] = $field['values'];
                 }
+            }
+
+            if (!empty($field['linked_field_id'])) {
+                $insertData['linked_field_id'] = $field['linked_field_id'];
             }
 
             $createdFields[] = CustomField::create($insertData);
 
         }
         return $createdFields;
+    }
+
+    /**
+     * Get custom fields by group (for repeatable linked-field dropdown on create).
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function fieldsByGroup(Request $request)
+    {
+        $groupId = $request->input('group_id');
+        if (!$groupId) {
+            return response()->json(['fields' => []]);
+        }
+        $fields = CustomField::where('custom_field_group_id', $groupId)
+            ->orderBy('display_order')
+            ->get(['id', 'label', 'name', 'type']);
+        return response()->json(['fields' => $fields]);
     }
 
     /**

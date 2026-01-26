@@ -1059,6 +1059,7 @@ return array(
     'textarea' => 'Text Area',
     'radio' => 'Radio',
     'checkbox' => 'Check Box (Multi-Select)',
+    'repeatable' => 'Repeatable (array of objects)',
     'inprocess' => 'In Process',
     'converted' => 'Converted',
     'google' => 'Google',

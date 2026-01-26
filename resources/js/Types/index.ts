@@ -334,6 +334,29 @@ export interface CustomField {
     field_order: number;
     display_order?: number;
     show_rule_set?: ShowRuleSet;
+    /** For type=repeatable: the field whose value (N) dictates how many blocks to render. */
+    linked_field_id?: number | null;
+}
+
+/** Item schema for repeatable custom fields. Stored in values when type=repeatable. */
+export type RepeatableSchemaType =
+    | 'text'
+    | 'number'
+    | 'password'
+    | 'textarea'
+    | 'select'
+    | 'radio'
+    | 'date'
+    | 'checkbox'
+    | 'country'
+    | 'currency'
+    | 'phone'
+    | 'file';
+
+export interface RepeatableItemSchema {
+    key: string;
+    type: RepeatableSchemaType;
+    label: string;
 }
 
 // New interfaces for visibility rules

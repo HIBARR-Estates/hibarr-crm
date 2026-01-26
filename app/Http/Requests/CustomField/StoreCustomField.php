@@ -49,6 +49,14 @@ class StoreCustomField extends CoreRequest
             $rules['value.*'] = 'required';
         }
 
+        if ($this->type === 'repeatable') {
+            $rules['linked_field_id'] = 'required|exists:custom_fields,id';
+            $rules['value'] = 'required|array';
+            $rules['value.*.key'] = 'required|string';
+            $rules['value.*.type'] = 'required|string|in:text,number,password,textarea,select,radio,date,checkbox,country,currency,phone,file';
+            $rules['value.*.label'] = 'required|string';
+        }
+
         return $rules;
     }
 

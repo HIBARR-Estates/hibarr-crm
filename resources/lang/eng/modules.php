@@ -1516,6 +1516,9 @@ return array(
         'orderSequencePlaceholder' => 'Enter order sequence (lower numbers appear first)',
         'displayOrder' => 'Display Order',
         'displayOrderPlaceholder' => 'Enter display order (lower numbers appear first)',
+        'linkedField' => 'Linked field (count)',
+        'itemSchema' => 'Item schema (key, type, label)',
+        'addSchemaRow' => 'Add schema row',
     ),
     'statusFields' => array(
         'defaultStatus' => 'Default Status',

@@ -160,7 +160,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     // LeaveType Resource
     Route::resource('leaveType', LeaveTypeController::class);
 
-    // Custom Fields Settings
+    // Custom Fields Settings (fields-by-group before resource so it is not matched as {id})
+    Route::get('custom-fields/fields-by-group', [CustomFieldController::class, 'fieldsByGroup'])->name('custom-fields.fields-by-group');
     Route::resource('custom-fields', CustomFieldController::class);
     Route::get('custom-fields/{id}/rule-set', [CustomFieldController::class, 'getRuleSet'])->name('custom-fields.rule-set');
     Route::post('custom-fields/{id}/rule-set', [CustomFieldController::class, 'saveRuleSet'])->name('custom-fields.save-rule-set');
