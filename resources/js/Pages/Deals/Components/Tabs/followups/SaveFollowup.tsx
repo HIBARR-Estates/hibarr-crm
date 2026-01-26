@@ -40,6 +40,7 @@ interface SaveFollowupFormData {
     meeting_link?: string;
     reminders: Reminder[];
     remark?: string;
+    timezone?: string; // Browser timezone
 }
 
 interface Props {
@@ -233,6 +234,9 @@ export default function SaveFollowup({
         // Get custom reminders from form
         const customReminders = values.reminders || [];
 
+        // Get browser timezone
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
         const formData: SaveFollowupFormData = {
             next_follow_up_date:
                 values.next_follow_up_date.format("DD-MM-YYYY"),
@@ -243,6 +247,7 @@ export default function SaveFollowup({
             reminders: customReminders, // Only send custom reminders, defaults are handled server-side
             remark: values.remark || "",
             deal_id: deal.id,
+            timezone: browserTimezone, 
         };
 
         onSubmit(formData);

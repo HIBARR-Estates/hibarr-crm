@@ -281,8 +281,6 @@ export default function DealInfoSection({
                     setCurrentDeal(response.data.data);
                     message.success("File uploaded successfully");
                 }
-                setUpdatingField(null);
-                return;
             }
 
             // Infer type and api field name if not explicitly set (for compatibility)

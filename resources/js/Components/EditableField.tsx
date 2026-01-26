@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from "react";
-import { Input, Typography, message, Select, Skeleton, Spin } from "antd";
+import { Input, Typography, message, Select, Skeleton, Spin, Space, Button, Upload } from "antd";
 import {
     CheckOutlined,
     CloseOutlined,
     EditOutlined,
     LoadingOutlined,
+    FileOutlined,
+    DownloadOutlined,
+    DeleteOutlined,
+    UploadOutlined,
 } from "@ant-design/icons";
 import PhoneInput, { PhoneNumber } from "antd-phone-input";
 import FormDataSelector from "./FormDataSelector";
@@ -26,7 +30,8 @@ interface EditableFieldProps {
         | "multiselect"
         | "boolean"
         | "textarea"
-        | "country";
+        | "country"
+        | "file";
     selectorType?: FormDataType;
     mode?: "multiple" | "tags";
     onSave: (value: any) => Promise<void>;
@@ -62,20 +67,20 @@ export default function EditableField({
 }: EditableFieldProps) {
     const { props } = usePage<any>();
     const { countries = [] } = props;
+    
+    const maxFileSizeMB = props?.company?.allowed_file_size || 10;
+    const maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
     const [editing, setEditing] = useState(alwaysEditing);
     const [inputValue, setInputValue] = useState<any>(value);
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
-    // Ref to track if we're clicking on action buttons (to prevent blur from saving)
     const isClickingActionRef = useRef(false);
-    // Ref to track the blur timeout so we can cancel it
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Sync editing state when alwaysEditing prop changes
     useEffect(() => {
         if (alwaysEditing) {
             setEditing(true);
-            // Initialize input value when entering always-editing mode
             if (fieldType === "date" && value) {
                 try {
                     const date = new Date(value.toString());
@@ -96,17 +101,14 @@ export default function EditableField({
             }
         } else {
             setEditing(false);
-            // Reset input value to original when exiting always-editing mode
             setInputValue(value);
         }
     }, [alwaysEditing]);
 
-    // isLocked prevents any interaction when loading/saving
     const isLocked = loading || saving;
 
-    // canStartEditing determines if clicking on the field can enter edit mode
-    // disabled blocks inline editing via click (but alwaysEditing can override)
-    const canStartEditing = !isLocked && !disabled;
+ 
+    const canStartEditing = !isLocked && !disabled && fieldType !== "file";
 
     const startEditing = () => {
         if (!canStartEditing) return;
@@ -141,9 +143,12 @@ export default function EditableField({
             blurTimeoutRef.current = null;
         }
 
-        // Compare values properly for arrays
+        // Compare values properly for arrays and files
         const isArrayValue = Array.isArray(value) || Array.isArray(inputValue);
-        const valuesEqual = isArrayValue
+        const isFileValue = inputValue instanceof File;
+        const valuesEqual = isFileValue
+            ? false 
+            : isArrayValue
             ? JSON.stringify(inputValue) === JSON.stringify(value)
             : inputValue === value;
 
@@ -210,6 +215,8 @@ export default function EditableField({
         // Restore original value, keeping arrays as arrays
         if (fieldType === "multiselect" || Array.isArray(value)) {
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else if (fieldType === "file") {
+            setInputValue(value ?? "");
         } else {
             setInputValue(value ?? "");
         }
@@ -236,12 +243,110 @@ export default function EditableField({
         }
     };
 
+    const handleFileUpload = async (file: File) => {
+        if (file.size > maxFileSizeBytes) {
+            message.error(`File size exceeds the maximum allowed size of ${maxFileSizeMB}MB`);
+            return false;
+        }
+
+        setUploading(true);
+        try {
+            await onSave(file);
+            message.success("File uploaded successfully");
+        } catch (error: any) {
+            if (error?.response?.status === 413) {
+                message.error(`File is too large. Maximum allowed size is ${maxFileSizeMB}MB. Please check your server's upload_max_filesize and post_max_size settings.`);
+            } else {
+                message.error("Failed to upload file");
+            }
+        } finally {
+            setUploading(false);
+        }
+        return false; 
+    };
+
+    const handleFileRemove = async () => {
+        setUploading(true);
+        try {
+            await onSave("");
+            message.success("File removed successfully");
+        } catch (error) {
+            message.error("Failed to remove file");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    // Check if file field is loading
+    const isFileLoading = loading || uploading;
+
+    const renderFileField = () => {
+        if (isFileLoading) {
+            return <Spin size="small" />;
+        }
+
+        if (value && typeof value === "string") {
+            const fileUrl = `/user-uploads/hibarr_fields/${value}`;
+            return (
+                <Space size="small">
+                    <a
+                        href={fileUrl}
+                        className="text-blue-600 hover:text-blue-800"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <FileOutlined className="mr-1" />
+                        View File
+                    </a>
+                    <a
+                        href={fileUrl}
+                        className="text-blue-600 hover:text-blue-800"
+                        download
+                    >
+                        <DownloadOutlined />
+                    </a>
+                    {!disabled && (
+                        <Button
+                            type="text"
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={handleFileRemove}
+                        />
+                    )}
+                </Space>
+            );
+        }
+
+        if (disabled) {
+            return <span className="text-gray-500">--</span>;
+        }
+
+        return (
+            <Upload
+                beforeUpload={handleFileUpload}
+                showUploadList={false}
+                accept="*/*"
+            >
+                <Button size="small" icon={<UploadOutlined />}>
+                    Upload File
+                </Button>
+            </Upload>
+        );
+    };
+
+    // For file fields, always render the permanent UI (like CustomFieldDisplay)
+    // File fields don't have an "editing" mode - they're always available for upload/delete
+    if (fieldType === "file") {
+        return renderFileField();
+    }
+
     const displayText =
         displayValue !== undefined
             ? displayValue
             : formatValue
             ? formatValue(value)
-            : value?.toString() || "--";
+            : value?.toString() ?? "--";
 
     if (editing) {
         return (

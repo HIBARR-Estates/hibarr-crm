@@ -211,6 +211,18 @@ const StepOne: React.FC<StepOneProps> = ({
                                 {selectedLead?.mobile && (
                                     <div>{selectedLead.mobile}</div>
                                 )}
+                                {(() => {
+                                    const addressParts = [
+                                        selectedLead?.address,
+                                        selectedLead?.city,
+                                        selectedLead?.state,
+                                        selectedLead?.country,
+                                        selectedLead?.postal_code,
+                                    ].filter(Boolean);
+                                    return addressParts.length > 0 && (
+                                        <div>{addressParts.join(", ")}</div>
+                                    );
+                                })()}
                                 {selectedLead?.company_name && (
                                     <div className="text-blue-600 font-medium">
                                         {selectedLead.company_name}
