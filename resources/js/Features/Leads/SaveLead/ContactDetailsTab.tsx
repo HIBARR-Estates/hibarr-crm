@@ -2,6 +2,7 @@ import React from "react";
 import { Form, Input, Select, Row, Col } from "antd";
 import { CreateLeadFormData } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
+import PhoneInput from "antd-phone-input";
 
 interface ContactDetailsTabProps {
     data: CreateLeadFormData;
@@ -55,10 +56,23 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
                         validateStatus={errors.cell ? "error" : ""}
                         help={errors.cell}
                     >
-                        <Input
+                        <PhoneInput
+                            enableSearch
                             placeholder="Enter cell phone number"
                             value={data.cell}
-                            onChange={(e) => setData("cell", e.target.value)}
+                            onChange={(val) => {
+                                // Convert PhoneInput object to string format
+                                if (val && typeof val === 'object') {
+                                    const parts = [
+                                        val.countryCode,
+                                        val.areaCode,
+                                        val.phoneNumber
+                                    ].filter(Boolean);
+                                    setData("cell", parts.length > 0 ? `+${parts.join('')}` : '');
+                                } else {
+                                    setData("cell", val || '');
+                                }
+                            }}
                         />
                     </Form.Item>
                 </Col>
@@ -69,10 +83,23 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
                         validateStatus={errors.office ? "error" : ""}
                         help={errors.office}
                     >
-                        <Input
+                        <PhoneInput
+                            enableSearch
                             placeholder="Enter office phone number"
                             value={data.office}
-                            onChange={(e) => setData("office", e.target.value)}
+                            onChange={(val) => {
+                                // Convert PhoneInput object to string format
+                                if (val && typeof val === 'object') {
+                                    const parts = [
+                                        val.countryCode,
+                                        val.areaCode,
+                                        val.phoneNumber
+                                    ].filter(Boolean);
+                                    setData("office", parts.length > 0 ? `+${parts.join('')}` : '');
+                                } else {
+                                    setData("office", val || '');
+                                }
+                            }}
                         />
                     </Form.Item>
                 </Col>

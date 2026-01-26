@@ -22,6 +22,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import axios from "axios";
 import FormDataSelector from "@/Components/FormDataSelector";
+import PhoneInput from "antd-phone-input";
 
 type FlowStep = "search" | "create" | "selected";
 
@@ -101,6 +102,18 @@ const StepOne: React.FC<StepOneProps> = ({
     };
 
     const onFinish = (values: any) => {
+        // Transform phone value from PhoneInput object to string format
+        if (values.phone && typeof values.phone === 'object') {
+            const phoneObj = values.phone;
+            // Combine countryCode, areaCode, and phoneNumber into a single string
+            // Format: +{countryCode}{areaCode}{phoneNumber}
+            const parts = [
+                phoneObj.countryCode,
+                phoneObj.areaCode,
+                phoneObj.phoneNumber
+            ].filter(Boolean);
+            values.phone = parts.length > 0 ? `+${parts.join('')}` : '';
+        }
         // Build payload - include deal_id if we're editing an existing deal
         const payload: any = {
             lead_type: leadType,
@@ -308,7 +321,10 @@ const StepOne: React.FC<StepOneProps> = ({
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item name="phone" label="Phone">
-                            <Input placeholder="Phone number" />
+                            <PhoneInput 
+                                enableSearch 
+                                placeholder="Phone number"
+                            />
                         </Form.Item>
                     </Col>
                     {leadType === "agent" && (
