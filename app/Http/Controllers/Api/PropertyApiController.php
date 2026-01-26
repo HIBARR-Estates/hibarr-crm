@@ -484,7 +484,6 @@ class PropertyApiController extends Controller
                 if ($user) {
                     $agentsMap[$product->id] = [
                         'id' => $user->id,
-                        'user_id' => $user->id,
                         'name' => $user->name,
                         'email' => $user->email,
                     ];
