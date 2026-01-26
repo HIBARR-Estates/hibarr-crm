@@ -242,7 +242,7 @@ class FormDataService
 
     private function getPackages(Request $request) {
         $query = Package::select('id', 'name', 'value')
-            ->orderBy('name', 'asc');
+            ->orderBy('id', 'asc');
 
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->get('search') . '%');

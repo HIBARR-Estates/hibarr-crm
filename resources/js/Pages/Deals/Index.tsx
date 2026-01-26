@@ -6,6 +6,7 @@ import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionS
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageSort from "@/Hooks/usePageSort";
+import useViewPreference from "@/Hooks/useViewPreference";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PipelineStage } from "@/Types/api/deals";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
@@ -104,8 +105,11 @@ const Index = ({
     const currentUser = pageProps.auth?.user;
     const editDealsPermission = pageProps.auth?.permissions?.edit_deals;
 
-    // View mode state: table or kanban
-    const [view, setView] = useState<"kanban" | "table">("table");
+    // View mode state: table or kanban (persisted in localStorage)
+    const { view, setView, isTableView, isKanbanView } = useViewPreference({
+        storageKey: "deals",
+        defaultView: "table",
+    });
 
     // Board columns state for kanban view
     const [boardColumns, setBoardColumns] =
@@ -329,9 +333,6 @@ const Index = ({
     const handleDeleteColumn = useCallback((columnId: number) => {
         // Column deletion functionality - can be extended later
     }, []);
-
-    const isTableView = view === "table";
-    const isKanbanView = view === "kanban";
 
     return (
         <>

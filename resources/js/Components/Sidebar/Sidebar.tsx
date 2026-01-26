@@ -363,18 +363,18 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             {/* Header / Brand */}
             <div
                 className={`
-                    flex items-center h-16 px-4 border-b border-slate-700/50
-                    ${collapsed ? "justify-center" : "justify-start"}
+                    flex items-center h-16 border-b border-slate-700/50
+                    ${collapsed ? "justify-center px-4" : "justify-center px-3"}
                 `}
             >
                 {!collapsed && company?.logo_url ? (
                     <img
                         src={company.logo_url}
                         alt={appName}
-                        className="h-8 max-w-[140px] object-contain"
+                        className="h-10 w-full max-w-full object-contain"
                     />
                 ) : (
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                    <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
                         <span className="text-white font-bold text-lg">
                             {appName?.charAt(0) || "H"}
                         </span>

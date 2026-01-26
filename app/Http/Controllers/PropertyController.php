@@ -39,7 +39,14 @@ class PropertyController extends AccountBaseController
         $this->excel = $excel;
         parent::__construct();
         
-        
+        $this->middleware(function ($request, $next) {
+            $this->addPropertyPermission = user()->permission('add_products');
+            $this->viewPropertyPermission = user()->permission('view_products');
+            $this->editPropertyPermission = user()->permission('edit_products');
+            $this->deletePropertyPermission = user()->permission('delete_products');
+            
+            return $next($request);
+        });
     }
 
     public function index(Request $request)
