@@ -123,7 +123,7 @@ const DealCard: React.FC<DealCardProps> = ({
                 size="small"
                 className={`
                     transition-all duration-150 cursor-pointer rounded-lg
-                    ${isDragging ? "shadow-lg ring-1 ring-blue-400 rotate-1 opacity-60" : "hover:shadow-md hover:border-gray-300"}
+                    ${isDragging ? "ring-1 ring-blue-400 rotate-1 opacity-60" : "hover:border-gray-300"}
                     border border-gray-200
                 `}
                 styles={{
