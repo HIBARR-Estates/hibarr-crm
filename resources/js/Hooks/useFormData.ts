@@ -40,6 +40,7 @@ type FormDataParams = {
     per_page?: number;
     search?: string;
     paginate?: boolean;
+    enabled?: boolean;
 };
 
 export const useFormData = <T = any>(
@@ -49,7 +50,8 @@ export const useFormData = <T = any>(
         per_page: 50,
         search: "",
         paginate: false,
-    }
+        enabled: true,
+    },
 ) => {
     // Destructure params in dependency array to ensure stability
     const queryParams = useMemo(() => {
@@ -79,6 +81,7 @@ export const useFormData = <T = any>(
     } = useApiQuery<FormDataResponse<T>>({
         path: `/account/api/form-data/${type}`,
         params: queryParams,
+        options: { enabled: params.enabled !== false },
     });
 
     // Memoize data extraction to ensure referential stability
@@ -135,12 +138,12 @@ export const useFormDataBatch = (types: FormDataType[]) => {
                         "Content-Type": "application/json",
                         "X-Requested-With": "XMLHttpRequest",
                     },
-                }
+                },
             );
 
             if (!result.data.success) {
                 throw new Error(
-                    result.data.message || "Failed to load batch data"
+                    result.data.message || "Failed to load batch data",
                 );
             }
 

@@ -31,6 +31,9 @@ import { createPropertyFilterConfig } from "@/configs/propertyFilterConfig";
 import { createPropertySearchConfig } from "@/configs/searchConfigs";
 import usePageSort from "@/Hooks/usePageSort";
 
+import type { DeveloperProjectOption } from "@/Types/developerProject";
+
+// Legacy Project interface - kept for backwards compatibility
 interface Project {
     id: number;
     project_name: string;
@@ -59,17 +62,20 @@ interface PaginationData {
 export interface IndexProps extends PageProps {
     pageTitle: string;
     properties: PaginationData;
-    projects: Project[];
-    developers: Developer[];
+    /** @deprecated Use developerProjects instead */
+    projects?: Project[];
+    developers?: Developer[];
+    /** New DeveloperProject list for bulk actions */
+    developerProjects?: DeveloperProjectOption[];
 }
 
 const Index = ({
     pageTitle,
     properties,
     default_currency_code: currencyCode,
-    default_currency_symbol: currencySymbol,
-    currencies = [],
-    ...props
+    projects,
+    developers,
+    developerProjects,
 }: IndexProps) => {
     const {
         handleAction,
@@ -99,9 +105,13 @@ const Index = ({
     // Memoize configs to prevent unnecessary re-renders and filter resets
     const filterConfig = useMemo(
         () =>
-            createPropertyFilterConfig({ ...props, excludeFields: ["search"] }),
-        [props]
-        // TODO: Check if props can be more specific
+            createPropertyFilterConfig({
+                projects,
+                developers,
+                developerProjects,
+                excludeFields: ["search"],
+            }),
+        [projects, developers, developerProjects],
     );
 
     // Setup search and filter contexts
@@ -211,7 +221,7 @@ const Index = ({
                             {selectedEntities.length > 0 && (
                                 <BulkActionSelector
                                     selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id
+                                        ({ id }) => id,
                                     )}
                                     clearSelected={clearSelected}
                                 />
@@ -246,7 +256,7 @@ const Index = ({
                                         {
                                             preserveState: true,
                                             preserveScroll: true,
-                                        }
+                                        },
                                     );
                                 },
                             }}
@@ -281,7 +291,7 @@ const Index = ({
             <UniversalFilterDrawer config={filterConfig} />
         </>
     );
-}
+};
 
 Index.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>

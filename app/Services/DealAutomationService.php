@@ -80,8 +80,7 @@ class DealAutomationService
             
             $passed = $this->conditionEvaluator->evaluate(
                 $fieldValue,
-                $condition->operator,
-                $condition->value
+                $condition
             );
 
             if (!$passed) {

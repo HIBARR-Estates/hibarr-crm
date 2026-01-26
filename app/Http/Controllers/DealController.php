@@ -165,6 +165,9 @@ class DealController extends AccountBaseController
                 'lead_pipeline_id',
                 'pipeline_stage_id',
                 'category_id',
+                'source_id',
+                'package_id',
+                'agent_id',
                 'search',
                 'start_date',
                 'end_date',
@@ -181,7 +184,7 @@ class DealController extends AccountBaseController
         $dealsQuery = Deal::with([
             'leadAgent.user:id,name,email,image',
             'category:id,category_name',
-            'contact:id,client_name,client_email,mobile,company_name,source_id',
+            'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id',
             'contact.leadSource',
             'pipeline:id,name',
             'leadStage:id,name,label_color,slug',
@@ -207,7 +210,12 @@ class DealController extends AccountBaseController
             'deals.updated_at',
             'deals.currency_id',
             'deals.category_id'
-        );
+        )
+        ->withCount([
+            'tasks as tasks_count',
+            'followups as meetings_count',
+            'communicationActivities as activities_count'
+        ]);
 
         // If specific stage is requested (for kanban column)
         if ($pipelineStageId) {
@@ -237,6 +245,20 @@ class DealController extends AccountBaseController
 
         if ($request->filled('category_id') && $request->category_id !== 'all') {
             $dealsQuery->where('deals.category_id', $request->category_id);
+        }
+
+        // Filter by lead source (via contact)
+        if ($request->filled('source_id') && $request->source_id !== 'all') {
+            $dealsQuery->whereHas('contact', function ($q) use ($request) {
+                $q->where('source_id', $request->source_id);
+            });
+        }
+
+        // Filter by package
+        if ($request->filled('package_id') && $request->package_id !== 'all') {
+            $dealsQuery->whereHas('packages', function ($q) use ($request) {
+                $q->where('packages.id', $request->package_id);
+            });
         }
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
@@ -1162,8 +1184,38 @@ class DealController extends AccountBaseController
             }
             
             // 4. Handle Custom Fields
-            if (array_key_exists('custom_fields', $validatedData) && is_array($validatedData['custom_fields'])) {
-                $deal->updateCustomFieldData($validatedData['custom_fields']);
+            if (array_key_exists('custom_fields', $validatedData) || $request->hasFile('custom_fields')) {
+                // Get regular custom field values
+                $customFieldsData = $validatedData['custom_fields'] ?? [];
+                
+                // Merge file uploads into custom fields data
+                // Files uploaded as custom_fields[field_X] or custom_fields[field_X][0], [1], etc. for multiple
+                if ($request->hasFile('custom_fields')) {
+                    $customFieldFiles = $request->file('custom_fields');
+                    if (is_array($customFieldFiles)) {
+                        foreach ($customFieldFiles as $fieldKey => $fileOrFiles) {
+                            if ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
+                                // Single file
+                                $customFieldsData[$fieldKey] = $fileOrFiles;
+                            } elseif (is_array($fileOrFiles)) {
+                                // Multiple files - array of UploadedFile objects
+                                $uploadedFiles = [];
+                                foreach ($fileOrFiles as $file) {
+                                    if ($file instanceof \Illuminate\Http\UploadedFile) {
+                                        $uploadedFiles[] = $file;
+                                    }
+                                }
+                                if (!empty($uploadedFiles)) {
+                                    $customFieldsData[$fieldKey] = $uploadedFiles;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (!empty($customFieldsData)) {
+                    $deal->updateCustomFieldData($customFieldsData);
+                }
             }
             
             // Handle tags if provided
@@ -1297,6 +1349,69 @@ class DealController extends AccountBaseController
         $this->triggerDealUpdateAutomation($request, $deal);
 
         return Reply::success(__('messages.recordSaved'));
+    }
+
+    /**
+     * Change the assigned agent for a single deal
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function changeAgent(Request $request)
+    {
+        $request->validate([
+            'deal_id' => 'required|exists:deals,id',
+            'agent_id' => 'nullable|exists:lead_agents,id',
+        ]);
+
+        $deal = Deal::findOrFail($request->deal_id);
+        $this->editPermission = user()->permission('edit_deals');
+
+        // Check permission - allow if user has 'all' permission or added the deal
+        // abort_403(!(
+        //     $this->editPermission == 'all' || 
+        //     ($this->editPermission == 'added' && $deal->added_by == user()->id) ||
+        //     ($this->editPermission == 'both' && ($deal->added_by == user()->id || $deal->agent_id == user()->id))
+        // ));
+
+        $oldAgentId = $deal->agent_id;
+        
+        if ($request->agent_id) {
+            $agent = LeadAgent::find($request->agent_id);
+            
+            // If agent has a specific category, try to find matching agent for deal's category
+            if ($agent && $deal->category_id) {
+                $agentsWithSameUser = LeadAgent::where('user_id', $agent->user_id)->get();
+                $matchingAgent = $agentsWithSameUser->firstWhere('lead_category_id', $deal->category_id);
+                
+                if ($matchingAgent) {
+                    $deal->agent_id = $matchingAgent->id;
+                } else {
+                    $deal->agent_id = $agent->id;
+                }
+            } else {
+                $deal->agent_id = $request->agent_id;
+            }
+        } else {
+            $deal->agent_id = null;
+        }
+        
+        $deal->save();
+
+        // Log history if agent changed
+        if ($oldAgentId !== $deal->agent_id) {
+            $this->logDealHistory($deal, 'agent_changed', [
+                'old_agent_id' => $oldAgentId,
+                'new_agent_id' => $deal->agent_id,
+            ]);
+        }
+
+        // Reload deal with lead agent relationship
+        $deal->load('leadAgent.user');
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'deal' => $deal
+        ]);
     }
 
     public function applyQuickAction(Request $request)

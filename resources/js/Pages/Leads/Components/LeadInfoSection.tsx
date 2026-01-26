@@ -85,7 +85,7 @@ export default function LeadInfoSection({
 
     // Track pending changes in edit mode
     const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
-        {}
+        {},
     );
     const [isSavingAll, setIsSavingAll] = useState(false);
 
@@ -118,7 +118,7 @@ export default function LeadInfoSection({
             }
             // Clear the updating field after completion
             setUpdatingField(null);
-        }
+        },
     );
 
     // Helper to check if a specific field is loading
@@ -131,10 +131,10 @@ export default function LeadInfoSection({
     }, [lead]);
 
     const canEdit = ["all", "added", "owned", "both"].includes(
-        editLeadPermission
+        editLeadPermission,
     );
     const canDelete = ["all", "added", "owned", "both"].includes(
-        deleteLeadPermission
+        deleteLeadPermission,
     );
 
     // Fields are editable only when in edit mode AND user has permission
@@ -203,7 +203,7 @@ export default function LeadInfoSection({
 
             if (Object.keys(customFieldChanges).length > 0) {
                 promises.push(
-                    updateLead({ custom_fields: customFieldChanges })
+                    updateLead({ custom_fields: customFieldChanges }),
                 );
             }
 
@@ -237,7 +237,7 @@ export default function LeadInfoSection({
     // Handle field update
     const handleFieldUpdate = async (
         fieldName: string,
-        value: any
+        value: any,
     ): Promise<void> => {
         // Set the updating field to show loading only for this field
         setUpdatingField(fieldName);
@@ -245,26 +245,48 @@ export default function LeadInfoSection({
         // Check if this is a custom field (starts with "field_")
         const isCustomField = fieldName.startsWith("field_");
 
-        // Check if value is a File (for file uploads)
+        // Check if value is a File or array of Files (for file uploads)
         const isFile = value instanceof File;
+        const isFileArray =
+            Array.isArray(value) &&
+            value.length > 0 &&
+            value[0] instanceof File;
 
         try {
-            if (isFile) {
+            if (isFile || isFileArray) {
                 // Handle file upload via FormData
+                // Use POST with _method=PATCH for file uploads (Laravel method spoofing)
+                // PATCH with multipart/form-data can have issues with some servers
                 const formData = new FormData();
-                formData.append(`custom_fields[${fieldName}]`, value);
+                formData.append("_method", "PATCH");
 
-                const response = await axios.patch(
+                if (isFileArray) {
+                    // Multiple files - append each with array notation
+                    (value as File[]).forEach((file, index) => {
+                        formData.append(
+                            `custom_fields[${fieldName}][${index}]`,
+                            file,
+                        );
+                    });
+                } else if (isFile) {
+                    // Single file - cast to File type
+                    formData.append(
+                        `custom_fields[${fieldName}]`,
+                        value as File,
+                    );
+                }
+
+                const response = await axios.post(
                     route("lead-contact.patch", {
                         lead_contact: currentLeadState.id,
                     }),
                     formData,
                     {
                         headers: {
-                            "Content-Type": "multipart/form-data",
+                            // Let axios set the Content-Type with proper boundary for FormData
                             Accept: "application/json",
                         },
-                    }
+                    },
                 );
 
                 if (
@@ -387,18 +409,18 @@ export default function LeadInfoSection({
             label: <span>Add Task</span>,
             onClick: () => setIsTaskModalOpen(true),
         },
-        ...(canEdit
-            ? [
-                  {
-                      key: "edit",
-                      tooltip: "Edit Contact",
-                      type: "text" as const,
-                      icon: <EditOutlined />,
-                      label: <span>Edit Contact</span>,
-                      onClick: () => handleAction("edit", lead),
-                  },
-              ]
-            : []),
+        // ...(canEdit  //deprecated
+        //     ? [
+        //           {
+        //               key: "edit",
+        //               tooltip: "Edit Contact",
+        //               type: "text" as const,
+        //               icon: <EditOutlined />,
+        //               label: <span>Edit Contact</span>,
+        //               onClick: () => handleAction("edit", lead),
+        //           },
+        //       ]
+        //     : []),
         {
             key: "convert",
             tooltip: "Convert to Client",
@@ -499,13 +521,13 @@ export default function LeadInfoSection({
                                         onSave={(value) =>
                                             handleFieldUpdate(
                                                 "client_email",
-                                                value
+                                                value,
                                             )
                                         }
                                         onChange={(value) =>
                                             handleFieldChange(
                                                 "client_email",
-                                                value
+                                                value,
                                             )
                                         }
                                         className="text-blue-600 hover:text-blue-800"
@@ -537,7 +559,7 @@ export default function LeadInfoSection({
                                 <EditableField
                                     value={
                                         getMobileNumber(
-                                            currentLeadState.mobile
+                                            currentLeadState.mobile,
                                         ) ||
                                         currentLeadState.mobile_with_phonecode ||
                                         ""
@@ -641,7 +663,7 @@ export default function LeadInfoSection({
                                     displayValue={
                                         <a
                                             href={String(
-                                                currentLeadState.website
+                                                currentLeadState.website,
                                             )}
                                             target="_blank"
                                             rel="noopener noreferrer"
@@ -680,9 +702,9 @@ export default function LeadInfoSection({
                                     typeof currentLeadState.lead_owner ===
                                         "object"
                                         ? currentLeadState.lead_owner.id
-                                        : (currentLeadState.lead_owner as
+                                        : ((currentLeadState.lead_owner as
                                               | number
-                                              | null) ?? null
+                                              | null) ?? null)
                                 }
                                 fieldName="lead_owner"
                                 selectorType="employees"
@@ -800,7 +822,7 @@ export default function LeadInfoSection({
                                 <span>
                                     <CalendarOutlined className="mr-1" />
                                     {dayjs(currentLeadState.created_at).format(
-                                        "MMM DD, YYYY HH:mm"
+                                        "MMM DD, YYYY HH:mm",
                                     )}
                                 </span>
                             ) : (
@@ -813,7 +835,7 @@ export default function LeadInfoSection({
                                 <span>
                                     <CalendarOutlined className="mr-1" />
                                     {dayjs(currentLeadState.updated_at).format(
-                                        "MMM DD, YYYY HH:mm"
+                                        "MMM DD, YYYY HH:mm",
                                     )}
                                 </span>
                             ) : (
@@ -957,8 +979,7 @@ export default function LeadInfoSection({
                             handleFieldUpdate(field, value)
                         }
                         onChange={handleFieldChange}
-                        editable={canEdit}
-                        alwaysEditing={isFieldEditable}
+                        editable={isFieldEditable}
                         loadingField={updatingField}
                         globalLoading={isSavingAll}
                     />

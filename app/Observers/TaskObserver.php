@@ -218,41 +218,36 @@ class TaskObserver
                     $notification = 'TaskStatusUpdated';
                 }
 
-                if($task->boardColumn->slug == 'waiting_approval'){
+                // Only notify people directly involved in the task - NOT all admins
+                // This includes: task assignees, task creator, and project admin (if applicable)
+                $notifiedUserIds = [];
+                $usersToNotify = collect();
 
-                    $admins = User::allAdmins($task->company->id);
+                // Get task assignees
+                $taskAssignees = $task->users;
+                $usersToNotify = $usersToNotify->merge($taskAssignees);
+                $notifiedUserIds = array_merge($notifiedUserIds, $taskAssignees->pluck('id')->toArray());
 
-                    $users = $task->taskUsers;
-
-                    $projectAdmintask = Task::with('project')
-                        ->whereHas('project', function ($query) {
-                            $query->whereNotNull('project_admin');
-                        })
-                        ->get()
-                        ->pluck('project.projectAdmin');
-
-                    $admins = $users->merge($admins);
-
-                    if (!$projectAdmintask->isEmpty()){
-                        $admins = $admins->merge($projectAdmintask);
-                    }
-
-                }else{
-                    $admins = User::allAdmins($task->company->id);
-                }
-
-                // send task complete notification
-                event(new TaskEvent($task, $admins, $notification));
-
+                // Notify task creator (added_by) if they're not already in the list
                 if ($task->addedByUser) {
                     $addedByUserRole = $task->addedByUser->roles->pluck('name')->toArray();
 
-                    if (!is_null($task->added_by) && !in_array('client', $addedByUserRole) && !in_array($task->added_by, $admins->pluck('id')->toArray())) {
+                    if (!is_null($task->added_by) && !in_array('client', $addedByUserRole) && !in_array($task->added_by, $notifiedUserIds)) {
                         event(new TaskEvent($task, $task->addedByUser, $notification));
+                        $notifiedUserIds[] = $task->added_by;
                     }
                 }
 
-                $taskUser = $task->users->whereNotIn('id', $admins->pluck('id'))->whereNotIn('id', [$task->added_by]);
+                // For waiting_approval, also notify project admin if this is a project task
+                if ($task->boardColumn->slug == 'waiting_approval' && $task->project_id && $task->project && $task->project->project_admin) {
+                    $projectAdmin = $task->project->projectAdmin;
+                    if ($projectAdmin && !in_array($projectAdmin->id, $notifiedUserIds)) {
+                        $usersToNotify = $usersToNotify->push($projectAdmin);
+                    }
+                }
+
+                // Filter out already notified users and send notification
+                $taskUser = $usersToNotify->whereNotIn('id', [$task->added_by])->unique('id');
                 event(new TaskEvent($task, $taskUser, $notification));
 
                 $timeLogs = ProjectTimeLog::with('user')->whereNull('end_time')

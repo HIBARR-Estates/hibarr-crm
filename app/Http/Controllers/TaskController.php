@@ -193,7 +193,7 @@ class TaskController extends AccountBaseController
 
         $kanbanQuery = clone $tasksQuery;
 
-        $tableTasks = $tasksQuery->paginate(request('per_page', 50))->withQueryString();
+        $tableTasks = $tasksQuery->paginate(request('per_page', 15))->withQueryString();
         $kanbanTasks = $kanbanQuery->get();
         
         // Ensure kanban tasks also have the counts
@@ -1373,7 +1373,7 @@ class TaskController extends AccountBaseController
 
     }
 
-    public function show($id)
+    public function showDeprecated($id)
     {
 
         $viewTaskFilePermission = user()->permission('view_task_files');
@@ -1586,6 +1586,258 @@ class TaskController extends AccountBaseController
 
         return view('tasks.create', $this->data);
 
+    }
+    public function show($id)
+    {
+        $viewTaskFilePermission = user()->permission('view_task_files');
+        $viewSubTaskPermission = user()->permission('view_sub_tasks');
+        $viewTaskCommentPermission = user()->permission('view_task_comments');
+        $viewTaskNotePermission = user()->permission('view_task_notes');
+        $viewUnassignedTasksPermission = user()->permission('view_unassigned_tasks');
+        $userId = UserService::getUserId();
+
+        // Load task with all necessary relationships
+        $task = Task::with([
+            'boardColumn',
+            'project',
+            'users',
+            'labels',
+            'category',
+            'approvedTimeLogs',
+            'mentionTask',
+            'createBy',
+            'addedByUser',
+            'deals',
+            'leads',
+            'properties',
+            'files' => function ($q) use ($viewTaskFilePermission, $userId) {
+                if ($viewTaskFilePermission == 'added') {
+                    $q->where('added_by', $userId);
+                }
+            },
+            'subtasks' => function ($q) use ($viewSubTaskPermission, $userId) {
+                if ($viewSubTaskPermission == 'added') {
+                    $q->where('added_by', $userId);
+                }
+            },
+            'comments' => function ($q) {
+                $q->with('user')->orderByDesc('id')->limit(10);
+            }
+        ])
+            ->withCount(['subtasks', 'files', 'comments', 'completedSubtasks', 'notes'])
+            ->findOrFail($id);
+
+        $taskUsers = $task->users->pluck('id')->toArray();
+        $viewTaskPermission = user()->permission('view_tasks');
+        $mentionUser = $task->mentionTask->pluck('user_id')->toArray();
+
+        $overrideViewPermission = request()->has('tab') && request('tab') === 'project';
+
+        // Permission check
+        abort_403(
+            !(
+                $overrideViewPermission == true
+                || $viewTaskPermission == 'all'
+                || ($viewTaskPermission == 'added' && $task->added_by == $userId)
+                || ($viewTaskPermission == 'owned' && in_array($userId, $taskUsers))
+                || ($viewTaskPermission == 'both' && (in_array($userId, $taskUsers) || $task->added_by == $userId))
+                || ($viewTaskPermission == 'owned' && in_array('client', user_roles()) && $task->project_id && $task->project->client_id == $userId)
+                || ($viewTaskPermission == 'both' && in_array('client', user_roles()) && $task->project_id && $task->project->client_id == $userId)
+                || ($viewUnassignedTasksPermission == 'all' && in_array('employee', user_roles()))
+                || ($task->project_id && $task->project->project_admin == $userId)
+                || ((!is_null($task->mentionTask)) && in_array($userId, $mentionUser))
+            )
+        );
+
+        if (!$task->project_id || ($task->project_id && $task->project->project_admin != $userId)) {
+            abort_403($viewUnassignedTasksPermission == 'none' && count($taskUsers) == 0 && ((is_null($task->mentionTask)) && in_array($userId, $mentionUser)));
+        }
+
+        // Build page title
+        $pageTitle = $task->task_short_code 
+            ? __('app.task') . ' #' . $task->task_short_code 
+            : __('app.task');
+
+        // Handle AJAX requests for legacy support
+        if (request()->ajax()) {
+            $this->task = $task;
+            $this->viewTaskCommentPermission = $viewTaskCommentPermission;
+            $this->viewTaskNotePermission = $viewTaskNotePermission;
+            $this->taskSettings = TaskSetting::first();
+            $this->status = TaskboardColumn::where('id', $task->board_column_id)->first();
+            
+            $tab = request('view');
+            switch ($tab) {
+                case 'sub_task':
+                    $this->tab = 'tasks.ajax.sub_tasks';
+                    break;
+                case 'comments':
+                    abort_403($viewTaskCommentPermission == 'none');
+                    $this->tab = 'tasks.ajax.comments';
+                    break;
+                case 'notes':
+                    abort_403($viewTaskNotePermission == 'none');
+                    $this->tab = 'tasks.ajax.notes';
+                    break;
+                case 'history':
+                    $this->tab = 'tasks.ajax.history';
+                    break;
+                case 'time_logs':
+                    abort_403(!in_array('timelogs', user_modules()));
+                    $this->tab = 'tasks.ajax.timelogs';
+                    break;
+                default:
+                    $this->tab = 'tasks.ajax.files';
+                    break;
+            }
+            
+            $view = request('json') ? $this->tab : 'tasks.ajax.show';
+            return $this->returnAjax($view);
+        }
+
+        // Calculate time spent from time logs
+        $timeSpentMinutes = $task->approvedTimeLogs->sum('total_minutes');
+
+        // Transform task for frontend
+        $transformedTask = [
+            'id' => $task->id,
+            'heading' => $task->heading,
+            'description' => $task->description,
+            'due_date' => $task->due_date?->toISOString(),
+            'start_date' => $task->start_date?->toISOString(),
+            'priority' => $task->priority,
+            'status' => $task->boardColumn?->slug ?? 'incomplete',
+            'board_column_id' => $task->board_column_id,
+            'completed_on' => $task->completed_on?->toISOString(),
+            'task_short_code' => $task->task_short_code,
+            'is_private' => (bool) $task->is_private,
+            'billable' => (bool) $task->billable,
+            'estimate_hours' => $task->estimate_hours,
+            'estimate_minutes' => $task->estimate_minutes,
+            'created_at' => $task->created_at?->toISOString(),
+            'updated_at' => $task->updated_at?->toISOString(),
+            'files_count' => $task->files_count,
+            'comments_count' => $task->comments_count,
+            'notes_count' => $task->notes_count,
+            'subtasks_count' => $task->subtasks_count,
+            'completed_subtasks_count' => $task->completed_subtasks_count,
+            'board_column' => $task->boardColumn ? [
+                'id' => $task->boardColumn->id,
+                'column_name' => $task->boardColumn->column_name,
+                'slug' => $task->boardColumn->slug,
+                'label_color' => $task->boardColumn->label_color,
+            ] : null,
+            'project' => $task->project ? [
+                'id' => $task->project->id,
+                'project_name' => $task->project->project_name,
+                'project_short_code' => $task->project->project_short_code,
+            ] : null,
+            'category' => $task->category ? [
+                'id' => $task->category->id,
+                'category_name' => $task->category->category_name,
+            ] : null,
+            'users' => $task->users->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'image' => $user->image_url,
+                'designation_name' => $user->employeeDetail?->designation?->name,
+            ])->toArray(),
+            'labels' => $task->labels->map(fn($label) => [
+                'id' => $label->id,
+                'label_name' => $label->label_name,
+                'label_color' => $label->label_color,
+            ])->toArray(),
+            'deals' => $task->deals->map(fn($deal) => [
+                'id' => $deal->id,
+                'name' => $deal->name,
+            ])->toArray(),
+            'leads' => $task->leads->map(fn($lead) => [
+                'id' => $lead->id,
+                'client_name' => $lead->client_name,
+                'company_name' => $lead->company_name,
+            ])->toArray(),
+            'properties' => $task->properties->map(fn($property) => [
+                'id' => $property->id,
+                'name' => $property->title,
+            ])->toArray(),
+            'subtasks' => $task->subtasks->map(fn($subtask) => [
+                'id' => $subtask->id,
+                'title' => $subtask->title,
+                'status' => $subtask->status,
+                'due_date' => $subtask->due_date?->toISOString(),
+            ])->toArray(),
+            'time_logs' => [
+                ['total_minutes' => $timeSpentMinutes]
+            ],
+            'created_by' => $task->createBy ? [
+                'id' => $task->createBy->id,
+                'name' => $task->createBy->name,
+                'image' => $task->createBy->image_url,
+            ] : ($task->addedByUser ? [
+                'id' => $task->addedByUser->id,
+                'name' => $task->addedByUser->name,
+                'image' => $task->addedByUser->image_url,
+            ] : null),
+        ];
+
+        // Fetch supporting data for edit/duplicate modals
+        $projects = Project::allProjects()->map(fn($project) => [
+            'id' => $project->id,
+            'project_name' => $project->project_name,
+            'project_short_code' => $project->project_short_code,
+        ]);
+
+        $employees = User::allEmployees(null, true, ($viewTaskPermission == 'all' ? 'all' : null))->map(fn($user) => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'image' => $user->image_url,
+            'designation_name' => $user->employeeDetail?->designation?->name,
+        ]);
+
+        $taskBoardColumns = TaskboardColumn::orderBy('priority', 'asc')->get()->map(fn($column) => [
+            'id' => $column->id,
+            'column_name' => $column->column_name,
+            'slug' => $column->slug,
+            'label_color' => $column->label_color,
+            'priority' => $column->priority,
+        ]);
+
+        $categories = TaskCategory::all()->map(fn($category) => [
+            'id' => $category->id,
+            'category_name' => $category->category_name,
+        ]);
+
+        $labels = TaskLabelList::all()->map(fn($label) => [
+            'id' => $label->id,
+            'label_name' => $label->label_name,
+            'label_color' => $label->label_color,
+        ]);
+
+        $deals = Deal::select('id', 'name')->get();
+        $leads = Lead::select('id', 'client_name', 'company_name')->get();
+        $properties = Property::select('id', 'title as name')->get();
+
+        // Get user permissions
+        $permissions = [
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
+            'view_tasks' => $viewTaskPermission,
+        ];
+
+        return Inertia::render('Tasks/Show', [
+            'task' => $transformedTask,
+            'categories' => $categories,
+            'labels' => $labels,
+            'columns' => $taskBoardColumns,
+            'users' => $employees,
+            'projects' => $projects,
+            'deals' => $deals,
+            'leads' => $leads,
+            'properties' => $properties,
+            'permissions' => $permissions,
+            'pageTitle' => $pageTitle,
+        ]);
     }
 
     public function storePin(Request $request)

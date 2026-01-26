@@ -6,6 +6,7 @@ import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionS
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import usePageSort from "@/Hooks/usePageSort";
+import useViewPreference from "@/Hooks/useViewPreference";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PipelineStage } from "@/Types/api/deals";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
@@ -14,6 +15,8 @@ import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createDealFilterConfig from "@/configs/dealFilterConfig";
 import { createDealSearchConfig } from "@/configs/searchConfigs";
+import { getDealPermissions } from "@/Hooks/useDealPermissions";
+import { dealApi } from "@/lib/api/deals";
 import {
     UserOutlined,
     PlusOutlined,
@@ -24,7 +27,7 @@ import {
     ImportOutlined,
     FilterOutlined,
 } from "@ant-design/icons";
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Button, MenuProps, Select, Table } from "antd";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
@@ -63,6 +66,11 @@ interface Pipeline {
     default: number;
 }
 
+interface Package {
+    id: number;
+    name: string;
+}
+
 export interface IndexProps extends PageProps {
     pageTitle: string;
     deals: PaginatedDealResponse;
@@ -75,6 +83,7 @@ export interface IndexProps extends PageProps {
     countries: Array<{ iso: string; nicename: string; iso3: string }>;
     salutations: Array<{ value: string; label: string }>;
     pipelines: Pipeline[];
+    packages: Package[];
     addLeadPermission?: string;
 }
 
@@ -85,12 +94,22 @@ const Index = ({
     stages,
     leadAgents,
     pipelines,
+    packages,
+    sources,
     defaultPipeline,
     addLeadPermission = "all",
     ...props
 }: IndexProps) => {
-    // View mode state: table or kanban
-    const [view, setView] = useState<"kanban" | "table">("table");
+    // Get current user and permissions for deal permission checks
+    const { props: pageProps } = usePage<any>();
+    const currentUser = pageProps.auth?.user;
+    const editDealsPermission = pageProps.auth?.permissions?.edit_deals;
+
+    // View mode state: table or kanban (persisted in localStorage)
+    const { view, setView, isTableView, isKanbanView } = useViewPreference({
+        storageKey: "deals",
+        defaultView: "table",
+    });
 
     // Board columns state for kanban view
     const [boardColumns, setBoardColumns] =
@@ -114,9 +133,10 @@ const Index = ({
             createDealFilterConfig({
                 ...props,
                 stages,
-
                 leadPipelines: pipelines,
                 leadAgents,
+                sources,
+                packages,
                 excludeFields: [
                     "pipeline_stage_id",
                     "lead_pipeline_id",
@@ -130,7 +150,9 @@ const Index = ({
             leadAgents,
             props.employees,
             pipelines,
-        ]
+            sources,
+            packages,
+        ],
     );
 
     // Setup search and filter contexts
@@ -178,59 +200,122 @@ const Index = ({
     const handleImportDeals = () => {
         handleAction("import");
     };
-    // Action dropdown for each row
-    const getActionItems = (record: Deal): MenuProps["items"] => [
-        {
-            key: "view",
-            label: (
-                <Link href={route("deals.show", record.id)}>
-                    <EyeOutlined className="mr-2" />
-                    View
-                </Link>
-            ),
-        },
-        {
-            key: "edit",
-            label: (
-                <span>
-                    <EditOutlined className="mr-2" />
-                    Edit
-                </span>
-            ),
-            onClick: () => {
-                handleEditDeal(record);
-            },
-        },
-        {
-            key: "add_follow_up",
-            label: (
-                <span>
-                    <UserOutlined className="mr-2" />
-                    Schedule Meeting
-                </span>
-            ),
-            onClick: () => {
-                handleAction("add_follow_up", record);
-            },
-        },
-        {
-            type: "divider",
-        },
-        {
-            key: "delete",
-            label: (
-                <span className="text-red-600">
-                    <DeleteOutlined className="mr-2" />
-                    Delete
-                </span>
-            ),
-            onClick: () => {
-                handleAction("delete", record);
-            },
-        },
-    ];
 
-    const columns = DEAL_TABLE_COLUMNS(getActionItems);
+    // Handle schedule meeting (follow up)
+    const handleScheduleMeeting = useCallback(
+        (deal: Deal) => {
+            handleAction("add_follow_up", deal);
+        },
+        [handleAction],
+    );
+
+    // Change Agent Mutation
+    const { mutate: changeAgent } = dealApi.useChangeAgent();
+
+    // Handle agent change from table or card
+    const handleAgentChange = useCallback(
+        (deal: Deal, agentId: number | null) => {
+            changeAgent(
+                { deal_id: deal.id, agent_id: agentId },
+                {
+                    onSuccess: () => {
+                        router.reload({ only: ["deals", "boardColumns"] });
+                    },
+                },
+            );
+        },
+        [changeAgent],
+    );
+
+    // Helper to check if user can edit a specific deal
+    const canEditDeal = useCallback(
+        (deal: Deal): boolean => {
+            const { canEdit } = getDealPermissions(
+                deal,
+                currentUser?.id,
+                editDealsPermission,
+            );
+            return canEdit;
+        },
+        [currentUser?.id, editDealsPermission],
+    );
+
+    // Action dropdown for each row - respects deal permissions (watchers can't edit/delete)
+    const getActionItems = (record: Deal): MenuProps["items"] => {
+        // Get permissions for this specific deal
+        const { canEdit, canDelete } = getDealPermissions(
+            record,
+            currentUser?.id,
+            editDealsPermission,
+        );
+
+        return [
+            {
+                key: "view",
+                label: (
+                    <Link href={route("deals.show", record.id)}>
+                        <EyeOutlined className="mr-2" />
+                        View
+                    </Link>
+                ),
+            },
+            // Edit - only show if user has edit permission (not for watchers)
+            ...(canEdit
+                ? [
+                      {
+                          key: "edit",
+                          label: (
+                              <span>
+                                  <EditOutlined className="mr-2" />
+                                  Edit
+                              </span>
+                          ),
+                          onClick: () => {
+                              handleEditDeal(record);
+                          },
+                      },
+                  ]
+                : []),
+            {
+                key: "add_follow_up",
+                label: (
+                    <span>
+                        <UserOutlined className="mr-2" />
+                        Schedule Meeting
+                    </span>
+                ),
+                onClick: () => {
+                    handleAction("add_follow_up", record);
+                },
+            },
+            // Delete - only show if user has delete permission (not for watchers)
+            ...(canDelete
+                ? [
+                      {
+                          type: "divider" as const,
+                      },
+                      {
+                          key: "delete",
+                          label: (
+                              <span className="text-red-600">
+                                  <DeleteOutlined className="mr-2" />
+                                  Delete
+                              </span>
+                          ),
+                          onClick: () => {
+                              handleAction("delete", record);
+                          },
+                      },
+                  ]
+                : []),
+        ];
+    };
+
+    const columns = DEAL_TABLE_COLUMNS({
+        actionItems: getActionItems,
+        onAgentChange: handleAgentChange,
+        canEdit: canEditDeal,
+    });
 
     const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
         ? Number((props as any).filters?.lead_pipeline_id)
@@ -248,9 +333,6 @@ const Index = ({
     const handleDeleteColumn = useCallback((columnId: number) => {
         // Column deletion functionality - can be extended later
     }, []);
-
-    const isTableView = view === "table";
-    const isKanbanView = view === "kanban";
 
     return (
         <>
@@ -308,7 +390,7 @@ const Index = ({
                             {isTableView && selectedEntities.length > 0 && (
                                 <BulkDealActionSelector
                                     selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id
+                                        ({ id }) => id,
                                     )}
                                     stages={stages}
                                     leadAgents={leadAgents}
@@ -348,7 +430,7 @@ const Index = ({
                                             {
                                                 preserveState: true,
                                                 preserveScroll: true,
-                                            }
+                                            },
                                         );
                                     },
                                 }}
@@ -360,12 +442,15 @@ const Index = ({
 
                     {/* Kanban View */}
                     {isKanbanView && (
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
+                        <div className="">
+                            {/* <div className="bg-white rounded-lg border border-gray-200 p-4"> */}
                             <KanbanBoard
                                 columns={boardColumns}
                                 addLeadPermission={addLeadPermission}
                                 onCreateDeal={handleCreateDeal}
                                 onEditDeal={handleEditDeal}
+                                onScheduleMeeting={handleScheduleMeeting}
+                                onAgentChange={handleAgentChange}
                                 onEditColumn={handleEditColumn}
                                 onDeleteColumn={handleDeleteColumn}
                                 onColumnsUpdate={handleColumnsUpdate}

@@ -39,7 +39,14 @@ class PropertyController extends AccountBaseController
         $this->excel = $excel;
         parent::__construct();
         
-        
+        $this->middleware(function ($request, $next) {
+            $this->addPropertyPermission = user()->permission('add_products');
+            $this->viewPropertyPermission = user()->permission('view_products');
+            $this->editPropertyPermission = user()->permission('edit_products');
+            $this->deletePropertyPermission = user()->permission('delete_products');
+            
+            return $next($request);
+        });
     }
 
     public function index(Request $request)
@@ -124,13 +131,13 @@ class PropertyController extends AccountBaseController
         $this->properties = $properties;
         
 
-        // TODO: Correct this to use the proper models
-        // Get projects for assignment
-        $projects = \App\Models\Project::select('id', 'project_name', 'project_admin')
-            ->with('projectAdmin:id,name')
+        // Get developer projects for assignment
+        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'project_location_id')
+            ->with('location:id,name')
+            ->where('company_id', user()->company_id)
             ->get();
             
-        // Get users with employee role for developer selection
+        // Legacy: Get users with employee role for developer selection (pinned for future)
         $developers = \App\Models\User::whereHas('roles', function($query) {
                 $query->where('name', 'employee');
             })
@@ -141,7 +148,7 @@ class PropertyController extends AccountBaseController
             'pageTitle' => 'Properties',
             'properties' => $this->properties,
             'products' => $products,
-            'projects' => $projects,
+            'developerProjects' => $developerProjects,
             'developers' => $developers,
             'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price'])
         ]);       
@@ -436,8 +443,12 @@ class PropertyController extends AccountBaseController
                 break;
         }
 
-        abort_403(!$canDelete);
+        // abort_403(!$canDelete); //Removed permission check for deletion temporarily, as per request on 22-01-2026
 
+        // TODO: COnsider implementing reintroducing permission check above via Permission service, and ensure its applicable to the bulk action as well, also just refactor permissions to be a permission middleware thing and free all controllers ....
+
+
+        // TODO: Refactor to use service and let the response be strictly JSON for consistency
         // Don't allow deletion if property is sold or rented
         if ($property->isSold() || $property->isRented()) {
             return back()->with([
@@ -885,7 +896,7 @@ class PropertyController extends AccountBaseController
             'property_ids' => 'required|array|min:1',
             'property_ids.*' => 'integer|exists:properties,id',
             'action_type' => 'required|string|in:assign_to_project,change_status,delete',
-            'project_id' => 'required_if:action_type,assign_to_project|integer|exists:projects,id',
+            'project_id' => 'required_if:action_type,assign_to_project|integer|exists:developer_projects,id',
             'status' => 'required_if:action_type,change_status|string|in:Available,Under offer,Sold,Withdrawn',
         ]);
 
@@ -920,26 +931,22 @@ class PropertyController extends AccountBaseController
     }
 
     /**
-     * Assign multiple properties to a project
+     * Assign multiple properties to a developer project
+     * 
+     * Updated to use DeveloperProject model instead of legacy Project.
+     * Properties are now directly assigned via developer_project_id.
      */
     private function assignPropertiesToProject(array $propertyIds, int $projectId)
     {
-        $properties = Property::whereIn('id', $propertyIds)->get();
-        $project = \App\Models\Project::findOrFail($projectId);
+        $project = \App\Models\DeveloperProject::where('company_id', user()->company_id)
+            ->findOrFail($projectId);
         
-        $assignedCount = 0;
-        foreach ($properties as $property) {
-            // Update the property's product to associate with the project
-            if ($property->product) {
-                $property->product->project_id = $projectId;
-                $property->product->save();
-                $assignedCount++;
-            }
-        }
+        // Use the model's assignProperties method
+        $assignedCount = $project->assignProperties($propertyIds);
 
         $message = __('messages.propertiesAssignedToProject', [
             'count' => $assignedCount,
-            'project' => $project->project_name
+            'project' => $project->name
         ]);
 
         if (request()->expectsJson()) {
