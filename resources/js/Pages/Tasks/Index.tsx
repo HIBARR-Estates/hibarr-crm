@@ -20,6 +20,7 @@ import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 
 import usePageSort from "@/Hooks/usePageSort";
+import useViewPreference from "@/Hooks/useViewPreference";
 
 import { router } from "@inertiajs/react";
 
@@ -209,7 +210,16 @@ const TasksIndex = ({
                 properties,
                 excludeFields: ["search"],
             }),
-        [categories, labels, columns, users, projects, deals, leads, properties]
+        [
+            categories,
+            labels,
+            columns,
+            users,
+            projects,
+            deals,
+            leads,
+            properties,
+        ],
     );
 
     // Filter and sort handlers
@@ -255,7 +265,7 @@ const TasksIndex = ({
     const handleStatusChange = (
         taskId: number,
         newStatus: string,
-        newColumnId: number
+        newColumnId: number,
     ) => {
         // Optimistic update logic should be in React Query cache config,
         // but here we trigger the mutation
@@ -271,7 +281,7 @@ const TasksIndex = ({
                     });
                     // Optionally show a success message or refresh
                 },
-            }
+            },
         );
     };
 
@@ -287,15 +297,16 @@ const TasksIndex = ({
                 },
                 {
                     onSuccess: () => clearSelected(),
-                }
+                },
             );
         }
     };
 
-    const [view, setView] = useState<"kanban" | "table">("table");
-
-    const isKanbanView = view === "kanban";
-    const isTableView = view === "table";
+    // View mode state: table or kanban (persisted in localStorage)
+    const { view, setView, isKanbanView, isTableView } = useViewPreference({
+        storageKey: "tasks",
+        defaultView: "table",
+    });
 
     console.log(tableTasks, "TABLE COTNET");
 
@@ -401,7 +412,7 @@ const TasksIndex = ({
                         {selectedEntities.length > 0 && (
                             <BulkTaskActionSelector
                                 selectedEntityIds={selectedEntities.map(
-                                    (entity) => entity.id as number
+                                    (entity) => entity.id as number,
                                 )}
                                 columns={columns}
                                 clearSelected={clearSelected}
@@ -418,7 +429,7 @@ const TasksIndex = ({
                                     tasks={filteredTableTasks}
                                     columns={columns}
                                     selectedIds={selectedEntities.map(
-                                        (t) => t.id
+                                        (t) => t.id,
                                     )}
                                     onSelectionChange={(ids, tasks) =>
                                         rowSelection.onChange(ids, tasks)
@@ -430,12 +441,12 @@ const TasksIndex = ({
                                     onStatusChange={(
                                         task,
                                         newStatus,
-                                        newColumnId
+                                        newColumnId,
                                     ) =>
                                         handleStatusChange(
                                             task.id,
                                             newStatus,
-                                            newColumnId
+                                            newColumnId,
                                         )
                                     }
                                 />
@@ -464,7 +475,7 @@ const TasksIndex = ({
                                                 {
                                                     preserveState: true,
                                                     preserveScroll: true,
-                                                }
+                                                },
                                             );
                                         }}
                                     />
