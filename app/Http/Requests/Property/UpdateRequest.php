@@ -54,7 +54,40 @@ class UpdateRequest extends CoreRequest
                     Property::SALE_TYPE_DAILY_RENTAL
                 ])
             ],
-            'price' => 'nullable', // Can be string (JSON), array, or numeric
+            // Price can be:
+            // - null
+            // - numeric (backward compatible)
+            // - array (currency input shape)
+            // - JSON string representing an array/object (currency input shape)
+            // Controller normalizePrice() will coerce these into stored JSON-string format.
+            'price' => [
+                'nullable',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value === null) {
+                        return;
+                    }
+
+                    if (is_numeric($value)) {
+                        return;
+                    }
+
+                    if (is_array($value)) {
+                        return;
+                    }
+
+                    if (is_string($value)) {
+                        $decoded = json_decode($value, true);
+                        if (json_last_error() === JSON_ERROR_NONE && ($decoded !== null) && (is_array($decoded) || is_object($decoded))) {
+                            return;
+                        }
+
+                        $fail("The {$attribute} must be a numeric value, an array, or a valid JSON string.");
+                        return;
+                    }
+
+                    $fail("The {$attribute} must be a numeric value, an array, or a valid JSON string.");
+                },
+            ],
             'minimal_rental_period' => 'nullable|string|max:255',
             'rent_payment_interval' => [
                 'nullable',

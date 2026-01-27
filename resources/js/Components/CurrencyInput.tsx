@@ -143,7 +143,8 @@ const CurrencyInput: React.FC<Props> = ({
                 .map((c: CurrencyType) => c.currency_code || c.currency_name?.toUpperCase())
                 .filter((code: string | undefined): code is string => !!code);
         }
-        return [default_currency_code, "EUR", "GBP"].filter(Boolean);
+        const fallback = default_currency_code || "TRY";
+        return [fallback, "EUR", "GBP"].filter(Boolean);
     };
 
     // Update internal state when parsed value changes (only for uncontrolled mode)

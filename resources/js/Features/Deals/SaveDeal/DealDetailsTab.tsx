@@ -397,7 +397,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 placeholder="Enter Value"
                                 showLabel={false}
                                 noFormItem={true}
-                                disabled={false}
+                                disabled={disableFields.includes("deal_value")}
                             />
                         </Form.Item>
                     </Col>

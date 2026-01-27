@@ -812,7 +812,13 @@ export default function DealInfoSection({
                                     handleFieldUpdate("value", value)
                                 }
                                 formatValue={(value) => {
-                                    if (!value || (typeof value === "object" && !value.amount)) {
+                                    if (
+                                        value === null ||
+                                        value === undefined ||
+                                        (typeof value === "object" &&
+                                            (value.amount === null ||
+                                                value.amount === undefined))
+                                    ) {
                                         return "--";
                                     }
                                     const amount = typeof value === "object" ? value.amount : value;

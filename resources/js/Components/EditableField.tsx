@@ -84,8 +84,16 @@ export default function EditableField({
             }
             
             if (typeof val === "string") {
+                const numValue = Number(val);
+                if (!isNaN(numValue)) {
+                    return { amount: numValue, currency: defaultCurrency };
+                }
+
                 try {
                     const parsed = JSON.parse(val);
+                    if (typeof parsed === "number") {
+                        return { amount: parsed, currency: defaultCurrency };
+                    }
                     if (typeof parsed === "object" && !Array.isArray(parsed)) {
                         return {
                             amount: parsed.amount !== null && parsed.amount !== undefined && parsed.amount !== ""
@@ -95,10 +103,7 @@ export default function EditableField({
                         };
                     }
                 } catch {
-                    const numValue = Number(val);
-                    if (!isNaN(numValue)) {
-                        return { amount: numValue, currency: defaultCurrency };
-                    }
+                    // ignore
                 }
                 return { amount: null, currency: defaultCurrency };
             }

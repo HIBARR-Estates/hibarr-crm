@@ -282,7 +282,11 @@ export default function CustomFieldDisplay({
     const { currencies = [], default_currency_code } = props;
 
     // Use the application's default currency (current company setting)
-    const appDefaultCurrency: string = default_currency_code;
+    const appDefaultCurrency: string =
+        default_currency_code ??
+        currencies?.[0]?.code ??
+        currencies?.[0]?.currency_code ??
+        "USD";
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
         ? fields.filter(

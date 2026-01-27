@@ -13,7 +13,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // First, convert existing decimal prices to JSON format
+        // First, change the column type from decimal to varchar
+        // (so we don't risk writing JSON into a decimal column if conversion runs first)
+        Schema::table('properties', function (Blueprint $table) {
+            $table->string('price', 255)->nullable()->change();
+        });
+
+        // Then, convert existing decimal prices to JSON format
         // Get default currency code from company settings
         $defaultCurrencyCode = 'TRY'; // Default fallback
         
@@ -28,7 +34,7 @@ return new class extends Migration
             // Use default if company() fails
         }
 
-        // Convert all existing decimal prices to JSON format
+        // Convert all existing prices to JSON format
         DB::table('properties')
             ->whereNotNull('price')
             ->chunkById(100, function ($properties) use ($defaultCurrencyCode) {
@@ -40,19 +46,16 @@ return new class extends Migration
                         continue;
                     }
                     
-                    // If it's already a valid JSON string, skip
+                    // If it's already a valid JSON string with expected structure, skip
                     if (is_string($priceValue)) {
                         $trimmed = trim($priceValue);
                         if (strpos($trimmed, '{') === 0 || strpos($trimmed, '[') === 0) {
                             $decoded = json_decode($priceValue, true);
-                            // Check if JSON decode was successful and result is an array/object
-                            if (json_last_error() === JSON_ERROR_NONE && (is_array($decoded) || is_object($decoded))) {
-                                // Verify it has the expected structure for price data
-                                if (is_array($decoded) && isset($decoded['amount']) && isset($decoded['currency'])) {
-                                    continue; // Valid JSON with expected structure, skip
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                if (isset($decoded['amount']) && isset($decoded['currency'])) {
+                                    continue;
                                 }
                             }
-                            // Invalid JSON or wrong structure - fall through to conversion
                         }
                     }
                     
@@ -68,11 +71,6 @@ return new class extends Migration
                         ->update(['price' => json_encode($priceData)]);
                 }
             });
-
-        // Change the column type from decimal to varchar
-        Schema::table('properties', function (Blueprint $table) {
-            $table->string('price', 255)->nullable()->change();
-        });
     }
 
     /**
@@ -80,7 +78,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Convert JSON prices back to decimal (extract amount)
+        // First, change the column type back to decimal
+        Schema::table('properties', function (Blueprint $table) {
+            $table->decimal('price', 15, 2)->nullable()->change();
+        });
+
+        // Then, convert JSON prices back to decimal (extract amount)
         DB::table('properties')
             ->whereNotNull('price')
             ->chunkById(100, function ($properties) {
@@ -106,10 +109,5 @@ return new class extends Migration
                         ->update(['price' => $amount]);
                 }
             });
-
-        // Change the column type back to decimal
-        Schema::table('properties', function (Blueprint $table) {
-            $table->decimal('price', 15, 2)->nullable()->change();
-        });
     }
 };

@@ -152,9 +152,6 @@ export default function BasicInfoTab({
         if (priceValue && typeof priceValue === "object" && priceValue.amount !== undefined) {
             // New format: store as JSON string
             priceValue = JSON.stringify(priceValue);
-        } else if (priceValue && typeof priceValue === "number") {
-            // Old format: keep as number (for backward compatibility)
-            priceValue = priceValue;
         }
 
         const formData = {

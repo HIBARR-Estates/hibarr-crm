@@ -50,7 +50,10 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
             currencyFieldIds.forEach((id: number) => {
                 const key = `field_${id}`;
                 if (key in normalized) {
-                    normalized[key] = parsePropertyPrice(normalized[key], defaultCode);
+                    const current = normalized[key];
+                    if (current !== null && current !== undefined && current !== "") {
+                        normalized[key] = parsePropertyPrice(current, defaultCode);
+                    }
                 }
             });
             form.setFieldsValue({ ...data, custom_fields_data: normalized });

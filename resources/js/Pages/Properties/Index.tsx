@@ -67,6 +67,9 @@ export interface IndexProps extends PageProps {
     developers?: Developer[];
     /** New DeveloperProject list for bulk actions */
     developerProjects?: DeveloperProjectOption[];
+    currencies?: any[];
+    default_currency_code?: string;
+    default_currency_symbol?: string;
 }
 
 const Index = ({
