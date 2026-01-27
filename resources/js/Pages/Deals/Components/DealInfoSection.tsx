@@ -155,6 +155,7 @@ export default function DealInfoSection({
             // Group changes by type for API calls
             const detailsChanges: Record<string, any> = {};
             const contactChanges: Record<string, any> = {};
+            const customFieldChanges: Record<string, any> = {};
 
             // Process each pending change
             for (const [fieldName, value] of Object.entries(pendingChanges)) {
@@ -163,15 +164,15 @@ export default function DealInfoSection({
                     const apiFieldName =
                         fieldName === "email" ? "client_email" : fieldName;
                     contactChanges[apiFieldName] = value;
+                } else if (fieldName.startsWith("field_")) {
+                    // Custom fields (including currency custom fields)
+                    customFieldChanges[fieldName] = value;
                 } else {
                     // Process value transformations
                     let processedValue = value;
                     if (fieldName === "value") {
                         // Handle new currency format: { amount, currency }
                         if (value && typeof value === "object" && ("amount" in value || "currency" in value)) {
-                            const amount = value.amount !== null && value.amount !== undefined && value.amount !== ""
-                                ? Number(value.amount)
-                                : 0;
                             const currencyCode = typeof value.currency === "string" 
                                 ? value.currency 
                                 : defaultCurrencyCode;
@@ -180,8 +181,11 @@ export default function DealInfoSection({
                             const foundCurrency = currencies.find(
                                 (c: any) => (c.currency_code || "").toUpperCase() === currencyCode.toUpperCase()
                             );
-                            
-                            detailsChanges.value = amount;
+
+                            // Only set value if amount is explicitly provided (don't overwrite with 0)
+                            if (value.amount !== null && value.amount !== undefined && value.amount !== "") {
+                                detailsChanges.value = Number(value.amount);
+                            }
                             if (foundCurrency?.id) {
                                 detailsChanges.currency_id = foundCurrency.id;
                             }
@@ -213,6 +217,12 @@ export default function DealInfoSection({
             if (Object.keys(contactChanges).length > 0) {
                 promises.push(
                     updateDeal({ type: "contact", data: contactChanges }),
+                );
+            }
+
+            if (Object.keys(customFieldChanges).length > 0) {
+                promises.push(
+                    updateDeal({ type: "custom_field", data: customFieldChanges }),
                 );
             }
 
@@ -327,9 +337,6 @@ export default function DealInfoSection({
             } else if (fieldName === "value") {
                 // Handle new currency format: { amount, currency }
                 if (value && typeof value === "object" && ("amount" in value || "currency" in value)) {
-                    const amount = value.amount !== null && value.amount !== undefined && value.amount !== ""
-                        ? Number(value.amount)
-                        : 0;
                     const currencyCode = typeof value.currency === "string" 
                         ? value.currency 
                         : defaultCurrencyCode;
@@ -339,10 +346,19 @@ export default function DealInfoSection({
                         (c: any) => (c.currency_code || "").toUpperCase() === currencyCode.toUpperCase()
                     );
                     
-                    // Set both value and currency_id
-                    const payloadData: Record<string, any> = { value: amount };
+                    // Set currency_id and (optionally) value
+                    const payloadData: Record<string, any> = {};
                     if (foundCurrency?.id) {
                         payloadData.currency_id = foundCurrency.id;
+                    }
+                    if (value.amount !== null && value.amount !== undefined && value.amount !== "") {
+                        payloadData.value = Number(value.amount);
+                    }
+
+                    // If neither amount nor currency_id is resolvable, do nothing
+                    if (Object.keys(payloadData).length === 0) {
+                        setUpdatingField(null);
+                        return;
                     }
                     
                     await updateDeal({

@@ -40,13 +40,19 @@ return new class extends Migration
                         continue;
                     }
                     
-                    // If it's already a JSON string, skip
-                    if (is_string($priceValue) && (strpos(trim($priceValue), '{') === 0 || strpos(trim($priceValue), '[') === 0)) {
-                        try {
-                            json_decode($priceValue, true);
-                            continue; // Valid JSON, skip
-                        } catch (\Exception $e) {
-                            // Not valid JSON, continue to conversion
+                    // If it's already a valid JSON string, skip
+                    if (is_string($priceValue)) {
+                        $trimmed = trim($priceValue);
+                        if (strpos($trimmed, '{') === 0 || strpos($trimmed, '[') === 0) {
+                            $decoded = json_decode($priceValue, true);
+                            // Check if JSON decode was successful and result is an array/object
+                            if (json_last_error() === JSON_ERROR_NONE && (is_array($decoded) || is_object($decoded))) {
+                                // Verify it has the expected structure for price data
+                                if (is_array($decoded) && isset($decoded['amount']) && isset($decoded['currency'])) {
+                                    continue; // Valid JSON with expected structure, skip
+                                }
+                            }
+                            // Invalid JSON or wrong structure - fall through to conversion
                         }
                     }
                     

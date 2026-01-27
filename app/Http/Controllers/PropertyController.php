@@ -1229,7 +1229,10 @@ class PropertyController extends AccountBaseController
         }
 
         if (is_numeric($priceValue)) {
-            return json_encode(['amount' => (float) $priceValue, 'currency' => $defaultCurrency]);
+            $amount = (float) $priceValue;
+            return $amount >= 0
+                ? json_encode(['amount' => $amount, 'currency' => $defaultCurrency])
+                : null;
         }
 
         return null;

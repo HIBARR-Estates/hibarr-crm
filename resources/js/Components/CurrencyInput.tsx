@@ -195,14 +195,14 @@ const CurrencyInput: React.FC<Props> = ({
             }
             
             if (onChange) {
-                if (normalizedAmount !== null && normalizedAmount !== "") {
-                    onChange({
-                        amount: normalizedAmount,
-                        currency: newData.currency,
-                    });
-                } else {
-                    onChange(null);
-                }
+                // Always emit currency object so callers can persist currency-only changes
+                onChange({
+                    amount:
+                        normalizedAmount !== null && normalizedAmount !== ""
+                            ? normalizedAmount
+                            : null,
+                    currency: newData.currency,
+                });
             }
         } catch (error) {
             console.error("Error handling amount change:", error);
@@ -218,14 +218,14 @@ const CurrencyInput: React.FC<Props> = ({
         }
         
         if (onChange) {
-            if (newData.amount !== null && newData.amount !== "") {
-                onChange({
-                    amount: newData.amount,
-                    currency: newData.currency,
-                });
-            } else {
-                onChange(null);
-            }
+            // Always emit currency object so currency can be changed while amount is empty
+            onChange({
+                amount:
+                    newData.amount !== null && newData.amount !== ""
+                        ? newData.amount
+                        : null,
+                currency: newData.currency,
+            });
         }
     };
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Input, Typography, message, Select, Skeleton, Spin } from "antd";
 import {
     CheckOutlined,
@@ -15,7 +15,7 @@ import { parsePropertyPrice, formatCurrencyWithSymbol } from "@/lib/utils";
 const { Text } = Typography;
 
 interface EditableFieldProps {
-    value: string | number | null | undefined | any[]; // Updated to accept array
+    value: any; // supports primitives, arrays, and structured values (e.g. currency {amount,currency})
     fieldName: string;
     fieldType?:
         | "text"
@@ -64,71 +64,105 @@ export default function EditableField({
     const { props } = usePage<any>();
     const { countries = [], default_currency_code, currencies = [], default_currency_symbol } = props;
     const [editing, setEditing] = useState(alwaysEditing);
+    const [saving, setSaving] = useState(false);
     
-    // Initialize inputValue properly for currency fields
+    const normalizeCurrencyValue = useMemo(() => {
+        return (val: any): { amount: number | null; currency: string } => {
+            const defaultCurrency = default_currency_code || "TRY";
+            
+            if (val === null || val === undefined) {
+                return { amount: null, currency: defaultCurrency };
+            }
+            
+            if (typeof val === "object" && !Array.isArray(val) && ("amount" in val || "currency" in val)) {
+                return {
+                    amount: val.amount !== null && val.amount !== undefined && val.amount !== "" 
+                        ? (typeof val.amount === "number" ? val.amount : Number(val.amount))
+                        : null,
+                    currency: val.currency || defaultCurrency
+                };
+            }
+            
+            if (typeof val === "string") {
+                try {
+                    const parsed = JSON.parse(val);
+                    if (typeof parsed === "object" && !Array.isArray(parsed)) {
+                        return {
+                            amount: parsed.amount !== null && parsed.amount !== undefined && parsed.amount !== ""
+                                ? (typeof parsed.amount === "number" ? parsed.amount : Number(parsed.amount))
+                                : null,
+                            currency: parsed.currency || defaultCurrency
+                        };
+                    }
+                } catch {
+                    const numValue = Number(val);
+                    if (!isNaN(numValue)) {
+                        return { amount: numValue, currency: defaultCurrency };
+                    }
+                }
+                return { amount: null, currency: defaultCurrency };
+            }
+            
+            if (typeof val === "number") {
+                return { amount: val, currency: defaultCurrency };
+            }
+            
+            return { amount: null, currency: defaultCurrency };
+        };
+    }, [default_currency_code]);
+    
     const getInitialValue = () => {
         if (fieldType === "currency") {
-            if (value && typeof value === "object" && !Array.isArray(value)) {
-                return value;
-            } else if (value && typeof value === "string") {
-                try {
-                    return JSON.parse(value);
-                } catch {
-                    const numValue = Number(value);
-                    if (!isNaN(numValue)) {
-                        return { amount: numValue, currency: default_currency_code || "TRY" };
-                    }
-                    return { amount: null, currency: default_currency_code || "TRY" };
-                }
-            } else if (value === null || value === undefined) {
-                return { amount: null, currency: default_currency_code || "TRY" };
-            }
+            return normalizeCurrencyValue(value);
         }
         return value;
     };
     
     const [inputValue, setInputValue] = useState<any>(getInitialValue());
-    const [saving, setSaving] = useState(false);
-
-    // Sync value when it changes from props (important for currency fields)
+    const isManuallySettingValue = useRef(false);
+    const previousValueRef = useRef<string>("");
+    const previousEditingRef = useRef(editing);
+    
     useEffect(() => {
+        if (isManuallySettingValue.current) {
+            isManuallySettingValue.current = false;
+            if (fieldType === "currency") {
+                const normalized = normalizeCurrencyValue(value);
+                previousValueRef.current = `${normalized.amount}_${normalized.currency}`;
+            }
+            previousEditingRef.current = editing;
+            return;
+        }
+        
+        const justExitedEditMode = previousEditingRef.current && !editing;
+        previousEditingRef.current = editing;
+        
         if (fieldType === "currency") {
-            // Handle currency value - can be object {amount, currency} or JSON string
-            if (value && typeof value === "object" && !Array.isArray(value)) {
-                setInputValue(value);
-            } else if (value && typeof value === "string") {
-                try {
-                    const parsed = JSON.parse(value);
-                    setInputValue(parsed);
-                } catch {
-                    // If it's not JSON, try to parse as number
-                    const numValue = Number(value);
-                    if (!isNaN(numValue)) {
-                        setInputValue({ amount: numValue, currency: default_currency_code || "TRY" });
-                    } else {
-                        setInputValue({ amount: null, currency: default_currency_code || "TRY" });
-                    }
-                }
-            } else if (value === null || value === undefined) {
-                setInputValue({ amount: null, currency: default_currency_code || "TRY" });
-            } else {
+            const normalized = normalizeCurrencyValue(value);
+            const valueKey = `${normalized.amount}_${normalized.currency}`;
+            
+            if (previousValueRef.current !== valueKey || justExitedEditMode) {
+                previousValueRef.current = valueKey;
+                setInputValue(normalized);
+            }
+        } else if (!editing) {
+            const valueKey = typeof value === "object" ? JSON.stringify(value) : String(value);
+            if (previousValueRef.current !== valueKey || justExitedEditMode) {
+                previousValueRef.current = valueKey;
                 setInputValue(value);
             }
-        } else {
-            setInputValue(value);
         }
-    }, [value, fieldType, default_currency_code]);
+    }, [value, fieldType, default_currency_code, editing]);
 
     // Ref to track if we're clicking on action buttons (to prevent blur from saving)
     const isClickingActionRef = useRef(false);
     // Ref to track the blur timeout so we can cancel it
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Sync editing state when alwaysEditing prop changes
     useEffect(() => {
         if (alwaysEditing) {
+            isManuallySettingValue.current = true;
             setEditing(true);
-            // Initialize input value when entering always-editing mode
             if (fieldType === "date" && value) {
                 try {
                     const date = new Date(value.toString());
@@ -141,29 +175,14 @@ export default function EditableField({
                     setInputValue("");
                 }
             } else if (fieldType === "multiselect" || Array.isArray(value)) {
-                setInputValue(
-                    Array.isArray(value) ? value : value ? [value] : []
-                );
+                setInputValue(Array.isArray(value) ? value : value ? [value] : []);
             } else if (fieldType === "currency") {
-                // Handle currency value - can be object {amount, currency} or JSON string
-                if (value && typeof value === "object") {
-                    setInputValue(value);
-                } else if (value && typeof value === "string") {
-                    try {
-                        setInputValue(JSON.parse(value));
-                    } catch {
-                        setInputValue({ amount: value, currency: default_currency_code });
-                    }
-                } else {
-                    setInputValue({ amount: null, currency: default_currency_code });
-                }
+                setInputValue(normalizeCurrencyValue(value));
             } else {
                 setInputValue(value ?? "");
             }
         } else {
             setEditing(false);
-            // Reset input value to original when exiting always-editing mode
-            setInputValue(value);
         }
     }, [alwaysEditing]);
 
@@ -176,8 +195,8 @@ export default function EditableField({
 
     const startEditing = () => {
         if (!canStartEditing) return;
+        isManuallySettingValue.current = true;
         setEditing(true);
-        // For date fields, convert to YYYY-MM-DD format if value exists
         if (fieldType === "date" && value) {
             try {
                 const date = new Date(value.toString());
@@ -190,21 +209,9 @@ export default function EditableField({
                 setInputValue("");
             }
         } else if (fieldType === "multiselect" || Array.isArray(value)) {
-            // Keep array values as arrays for multiselect
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
         } else if (fieldType === "currency") {
-            // Handle currency value - can be object {amount, currency} or JSON string
-            if (value && typeof value === "object") {
-                setInputValue(value);
-            } else if (value && typeof value === "string") {
-                try {
-                    setInputValue(JSON.parse(value));
-                } catch {
-                    setInputValue({ amount: value, currency: default_currency_code });
-                }
-            } else {
-                setInputValue({ amount: null, currency: default_currency_code  });
-            }
+            setInputValue(normalizeCurrencyValue(value));
         } else {
             setInputValue(value ?? "");
         }
@@ -217,11 +224,19 @@ export default function EditableField({
             blurTimeoutRef.current = null;
         }
 
-        // Compare values properly for arrays
-        const isArrayValue = Array.isArray(value) || Array.isArray(inputValue);
-        const valuesEqual = isArrayValue
-            ? JSON.stringify(inputValue) === JSON.stringify(value)
-            : inputValue === value;
+        let valuesEqual = false;
+        if (fieldType === "currency") {
+            const normalizedInput = normalizeCurrencyValue(inputValue);
+            const normalizedValue = normalizeCurrencyValue(value);
+            valuesEqual = 
+                normalizedInput.amount === normalizedValue.amount &&
+                normalizedInput.currency === normalizedValue.currency;
+        } else {
+            const isArrayValue = Array.isArray(value) || Array.isArray(inputValue);
+            valuesEqual = isArrayValue
+                ? JSON.stringify(inputValue) === JSON.stringify(value)
+                : inputValue === value;
+        }
 
         if (valuesEqual) {
             // In always editing mode, don't exit edit mode even if values are same
@@ -234,7 +249,6 @@ export default function EditableField({
         setSaving(true);
         try {
             await onSave(inputValue);
-            // In always editing mode, stay in edit mode after save
             if (!alwaysEditing) {
                 setEditing(false);
             }
@@ -273,32 +287,18 @@ export default function EditableField({
     };
 
     const handleCancel = () => {
-        // Clear any pending blur timeout to prevent save after cancel
         if (blurTimeoutRef.current) {
             clearTimeout(blurTimeoutRef.current);
             blurTimeoutRef.current = null;
         }
         isClickingActionRef.current = false;
-        // In always editing mode, don't exit edit mode, just restore original value
         if (!alwaysEditing) {
             setEditing(false);
         }
-        // Restore original value, keeping arrays as arrays
         if (fieldType === "multiselect" || Array.isArray(value)) {
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
         } else if (fieldType === "currency") {
-            // Handle currency value restoration
-            if (value && typeof value === "object") {
-                setInputValue(value);
-            } else if (value && typeof value === "string") {
-                try {
-                    setInputValue(JSON.parse(value));
-                } catch {
-                    setInputValue({ amount: value, currency: default_currency_code });
-                }
-            } else {
-                setInputValue({ amount: null, currency: default_currency_code });
-            }
+            setInputValue(normalizeCurrencyValue(value));
         } else {
             setInputValue(value ?? "");
         }

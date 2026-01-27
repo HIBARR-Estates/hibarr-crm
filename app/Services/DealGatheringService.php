@@ -199,14 +199,17 @@ class DealGatheringService
                 
                 // Handle new currency format: { amount, currency }
                 if (array_key_exists('value', $data) && is_array($data['value']) && (isset($data['value']['amount']) || isset($data['value']['currency']))) {
-                    $amount = isset($data['value']['amount']) && $data['value']['amount'] !== null && $data['value']['amount'] !== ''
-                        ? (float) $data['value']['amount']
-                        : 0;
+                    // Only update value if amount is explicitly provided
+                    if (isset($data['value']['amount']) && $data['value']['amount'] !== null && $data['value']['amount'] !== '') {
+                        $amount = (float) $data['value']['amount'];
+                        $cleanData['value'] = $amount;
+                    }
+                    // If amount is not provided, don't update the value field (preserve existing value)
+                    
+                    // Handle currency update
                     $currencyCode = isset($data['value']['currency']) && is_string($data['value']['currency'])
                         ? strtoupper($data['value']['currency'])
                         : null;
-                    
-                    $cleanData['value'] = $amount;
                     
                     // Find currency_id from currency_code
                     if ($currencyCode) {
