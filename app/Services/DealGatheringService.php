@@ -14,10 +14,14 @@ use Illuminate\Support\Facades\DB;
 class DealGatheringService
 {
     protected DealNotificationService $notificationService;
+    protected DealAutomationService $dealAutomationService;
 
-    public function __construct(DealNotificationService $notificationService)
-    {
+    public function __construct(
+        DealNotificationService $notificationService,
+        DealAutomationService $dealAutomationService
+    ) {
         $this->notificationService = $notificationService;
+        $this->dealAutomationService = $dealAutomationService;
     }
 
     /**
@@ -265,6 +269,9 @@ class DealGatheringService
                 // Handle dynamic custom fields
                 // Data should be key-value pairs of field_id => value
                 $deal->updateCustomFieldData($data);
+                // Trigger deal automation for custom field updates
+                // This is needed because updating custom fields doesn't trigger the Deal model's observer
+                $this->dealAutomationService->process($deal, 'deal_updated');
                 break;
 
             case DealUpdateType::HIBARR_FIELD:
@@ -273,6 +280,9 @@ class DealGatheringService
                     ['deal_id' => $deal->id],
                     $data
                 );
+                // Trigger deal automation for Hibarr field updates
+                // This is needed because updating Hibarr fields doesn't trigger the Deal model's observer
+                $this->dealAutomationService->process($deal, 'deal_updated');
                 break;
         }
 
