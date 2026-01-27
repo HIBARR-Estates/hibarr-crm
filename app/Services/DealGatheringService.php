@@ -306,9 +306,34 @@ class DealGatheringService
 
             case DealUpdateType::HIBARR_FIELD:
                 // Handle Hibarr specific fields
+                // Process file uploads for reservation_agreement and sales_contract
+                $hibarrData = [];
+                $fileFields = ['reservation_agreement', 'sales_contract'];
+                
+                foreach ($data as $key => $value) {
+                    if (in_array($key, $fileFields) && $value instanceof \Illuminate\Http\UploadedFile) {
+                        // Get existing file to delete if exists
+                        $existingFields = $deal->hibarrFields;
+                        if ($existingFields && $existingFields->{$key}) {
+                            Files::deleteFile($existingFields->{$key}, 'hibarr_fields');
+                        }
+                        // Upload new file
+                        $hibarrData[$key] = Files::uploadLocalOrS3($value, 'hibarr_fields');
+                    } elseif (in_array($key, $fileFields) && ($value === '' || $value === null)) {
+                        // Handle file deletion (empty string or null)
+                        $existingFields = $deal->hibarrFields;
+                        if ($existingFields && $existingFields->{$key}) {
+                            Files::deleteFile($existingFields->{$key}, 'hibarr_fields');
+                        }
+                        $hibarrData[$key] = null;
+                    } else {
+                        $hibarrData[$key] = $value;
+                    }
+                }
+                
                 $deal->hibarrFields()->updateOrCreate(
                     ['deal_id' => $deal->id],
-                    $data
+                    $hibarrData
                 );
                 break;
         }

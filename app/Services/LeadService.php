@@ -33,7 +33,8 @@ class LeadService
                 'leads.id', 'leads.company_id', 'leads.client_name', 'leads.client_email', 
                 'leads.company_name', 'leads.mobile', 'leads.created_at', 'leads.updated_at',
                 'leads.lead_owner', 'leads.added_by', 'leads.source_id', 'leads.category_id', 'leads.client_id',
-                'leads.salutation', 'leads.gender'
+                'leads.salutation', 'leads.gender', 'leads.address', 'leads.city', 'leads.state', 
+                'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office'
             ]);
 
         // Apply permission-based filtering

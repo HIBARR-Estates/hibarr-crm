@@ -317,8 +317,6 @@ export default function DealInfoSection({
                     setCurrentDeal(response.data.data);
                     message.success("File uploaded successfully");
                 }
-                setUpdatingField(null);
-                return;
             }
 
             // Infer type and api field name if not explicitly set (for compatibility)
@@ -591,7 +589,7 @@ export default function DealInfoSection({
                                             currentDeal.contact.mobile,
                                         )}
                                         fieldName="mobile"
-                                        fieldType="text"
+                                        fieldType="phone"
                                         onSave={(value) =>
                                             handleFieldUpdate("mobile", value)
                                         }

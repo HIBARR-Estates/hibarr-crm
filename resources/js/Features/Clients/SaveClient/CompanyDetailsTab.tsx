@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Row, Col, Input, Upload, Typography, Form, Select } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { Lead, Country } from "@/Types";
-import PhoneInput from "@/Components/PhoneInput";
+import PhoneInput from "antd-phone-input";
 import { usePage } from "@inertiajs/react";
 
 const { Title } = Typography;
@@ -77,11 +77,13 @@ const CompanyDetailsTab: React.FC<Props> = ({
                 </Col>
 
                 <Col span={12}>
-                    <PhoneInput
-                        fieldName="office"
-                        showLabel={true}
-                        label="Office Phone Number"
-                    />
+                    <Form.Item name="office" label="Office Phone Number">
+                        <PhoneInput 
+                            enableSearch 
+                            placeholder="Enter office phone number"
+                            country=""
+                        />
+                    </Form.Item>
                 </Col>
 
                 <Col span={8}>

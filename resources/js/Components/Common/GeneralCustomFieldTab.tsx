@@ -12,6 +12,7 @@ import {
     Upload,
     Button,
 } from "antd";
+import PhoneInput from "antd-phone-input";
 import { UploadOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
 import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
@@ -397,10 +398,10 @@ const GeneralCustomFieldTab = <
                 },
             ]}
         >
-            <Input
+            <PhoneInput 
+                enableSearch 
                 placeholder={field.label}
-                // value={getFieldValue(field) || ""}
-                // onChange={(e) => setFieldValue(field, e.target.value)}
+                country=""
             />
         </Form.Item>
     );
