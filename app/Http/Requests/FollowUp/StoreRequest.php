@@ -36,6 +36,8 @@ class StoreRequest extends CoreRequest
             'reminders' => 'nullable|array',
             'reminders.*.time' => 'required_with:reminders|integer|min:1|max:1440',
             'reminders.*.type' => 'required_with:reminders|in:minute,hour,day',
+            'participants' => 'nullable|array',
+            'participants.*' => 'required_with:participants|integer|exists:users,id',
         ];
 
         // Zoho, office, phone, and physical meetings don't require meeting link
@@ -44,6 +46,12 @@ class StoreRequest extends CoreRequest
         } else {
             // Video meeting platforms (zoom, google_meet, teams, etc.) require meeting link
             $rules['meeting_link'] = 'required|url';
+        }
+
+        // Video meetings (zoho) require at least one participant
+        if ($this->location === 'zoho') {
+            $rules['participants'] = 'required|array|min:1';
+            $rules['participants.*'] = 'required|integer|exists:users,id';
         }
 
         // Frontend sends date in DD-MM-YYYY format, so validate accordingly

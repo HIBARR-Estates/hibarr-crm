@@ -70,6 +70,7 @@ class DealFollowUp extends BaseModel
         'remind_time',
         'remind_type',
         'reminders',  // New JSON field for multiple reminders
+        'participants',  // JSON field for meeting participants (user IDs)
         'status',
     ];
 
@@ -77,6 +78,7 @@ class DealFollowUp extends BaseModel
         'next_follow_up_date' => 'datetime',
         'created_at' => 'datetime',
         'reminders' => 'array',  // Cast JSON to array
+        'participants' => 'array',  // Cast JSON to array
     ];
 
     // Default reminders that cannot be edited or deleted

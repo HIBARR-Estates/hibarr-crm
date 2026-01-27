@@ -20,8 +20,35 @@ trait DealAutomationTrait
                 $followUp->load('deal');
             }
 
+            // Get timezone of the user making the request
+            $userTimezone = null;
+            
+            // First, try to get timezone from the request (sent from browser/React form)
+            if (function_exists('user') && user()) {
+                $userTimezone = request()->input('timezone');
+                
+            }
+            
+
+            // Fallback to company timezone if user timezone not available
+            if (!$userTimezone) {
+                if ($followUp->deal && $followUp->deal->company) {
+                    $userTimezone = $followUp->deal->company->timezone;
+                } elseif (function_exists('company')) {
+                    $company = company();
+                    $userTimezone = $company ? $company->timezone : null;
+                }
+            }
+
+            // Final fallback to UTC
+            if (!$userTimezone) {
+                $userTimezone = 'UTC';
+            }
+
             $agentInfo = $this->getAgentInformation($followUp->deal);
             $watcherInfo = $this->getWatcherInformation($followUp->deal);
+            $participantsInfo = $this->getParticipantsInformation($followUp);
+
 
             $result = $this->sendFollowUpAutomationWebhook('followup', [
                 'followUpInformation' => [
@@ -32,7 +59,8 @@ trait DealAutomationTrait
                     'location' => $followUp->location,
                     'platform' => $followUp->location,
                     'meeting_link' => $followUp->meeting_link,
-                    'next_follow_up_date' => $followUp->next_follow_up_date?->format('Y-m-d H:i:s'),
+                    'next_follow_up_date' => $followUp->next_follow_up_date,
+                    'next_follow_up_date_timezone' => $userTimezone,
                     'remark' => $followUp->remark,
                     'status' => $followUp->status,
                     'created_at' => $followUp->created_at->format('Y-m-d H:i:s'),
@@ -41,6 +69,7 @@ trait DealAutomationTrait
                 'contactInformation' => $followUp->deal ? $this->getCustomerInfo($followUp->deal->lead_id) : null,
                 'agentInformation' => $agentInfo,
                 'watcherInformation' => $watcherInfo,
+                'participantsInformation' => $participantsInfo,
             ]);
 
             return $result;
@@ -117,9 +146,14 @@ trait DealAutomationTrait
                 throw new \Exception("Meeting link is required for online meetings but was not provided in webhook response");
             }
 
-            // Handle meeting link from webhook response
+            // Handle meeting link and meeting ID from webhook response
             if (isset($result['meeting_link']) && !empty($result['meeting_link'])) {
                 $this->updateFollowUpMeetingLink($payload['followUpInformation']['id'], $result['meeting_link']);
+            }
+            
+            // Handle meeting ID from webhook response
+            if (isset($result['meeting_id']) && !empty($result['meeting_id'])) {
+                $this->updateFollowUpMeetingId($payload['followUpInformation']['id'], $result['meeting_id']);
             }
 
             return $result;
@@ -199,6 +233,47 @@ trait DealAutomationTrait
         }
     }
 
+    private function getParticipantsInformation(DealFollowUp $followUp): array
+    {
+        try {
+            $participants = $followUp->participants ?? [];
+            
+            if (empty($participants) || !is_array($participants)) {
+                return [];
+            }
+
+            $participantsInfo = [];
+            
+            foreach ($participants as $userId) {
+                if (!is_numeric($userId)) {
+                    continue;
+                }
+                
+                $user = User::find($userId);
+                if (!$user) {
+                    continue;
+                }
+
+                $participantsInfo[] = [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'mobile' => $user->mobile,
+                    'status' => $user->status,
+                    'role' => $user->role ? (is_object($user->role) && method_exists($user->role, 'first') ? $user->role->first()?->display_name : $user->role->display_name) : null,
+                ];
+            }
+
+            return $participantsInfo;
+        } catch (\Throwable $e) {
+            Log::error("Failed to get participants information for follow-up ID: {$followUp->id}", [
+                'exception' => $e,
+                'participants' => $followUp->participants ?? null,
+            ]);
+            return [];
+        }
+    }
+
     /**
      * Trigger automation for deal creation
      */
@@ -214,11 +289,17 @@ trait DealAutomationTrait
         //     return null;
         // }
 
+        // Get deal if lead_contact is provided
+        $deal = null;
+        if (isset($validatedData['lead_contact'])) {
+            $deal = Deal::where('lead_id', $validatedData['lead_contact'])->first();
+        }
+
         return $this->sendAutomationWebhook('create', [
             'contactInformation' => $this->getCustomerInfo($validatedData['lead_contact'] ?? null),
             'dealCustomFields'     => $validatedData,
-            'agentInformation' => $this->getAgentInformation($followUp->deal),
-            'watcherInformation' => $this->getWatcherInformation($followUp->deal),
+            'agentInformation' => $deal ? $this->getAgentInformation($deal) : null,
+            'watcherInformation' => $deal ? $this->getWatcherInformation($deal) : null,
         ]);
     }
 
@@ -339,6 +420,23 @@ trait DealAutomationTrait
             Log::error("Failed to update meeting link from webhook response", [
                 'follow_up_id' => $followUpId,
                 'meeting_link' => $meetingLink,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function updateFollowUpMeetingId(int $followUpId, string $meetingId): void
+    {
+        try {
+            $followUp = DealFollowUp::find($followUpId);
+            if ($followUp) {
+                $followUp->meeting_id = $meetingId;
+                $followUp->save();
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update meeting ID from webhook response", [
+                'follow_up_id' => $followUpId,
+                'meeting_id' => $meetingId,
                 'error' => $e->getMessage(),
             ]);
         }

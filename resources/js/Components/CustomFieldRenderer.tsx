@@ -9,6 +9,7 @@ import {
     Row,
     Col,
 } from 'antd';
+import PhoneInput from 'antd-phone-input';
 import { CustomField } from '@/Types';
 import { useCustomFieldVisibility } from '@/Hooks/useCustomFieldVisibility';
 import { usePage } from '@inertiajs/react';
@@ -246,6 +247,25 @@ const CustomFieldRenderer: React.FC<Props> = ({
         </Form.Item>
     );
 
+    const renderPhoneField = (field: CustomField) => (
+        <Form.Item
+            key={field.id}
+            name={[namePrefix, `field_${field.id}`]}
+            label={field.label}
+            rules={
+                field.required === 'yes' && isFieldVisible(field.id)
+                    ? [{ required: true, message: `${field.label} is required` }]
+                    : []
+            }
+        >
+            <PhoneInput 
+                enableSearch
+                placeholder={`Enter ${field.label}`}
+                country=""
+            />
+        </Form.Item>
+    );
+
     const renderField = (field: CustomField) => {
         // Check visibility
         if (!isFieldVisible(field.id)) {
@@ -269,6 +289,8 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 return renderDateField(field);
             case 'country':
                 return renderCountryField(field);
+            case 'phone':
+                return renderPhoneField(field);
             default:
                 return renderTextField(field);
         }

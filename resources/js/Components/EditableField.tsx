@@ -1,11 +1,16 @@
 import { useState, useRef, useEffect } from "react";
-import { Input, Typography, message, Select, Skeleton, Spin } from "antd";
+import { Input, Typography, message, Select, Skeleton, Spin, Space, Button, Upload } from "antd";
 import {
     CheckOutlined,
     CloseOutlined,
     EditOutlined,
     LoadingOutlined,
+    FileOutlined,
+    DownloadOutlined,
+    DeleteOutlined,
+    UploadOutlined,
 } from "@ant-design/icons";
+import PhoneInput, { PhoneNumber } from "antd-phone-input";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
 import { usePage } from "@inertiajs/react";
@@ -19,12 +24,14 @@ interface EditableFieldProps {
         | "text"
         | "email"
         | "number"
+        | "phone"
         | "date"
         | "select"
         | "multiselect"
         | "boolean"
         | "textarea"
-        | "country";
+        | "country"
+        | "file";
     selectorType?: FormDataType;
     mode?: "multiple" | "tags";
     onSave: (value: any) => Promise<void>;
@@ -60,20 +67,20 @@ export default function EditableField({
 }: EditableFieldProps) {
     const { props } = usePage<any>();
     const { countries = [] } = props;
+    
+    const maxFileSizeMB = props?.company?.allowed_file_size || 10;
+    const maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
     const [editing, setEditing] = useState(alwaysEditing);
     const [inputValue, setInputValue] = useState<any>(value);
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
-    // Ref to track if we're clicking on action buttons (to prevent blur from saving)
     const isClickingActionRef = useRef(false);
-    // Ref to track the blur timeout so we can cancel it
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Sync editing state when alwaysEditing prop changes
     useEffect(() => {
         if (alwaysEditing) {
             setEditing(true);
-            // Initialize input value when entering always-editing mode
             if (fieldType === "date" && value) {
                 try {
                     const date = new Date(value.toString());
@@ -94,17 +101,14 @@ export default function EditableField({
             }
         } else {
             setEditing(false);
-            // Reset input value to original when exiting always-editing mode
             setInputValue(value);
         }
     }, [alwaysEditing]);
 
-    // isLocked prevents any interaction when loading/saving
     const isLocked = loading || saving;
 
-    // canStartEditing determines if clicking on the field can enter edit mode
-    // disabled blocks inline editing via click (but alwaysEditing can override)
-    const canStartEditing = !isLocked && !disabled;
+ 
+    const canStartEditing = !isLocked && !disabled && fieldType !== "file";
 
     const startEditing = () => {
         if (!canStartEditing) return;
@@ -124,6 +128,9 @@ export default function EditableField({
         } else if (fieldType === "multiselect" || Array.isArray(value)) {
             // Keep array values as arrays for multiselect
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else if (fieldType === "phone") {
+            // For phone, keep as string if it's a plain number, or pass object as-is
+            setInputValue(value ?? "");
         } else {
             setInputValue(value ?? "");
         }
@@ -136,9 +143,12 @@ export default function EditableField({
             blurTimeoutRef.current = null;
         }
 
-        // Compare values properly for arrays
+        // Compare values properly for arrays and files
         const isArrayValue = Array.isArray(value) || Array.isArray(inputValue);
-        const valuesEqual = isArrayValue
+        const isFileValue = inputValue instanceof File;
+        const valuesEqual = isFileValue
+            ? false 
+            : isArrayValue
             ? JSON.stringify(inputValue) === JSON.stringify(value)
             : inputValue === value;
 
@@ -205,6 +215,8 @@ export default function EditableField({
         // Restore original value, keeping arrays as arrays
         if (fieldType === "multiselect" || Array.isArray(value)) {
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else if (fieldType === "file") {
+            setInputValue(value ?? "");
         } else {
             setInputValue(value ?? "");
         }
@@ -231,12 +243,110 @@ export default function EditableField({
         }
     };
 
+    const handleFileUpload = async (file: File) => {
+        if (file.size > maxFileSizeBytes) {
+            message.error(`File size exceeds the maximum allowed size of ${maxFileSizeMB}MB`);
+            return false;
+        }
+
+        setUploading(true);
+        try {
+            await onSave(file);
+            message.success("File uploaded successfully");
+        } catch (error: any) {
+            if (error?.response?.status === 413) {
+                message.error(`File is too large. Maximum allowed size is ${maxFileSizeMB}MB. Please check your server's upload_max_filesize and post_max_size settings.`);
+            } else {
+                message.error("Failed to upload file");
+            }
+        } finally {
+            setUploading(false);
+        }
+        return false; 
+    };
+
+    const handleFileRemove = async () => {
+        setUploading(true);
+        try {
+            await onSave("");
+            message.success("File removed successfully");
+        } catch (error) {
+            message.error("Failed to remove file");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    // Check if file field is loading
+    const isFileLoading = loading || uploading;
+
+    const renderFileField = () => {
+        if (isFileLoading) {
+            return <Spin size="small" />;
+        }
+
+        if (value && typeof value === "string") {
+            const fileUrl = `/user-uploads/hibarr_fields/${value}`;
+            return (
+                <Space size="small">
+                    <a
+                        href={fileUrl}
+                        className="text-blue-600 hover:text-blue-800"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <FileOutlined className="mr-1" />
+                        View File
+                    </a>
+                    <a
+                        href={fileUrl}
+                        className="text-blue-600 hover:text-blue-800"
+                        download
+                    >
+                        <DownloadOutlined />
+                    </a>
+                    {!disabled && (
+                        <Button
+                            type="text"
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={handleFileRemove}
+                        />
+                    )}
+                </Space>
+            );
+        }
+
+        if (disabled) {
+            return <span className="text-gray-500">--</span>;
+        }
+
+        return (
+            <Upload
+                beforeUpload={handleFileUpload}
+                showUploadList={false}
+                accept="*/*"
+            >
+                <Button size="small" icon={<UploadOutlined />}>
+                    Upload File
+                </Button>
+            </Upload>
+        );
+    };
+
+    // For file fields, always render the permanent UI (like CustomFieldDisplay)
+    // File fields don't have an "editing" mode - they're always available for upload/delete
+    if (fieldType === "file") {
+        return renderFileField();
+    }
+
     const displayText =
         displayValue !== undefined
             ? displayValue
             : formatValue
             ? formatValue(value)
-            : value?.toString() || "--";
+            : value?.toString() ?? "--";
 
     if (editing) {
         return (
@@ -281,6 +391,84 @@ export default function EditableField({
                             className="flex-1"
                             disabled={saving || loading}
                         />
+                    ) : fieldType === "phone" ? (
+                        (() => {
+                            // Helper function to extract and validate country code
+                            const getCountryFromPhoneNumber = (phoneStr: string): string => {
+                                if (!phoneStr || typeof phoneStr !== "string" || !phoneStr.startsWith("+")) {
+                                    return ""; // No country code to validate
+                                }
+
+                                // Extract potential country codes (1-4 digits after +)
+                                const phoneWithoutPlus = phoneStr.substring(1);
+                                
+                                // Try to match country codes from longest to shortest (up to 4 digits)
+                                for (let len = 4; len >= 1; len--) {
+                                    const potentialCode = phoneWithoutPlus.substring(0, len);
+                                    // Check if this code matches any country's phonecode
+                                    const matchingCountry = countries.find(
+                                        (country: any) => 
+                                            country.phonecode?.toString() === potentialCode ||
+                                            country.phonecode === parseInt(potentialCode, 10)
+                                    );
+                                    
+                                    if (matchingCountry && matchingCountry.iso) {
+                                        return matchingCountry.iso.toLowerCase();
+                                    }
+                                }
+                                
+                                // If no valid country code found, return Afghanistan as fallback
+                                return "af";
+                            };
+
+                            // Determine country prop based on phone number
+                            const countryProp = typeof inputValue === "string" && inputValue.startsWith("+")
+                                ? getCountryFromPhoneNumber(inputValue)
+                                : "";
+
+                            return (
+                                <PhoneInput
+                                    value={
+                                        // antd-phone-input accepts both PhoneNumber objects and strings
+                                        // Pass string values directly (like "0909090900" or "+08144893734")
+                                        typeof inputValue === "string" 
+                                            ? inputValue 
+                                            : (inputValue as PhoneNumber | undefined)
+                                    }
+                                    onChange={(val) => {
+                                        // Always save as string to preserve the exact format
+                                        // This bypasses country code validation and keeps the number as-is
+                                        if (val && typeof val === "object" && "phoneNumber" in val) {
+                                            // If PhoneNumber object is returned, reconstruct the full number
+                                            const countryCode = val.countryCode || "";
+                                            const phoneNum = val.phoneNumber || "";
+                                            const areaCode = val.areaCode || "";
+                                            // If original had + prefix, preserve it; otherwise just save the number
+                                            const originalHasPlus = typeof inputValue === "string" && inputValue.startsWith("+");
+                                            if (originalHasPlus && countryCode) {
+                                                handleValueChange(`+${countryCode}${areaCode}${phoneNum}`);
+                                            } else {
+                                                handleValueChange(phoneNum || val);
+                                            }
+                                        } else if (typeof val === "string") {
+                                            // Save string as-is (preserves + prefix and full format)
+                                            handleValueChange(val);
+                                        } else {
+                                            handleValueChange(val);
+                                        }
+                                    }}
+                                    onBlur={handleBlur}
+                                    onKeyDown={handleKeyPress}
+                                    placeholder={placeholder}
+                                    className="flex-1"
+                                    disabled={saving || loading}
+                                    enableSearch
+                                    allowClear
+                                    // Set country to Afghanistan if country code is invalid, otherwise use detected country
+                                    country={countryProp}
+                                />
+                            );
+                        })()
                     ) : fieldType === "date" ? (
                         <Input
                             type="date"
