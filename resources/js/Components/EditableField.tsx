@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { Input, Typography, message, Select, Skeleton, Spin, Space, Button, Upload } from "antd";
+import {
+    Input,
+    Typography,
+    message,
+    Select,
+    Skeleton,
+    Spin,
+    Space,
+    Button,
+    Upload,
+} from "antd";
 import {
     CheckOutlined,
     CloseOutlined,
@@ -67,7 +77,7 @@ export default function EditableField({
 }: EditableFieldProps) {
     const { props } = usePage<any>();
     const { countries = [] } = props;
-    
+
     const maxFileSizeMB = props?.company?.allowed_file_size || 10;
     const maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
     const [editing, setEditing] = useState(alwaysEditing);
@@ -78,36 +88,38 @@ export default function EditableField({
     const isClickingActionRef = useRef(false);
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Track when alwaysEditing mode changes or value changes from parent
     useEffect(() => {
         if (alwaysEditing) {
             setEditing(true);
-            if (fieldType === "date" && value) {
-                try {
-                    const date = new Date(value.toString());
-                    if (!isNaN(date.getTime())) {
-                        setInputValue(date.toISOString().split("T")[0]);
-                    } else {
-                        setInputValue("");
-                    }
-                } catch {
-                    setInputValue("");
-                }
-            } else if (fieldType === "multiselect" || Array.isArray(value)) {
-                setInputValue(
-                    Array.isArray(value) ? value : value ? [value] : []
-                );
-            } else {
-                setInputValue(value ?? "");
-            }
         } else {
             setEditing(false);
-            setInputValue(value);
         }
     }, [alwaysEditing]);
 
+    // Update inputValue when value prop changes (e.g., after save or when deal data updates)
+    // Also handles initial value setup and value transformations for edit mode
+    useEffect(() => {
+        if (fieldType === "date" && value) {
+            try {
+                const date = new Date(value.toString());
+                if (!isNaN(date.getTime())) {
+                    setInputValue(date.toISOString().split("T")[0]);
+                } else {
+                    setInputValue("");
+                }
+            } catch {
+                setInputValue("");
+            }
+        } else if (fieldType === "multiselect" || Array.isArray(value)) {
+            setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else {
+            setInputValue(value ?? "");
+        }
+    }, [value, fieldType]);
+
     const isLocked = loading || saving;
 
- 
     const canStartEditing = !isLocked && !disabled && fieldType !== "file";
 
     const startEditing = () => {
@@ -147,10 +159,10 @@ export default function EditableField({
         const isArrayValue = Array.isArray(value) || Array.isArray(inputValue);
         const isFileValue = inputValue instanceof File;
         const valuesEqual = isFileValue
-            ? false 
+            ? false
             : isArrayValue
-            ? JSON.stringify(inputValue) === JSON.stringify(value)
-            : inputValue === value;
+              ? JSON.stringify(inputValue) === JSON.stringify(value)
+              : inputValue === value;
 
         if (valuesEqual) {
             // In always editing mode, don't exit edit mode even if values are same
@@ -170,7 +182,7 @@ export default function EditableField({
             message.success("Field updated successfully");
         } catch (error: any) {
             message.error(
-                error?.message || "Failed to update field. Please try again."
+                error?.message || "Failed to update field. Please try again.",
             );
         } finally {
             setSaving(false);
@@ -245,7 +257,9 @@ export default function EditableField({
 
     const handleFileUpload = async (file: File) => {
         if (file.size > maxFileSizeBytes) {
-            message.error(`File size exceeds the maximum allowed size of ${maxFileSizeMB}MB`);
+            message.error(
+                `File size exceeds the maximum allowed size of ${maxFileSizeMB}MB`,
+            );
             return false;
         }
 
@@ -255,14 +269,16 @@ export default function EditableField({
             message.success("File uploaded successfully");
         } catch (error: any) {
             if (error?.response?.status === 413) {
-                message.error(`File is too large. Maximum allowed size is ${maxFileSizeMB}MB. Please check your server's upload_max_filesize and post_max_size settings.`);
+                message.error(
+                    `File is too large. Maximum allowed size is ${maxFileSizeMB}MB. Please check your server's upload_max_filesize and post_max_size settings.`,
+                );
             } else {
                 message.error("Failed to upload file");
             }
         } finally {
             setUploading(false);
         }
-        return false; 
+        return false;
     };
 
     const handleFileRemove = async () => {
@@ -345,8 +361,8 @@ export default function EditableField({
         displayValue !== undefined
             ? displayValue
             : formatValue
-            ? formatValue(value)
-            : value?.toString() ?? "--";
+              ? formatValue(value)
+              : (value?.toString() ?? "--");
 
     if (editing) {
         return (
@@ -394,61 +410,93 @@ export default function EditableField({
                     ) : fieldType === "phone" ? (
                         (() => {
                             // Helper function to extract and validate country code
-                            const getCountryFromPhoneNumber = (phoneStr: string): string => {
-                                if (!phoneStr || typeof phoneStr !== "string" || !phoneStr.startsWith("+")) {
+                            const getCountryFromPhoneNumber = (
+                                phoneStr: string,
+                            ): string => {
+                                if (
+                                    !phoneStr ||
+                                    typeof phoneStr !== "string" ||
+                                    !phoneStr.startsWith("+")
+                                ) {
                                     return ""; // No country code to validate
                                 }
 
                                 // Extract potential country codes (1-4 digits after +)
                                 const phoneWithoutPlus = phoneStr.substring(1);
-                                
+
                                 // Try to match country codes from longest to shortest (up to 4 digits)
                                 for (let len = 4; len >= 1; len--) {
-                                    const potentialCode = phoneWithoutPlus.substring(0, len);
+                                    const potentialCode =
+                                        phoneWithoutPlus.substring(0, len);
                                     // Check if this code matches any country's phonecode
                                     const matchingCountry = countries.find(
-                                        (country: any) => 
-                                            country.phonecode?.toString() === potentialCode ||
-                                            country.phonecode === parseInt(potentialCode, 10)
+                                        (country: any) =>
+                                            country.phonecode?.toString() ===
+                                                potentialCode ||
+                                            country.phonecode ===
+                                                parseInt(potentialCode, 10),
                                     );
-                                    
-                                    if (matchingCountry && matchingCountry.iso) {
+
+                                    if (
+                                        matchingCountry &&
+                                        matchingCountry.iso
+                                    ) {
                                         return matchingCountry.iso.toLowerCase();
                                     }
                                 }
-                                
+
                                 // If no valid country code found, return Afghanistan as fallback
                                 return "af";
                             };
 
                             // Determine country prop based on phone number
-                            const countryProp = typeof inputValue === "string" && inputValue.startsWith("+")
-                                ? getCountryFromPhoneNumber(inputValue)
-                                : "";
+                            const countryProp =
+                                typeof inputValue === "string" &&
+                                inputValue.startsWith("+")
+                                    ? getCountryFromPhoneNumber(inputValue)
+                                    : "";
 
                             return (
                                 <PhoneInput
                                     value={
                                         // antd-phone-input accepts both PhoneNumber objects and strings
                                         // Pass string values directly (like "0909090900" or "+08144893734")
-                                        typeof inputValue === "string" 
-                                            ? inputValue 
-                                            : (inputValue as PhoneNumber | undefined)
+                                        typeof inputValue === "string"
+                                            ? inputValue
+                                            : (inputValue as
+                                                  | PhoneNumber
+                                                  | undefined)
                                     }
                                     onChange={(val) => {
                                         // Always save as string to preserve the exact format
                                         // This bypasses country code validation and keeps the number as-is
-                                        if (val && typeof val === "object" && "phoneNumber" in val) {
+                                        if (
+                                            val &&
+                                            typeof val === "object" &&
+                                            "phoneNumber" in val
+                                        ) {
                                             // If PhoneNumber object is returned, reconstruct the full number
-                                            const countryCode = val.countryCode || "";
-                                            const phoneNum = val.phoneNumber || "";
+                                            const countryCode =
+                                                val.countryCode || "";
+                                            const phoneNum =
+                                                val.phoneNumber || "";
                                             const areaCode = val.areaCode || "";
                                             // If original had + prefix, preserve it; otherwise just save the number
-                                            const originalHasPlus = typeof inputValue === "string" && inputValue.startsWith("+");
-                                            if (originalHasPlus && countryCode) {
-                                                handleValueChange(`+${countryCode}${areaCode}${phoneNum}`);
+                                            const originalHasPlus =
+                                                typeof inputValue ===
+                                                    "string" &&
+                                                inputValue.startsWith("+");
+                                            if (
+                                                originalHasPlus &&
+                                                countryCode
+                                            ) {
+                                                handleValueChange(
+                                                    `+${countryCode}${areaCode}${phoneNum}`,
+                                                );
                                             } else {
-                                                handleValueChange(phoneNum || val);
+                                                handleValueChange(
+                                                    phoneNum || val,
+                                                );
                                             }
                                         } else if (typeof val === "string") {
                                             // Save string as-is (preserves + prefix and full format)
@@ -546,7 +594,7 @@ export default function EditableField({
                                 const searchText = input.toLowerCase();
                                 const countryValue = option?.value as string;
                                 const country = countries?.find(
-                                    (c: any) => c.nicename === countryValue
+                                    (c: any) => c.nicename === countryValue,
                                 );
 
                                 if (!country) return false;

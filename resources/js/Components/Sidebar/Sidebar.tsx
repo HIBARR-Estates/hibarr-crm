@@ -166,12 +166,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <HouseDoorIcon />,
             href: "/account/properties",
         },
-        {
-            key: "developer-projects",
-            label: "Developer Projects",
-            icon: <BankOutlined />,
-            href: "/account/developer-projects",
-        },
+        // {
+        //     key: "developer-projects",
+        //     label: "Developer Projects",
+        //     icon: <BankOutlined />,
+        //     href: "/account/developer-projects",
+        // },
     ];
 
     // User dropdown menu items

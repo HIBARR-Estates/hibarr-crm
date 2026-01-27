@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use App\Helper\Files;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
+use Illuminate\Support\Facades\DB;
 
 
 class PropertyController extends AccountBaseController
@@ -457,7 +458,44 @@ class PropertyController extends AccountBaseController
             ]);
         }
 
-        $property->delete();
+        DB::beginTransaction();
+        try {
+            // Delete associated assets (forceDelete to remove from DB and avoid FK constraints)
+            $property->assets()->forceDelete();
+            
+            // Delete associated tasks
+            $property->tasks()->detach(); // Detach tasks if polymorphic relation
+            
+            // Delete product if it exists and has no other dependencies
+            // We do this before property deletion just in case, but usually property deletion refers to product
+            $productId = $property->product_id;
+            
+            $property->delete();
+            
+            if ($productId) {
+               $product = Product::find($productId);
+               if ($product) {
+                    // Check if product can be deleted safely (e.g. check for orders/invoices if needed)
+                    // For now, attempting delete. If foreign key constraint fails, transaction rolls back.
+                    try {
+                        $product->delete();
+                    } catch (\Exception $e) {
+                        // If product cannot be deleted (e.g. used in invoice), we log it but proceed with property deletion 
+                        // as keeping the product orphan is better than failing the property deletion.
+                         Log::warning('Could not delete associated product ' . $productId . ': ' . $e->getMessage());
+                    }
+               }
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Property deletion failed', ['id' => $id, 'error' => $e->getMessage()]);
+             return back()->with([
+                'success' => false,
+                'message' => __('messages.start_deleted_error') . ' ' . $e->getMessage(),
+            ]);
+        }
 
         return back()->with([
             'success' => true,
