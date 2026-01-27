@@ -593,15 +593,76 @@ export default function CustomFieldDisplay({
                     </a>
                 );
 
-            case "phone":
+            case "phone": {
+                // Supports:
+                // - plain string "+905338773001"
+                // - JSON string / object from antd-phone-input:
+                //   {"countryCode":"90","areaCode":"533","phoneNumber":"8773001","isoCode":"tr"}
+                // - JSON string / object from our custom PhoneInput:
+                //   {"phone":"+905338773001","country_code":"90","country_identifier":"Turkey"}
+                const parsePhoneValue = (raw: any): { display: string; tel: string } => {
+                    const fallback = String(raw ?? "");
+
+                    const toDigits = (v: any) => String(v ?? "").replace(/[^\d]/g, "");
+
+                    const formatFromParts = (country: any, area: any, num: any) => {
+                        const cc = toDigits(country);
+                        const ac = toDigits(area);
+                        const pn = toDigits(num);
+                        const digits = [cc, ac, pn].filter(Boolean).join("");
+                        if (!digits) return null;
+                        return {
+                            display: `+${digits}`,
+                            tel: `+${digits}`,
+                        };
+                    };
+
+                    const formatFromE164 = (phone: any) => {
+                        const s = String(phone ?? "").trim();
+                        if (!s) return null;
+                        // keep leading + if provided; otherwise just digits
+                        const tel = s.startsWith("+") ? s : toDigits(s);
+                        const display = s.startsWith("+") ? s : tel;
+                        return tel ? { display, tel } : null;
+                    };
+
+                    let obj: any = raw;
+                    if (typeof raw === "string") {
+                        const trimmed = raw.trim();
+                        // if it's already a normal phone string, don't show JSON
+                        if (trimmed.startsWith("+") || /^\d[\d\s().-]*$/.test(trimmed)) {
+                            return formatFromE164(trimmed) ?? { display: fallback, tel: fallback };
+                        }
+                        try {
+                            obj = JSON.parse(trimmed);
+                        } catch {
+                            return { display: fallback, tel: fallback };
+                        }
+                    }
+
+                    if (obj && typeof obj === "object") {
+                        // antd-phone-input shape
+                        const fromAntd = formatFromParts(obj.countryCode, obj.areaCode, obj.phoneNumber);
+                        if (fromAntd) return fromAntd;
+
+                        // our custom PhoneInput shape
+                        const fromCustom = formatFromE164(obj.phone);
+                        if (fromCustom) return fromCustom;
+                    }
+
+                    return { display: fallback, tel: fallback };
+                };
+
+                const { display, tel } = parsePhoneValue(value);
                 return (
                     <a
-                        href={`tel:${value}`}
+                        href={`tel:${tel}`}
                         className="text-blue-600 hover:text-blue-800"
                     >
-                        {value}
+                        {display}
                     </a>
                 );
+            }
 
             case "number":
                 return typeof value === "number"
