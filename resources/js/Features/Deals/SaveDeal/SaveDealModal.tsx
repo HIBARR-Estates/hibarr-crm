@@ -47,13 +47,19 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     const isEditing = !!deal;
     const submitText = isEditing ? "Update Deal" : "Create Deal";
 
-    // Initialize form data
+    // Initialize form data - value as { amount, currency } so CurrencyInput can show and persist currency from DB
+    const defaultCode = props?.default_currency_code || "TRY";
     const getInitialData = (): CreateDealFormData => ({
         name: deal?.name || "",
         lead_contact: deal?.contact?.id || lead_id || undefined,
         pipeline: deal?.lead_pipeline_id || undefined,
         stage_id: deal?.pipeline_stage_id || undefined,
-        value: deal?.value || 0,
+        value: (deal
+            ? {
+                amount: deal.value ?? 0,
+                currency: (deal as any).currency?.currency_code ?? defaultCode,
+            }
+            : { amount: null, currency: defaultCode }) as any,
         close_date: deal?.close_date || "",
         category_id: deal?.category_id || undefined,
         agent_id: deal?.agent_id || undefined,

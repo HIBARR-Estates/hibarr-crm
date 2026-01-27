@@ -18,6 +18,7 @@ import dayjs from "dayjs";
 import { SaveOutlined } from "@ant-design/icons";
 import { DealFormProps } from "./DealForm";
 import { formatCurrency } from "@/lib/utils";
+import CurrencyInput from "@/Components/CurrencyInput";
 
 interface DealDetailsTabProps
     extends Pick<
@@ -50,6 +51,8 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     const [form] = Form.useForm();
     const { props } = usePage<any>();
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
+    const defaultCurrencyCode = props.default_currency_code || "TRY";
+    const currencies = props.currencies || [];
     const {
         leadContacts = [],
         leadPipelines = [],
@@ -71,8 +74,43 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     // Populate form when data changes
     useEffect(() => {
         if (data) {
+            const rawValue = (data as any).value;
+            // CurrencyInput expects { amount, currency }; support both DB shape (number + currency/currency_id) and existing object
+            let valueForForm: { amount: number | null; currency: string };
+            if (
+                rawValue != null &&
+                typeof rawValue === "object" &&
+                ("amount" in rawValue || "currency" in rawValue)
+            ) {
+                const amt =
+                    rawValue.amount !== undefined && rawValue.amount !== "" && rawValue.amount !== null
+                        ? Number(rawValue.amount)
+                        : null;
+                valueForForm = {
+                    amount: amt !== null && !isNaN(amt) ? amt : null,
+                    currency:
+                        typeof rawValue.currency === "string"
+                            ? rawValue.currency
+                            : defaultCurrencyCode,
+                };
+            } else {
+                const numVal =
+                    rawValue !== null && rawValue !== undefined && rawValue !== ""
+                        ? Number(rawValue)
+                        : null;
+                const currencyCode =
+                    (data as any).currency?.currency_code ||
+                    (currencies as any[]).find((c: any) => c.id === (data as any).currency_id)
+                        ?.currency_code ||
+                    defaultCurrencyCode;
+                valueForForm = {
+                    amount: numVal !== null && !isNaN(numVal) ? numVal : null,
+                    currency: currencyCode,
+                };
+            }
             const formData = {
                 ...data,
+                value: valueForForm,
                 pipeline: data.pipeline,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
                 deal_watcher: data.deal_watcher || [],
@@ -82,12 +120,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     ? data.packages.map((p: any) => p.id)
                     : data.package_id || [],
             };
-            console.log(formData, "how does deal formdata ...", data);
             setPipelineId(formData.pipeline);
             setSelectedCategoryId(formData.category_id);
-            form.setFieldsValue(formData);
+            form.setFieldsValue(formData as any);
         }
-    }, [data, form]);
+    }, [data, form, defaultCurrencyCode, currencies]);
 
     // Initialize form with default values
     useEffect(() => {
@@ -166,9 +203,33 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     };
 
     const handleSubmit = (values: any) => {
-        // Transform the values to match the API expectations
+        // CurrencyInput stores { amount, currency }; API expects value (number) and currency_id
+        let valueToSend: number | null = null;
+        let currencyIdToSend: number | undefined;
+        const v = values.value;
+        if (v != null && v !== "") {
+            if (typeof v === "object" && ("amount" in v || "currency" in v)) {
+                const amt = v.amount;
+                if (amt !== null && amt !== undefined && amt !== "") {
+                    const n = Number(amt);
+                    if (!isNaN(n)) valueToSend = n;
+                }
+                const code =
+                    typeof v.currency === "string" ? v.currency : defaultCurrencyCode;
+                const found = (currencies as any[]).find(
+                    (c: any) =>
+                        (c.currency_code || "").toUpperCase() === code.toUpperCase()
+                );
+                if (found?.id) currencyIdToSend = found.id;
+            } else {
+                const n = Number(v);
+                if (!isNaN(n)) valueToSend = n;
+            }
+        }
         const formData = {
             ...values,
+            value: valueToSend,
+            ...(currencyIdToSend !== undefined && { currency_id: currencyIdToSend }),
             close_date: values.close_date
                 ? values.close_date.format("YYYY-MM-DD")
                 : "",
@@ -332,17 +393,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 },
                             ]}
                         >
-                            <InputNumber
-                                style={{ width: "100%" }}
+                            <CurrencyInput
                                 placeholder="Enter Value"
-                                min={0}
-                                prefix={defaultCurrencySymbol}
-                                parser={(value) => {
-                                    const num = parseFloat(
-                                        value?.replace(/\$\s?|(,*)/g, "") || "0"
-                                    );
-                                    return num as any;
-                                }}
+                                showLabel={false}
+                                noFormItem={true}
+                                disabled={false}
                             />
                         </Form.Item>
                     </Col>

@@ -16,6 +16,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { usePage } from "@inertiajs/react";
 import { PageProps } from "@/Components/DashboardLayout";
 import CurrencyInput from "@/Components/CurrencyInput";
+import { parsePropertyPrice } from "@/lib/utils";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -116,37 +117,9 @@ export default function BasicInfoTab({
             isInitialMountRef.current = false;
             previousDataIdRef.current = data.id;
 
-            // Handle price: can be number (old format) or {amount, currency} object (new format) or JSON string
-            let priceValue = data.price;
-            if (priceValue && typeof priceValue === "number") {
-                // Old format: convert to {amount, currency} object
-                priceValue = {
-                    amount: priceValue,
-                    currency: props.default_currency_code || "TRY",
-                };
-            } else if (typeof priceValue === "string") {
-                // Try to parse as JSON
-                try {
-                    const parsed = JSON.parse(priceValue);
-                    if (typeof parsed === "number") {
-                        priceValue = {
-                            amount: parsed,
-                            currency: props.default_currency_code || "TRY",
-                        };
-                    } else {
-                        priceValue = parsed;
-                    }
-                } catch {
-                    // If not JSON, treat as number string
-                    const numValue = parseFloat(priceValue);
-                    if (!isNaN(numValue)) {
-                        priceValue = {
-                            amount: numValue,
-                            currency: props.default_currency_code || "TRY",
-                        };
-                    }
-                }
-            }
+            // Normalize price: number, string (numeric/JSON), or object → always { amount, currency } for the form
+            const defaultCode = props.default_currency_code || "TRY";
+            const priceValue = parsePropertyPrice(data.price, defaultCode);
 
             // Transform the data to handle null values properly
             const formData = {
@@ -161,8 +134,9 @@ export default function BasicInfoTab({
             };
             
             // Use a microtask to defer the update and break the synchronous update cycle
+            // Cast: form stores price as { amount, currency } for CurrencyInput; Property type has price as number
             Promise.resolve().then(() => {
-                form.setFieldsValue(formData);
+                form.setFieldsValue(formData as any);
             });
         } else if (!data) {
             // Reset when data is cleared
@@ -171,7 +145,7 @@ export default function BasicInfoTab({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data?.id, props.default_currency_code]);
-    const handleSubmit = (values: any) => {
+    const handleSubmit = (values: any) => { 
         // Transform the values to match the API expectations
         // Handle price: CurrencyInput returns {amount, currency} object, convert to JSON string for storage
         let priceValue = values.price;

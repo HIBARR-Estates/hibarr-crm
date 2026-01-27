@@ -54,7 +54,7 @@ class UpdateRequest extends CoreRequest
                     Property::SALE_TYPE_DAILY_RENTAL
                 ])
             ],
-            'price' => 'nullable|numeric|min:0',
+            'price' => 'nullable', // Can be string (JSON), array, or numeric
             'minimal_rental_period' => 'nullable|string|max:255',
             'rent_payment_interval' => [
                 'nullable',

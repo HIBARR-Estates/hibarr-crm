@@ -87,9 +87,22 @@ const CurrencyInput: React.FC<Props> = ({
         }
 
         if (parsedData && (parsedData.amount !== undefined || parsedData.currency !== undefined)) {
+            const rawAmount = (parsedData as any).amount;
+            // Normalize amount: keep number, coerce numeric string to number, empty string/undefined -> null
+            let amount: string | number | null = rawAmount ?? null;
+            if (amount === "" || (typeof amount === "string" && amount.trim() === "")) {
+                amount = null;
+            } else if (typeof amount === "string" && !isNaN(Number(amount))) {
+                amount = Number(amount);
+            }
+            const currency = (parsedData as any).currency;
+            const currencyStr =
+                typeof currency === "string" && currency.trim() !== ""
+                    ? currency.trim()
+                    : stableDefaultCurrency;
             return {
-                amount: (parsedData as any).amount ?? null,
-                currency: (parsedData as any).currency || stableDefaultCurrency,
+                amount,
+                currency: currencyStr,
             };
         }
 
@@ -102,11 +115,12 @@ const CurrencyInput: React.FC<Props> = ({
     // Use parsed value if provided, otherwise use internal state
     const currencyData = value !== undefined ? parsedValue : internalCurrencyData;
 
-    // Default currency symbols if currencies array is empty
+    // Fallback symbols when company currencies are empty or code not found
     const defaultSymbols: Record<string, string> = {
         USD: "$",
         EUR: "€",
         GBP: "£",
+        TRY: "₺",
     };
 
     // Get currency symbol
@@ -317,9 +331,17 @@ const CurrencyInput: React.FC<Props> = ({
         handleKeyPress(e);
     };
 
+    // InputNumber with stringMode expects string; normalize so amount always displays when present
+    const inputValue =
+        currencyData.amount !== null && currencyData.amount !== undefined && currencyData.amount !== ""
+            ? typeof currencyData.amount === "string"
+                ? currencyData.amount
+                : String(currencyData.amount)
+            : undefined;
+
     const inputComponent = (
         <InputNumber
-            value={currencyData.amount}
+            value={inputValue}
             placeholder={placeholder}
             prefix={symbol}
             addonAfter={

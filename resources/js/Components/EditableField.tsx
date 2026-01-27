@@ -10,6 +10,7 @@ import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "./CurrencyInput";
+import { parsePropertyPrice, formatCurrencyWithSymbol } from "@/lib/utils";
 
 const { Text } = Typography;
 
@@ -61,10 +62,62 @@ export default function EditableField({
     onChange,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
-    const { countries = [], default_currency_code } = props;
+    const { countries = [], default_currency_code, currencies = [], default_currency_symbol } = props;
     const [editing, setEditing] = useState(alwaysEditing);
-    const [inputValue, setInputValue] = useState<any>(value);
+    
+    // Initialize inputValue properly for currency fields
+    const getInitialValue = () => {
+        if (fieldType === "currency") {
+            if (value && typeof value === "object" && !Array.isArray(value)) {
+                return value;
+            } else if (value && typeof value === "string") {
+                try {
+                    return JSON.parse(value);
+                } catch {
+                    const numValue = Number(value);
+                    if (!isNaN(numValue)) {
+                        return { amount: numValue, currency: default_currency_code || "TRY" };
+                    }
+                    return { amount: null, currency: default_currency_code || "TRY" };
+                }
+            } else if (value === null || value === undefined) {
+                return { amount: null, currency: default_currency_code || "TRY" };
+            }
+        }
+        return value;
+    };
+    
+    const [inputValue, setInputValue] = useState<any>(getInitialValue());
     const [saving, setSaving] = useState(false);
+
+    // Sync value when it changes from props (important for currency fields)
+    useEffect(() => {
+        if (fieldType === "currency") {
+            // Handle currency value - can be object {amount, currency} or JSON string
+            if (value && typeof value === "object" && !Array.isArray(value)) {
+                setInputValue(value);
+            } else if (value && typeof value === "string") {
+                try {
+                    const parsed = JSON.parse(value);
+                    setInputValue(parsed);
+                } catch {
+                    // If it's not JSON, try to parse as number
+                    const numValue = Number(value);
+                    if (!isNaN(numValue)) {
+                        setInputValue({ amount: numValue, currency: default_currency_code || "TRY" });
+                    } else {
+                        setInputValue({ amount: null, currency: default_currency_code || "TRY" });
+                    }
+                }
+            } else if (value === null || value === undefined) {
+                setInputValue({ amount: null, currency: default_currency_code || "TRY" });
+            } else {
+                setInputValue(value);
+            }
+        } else {
+            setInputValue(value);
+        }
+    }, [value, fieldType, default_currency_code]);
 
     // Ref to track if we're clicking on action buttons (to prevent blur from saving)
     const isClickingActionRef = useRef(false);
@@ -272,12 +325,27 @@ export default function EditableField({
         }
     };
 
-    const displayText =
-        displayValue !== undefined
-            ? displayValue
-            : formatValue
-            ? formatValue(value)
-            : value?.toString() || "--";
+    // Format display text, with special handling for currency fields
+    const getDisplayText = () => {
+        if (displayValue !== undefined) {
+            return displayValue;
+        }
+        if (formatValue) {
+            return formatValue(value);
+        }
+        if (fieldType === "currency") {
+            // Parse and format currency value for display
+            const parsed = parsePropertyPrice(value, default_currency_code || "TRY");
+            const symbol =
+                currencies.find((c: any) => c?.currency_code === parsed.currency)?.currency_symbol ||
+                default_currency_symbol ||
+                "";
+            return formatCurrencyWithSymbol(parsed.amount, symbol);
+        }
+        return value?.toString() || "--";
+    };
+
+    const displayText = getDisplayText();
 
     if (editing) {
         return (

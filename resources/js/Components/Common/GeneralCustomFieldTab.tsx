@@ -15,6 +15,7 @@ import {
 import { UploadOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
 import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
+import CurrencyInput from "@/Components/CurrencyInput";
 
 interface CustomFieldTabProps<CustomFormData = any> {
     data: CustomFormData;
@@ -286,6 +287,30 @@ const GeneralCustomFieldTab = <
         </Form.Item>
     );
 
+    const renderCurrencyField = (field: any) => (
+        <Form.Item
+            label={field.label}
+            validateStatus={
+                errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+            }
+            help={errors[`custom_fields_data.field_${field.id}`]}
+            name={[`custom_fields_data`, `field_${field.id}`]}
+            rules={[
+                {
+                    required: field.required === "yes" && isFieldVisible(field.id),
+                    message: `Please enter ${field.label}`,
+                },
+            ]}
+        >
+            <CurrencyInput
+                placeholder={`Enter ${field.label}`}
+                showLabel={false}
+                noFormItem={true}
+                disabled={false}
+            />
+        </Form.Item>
+    );
+
     const renderCountryField = (field: any) => {
         // Debug: Log if countries are missing
         if (!countries || countries.length === 0) {
@@ -431,6 +456,8 @@ const GeneralCustomFieldTab = <
                 return renderDateField(field);
             case "country":
                 return renderCountryField(field);
+            case "currency":
+                return renderCurrencyField(field);
             case "phone":
                 return renderPhoneField(field);
             case "file":
@@ -482,6 +509,8 @@ const determineSpan = (type: string): number => {
         case "checkbox":
             return 24;
         case "file":
+            return 24;
+        case "currency":
             return 24;
         default:
             return 12;
