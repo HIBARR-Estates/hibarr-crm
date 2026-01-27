@@ -28,7 +28,7 @@
                     <h5 class="alert-heading f-14 font-weight-bold"><i class="fa fa-info-circle"></i> How Automations Work</h5>
                     <p class="mb-0 f-13">
                         This rule runs only when the selected trigger event happens. It does not lock the deal state. 
-                        If a user manually movejbjkjhs a deal, this automation will not revert it unless a new event triggers the rule again.
+                        If a user manually moves a deal, this automation will not revert it unless a new event triggers the rule again.
                     </p>
                 </div>
 
