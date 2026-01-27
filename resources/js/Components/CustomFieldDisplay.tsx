@@ -701,7 +701,8 @@ export default function CustomFieldDisplay({
     };
 
     const renderEditable = (field: Field, value: any) => {
-        if (!editable || !onUpdate) {
+        // If no onUpdate handler, just display the value (read-only mode)
+        if (!onUpdate) {
             return formatFieldValue(field, value);
         }
 
@@ -828,8 +829,8 @@ export default function CustomFieldDisplay({
             return formatFieldValue(field, value);
         }
 
-        // Use editable prop as alwaysEditing when alwaysEditing is not explicitly set
-        // This ensures edit mode works the same as DealDetailsTab
+        // alwaysEditing should only be true when explicitly in bulk edit mode
+        // When editable is false, we still render EditableField but in hover-to-edit mode
         const effectiveAlwaysEditing = alwaysEditing || editable;
 
         return (
