@@ -96,3 +96,16 @@ deploy-production:
 	$(MAKE) migrate && \
 	php artisan optimize:clear && \
 	$(MAKE) queue-restart
+
+
+# Run this on Jenkins to prepare the artifact
+build-artifact:
+	$(MAKE) composer-install
+	$(MAKE) npm-build
+
+# This target is for the server to run after extracting the artifact
+finalize-deploy:
+	$(MAKE) ensure-storage
+	$(MAKE) migrate
+	$(MAKE) queue-restart
+	php artisan optimize:clear
