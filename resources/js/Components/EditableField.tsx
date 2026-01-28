@@ -308,6 +308,12 @@ export default function EditableField({
 
         if (value && typeof value === "string") {
             const fileUrl = `/user-uploads/hibarr_fields/${value}`;
+            const downloadLabel = value
+                ? `Download file ${value}`
+                : "Download file";
+            const deleteLabel = value
+                ? `Delete file ${value}`
+                : "Delete file";
             return (
                 <div className="flex flex-col gap-1">
                     <a
@@ -325,6 +331,7 @@ export default function EditableField({
                             className="text-blue-600 hover:text-blue-800"
                             download
                             title="Download"
+                            aria-label={downloadLabel}
                         >
                             <DownloadOutlined />
                         </a>
@@ -336,6 +343,7 @@ export default function EditableField({
                                 icon={<DeleteOutlined />}
                                 onClick={handleFileRemove}
                                 title="Delete"
+                                aria-label={deleteLabel}
                             />
                         )}
                     </Space>
