@@ -1,45 +1,56 @@
 pipeline {
-    agent none // We define specific agents for each stage
+    agent any
 
     stages {
-        stage('Build Artifact') {
-            // Jenkins will spin up this container specifically for this stage
-            agent {
-                docker { 
-                    image 'php:8.3-cli' 
-                    // We map the composer and npm cache to speed up future builds
-                    args '-u root' 
-                }
-            }
+
+        stage('Cleanup & Checkout') {
             steps {
-                echo 'Building Application in PHP 8.3 Container...'
+                // This deletes the workspace folder entirely before starting
+                cleanWs()
+                
+                // Now try the checkout again
+                checkout([$class: 'GitSCM', 
+                    branches: [[name: 'staging']], 
+                    userRemoteConfigs: [[credentialsId: 'github-user-pat', url: 'https://github.com/HIBARR-Estates/hibarr-crm.git']]
+                ])
+            }
+        }
+        
+        stage('Build Artifact (on Jenkins)') {
+            steps {
+                echo 'Building Application...'
+                // Run the heavy tasks on Jenkins instead of the server
                 sh '''
-                    # 1. Install system dependencies needed for Laravel/Composer
-                    apt-get update && apt-get install -y libzip-dev unzip git
-                    docker-php-ext-install zip
+                    # make build-artifact // pending when make is installed in jenkins server
 
-                    # 2. Install Composer inside the container
-                    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-                    # 3. Install Node.js (since PHP images don't usually have it)
-                    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-                    apt-get install -y nodejs
+                    # 1. Download Composer locally if it doesn't exist
+                    if ! command -v composer &> /dev/null; then
+                        echo "Composer not found, downloading..."
+                        curl -sS https://getcomposer.org/installer | php
+                        alias composer='php composer.phar'
+                    fi
 
-                    # 4. Run your build
-                    composer install --no-interaction --prefer-dist --optimize-autoloader
+                    # 2. Run the build
+                    php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
+
                     npm install
-                    touch .env
+
+                    # to prevent ziggy generation issues
+                    touch  .env
+
                     php artisan ziggy:generate
+
                     npm run production
                     
-                    # 5. Create the artifact
+                    # Package everything including the built assets and vendor
+                    # We exclude .git to keep the file small
                     tar -czf hibarr-crm-build.tar.gz . --exclude=.git
                 '''
             }
         }
 
         stage('Deploy to Staging') {
-            agent any // Deployment uses the main Jenkins agent to handle SSH
             when { 
                 anyOf { branch 'staging'; branch 'develop' }
             }
@@ -51,25 +62,42 @@ pipeline {
                 withCredentials([sshUserPrivateKey(credentialsId: 'STAGIN_SSH_PRIVATE_KEY', keyFileVariable: 'SSH_KEY_FILE')]) {
                     sh '''
                         chmod 400 $SSH_KEY_FILE
+                        
+                        # 1. Upload the pre-built artifact
                         scp -i $SSH_KEY_FILE -P 2244 -o StrictHostKeyChecking=no hibarr-crm-build.tar.gz $STAGING_USER@$STAGING_HOST:/tmp/
 
+                        # 2. Extract and swap using the "Atomic" method
                         ssh -i $SSH_KEY_FILE -p 2244 -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST "
                             mkdir -p ~/deployments/build_${BUILD_ID}
                             tar -xzf /tmp/hibarr-crm-build.tar.gz -C ~/deployments/build_${BUILD_ID}
+                            
+                            # Link the existing .env and uploads that aren't in the build
                             ln -sfn ~/shared/.env ~/deployments/build_${BUILD_ID}/.env
                             mkdir -p ~/deployments/build_${BUILD_ID}/public/user-uploads
+                            # Link persistent uploads so they aren't lost
                             ln -sfn ~/shared/user-uploads ~/deployments/build_${BUILD_ID}/public/user-uploads
 
+                            # Run migration and storage setup on the new folder
                             cd ~/deployments/build_${BUILD_ID}
                             make finalize-deploy
 
+                            # THE SWITCH
                             ln -sfn ~/deployments/build_${BUILD_ID} ~/hibarr-crm-staging
+                            
+                            # Cleanup old builds
                             rm /tmp/hibarr-crm-build.tar.gz
                             cd ~/deployments && ls -t | tail -n +6 | xargs rm -rf 2>/dev/null || true
                         "
                     '''
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'hibarr-crm-build.tar.gz', onlyIfSuccessful: true
+            script { try { cleanWs() } catch (e) { } }
         }
     }
 }
