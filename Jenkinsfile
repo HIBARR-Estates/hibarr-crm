@@ -9,6 +9,14 @@ pipeline {
         stage('Identify Environment') {
             steps {
                 script {
+                    // Extract strings from credentials to avoid malformed SSH commands
+                    withCredentials([
+                        string(credentialsId: (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') ? 'PRODUCTION_HOST' : 'STAGING_HOST', variable: 'TARGET_HOST'),
+                        string(credentialsId: (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') ? 'PRODUCTION_USER' : 'STAGING_USER', variable: 'TARGET_USER')
+                    ]) {
+                        env.HOST_URL = TARGET_HOST
+                        env.USER_NAME = TARGET_USER
+                    }
                     if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
                         env.ENV_NAME   = "production"
                         env.SSH_CREDS  = "PRODUCTION_SSH_PRIVATE_KEY"
@@ -30,6 +38,13 @@ pipeline {
         }
 
         stage('Remote Atomic Build & Deploy') {
+            when {
+                beforeAgent true
+                allOf {
+                    not { changeRequest() }
+                    anyOf { branch 'main'; branch 'master'; branch 'staging'; branch 'develop' }
+                }
+            }
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')]) {
                     sh """
