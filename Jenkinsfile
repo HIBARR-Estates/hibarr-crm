@@ -5,27 +5,31 @@ pipeline {
         skipDefaultCheckout()
     }
 
+    // Defining environment here makes them automatically available to all sh scripts
+    environment {
+        ENV_NAME = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'production' : 'staging'}"
+        SSH_PORT = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? '22' : '2244'}"
+        SSH_CREDS = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'PRODUCTION_SSH_PRIVATE_KEY' : 'STAGIN_SSH_PRIVATE_KEY'}"
+    }
+
     stages {
-        stage('Identify Environment') {
+        stage('Identify Target') {
             steps {
                 script {
+                    // Resolve Host and User strings into the environment
+                    def hostCredId = (env.ENV_NAME == 'production') ? 'PRODUCTION_HOST' : 'STAGING_HOST'
+                    def userCredId = (env.ENV_NAME == 'production') ? 'PRODUCTION_USER' : 'STAGING_USER'
                     
-                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
-                        env.ENV_NAME   = "production"
-                        env.SSH_CREDS  = "PRODUCTION_SSH_PRIVATE_KEY"
-                        env.HOST_URL   = credentials('PRODUCTION_HOST')
-                        env.USER_NAME  = credentials('PRODUCTION_USER')
-                        env.SSH_PORT   = "22" 
-                        env.LIVE_LINK  = "/var/www/html"
-                    } else {
-                        env.ENV_NAME   = "staging"
-                        env.SSH_CREDS  = "STAGIN_SSH_PRIVATE_KEY"
-                        env.HOST_URL   = credentials('STAGING_HOST')
-                        env.USER_NAME  = credentials('STAGING_USER')
-                        env.SSH_PORT   = "2244"
-                        // This is of the assumption that hibarr-crm-staging is the webroot for staging, which it currently is, as at the time of writing., but should be adjusted if changed later.
-                        env.LIVE_LINK  = "/home/${env.USER_NAME}/hibarr-crm-staging"
+                    withCredentials([
+                        string(credentialsId: hostCredId, variable: 'HOST_STR'),
+                        string(credentialsId: userCredId, variable: 'USER_STR')
+                    ]) {
+                        env.TARGET_HOST = HOST_STR
+                        env.TARGET_USER = USER_STR
                     }
+                    
+                    // Set the link path
+                    env.LIVE_LINK = (env.ENV_NAME == 'production') ? "/var/www/html" : "/home/${env.TARGET_USER}/hibarr-crm-staging"
                 }
             }
         }
@@ -40,24 +44,23 @@ pipeline {
             }
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')]) {
-                    sh """
-                        # Use \\$ to tell Jenkins 'This is a shell variable, don't touch it'
-                        chmod 400 \$SSH_KEY_FILE
+                    sh '''
+                        # Now $TARGET_USER and $TARGET_HOST are guaranteed to be available
+                        chmod 400 $SSH_KEY_FILE
                         
-                        # Use \${env.NAME} for Jenkins variables
-                        BUILD_PATH="~/deployments/${env.ENV_NAME}_build_${env.BUILD_ID}"
+                        BUILD_PATH="~/deployments/${ENV_NAME}_build_${BUILD_ID}"
 
-                        ssh -i \$SSH_KEY_FILE -p ${env.SSH_PORT} -o StrictHostKeyChecking=no ${env.USER_NAME}@${env.HOST_URL} "
-                            echo 'Starting Atomic Build for ${env.ENV_NAME}...'
+                        echo "Connecting to $TARGET_USER @ $TARGET_HOST on port $SSH_PORT..."
+
+                        ssh -i $SSH_KEY_FILE -p $SSH_PORT -o StrictHostKeyChecking=no $TARGET_USER@$TARGET_HOST "
+                            set -e
+                            echo 'Starting Atomic Build for $ENV_NAME...'
                             
-                            # 1. Prepare directory (Use \\$ here because it's inside the SSH string)
-                            mkdir -p \$BUILD_PATH
-                            cd \$BUILD_PATH
+                            mkdir -p $BUILD_PATH
+                            cd $BUILD_PATH
 
-                            # 2. Clone the specific branch
-                            git clone --depth 1 --branch ${env.BRANCH_NAME} https://github.com/HIBARR-Estates/hibarr-crm.git .
+                            git clone --depth 1 --branch $BRANCH_NAME https://github.com/HIBARR-Estates/hibarr-crm.git .
 
-                            # 3. Build inside this folder
                             if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
                             php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
                             
@@ -66,24 +69,22 @@ pipeline {
                             php artisan ziggy:generate
                             npm run production
 
-                            # 4. Link the shared .env and persistent storage
-                            ln -sfn ~/shared/.env \$BUILD_PATH/.env
-                            
-                            mkdir -p \$BUILD_PATH/public/user-uploads
-                            ln -sfn ~/shared/user-uploads \$BUILD_PATH/public/user-uploads
+                            # Link shared resources
+                            ln -sfn ~/shared/.env $BUILD_PATH/.env
+                            mkdir -p $BUILD_PATH/public/user-uploads
+                            ln -sfn ~/shared/user-uploads $BUILD_PATH/public/user-uploads
 
-                            # 5. Finalize (Migrations, etc.)
                             make finalize-deploy
 
-                            # 6. THE ATOMIC SWITCH
-                            ln -sfn \$BUILD_PATH ${env.LIVE_LINK}
+                            # THE ATOMIC SWITCH
+                            ln -sfn $BUILD_PATH $LIVE_LINK
                             
-                            echo 'Deployment to ${env.ENV_NAME} successful!'
+                            echo 'Deployment successful!'
 
-                            # 7. Cleanup old builds
-                            cd ~/deployments && ls -t | grep ${env.ENV_NAME}_build | tail -n +6 | xargs rm -rf 2>/dev/null || true
+                            # Keep last 5 builds
+                            cd ~/deployments && ls -t | grep ${ENV_NAME}_build | tail -n +6 | xargs rm -rf 2>/dev/null || true
                         "
-                    """
+                    '''
                 }
             }
         }
