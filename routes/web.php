@@ -1000,6 +1000,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::post('properties/{id}/expose/validate', [App\Http\Controllers\PropertyController::class, 'validateExpose'])->name('properties.expose.validate');
     Route::post('properties/{id}/expose/generate', [App\Http\Controllers\PropertyController::class, 'generateExpose'])->name('properties.expose.generate');
 
+    Route::get('properties/slug/{slug}', [App\Http\Controllers\PropertyController::class, 'showBySlug'])->name('properties.show_by_slug');
+
     // =====================================================
     // Developer Projects & Project Locations
     // =====================================================

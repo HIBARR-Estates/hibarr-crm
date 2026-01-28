@@ -6,6 +6,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Property extends BaseModel
 {
@@ -108,6 +109,7 @@ class Property extends BaseModel
         'interior_features',
         'location_features',
         'title',
+        'slug',
         'description',
         'video_url',
         'tour_360_url',
@@ -138,6 +140,63 @@ class Property extends BaseModel
         'photos' => 'array',
         'add_ons' => 'array',
     ];
+
+    /**
+     * Boot: generate unique slug from title on create/update when title is present.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Property $model) {
+            if (empty($model->title)) {
+                return;
+            }
+            $titleChanged = $model->isDirty('title');
+            $slugEmpty = empty($model->slug);
+            if ($slugEmpty || $titleChanged) {
+                $model->slug = self::makeUniqueSlug(
+                    $model->title,
+                    $model->company_id ?? 0,
+                    $model->id
+                );
+            }
+        });
+    }
+
+    /**
+     * Generate a unique slug from title. If slug exists, append short random id (e.g. luxury-3-bedroom-condo-8xf2).
+     */
+    public static function makeUniqueSlug(string $title, ?int $companyId = null, $excludeId = null): string
+    {
+        $base = Str::slug($title);
+        if ($base === '') {
+            $base = 'property';
+        }
+        $slug = $base;
+        $attempt = 0;
+        $query = static::query()->where('slug', $slug);
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+        while ($query->exists()) {
+            $slug = $base . '-' . Str::lower(Str::random(4));
+            $query = static::query()->where('slug', $slug);
+            if ($companyId !== null) {
+                $query->where('company_id', $companyId);
+            }
+            if ($excludeId !== null) {
+                $query->where('id', '!=', $excludeId);
+            }
+            $attempt++;
+            if ($attempt > 100) {
+                $slug = $base . '-' . ($excludeId ?: Str::random(8));
+                break;
+            }
+        }
+        return $slug;
+    }
 
     // Relationships
     public function product(): BelongsTo

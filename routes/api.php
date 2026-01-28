@@ -14,6 +14,7 @@
 
 use App\Http\Controllers\CommunicationActivityController;
 use App\Http\Controllers\Api\BitrixImportController;
+use Froiden\RestAPI\Facades\ApiRoute;
 use Illuminate\Support\Facades\Route;
 
 ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
@@ -57,6 +58,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         
         // Property API Routes
         ApiRoute::get('properties', ['as' => 'api.properties.index', 'uses' => 'Api\PropertyApiController@index']);
+        ApiRoute::get('properties/{slug}', ['as' => 'api.properties.showBySlug', 'uses' => 'Api\PropertyApiController@showBySlug']);
         ApiRoute::get('properties/{id}', ['as' => 'api.properties.show', 'uses' => 'Api\PropertyApiController@show']);
  
     });
