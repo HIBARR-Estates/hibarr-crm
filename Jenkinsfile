@@ -10,10 +10,23 @@ pipeline {
                     # make build-artifact // pending when make is installed in jenkins server
 
 
-                    composer install --no-interaction --prefer-dist --optimize-autoloader
+                    # 1. Download Composer locally if it doesn't exist
+                    if ! command -v composer &> /dev/null; then
+                        echo "Composer not found, downloading..."
+                        curl -sS https://getcomposer.org/installer | php
+                        alias composer='php composer.phar'
+                    fi
+
+                    # 2. Run the build
+                    php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
 
                     npm install
+
+                    # Ensure .env exists so Artisan command doesn't fail
+                    touch  .env
+
                     php artisan ziggy:generate
+
                     npm run production
                     
                     # Package everything including the built assets and vendor
