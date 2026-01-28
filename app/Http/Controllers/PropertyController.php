@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use App\Helper\Files;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
+use Illuminate\Support\Facades\DB;
 
 
 class PropertyController extends AccountBaseController
@@ -429,45 +430,7 @@ class PropertyController extends AccountBaseController
 
     public function destroy($id)
     {
-        $property = Property::with('product')->findOrFail($id);
-        
-        // Check permission
-        $canDelete = false;
-        switch ($this->deletePropertyPermission) {
-            case 'all':
-                $canDelete = true;
-                break;
-            case 'added':
-                $canDelete = $property->product->added_by == user()->id;
-                break;
-            case 'owned':
-                $canDelete = $property->product->assigned_to == user()->id;
-                break;
-            case 'both':
-                $canDelete = $property->product->added_by == user()->id || $property->product->assigned_to == user()->id;
-                break;
-        }
-
-        // abort_403(!$canDelete); //Removed permission check for deletion temporarily, as per request on 22-01-2026
-
-        // TODO: COnsider implementing reintroducing permission check above via Permission service, and ensure its applicable to the bulk action as well, also just refactor permissions to be a permission middleware thing and free all controllers ....
-
-
-        // TODO: Refactor to use service and let the response be strictly JSON for consistency
-        // Don't allow deletion if property is sold or rented
-        if ($property->isSold() || $property->isRented()) {
-            return back()->with([
-                'success' => false,
-                'message' => __('messages.propertyCannotBeDeleted'),
-            ]);
-        }
-
-        $property->delete();
-
-        return back()->with([
-            'success' => true,
-            'message' => __('messages.recordDeleted'),
-        ]);
+        return $this->deleteProperties([$id]);
     }
 
     // API Methods for JSON responses

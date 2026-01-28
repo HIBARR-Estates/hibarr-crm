@@ -118,7 +118,7 @@ const DealDetailsTab: React.FC<Props> = ({
                             handleSave("strategy_meeting_booked", value)
                         }
                         displayValue={renderBoolean(
-                            fields.strategy_meeting_booked
+                            fields.strategy_meeting_booked,
                         )}
                         alwaysEditing={editable}
                         onChange={onChange}

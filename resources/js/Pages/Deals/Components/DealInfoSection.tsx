@@ -156,6 +156,22 @@ export default function DealInfoSection({
             const detailsChanges: Record<string, any> = {};
             const contactChanges: Record<string, any> = {};
             const customFieldChanges: Record<string, any> = {};
+            const hibarrFieldChanges: Record<string, any> = {};
+
+            // Hibarr field names (from DealDetailsTab)
+            const hibarrFieldNames = [
+                "interested_in",
+                "budget_range",
+                "purchase_timeline",
+                "motivation",
+                "strategy_meeting_booked",
+                "downpayment_paid",
+                "inspection_trip_date",
+                "deposit_confirmation",
+                "reservation_agreement",
+                "sales_contract",
+                "message",
+            ];
 
             // Process each pending change
             for (const [fieldName, value] of Object.entries(pendingChanges)) {
@@ -165,10 +181,13 @@ export default function DealInfoSection({
                         fieldName === "email" ? "client_email" : fieldName;
                     contactChanges[apiFieldName] = value;
                 } else if (fieldName.startsWith("field_")) {
-                    // Custom fields (including currency custom fields)
+                    // Custom fields use format field_XX
                     customFieldChanges[fieldName] = value;
+                } else if (hibarrFieldNames.includes(fieldName)) {
+                    // Hibarr fields
+                    hibarrFieldChanges[fieldName] = value;
                 } else {
-                    // Process value transformations
+                    // Process value transformations for regular details fields
                     let processedValue = value;
                     if (fieldName === "value") {
                         // Handle new currency format: { amount, currency }
@@ -222,7 +241,19 @@ export default function DealInfoSection({
 
             if (Object.keys(customFieldChanges).length > 0) {
                 promises.push(
-                    updateDeal({ type: "custom_field", data: customFieldChanges }),
+                    updateDeal({
+                        type: "custom_field",
+                        data: customFieldChanges,
+                    }),
+                );
+            }
+
+            if (Object.keys(hibarrFieldChanges).length > 0) {
+                promises.push(
+                    updateDeal({
+                        type: "hibarr_field",
+                        data: hibarrFieldChanges,
+                    }),
                 );
             }
 
