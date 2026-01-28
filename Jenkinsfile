@@ -41,21 +41,21 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')]) {
                     sh """
-                        chmod 400 $SSH_KEY_FILE
+                        # Use \\$ to tell Jenkins 'This is a shell variable, don't touch it'
+                        chmod 400 \$SSH_KEY_FILE
                         
-                        # Use environment-specific naming for the build folder to keep ~/deployments organized
-                        BUILD_PATH="~/deployments/${ENV_NAME}_build_${BUILD_ID}"
+                        # Use \${env.NAME} for Jenkins variables
+                        BUILD_PATH="~/deployments/${env.ENV_NAME}_build_${env.BUILD_ID}"
 
-                        ssh -i $SSH_KEY_FILE -p $SSH_PORT -o StrictHostKeyChecking=no $USER_NAME@$HOST_URL "
-                            echo 'Starting Atomic Build for ${ENV_NAME}...'
+                        ssh -i \$SSH_KEY_FILE -p ${env.SSH_PORT} -o StrictHostKeyChecking=no ${env.USER_NAME}@${env.HOST_URL} "
+                            echo 'Starting Atomic Build for ${env.ENV_NAME}...'
                             
-                            # 1. Prepare directory
-                            mkdir -p $BUILD_PATH
-                            cd $BUILD_PATH
+                            # 1. Prepare directory (Use \\$ here because it's inside the SSH string)
+                            mkdir -p \$BUILD_PATH
+                            cd \$BUILD_PATH
 
-                            # 2. Clone the specific branch (Note the . at the end)
-                            # Replace YOUR_PAT if needed, or use SSH keys if the server is authorized on GitHub
-                            git clone --depth 1 --branch ${BRANCH_NAME} https://github.com/HIBARR-Estates/hibarr-crm.git .
+                            # 2. Clone the specific branch
+                            git clone --depth 1 --branch ${env.BRANCH_NAME} https://github.com/HIBARR-Estates/hibarr-crm.git .
 
                             # 3. Build inside this folder
                             if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
@@ -67,23 +67,21 @@ pipeline {
                             npm run production
 
                             # 4. Link the shared .env and persistent storage
-                            # We use ~/shared/.env regardless of environment since servers are separate
-                            ln -sfn ~/shared/.env $BUILD_PATH/.env
+                            ln -sfn ~/shared/.env \$BUILD_PATH/.env
                             
-                            mkdir -p $BUILD_PATH/public/user-uploads
-                            ln -sfn ~/shared/user-uploads $BUILD_PATH/public/user-uploads
+                            mkdir -p \$BUILD_PATH/public/user-uploads
+                            ln -sfn ~/shared/user-uploads \$BUILD_PATH/public/user-uploads
 
                             # 5. Finalize (Migrations, etc.)
                             make finalize-deploy
 
                             # 6. THE ATOMIC SWITCH
-                            # Force-link the live webroot to the new successful build
-                            ln -sfn $BUILD_PATH $LIVE_LINK
+                            ln -sfn \$BUILD_PATH ${env.LIVE_LINK}
                             
-                            echo 'Deployment to ${ENV_NAME} successful!'
+                            echo 'Deployment to ${env.ENV_NAME} successful!'
 
-                            # 7. Cleanup old builds (Keep last 5 for this environment)
-                            cd ~/deployments && ls -t | grep ${ENV_NAME}_build | tail -n +6 | xargs rm -rf 2>/dev/null || true
+                            # 7. Cleanup old builds
+                            cd ~/deployments && ls -t | grep ${env.ENV_NAME}_build | tail -n +6 | xargs rm -rf 2>/dev/null || true
                         "
                     """
                 }
