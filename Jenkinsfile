@@ -32,7 +32,7 @@ pipeline {
         stage('Remote Atomic Build & Deploy') {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')]) {
-                    sh '''
+                    sh """
                         chmod 400 $SSH_KEY_FILE
                         
                         # Use environment-specific naming for the build folder to keep ~/deployments organized
@@ -77,7 +77,7 @@ pipeline {
                             # 7. Cleanup old builds (Keep last 5 for this environment)
                             cd ~/deployments && ls -t | grep ${ENV_NAME}_build | tail -n +6 | xargs rm -rf 2>/dev/null || true
                         "
-                    '''
+                    """
                 }
             }
         }
