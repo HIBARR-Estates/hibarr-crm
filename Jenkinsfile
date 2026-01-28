@@ -1,71 +1,81 @@
 pipeline {
-    agent none // We define specific agents for each stage
+    agent any
+
+    options {
+        skipDefaultCheckout()
+    }
 
     stages {
-        stage('Build Artifact') {
-            // Jenkins will spin up this container specifically for this stage
-            agent {
-                docker { 
-                    image 'php:8.3-cli' 
-                    // We map the composer and npm cache to speed up future builds
-                    args '-u root' 
-                }
-            }
+        stage('Identify Environment') {
             steps {
-                echo 'Building Application in PHP 8.3 Container...'
-                sh '''
-                    # 1. Install system dependencies needed for Laravel/Composer
-                    apt-get update && apt-get install -y libzip-dev unzip git
-                    docker-php-ext-install zip
-
-                    # 2. Install Composer inside the container
-                    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-                    # 3. Install Node.js (since PHP images don't usually have it)
-                    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-                    apt-get install -y nodejs
-
-                    # 4. Run your build
-                    composer install --no-interaction --prefer-dist --optimize-autoloader
-                    npm install
-                    touch .env
-                    php artisan ziggy:generate
-                    npm run production
-                    
-                    # 5. Create the artifact
-                    tar -czf hibarr-crm-build.tar.gz . --exclude=.git
-                '''
+                script {
+                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
+                        env.ENV_NAME   = "production"
+                        env.SSH_CREDS  = "PRODUCTION_SSH_PRIVATE_KEY"
+                        env.HOST_URL   = credentials('PRODUCTION_HOST')
+                        env.USER_NAME  = credentials('PRODUCTION_USER')
+                        env.SSH_PORT   = "22" 
+                        env.LIVE_LINK  = "/var/www/html"
+                    } else {
+                        env.ENV_NAME   = "staging"
+                        env.SSH_CREDS  = "STAGIN_SSH_PRIVATE_KEY"
+                        env.HOST_URL   = credentials('STAGING_HOST')
+                        env.USER_NAME  = credentials('STAGING_USER')
+                        env.SSH_PORT   = "2244"
+                        // This is of the assumption that hibarr-crm-staging is the webroot for staging, which it currently is, as at the time of writing., but should be adjusted if changed later.
+                        env.LIVE_LINK  = "/home/${env.USER_NAME}/hibarr-crm-staging"
+                    }
+                }
             }
         }
 
-        stage('Deploy to Staging') {
-            agent any // Deployment uses the main Jenkins agent to handle SSH
-            when { 
-                anyOf { branch 'staging'; branch 'develop' }
-            }
-            environment {
-                STAGING_HOST = credentials('STAGING_HOST')
-                STAGING_USER = credentials('STAGING_USER')
-            }
+        stage('Remote Atomic Build & Deploy') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'STAGIN_SSH_PRIVATE_KEY', keyFileVariable: 'SSH_KEY_FILE')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')]) {
                     sh '''
                         chmod 400 $SSH_KEY_FILE
-                        scp -i $SSH_KEY_FILE -P 2244 -o StrictHostKeyChecking=no hibarr-crm-build.tar.gz $STAGING_USER@$STAGING_HOST:/tmp/
+                        
+                        # Use environment-specific naming for the build folder to keep ~/deployments organized
+                        BUILD_PATH="~/deployments/${ENV_NAME}_build_${BUILD_ID}"
 
-                        ssh -i $SSH_KEY_FILE -p 2244 -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST "
-                            mkdir -p ~/deployments/build_${BUILD_ID}
-                            tar -xzf /tmp/hibarr-crm-build.tar.gz -C ~/deployments/build_${BUILD_ID}
-                            ln -sfn ~/shared/.env ~/deployments/build_${BUILD_ID}/.env
-                            mkdir -p ~/deployments/build_${BUILD_ID}/public/user-uploads
-                            ln -sfn ~/shared/user-uploads ~/deployments/build_${BUILD_ID}/public/user-uploads
+                        ssh -i $SSH_KEY_FILE -p $SSH_PORT -o StrictHostKeyChecking=no $USER_NAME@$HOST_URL "
+                            echo 'Starting Atomic Build for ${ENV_NAME}...'
+                            
+                            # 1. Prepare directory
+                            mkdir -p $BUILD_PATH
+                            cd $BUILD_PATH
 
-                            cd ~/deployments/build_${BUILD_ID}
+                            # 2. Clone the specific branch (Note the . at the end)
+                            # Replace YOUR_PAT if needed, or use SSH keys if the server is authorized on GitHub
+                            git clone --depth 1 --branch ${BRANCH_NAME} https://github.com/HIBARR-Estates/hibarr-crm.git .
+
+                            # 3. Build inside this folder
+                            if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
+                            php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
+                            
+                            npm install
+                            touch .env
+                            php artisan ziggy:generate
+                            npm run production
+
+                            # 4. Link the shared .env and persistent storage
+                            # We use ~/shared/.env regardless of environment since servers are separate
+                            ln -sfn ~/shared/.env $BUILD_PATH/.env
+                            
+                            mkdir -p $BUILD_PATH/public/user-uploads
+                            ln -sfn ~/shared/user-uploads $BUILD_PATH/public/user-uploads
+
+                            # 5. Finalize (Migrations, etc.)
                             make finalize-deploy
 
-                            ln -sfn ~/deployments/build_${BUILD_ID} ~/hibarr-crm-staging
-                            rm /tmp/hibarr-crm-build.tar.gz
-                            cd ~/deployments && ls -t | tail -n +6 | xargs rm -rf 2>/dev/null || true
+                            # 6. THE ATOMIC SWITCH
+                            # Force-link the live webroot to the new successful build
+                            ln -sfn $BUILD_PATH $LIVE_LINK
+                            
+                            echo 'Deployment to ${ENV_NAME} successful!'
+
+                            # 7. Cleanup old builds (Keep last 5 for this environment)
+                            cd ~/deployments && ls -t | grep ${ENV_NAME}_build | tail -n +6 | xargs rm -rf 2>/dev/null || true
                         "
                     '''
                 }
