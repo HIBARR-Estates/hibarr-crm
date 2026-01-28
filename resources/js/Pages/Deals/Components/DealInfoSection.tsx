@@ -285,12 +285,15 @@ export default function DealInfoSection({
             value[0] instanceof File;
 
         try {
-            if ((isFile || isFileArray) && type === "custom_field") {
-                // Handle file upload via FormData for custom fields
+            if (
+                (isFile || isFileArray) &&
+                (type === "custom_field" || type === "hibarr_field")
+            ) {
+                // Handle file upload via FormData (custom fields + hibarr fields)
                 // Use POST with _method=PATCH for file uploads (Laravel method spoofing)
                 const formData = new FormData();
                 formData.append("_method", "PATCH");
-                formData.append("type", "custom_field");
+                formData.append("type", type);
 
                 if (isFileArray) {
                     // Multiple files - append each with array notation
@@ -322,6 +325,12 @@ export default function DealInfoSection({
                     setCurrentDeal(response.data.data);
                     message.success("File uploaded successfully");
                 }
+
+                // Clear loading state for this field (we bypass useApiMutate here)
+                setUpdatingField(null);
+
+                // Important: don't fall through to JSON PATCH after multipart upload
+                return;
             }
 
             // Infer type and api field name if not explicitly set (for compatibility)
