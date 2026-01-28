@@ -7,7 +7,10 @@ pipeline {
                 echo 'Building Application...'
                 // Run the heavy tasks on Jenkins instead of the server
                 sh '''
-                    make build-artifact
+                    # make build-artifact // pending when make is installed in jenkins server
+                    
+
+                    composer install --no-interaction --prefer-dist --optimize-autoloader
                     
                     # Package everything including the built assets and vendor
                     # We exclude .git to keep the file small
