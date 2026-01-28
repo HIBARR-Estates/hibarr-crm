@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <meta name="supported-color-schemes" content="light dark">
-    <title>Task Created - {{ config('app.name') }}</title>
+    <title>Account Created Successfully - {{ config('app.name') }}</title>
     <style>
         :root {
             color-scheme: light dark;
@@ -51,12 +51,16 @@
                 color: #e5e7eb !important;
             }
 
-            .details-box {
+            .credentials-box {
                 background: #262626 !important;
                 border-color: #404040 !important;
             }
 
-            .label-strong {
+            .label-text {
+                color: #9ca3af !important;
+            }
+
+            .value-text {
                 color: #ffffff !important;
             }
 
@@ -145,32 +149,29 @@
                                         <!-- Message -->
                                         <p class="text-paragraph"
                                             style="margin:0 0 32px 0; font-size:16px; line-height:24px; color:#4b5563; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                            @lang('email.newTask.text')
+                                            @lang('email.newUser.text')
                                         </p>
 
-                                        <!-- Task Details -->
+                                        <!-- Credentials -->
                                         <table cellpadding="0" cellspacing="0" border="0" role="presentation"
-                                            class="details-box" aria-label="Task information"
-                                            style="margin-bottom:32px; background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:24px; width:100%;">
+                                            class="credentials-box" aria-label="Account credentials"
+                                            style="margin-bottom:32px; background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; width:100%;">
                                             <tr>
                                                 <td>
-                                                    <h3 class="heading"
-                                                        style="margin:0 0 16px 0; font-size:18px; font-weight:600; color:#1a1a1a; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                                        @lang('app.taskDetails')
-                                                    </h3>
                                                     {!! $content !!}
                                                 </td>
                                             </tr>
                                         </table>
 
-                                        <!-- Button -->
+                                        <!-- Buttons -->
                                         <table cellpadding="0" cellspacing="0" border="0" role="presentation">
                                             <tr>
-                                                <td>
-                                                    <a href="{{ $url }}" aria-label="@lang('app.viewTask')"
+                                                <td style="padding-right:12px;">
+                                                    <a href="{{ $url }}" aria-label="{{ $actionText }}"
                                                         style="display:inline-block; padding:12px 24px; background:#2563eb; color:#ffffff; text-decoration:none; border-radius:8px; font-size:15px; font-weight:600; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"
-                                                        target="_blank" rel="noopener">@lang('app.viewTask')</a>
+                                                        target="_blank" rel="noopener">{{ $actionText }}</a>
                                                 </td>
+
                                             </tr>
                                         </table>
 

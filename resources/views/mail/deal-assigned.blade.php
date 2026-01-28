@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <meta name="supported-color-schemes" content="light dark">
-    <title>Task Created - {{ config('app.name') }}</title>
+    <title>Deal Assigned - {{ config('app.name') }}</title>
     <style>
         :root {
             color-scheme: light dark;
@@ -51,7 +51,7 @@
                 color: #e5e7eb !important;
             }
 
-            .details-box {
+            .deal-details-box {
                 background: #262626 !important;
                 border-color: #404040 !important;
             }
@@ -71,7 +71,7 @@
 
         @media only screen and (max-width: 600px) {
             .main-container {
-                padding: 5px !important;
+                padding: 1px !important;
             }
 
             .email-card {
@@ -79,15 +79,15 @@
             }
 
             .header-td {
-                padding: 13px !important;
+                padding: 1px !important;
             }
 
             .body-td {
-                padding: 13px !important;
+                padding: 1px !important;
             }
 
             .content-card {
-                padding: 13px !important;
+                padding: 1px !important;
             }
         }
     </style>
@@ -145,19 +145,15 @@
                                         <!-- Message -->
                                         <p class="text-paragraph"
                                             style="margin:0 0 32px 0; font-size:16px; line-height:24px; color:#4b5563; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                            @lang('email.newTask.text')
+                                            @lang('email.leadAgent.subject')
                                         </p>
 
-                                        <!-- Task Details -->
+                                        <!-- Deal Details -->
                                         <table cellpadding="0" cellspacing="0" border="0" role="presentation"
-                                            class="details-box" aria-label="Task information"
+                                            class="deal-details-box" aria-label="Deal information"
                                             style="margin-bottom:32px; background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:24px; width:100%;">
                                             <tr>
                                                 <td>
-                                                    <h3 class="heading"
-                                                        style="margin:0 0 16px 0; font-size:18px; font-weight:600; color:#1a1a1a; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                                        @lang('app.taskDetails')
-                                                    </h3>
                                                     {!! $content !!}
                                                 </td>
                                             </tr>
@@ -167,9 +163,9 @@
                                         <table cellpadding="0" cellspacing="0" border="0" role="presentation">
                                             <tr>
                                                 <td>
-                                                    <a href="{{ $url }}" aria-label="@lang('app.viewTask')"
+                                                    <a href="{{ $url }}" aria-label="{{ $actionText }}"
                                                         style="display:inline-block; padding:12px 24px; background:#2563eb; color:#ffffff; text-decoration:none; border-radius:8px; font-size:15px; font-weight:600; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"
-                                                        target="_blank" rel="noopener">@lang('app.viewTask')</a>
+                                                        target="_blank" rel="noopener">{{ $actionText }}</a>
                                                 </td>
                                             </tr>
                                         </table>

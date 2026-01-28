@@ -74,7 +74,7 @@ class NewUser extends BaseNotification
 
         $build
             ->subject(__('email.newUser.subject') . ' ' . config('app.name') . '.')
-            ->markdown('mail.email', [
+            ->view('mail.new-user', [
                 'url' => $url,
                 'content' => $content,
                 'themeColor' => $this->company ? $this->company->header_color : null,

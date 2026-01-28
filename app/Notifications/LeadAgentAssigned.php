@@ -59,7 +59,7 @@ class LeadAgentAssigned extends BaseNotification
 
         $build
             ->subject(__('email.leadAgent.subject') . ' - ' . config('app.name'))
-            ->markdown('mail.email', [
+            ->view('mail.deal-assigned', [
                 'url' => $url,
                 'content' => $content,
                 'themeColor' => $this->company->header_color,

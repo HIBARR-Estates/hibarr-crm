@@ -68,7 +68,7 @@ class NewUserViaLink extends BaseNotification
 
         $build
             ->subject(__('email.newUserViaLink.subject') . ' ' . config('app.name') . '.')
-            ->markdown('mail.email', [
+            ->view('mail.new-user-notification', [
                 'url' => $url,
                 'content' => $content,
                 'themeColor' => $this->company->header_color,

@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use App\Models\EmailNotificationSetting;
-use App\Models\GlobalSetting;
 use App\Models\Task;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\App;
@@ -82,14 +81,27 @@ class NewTask extends BaseNotification
 
         $subject = __('email.newTask.subject') . ' ' . $taskShortCode . config('app.name'). '.';
 
+        // Get logo URLs for light and dark mode
+        // After parent::build(), config('app.logo') is set to company's masked_logo_url (light logo)
+        $lightLogo = config('app.logo');
+        $globalSetting = GlobalSetting::first();
+        // Ensure we have a valid light logo - use explicit attribute if config is empty
+        if (empty($lightLogo)) {
+            $lightLogo = $this->company->masked_light_logo_url ?? $globalSetting->light_logo_url ?? asset('img/worksuite-logo.png');
+        }
+        // Use explicit dark logo attribute, fallback to global, then light logo
+        $darkLogo = $this->company->masked_dark_logo_url ?? $globalSetting->dark_logo_url ?? $lightLogo;
+
         $build
             ->subject($subject)
             ->greeting(__('email.hello') . ' ' . $notifiable->name . ',')
-            ->markdown('mail.task.created', [
+            ->view('mail.task.created', [
                 'url' => $url,
                 'content' => $content,
                 'themeColor' => $this->company->header_color,
-                'notifiableName' => $notifiable->name
+                'notifiableName' => $notifiable->name,
+                'lightLogo' => $lightLogo,
+                'darkLogo' => $darkLogo
             ]);
 
         parent::resetLocale();
