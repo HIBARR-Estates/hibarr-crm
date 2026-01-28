@@ -1149,7 +1149,7 @@ class PropertyController extends AccountBaseController
             return null;
         }
 
-        $defaultCurrency = company()->currency->currency_code ?? 'TRY';
+        $defaultCurrency = company()?->currency?->currency_code ?? 'TRY';
 
         if (is_array($priceValue)) {
             $amount = isset($priceValue['amount']) && $priceValue['amount'] !== null && $priceValue['amount'] !== ''

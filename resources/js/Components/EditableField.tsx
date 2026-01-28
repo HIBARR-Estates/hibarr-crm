@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
     Input,
     Typography,
@@ -43,7 +43,8 @@ interface EditableFieldProps {
         | "boolean"
         | "textarea"
         | "country"
-        | "currency";
+        | "currency"
+        | "file";
     selectorType?: FormDataType;
     mode?: "multiple" | "tags";
     onSave: (value: any) => Promise<void>;
@@ -78,62 +79,77 @@ export default function EditableField({
     onChange,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
-    const { countries = [] } = props;
+    const {
+        countries = [],
+        default_currency_code,
+        default_currency_symbol,
+        currencies = [],
+    } = props;
 
     const maxFileSizeMB = props?.company?.allowed_file_size || 10;
     const maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
     const [editing, setEditing] = useState(alwaysEditing);
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
     
-    const normalizeCurrencyValue = useMemo(() => {
-        return (val: any): { amount: number | null; currency: string } => {
-            const defaultCurrency = default_currency_code || "TRY";
-            
+    const defaultCurrencyCode = default_currency_code || "TRY";
+
+    const normalizeCurrencyValue = useCallback(
+        (val: any): { amount: number | null; currency: string } => {
             if (val === null || val === undefined) {
-                return { amount: null, currency: defaultCurrency };
+                return { amount: null, currency: defaultCurrencyCode };
             }
-            
+
             if (typeof val === "object" && !Array.isArray(val) && ("amount" in val || "currency" in val)) {
                 return {
-                    amount: val.amount !== null && val.amount !== undefined && val.amount !== "" 
-                        ? (typeof val.amount === "number" ? val.amount : Number(val.amount))
-                        : null,
-                    currency: val.currency || defaultCurrency
+                    amount:
+                        val.amount !== null && val.amount !== undefined && val.amount !== ""
+                            ? typeof val.amount === "number"
+                                ? val.amount
+                                : Number(val.amount)
+                            : null,
+                    currency: val.currency || defaultCurrencyCode,
                 };
             }
-            
+
             if (typeof val === "string") {
                 const numValue = Number(val);
                 if (!isNaN(numValue)) {
-                    return { amount: numValue, currency: defaultCurrency };
+                    return { amount: numValue, currency: defaultCurrencyCode };
                 }
 
                 try {
                     const parsed = JSON.parse(val);
                     if (typeof parsed === "number") {
-                        return { amount: parsed, currency: defaultCurrency };
+                        return { amount: parsed, currency: defaultCurrencyCode };
                     }
                     if (typeof parsed === "object" && !Array.isArray(parsed)) {
                         return {
-                            amount: parsed.amount !== null && parsed.amount !== undefined && parsed.amount !== ""
-                                ? (typeof parsed.amount === "number" ? parsed.amount : Number(parsed.amount))
-                                : null,
-                            currency: parsed.currency || defaultCurrency
+                            amount:
+                                parsed.amount !== null &&
+                                parsed.amount !== undefined &&
+                                parsed.amount !== ""
+                                    ? typeof parsed.amount === "number"
+                                        ? parsed.amount
+                                        : Number(parsed.amount)
+                                    : null,
+                            currency: parsed.currency || defaultCurrencyCode,
                         };
                     }
                 } catch {
                     // ignore
                 }
-                return { amount: null, currency: defaultCurrency };
+                return { amount: null, currency: defaultCurrencyCode };
             }
-            
+
             if (typeof val === "number") {
-                return { amount: val, currency: defaultCurrency };
+                return { amount: val, currency: defaultCurrencyCode };
             }
-            
-            return { amount: null, currency: defaultCurrency };
-        };
-    }, [default_currency_code]);
+
+            return { amount: null, currency: defaultCurrencyCode };
+        },
+        [defaultCurrencyCode],
+    );
     
     const getInitialValue = () => {
         if (fieldType === "currency") {
@@ -176,7 +192,7 @@ export default function EditableField({
                 setInputValue(value);
             }
         }
-    }, [value, fieldType, default_currency_code, editing]);
+    }, [value, fieldType, defaultCurrencyCode, editing, normalizeCurrencyValue]);
 
     const isClickingActionRef = useRef(false);
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -409,9 +425,17 @@ export default function EditableField({
     const displayText =
         displayValue !== undefined
             ? displayValue
-            : formatValue
-              ? formatValue(value)
-              : (value?.toString() ?? "--");
+            : fieldType === "currency"
+              ? (() => {
+                    const parsed = parsePropertyPrice(value, defaultCurrencyCode);
+                    const symbol =
+                        currencies.find((c: any) => c?.currency_code === parsed.currency)
+                            ?.currency_symbol ?? default_currency_symbol ?? "";
+                    return formatCurrencyWithSymbol(parsed.amount, symbol);
+                })()
+              : formatValue
+                ? formatValue(value)
+                : (value?.toString() ?? "--");
 
     if (editing) {
         return (
