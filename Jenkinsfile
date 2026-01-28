@@ -5,7 +5,6 @@ pipeline {
         skipDefaultCheckout()
     }
 
-    // Defining environment here makes them automatically available to all sh scripts
     environment {
         ENV_NAME = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'production' : 'staging'}"
         SSH_PORT = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? '22' : '2244'}"
@@ -16,7 +15,6 @@ pipeline {
         stage('Identify Target') {
             steps {
                 script {
-                    // Resolve Host and User strings into the environment
                     def hostCredId = (env.ENV_NAME == 'production') ? 'PRODUCTION_HOST' : 'STAGING_HOST'
                     def userCredId = (env.ENV_NAME == 'production') ? 'PRODUCTION_USER' : 'STAGING_USER'
                     
@@ -28,7 +26,6 @@ pipeline {
                         env.TARGET_USER = USER_STR
                     }
                     
-                    // Set the link path
                     env.LIVE_LINK = (env.ENV_NAME == 'production') ? "/var/www/html" : "/home/${env.TARGET_USER}/hibarr-crm-staging"
                 }
             }
@@ -45,12 +42,8 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')]) {
                     sh '''
-                        # Now $TARGET_USER and $TARGET_HOST are guaranteed to be available
                         chmod 400 $SSH_KEY_FILE
-                        
                         BUILD_PATH="~/deployments/${ENV_NAME}_build_${BUILD_ID}"
-
-                        echo "Connecting to $TARGET_USER @ $TARGET_HOST on port $SSH_PORT..."
 
                         ssh -i $SSH_KEY_FILE -p $SSH_PORT -o StrictHostKeyChecking=no $TARGET_USER@$TARGET_HOST "
                             set -e
@@ -61,15 +54,27 @@ pipeline {
 
                             git clone --depth 1 --branch $BRANCH_NAME https://github.com/HIBARR-Estates/hibarr-crm.git .
 
+                            # --- FIX: Ensure Laravel directories exist and are writable ---
+                            mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
+                            chmod -R 775 bootstrap/cache storage
+                            
+                            # Create a temporary .env so artisan commands don't fail during install
+                            if [ -f ~/shared/.env ]; then
+                                cp ~/shared/.env .env
+                            else
+                                touch .env
+                            fi
+
+                            # Install Composer dependencies
                             if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
                             php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
                             
+                            # Frontend Build
                             npm install
-                            touch .env
                             php artisan ziggy:generate
                             npm run production
 
-                            # Link shared resources
+                            # Finalize links
                             ln -sfn ~/shared/.env $BUILD_PATH/.env
                             mkdir -p $BUILD_PATH/public/user-uploads
                             ln -sfn ~/shared/user-uploads $BUILD_PATH/public/user-uploads
@@ -81,7 +86,7 @@ pipeline {
                             
                             echo 'Deployment successful!'
 
-                            # Keep last 5 builds
+                            # Cleanup old builds
                             cd ~/deployments && ls -t | grep ${ENV_NAME}_build | tail -n +6 | xargs rm -rf 2>/dev/null || true
                         "
                     '''
