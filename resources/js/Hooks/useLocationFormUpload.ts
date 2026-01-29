@@ -4,6 +4,18 @@
  * This hook processes form data with file uploads using MockFileService,
  * transforms the data to match LocationConfig interface, and submits
  * via useApiMutate.
+ *
+ * @note This hook currently uses MockFileService for development purposes.
+ * For production file uploads, consider using the `useFileUpload` hook
+ * from `@/Hooks/useFileUpload` which connects to the real upload API.
+ *
+ * @example
+ * ```typescript
+ * // Using with real file uploads:
+ * import { useFileUpload } from '@/Hooks/useFileUpload';
+ * const { uploadSingle } = useFileUpload();
+ * // Replace mockUploadFile calls with uploadSingle
+ * ```
  */
 
 import { useState, useCallback } from "react";
