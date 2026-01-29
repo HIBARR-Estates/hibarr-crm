@@ -6,6 +6,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 class Property extends BaseModel
@@ -109,7 +110,6 @@ class Property extends BaseModel
         'interior_features',
         'location_features',
         'title',
-        'slug',
         'description',
         'video_url',
         'tour_360_url',
@@ -141,6 +141,8 @@ class Property extends BaseModel
         'add_ons' => 'array',
     ];
 
+    private const SLUG_SAVE_MAX_ATTEMPTS = 5;
+
     /**
      * Boot: generate unique slug from title on create/update when title is present.
      */
@@ -160,6 +162,36 @@ class Property extends BaseModel
                 );
             }
         });
+    }
+
+    /**
+     * Save the model. On unique constraint failure (slug), regenerate slug and retry up to SLUG_SAVE_MAX_ATTEMPTS.
+     *
+     * @param array<string, mixed> $options
+     * @return bool
+     */
+    public function save(array $options = []): bool
+    {
+        $attempt = 0;
+        while (true) {
+            try {
+                return parent::save($options);
+            } catch (QueryException $e) {
+                $isUniqueViolation = $e->getCode() === '23000'
+                    || str_contains($e->getMessage(), 'Duplicate entry')
+                    || str_contains($e->getMessage(), 'unique constraint')
+                    || str_contains($e->getMessage(), 'UNIQUE constraint');
+                if (!$isUniqueViolation || $attempt >= self::SLUG_SAVE_MAX_ATTEMPTS) {
+                    throw $e;
+                }
+                $attempt++;
+                $this->slug = self::makeUniqueSlug(
+                    $this->title ?: 'property',
+                    $this->company_id ?? 0,
+                    $this->id
+                );
+            }
+        }
     }
 
     /**
@@ -232,10 +264,26 @@ class Property extends BaseModel
     }
 
     /**
+     * Return the first argument that is non-empty after trim, or null.
+     *
+     * @param mixed ...$values
+     * @return string|null
+     */
+    private function pickFirstNonEmpty(mixed ...$values): ?string
+    {
+        foreach ($values as $v) {
+            if ($v !== null && trim((string) $v) !== '') {
+                return trim((string) $v);
+            }
+        }
+        return null;
+    }
+
+    /**
      * Get the effective location for this property.
-     * 
+     *
      * If the property is assigned to a DeveloperProject with a location,
-     * derive city from location name and area from location address country.
+     * derive city from location name then city, and area from address country then property area.
      * Otherwise, fall back to the property's own city/area fields.
      *
      * @return array{city: string|null, area: string|null}
@@ -245,15 +293,25 @@ class Property extends BaseModel
         $projectLocation = $this->developerProject?->location;
         
         if ($projectLocation) {
+            $city = $this->pickFirstNonEmpty(
+                $projectLocation->name,
+                $projectLocation->city ?? null,
+                $this->city
+            );
+            $address = $projectLocation->address ?? [];
+            $area = $this->pickFirstNonEmpty(
+                isset($address['country']) ? $address['country'] : null,
+                $this->area
+            );
             return [
-                'city' => $projectLocation->name ?? $projectLocation->city,
-                'area' => $projectLocation->address['country'] ?? $this->area,
+                'city' => $city,
+                'area' => $area,
             ];
         }
-        
+
         return [
-            'city' => $this->city,
-            'area' => $this->area,
+            'city' => $this->pickFirstNonEmpty($this->city),
+            'area' => $this->pickFirstNonEmpty($this->area),
         ];
     }
 

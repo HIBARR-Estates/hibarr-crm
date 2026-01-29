@@ -139,7 +139,9 @@ class PropertyController extends AccountBaseController
             $query->orderBy('created_at', 'desc');
         }
 
-        $properties = $query->paginate((int) $request->get('per_page', 15) ?: 15);
+        $perPage = (int) $request->get('per_page', 15) ?: 15;
+        $perPage = max(1, min(100, $perPage));
+        $properties = $query->paginate($perPage);
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -277,7 +279,7 @@ class PropertyController extends AccountBaseController
      */
     public function showBySlug(string $slug)
     {
-        $property = Property::with(['product', 'assets' => function ($query) {
+        $property = Property::with(['product', 'developerProject.location', 'assets' => function ($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->where('slug', $slug)->firstOrFail();
 

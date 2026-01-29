@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Log;
 use App\Traits\MakeOrderInvoiceTrait;
 use Stripe\Exception\SignatureVerificationException;
 
@@ -89,6 +90,16 @@ class StripeWebhookController extends Controller
         }
 
         $payload = json_decode($request->getContent(), true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::warning('Stripe webhook: malformed JSON in request body', [
+                'error' => json_last_error_msg(),
+                'json_error' => json_last_error(),
+            ]);
+            return response()->json([
+                'error' => true,
+                'message' => 'Invalid JSON in request body: ' . json_last_error_msg(),
+            ], 400);
+        }
         $eventId = $payload['id'];
         $intentId = $payload['data']['object']['id'];
 

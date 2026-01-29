@@ -22,33 +22,34 @@ return new class extends Migration
             $table->unique(['company_id', 'slug'], 'properties_company_id_slug_unique');
         });
 
-        // Backfill existing rows: slug from title, with unique suffix if needed
-        $properties = DB::table('properties')->get();
-        foreach ($properties as $row) {
-            $base = Str::slug($row->title ?: 'property');
-            if ($base === '') {
-                $base = 'property';
-            }
-            $slug = $base;
-            $attempt = 0;
-            while (true) {
-                $exists = DB::table('properties')
-                    ->where('company_id', $row->company_id)
-                    ->where('slug', $slug)
-                    ->where('id', '!=', $row->id)
-                    ->exists();
-                if (!$exists) {
-                    break;
+        // Backfill existing rows in chunks to avoid OOM on large tables
+        DB::table('properties')->orderBy('id')->chunkById(100, function ($rows) {
+            foreach ($rows as $row) {
+                $base = Str::slug($row->title ?: 'property');
+                if ($base === '') {
+                    $base = 'property';
                 }
-                $slug = $base . '-' . Str::lower(Str::random(4));
-                $attempt++;
-                if ($attempt > 100) {
-                    $slug = $base . '-' . $row->id;
-                    break;
+                $slug = $base;
+                $attempt = 0;
+                while (true) {
+                    $exists = DB::table('properties')
+                        ->where('company_id', $row->company_id)
+                        ->where('slug', $slug)
+                        ->where('id', '!=', $row->id)
+                        ->exists();
+                    if (!$exists) {
+                        break;
+                    }
+                    $slug = $base . '-' . Str::lower(Str::random(4));
+                    $attempt++;
+                    if ($attempt > 100) {
+                        $slug = $base . '-' . $row->id;
+                        break;
+                    }
                 }
+                DB::table('properties')->where('id', $row->id)->update(['slug' => $slug]);
             }
-            DB::table('properties')->where('id', $row->id)->update(['slug' => $slug]);
-        }
+        });
     }
 
     /**

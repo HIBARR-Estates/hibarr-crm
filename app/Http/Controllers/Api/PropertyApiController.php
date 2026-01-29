@@ -229,14 +229,47 @@ class PropertyApiController extends Controller
     }
 
     /**
-     * Resolve property by numeric ID or slug and delegate to show() or showBySlug().
+     * Resolve property by slug first, then by ID. Try slug so numeric-only slugs work.
      */
     public function showByIdOrSlug(Request $request, string $identifier): \Illuminate\Http\JsonResponse
     {
+        $companyId = $request->header('X-COMPANY-ID');
+        if (!$companyId) {
+            return response()->json(Reply::error(__('messages.missingCompanyId')), 400);
+        }
+        $companyId = (int) $companyId;
+
+        $property = Property::where('properties.company_id', $companyId)
+            ->where('properties.slug', $identifier)
+            ->with('images')
+            ->first();
+
+        if ($property) {
+            try {
+                $data = $this->buildPropertyPayload($property, $companyId, $request);
+                return response()->json(['status' => 'success', 'data' => $data], 200);
+            } catch (\Exception $e) {
+                $referenceId = uniqid('PROP-', true);
+                Log::error('Error fetching property via API (showByIdOrSlug slug path)', [
+                    'reference_id' => $referenceId,
+                    'identifier' => $identifier,
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'company_id' => $companyId,
+                ]);
+                return response()->json([
+                    'status' => 'fail',
+                    'message' => 'Failed to fetch property. Please contact support with reference ID: ' . $referenceId,
+                    'reference_id' => $referenceId,
+                ], 500);
+            }
+        }
+
         if (ctype_digit($identifier)) {
             return $this->show($request, (int) $identifier);
         }
-        return $this->showBySlug($request, $identifier);
+
+        return response()->json(['status' => 'fail', 'message' => 'Property not found'], 404);
     }
 
     /**
@@ -536,7 +569,18 @@ class PropertyApiController extends Controller
             return [];
         }
         $decoded = json_decode($content, true);
-
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::warning('Property API: malformed JSON in request body', [
+                'error' => json_last_error_msg(),
+                'json_error' => json_last_error(),
+            ]);
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'fail',
+                    'message' => 'Invalid JSON in request body: ' . json_last_error_msg(),
+                ], 400)
+            );
+        }
         return is_array($decoded) ? $decoded : [];
     }
 
