@@ -6,6 +6,9 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Str;
+use App\Casts\PriceCast;
 
 class Property extends BaseModel
 {
@@ -124,7 +127,7 @@ class Property extends BaseModel
     protected $hidden = ["pivot"];
 
     protected $casts = [
-        // price is now VARCHAR storing JSON string, so no cast needed
+        'price' => PriceCast::class,
         'land_size' => 'decimal:2',
         'minimal_rental_period' => 'integer',
         'building_age' => 'integer',
@@ -138,6 +141,8 @@ class Property extends BaseModel
         'photos' => 'array',
         'add_ons' => 'array',
     ];
+
+    private const SLUG_SAVE_MAX_ATTEMPTS = 5;
 
     public function getPriceAttribute($value)
     {
@@ -173,6 +178,93 @@ class Property extends BaseModel
         $this->attributes['price'] = $value;
     }
     /**
+     * Boot: generate unique slug from title on create/update when title is present.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Property $model) {
+            if (empty($model->title)) {
+                return;
+            }
+            $titleChanged = $model->isDirty('title');
+            $slugEmpty = empty($model->slug);
+            if ($slugEmpty || $titleChanged) {
+                $model->slug = self::makeUniqueSlug(
+                    $model->title,
+                    $model->company_id ?? 0,
+                    $model->id
+                );
+            }
+        });
+    }
+
+    /**
+     * Save the model. On unique constraint failure (slug), regenerate slug and retry up to SLUG_SAVE_MAX_ATTEMPTS.
+     *
+     * @param array<string, mixed> $options
+     * @return bool
+     */
+    public function save(array $options = []): bool
+    {
+        $attempt = 0;
+        while (true) {
+            try {
+                return parent::save($options);
+            } catch (QueryException $e) {
+                $isUniqueViolation = $e->getCode() === '23000'
+                    || str_contains($e->getMessage(), 'Duplicate entry')
+                    || str_contains($e->getMessage(), 'unique constraint')
+                    || str_contains($e->getMessage(), 'UNIQUE constraint');
+                if (!$isUniqueViolation || $attempt >= self::SLUG_SAVE_MAX_ATTEMPTS) {
+                    throw $e;
+                }
+                $attempt++;
+                $this->slug = self::makeUniqueSlug(
+                    $this->title ?: 'property',
+                    $this->company_id ?? 0,
+                    $this->id
+                );
+            }
+        }
+    }
+
+    /**
+     * Generate a unique slug from title. If slug exists, append short random id (e.g. luxury-3-bedroom-condo-8xf2).
+     */
+    public static function makeUniqueSlug(string $title, ?int $companyId = null, $excludeId = null): string
+    {
+        $base = Str::slug($title);
+        if ($base === '') {
+            $base = 'property';
+        }
+        $slug = $base;
+        $attempt = 0;
+        $query = static::query()->where('slug', $slug);
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+        while ($query->exists()) {
+            $slug = $base . '-' . Str::lower(Str::random(4));
+            $query = static::query()->where('slug', $slug);
+            if ($companyId !== null) {
+                $query->where('company_id', $companyId);
+            }
+            if ($excludeId !== null) {
+                $query->where('id', '!=', $excludeId);
+            }
+            $attempt++;
+            if ($attempt > 100) {
+                $slug = $base . '-' . ($excludeId ?: Str::random(8));
+                break;
+            }
+        }
+        return $slug;
+    }
+
+    /**
      * Attributes to append to the model's array/JSON form.
      */
     protected $appends = [
@@ -206,10 +298,26 @@ class Property extends BaseModel
     }
 
     /**
+     * Return the first argument that is non-empty after trim, or null.
+     *
+     * @param mixed ...$values
+     * @return string|null
+     */
+    private function pickFirstNonEmpty(mixed ...$values): ?string
+    {
+        foreach ($values as $v) {
+            if ($v !== null && trim((string) $v) !== '') {
+                return trim((string) $v);
+            }
+        }
+        return null;
+    }
+
+    /**
      * Get the effective location for this property.
-     * 
+     *
      * If the property is assigned to a DeveloperProject with a location,
-     * derive city from location name and area from location address country.
+     * derive city from location name then city, and area from address country then property area.
      * Otherwise, fall back to the property's own city/area fields.
      *
      * @return array{city: string|null, area: string|null}
@@ -219,15 +327,25 @@ class Property extends BaseModel
         $projectLocation = $this->developerProject?->location;
         
         if ($projectLocation) {
+            $city = $this->pickFirstNonEmpty(
+                $projectLocation->name,
+                $projectLocation->city ?? null,
+                $this->city
+            );
+            $address = $projectLocation->address ?? [];
+            $area = $this->pickFirstNonEmpty(
+                isset($address['country']) ? $address['country'] : null,
+                $this->area
+            );
             return [
-                'city' => $projectLocation->name ?? $this->city,
-                'area' => $projectLocation->address['country'] ?? $this->area,
+                'city' => $city,
+                'area' => $area,
             ];
         }
-        
+
         return [
-            'city' => $this->city,
-            'area' => $this->area,
+            'city' => $this->pickFirstNonEmpty($this->city),
+            'area' => $this->pickFirstNonEmpty($this->area),
         ];
     }
 
