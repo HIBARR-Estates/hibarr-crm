@@ -76,11 +76,12 @@ class StripeWebhookController extends Controller
         // You can find your endpoint's secret in your webhook settings
         $endpoint_secret = $webhookSecret;
 
-        $payload = @file_get_contents('php://input');
+        // Read raw payload once and use for both signature verification and JSON decode
+        $rawPayload = file_get_contents('php://input');
         $sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'];
 
         try {
-            Webhook::constructEvent($payload, $sig_header, $endpoint_secret);
+            Webhook::constructEvent($rawPayload, $sig_header, $endpoint_secret);
         } catch (\UnexpectedValueException $e) {
             // Invalid payload
             return response(__('messages.invalidPayload'), 400);
@@ -89,7 +90,7 @@ class StripeWebhookController extends Controller
             return response(__('messages.invalidSignature'), 400);
         }
 
-        $payload = json_decode($request->getContent(), true);
+        $payload = json_decode($rawPayload, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             Log::warning('Stripe webhook: malformed JSON in request body', [
                 'error' => json_last_error_msg(),
