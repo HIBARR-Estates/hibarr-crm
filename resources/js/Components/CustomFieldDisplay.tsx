@@ -263,6 +263,7 @@ interface Props {
     loadingField?: string | null; // The specific field currently being updated
     onChange?: (fieldName: string, value: any) => void; // For tracking changes in edit mode
     globalLoading?: boolean; // When true, all fields are disabled (e.g., during save all)
+    disabled?: boolean; // When true, fields cannot be edited (for permission control)
 }
 
 export default function CustomFieldDisplay({
@@ -277,6 +278,7 @@ export default function CustomFieldDisplay({
     loadingField = null,
     onChange,
     globalLoading = false,
+    disabled = false,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies = [], default_currency_code } = props;
@@ -604,12 +606,19 @@ export default function CustomFieldDisplay({
                 //   {"countryCode":"90","areaCode":"533","phoneNumber":"8773001","isoCode":"tr"}
                 // - JSON string / object from our custom PhoneInput:
                 //   {"phone":"+905338773001","country_code":"90","country_identifier":"Turkey"}
-                const parsePhoneValue = (raw: any): { display: string; tel: string } => {
+                const parsePhoneValue = (
+                    raw: any,
+                ): { display: string; tel: string } => {
                     const fallback = String(raw ?? "");
 
-                    const toDigits = (v: any) => String(v ?? "").replace(/[^\d]/g, "");
+                    const toDigits = (v: any) =>
+                        String(v ?? "").replace(/[^\d]/g, "");
 
-                    const formatFromParts = (country: any, area: any, num: any) => {
+                    const formatFromParts = (
+                        country: any,
+                        area: any,
+                        num: any,
+                    ) => {
                         const cc = toDigits(country);
                         const ac = toDigits(area);
                         const pn = toDigits(num);
@@ -634,8 +643,16 @@ export default function CustomFieldDisplay({
                     if (typeof raw === "string") {
                         const trimmed = raw.trim();
                         // if it's already a normal phone string, don't show JSON
-                        if (trimmed.startsWith("+") || /^\d[\d\s().-]*$/.test(trimmed)) {
-                            return formatFromE164(trimmed) ?? { display: fallback, tel: fallback };
+                        if (
+                            trimmed.startsWith("+") ||
+                            /^\d[\d\s().-]*$/.test(trimmed)
+                        ) {
+                            return (
+                                formatFromE164(trimmed) ?? {
+                                    display: fallback,
+                                    tel: fallback,
+                                }
+                            );
                         }
                         try {
                             obj = JSON.parse(trimmed);
@@ -646,7 +663,11 @@ export default function CustomFieldDisplay({
 
                     if (obj && typeof obj === "object") {
                         // antd-phone-input shape
-                        const fromAntd = formatFromParts(obj.countryCode, obj.areaCode, obj.phoneNumber);
+                        const fromAntd = formatFromParts(
+                            obj.countryCode,
+                            obj.areaCode,
+                            obj.phoneNumber,
+                        );
                         if (fromAntd) return fromAntd;
 
                         // our custom PhoneInput shape
@@ -702,66 +723,103 @@ export default function CustomFieldDisplay({
                 return <span className="text-gray-500">••••••••</span>;
 
             case "currency": {
-                let currencyData: { amount: string | number | null; currency: string } | null = null;
-                
+                let currencyData: {
+                    amount: string | number | null;
+                    currency: string;
+                } | null = null;
+
                 // Handle plain numbers (most common case from DB)
                 if (typeof value === "number") {
-                    currencyData = { amount: value, currency: appDefaultCurrency };
-                } 
+                    currencyData = {
+                        amount: value,
+                        currency: appDefaultCurrency,
+                    };
+                }
                 // Handle string numbers (e.g., "3235242")
-                else if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
+                else if (
+                    typeof value === "string" &&
+                    !isNaN(Number(value)) &&
+                    value.trim() !== ""
+                ) {
                     const numValue = Number(value);
                     if (!isNaN(numValue)) {
-                        currencyData = { amount: numValue, currency: appDefaultCurrency };
+                        currencyData = {
+                            amount: numValue,
+                            currency: appDefaultCurrency,
+                        };
                     }
                 }
                 // Handle objects with amount property
-                else if (value && typeof value === "object" && value.amount !== undefined) {
+                else if (
+                    value &&
+                    typeof value === "object" &&
+                    value.amount !== undefined
+                ) {
                     currencyData = value;
-                } 
+                }
                 // Handle JSON strings
                 else if (value && typeof value === "string") {
                     try {
                         const parsed = JSON.parse(value);
                         // If JSON.parse returns a number, treat it as amount
                         if (typeof parsed === "number") {
-                            currencyData = { amount: parsed, currency: appDefaultCurrency };
-                        } else if (typeof parsed === "object" && parsed !== null) {
+                            currencyData = {
+                                amount: parsed,
+                                currency: appDefaultCurrency,
+                            };
+                        } else if (
+                            typeof parsed === "object" &&
+                            parsed !== null
+                        ) {
                             currencyData = parsed;
                         }
                     } catch {
-                        currencyData = { amount: value, currency: appDefaultCurrency };
+                        currencyData = {
+                            amount: value,
+                            currency: appDefaultCurrency,
+                        };
                     }
                 }
 
                 // Ensure currencyData has a currency property with a default
                 if (currencyData) {
-                    currencyData.currency = currencyData.currency || appDefaultCurrency;
+                    currencyData.currency =
+                        currencyData.currency || appDefaultCurrency;
                 }
 
-                if (currencyData && currencyData.amount !== null && currencyData.amount !== "") {
+                if (
+                    currencyData &&
+                    currencyData.amount !== null &&
+                    currencyData.amount !== ""
+                ) {
                     const defaultSymbols: Record<string, string> = {
                         USD: "$",
                         EUR: "€",
                         GBP: "£",
                     };
-                    
-                    const currencyCode = currencyData.currency || appDefaultCurrency;
+
+                    const currencyCode =
+                        currencyData.currency || appDefaultCurrency;
                     let symbol = defaultSymbols[currencyCode] || "";
                     if (currencies.length > 0 && currencyCode) {
                         const currency = currencies.find(
-                            (c: any) => 
-                                c.currency_code === currencyCode || 
-                                (c.currency_name && c.currency_name.toUpperCase() === currencyCode.toUpperCase())
+                            (c: any) =>
+                                c.currency_code === currencyCode ||
+                                (c.currency_name &&
+                                    c.currency_name.toUpperCase() ===
+                                        currencyCode.toUpperCase()),
                         );
                         symbol = currency?.currency_symbol || symbol;
                     }
-                    
+
                     // Format amount with commas
-                    const amount = typeof currencyData.amount === "number" 
-                        ? currencyData.amount 
-                        : parseFloat(String(currencyData.amount).replace(/,/g, ""));
-                    
+                    const amount =
+                        typeof currencyData.amount === "number"
+                            ? currencyData.amount
+                            : parseFloat(
+                                  String(currencyData.amount).replace(/,/g, ""),
+                              );
+
                     if (!isNaN(amount)) {
                         const formatted = amount.toLocaleString("en-US", {
                             minimumFractionDigits: 2,
@@ -769,7 +827,8 @@ export default function CustomFieldDisplay({
                         });
                         return (
                             <span className="font-medium">
-                                {symbol}{formatted}
+                                {symbol}
+                                {formatted}
                             </span>
                         );
                     }
@@ -905,7 +964,7 @@ export default function CustomFieldDisplay({
                     fieldKey={fieldKey}
                     onSave={onUpdate!}
                     loading={isFieldLoading}
-                    editable={editable}
+                    editable={editable && !disabled}
                 />
             );
         }
@@ -930,6 +989,7 @@ export default function CustomFieldDisplay({
                 loading={isFieldLoading}
                 alwaysEditing={effectiveAlwaysEditing}
                 onChange={onChange}
+                disabled={disabled}
             />
         );
     };
