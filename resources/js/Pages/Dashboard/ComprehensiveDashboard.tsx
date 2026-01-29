@@ -265,7 +265,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                     </h1>
                                     <p className="text-xl text-blue-100 max-w-2xl">
                                         Welcome back to your dashboard. Here's
-                                        what's happening with sales today!
+                                        what's happening with sales today.
                                     </p>
                                 </motion.div>
 
