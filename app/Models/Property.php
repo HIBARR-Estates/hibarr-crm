@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
+use App\Casts\PriceCast;
 
 class Property extends BaseModel
 {
@@ -126,7 +127,7 @@ class Property extends BaseModel
     protected $hidden = ["pivot"];
 
     protected $casts = [
-        'price' => \App\Casts\PriceCast::class,
+        'price' => PriceCast::class,
         'land_size' => 'decimal:2',
         'minimal_rental_period' => 'integer',
         'building_age' => 'integer',
