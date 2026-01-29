@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
     Input,
     Typography,
@@ -24,11 +24,13 @@ import PhoneInput, { PhoneNumber } from "antd-phone-input";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
 import { usePage } from "@inertiajs/react";
+import CurrencyInput from "./CurrencyInput";
+import { parsePropertyPrice, formatCurrencyWithSymbol } from "@/lib/utils";
 
 const { Text } = Typography;
 
 interface EditableFieldProps {
-    value: string | number | null | undefined | any[]; // Updated to accept array
+    value: any; // supports primitives, arrays, and structured values (e.g. currency {amount,currency})
     fieldName: string;
     fieldType?:
         | "text"
@@ -41,6 +43,7 @@ interface EditableFieldProps {
         | "boolean"
         | "textarea"
         | "country"
+        | "currency"
         | "file";
     selectorType?: FormDataType;
     mode?: "multiple" | "tags";
@@ -76,14 +79,120 @@ export default function EditableField({
     onChange,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
-    const { countries = [] } = props;
+    const {
+        countries = [],
+        default_currency_code,
+        default_currency_symbol,
+        currencies = [],
+    } = props;
 
     const maxFileSizeMB = props?.company?.allowed_file_size || 10;
     const maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
     const [editing, setEditing] = useState(alwaysEditing);
-    const [inputValue, setInputValue] = useState<any>(value);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+    
+    const defaultCurrencyCode = default_currency_code || "TRY";
+
+    const normalizeCurrencyValue = useCallback(
+        (val: any): { amount: number | null; currency: string } => {
+            if (val === null || val === undefined) {
+                return { amount: null, currency: defaultCurrencyCode };
+            }
+
+            if (typeof val === "object" && !Array.isArray(val) && ("amount" in val || "currency" in val)) {
+                return {
+                    amount:
+                        val.amount !== null && val.amount !== undefined && val.amount !== ""
+                            ? typeof val.amount === "number"
+                                ? val.amount
+                                : Number(val.amount)
+                            : null,
+                    currency: val.currency || defaultCurrencyCode,
+                };
+            }
+
+            if (typeof val === "string") {
+                const numValue = Number(val);
+                if (!isNaN(numValue)) {
+                    return { amount: numValue, currency: defaultCurrencyCode };
+                }
+
+                try {
+                    const parsed = JSON.parse(val);
+                    if (typeof parsed === "number") {
+                        return { amount: parsed, currency: defaultCurrencyCode };
+                    }
+                    if (typeof parsed === "object" && !Array.isArray(parsed)) {
+                        return {
+                            amount:
+                                parsed.amount !== null &&
+                                parsed.amount !== undefined &&
+                                parsed.amount !== ""
+                                    ? typeof parsed.amount === "number"
+                                        ? parsed.amount
+                                        : Number(parsed.amount)
+                                    : null,
+                            currency: parsed.currency || defaultCurrencyCode,
+                        };
+                    }
+                } catch {
+                    // ignore
+                }
+                return { amount: null, currency: defaultCurrencyCode };
+            }
+
+            if (typeof val === "number") {
+                return { amount: val, currency: defaultCurrencyCode };
+            }
+
+            return { amount: null, currency: defaultCurrencyCode };
+        },
+        [defaultCurrencyCode],
+    );
+    
+    const getInitialValue = () => {
+        if (fieldType === "currency") {
+            return normalizeCurrencyValue(value);
+        }
+        return value;
+    };
+    
+    const [inputValue, setInputValue] = useState<any>(getInitialValue());
+    const isManuallySettingValue = useRef(false);
+    const previousValueRef = useRef<string>("");
+    const previousEditingRef = useRef(editing);
+    
+    useEffect(() => {
+        if (isManuallySettingValue.current) {
+            isManuallySettingValue.current = false;
+            if (fieldType === "currency") {
+                const normalized = normalizeCurrencyValue(value);
+                previousValueRef.current = `${normalized.amount}_${normalized.currency}`;
+            }
+            previousEditingRef.current = editing;
+            return;
+        }
+        
+        const justExitedEditMode = previousEditingRef.current && !editing;
+        previousEditingRef.current = editing;
+        
+        if (fieldType === "currency") {
+            const normalized = normalizeCurrencyValue(value);
+            const valueKey = `${normalized.amount}_${normalized.currency}`;
+            
+            if (previousValueRef.current !== valueKey || justExitedEditMode) {
+                previousValueRef.current = valueKey;
+                setInputValue(normalized);
+            }
+        } else if (!editing) {
+            const valueKey = typeof value === "object" ? JSON.stringify(value) : String(value);
+            if (previousValueRef.current !== valueKey || justExitedEditMode) {
+                previousValueRef.current = valueKey;
+                setInputValue(value);
+            }
+        }
+    }, [value, fieldType, defaultCurrencyCode, editing, normalizeCurrencyValue]);
 
     const isClickingActionRef = useRef(false);
     const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,6 +200,7 @@ export default function EditableField({
     // Track when alwaysEditing mode changes or value changes from parent
     useEffect(() => {
         if (alwaysEditing) {
+            isManuallySettingValue.current = true;
             setEditing(true);
         } else {
             setEditing(false);
@@ -124,8 +234,8 @@ export default function EditableField({
 
     const startEditing = () => {
         if (!canStartEditing) return;
+        isManuallySettingValue.current = true;
         setEditing(true);
-        // For date fields, convert to YYYY-MM-DD format if value exists
         if (fieldType === "date" && value) {
             try {
                 const date = new Date(value.toString());
@@ -138,11 +248,9 @@ export default function EditableField({
                 setInputValue("");
             }
         } else if (fieldType === "multiselect" || Array.isArray(value)) {
-            // Keep array values as arrays for multiselect
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
-        } else if (fieldType === "phone") {
-            // For phone, keep as string if it's a plain number, or pass object as-is
-            setInputValue(value ?? "");
+        } else if (fieldType === "currency") {
+            setInputValue(normalizeCurrencyValue(value));
         } else {
             setInputValue(value ?? "");
         }
@@ -175,7 +283,6 @@ export default function EditableField({
         setSaving(true);
         try {
             await onSave(inputValue);
-            // In always editing mode, stay in edit mode after save
             if (!alwaysEditing) {
                 setEditing(false);
             }
@@ -214,21 +321,18 @@ export default function EditableField({
     };
 
     const handleCancel = () => {
-        // Clear any pending blur timeout to prevent save after cancel
         if (blurTimeoutRef.current) {
             clearTimeout(blurTimeoutRef.current);
             blurTimeoutRef.current = null;
         }
         isClickingActionRef.current = false;
-        // In always editing mode, don't exit edit mode, just restore original value
         if (!alwaysEditing) {
             setEditing(false);
         }
-        // Restore original value, keeping arrays as arrays
         if (fieldType === "multiselect" || Array.isArray(value)) {
             setInputValue(Array.isArray(value) ? value : value ? [value] : []);
-        } else if (fieldType === "file") {
-            setInputValue(value ?? "");
+        } else if (fieldType === "currency") {
+            setInputValue(normalizeCurrencyValue(value));
         } else {
             setInputValue(value ?? "");
         }
@@ -300,55 +404,16 @@ export default function EditableField({
         if (isFileLoading) {
             return <Spin size="small" />;
         }
-
-        if (value && typeof value === "string") {
-            const fileUrl = `/user-uploads/hibarr_fields/${value}`;
-            return (
-                <Space size="small">
-                    <a
-                        href={fileUrl}
-                        className="text-blue-600 hover:text-blue-800"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        <FileOutlined className="mr-1" />
-                        View File
-                    </a>
-                    <a
-                        href={fileUrl}
-                        className="text-blue-600 hover:text-blue-800"
-                        download
-                    >
-                        <DownloadOutlined />
-                    </a>
-                    {!disabled && (
-                        <Button
-                            type="text"
-                            size="small"
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={handleFileRemove}
-                        />
-                    )}
-                </Space>
-            );
+        if (fieldType === "currency") {
+            // Parse and format currency value for display
+            const parsed = parsePropertyPrice(value, default_currency_code || "TRY");
+            const symbol =
+                currencies.find((c: any) => c?.currency_code === parsed.currency)?.currency_symbol ||
+                default_currency_symbol ||
+                "";
+            return formatCurrencyWithSymbol(parsed.amount, symbol);
         }
-
-        if (disabled) {
-            return <span className="text-gray-500">--</span>;
-        }
-
-        return (
-            <Upload
-                beforeUpload={handleFileUpload}
-                showUploadList={false}
-                accept="*/*"
-            >
-                <Button size="small" icon={<UploadOutlined />}>
-                    Upload File
-                </Button>
-            </Upload>
-        );
+        return value?.toString() || "--";
     };
 
     // For file fields, always render the permanent UI (like CustomFieldDisplay)
@@ -360,9 +425,17 @@ export default function EditableField({
     const displayText =
         displayValue !== undefined
             ? displayValue
-            : formatValue
-              ? formatValue(value)
-              : (value?.toString() ?? "--");
+            : fieldType === "currency"
+              ? (() => {
+                    const parsed = parsePropertyPrice(value, defaultCurrencyCode);
+                    const symbol =
+                        currencies.find((c: any) => c?.currency_code === parsed.currency)
+                            ?.currency_symbol ?? default_currency_symbol ?? "";
+                    return formatCurrencyWithSymbol(parsed.amount, symbol);
+                })()
+              : formatValue
+                ? formatValue(value)
+                : (value?.toString() ?? "--");
 
     if (editing) {
         return (
@@ -646,6 +719,18 @@ export default function EditableField({
                                 </Select.Option>
                             )}
                         </Select>
+                    ) : fieldType === "currency" ? (
+                        <div className="flex items-center gap-2">
+                            <CurrencyInput
+                                value={inputValue}
+                                onChange={(val) => handleValueChange(val)}
+                                onBlur={handleBlur}
+                                onKeyDown={handleKeyPress}
+                                placeholder="Enter amount"
+                                noFormItem={true}
+                                disabled={saving || loading}
+                            />
+                        </div>
                     ) : (
                         <Input
                             value={inputValue}

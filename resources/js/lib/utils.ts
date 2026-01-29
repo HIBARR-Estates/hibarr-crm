@@ -70,6 +70,78 @@ export const formatCurrency = (
     }).format(amount);
 };
 
+// Property price can be stored as:
+// - number (legacy)
+// - JSON string: {"amount":1000,"currency":"TRY"}
+// - object: {amount, currency}
+export const parsePropertyPrice = (
+    price: any,
+    defaultCurrency: string = "TRY"
+): { amount: number; currency: string } => {
+    const fallback = { amount: 0, currency: defaultCurrency };
+
+    if (price === null || price === undefined) return fallback;
+
+    // number
+    if (typeof price === "number" && !isNaN(price)) {
+        return { amount: price, currency: defaultCurrency };
+    }
+
+    // string: numeric or JSON
+    if (typeof price === "string") {
+        const trimmed = price.trim();
+        if (!trimmed) return fallback;
+
+        // numeric string
+        const asNum = Number(trimmed);
+        if (!isNaN(asNum)) {
+            return { amount: asNum, currency: defaultCurrency };
+        }
+
+        // JSON string
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (typeof parsed === "number" && !isNaN(parsed)) {
+                return { amount: parsed, currency: defaultCurrency };
+            }
+            if (parsed && typeof parsed === "object") {
+                const amount = Number((parsed as any).amount);
+                const currency = (parsed as any).currency || defaultCurrency;
+                return {
+                    amount: !isNaN(amount) ? amount : 0,
+                    currency,
+                };
+            }
+        } catch {
+            return fallback;
+        }
+    }
+
+    // object
+    if (typeof price === "object") {
+        const amount = Number((price as any).amount);
+        const currency = (price as any).currency || defaultCurrency;
+        return {
+            amount: !isNaN(amount) ? amount : 0,
+            currency,
+        };
+    }
+
+    return fallback;
+};
+
+export const formatNumber = (amount: number): string => {
+    return new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(amount);
+};
+
+export const formatCurrencyWithSymbol = (amount: number, symbol: string): string => {
+    const s = symbol || "";
+    return `${s}${formatNumber(amount)}`;
+};
+
 export const truncateText = (text: string, maxLength: number = 200): string => {
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + "...";

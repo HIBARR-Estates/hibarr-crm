@@ -262,9 +262,9 @@ class DealGatheringController extends AccountBaseController
             $data
         );
 
-            // Refresh deal with all relationships and custom fields data
-            $freshDeal = $updatedDeal->fresh(['contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products', 'dealWatchers', 'dealParticipants']);
-            $freshDeal->withCustomFields();
+        // Refresh deal with all relationships and custom fields data
+        $freshDeal = $updatedDeal->fresh(['currency', 'contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products', 'dealWatchers', 'dealParticipants']);
+        $freshDeal->withCustomFields();
 
             return response()->json([
                 'status' => 'success',
