@@ -198,6 +198,14 @@ class Property extends BaseModel
         return $slug;
     }
 
+    /**
+     * Attributes to append to the model's array/JSON form.
+     */
+    protected $appends = [
+        'effective_location',
+        'has_project_location',
+    ];
+
     // Relationships
     public function product(): BelongsTo
     {
@@ -221,6 +229,42 @@ class Property extends BaseModel
     public function isAssignedToProject(): bool
     {
         return $this->developer_project_id !== null;
+    }
+
+    /**
+     * Get the effective location for this property.
+     * 
+     * If the property is assigned to a DeveloperProject with a location,
+     * derive city from location name and area from location address country.
+     * Otherwise, fall back to the property's own city/area fields.
+     *
+     * @return array{city: string|null, area: string|null}
+     */
+    public function getEffectiveLocationAttribute(): array
+    {
+        $projectLocation = $this->developerProject?->location;
+        
+        if ($projectLocation) {
+            return [
+                'city' => $projectLocation->name ?? $this->city,
+                'area' => $projectLocation->address['country'] ?? $this->area,
+            ];
+        }
+        
+        return [
+            'city' => $this->city,
+            'area' => $this->area,
+        ];
+    }
+
+    /**
+     * Check if property has a location derived from its developer project.
+     *
+     * @return bool
+     */
+    public function getHasProjectLocationAttribute(): bool
+    {
+        return (bool) $this->developerProject?->location;
     }
 
     public function assets(): HasMany

@@ -30,27 +30,39 @@
                 @foreach($customFields as $field)
                     @php
                         $type = 'string';
+                        $values = $field->values; // Expecting array if casted, or string if not.
+                        // Try to parse if string and looks like json
+                        if (is_string($values) && (str_starts_with($values, '[') || str_starts_with($values, '{'))) {
+                             $values = json_decode($values, true);
+                        }
+
                         if ($field->type == 'number') $type = 'number';
                         elseif ($field->type == 'date') $type = 'date';
-                        elseif ($field->type == 'radio' || $field->type == 'select' || $field->type == 'checkbox') $type = 'string'; // Treat as string for now
+                        elseif ($field->type == 'radio' || $field->type == 'select') $type = 'select';
+                        elseif ($field->type == 'checkbox') $type = 'string'; // Checkbox logic can be complex (array of values), treating as string for now implies text matching
                     @endphp
-                    <option value="custom_field_{{ $field->id }}" data-type="{{ $type }}" {{ ($condition->field ?? '') == 'custom_field_'.$field->id ? 'selected' : '' }}>{{ $field->label }}</option>
+                    <option value="custom_field_{{ $field->id }}" 
+                        data-type="{{ $type }}" 
+                        data-values="{{ is_array($values) ? json_encode($values) : $values }}"
+                        {{ ($condition->field ?? '') == 'custom_field_'.$field->id ? 'selected' : '' }}>
+                        {{ $field->label }}
+                    </option>
                 @endforeach
             </optgroup>
         </select>
     </div>
     <div class="col-md-3">
         <select name="conditions[{{ $index }}][operator]" class="form-control height-35 f-14 condition-operator-select">
-            <option value="=" data-types="string,number,boolean,date" {{ ($condition->operator ?? '') == '=' ? 'selected' : '' }}>Equals</option>
+            <option value="=" data-types="string,number,boolean,date,select" {{ ($condition->operator ?? '') == '=' ? 'selected' : '' }}>Equals</option>
             <option value=">" data-types="number,date" {{ ($condition->operator ?? '') == '>' ? 'selected' : '' }}>Greater Than</option>
             <option value="<" data-types="number,date" {{ ($condition->operator ?? '') == '<' ? 'selected' : '' }}>Less Than</option>
-            <option value="contains" data-types="string" {{ ($condition->operator ?? '') == 'contains' ? 'selected' : '' }}>Contains</option>
-            <option value="exists" data-types="string,number,date,boolean" {{ ($condition->operator ?? '') == 'exists' ? 'selected' : '' }}>Exists (Not Empty)</option>
-            <option value="changed" data-types="string,number,date,boolean" {{ ($condition->operator ?? '') == 'changed' ? 'selected' : '' }}>Changed</option>
+            <option value="contains" data-types="string,select" {{ ($condition->operator ?? '') == 'contains' ? 'selected' : '' }}>Contains</option>
+            <option value="exists" data-types="string,number,date,boolean,select" {{ ($condition->operator ?? '') == 'exists' ? 'selected' : '' }}>Exists (Not Empty)</option>
+            <option value="changed" data-types="string,number,date,boolean,select" {{ ($condition->operator ?? '') == 'changed' ? 'selected' : '' }}>Changed</option>
         </select>
     </div>
-    <div class="col-md-4">
-        <input type="text" name="conditions[{{ $index }}][value]" class="form-control height-35 f-14" value="{{ $condition->value ?? '' }}" placeholder="Value">
+    <div class="col-md-4 condition-value-container">
+        <input type="text" name="conditions[{{ $index }}][value]" class="form-control height-35 f-14 condition-value-input" value="{{ $condition->value ?? '' }}" placeholder="Value">
     </div>
     <div class="col-md-1">
         <button type="button" class="btn btn-sm btn-danger remove-row"><i class="fa fa-times"></i></button>

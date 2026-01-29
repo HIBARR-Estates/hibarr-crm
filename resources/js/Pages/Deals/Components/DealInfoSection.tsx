@@ -153,6 +153,23 @@ export default function DealInfoSection({
             // Group changes by type for API calls
             const detailsChanges: Record<string, any> = {};
             const contactChanges: Record<string, any> = {};
+            const customFieldChanges: Record<string, any> = {};
+            const hibarrFieldChanges: Record<string, any> = {};
+
+            // Hibarr field names (from DealDetailsTab)
+            const hibarrFieldNames = [
+                "interested_in",
+                "budget_range",
+                "purchase_timeline",
+                "motivation",
+                "strategy_meeting_booked",
+                "downpayment_paid",
+                "inspection_trip_date",
+                "deposit_confirmation",
+                "reservation_agreement",
+                "sales_contract",
+                "message",
+            ];
 
             // Process each pending change
             for (const [fieldName, value] of Object.entries(pendingChanges)) {
@@ -161,8 +178,14 @@ export default function DealInfoSection({
                     const apiFieldName =
                         fieldName === "email" ? "client_email" : fieldName;
                     contactChanges[apiFieldName] = value;
+                } else if (fieldName.startsWith("field_")) {
+                    // Custom fields use format field_XX
+                    customFieldChanges[fieldName] = value;
+                } else if (hibarrFieldNames.includes(fieldName)) {
+                    // Hibarr fields
+                    hibarrFieldChanges[fieldName] = value;
                 } else {
-                    // Process value transformations
+                    // Process value transformations for regular details fields
                     let processedValue = value;
                     if (fieldName === "value") {
                         processedValue = value
@@ -187,6 +210,24 @@ export default function DealInfoSection({
             if (Object.keys(contactChanges).length > 0) {
                 promises.push(
                     updateDeal({ type: "contact", data: contactChanges }),
+                );
+            }
+
+            if (Object.keys(customFieldChanges).length > 0) {
+                promises.push(
+                    updateDeal({
+                        type: "custom_field",
+                        data: customFieldChanges,
+                    }),
+                );
+            }
+
+            if (Object.keys(hibarrFieldChanges).length > 0) {
+                promises.push(
+                    updateDeal({
+                        type: "hibarr_field",
+                        data: hibarrFieldChanges,
+                    }),
                 );
             }
 
@@ -281,8 +322,6 @@ export default function DealInfoSection({
                     setCurrentDeal(response.data.data);
                     message.success("File uploaded successfully");
                 }
-                setUpdatingField(null);
-                return;
             }
 
             // Infer type and api field name if not explicitly set (for compatibility)
@@ -521,7 +560,7 @@ export default function DealInfoSection({
                                             currentDeal.contact.mobile,
                                         )}
                                         fieldName="mobile"
-                                        fieldType="text"
+                                        fieldType="phone"
                                         onSave={(value) =>
                                             handleFieldUpdate("mobile", value)
                                         }

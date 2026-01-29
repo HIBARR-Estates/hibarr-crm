@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use App\Helper\Files;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
+use Illuminate\Support\Facades\DB;
 
 
 class PropertyController extends AccountBaseController
@@ -39,13 +40,20 @@ class PropertyController extends AccountBaseController
         $this->excel = $excel;
         parent::__construct();
         
-        
+        $this->middleware(function ($request, $next) {
+            $this->addPropertyPermission = user()->permission('add_products');
+            $this->viewPropertyPermission = user()->permission('view_products');
+            $this->editPropertyPermission = user()->permission('edit_products');
+            $this->deletePropertyPermission = user()->permission('delete_products');
+            
+            return $next($request);
+        });
     }
 
     public function index(Request $request)
     {
         // Get properties with pagination and filtering
-        $query = Property::with('product');
+        $query = Property::with(['product', 'developerProject.location']);
 
         
         // Apply filters if provided
@@ -61,8 +69,28 @@ class PropertyController extends AccountBaseController
             $query->where('status', $request->status);
         }
 
+        // Filter by developer project
+        if ($request->filled('developer_project_id') && $request->developer_project_id !== 'all') {
+            $query->where('developer_project_id', $request->developer_project_id);
+        }
+
+        // Filter by city - search in property's own city OR project location name
         if ($request->filled('city')) {
-            $query->where('city', 'like', '%' . $request->city . '%');
+            $citySearch = $request->city;
+            $query->where(function($q) use ($citySearch) {
+                $q->where('city', 'like', '%' . $citySearch . '%')
+                  ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
+                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
+                  });
+            });
+        }
+
+        // Filter by project location (searches project location name)
+        if ($request->filled('project_location')) {
+            $locationSearch = $request->project_location;
+            $query->whereHas('developerProject.location', function($q) use ($locationSearch) {
+                $q->where('name', 'like', '%' . $locationSearch . '%');
+            });
         }
 
         if ($request->filled('min_price')) {
@@ -143,7 +171,7 @@ class PropertyController extends AccountBaseController
             'products' => $products,
             'developerProjects' => $developerProjects,
             'developers' => $developers,
-            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price'])
+            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price', 'developer_project_id', 'project_location'])
         ]);       
     }
 
@@ -188,6 +216,7 @@ class PropertyController extends AccountBaseController
         $property = new Property();
         $property->company_id = user()->company_id;
         $property->product_id = $product->id;
+        $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
         $property->price = $request->price;
@@ -236,7 +265,7 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $property = Property::with(['product', 'assets' => function ($query) {
+        $this->property = Property::with(['product', 'developerProject.location', 'assets' => function($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
 
@@ -298,7 +327,7 @@ class PropertyController extends AccountBaseController
 
     public function edit($id)
     {
-        $this->property = Property::with('product')->findOrFail($id);
+        $this->property = Property::with(['product', 'developerProject.location'])->findOrFail($id);
         
         // Check permission
         $canEdit = false;
@@ -384,45 +413,7 @@ class PropertyController extends AccountBaseController
 
     public function destroy($id)
     {
-        $property = Property::with('product')->findOrFail($id);
-        
-        // Check permission
-        $canDelete = false;
-        switch ($this->deletePropertyPermission) {
-            case 'all':
-                $canDelete = true;
-                break;
-            case 'added':
-                $canDelete = $property->product->added_by == user()->id;
-                break;
-            case 'owned':
-                $canDelete = $property->product->assigned_to == user()->id;
-                break;
-            case 'both':
-                $canDelete = $property->product->added_by == user()->id || $property->product->assigned_to == user()->id;
-                break;
-        }
-
-        // abort_403(!$canDelete); //Removed permission check for deletion temporarily, as per request on 22-01-2026
-
-        // TODO: COnsider implementing reintroducing permission check above via Permission service, and ensure its applicable to the bulk action as well, also just refactor permissions to be a permission middleware thing and free all controllers ....
-
-
-        // TODO: Refactor to use service and let the response be strictly JSON for consistency
-        // Don't allow deletion if property is sold or rented
-        if ($property->isSold() || $property->isRented()) {
-            return back()->with([
-                'success' => false,
-                'message' => __('messages.propertyCannotBeDeleted'),
-            ]);
-        }
-
-        $property->delete();
-
-        return back()->with([
-            'success' => true,
-            'message' => __('messages.recordDeleted'),
-        ]);
+        return $this->deleteProperties([$id]);
     }
 
     // API Methods for JSON responses

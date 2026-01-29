@@ -202,7 +202,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                     break;
             }
         },
-        [activeMetric]
+        [activeMetric],
     );
 
     // Handle deal operations
@@ -219,13 +219,13 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                         onSuccess: () => {
                             message.success("Deal stage updated successfully!");
                         },
-                    }
+                    },
                 );
             } catch (error) {
                 throw new Error("Failed to update deal stage");
             }
         },
-        []
+        [],
     );
 
     return (
@@ -259,14 +259,13 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         {new Date().getHours() < 12
                                             ? "morning"
                                             : new Date().getHours() < 17
-                                            ? "afternoon"
-                                            : "evening"}
+                                              ? "afternoon"
+                                              : "evening"}
                                         ! 👋
                                     </h1>
                                     <p className="text-xl text-blue-100 max-w-2xl">
                                         Welcome back to your dashboard. Here's
-                                        what's happening with your business
-                                        today.
+                                        what's happening with sales today!
                                     </p>
                                 </motion.div>
 

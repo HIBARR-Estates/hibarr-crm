@@ -1040,6 +1040,13 @@ class DealController extends AccountBaseController
         Log::info('Deal update - strategy_accepted: ' . ($deal->strategy_accepted ? 'true' : 'false'));
         Log::info('Deal update - downpayment_confirmed: ' . ($deal->downpayment_confirmed ? 'true' : 'false'));
         
+        $customFieldsUpdated = false;
+        // To add custom fields data
+        if ($request->custom_fields_data) {
+            $deal->updateCustomFieldData($request->custom_fields_data);
+            $customFieldsUpdated = true;
+        }
+
         $deal->save();
 
         // Handle packages
@@ -1061,9 +1068,8 @@ class DealController extends AccountBaseController
 
         $deal->products()->sync($request->product_id);
 
-        // To add custom fields data
-        if ($request->custom_fields_data) {
-            $deal->updateCustomFieldData($request->custom_fields_data);
+        if (!$deal->wasChanged() && $customFieldsUpdated) {
+             app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
         }
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
 
@@ -1100,6 +1106,43 @@ class DealController extends AccountBaseController
         DB::beginTransaction();
         
         try {
+            $customFieldsUpdated = false;
+            // 4. Handle Custom Fields
+            if (array_key_exists('custom_fields', $validatedData) || $request->hasFile('custom_fields')) {
+                // Get regular custom field values
+                $customFieldsData = $validatedData['custom_fields'] ?? [];
+                
+                // Merge file uploads into custom fields data
+                // Files uploaded as custom_fields[field_X] or custom_fields[field_X][0], [1], etc. for multiple
+                if ($request->hasFile('custom_fields')) {
+                    $customFieldFiles = $request->file('custom_fields');
+                    if (is_array($customFieldFiles)) {
+                        foreach ($customFieldFiles as $fieldKey => $fileOrFiles) {
+                            if ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
+                                // Single file
+                                $customFieldsData[$fieldKey] = $fileOrFiles;
+                            } elseif (is_array($fileOrFiles)) {
+                                // Multiple files - array of UploadedFile objects
+                                $uploadedFiles = [];
+                                foreach ($fileOrFiles as $file) {
+                                    if ($file instanceof \Illuminate\Http\UploadedFile) {
+                                        $uploadedFiles[] = $file;
+                                    }
+                                }
+                                if (!empty($uploadedFiles)) {
+                                    $customFieldsData[$fieldKey] = $uploadedFiles;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (!empty($customFieldsData)) {
+                    $deal->updateCustomFieldData($customFieldsData);
+                    $customFieldsUpdated = true;
+                }
+            }
+
             // 1. Update Deal Fields
             $dealFields = [
                 'deal_name' => 'name',
@@ -1139,6 +1182,11 @@ class DealController extends AccountBaseController
 
             if (!empty($dealUpdates)) {
                 $deal->update($dealUpdates);
+                if (!$deal->wasChanged() && $customFieldsUpdated) {
+                     app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
+                }
+            } elseif ($customFieldsUpdated) {
+                 app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
             }
 
             // 2. Update Lead (Contact) Fields
@@ -1182,41 +1230,7 @@ class DealController extends AccountBaseController
             if (array_key_exists('products', $validatedData) && is_array($validatedData['products'])) {
                 $deal->products()->sync($validatedData['products']);
             }
-            
-            // 4. Handle Custom Fields
-            if (array_key_exists('custom_fields', $validatedData) || $request->hasFile('custom_fields')) {
-                // Get regular custom field values
-                $customFieldsData = $validatedData['custom_fields'] ?? [];
-                
-                // Merge file uploads into custom fields data
-                // Files uploaded as custom_fields[field_X] or custom_fields[field_X][0], [1], etc. for multiple
-                if ($request->hasFile('custom_fields')) {
-                    $customFieldFiles = $request->file('custom_fields');
-                    if (is_array($customFieldFiles)) {
-                        foreach ($customFieldFiles as $fieldKey => $fileOrFiles) {
-                            if ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
-                                // Single file
-                                $customFieldsData[$fieldKey] = $fileOrFiles;
-                            } elseif (is_array($fileOrFiles)) {
-                                // Multiple files - array of UploadedFile objects
-                                $uploadedFiles = [];
-                                foreach ($fileOrFiles as $file) {
-                                    if ($file instanceof \Illuminate\Http\UploadedFile) {
-                                        $uploadedFiles[] = $file;
-                                    }
-                                }
-                                if (!empty($uploadedFiles)) {
-                                    $customFieldsData[$fieldKey] = $uploadedFiles;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                if (!empty($customFieldsData)) {
-                    $deal->updateCustomFieldData($customFieldsData);
-                }
-            }
+
             
             // Handle tags if provided
             if (array_key_exists('tags', $validatedData)) {
@@ -1553,8 +1567,9 @@ class DealController extends AccountBaseController
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
-            $request->next_follow_up_date . ' ' . $request->start_time
-        );
+            $request->next_follow_up_date . ' ' . $request->start_time,
+            $request->timezone ?: company()->timezone
+        )->setTimezone('UTC'); // Convert to UTC for database storage
 
         // Prepare reminders data - combine defaults with custom reminders
         $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
@@ -1567,7 +1582,7 @@ class DealController extends AccountBaseController
         $followUp->meeting_type_id = $request->meeting_type_id;
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
-        $followUp->next_follow_up_date = $next_follow_up_date->format('Y-m-d H:i:s');
+        $followUp->next_follow_up_date = $next_follow_up_date;
         $followUp->remark = $request->remark;
         
         // Set traditional reminder fields for backward compatibility (use first custom reminder or defaults)
@@ -1578,6 +1593,12 @@ class DealController extends AccountBaseController
         
         // Set the new reminders JSON field with custom reminders only
         $followUp->setCustomReminders($customReminders);
+        
+        // Set participants if provided
+        if ($request->has('participants') && is_array($request->participants)) {
+            $followUp->participants = $request->participants;
+        }
+        
         $followUp->status = 'scheduled';
 
         $followUp->save();
@@ -1643,7 +1664,16 @@ class DealController extends AccountBaseController
         $followUp->meeting_link = $request->meeting_link;
 
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
-        $followUp->next_follow_up_date = Carbon::createFromFormat('d-m-Y H:i:s', $request->next_follow_up_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
+        // Use browser timezone if provided, otherwise fall back to company timezone
+        $timezone = $request->input('timezone') ?: company()->timezone;
+        
+        $next_follow_up_date = Carbon::createFromFormat(
+            'd-m-Y H:i:s',
+            $request->next_follow_up_date . ' ' . $request->start_time,
+            $timezone
+        )->setTimezone('UTC'); // Convert to UTC for database storage
+        // Assign Carbon instance directly - Laravel will handle the conversion
+        $followUp->next_follow_up_date = $next_follow_up_date;
 
         $followUp->remark = $request->remark;
         $followUp->status = $request->status ?? 'scheduled';
@@ -1655,6 +1685,11 @@ class DealController extends AccountBaseController
         
         // Set the new reminders JSON field with custom reminders only
         $followUp->setCustomReminders($customReminders);
+        
+        // Set participants if provided
+        if ($request->has('participants') && is_array($request->participants)) {
+            $followUp->participants = $request->participants;
+        }
 
         $followUp->save();
 
