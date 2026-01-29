@@ -58,6 +58,17 @@ class PropertyApiController extends Controller
                 $propertiesQuery->where('properties.sale_type', $filters['sale_type']);
             }
 
+            // locationIds: comma separated string of location ids → match property's developer project location id
+            if (isset($filters['locationIds']) && $filters['locationIds'] !== '') {
+                $locationIds = is_array($filters['locationIds'])
+                    ? array_map('trim', $filters['locationIds'])
+                    : array_map('trim', explode(',', (string) $filters['locationIds']));
+                $locationIds = array_filter($locationIds);
+                if (!empty($locationIds)) {
+                    $propertiesQuery->whereIn('properties.developer_project_id', $locationIds);
+                }
+            }
+
             // propertyTypes: comma-separated string of values → match any
             if (!empty($filters['propertyTypes'])) {
                 $types = is_array($filters['propertyTypes'])
@@ -67,10 +78,7 @@ class PropertyApiController extends Controller
                 if (!empty($types)) {
                     $propertiesQuery->whereIn('properties.property_type', $types);
                 }
-                Log::info('propertyTypes fetched successfully', [
-                    'propertyTypes' => $types,
-                    'company_id' => $companyId,
-                ]);
+              
             }
 
             // bedrooms: number (min bedrooms)
@@ -479,7 +487,7 @@ class PropertyApiController extends Controller
     {
         $allowed = [
             'status', 'city', 'property_type', 'sale_type', 'fields',
-            'propertyTypes', 'bedrooms', 'bathrooms', 'features', 'fromPrice', 'toPrice',
+            'locationIds', 'propertyTypes', 'bedrooms', 'bathrooms', 'features', 'fromPrice', 'toPrice',
         ];
         $filters = [];
 
