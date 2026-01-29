@@ -53,7 +53,7 @@ class PropertyController extends AccountBaseController
     public function index(Request $request)
     {
         // Get properties with pagination and filtering
-        $query = Property::with('product');
+        $query = Property::with(['product', 'developerProject.location']);
 
         
         // Apply filters if provided
@@ -69,8 +69,28 @@ class PropertyController extends AccountBaseController
             $query->where('status', $request->status);
         }
 
+        // Filter by developer project
+        if ($request->filled('developer_project_id') && $request->developer_project_id !== 'all') {
+            $query->where('developer_project_id', $request->developer_project_id);
+        }
+
+        // Filter by city - search in property's own city OR project location name
         if ($request->filled('city')) {
-            $query->where('city', 'like', '%' . $request->city . '%');
+            $citySearch = $request->city;
+            $query->where(function($q) use ($citySearch) {
+                $q->where('city', 'like', '%' . $citySearch . '%')
+                  ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
+                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
+                  });
+            });
+        }
+
+        // Filter by project location (searches project location name)
+        if ($request->filled('project_location')) {
+            $locationSearch = $request->project_location;
+            $query->whereHas('developerProject.location', function($q) use ($locationSearch) {
+                $q->where('name', 'like', '%' . $locationSearch . '%');
+            });
         }
 
         if ($request->filled('min_price')) {
@@ -151,7 +171,7 @@ class PropertyController extends AccountBaseController
             'products' => $products,
             'developerProjects' => $developerProjects,
             'developers' => $developers,
-            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price'])
+            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price', 'developer_project_id', 'project_location'])
         ]);       
     }
 
@@ -196,6 +216,7 @@ class PropertyController extends AccountBaseController
         $property = new Property();
         $property->company_id = user()->company_id;
         $property->product_id = $product->id;
+        $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
         
@@ -246,7 +267,7 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $this->property = Property::with(['product', 'assets' => function($query) {
+        $this->property = Property::with(['product', 'developerProject.location', 'assets' => function($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
         
@@ -341,7 +362,7 @@ class PropertyController extends AccountBaseController
 
     public function edit($id)
     {
-        $this->property = Property::with('product')->findOrFail($id);
+        $this->property = Property::with(['product', 'developerProject.location'])->findOrFail($id);
         
         // Check permission
         $canEdit = false;

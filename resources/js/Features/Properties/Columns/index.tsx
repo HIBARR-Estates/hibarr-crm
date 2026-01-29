@@ -94,12 +94,17 @@ export const PROPERTY_TABLE_COLUMNS = (
         title: "Location",
         key: "location",
         width: 150,
-        render: (_, record: Property) => (
-            <div>
-                <div className="font-medium">{record.city}</div>
-                <div className="text-xs text-gray-500">{record.area}</div>
-            </div>
-        ),
+        render: (_, record: Property) => {
+            // Use effective_location which derives from project location or falls back to direct values
+            const city = record.effective_location?.city ?? record.city;
+            const area = record.effective_location?.area ?? record.area;
+            return (
+                <div>
+                    <div className="font-medium">{city}</div>
+                    <div className="text-xs text-gray-500">{area}</div>
+                </div>
+            );
+        },
     },
     {
         title: "Details",
