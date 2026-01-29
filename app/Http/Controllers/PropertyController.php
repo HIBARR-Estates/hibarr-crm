@@ -139,7 +139,9 @@ class PropertyController extends AccountBaseController
             $query->orderBy('created_at', 'desc');
         }
 
-        $properties = $query->paginate(15);
+        $perPage = (int) $request->get('per_page', 15) ?: 15;
+        $perPage = max(1, min(100, $perPage));
+        $properties = $query->paginate($perPage);
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -270,81 +272,48 @@ class PropertyController extends AccountBaseController
         $this->property = Property::with(['product', 'developerProject.location', 'assets' => function($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
-        
-        // // Check permission
-        // $canView = false;
-        // switch ($this->viewPropertyPermission) {
-        //     case 'all':
-        //         $canView = true;
-        //         break;
-        //     case 'added':
-        //         $canView = $this->property->product->added_by == user()->id;
-        //         break;
-        //     case 'owned':
-        //         $canView = $this->property->product->assigned_to == user()->id;
-        //         break;
-        //     case 'both':
-        //         $canView = $this->property->product->added_by == user()->id || $this->property->product->assigned_to == user()->id;
-        //         break;
-        // }
 
-        // abort_403(!$canView);
+        return $this->renderPropertyShow($this->property);
+    }
 
-        // $this->pageTitle = $this->property->title;
+    /**
+     * Show property by slug. Returns the same response as show($id).
+     */
+    public function showBySlug(string $slug)
+    {
+        $property = Property::with(['product', 'developerProject.location', 'assets' => function ($query) {
+            $query->orderBy('order')->orderBy('created_at', 'desc');
+        }])->where('slug', $slug)->firstOrFail();
 
-        // // Check if user can edit this property
+        return $this->renderPropertyShow($property);
+    }
+
+    /**
+     * Render the property show page (shared by show id and show by slug).
+     */
+    private function renderPropertyShow(Property $property)
+    {
+        $this->property = $property;
         $canEdit = false;
-        // switch ($this->editPropertyPermission) {
-        //     case 'all':
-        //         $canEdit = true;
-        //         break;
-        //     case 'added':
-        //         $canEdit = $this->property->product->added_by == user()->id;
-        //         break;
-        //     case 'owned':
-        //         $canEdit = $this->property->product->assigned_to == user()->id;
-        //         break;
-        //     case 'both':
-        //         $canEdit = $this->property->product->added_by == user()->id || $this->property->product->assigned_to == user()->id;
-        //         break;
-        // }
         $this->pageTitle = $this->property->title;
 
-        // Get tasks
         $tasks = $this->property->tasks()
             ->with(['users', 'category', 'boardColumn', 'labels'])
             ->orderBy('id', 'desc')
             ->get();
 
-        // Get task metadata for modal
         $taskCategories = \App\Models\TaskCategory::all();
         $taskLabels = \App\Models\TaskLabelList::all();
         $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
         $employees = User::allEmployees();
         $projects = \App\Models\Project::all();
 
-        // Get task permissions
         $taskPermissions = [
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
             'view_tasks' => user()->permission('view_tasks'),
         ];
-
-        if (request()->ajax()) {
-            return Inertia::render('Properties/Show', [
-                'pageTitle' => $this->pageTitle,
-                'property' => $this->property,
-                'canEdit' => $canEdit,
-                'tasks' => $tasks,
-                'taskCategories' => $taskCategories,
-                'taskLabels' => $taskLabels,
-                'taskBoardColumns' => $taskBoardColumns,
-                'employees' => $employees,
-                'projects' => $projects,
-                'taskPermissions' => $taskPermissions,
-            ]);
-        }
 
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
