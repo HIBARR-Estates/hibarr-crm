@@ -419,6 +419,61 @@ class Property extends BaseModel
         ];
     }
 
+    /**
+     * All property types as a flat, unique, sorted list (derived from getPropertyConfigurations).
+     */
+    public static function getAllPropertyTypes(): array
+    {
+        $config = self::getPropertyConfigurations();
+        $types = [];
+        foreach ($config as $category => $categoryData) {
+            if (!is_array($categoryData)) {
+                continue;
+            }
+            foreach ($categoryData as $key => $value) {
+                if ($key === 'allowableFields' || !is_array($value)) {
+                    continue;
+                }
+                foreach ($value as $type) {
+                    if (is_string($type)) {
+                        $types[$type] = true;
+                    }
+                }
+            }
+        }
+        $list = array_keys($types);
+        sort($list);
+        return array_values($list);
+    }
+
+    /**
+     * All feature options (exterior, interior, location) as one flat, unique, sorted list.
+     */
+    public static function getAllFeatures(): array
+    {
+        $exterior = [
+            'Balcony', 'Garden', 'Swimming Pool', 'Terrace', 'Garage', 'Parking', 'Fenced Yard', 'Outdoor Kitchen',
+            'Fire Pit', 'Deck', 'Patio', 'Lawn', 'Irrigation System', 'Playground', 'Tennis Court', 'Basketball Court',
+            'Sauna', 'Hot Tub', 'Outdoor Lighting', 'Storage Shed', 'Greenhouse',
+        ];
+        $interior = [
+            'Fireplace', 'Hardwood Floors', 'Granite Countertops', 'Walk-in Closet', 'Central Air Conditioning',
+            'Stainless Steel Appliances', 'Vaulted Ceilings', 'Recessed Lighting', 'Crown Molding', 'Built-in Shelving',
+            'Smart Home Features', 'Laundry Room', 'Breakfast Nook', 'Home Office', 'Wet Bar', 'Skylights',
+            'Tile Flooring', 'Carpeted Floors', 'Open Floor Plan', 'Security System',
+        ];
+        $location = [
+            'Near Public Transport', 'Close to Schools', 'Shopping Nearby', 'Parks and Recreation', 'Waterfront',
+            'Mountain Views', 'Downtown Access', 'Quiet Neighborhood', 'Gated Community', 'Golf Course Nearby',
+            'Hiking Trails', 'Bike Paths', 'Cultural Attractions', 'Restaurants and Cafes', 'Medical Facilities',
+            'Entertainment Venues', 'Airport Proximity', 'Public Services', 'Community Events',
+        ];
+        $flat = array_merge($exterior, $interior, $location);
+        $flat = array_values(array_unique($flat));
+        sort($flat);
+        return $flat;
+    }
+
     // Validation helper to check if updates are allowed based on current status
     public function canUpdateField(string $field): bool
     {
