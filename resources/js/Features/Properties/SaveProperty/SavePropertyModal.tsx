@@ -18,9 +18,12 @@ const SavePropertyModal: React.FC<Props> = ({
     open,
     setProperty,
 }) => {
+    const isEditing = !!property?.id;
+    const title = isEditing ? "Edit Property" : "Create New Property";
+
     return (
         <Drawer
-            title="Create New Property"
+            title={title}
             placement="right"
             size="large"
             open={open}
@@ -38,7 +41,11 @@ const SavePropertyModal: React.FC<Props> = ({
                     onClose();
                     // Refresh the properties list
                     router.reload();
-                    message.success("Property created successfully");
+                    message.success(
+                        isEditing 
+                            ? "Property updated successfully" 
+                            : "Property created successfully"
+                    );
                 }}
             />
         </Drawer>

@@ -3,6 +3,8 @@
 namespace App\Http\Requests\FollowUp;
 
 use App\Http\Requests\CoreRequest;
+use DateTimeZone;
+use Illuminate\Validation\Rule;
 
 class UpdateRequest extends CoreRequest
 {
@@ -34,6 +36,13 @@ class UpdateRequest extends CoreRequest
             'reminders.*.type' => 'required_with:reminders|in:minute,hour,day',
             'participants' => 'nullable|array',
             'participants.*' => 'required_with:participants|integer|exists:users,id',
+        ];
+
+        // Timezone must be a valid IANA identifier if provided
+        $rules['timezone'] = [
+            'nullable',
+            'string',
+            Rule::in(DateTimeZone::listIdentifiers()),
         ];
 
         // Zoho, office, phone, and physical meetings don't require meeting link

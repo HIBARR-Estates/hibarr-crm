@@ -51,7 +51,8 @@ export default function LocationInfoTab({
             };
             form.setFieldsValue(formData);
         }
-    }, [data, form]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data]);
     const handleSubmit = (values: any) => {
         // Transform the values to match the API expectations
         const formData = {

@@ -67,16 +67,44 @@ export interface IndexProps extends PageProps {
     developers?: Developer[];
     /** New DeveloperProject list for bulk actions */
     developerProjects?: DeveloperProjectOption[];
+    currencies?: any[];
+    default_currency_code?: string;
+    default_currency_symbol?: string;
 }
 
 const Index = ({
     pageTitle,
     properties,
     default_currency_code: currencyCode,
+    default_currency_symbol: currencySymbol,
+    currencies = [],
     projects,
     developers,
     developerProjects,
 }: IndexProps) => {
+    // Debug: Log properties payload to see what price data looks like
+    useEffect(() => {
+        console.log("🔍 Properties payload:", properties);
+        if (properties?.data && properties.data.length > 0) {
+            const firstProperty = properties.data[0];
+            let parsedPrice = null;
+            try {
+                if (typeof firstProperty.price === "string") {
+                    parsedPrice = JSON.parse(firstProperty.price);
+                } else {
+                    parsedPrice = firstProperty.price;
+                }
+            } catch (e) {
+                parsedPrice = firstProperty.price;
+            }
+            console.log("🔍 First property price:", {
+                raw: firstProperty.price,
+                type: typeof firstProperty.price,
+                parsed: parsedPrice,
+                fullProperty: firstProperty,
+            });
+        }
+    }, [properties]);
     const {
         handleAction,
         handleClose,
@@ -171,7 +199,7 @@ const Index = ({
     ];
 
     // Table columns
-    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencyCode);
+    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencies, currencyCode, currencySymbol);
 
     return (
         <>
