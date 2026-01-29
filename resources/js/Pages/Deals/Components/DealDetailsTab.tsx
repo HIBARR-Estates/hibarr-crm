@@ -13,6 +13,7 @@ interface Props {
     loadingField?: string | null; // The specific field currently being updated
     onChange?: (fieldName: string, value: any) => void; // For tracking changes in edit mode
     globalLoading?: boolean; // When true, all fields are disabled (e.g., during save all)
+    disabled?: boolean; // When true, fields cannot be edited (for permission control)
 }
 
 const DealDetailsTab: React.FC<Props> = ({
@@ -23,6 +24,7 @@ const DealDetailsTab: React.FC<Props> = ({
     loadingField = null,
     onChange,
     globalLoading = false,
+    disabled = false,
 }) => {
     // Cast to Partial to allow working with potentially undefined properties
     // when hibarr_fields is null/undefined (e.g. for new deals or data gaps)
@@ -68,6 +70,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("interested_in")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
 
@@ -80,6 +83,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("budget_range")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
 
@@ -94,6 +98,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("purchase_timeline")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
 
@@ -106,6 +111,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("motivation")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
 
@@ -123,6 +129,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("strategy_meeting_booked")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
 
@@ -138,6 +145,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("downpayment_paid")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
 
@@ -152,6 +160,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("inspection_trip_date")}
+                        disabled={disabled}
                         formatValue={(val) =>
                             val ? dayjs(val).format("MMM DD, YYYY") : "--"
                         }
@@ -169,6 +178,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("deposit_confirmation")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
 
@@ -183,6 +193,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("reservation_agreement")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
 
@@ -195,6 +206,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("sales_contract")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
                 <Descriptions.Item label="Message">
@@ -206,6 +218,7 @@ const DealDetailsTab: React.FC<Props> = ({
                         alwaysEditing={editable}
                         onChange={onChange}
                         loading={isFieldLoading("message")}
+                        disabled={disabled}
                     />
                 </Descriptions.Item>
             </Descriptions>
