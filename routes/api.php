@@ -61,8 +61,8 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('properties/filters/propertyTypes', ['as' => 'api.properties.filters.property_types', 'uses' => 'Api\PropertyApiController@getPropertyTypes']);
         ApiRoute::get('properties/filters/features', ['as' => 'api.properties.filters.features', 'uses' => 'Api\PropertyApiController@getFeatures']);
         ApiRoute::get('properties/filters/locations', ['as' => 'api.properties.filters.location', 'uses' => 'Api\PropertyApiController@getLocation']);
+        ApiRoute::get('properties/{id}', ['as' => 'api.properties.show', 'uses' => 'Api\PropertyApiController@show'])->where('id', '[0-9]+');
         ApiRoute::get('properties/{slug}', ['as' => 'api.properties.showBySlug', 'uses' => 'Api\PropertyApiController@showBySlug']);
-        ApiRoute::get('properties/{id}', ['as' => 'api.properties.show', 'uses' => 'Api\PropertyApiController@show']);
 
     });
 
