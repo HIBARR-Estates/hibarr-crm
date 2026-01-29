@@ -122,7 +122,7 @@ export default function FeaturesAndAddOnsTab({
     useEffect(() => {
         if (data) {
             // Transform the data to handle null values properly
-            const formData = {
+            const formData: any = {
                 ...data,
                 exterior_features: data.exterior_features || [],
                 interior_features: data.interior_features || [],
@@ -158,7 +158,7 @@ export default function FeaturesAndAddOnsTab({
             onFinishFailed={(errorInfo) => {
                 // console.log("Form validation failed:", errorInfo);
                 setErrors?.(
-                    errorInfo.errorFields.map((field) => field.errors).flat()
+                    errorInfo.errorFields.map((field) => field.errors).flat(),
                 );
                 // Extract validation errors and add to errors list
                 if (onErrorsClear) {
