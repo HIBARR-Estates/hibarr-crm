@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Http\Controllers\Controller;
 use App\Models\Property;
 use App\Models\Product;
+use App\Models\ProjectLocation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -499,6 +500,33 @@ class PropertyApiController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => array_values(array_unique($flat)),
+        ], 200);
+    }
+
+    public function getLocation(Request $request)
+    {
+        $companyId = $request->header('X-COMPANY-ID');
+        if (!$companyId) {
+            return response()->json(Reply::error(__('messages.missingCompanyId')), 400);
+        }
+        $companyId = (int) $companyId;
+
+        $locations = ProjectLocation::where('company_id', $companyId)
+            ->orderBy('name')
+            ->get()
+            ->map(function (ProjectLocation $location) {
+                return [
+                    'id' => $location->id,
+                    'name' => $location->name,
+                    'address' => $location->address ?? null,
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $locations,
         ], 200);
     }
 
