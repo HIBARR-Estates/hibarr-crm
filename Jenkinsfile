@@ -1,71 +1,93 @@
 pipeline {
-    agent none // We define specific agents for each stage
+    agent any
+
+    options {
+        skipDefaultCheckout()
+    }
+
+    environment {
+        ENV_NAME = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'production' : 'staging'}"
+        SSH_PORT = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? '22' : '2244'}"
+        SSH_CREDS = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'PRODUCTION_SSH_PRIVATE_KEY' : 'STAGIN_SSH_PRIVATE_KEY'}"
+    }
 
     stages {
-        stage('Build Artifact') {
-            // Jenkins will spin up this container specifically for this stage
-            agent {
-                docker { 
-                    image 'php:8.3-cli' 
-                    // We map the composer and npm cache to speed up future builds
-                    args '-u root' 
-                }
-            }
+        stage('Identify Target') {
             steps {
-                echo 'Building Application in PHP 8.3 Container...'
-                sh '''
-                    # 1. Install system dependencies needed for Laravel/Composer
-                    apt-get update && apt-get install -y libzip-dev unzip git
-                    docker-php-ext-install zip
-
-                    # 2. Install Composer inside the container
-                    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-                    # 3. Install Node.js (since PHP images don't usually have it)
-                    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-                    apt-get install -y nodejs
-
-                    # 4. Run your build
-                    composer install --no-interaction --prefer-dist --optimize-autoloader
-                    npm install
-                    touch .env
-                    php artisan ziggy:generate
-                    npm run production
+                script {
+                    def hostCredId = (env.ENV_NAME == 'production') ? 'PRODUCTION_HOST' : 'STAGING_HOST'
+                    def userCredId = (env.ENV_NAME == 'production') ? 'PRODUCTION_USER' : 'STAGING_USER'
                     
-                    # 5. Create the artifact
-                    tar -czf hibarr-crm-build.tar.gz . --exclude=.git
-                '''
+                    withCredentials([
+                        string(credentialsId: hostCredId, variable: 'HOST_STR'),
+                        string(credentialsId: userCredId, variable: 'USER_STR')
+                    ]) {
+                        env.TARGET_HOST = HOST_STR
+                        env.TARGET_USER = USER_STR
+                    }
+                    
+                    env.LIVE_LINK = (env.ENV_NAME == 'production') ? "/var/www/html" : "/home/${env.TARGET_USER}/hibarr-crm-staging"
+                }
             }
         }
 
-        stage('Deploy to Staging') {
-            agent any // Deployment uses the main Jenkins agent to handle SSH
-            when { 
-                anyOf { branch 'staging'; branch 'develop' }
-            }
-            environment {
-                STAGING_HOST = credentials('STAGING_HOST')
-                STAGING_USER = credentials('STAGING_USER')
+        stage('Remote Atomic Build & Deploy') {
+            when {
+                beforeAgent true
+                allOf {
+                    not { changeRequest() }
+                    anyOf { branch 'main'; branch 'master'; branch 'staging'; branch 'develop' }
+                }
             }
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'STAGIN_SSH_PRIVATE_KEY', keyFileVariable: 'SSH_KEY_FILE')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')]) {
                     sh '''
                         chmod 400 $SSH_KEY_FILE
-                        scp -i $SSH_KEY_FILE -P 2244 -o StrictHostKeyChecking=no hibarr-crm-build.tar.gz $STAGING_USER@$STAGING_HOST:/tmp/
+                        BUILD_PATH="~/deployments/${ENV_NAME}_build_${BUILD_ID}"
 
-                        ssh -i $SSH_KEY_FILE -p 2244 -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST "
-                            mkdir -p ~/deployments/build_${BUILD_ID}
-                            tar -xzf /tmp/hibarr-crm-build.tar.gz -C ~/deployments/build_${BUILD_ID}
-                            ln -sfn ~/shared/.env ~/deployments/build_${BUILD_ID}/.env
-                            mkdir -p ~/deployments/build_${BUILD_ID}/public/user-uploads
-                            ln -sfn ~/shared/user-uploads ~/deployments/build_${BUILD_ID}/public/user-uploads
+                        ssh -i $SSH_KEY_FILE -p $SSH_PORT -o StrictHostKeyChecking=no $TARGET_USER@$TARGET_HOST "
+                            set -e
+                            echo 'Starting Atomic Build for $ENV_NAME...'
+                            
+                            mkdir -p $BUILD_PATH
+                            cd $BUILD_PATH
 
-                            cd ~/deployments/build_${BUILD_ID}
+                            git clone --depth 1 --branch $BRANCH_NAME https://github.com/HIBARR-Estates/hibarr-crm.git .
+
+                            # --- FIX: Ensure Laravel directories exist and are writable ---
+                            mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
+                            chmod -R 775 bootstrap/cache storage
+                            
+                            # Create a temporary .env so artisan commands don't fail during install
+                            if [ -f ~/shared/.env ]; then
+                                cp ~/shared/.env .env
+                            else
+                                touch .env
+                            fi
+
+                            # Install Composer dependencies
+                            if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
+                            php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
+                            
+                            # Frontend Build
+                            npm install
+                            php artisan ziggy:generate
+                            npm run production
+
+                            # Finalize links
+                            ln -sfn ~/shared/.env $BUILD_PATH/.env
+                            mkdir -p $BUILD_PATH/public/user-uploads
+                            ln -sfn ~/shared/user-uploads $BUILD_PATH/public/user-uploads
+
                             make finalize-deploy
 
-                            ln -sfn ~/deployments/build_${BUILD_ID} ~/hibarr-crm-staging
-                            rm /tmp/hibarr-crm-build.tar.gz
-                            cd ~/deployments && ls -t | tail -n +6 | xargs rm -rf 2>/dev/null || true
+                            # THE ATOMIC SWITCH
+                            ln -sfn $BUILD_PATH $LIVE_LINK
+                            
+                            echo 'Deployment successful!'
+
+                            # Cleanup old builds
+                            cd ~/deployments && ls -t | grep ${ENV_NAME}_build | tail -n +6 | xargs rm -rf 2>/dev/null || true
                         "
                     '''
                 }

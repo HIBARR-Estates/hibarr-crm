@@ -1,4 +1,4 @@
-import { SaveOutlined } from "@ant-design/icons";
+import { SaveOutlined, WarningOutlined } from "@ant-design/icons";
 import {
     Form,
     Input,
@@ -9,10 +9,12 @@ import {
     Col,
     Divider,
     Button,
+    Alert,
 } from "antd";
 import { PropertyFormProps } from "./PropertyForm";
 import { Property } from "@/Types";
-import { useEffect, useState } from "react";
+import { DeveloperProjectOption } from "@/Types/developerProject";
+import { useEffect, useState, useMemo } from "react";
 import { usePage } from "@inertiajs/react";
 import { PageProps } from "@/Components/DashboardLayout";
 
@@ -69,18 +71,17 @@ const PROPERTY_CATEGORIES = {
 const SALE_TYPES = ["For Sale", "For Rent", "For Daily Rental"];
 const STATUS_OPTIONS = ["Available", "Under offer", "Sold", "Withdrawn"];
 
-interface BasicInfoTabProps
-    extends Pick<
-        PropertyFormProps,
-        | "onCancel"
-        | "loading"
-        | "submitText"
-        | "cancelText"
-        | "data"
-        | "onSubmit"
-        | "setErrors"
-        | "onErrorsClear"
-    > {
+interface BasicInfoTabProps extends Pick<
+    PropertyFormProps,
+    | "onCancel"
+    | "loading"
+    | "submitText"
+    | "cancelText"
+    | "data"
+    | "onSubmit"
+    | "setErrors"
+    | "onErrorsClear"
+> {
     setProperty?: (property: Property | undefined) => void;
 }
 
@@ -95,19 +96,46 @@ export default function BasicInfoTab({
     onErrorsClear,
     setErrors,
 }: BasicInfoTabProps) {
-    const [form] = Form.useForm<Omit<Property, "id">>();
+    const [form] = Form.useForm<
+        Omit<Property, "id"> & { developer_project_id?: number }
+    >();
     const { props } = usePage<PageProps>();
     // const defaultCurrencyId = props.company?.currency_id;
     // const currencies = props.currencies || [];
     // TODO: Refactor the property model to use currency id instead of symbol, also this will mean the import template needs to be updated
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
 
+    // Get developer projects from page props
+    const developerProjects = (props?.developerProjects ||
+        []) as DeveloperProjectOption[];
+
+    // Track selected project to manage location field behavior
+    const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
+        data?.developer_project_id ?? null,
+    );
+
+    // Find the selected project and check if it has a location
+    const selectedProject = useMemo(() => {
+        if (!selectedProjectId) return null;
+        return (
+            developerProjects.find((p) => p.id === selectedProjectId) ?? null
+        );
+    }, [selectedProjectId, developerProjects]);
+
+    const projectHasLocation = useMemo(() => {
+        return (
+            selectedProject?.location !== undefined &&
+            selectedProject?.location !== null
+        );
+    }, [selectedProject]);
+
     // Populate form when data changes
     useEffect(() => {
         if (data) {
             // Transform the data to handle null values properly
-            const formData = {
+            const formData: any = {
                 ...data,
+                developer_project_id: data.developer_project_id ?? undefined,
                 exterior_features: data.exterior_features || [],
                 interior_features: data.interior_features || [],
                 location_features: data.location_features || [],
@@ -116,8 +144,33 @@ export default function BasicInfoTab({
                 assets: data.assets || [],
             };
             form.setFieldsValue(formData);
+            setSelectedProjectId(data.developer_project_id ?? null);
         }
     }, [data, form]);
+
+    // Update city/area fields when project selection changes
+    useEffect(() => {
+        if (selectedProject?.location) {
+            // Auto-fill city from location name and area from location address country
+            form.setFieldsValue({
+                city: selectedProject.location.name ?? "",
+                area: (selectedProject.location as any).address?.country ?? "",
+            });
+        } else if (!selectedProjectId && !data) {
+            // Clear fields only if no project and creating new property
+            form.setFieldsValue({
+                city: "",
+                area: "",
+            });
+        }
+    }, [selectedProject, selectedProjectId, form, data]);
+
+    // Handle project selection change
+    const handleProjectChange = (value: number | undefined) => {
+        setSelectedProjectId(value ?? null);
+        form.setFieldValue("developer_project_id", value ?? null);
+    };
+
     const handleSubmit = (values: any) => {
         // Transform the values to match the API expectations
         const formData = {
@@ -141,7 +194,7 @@ export default function BasicInfoTab({
             onFinishFailed={(errorInfo) => {
                 console.log("Form validation failed:", errorInfo);
                 setErrors?.(
-                    errorInfo.errorFields.map((field) => field.errors).flat()
+                    errorInfo.errorFields.map((field) => field.errors).flat(),
                 );
                 // Extract validation errors and add to errors list
                 if (onErrorsClear) {
@@ -216,7 +269,7 @@ export default function BasicInfoTab({
                                                 </Option>
                                             ))}
                                         </Select.OptGroup>
-                                    )
+                                    ),
                                 )}
                             </Select>
                         </Form.Item>
@@ -260,7 +313,8 @@ export default function BasicInfoTab({
                                 prefix={defaultCurrencySymbol}
                                 parser={(value) => {
                                     const num = parseFloat(
-                                        value?.replace(/\$\s?|(,*)/g, "") || "0"
+                                        value?.replace(/\$\s?|(,*)/g, "") ||
+                                            "0",
                                     );
                                     return num as any;
                                 }}
@@ -283,33 +337,107 @@ export default function BasicInfoTab({
                             </Select>
                         </Form.Item>
                     </Col>
+
+                    {/* Developer Project Selection */}
+                    <Col span={24}>
+                        <Form.Item
+                            name="developer_project_id"
+                            label="Developer Project"
+                            tooltip="Selecting a project will derive location from the project's location settings"
+                        >
+                            <Select
+                                placeholder="Select a developer project (optional)"
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
+                                onChange={handleProjectChange}
+                                value={selectedProjectId ?? undefined}
+                            >
+                                {developerProjects.map((project) => (
+                                    <Option key={project.id} value={project.id}>
+                                        {project.name}
+                                        {project.location && (
+                                            <span className="text-gray-400 ml-2">
+                                                ({project.location.name})
+                                            </span>
+                                        )}
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    </Col>
+
+                    {/* Warning when project has no location */}
+                    {selectedProjectId && !projectHasLocation && (
+                        <Col span={24}>
+                            <Alert
+                                message="Project has no location configured"
+                                description="The selected project does not have a location set. Please enter the city and area manually, or configure the project's location in the Developer Projects section."
+                                type="warning"
+                                showIcon
+                                icon={<WarningOutlined />}
+                                className="mb-4"
+                            />
+                        </Col>
+                    )}
+
                     <Col span={12}>
                         <Form.Item
                             name="city"
                             label="City"
+                            tooltip={
+                                projectHasLocation
+                                    ? "Derived from project location"
+                                    : undefined
+                            }
                             rules={[
                                 {
-                                    required: true,
+                                    required: !projectHasLocation,
                                     message: "Please enter city",
                                 },
                             ]}
                         >
-                            <Input placeholder="Enter city" />
+                            <Input
+                                placeholder={
+                                    projectHasLocation
+                                        ? "From project location"
+                                        : "Enter city"
+                                }
+                                disabled={projectHasLocation}
+                                className={
+                                    projectHasLocation ? "bg-gray-50" : ""
+                                }
+                            />
                         </Form.Item>
                     </Col>
 
                     <Col span={12}>
                         <Form.Item
                             name="area"
-                            label="Area/District"
+                            label="Area/Country"
+                            tooltip={
+                                projectHasLocation
+                                    ? "Derived from project location"
+                                    : undefined
+                            }
                             rules={[
                                 {
-                                    required: true,
+                                    required: !projectHasLocation,
                                     message: "Please enter area",
                                 },
                             ]}
                         >
-                            <Input placeholder="Enter area or district" />
+                            <Input
+                                placeholder={
+                                    projectHasLocation
+                                        ? "From project location"
+                                        : "Enter area or country"
+                                }
+                                disabled={projectHasLocation}
+                                className={
+                                    projectHasLocation ? "bg-gray-50" : ""
+                                }
+                            />
                         </Form.Item>
                     </Col>
                 </Row>
