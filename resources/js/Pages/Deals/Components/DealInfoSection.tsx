@@ -63,8 +63,10 @@ export default function DealInfoSection({
     employees,
     projects,
 }: Props) {
-    const { props } = usePage();
+    const { props } = usePage<any>();
     const user = props.auth.user;
+    const currencies = props.currencies || [];
+    const defaultCurrencyCode = props.default_currency_code || "TRY";
     const [activeTab, setActiveTab] = useState("overview");
     const { action, handleAction, handleClose } = useGenericEntityAction();
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
@@ -188,13 +190,37 @@ export default function DealInfoSection({
                     // Process value transformations for regular details fields
                     let processedValue = value;
                     if (fieldName === "value") {
-                        processedValue = value
-                            ? parseFloat(value.toString())
-                            : 0;
+                        // Handle new currency format: { amount, currency }
+                        if (value && typeof value === "object" && ("amount" in value || "currency" in value)) {
+                            const currencyCode = typeof value.currency === "string" 
+                                ? value.currency 
+                                : defaultCurrencyCode;
+                            
+                            // Find currency_id from currency_code
+                            const foundCurrency = currencies.find(
+                                (c: any) => (c.currency_code || "").toUpperCase() === currencyCode.toUpperCase()
+                            );
+
+                            // Only set value if amount is explicitly provided (don't overwrite with 0)
+                            if (value.amount !== null && value.amount !== undefined && value.amount !== "") {
+                                detailsChanges.value = Number(value.amount);
+                            }
+                            if (foundCurrency?.id) {
+                                detailsChanges.currency_id = foundCurrency.id;
+                            }
+                        } else {
+                            // Fallback for old format (just a number)
+                            processedValue = value
+                                ? parseFloat(value.toString())
+                                : 0;
+                            detailsChanges[fieldName] = processedValue;
+                        }
                     } else if (fieldName === "close_date") {
                         processedValue = value || null;
+                        detailsChanges[fieldName] = processedValue;
+                    } else {
+                        detailsChanges[fieldName] = processedValue;
                     }
-                    detailsChanges[fieldName] = processedValue;
                 }
             }
 
@@ -347,7 +373,41 @@ export default function DealInfoSection({
             } else if (fieldName === "company_name") {
                 effectiveType = "contact";
             } else if (fieldName === "value") {
-                processedValue = value ? parseFloat(value.toString()) : 0;
+                // Handle new currency format: { amount, currency }
+                if (value && typeof value === "object" && ("amount" in value || "currency" in value)) {
+                    const currencyCode = typeof value.currency === "string" 
+                        ? value.currency 
+                        : defaultCurrencyCode;
+                    
+                    // Find currency_id from currency_code
+                    const foundCurrency = currencies.find(
+                        (c: any) => (c.currency_code || "").toUpperCase() === currencyCode.toUpperCase()
+                    );
+                    
+                    // Set currency_id and (optionally) value
+                    const payloadData: Record<string, any> = {};
+                    if (foundCurrency?.id) {
+                        payloadData.currency_id = foundCurrency.id;
+                    }
+                    if (value.amount !== null && value.amount !== undefined && value.amount !== "") {
+                        payloadData.value = Number(value.amount);
+                    }
+
+                    // If neither amount nor currency_id is resolvable, do nothing
+                    if (Object.keys(payloadData).length === 0) {
+                        setUpdatingField(null);
+                        return;
+                    }
+                    
+                    await updateDeal({
+                        type: effectiveType,
+                        data: payloadData,
+                    });
+                    return;
+                } else {
+                    // Fallback for old format (just a number)
+                    processedValue = value ? parseFloat(value.toString()) : 0;
+                }
             } else if (fieldName === "close_date") {
                 processedValue = value || null;
             }
@@ -780,21 +840,29 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Deal Value">
                             <EditableField
-                                value={currentDeal.value}
+                                value={{
+                                    amount: currentDeal.value ?? null,
+                                    currency: currentDeal.currency?.currency_code || defaultCurrencyCode,
+                                }}
                                 fieldName="value"
-                                fieldType="number"
+                                fieldType="currency"
                                 onSave={(value) =>
                                     handleFieldUpdate("value", value)
                                 }
-                                formatValue={(value) =>
-                                    value
-                                        ? formatCurrency(
-                                              Number(value),
-                                              currentDeal.currency
-                                                  ?.currency_symbol,
-                                          )
-                                        : "--"
-                                }
+                                formatValue={(value) => {
+                                    if (
+                                        value === null ||
+                                        value === undefined ||
+                                        (typeof value === "object" &&
+                                            (value.amount === null ||
+                                                value.amount === undefined))
+                                    ) {
+                                        return "--";
+                                    }
+                                    const amount = typeof value === "object" ? value.amount : value;
+                                    const currencySymbol = currentDeal.currency?.currency_symbol || "£";
+                                    return formatCurrency(Number(amount), currencySymbol);
+                                }}
                                 className="font-semibold"
                                 alwaysEditing={isFieldEditable}
                                 onChange={handleFieldChange}

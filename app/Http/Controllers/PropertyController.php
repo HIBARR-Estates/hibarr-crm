@@ -53,7 +53,7 @@ class PropertyController extends AccountBaseController
     public function index(Request $request)
     {
         // Get properties with pagination and filtering
-        $query = Property::with('product');
+        $query = Property::with(['product', 'developerProject.location']);
 
         
         // Apply filters if provided
@@ -69,8 +69,28 @@ class PropertyController extends AccountBaseController
             $query->where('status', $request->status);
         }
 
+        // Filter by developer project
+        if ($request->filled('developer_project_id') && $request->developer_project_id !== 'all') {
+            $query->where('developer_project_id', $request->developer_project_id);
+        }
+
+        // Filter by city - search in property's own city OR project location name
         if ($request->filled('city')) {
-            $query->where('city', 'like', '%' . $request->city . '%');
+            $citySearch = $request->city;
+            $query->where(function($q) use ($citySearch) {
+                $q->where('city', 'like', '%' . $citySearch . '%')
+                  ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
+                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
+                  });
+            });
+        }
+
+        // Filter by project location (searches project location name)
+        if ($request->filled('project_location')) {
+            $locationSearch = $request->project_location;
+            $query->whereHas('developerProject.location', function($q) use ($locationSearch) {
+                $q->where('name', 'like', '%' . $locationSearch . '%');
+            });
         }
 
         if ($request->filled('min_price')) {
@@ -151,7 +171,7 @@ class PropertyController extends AccountBaseController
             'products' => $products,
             'developerProjects' => $developerProjects,
             'developers' => $developers,
-            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price'])
+            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price', 'developer_project_id', 'project_location'])
         ]);       
     }
 
@@ -196,9 +216,12 @@ class PropertyController extends AccountBaseController
         $property = new Property();
         $property->company_id = user()->company_id;
         $property->product_id = $product->id;
+        $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
-        $property->price = $request->price;
+        
+        $property->price = $this->normalizePrice($request->price);
+        
         $property->minimal_rental_period = $request->minimal_rental_period;
         $property->rent_payment_interval = $request->rent_payment_interval;
         $property->title_deed_type = $request->title_deed_type;
@@ -244,7 +267,7 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $this->property = Property::with(['product', 'assets' => function($query) {
+        $this->property = Property::with(['product', 'developerProject.location', 'assets' => function($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
         
@@ -339,7 +362,7 @@ class PropertyController extends AccountBaseController
 
     public function edit($id)
     {
-        $this->property = Property::with('product')->findOrFail($id);
+        $this->property = Property::with(['product', 'developerProject.location'])->findOrFail($id);
         
         // Check permission
         $canEdit = false;
@@ -407,13 +430,16 @@ class PropertyController extends AccountBaseController
 
         // Check if updates are allowed based on current status
         $fieldsToUpdate = $request->only($property->getFillable());
+        
+        if (isset($fieldsToUpdate['price'])) {
+            $fieldsToUpdate['price'] = $this->normalizePrice($fieldsToUpdate['price']);
+        }
+        
         foreach ($fieldsToUpdate as $field => $value) {
             abort_403(!$property->canUpdateField($field), __('messages.propertyUpdateNotAllowed', ['field' => $field]));
         }
 
         $property->update($fieldsToUpdate);
-
-        
 
         return back()->with([
             'success' => true,
@@ -1130,5 +1156,69 @@ class PropertyController extends AccountBaseController
         
         // Return the download response directly
         return $this->exposeService->generate($config);
+    }
+
+    /**
+     * Normalize price value to JSON format with amount and currency.
+     *
+     * @param mixed $priceValue
+     * @return string|null
+     */
+    private function normalizePrice($priceValue): ?string
+    {
+        if ($priceValue === null || $priceValue === '') {
+            return null;
+        }
+
+        $defaultCurrency = company()?->currency?->currency_code ?? 'TRY';
+
+        if (is_array($priceValue)) {
+            $amount = isset($priceValue['amount']) && $priceValue['amount'] !== null && $priceValue['amount'] !== ''
+                ? (float) $priceValue['amount']
+                : null;
+            $currency = isset($priceValue['currency']) && !empty($priceValue['currency'])
+                ? strtoupper($priceValue['currency'])
+                : $defaultCurrency;
+
+            return $amount !== null && $amount >= 0
+                ? json_encode(['amount' => $amount, 'currency' => $currency])
+                : null;
+        }
+
+        if (is_string($priceValue)) {
+            $trimmed = trim($priceValue);
+            $firstChar = $trimmed[0] ?? '';
+
+            if ($firstChar === '{' || $firstChar === '[') {
+                $decoded = json_decode($priceValue, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $amountValue = $decoded['amount'] ?? null;
+                    $amount = ($amountValue !== null && $amountValue !== '' && is_numeric($amountValue))
+                        ? (float) $amountValue
+                        : null;
+                    $currency = isset($decoded['currency']) && !empty($decoded['currency'])
+                        ? strtoupper($decoded['currency'])
+                        : $defaultCurrency;
+
+                    return $amount !== null && $amount >= 0
+                        ? json_encode(['amount' => $amount, 'currency' => $currency])
+                        : null;
+                }
+            }
+
+            $numValue = is_numeric($priceValue) ? (float) $priceValue : null;
+            return $numValue !== null && $numValue >= 0
+                ? json_encode(['amount' => $numValue, 'currency' => $defaultCurrency])
+                : null;
+        }
+
+        if (is_numeric($priceValue)) {
+            $amount = (float) $priceValue;
+            return $amount >= 0
+                ? json_encode(['amount' => $amount, 'currency' => $defaultCurrency])
+                : null;
+        }
+
+        return null;
     }
 }

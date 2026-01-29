@@ -24,10 +24,14 @@ export interface PaginationLink {
     active: boolean;
 }
 
+// Import DeveloperProject types
+import { DeveloperProject } from "./developerProject";
+
 // Property Types
 export interface Property {
     id: number;
     product_id: number;
+    developer_project_id?: number | null;
     property_type: PropertyType;
     sale_type: "sale" | "rent";
     price: number;
@@ -66,6 +70,14 @@ export interface Property {
     updated_at: string;
     product?: Product;
     assets?: PropertyAsset[];
+    // Relations
+    developerProject?: DeveloperProject;
+    // Computed attributes from backend
+    effective_location: {
+        city: string | null;
+        area: string | null;
+    };
+    has_project_location: boolean;
 }
 
 export type PropertyType =
@@ -271,10 +283,9 @@ export interface FlashMessage {
     message: string;
 }
 export interface AuthType {
-    user: User; 
+    user: User;
     permissions: AppPermission;
     modules: AppModule[];
-
 }
 export interface AppProps extends PageProps {
     props: {
@@ -342,7 +353,7 @@ export interface ShowRuleSet {
     field_id: number;
     default_visibility: boolean;
     enabled: boolean;
-    groups_operator?: 'AND' | 'OR'; // How to combine multiple groups
+    groups_operator?: "AND" | "OR"; // How to combine multiple groups
     group?: ShowRuleGroup; // For backward compatibility (single group)
     groups?: ShowRuleGroup[]; // Multiple groups support
 }
@@ -350,9 +361,9 @@ export interface ShowRuleSet {
 export interface ShowRuleGroup {
     id: number;
     rule_set_id: number;
-    group_operator: 'AND' | 'OR';
+    group_operator: "AND" | "OR";
     enabled?: boolean; // Whether this group is enabled
-    visibility_action?: 'show' | 'hide'; // Whether this group shows or hides the field when it matches
+    visibility_action?: "show" | "hide"; // Whether this group shows or hides the field when it matches
     criteria?: ShowCriterion[];
 }
 
@@ -360,7 +371,16 @@ export interface ShowCriterion {
     id: number;
     group_id: number;
     reference_field_id: number;
-    operator: 'equals' | 'exists' | 'boolean' | '>' | '<' | '>=' | '<=' | 'in' | 'not_in';
+    operator:
+        | "equals"
+        | "exists"
+        | "boolean"
+        | ">"
+        | "<"
+        | ">="
+        | "<="
+        | "in"
+        | "not_in";
     reference_value: string;
     negate: boolean;
     reference_field?: CustomField; // Populated from backend

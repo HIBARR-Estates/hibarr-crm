@@ -13,6 +13,7 @@ import PhoneInput from 'antd-phone-input';
 import { CustomField } from '@/Types';
 import { useCustomFieldVisibility } from '@/Hooks/useCustomFieldVisibility';
 import { usePage } from '@inertiajs/react';
+import CurrencyInput from '@/Components/CurrencyInput';
 
 interface Props {
     fields: CustomField[];
@@ -247,7 +248,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
         </Form.Item>
     );
 
-    const renderPhoneField = (field: CustomField) => (
+    const renderCurrencyField = (field: CustomField) => (
         <Form.Item
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
@@ -258,10 +259,10 @@ const CustomFieldRenderer: React.FC<Props> = ({
                     : []
             }
         >
-            <PhoneInput 
-                enableSearch
+            <CurrencyInput
                 placeholder={`Enter ${field.label}`}
-                country=""
+                noFormItem={true}
+                disabled={false}
             />
         </Form.Item>
     );
@@ -289,8 +290,8 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 return renderDateField(field);
             case 'country':
                 return renderCountryField(field);
-            case 'phone':
-                return renderPhoneField(field);
+            case 'currency':
+                return renderCurrencyField(field);
             default:
                 return renderTextField(field);
         }
