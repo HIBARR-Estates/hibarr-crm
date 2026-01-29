@@ -124,7 +124,7 @@ class Property extends BaseModel
     protected $hidden = ["pivot"];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        // price is now VARCHAR storing JSON string, so no cast needed
         'land_size' => 'decimal:2',
         'minimal_rental_period' => 'integer',
         'building_age' => 'integer',
@@ -139,6 +139,39 @@ class Property extends BaseModel
         'add_ons' => 'array',
     ];
 
+    public function getPriceAttribute($value)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && array_key_exists('amount', $decoded)) {
+                return (float) $decoded['amount'];
+            }
+        }
+
+        return is_numeric($value) ? (float) $value : $value;
+    }
+
+    public function setPriceAttribute($value): void
+    {
+        if ($value === null) {
+            $this->attributes['price'] = null;
+            return;
+        }
+
+        if (is_numeric($value)) {
+            $this->attributes['price'] = json_encode([
+                'amount' => (float) $value,
+                'currency' => company()?->currency?->currency_code ?? 'TRY',
+            ]);
+            return;
+        }
+
+        $this->attributes['price'] = $value;
+    }
     /**
      * Attributes to append to the model's array/JSON form.
      */

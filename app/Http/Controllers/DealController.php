@@ -1565,11 +1565,23 @@ class DealController extends AccountBaseController
         }
 
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
+        // Prefer browser timezone from request, fallback to company timezone if not provided
+        $browserTimezone = $request->timezone;
+        
+        if (!$browserTimezone) {
+            // Fallback to company timezone if browser timezone not provided
+            $browserTimezone = company()->timezone ?? 'UTC';
+            \Log::warning('Browser timezone not provided in follow-up request, using company timezone', [
+                'deal_id' => $request->deal_id,
+                'company_timezone' => $browserTimezone,
+            ]);
+        }
+        
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
             $request->next_follow_up_date . ' ' . $request->start_time,
-            $request->timezone ?: company()->timezone
-        )->setTimezone('UTC'); // Convert to UTC for database storage
+            $browserTimezone
+        )->setTimezone('UTC'); // Convert from browser/company timezone to UTC for database storage
 
         // Prepare reminders data - combine defaults with custom reminders
         $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
@@ -1664,14 +1676,24 @@ class DealController extends AccountBaseController
         $followUp->meeting_link = $request->meeting_link;
 
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
-        // Use browser timezone if provided, otherwise fall back to company timezone
-        $timezone = $request->input('timezone') ?: company()->timezone;
+        // Prefer browser timezone from request, fallback to company timezone if not provided
+        $browserTimezone = $request->input('timezone');
+        
+        if (!$browserTimezone) {
+            // Fallback to company timezone if browser timezone not provided
+            $browserTimezone = company()->timezone ?? 'UTC';
+            \Log::warning('Browser timezone not provided in follow-up update request, using company timezone', [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $request->deal_id,
+                'company_timezone' => $browserTimezone,
+            ]);
+        }
         
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
             $request->next_follow_up_date . ' ' . $request->start_time,
-            $timezone
-        )->setTimezone('UTC'); // Convert to UTC for database storage
+            $browserTimezone
+        )->setTimezone('UTC'); // Convert from browser/company timezone to UTC for database storage
         // Assign Carbon instance directly - Laravel will handle the conversion
         $followUp->next_follow_up_date = $next_follow_up_date;
 

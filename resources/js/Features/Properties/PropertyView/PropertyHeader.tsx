@@ -11,7 +11,8 @@ import {
     FolderOpenOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
-import { getStatusColor, formatCurrency } from "@/lib/utils";
+import { getStatusColor, parsePropertyPrice, formatCurrencyWithSymbol } from "@/lib/utils";
+import { usePage } from "@inertiajs/react";
 
 const { Title, Text } = Typography;
 
@@ -30,6 +31,23 @@ function PropertyHeader({
     onGenerateExpose,
     canEdit = false,
 }: PropertyHeaderProps) {
+    const { props } = usePage<any>();
+    const {
+        default_currency_code: defaultCurrencyCode,
+        default_currency_symbol: defaultCurrencySymbol,
+        currencies = [],
+    } = props || {};
+
+    const { amount, currency } = parsePropertyPrice(
+        (property as any).price,
+        defaultCurrencyCode || "TRY"
+    );
+
+    const resolvedSymbol =
+        currencies.find((c: any) => c?.currency_code === currency)?.currency_symbol ||
+        defaultCurrencySymbol ||
+        "";
+
     const handleManageAssets = () => {
         router.visit(route("properties.assets.index", property.id));
     };
@@ -69,7 +87,7 @@ function PropertyHeader({
 
                     <div className="flex items-center gap-2 mb-4">
                         <Title level={3} className="mb-0 text-blue-600">
-                            {formatCurrency(property.price)}
+                            {formatCurrencyWithSymbol(amount, resolvedSymbol)}
                         </Title>
                         {property.sale_type.includes("Rent") && (
                             <Text type="secondary">
