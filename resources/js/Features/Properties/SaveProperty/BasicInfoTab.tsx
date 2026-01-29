@@ -106,7 +106,7 @@ export default function BasicInfoTab({
     // const currencies = props.currencies || [];
     // TODO: Refactor the property model to use currency id instead of symbol, also this will mean the import template needs to be updated
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
-    
+
     // Use ref to track previous data ID to prevent unnecessary updates
     const previousDataIdRef = useRef<number | undefined>(undefined);
     const isInitialMountRef = useRef(true);
@@ -139,8 +139,9 @@ export default function BasicInfoTab({
     // Populate form when data changes
     useEffect(() => {
         // Only update form on initial mount or when switching to a different property
-        const shouldUpdate = isInitialMountRef.current || (data?.id !== previousDataIdRef.current);
-        
+        const shouldUpdate =
+            isInitialMountRef.current || data?.id !== previousDataIdRef.current;
+
         if (data && shouldUpdate) {
             isInitialMountRef.current = false;
             previousDataIdRef.current = data.id;
@@ -161,7 +162,7 @@ export default function BasicInfoTab({
                 add_ons: data.add_ons || [],
                 assets: data.assets || [],
             };
-            
+
             // Use a microtask to defer the update and break the synchronous update cycle
             // Cast: form stores price as { amount, currency } for CurrencyInput; Property type has price as number
             Promise.resolve().then(() => {
@@ -174,11 +175,15 @@ export default function BasicInfoTab({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data?.id, props.default_currency_code]);
-    const handleSubmit = (values: any) => { 
+    const handleSubmit = (values: any) => {
         // Transform the values to match the API expectations
         // Handle price: CurrencyInput returns {amount, currency} object, convert to JSON string for storage
         let priceValue = values.price;
-        if (priceValue && typeof priceValue === "object" && priceValue.amount !== undefined) {
+        if (
+            priceValue &&
+            typeof priceValue === "object" &&
+            priceValue.amount !== undefined
+        ) {
             // New format: store as JSON string
             priceValue = JSON.stringify(priceValue);
         }
@@ -319,16 +324,16 @@ export default function BasicInfoTab({
                             <CurrencyInput
                                 placeholder="Enter price"
                                 showLabel={false}
-                                min={0}
+                                // min={0}
                                 // TODO: Use property product currency if available, and fallback to default company currency, when not sent from ui
-                                prefix={defaultCurrencySymbol}
-                                parser={(value) => {
-                                    const num = parseFloat(
-                                        value?.replace(/\$\s?|(,*)/g, "") ||
-                                            "0",
-                                    );
-                                    return num as any;
-                                }}
+                                // prefix={defaultCurrencySymbol}
+                                // parser={(value:any) => {
+                                //     const num = parseFloat(
+                                //         value?.replace(/\$\s?|(,*)/g, "") ||
+                                //             "0",
+                                //     );
+                                //     return num as any;
+                                // }}
                             />
                         </Form.Item>
                     </Col>
@@ -361,7 +366,7 @@ export default function BasicInfoTab({
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
-                                onChange={handleProjectChange}
+                                // onChange={handleProjectChange}
                                 value={selectedProjectId ?? undefined}
                             >
                                 {developerProjects.map((project) => (

@@ -134,8 +134,8 @@ const Index = ({
     const filterConfig = useMemo(
         () =>
             createPropertyFilterConfig({
-                projects,
-                developers,
+                // projects,
+                // developers,
                 developerProjects,
                 excludeFields: ["search"],
             }),
@@ -199,7 +199,12 @@ const Index = ({
     ];
 
     // Table columns
-    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencies, currencyCode, currencySymbol);
+    const columns = PROPERTY_TABLE_COLUMNS(
+        getActionItems,
+        currencies,
+        currencyCode,
+        currencySymbol,
+    );
 
     return (
         <>
