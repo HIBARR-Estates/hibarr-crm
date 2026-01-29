@@ -229,6 +229,17 @@ class PropertyApiController extends Controller
     }
 
     /**
+     * Resolve property by numeric ID or slug and delegate to show() or showBySlug().
+     */
+    public function showByIdOrSlug(Request $request, string $identifier): \Illuminate\Http\JsonResponse
+    {
+        if (ctype_digit($identifier)) {
+            return $this->show($request, (int) $identifier);
+        }
+        return $this->showBySlug($request, $identifier);
+    }
+
+    /**
      * Get a single property by ID with associated agent details.
      *
      * @param Request $request

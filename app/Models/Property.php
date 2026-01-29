@@ -126,7 +126,7 @@ class Property extends BaseModel
     protected $hidden = ["pivot"];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'price' => \App\Casts\PriceCast::class,
         'land_size' => 'decimal:2',
         'minimal_rental_period' => 'integer',
         'building_age' => 'integer',
@@ -246,7 +246,7 @@ class Property extends BaseModel
         
         if ($projectLocation) {
             return [
-                'city' => $projectLocation->name ?? $this->city,
+                'city' => $projectLocation->name ?? $projectLocation->city,
                 'area' => $projectLocation->address['country'] ?? $this->area,
             ];
         }

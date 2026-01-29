@@ -139,7 +139,7 @@ class PropertyController extends AccountBaseController
             $query->orderBy('created_at', 'desc');
         }
 
-        $properties = $query->paginate(15);
+        $properties = $query->paginate((int) $request->get('per_page', 15) ?: 15);
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -269,7 +269,7 @@ class PropertyController extends AccountBaseController
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
 
-        return $this->renderPropertyShow($property);
+        return $this->renderPropertyShow($this->property);
     }
 
     /**
