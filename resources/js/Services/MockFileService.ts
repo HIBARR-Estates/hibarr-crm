@@ -1,6 +1,29 @@
 /**
  * Mock File Service
  *
+ * @deprecated This service is deprecated and will be removed in a future release.
+ * Please use `FileUploadService` from `@/Services/FileUploadService` instead,
+ * or the `useFileUpload` hook from `@/Hooks/useFileUpload` for React components.
+ *
+ * Migration example:
+ * ```typescript
+ * // Old usage (deprecated):
+ * import { mockUploadFile } from '@/Services/MockFileService';
+ * const url = await mockUploadFile(file, 'property');
+ *
+ * // New usage (recommended):
+ * import { useFileUpload } from '@/Hooks/useFileUpload';
+ * const { uploadSingle } = useFileUpload();
+ * const response = await uploadSingle(file, 'backend-uploads');
+ * const url = response.downloadUrl;
+ *
+ * // Or using the service directly:
+ * import { FileUploadService } from '@/Services/FileUploadService';
+ * const service = new FileUploadService();
+ * const response = await service.uploadSingle(file, 'backend-uploads');
+ * const url = response.downloadUrl;
+ * ```
+ *
  * TEMPORARY: This service provides mock implementations for file uploads.
  * It returns placeholder URLs for development purposes until the real
  * file storage service (e.g., Minio/S3) is implemented.
