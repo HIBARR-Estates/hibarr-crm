@@ -232,105 +232,21 @@ class PropertyApiController extends Controller
     {
         try {
             $companyId = $request->header('X-COMPANY-ID');
-
             if (!$companyId) {
                 return response()->json(Reply::error(__('messages.missingCompanyId')), 400);
             }
-
             $companyId = (int) $companyId;
-            $propertyId = (int) $id;
-
-            // Find the property by ID and company_id with images
-            $property = Property::where('properties.id', $propertyId)
+            $property = Property::where('properties.id', (int) $id)
                 ->where('properties.company_id', $companyId)
                 ->with('images')
                 ->first();
-
             if (!$property) {
-                return response()->json([
-                    'status' => 'fail',
-                    'message' => 'Property not found'
-                ], 404);
+                return response()->json(['status' => 'fail', 'message' => 'Property not found'], 404);
             }
-
-            // Get product and agent data
-            $productIds = $property->product_id ? [$property->product_id] : [];
-            $productsMap = $this->getProductsMap($productIds, $companyId);
-            $agentsMap = $this->getAgentsForProducts($productIds, $companyId);
-
-            // Get filters to check for field filtering
-            $filters = $this->getFilters($request);
-            $requestedFields = null;
-            if (isset($filters['fields']) && !empty($filters['fields'])) {
-                // Support both array and comma-separated string
-                if (is_array($filters['fields'])) {
-                    $requestedFields = array_map('trim', $filters['fields']);
-                } else {
-                    $requestedFields = array_map('trim', explode(',', $filters['fields']));
-                }
-                $requestedFields = array_filter($requestedFields); // Remove empty values
-            }
-
-            // Transform property to flatten product fields and include agent details
-            $propertyData = $property->toArray();
-            
-            // Remove the nested product object if it exists
-            unset($propertyData['product']);
-            
-            // Add images from PropertyAsset relationship
-            $propertyData['images'] = $property->images->map(function ($image) {
-                return [
-                    'id' => $image->id,
-                    'name' => $image->name,
-                    'url' => $image->url,
-                    'file_path' => $image->file_path,
-                    'external_url' => $image->external_url,
-                    'tags' => $image->tags,
-                    'order' => $image->order,
-                    'formatted_size' => $image->formatted_size,
-                ];
-            })->values()->toArray();
-            
-            // Get product data and flatten it into the main payload
-            $product = $productsMap->get($property->product_id);
-            if ($product) {
-                $productArray = $product->toArray();
-                
-                // Add product fields with "product_" prefix to avoid conflicts
-                foreach ($productArray as $key => $value) {
-                    // Skip relationships and internal fields (but include product id separately)
-                    if (!in_array($key, ['id', 'tax', 'category', 'subCategory', 'unit', 'company', 'pivot'])) {
-                        $propertyData['product_' . $key] = $value;
-                    }
-                }
-                
-                // Include product_id in the response
-                $propertyData['product_id'] = $product->id;
-            }
-            
-            // Get agent details from pre-fetched map
-            $agentData = $agentsMap[$property->product_id] ?? null;
-            
-            // Add agent data as nested sub-payload
-            $propertyData['agent'] = $agentData;
-            
-            // Filter fields if requested
-            if ($requestedFields !== null && !empty($requestedFields)) {
-                $propertyData = $this->filterFields($propertyData, $requestedFields);
-            }
-
-            // Build response
-            $response = [
-                'status' => 'success',
-                'data' => $propertyData,
-            ];
-
-            return response()->json($response, 200);
-
+            $data = $this->buildPropertyPayload($property, $companyId, $request);
+            return response()->json(['status' => 'success', 'data' => $data], 200);
         } catch (\Exception $e) {
-            // Generate a unique reference ID for tracking
             $referenceId = uniqid('PROP-', true);
-
             Log::error('Error fetching property via API', [
                 'reference_id' => $referenceId,
                 'property_id' => $id,
@@ -338,12 +254,10 @@ class PropertyApiController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'company_id' => $request->header('X-COMPANY-ID'),
             ]);
-
-            // Return generic error message to client with reference ID for support
             return response()->json([
                 'status' => 'fail',
                 'message' => 'Failed to fetch property. Please contact support with reference ID: ' . $referenceId,
-                'reference_id' => $referenceId
+                'reference_id' => $referenceId,
             ], 500);
         }
     }
@@ -356,104 +270,21 @@ class PropertyApiController extends Controller
     {
         try {
             $companyId = $request->header('X-COMPANY-ID');
-
             if (!$companyId) {
                 return response()->json(Reply::error(__('messages.missingCompanyId')), 400);
             }
-
             $companyId = (int) $companyId;
-
-            // Find the property by slug and company_id with images
             $property = Property::where('properties.slug', $slug)
                 ->where('properties.company_id', $companyId)
                 ->with('images')
                 ->first();
-
             if (!$property) {
-                return response()->json([
-                    'status' => 'fail',
-                    'message' => 'Property not found'
-                ], 404);
+                return response()->json(['status' => 'fail', 'message' => 'Property not found'], 404);
             }
-
-            // Get product and agent data
-            $productIds = $property->product_id ? [$property->product_id] : [];
-            $productsMap = $this->getProductsMap($productIds, $companyId);
-            $agentsMap = $this->getAgentsForProducts($productIds, $companyId);
-
-            // Get filters to check for field filtering
-            $filters = $this->getFilters($request);
-            $requestedFields = null;
-            if (isset($filters['fields']) && !empty($filters['fields'])) {
-                // Support both array and comma-separated string
-                if (is_array($filters['fields'])) {
-                    $requestedFields = array_map('trim', $filters['fields']);
-                } else {
-                    $requestedFields = array_map('trim', explode(',', $filters['fields']));
-                }
-                $requestedFields = array_filter($requestedFields); // Remove empty values
-            }
-
-            // Transform property to flatten product fields and include agent details
-            $propertyData = $property->toArray();
-            
-            // Remove the nested product object if it exists
-            unset($propertyData['product']);
-            
-            // Add images from PropertyAsset relationship
-            $propertyData['images'] = $property->images->map(function ($image) {
-                return [
-                    'id' => $image->id,
-                    'name' => $image->name,
-                    'url' => $image->url,
-                    'file_path' => $image->file_path,
-                    'external_url' => $image->external_url,
-                    'tags' => $image->tags,
-                    'order' => $image->order,
-                    'formatted_size' => $image->formatted_size,
-                ];
-            })->values()->toArray();
-            
-            // Get product data and flatten it into the main payload
-            $product = $productsMap->get($property->product_id);
-            if ($product) {
-                $productArray = $product->toArray();
-                
-                // Add product fields with "product_" prefix to avoid conflicts
-                foreach ($productArray as $key => $value) {
-                    // Skip relationships and internal fields (but include product id separately)
-                    if (!in_array($key, ['id', 'tax', 'category', 'subCategory', 'unit', 'company', 'pivot'])) {
-                        $propertyData['product_' . $key] = $value;
-                    }
-                }
-                
-                // Include product_id in the response
-                $propertyData['product_id'] = $product->id;
-            }
-            
-            // Get agent details from pre-fetched map
-            $agentData = $agentsMap[$property->product_id] ?? null;
-            
-            // Add agent data as nested sub-payload
-            $propertyData['agent'] = $agentData;
-            
-            // Filter fields if requested
-            if ($requestedFields !== null && !empty($requestedFields)) {
-                $propertyData = $this->filterFields($propertyData, $requestedFields);
-            }
-
-            // Build response
-            $response = [
-                'status' => 'success',
-                'data' => $propertyData,
-            ];
-
-            return response()->json($response, 200);
-
+            $data = $this->buildPropertyPayload($property, $companyId, $request);
+            return response()->json(['status' => 'success', 'data' => $data], 200);
         } catch (\Exception $e) {
-            // Generate a unique reference ID for tracking
             $referenceId = uniqid('PROP-', true);
-
             Log::error('Error fetching property via API (by slug)', [
                 'reference_id' => $referenceId,
                 'property_slug' => $slug ?? null,
@@ -461,46 +292,133 @@ class PropertyApiController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'company_id' => $request->header('X-COMPANY-ID'),
             ]);
-
-            // Return generic error message to client with reference ID for support
             return response()->json([
                 'status' => 'fail',
                 'message' => 'Failed to fetch property. Please contact support with reference ID: ' . $referenceId,
-                'reference_id' => $referenceId
+                'reference_id' => $referenceId,
             ], 500);
         }
     }
 
     /**
-     * Get all property types as a flat list. No parameters required.
+     * Build the single-property API payload: products/agents lookup, images mapping,
+     * product flattening, agent attachment, and optional field filtering.
+     *
+     * @param Property $property Resolved property (with images loaded).
+     * @param int $companyId From X-COMPANY-ID header.
+     * @param Request $request For getFilters / filterFields.
+     * @return array The 'data' payload (not the full response).
      */
-    public function getPropertyTypes()
+    private function buildPropertyPayload(Property $property, int $companyId, Request $request): array
     {
-        $types = Property::getAllPropertyTypes();
+        $productIds = $property->product_id ? [$property->product_id] : [];
+        $productsMap = $this->getProductsMap($productIds, $companyId);
+        $agentsMap = $this->getAgentsForProducts($productIds, $companyId);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $types,
-        ], 200);
+        $filters = $this->getFilters($request);
+        $requestedFields = null;
+        if (!empty($filters['fields'])) {
+            $requestedFields = is_array($filters['fields'])
+                ? array_map('trim', $filters['fields'])
+                : array_map('trim', explode(',', $filters['fields']));
+            $requestedFields = array_filter($requestedFields);
+        }
+
+        $propertyData = $property->toArray();
+        unset($propertyData['product']);
+        $propertyData['images'] = $property->images->map(function ($image) {
+            return [
+                'id' => $image->id,
+                'name' => $image->name,
+                'url' => $image->url,
+                'file_path' => $image->file_path,
+                'external_url' => $image->external_url,
+                'tags' => $image->tags,
+                'order' => $image->order,
+                'formatted_size' => $image->formatted_size,
+            ];
+        })->values()->toArray();
+
+        $product = $productsMap->get($property->product_id);
+        if ($product) {
+            $productArray = $product->toArray();
+            foreach ($productArray as $key => $value) {
+                if (!in_array($key, ['id', 'tax', 'category', 'subCategory', 'unit', 'company', 'pivot'])) {
+                    $propertyData['product_' . $key] = $value;
+                }
+            }
+            $propertyData['product_id'] = $product->id;
+        }
+        $propertyData['agent'] = $agentsMap[$property->product_id] ?? null;
+
+        if ($requestedFields !== null && $requestedFields !== []) {
+            $propertyData = $this->filterFields($propertyData, $requestedFields);
+        }
+        return $propertyData;
     }
 
     /**
-     * Get all features (exterior, interior, location) as one flat list. No parameters required.
+     * Get all property types as a flat list. Requires X-COMPANY-ID header.
      */
-    public function getFeatures()
+    public function getPropertyTypes(Request $request)
     {
-        $grouped = Property::getAllFeatures();
-        $flat = array_merge(
-            $grouped['exterior_features'],
-            $grouped['interior_features'],
-            $grouped['location_features']
-        );
-        sort($flat);
+        $companyId = $request->header('X-COMPANY-ID');
+        if (!$companyId) {
+            return response()->json(Reply::error(__('messages.missingCompanyId')), 400);
+        }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => array_values(array_unique($flat)),
-        ], 200);
+        try {
+            $types = Property::getAllPropertyTypes();
+            return response()->json([
+                'status' => 'success',
+                'data' => $types,
+            ], 200);
+        } catch (\Throwable $e) {
+            $referenceId = uniqid('PROP-TYPES-', true);
+            Log::error('Error in getPropertyTypes', [
+                'reference_id' => $referenceId,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'company_id' => $request->header('X-COMPANY-ID'),
+            ]);
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Failed to fetch property types. Please contact support with reference ID: ' . $referenceId,
+                'reference_id' => $referenceId,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all features (exterior, interior, location) as one flat list. Requires X-COMPANY-ID header.
+     */
+    public function getFeatures(Request $request)
+    {
+        $companyId = $request->header('X-COMPANY-ID');
+        if (!$companyId) {
+            return response()->json(Reply::error(__('messages.missingCompanyId')), 400);
+        }
+
+        try {
+            $flat = Property::getAllFeatures();
+            return response()->json([
+                'status' => 'success',
+                'data' => $flat,
+            ], 200);
+        } catch (\Throwable $e) {
+            $referenceId = uniqid('PROP-FEATURES-', true);
+            Log::error('Error in getFeatures', [
+                'reference_id' => $referenceId,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'company_id' => $request->header('X-COMPANY-ID'),
+            ]);
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Failed to fetch features. Please contact support with reference ID: ' . $referenceId,
+                'reference_id' => $referenceId,
+            ], 500);
+        }
     }
 
     public function getLocation(Request $request)
@@ -511,23 +429,39 @@ class PropertyApiController extends Controller
         }
         $companyId = (int) $companyId;
 
-        $locations = ProjectLocation::where('company_id', $companyId)
-            ->orderBy('name')
-            ->get()
-            ->map(function (ProjectLocation $location) {
-                return [
-                    'id' => $location->id,
-                    'name' => $location->name,
-                    'address' => $location->address ?? null,
-                ];
-            })
-            ->values()
-            ->toArray();
+        try {
+            $locations = ProjectLocation::where('company_id', $companyId)
+                ->orderBy('name')
+                ->get()
+                ->map(function (ProjectLocation $location) {
+                    return [
+                        'id' => $location->id,
+                        'name' => $location->name,
+                        'address' => $location->address ?? null,
+                    ];
+                })
+                ->values()
+                ->toArray();
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $locations,
-        ], 200);
+            return response()->json([
+                'status' => 'success',
+                'data' => $locations,
+            ], 200);
+        } catch (\Throwable $e) {
+            $referenceId = uniqid('LOC-', true);
+            Log::error('Error in getLocation (ProjectLocation)', [
+                'reference_id' => $referenceId,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'company_id' => $companyId,
+                'context' => 'getLocation',
+            ]);
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Failed to fetch locations. Please contact support with reference ID: ' . $referenceId,
+                'reference_id' => $referenceId,
+            ], 500);
+        }
     }
 
     /**
