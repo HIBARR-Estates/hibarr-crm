@@ -402,8 +402,60 @@ export default function EditableField({
 
     const renderFileField = () => {
         if (isFileLoading) {
-            return <Spin size="small" />;
+            return (
+                <Spin
+                    size="small"
+                    indicator={<LoadingOutlined spin />}
+                />
+            );
         }
+
+        if (value && typeof value === "string") {
+            const fileUrl = `/user-uploads/hibarr_fields/${value}`;
+            const downloadLabel = value
+                ? `Download file ${value}`
+                : "Download file";
+            const deleteLabel = value
+                ? `Delete file ${value}`
+                : "Delete file";
+            return (
+                <div className="flex flex-col gap-1">
+                    <a
+                        href={fileUrl}
+                        className="text-blue-600 hover:text-blue-800 inline-flex items-center"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <FileOutlined className="mr-1" />
+                        View File
+                    </a>
+                    <Space size="small">
+                        <a
+                            href={fileUrl}
+                            className="text-blue-600 hover:text-blue-800"
+                            download
+                            title="Download"
+                            aria-label={downloadLabel}
+                        >
+                            <DownloadOutlined />
+                        </a>
+                        {!disabled && (
+                            <Button
+                                type="text"
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={handleFileRemove}
+                                title="Delete"
+                                aria-label={deleteLabel}
+                            />
+                        )}
+                    </Space>
+                </div>
+            );
+        }
+
+        
         if (fieldType === "currency") {
             // Parse and format currency value for display
             const parsed = parsePropertyPrice(value, default_currency_code || "TRY");
@@ -412,6 +464,9 @@ export default function EditableField({
                 default_currency_symbol ||
                 "";
             return formatCurrencyWithSymbol(parsed.amount, symbol);
+          }
+        if (disabled) {
+            return <span className="text-gray-500">--</span>;
         }
         return value?.toString() || "--";
     };
