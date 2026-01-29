@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Property;
 
 use App\Http\Requests\CoreRequest;
+use App\Models\DeveloperProject;
 use App\Models\Property;
 use Illuminate\Validation\Rule;
 
@@ -93,9 +94,24 @@ class StoreRequest extends CoreRequest
                     Property::STATUS_WITHDRAWN
                 ])
             ],
-            'city' => 'required|string|max:255',
+            'developer_project_id' => 'nullable|exists:developer_projects,id',
+            'city' => [
+                Rule::requiredIf(function () {
+                    return !$this->projectHasLocation();
+                }),
+                'nullable',
+                'string',
+                'max:255'
+            ],
             'map' => 'nullable|string',
-            'area' => 'required|string|max:255',
+            'area' => [
+                Rule::requiredIf(function () {
+                    return !$this->projectHasLocation();
+                }),
+                'nullable',
+                'string',
+                'max:255'
+            ],
             'land_size' => 'nullable|numeric|min:0',
             'living_room' => 'nullable|string|max:255',
             'bedrooms' => 'nullable|string|max:255',
@@ -131,6 +147,23 @@ class StoreRequest extends CoreRequest
         $rules = $this->addConditionalRules($rules);
 
         return $rules;
+    }
+
+    /**
+     * Check if the selected developer project has a location.
+     * If it does, city/area will be derived from the project location.
+     */
+    protected function projectHasLocation(): bool
+    {
+        $projectId = $this->input('developer_project_id');
+        
+        if (!$projectId) {
+            return false;
+        }
+        
+        $project = DeveloperProject::with('location')->find($projectId);
+        
+        return $project && $project->location !== null;
     }
 
     /**
@@ -208,6 +241,7 @@ class StoreRequest extends CoreRequest
             'rent_payment_interval' => __('modules.properties.rentPaymentInterval'),
             'title_deed_type' => __('modules.properties.titleDeedType'),
             'title_deed_stage' => __('modules.properties.titleDeedStage'),
+            'developer_project_id' => __('modules.properties.developerProject'),
             'city' => __('modules.properties.city'),
             'map' => __('modules.properties.map'),
             'area' => __('modules.properties.area'),

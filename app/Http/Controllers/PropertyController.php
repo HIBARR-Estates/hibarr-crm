@@ -53,7 +53,7 @@ class PropertyController extends AccountBaseController
     public function index(Request $request)
     {
         // Get properties with pagination and filtering
-        $query = Property::with('product');
+        $query = Property::with(['product', 'developerProject.location']);
 
         
         // Apply filters if provided
@@ -196,6 +196,7 @@ class PropertyController extends AccountBaseController
         $property = new Property();
         $property->company_id = user()->company_id;
         $property->product_id = $product->id;
+        $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
         $property->price = $request->price;
@@ -244,7 +245,7 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $this->property = Property::with(['product', 'assets' => function($query) {
+        $this->property = Property::with(['product', 'developerProject.location', 'assets' => function($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
         
@@ -339,7 +340,7 @@ class PropertyController extends AccountBaseController
 
     public function edit($id)
     {
-        $this->property = Property::with('product')->findOrFail($id);
+        $this->property = Property::with(['product', 'developerProject.location'])->findOrFail($id);
         
         // Check permission
         $canEdit = false;
