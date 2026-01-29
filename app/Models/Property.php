@@ -143,6 +143,39 @@ class Property extends BaseModel
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
 
+    public function getPriceAttribute($value)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && array_key_exists('amount', $decoded)) {
+                return (float) $decoded['amount'];
+            }
+        }
+
+        return is_numeric($value) ? (float) $value : $value;
+    }
+
+    public function setPriceAttribute($value): void
+    {
+        if ($value === null) {
+            $this->attributes['price'] = null;
+            return;
+        }
+
+        if (is_numeric($value)) {
+            $this->attributes['price'] = json_encode([
+                'amount' => (float) $value,
+                'currency' => company()?->currency?->currency_code ?? 'TRY',
+            ]);
+            return;
+        }
+
+        $this->attributes['price'] = $value;
+    }
     /**
      * Boot: generate unique slug from title on create/update when title is present.
      */

@@ -280,6 +280,8 @@ export default function SaveFollowup({
         const customReminders = values.reminders || [];
 
         // Get browser timezone
+        const browserTimezone =
+            Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
         const formData: SaveFollowupFormData = {
             next_follow_up_date:
@@ -292,6 +294,7 @@ export default function SaveFollowup({
             remark: values.remark || "",
             deal_id: deal.id,
             participants: participants,
+            timezone: browserTimezone, // Send browser timezone to backend
         };
 
         onSubmit(formData);

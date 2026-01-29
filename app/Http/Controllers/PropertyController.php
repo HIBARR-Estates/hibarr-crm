@@ -221,7 +221,9 @@ class PropertyController extends AccountBaseController
         $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
-        $property->price = $request->price;
+        
+        $property->price = $this->normalizePrice($request->price);
+        
         $property->minimal_rental_period = $request->minimal_rental_period;
         $property->rent_payment_interval = $request->rent_payment_interval;
         $property->title_deed_type = $request->title_deed_type;
@@ -397,13 +399,16 @@ class PropertyController extends AccountBaseController
 
         // Check if updates are allowed based on current status
         $fieldsToUpdate = $request->only($property->getFillable());
+        
+        if (isset($fieldsToUpdate['price'])) {
+            $fieldsToUpdate['price'] = $this->normalizePrice($fieldsToUpdate['price']);
+        }
+        
         foreach ($fieldsToUpdate as $field => $value) {
             abort_403(!$property->canUpdateField($field), __('messages.propertyUpdateNotAllowed', ['field' => $field]));
         }
 
         $property->update($fieldsToUpdate);
-
-        
 
         return back()->with([
             'success' => true,
@@ -1120,5 +1125,69 @@ class PropertyController extends AccountBaseController
         
         // Return the download response directly
         return $this->exposeService->generate($config);
+    }
+
+    /**
+     * Normalize price value to JSON format with amount and currency.
+     *
+     * @param mixed $priceValue
+     * @return string|null
+     */
+    private function normalizePrice($priceValue): ?string
+    {
+        if ($priceValue === null || $priceValue === '') {
+            return null;
+        }
+
+        $defaultCurrency = company()?->currency?->currency_code ?? 'TRY';
+
+        if (is_array($priceValue)) {
+            $amount = isset($priceValue['amount']) && $priceValue['amount'] !== null && $priceValue['amount'] !== ''
+                ? (float) $priceValue['amount']
+                : null;
+            $currency = isset($priceValue['currency']) && !empty($priceValue['currency'])
+                ? strtoupper($priceValue['currency'])
+                : $defaultCurrency;
+
+            return $amount !== null && $amount >= 0
+                ? json_encode(['amount' => $amount, 'currency' => $currency])
+                : null;
+        }
+
+        if (is_string($priceValue)) {
+            $trimmed = trim($priceValue);
+            $firstChar = $trimmed[0] ?? '';
+
+            if ($firstChar === '{' || $firstChar === '[') {
+                $decoded = json_decode($priceValue, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $amountValue = $decoded['amount'] ?? null;
+                    $amount = ($amountValue !== null && $amountValue !== '' && is_numeric($amountValue))
+                        ? (float) $amountValue
+                        : null;
+                    $currency = isset($decoded['currency']) && !empty($decoded['currency'])
+                        ? strtoupper($decoded['currency'])
+                        : $defaultCurrency;
+
+                    return $amount !== null && $amount >= 0
+                        ? json_encode(['amount' => $amount, 'currency' => $currency])
+                        : null;
+                }
+            }
+
+            $numValue = is_numeric($priceValue) ? (float) $priceValue : null;
+            return $numValue !== null && $numValue >= 0
+                ? json_encode(['amount' => $numValue, 'currency' => $defaultCurrency])
+                : null;
+        }
+
+        if (is_numeric($priceValue)) {
+            $amount = (float) $priceValue;
+            return $amount >= 0
+                ? json_encode(['amount' => $amount, 'currency' => $defaultCurrency])
+                : null;
+        }
+
+        return null;
     }
 }
