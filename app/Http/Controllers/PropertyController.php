@@ -69,8 +69,28 @@ class PropertyController extends AccountBaseController
             $query->where('status', $request->status);
         }
 
+        // Filter by developer project
+        if ($request->filled('developer_project_id') && $request->developer_project_id !== 'all') {
+            $query->where('developer_project_id', $request->developer_project_id);
+        }
+
+        // Filter by city - search in property's own city OR project location name
         if ($request->filled('city')) {
-            $query->where('city', 'like', '%' . $request->city . '%');
+            $citySearch = $request->city;
+            $query->where(function($q) use ($citySearch) {
+                $q->where('city', 'like', '%' . $citySearch . '%')
+                  ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
+                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
+                  });
+            });
+        }
+
+        // Filter by project location (searches project location name)
+        if ($request->filled('project_location')) {
+            $locationSearch = $request->project_location;
+            $query->whereHas('developerProject.location', function($q) use ($locationSearch) {
+                $q->where('name', 'like', '%' . $locationSearch . '%');
+            });
         }
 
         if ($request->filled('min_price')) {
@@ -151,7 +171,7 @@ class PropertyController extends AccountBaseController
             'products' => $products,
             'developerProjects' => $developerProjects,
             'developers' => $developers,
-            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price'])
+            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price', 'developer_project_id', 'project_location'])
         ]);       
     }
 
