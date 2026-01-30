@@ -197,7 +197,8 @@
                 $sel.empty().append('<option value="">@lang('app.select') @lang('modules.customFields.linkedField')</option>');
                 if (r.fields && r.fields.length) {
                     $.each(r.fields, function (i, f) {
-                        $sel.append('<option value="' + f.id + '">' + (f.label || f.name) + ' (' + (f.type || '') + ')</option>');
+                        var $opt = $('<option></option>').val(f.id).text((f.label || f.name) + ' (' + (f.type || '') + ')');
+                        $sel.append($opt);
                     });
                 }
                 $sel.selectpicker('refresh');
