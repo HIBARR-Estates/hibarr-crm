@@ -572,7 +572,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // deals route
 
     Route::resource('lead-contact', LeadContactController::class);
-    Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    // Accept both POST (for file uploads) and PATCH
+    Route::match(['post', 'patch'], 'lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
     Route::post('lead-contact/apply-quick-action', [LeadContactController::class, 'applyQuickAction'])->name('lead-contact.apply_quick_action');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
@@ -587,7 +588,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('gathering/search-leads', [DealGatheringController::class, 'searchLeads'])->name('gathering.search_leads');
         Route::patch('gathering/update-step/{id}', [DealGatheringController::class, 'updateStep'])->name('gathering.update_step');
         Route::get('gathering/custom-fields/{id}', [DealGatheringController::class, 'getDealCustomFields'])->name('gathering.get_custom_fields');
-        Route::patch('gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
+        // Accept both POST (for file uploads with method spoofing) and PATCH
+        Route::match(['post', 'patch'], 'gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
     });
 
     Route::resource('deals', DealController::class);
@@ -999,6 +1001,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
     Route::post('properties/{id}/expose/validate', [App\Http\Controllers\PropertyController::class, 'validateExpose'])->name('properties.expose.validate');
     Route::post('properties/{id}/expose/generate', [App\Http\Controllers\PropertyController::class, 'generateExpose'])->name('properties.expose.generate');
+
+    Route::get('properties/slug/{slug}', [App\Http\Controllers\PropertyController::class, 'showBySlug'])->name('properties.show_by_slug');
 
     // =====================================================
     // Developer Projects & Project Locations

@@ -118,7 +118,7 @@ const DealDetailsTab: React.FC<Props> = ({
                             handleSave("strategy_meeting_booked", value)
                         }
                         displayValue={renderBoolean(
-                            fields.strategy_meeting_booked
+                            fields.strategy_meeting_booked,
                         )}
                         alwaysEditing={editable}
                         onChange={onChange}
@@ -176,7 +176,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     <EditableField
                         value={fields.reservation_agreement}
                         fieldName="reservation_agreement"
-                        fieldType="text"
+                        fieldType="file"
                         onSave={(value) =>
                             handleSave("reservation_agreement", value)
                         }
@@ -190,7 +190,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     <EditableField
                         value={fields.sales_contract}
                         fieldName="sales_contract"
-                        fieldType="text"
+                        fieldType="file"
                         onSave={(value) => handleSave("sales_contract", value)}
                         alwaysEditing={editable}
                         onChange={onChange}

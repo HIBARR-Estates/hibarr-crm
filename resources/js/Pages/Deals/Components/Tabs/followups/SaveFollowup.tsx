@@ -26,6 +26,7 @@ import dayjs from "dayjs";
 import { useState, useEffect } from "react";
 import HtmlEditor from "@/Components/HtmlEditor";
 import MeetingTypeSelector from "./MeetingTypeSelector";
+import FormDataSelector from "@/Components/FormDataSelector";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -40,6 +41,8 @@ interface SaveFollowupFormData {
     meeting_link?: string;
     reminders: Reminder[];
     remark?: string;
+    timezone?: string; // Browser timezone
+    participants?: number[]; // Array of user IDs
 }
 
 interface Props {
@@ -187,6 +190,32 @@ export default function SaveFollowup({
         { value: "day", label: "Days" },
     ];
 
+    // Helper function to get default participants (participants, watchers)
+    const getDefaultParticipants = (): number[] => {
+        const participantIds: number[] = [];
+        
+      
+        // Add deal participants
+        if (deal.deal_participants && deal.deal_participants.length > 0) {
+            deal.deal_participants.forEach((participant: any) => {
+                if (participant.id && !participantIds.includes(participant.id)) {
+                    participantIds.push(participant.id);
+                }
+            });
+        }
+        
+        // Add deal watchers
+        if (deal.deal_watchers && deal.deal_watchers.length > 0) {
+            deal.deal_watchers.forEach((watcher: any) => {
+                if (watcher.id && !participantIds.includes(watcher.id)) {
+                    participantIds.push(watcher.id);
+                }
+            });
+        }
+        
+        return participantIds;
+    };
+
     // Initialize form with followup data if editing
     useEffect(() => {
         if (followup) {
@@ -205,13 +234,17 @@ export default function SaveFollowup({
                 meeting_link: followup.meeting_link || "",
                 reminders: existingCustomReminders, // Only set custom reminders in form
                 remark: followup.remark || "",
+                participants: followup.participants || [],
             });
         } else {
             // Reset form to default values for new follow-up
+            // Pre-fill participants with deal agent, participants, and watchers
+            const defaultParticipants = getDefaultParticipants();
             form.resetFields();
             form.setFieldsValue({
                 location: "zoho",
                 reminders: [], // Start with empty custom reminders array
+                participants: defaultParticipants,
             });
         }
     }, [followup, form]);
@@ -229,8 +262,26 @@ export default function SaveFollowup({
             return;
         }
 
+        // Validate participants for video meetings
+        const isVideoMeeting = values.location === "zoho";
+        const participants = values.participants || [];
+        
+        if (isVideoMeeting && participants.length === 0) {
+            form.setFields([
+                {
+                    name: 'participants',
+                    errors: ['At least one participant is required for video meetings'],
+                },
+            ]);
+            return;
+        }
+
         // Get custom reminders from form
         const customReminders = values.reminders || [];
+
+        // Get browser timezone
+        const browserTimezone =
+            Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
         const formData: SaveFollowupFormData = {
             next_follow_up_date:
@@ -242,6 +293,8 @@ export default function SaveFollowup({
             reminders: customReminders, // Only send custom reminders, defaults are handled server-side
             remark: values.remark || "",
             deal_id: deal.id,
+            participants: participants,
+            timezone: browserTimezone, // Send browser timezone to backend
         };
 
         onSubmit(formData);
@@ -249,9 +302,11 @@ export default function SaveFollowup({
         // Reset form after submission if creating new meeting (not editing)
         if (!isEditing) {
             form.resetFields();
+            const defaultParticipants = getDefaultParticipants();
             form.setFieldsValue({
                 location: "zoho",
                 reminders: [],
+                participants: defaultParticipants,
             });
         }
     };
@@ -374,6 +429,48 @@ export default function SaveFollowup({
                         </Option>
                     ))}
                 </Select>
+            </Form.Item>
+
+            {/* Participants - shown for video meetings */}
+            <Form.Item
+                shouldUpdate={(prevValues, currentValues) =>
+                    prevValues.location !== currentValues.location
+                }
+                noStyle
+            >
+                {({ getFieldValue }) => {
+                    const location = getFieldValue("location");
+                    const isVideoMeeting = location === "zoho";
+                    
+                    if (!isVideoMeeting) return null;
+                    
+                    return (
+                        <Form.Item
+                            name="participants"
+                            label="Meeting Participants"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "At least one participant is required for video meetings",
+                                    validator: (_, value) => {
+                                        if (!value || value.length === 0) {
+                                            return Promise.reject(new Error("At least one participant is required for video meetings"));
+                                        }
+                                        return Promise.resolve();
+                                    },
+                                },
+                            ]}
+                            tooltip="Participants will be invited to the video meeting. Pre-filled with deal agent, participants, and watchers."
+                        >
+                            <FormDataSelector
+                                type="employees"
+                                mode="multiple"
+                                placeholder="Select meeting participants"
+                                disabled={loading || isScheduled}
+                            />
+                        </Form.Item>
+                    );
+                }}
             </Form.Item>
 
             {/* Meeting Link - conditionally shown and auto-generated for Zoho */}

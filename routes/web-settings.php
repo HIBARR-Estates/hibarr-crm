@@ -32,6 +32,7 @@ use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\StorageSettingController;
 use App\Http\Controllers\TimeLogSettingController;
 use App\Http\Controllers\BusinessAddressController;
+use App\Http\Controllers\PackageController;
 use App\Http\Controllers\CurrencySettingController;
 use App\Http\Controllers\LanguageSettingController;
 use App\Http\Controllers\SecuritySettingController;
@@ -258,6 +259,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     Route::post('business-address/set-default', [BusinessAddressController::class, 'setDefaultAddress'])->name('business-address.set_default');
     Route::resource('business-address', BusinessAddressController::class);
+
+    Route::resource('packages', PackageController::class);
 
     Route::post('employee-shifts/set-default', [EmployeeShiftController::class, 'setDefaultShift'])->name('employee-shifts.set_default');
     Route::resource('employee-shifts', EmployeeShiftController::class);

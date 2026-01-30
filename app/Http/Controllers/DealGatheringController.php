@@ -9,6 +9,8 @@ use App\Models\Lead;
 use App\Models\Deal;
 use App\Enums\DealUpdateType;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Support\Facades\Log;
+use App\Helper\Files;
 
 class DealGatheringController extends AccountBaseController
 {
@@ -151,12 +153,80 @@ class DealGatheringController extends AccountBaseController
      */
     public function updateInline(Request $request, $id)
     {
-        $request->validate([
-            'type' => ['required', new Enum(DealUpdateType::class)],
-            'data' => 'required|array',
-        ]);
+        try {
+            // Check if type is present
+            $type = $request->input('type');
+            
+            if (!$type) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The type field is required.',
+                ], 422);
+            }
 
-        $deal = Deal::findOrFail($id);
+            // Validate type
+            $request->merge(['type' => $type]);
+            $request->validate([
+                'type' => ['required', new Enum(DealUpdateType::class)],
+            ]);
+
+            $deal = Deal::findOrFail($id);
+
+            // Process data to handle file uploads
+            $data = [];
+            
+            // Method 1: Check if data is already parsed as an array (normal case)
+            if ($request->has('data')) {
+                if (is_array($request->data)) {
+                    $data = $request->data;
+                }
+            }
+            
+            // Method 2: Check for files using dot notation (data.fieldName)
+            // Laravel parses FormData with brackets as dot notation
+            $allFiles = $request->allFiles();
+            foreach ($allFiles as $key => $file) {
+                if (strpos($key, 'data.') === 0) {
+                    $fieldName = substr($key, 5); // Remove "data." prefix
+                    $data[$fieldName] = $file;
+                }
+            }
+            
+            // Method 3: Also check direct file access with hasFile
+            // Try common hibarr field names
+            $hibarrFileFields = ['reservation_agreement', 'sales_contract'];
+            foreach ($hibarrFileFields as $fieldName) {
+                if ($request->hasFile("data.{$fieldName}")) {
+                    $data[$fieldName] = $request->file("data.{$fieldName}");
+                }
+            }
+            
+            // Method 4: For non-file data, check all input
+            foreach ($request->all() as $key => $value) {
+                // Skip if it's already in data or if it's a file
+                if (isset($data[$key]) || $value instanceof \Illuminate\Http\UploadedFile) {
+                    continue;
+                }
+                
+                // Check for data[fieldName] pattern
+                if (preg_match('/^data\[(.+)\]$/', $key, $matches)) {
+                    $fieldName = $matches[1];
+                    $data[$fieldName] = $value;
+                }
+            }
+            
+            // Validate that we have some data
+            if (empty($data)) {
+                Log::error('DealGatheringController: No data extracted', [
+                    'type' => $type,
+                    'has_files' => !empty($request->allFiles()),
+                ]);
+                
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No data provided. Please check the request format.'
+                ], 422);
+            }
 
         // Get regular data values
         $data = $request->input('data', []);
@@ -193,12 +263,35 @@ class DealGatheringController extends AccountBaseController
         );
 
         // Refresh deal with all relationships and custom fields data
-        $freshDeal = $updatedDeal->fresh(['contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products', 'dealWatchers', 'dealParticipants']);
+        $freshDeal = $updatedDeal->fresh(['currency', 'contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products', 'dealWatchers', 'dealParticipants']);
         $freshDeal->withCustomFields();
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $freshDeal,
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'data' => $freshDeal,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('DealGatheringController: Exception', [
+                'message' => $e->getMessage(),
+                'type' => $request->input('type'),
+            ]);
+            return response()->json([
+                'status' => 'error',
+            ], 500);
+        }
+    }
+
+    /**
+     * Helper function to convert human-readable size to bytes
+     */
+    private function returnBytes($val)
+    {
+        return Files::returnBytes($val);
     }
 }

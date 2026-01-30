@@ -101,13 +101,17 @@ export const NoteCard: React.FC<NoteCardProps> = ({
             // hoverable
             variant="outlined"
         >
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex items-start space-x-3 flex-1">
+            <div className="flex justify-between items-start mb-3 gap-2">
+                <div className="flex items-start space-x-3 flex-1 min-w-0">
                     <div className="flex-1 min-w-0">
                         <Title
                             level={5}
-                            className="mb-1 text-gray-800 group-hover:text-blue-700 transition-colors truncate cursor-pointer hover:underline hover:text-blue-600"
+                            className="mb-1 text-gray-800 group-hover:text-blue-700 transition-colors cursor-pointer hover:underline hover:text-blue-600"
                             onClick={() => onView(note)}
+                            ellipsis={{
+                                tooltip: note.title,
+                                rows: 1,
+                            }}
                         >
                             {note.title}
                         </Title>

@@ -9,9 +9,11 @@ import {
     Row,
     Col,
 } from 'antd';
+import PhoneInput from 'antd-phone-input';
 import { CustomField } from '@/Types';
 import { useCustomFieldVisibility } from '@/Hooks/useCustomFieldVisibility';
 import { usePage } from '@inertiajs/react';
+import CurrencyInput from '@/Components/CurrencyInput';
 import RepeatableFieldRenderer from '@/Components/RepeatableFieldRenderer';
 
 interface Props {
@@ -247,6 +249,25 @@ const CustomFieldRenderer: React.FC<Props> = ({
         </Form.Item>
     );
 
+    const renderCurrencyField = (field: CustomField) => (
+        <Form.Item
+            key={field.id}
+            name={[namePrefix, `field_${field.id}`]}
+            label={field.label}
+            rules={
+                field.required === 'yes' && isFieldVisible(field.id)
+                    ? [{ required: true, message: `${field.label} is required` }]
+                    : []
+            }
+        >
+            <CurrencyInput
+                placeholder={`Enter ${field.label}`}
+                noFormItem={true}
+                disabled={false}
+            />
+        </Form.Item>
+    );
+
     const renderField = (field: CustomField) => {
         // Check visibility
         if (!isFieldVisible(field.id)) {
@@ -270,6 +291,8 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 return renderDateField(field);
             case 'country':
                 return renderCountryField(field);
+            case 'currency':
+                return renderCurrencyField(field);
             case 'repeatable':
                 return (
                     <RepeatableFieldRenderer

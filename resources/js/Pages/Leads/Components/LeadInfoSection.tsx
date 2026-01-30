@@ -174,8 +174,8 @@ export default function LeadInfoSection({
             const customFieldChanges: Record<string, any> = {};
 
             for (const [fieldName, value] of Object.entries(pendingChanges)) {
-                // Check if this is a custom field
-                if (fieldName.startsWith("cf_")) {
+                // Check if this is a custom field (field_ prefix pattern)
+                if (fieldName.startsWith("field_")) {
                     customFieldChanges[fieldName] = value;
                 } else {
                     // Process value transformations
@@ -565,7 +565,7 @@ export default function LeadInfoSection({
                                         ""
                                     }
                                     fieldName="mobile"
-                                    fieldType="text"
+                                    fieldType="phone"
                                     onSave={(value) =>
                                         handleFieldUpdate("mobile", value)
                                     }
@@ -587,7 +587,7 @@ export default function LeadInfoSection({
                                     ""
                                 }
                                 fieldName="office"
-                                fieldType="text"
+                                fieldType="phone"
                                 onSave={(value) =>
                                     handleFieldUpdate("office", value)
                                 }

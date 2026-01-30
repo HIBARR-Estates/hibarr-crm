@@ -22,6 +22,7 @@ import { CustomField } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import React, { useState } from "react";
 import axios from "axios";
+import { usePage } from "@inertiajs/react";
 
 // Helper to parse file value - can be single file string, comma-separated, or JSON array
 const parseFileValue = (value: string | null): string[] => {
@@ -277,6 +278,15 @@ export default function CustomFieldDisplay({
     onChange,
     globalLoading = false,
 }: Props) {
+    const { props } = usePage<any>();
+    const { currencies = [], default_currency_code } = props;
+
+    // Use the application's default currency (current company setting)
+    const appDefaultCurrency: string =
+        default_currency_code ??
+        currencies?.[0]?.code ??
+        currencies?.[0]?.currency_code ??
+        "USD";
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
         ? fields.filter(
@@ -605,15 +615,76 @@ export default function CustomFieldDisplay({
                     </a>
                 );
 
-            case "phone":
+            case "phone": {
+                // Supports:
+                // - plain string "+905338773001"
+                // - JSON string / object from antd-phone-input:
+                //   {"countryCode":"90","areaCode":"533","phoneNumber":"8773001","isoCode":"tr"}
+                // - JSON string / object from our custom PhoneInput:
+                //   {"phone":"+905338773001","country_code":"90","country_identifier":"Turkey"}
+                const parsePhoneValue = (raw: any): { display: string; tel: string } => {
+                    const fallback = String(raw ?? "");
+
+                    const toDigits = (v: any) => String(v ?? "").replace(/[^\d]/g, "");
+
+                    const formatFromParts = (country: any, area: any, num: any) => {
+                        const cc = toDigits(country);
+                        const ac = toDigits(area);
+                        const pn = toDigits(num);
+                        const digits = [cc, ac, pn].filter(Boolean).join("");
+                        if (!digits) return null;
+                        return {
+                            display: `+${digits}`,
+                            tel: `+${digits}`,
+                        };
+                    };
+
+                    const formatFromE164 = (phone: any) => {
+                        const s = String(phone ?? "").trim();
+                        if (!s) return null;
+                        // keep leading + if provided; otherwise just digits
+                        const tel = s.startsWith("+") ? s : toDigits(s);
+                        const display = s.startsWith("+") ? s : tel;
+                        return tel ? { display, tel } : null;
+                    };
+
+                    let obj: any = raw;
+                    if (typeof raw === "string") {
+                        const trimmed = raw.trim();
+                        // if it's already a normal phone string, don't show JSON
+                        if (trimmed.startsWith("+") || /^\d[\d\s().-]*$/.test(trimmed)) {
+                            return formatFromE164(trimmed) ?? { display: fallback, tel: fallback };
+                        }
+                        try {
+                            obj = JSON.parse(trimmed);
+                        } catch {
+                            return { display: fallback, tel: fallback };
+                        }
+                    }
+
+                    if (obj && typeof obj === "object") {
+                        // antd-phone-input shape
+                        const fromAntd = formatFromParts(obj.countryCode, obj.areaCode, obj.phoneNumber);
+                        if (fromAntd) return fromAntd;
+
+                        // our custom PhoneInput shape
+                        const fromCustom = formatFromE164(obj.phone);
+                        if (fromCustom) return fromCustom;
+                    }
+
+                    return { display: fallback, tel: fallback };
+                };
+
+                const { display, tel } = parsePhoneValue(value);
                 return (
                     <a
-                        href={`tel:${value}`}
+                        href={`tel:${tel}`}
                         className="text-blue-600 hover:text-blue-800"
                     >
-                        {value}
+                        {display}
                     </a>
                 );
+            }
 
             case "number":
                 return typeof value === "number"
@@ -705,6 +776,82 @@ export default function CustomFieldDisplay({
             case "password":
                 return <span className="text-gray-500">••••••••</span>;
 
+            case "currency": {
+                let currencyData: { amount: string | number | null; currency: string } | null = null;
+                
+                // Handle plain numbers (most common case from DB)
+                if (typeof value === "number") {
+                    currencyData = { amount: value, currency: appDefaultCurrency };
+                } 
+                // Handle string numbers (e.g., "3235242")
+                else if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
+                    const numValue = Number(value);
+                    if (!isNaN(numValue)) {
+                        currencyData = { amount: numValue, currency: appDefaultCurrency };
+                    }
+                }
+                // Handle objects with amount property
+                else if (value && typeof value === "object" && value.amount !== undefined) {
+                    currencyData = value;
+                } 
+                // Handle JSON strings
+                else if (value && typeof value === "string") {
+                    try {
+                        const parsed = JSON.parse(value);
+                        // If JSON.parse returns a number, treat it as amount
+                        if (typeof parsed === "number") {
+                            currencyData = { amount: parsed, currency: appDefaultCurrency };
+                        } else if (typeof parsed === "object" && parsed !== null) {
+                            currencyData = parsed;
+                        }
+                    } catch {
+                        currencyData = { amount: value, currency: appDefaultCurrency };
+                    }
+                }
+
+                // Ensure currencyData has a currency property with a default
+                if (currencyData) {
+                    currencyData.currency = currencyData.currency || appDefaultCurrency;
+                }
+
+                if (currencyData && currencyData.amount !== null && currencyData.amount !== "") {
+                    const defaultSymbols: Record<string, string> = {
+                        USD: "$",
+                        EUR: "€",
+                        GBP: "£",
+                    };
+                    
+                    const currencyCode = currencyData.currency || appDefaultCurrency;
+                    let symbol = defaultSymbols[currencyCode] || "";
+                    if (currencies.length > 0 && currencyCode) {
+                        const currency = currencies.find(
+                            (c: any) => 
+                                c.currency_code === currencyCode || 
+                                (c.currency_name && c.currency_name.toUpperCase() === currencyCode.toUpperCase())
+                        );
+                        symbol = currency?.currency_symbol || symbol;
+                    }
+                    
+                    // Format amount with commas
+                    const amount = typeof currencyData.amount === "number" 
+                        ? currencyData.amount 
+                        : parseFloat(String(currencyData.amount).replace(/,/g, ""));
+                    
+                    if (!isNaN(amount)) {
+                        const formatted = amount.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                        });
+                        return (
+                            <span className="font-medium">
+                                {symbol}{formatted}
+                            </span>
+                        );
+                    }
+                }
+                return <span className="text-gray-500">--</span>;
+            }
+
             default:
                 // Handle long text content with word breaking
                 if (typeof value === "string" && value.length > 50) {
@@ -715,7 +862,8 @@ export default function CustomFieldDisplay({
     };
 
     const renderEditable = (field: Field, value: any) => {
-        if (!editable || !onUpdate) {
+        // If no onUpdate handler, just display the value (read-only mode)
+        if (!onUpdate) {
             return formatFieldValue(field, value);
         }
 
@@ -729,7 +877,8 @@ export default function CustomFieldDisplay({
             | "boolean"
             | "textarea"
             | "country"
-            | "email" = "text";
+            | "email"
+            | "currency" = "text";
         let options: { label: string; value: string | number }[] = [];
 
         switch (field.type) {
@@ -747,6 +896,9 @@ export default function CustomFieldDisplay({
                 break;
             case "country":
                 type = "country";
+                break;
+            case "currency":
+                type = "currency";
                 break;
             case "select":
             case "radio":
@@ -843,8 +995,13 @@ export default function CustomFieldDisplay({
             return formatFieldValue(field, value);
         }
 
-        // Use editable prop as alwaysEditing when alwaysEditing is not explicitly set
-        // This ensures edit mode works the same as DealDetailsTab
+        // Repeatable: display-only for now (modal edit can be added later)
+        if (field.type === "repeatable") {
+            return formatFieldValue(field, value);
+        }
+
+        // alwaysEditing should only be true when explicitly in bulk edit mode
+        // When editable is false, we still render EditableField but in hover-to-edit mode
         const effectiveAlwaysEditing = alwaysEditing || editable;
 
         return (

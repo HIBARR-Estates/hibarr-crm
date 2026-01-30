@@ -63,8 +63,10 @@ export default function DealInfoSection({
     employees,
     projects,
 }: Props) {
-    const { props } = usePage();
+    const { props } = usePage<any>();
     const user = props.auth.user;
+    const currencies = props.currencies || [];
+    const defaultCurrencyCode = props.default_currency_code || "TRY";
     const [activeTab, setActiveTab] = useState("overview");
     const { action, handleAction, handleClose } = useGenericEntityAction();
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
@@ -153,6 +155,23 @@ export default function DealInfoSection({
             // Group changes by type for API calls
             const detailsChanges: Record<string, any> = {};
             const contactChanges: Record<string, any> = {};
+            const customFieldChanges: Record<string, any> = {};
+            const hibarrFieldChanges: Record<string, any> = {};
+
+            // Hibarr field names (from DealDetailsTab)
+            const hibarrFieldNames = [
+                "interested_in",
+                "budget_range",
+                "purchase_timeline",
+                "motivation",
+                "strategy_meeting_booked",
+                "downpayment_paid",
+                "inspection_trip_date",
+                "deposit_confirmation",
+                "reservation_agreement",
+                "sales_contract",
+                "message",
+            ];
 
             // Process each pending change
             for (const [fieldName, value] of Object.entries(pendingChanges)) {
@@ -161,17 +180,47 @@ export default function DealInfoSection({
                     const apiFieldName =
                         fieldName === "email" ? "client_email" : fieldName;
                     contactChanges[apiFieldName] = value;
+                } else if (fieldName.startsWith("field_")) {
+                    // Custom fields use format field_XX
+                    customFieldChanges[fieldName] = value;
+                } else if (hibarrFieldNames.includes(fieldName)) {
+                    // Hibarr fields
+                    hibarrFieldChanges[fieldName] = value;
                 } else {
-                    // Process value transformations
+                    // Process value transformations for regular details fields
                     let processedValue = value;
                     if (fieldName === "value") {
-                        processedValue = value
-                            ? parseFloat(value.toString())
-                            : 0;
+                        // Handle new currency format: { amount, currency }
+                        if (value && typeof value === "object" && ("amount" in value || "currency" in value)) {
+                            const currencyCode = typeof value.currency === "string" 
+                                ? value.currency 
+                                : defaultCurrencyCode;
+                            
+                            // Find currency_id from currency_code
+                            const foundCurrency = currencies.find(
+                                (c: any) => (c.currency_code || "").toUpperCase() === currencyCode.toUpperCase()
+                            );
+
+                            // Only set value if amount is explicitly provided (don't overwrite with 0)
+                            if (value.amount !== null && value.amount !== undefined && value.amount !== "") {
+                                detailsChanges.value = Number(value.amount);
+                            }
+                            if (foundCurrency?.id) {
+                                detailsChanges.currency_id = foundCurrency.id;
+                            }
+                        } else {
+                            // Fallback for old format (just a number)
+                            processedValue = value
+                                ? parseFloat(value.toString())
+                                : 0;
+                            detailsChanges[fieldName] = processedValue;
+                        }
                     } else if (fieldName === "close_date") {
                         processedValue = value || null;
+                        detailsChanges[fieldName] = processedValue;
+                    } else {
+                        detailsChanges[fieldName] = processedValue;
                     }
-                    detailsChanges[fieldName] = processedValue;
                 }
             }
 
@@ -187,6 +236,24 @@ export default function DealInfoSection({
             if (Object.keys(contactChanges).length > 0) {
                 promises.push(
                     updateDeal({ type: "contact", data: contactChanges }),
+                );
+            }
+
+            if (Object.keys(customFieldChanges).length > 0) {
+                promises.push(
+                    updateDeal({
+                        type: "custom_field",
+                        data: customFieldChanges,
+                    }),
+                );
+            }
+
+            if (Object.keys(hibarrFieldChanges).length > 0) {
+                promises.push(
+                    updateDeal({
+                        type: "hibarr_field",
+                        data: hibarrFieldChanges,
+                    }),
                 );
             }
 
@@ -244,12 +311,15 @@ export default function DealInfoSection({
             value[0] instanceof File;
 
         try {
-            if ((isFile || isFileArray) && type === "custom_field") {
-                // Handle file upload via FormData for custom fields
+            if (
+                (isFile || isFileArray) &&
+                (type === "custom_field" || type === "hibarr_field")
+            ) {
+                // Handle file upload via FormData (custom fields + hibarr fields)
                 // Use POST with _method=PATCH for file uploads (Laravel method spoofing)
                 const formData = new FormData();
                 formData.append("_method", "PATCH");
-                formData.append("type", "custom_field");
+                formData.append("type", type);
 
                 if (isFileArray) {
                     // Multiple files - append each with array notation
@@ -281,7 +351,11 @@ export default function DealInfoSection({
                     setCurrentDeal(response.data.data);
                     message.success("File uploaded successfully");
                 }
+
+                // Clear loading state for this field (we bypass useApiMutate here)
                 setUpdatingField(null);
+
+                // Important: don't fall through to JSON PATCH after multipart upload
                 return;
             }
 
@@ -299,7 +373,41 @@ export default function DealInfoSection({
             } else if (fieldName === "company_name") {
                 effectiveType = "contact";
             } else if (fieldName === "value") {
-                processedValue = value ? parseFloat(value.toString()) : 0;
+                // Handle new currency format: { amount, currency }
+                if (value && typeof value === "object" && ("amount" in value || "currency" in value)) {
+                    const currencyCode = typeof value.currency === "string" 
+                        ? value.currency 
+                        : defaultCurrencyCode;
+                    
+                    // Find currency_id from currency_code
+                    const foundCurrency = currencies.find(
+                        (c: any) => (c.currency_code || "").toUpperCase() === currencyCode.toUpperCase()
+                    );
+                    
+                    // Set currency_id and (optionally) value
+                    const payloadData: Record<string, any> = {};
+                    if (foundCurrency?.id) {
+                        payloadData.currency_id = foundCurrency.id;
+                    }
+                    if (value.amount !== null && value.amount !== undefined && value.amount !== "") {
+                        payloadData.value = Number(value.amount);
+                    }
+
+                    // If neither amount nor currency_id is resolvable, do nothing
+                    if (Object.keys(payloadData).length === 0) {
+                        setUpdatingField(null);
+                        return;
+                    }
+                    
+                    await updateDeal({
+                        type: effectiveType,
+                        data: payloadData,
+                    });
+                    return;
+                } else {
+                    // Fallback for old format (just a number)
+                    processedValue = value ? parseFloat(value.toString()) : 0;
+                }
             } else if (fieldName === "close_date") {
                 processedValue = value || null;
             }
@@ -521,7 +629,7 @@ export default function DealInfoSection({
                                             currentDeal.contact.mobile,
                                         )}
                                         fieldName="mobile"
-                                        fieldType="text"
+                                        fieldType="phone"
                                         onSave={(value) =>
                                             handleFieldUpdate("mobile", value)
                                         }
@@ -732,21 +840,29 @@ export default function DealInfoSection({
 
                         <Descriptions.Item label="Deal Value">
                             <EditableField
-                                value={currentDeal.value}
+                                value={{
+                                    amount: currentDeal.value ?? null,
+                                    currency: currentDeal.currency?.currency_code || defaultCurrencyCode,
+                                }}
                                 fieldName="value"
-                                fieldType="number"
+                                fieldType="currency"
                                 onSave={(value) =>
                                     handleFieldUpdate("value", value)
                                 }
-                                formatValue={(value) =>
-                                    value
-                                        ? formatCurrency(
-                                              Number(value),
-                                              currentDeal.currency
-                                                  ?.currency_symbol,
-                                          )
-                                        : "--"
-                                }
+                                formatValue={(value) => {
+                                    if (
+                                        value === null ||
+                                        value === undefined ||
+                                        (typeof value === "object" &&
+                                            (value.amount === null ||
+                                                value.amount === undefined))
+                                    ) {
+                                        return "--";
+                                    }
+                                    const amount = typeof value === "object" ? value.amount : value;
+                                    const currencySymbol = currentDeal.currency?.currency_symbol || "£";
+                                    return formatCurrency(Number(amount), currencySymbol);
+                                }}
                                 className="font-semibold"
                                 alwaysEditing={isFieldEditable}
                                 onChange={handleFieldChange}
