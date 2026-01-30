@@ -30,6 +30,8 @@ class PropertyImport implements  ToArray
             array('id' => 'building_age', 'name' => __('modules.property.buildingAge'), 'required' => 'No'),
             array('id' => 'floor_number', 'name' => __('modules.property.floorNumber'), 'required' => 'No'),
             array('id' => 'floors_in_building', 'name' => __('modules.property.floorsInBuilding'), 'required' => 'No'),
+            array('id' => 'block_name', 'name' => __('modules.property.blockName'), 'required' => 'No'),
+            array('id' => 'unit_number', 'name' => __('modules.property.unitNumber'), 'required' => 'No'),
         );
     }
 
