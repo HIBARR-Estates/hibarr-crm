@@ -4,12 +4,17 @@ namespace App\Models;
 
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 
-class PropertyAsset extends BaseModel
+/**
+ * DeveloperProjectAsset Model
+ * 
+ * Represents an asset (image, video) belonging to a developer project.
+ * These are project-level assets used in expose generation and project display,
+ * separate from property-specific assets.
+ */
+class DeveloperProjectAsset extends BaseModel
 {
     use HasFactory, HasCompany, SoftDeletes;
 
@@ -17,9 +22,8 @@ class PropertyAsset extends BaseModel
     const TYPE_IMAGE = 'image';
     const TYPE_VIDEO = 'video';
     const TYPE_VIDEO_URL = 'video_url';
-    const TYPE_TOUR_360_URL = 'tour_360_url';
 
-    // Available tags for organizing assets
+    // Available tags for organizing assets (mirrors PropertyAsset)
     const TAG_HERO = 'hero';
     const TAG_FACILITIES = 'facilities';
     const TAG_FEATURES = 'features';
@@ -32,7 +36,7 @@ class PropertyAsset extends BaseModel
     const TAG_GALLERY = 'gallery';
 
     protected $fillable = [
-        'property_id',
+        'developer_project_id',
         'company_id',
         'name',
         'asset_type',
@@ -60,9 +64,9 @@ class PropertyAsset extends BaseModel
     /**
      * Relationships
      */
-    public function property(): BelongsTo
+    public function developerProject(): BelongsTo
     {
-        return $this->belongsTo(Property::class);
+        return $this->belongsTo(DeveloperProject::class);
     }
 
     /**
@@ -213,7 +217,6 @@ class PropertyAsset extends BaseModel
             self::TYPE_IMAGE => 'Image',
             self::TYPE_VIDEO => 'Video',
             self::TYPE_VIDEO_URL => 'Video URL',
-            self::TYPE_TOUR_360_URL => '360° Tour URL',
         ];
     }
 }

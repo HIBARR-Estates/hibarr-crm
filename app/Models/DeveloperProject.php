@@ -14,11 +14,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * 
  * Represents a real estate development project. This is the central entity that:
  * - Has basic info (name, description)
+ * - Belongs to a Developer (Many:1)
  * - Is tied to a ProjectLocation (1:1)
  * - Has an ExposeConfig for PDF generation (1:1)
  * - Contains multiple Properties (1:Many)
- * 
- * Future: Will also belong to a Developer entity (Many:1)
+ * - Contains multiple DeveloperProjectAssets (1:Many)
  */
 class DeveloperProject extends BaseModel
 {
@@ -26,6 +26,7 @@ class DeveloperProject extends BaseModel
 
     protected $fillable = [
         'company_id',
+        'developer_id',
         'name',
         'description',
         'project_location_id',
@@ -35,6 +36,17 @@ class DeveloperProject extends BaseModel
      * Eager load these relations by default
      */
     protected $with = [];
+
+    /**
+     * Get the developer that owns this project.
+     * 
+     * A project belongs to one developer, but a developer
+     * can own multiple projects.
+     */
+    public function developer(): BelongsTo
+    {
+        return $this->belongsTo(Developer::class);
+    }
 
     /**
      * Get the location associated with this project.
@@ -67,6 +79,17 @@ class DeveloperProject extends BaseModel
     public function properties(): HasMany
     {
         return $this->hasMany(Property::class);
+    }
+
+    /**
+     * Get all assets (images, videos) belonging to this project.
+     * 
+     * Project-level assets are stored separately from property assets
+     * and are used in expose generation.
+     */
+    public function assets(): HasMany
+    {
+        return $this->hasMany(DeveloperProjectAsset::class);
     }
 
     /**

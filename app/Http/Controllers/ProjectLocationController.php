@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProjectLocation;
+use App\Models\Infrastructure;
+use App\Models\Airport;
 use App\Helper\Reply;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -69,12 +71,45 @@ class ProjectLocationController extends AccountBaseController
                     'id' => $location->id,
                     'name' => $location->name,
                     'full_address' => $location->full_address,
-                    'city' => $location->city,
+                    'state' => $location->state,
                 ];
             });
 
         return Reply::successWithData('Project locations fetched successfully', [
             'locations' => $locations,
+        ]);
+    }
+
+    /**
+     * Get all infrastructures for dropdown selection.
+     * Returns both global (company_id = null) and company-specific items.
+     */
+    public function allInfrastructures()
+    {
+        $infrastructures = Infrastructure::where(function ($q) {
+                $q->whereNull('company_id')
+                  ->orWhere('company_id', user()->company_id);
+            })
+            ->select('id', 'name', 'icon')
+            ->orderBy('name')
+            ->get();
+
+        return Reply::successWithData('Infrastructures fetched successfully', [
+            'infrastructures' => $infrastructures,
+        ]);
+    }
+
+    /**
+     * Get all airports for dropdown selection.
+     */
+    public function allAirports()
+    {
+        $airports = Airport::select('id', 'name', 'code')
+            ->orderBy('name')
+            ->get();
+
+        return Reply::successWithData('Airports fetched successfully', [
+            'airports' => $airports,
         ]);
     }
 
@@ -111,7 +146,6 @@ class ProjectLocationController extends AccountBaseController
             'description' => 'nullable|string',
             'address' => 'nullable|array',
             'address.street' => 'nullable|string|max:255',
-            'address.city' => 'nullable|string|max:255',
             'address.state' => 'nullable|string|max:255',
             'address.country' => 'nullable|string|max:255',
             'address.postalCode' => 'nullable|string|max:50',
@@ -121,13 +155,11 @@ class ProjectLocationController extends AccountBaseController
             'attractions.*.content' => 'nullable|array',
             'attractions.*.images' => 'nullable|array',
             'infrastructure' => 'nullable|array',
-            'infrastructure.*.name' => 'required_with:infrastructure|string',
+            'infrastructure.*.infrastructure_id' => 'required_with:infrastructure|exists:infrastructures,id',
             'infrastructure.*.travelTimeInMin' => 'nullable|numeric',
-            'infrastructure.*.image' => 'nullable|string',
             'airports' => 'nullable|array',
-            'airports.*.name' => 'required_with:airports|string',
+            'airports.*.airport_id' => 'required_with:airports|exists:airports,id',
             'airports.*.travelTimeInMin' => 'nullable|numeric',
-            'airports.*.image' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -163,14 +195,17 @@ class ProjectLocationController extends AccountBaseController
             'description' => 'nullable|string',
             'address' => 'nullable|array',
             'address.street' => 'nullable|string|max:255',
-            'address.city' => 'nullable|string|max:255',
             'address.state' => 'nullable|string|max:255',
             'address.country' => 'nullable|string|max:255',
             'address.postalCode' => 'nullable|string|max:50',
             'map_url' => 'nullable|url|max:500',
             'attractions' => 'nullable|array',
             'infrastructure' => 'nullable|array',
+            'infrastructure.*.infrastructure_id' => 'required_with:infrastructure|exists:infrastructures,id',
+            'infrastructure.*.travelTimeInMin' => 'nullable|numeric',
             'airports' => 'nullable|array',
+            'airports.*.airport_id' => 'required_with:airports|exists:airports,id',
+            'airports.*.travelTimeInMin' => 'nullable|numeric',
         ]);
 
         if ($validator->fails()) {

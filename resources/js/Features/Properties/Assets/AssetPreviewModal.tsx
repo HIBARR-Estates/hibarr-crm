@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from "react";
+import { router } from "@inertiajs/react";
 import { PropertyAsset } from "@/Types";
-import { Modal, Image, Tag, Typography, Space, Button, Divider } from "antd";
+import {
+    Modal,
+    Image,
+    Tag,
+    Typography,
+    Space,
+    Button,
+    Divider,
+    Select,
+    message,
+} from "antd";
 import {
     LeftOutlined,
     RightOutlined,
@@ -9,7 +20,12 @@ import {
     VideoCameraOutlined,
     GlobalOutlined,
     DownloadOutlined,
+    EditOutlined,
+    SaveOutlined,
+    CloseCircleOutlined,
 } from "@ant-design/icons";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiResponse } from "@/lib/api/types";
 import dayjs from "dayjs";
 
 const { Title, Text, Paragraph } = Typography;
@@ -18,6 +34,8 @@ interface AssetPreviewModalProps {
     open: boolean;
     asset: PropertyAsset | null;
     allAssets: PropertyAsset[];
+    propertyId?: number;
+    availableTags?: Record<string, string>;
     onClose: () => void;
     onNavigate?: (asset: PropertyAsset) => void;
 }
@@ -26,10 +44,14 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
     open,
     asset,
     allAssets,
+    propertyId,
+    availableTags = {},
     onClose,
     onNavigate,
 }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isEditingTags, setIsEditingTags] = useState(false);
+    const [editedTags, setEditedTags] = useState<string[]>([]);
 
     useEffect(() => {
         if (asset && allAssets.length > 0) {
@@ -41,6 +63,41 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
     }, [asset, allAssets]);
 
     const currentAsset = allAssets[currentIndex] || asset;
+
+    // Update edited tags when current asset changes
+    useEffect(() => {
+        if (currentAsset) {
+            setEditedTags(currentAsset.tags || []);
+            setIsEditingTags(false);
+        }
+    }, [currentAsset?.id]);
+
+    // Mutation for updating tags
+    const { mutate: updateTags, isPending: isUpdatingTags } = useApiMutate<
+        { tags: string[] },
+        any,
+        ApiResponse<any>
+    >(
+        propertyId && currentAsset
+            ? route("properties.assets.update", [propertyId, currentAsset.id])
+            : "",
+        "PUT",
+        () => {
+            message.success("Tags updated successfully");
+            setIsEditingTags(false);
+            router.reload({ only: ["assets"] });
+        },
+    );
+
+    const handleSaveTags = () => {
+        if (!propertyId || !currentAsset) return;
+        updateTags({ tags: editedTags });
+    };
+
+    const handleCancelTagEdit = () => {
+        setEditedTags(currentAsset?.tags || []);
+        setIsEditingTags(false);
+    };
 
     const handlePrevious = () => {
         if (currentIndex > 0) {
@@ -190,7 +247,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                             )}
                             <Text className="text-gray-600">
                                 {dayjs(currentAsset.created_at).format(
-                                    "MMM D, YYYY h:mm A"
+                                    "MMM D, YYYY h:mm A",
                                 )}
                             </Text>
                         </Space>
@@ -239,20 +296,77 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                 <div className="flex items-start justify-between">
                     <div className="flex-1">
                         {/* Tags */}
-                        {currentAsset.tags && currentAsset.tags.length > 0 && (
-                            <div className="mb-3">
-                                <Text strong className="block mb-2">
-                                    Tags:
-                                </Text>
+                        <div className="mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Text strong>Tags:</Text>
+                                {propertyId &&
+                                    Object.keys(availableTags).length > 0 &&
+                                    !isEditingTags && (
+                                        <Button
+                                            type="link"
+                                            size="small"
+                                            icon={<EditOutlined />}
+                                            onClick={() =>
+                                                setIsEditingTags(true)
+                                            }
+                                            className="p-0"
+                                        >
+                                            Edit
+                                        </Button>
+                                    )}
+                            </div>
+                            {isEditingTags ? (
+                                <Space
+                                    direction="vertical"
+                                    className="w-full"
+                                    size="small"
+                                >
+                                    <Select
+                                        mode="multiple"
+                                        style={{ width: "100%", maxWidth: 400 }}
+                                        placeholder="Select tags"
+                                        value={editedTags}
+                                        onChange={setEditedTags}
+                                        options={Object.entries(
+                                            availableTags,
+                                        ).map(([value, label]) => ({
+                                            value,
+                                            label,
+                                        }))}
+                                    />
+                                    <Space>
+                                        <Button
+                                            type="primary"
+                                            size="small"
+                                            icon={<SaveOutlined />}
+                                            onClick={handleSaveTags}
+                                            loading={isUpdatingTags}
+                                        >
+                                            Save
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            icon={<CloseCircleOutlined />}
+                                            onClick={handleCancelTagEdit}
+                                            disabled={isUpdatingTags}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </Space>
+                                </Space>
+                            ) : currentAsset.tags &&
+                              currentAsset.tags.length > 0 ? (
                                 <Space size={[8, 8]} wrap>
                                     {currentAsset.tags.map((tag) => (
                                         <Tag key={tag} color="blue">
-                                            {tag}
+                                            {availableTags[tag] || tag}
                                         </Tag>
                                     ))}
                                 </Space>
-                            </div>
-                        )}
+                            ) : (
+                                <Text type="secondary">No tags assigned</Text>
+                            )}
+                        </div>
 
                         {/* Metadata */}
                         {currentAsset.metadata &&
@@ -266,7 +380,10 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                             currentAsset.metadata.height && (
                                                 <Text className="text-gray-600">
                                                     Dimensions:{" "}
-                                                    {currentAsset.metadata.width}{" "}
+                                                    {
+                                                        currentAsset.metadata
+                                                            .width
+                                                    }{" "}
                                                     x{" "}
                                                     {
                                                         currentAsset.metadata
@@ -297,7 +414,8 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                 type="primary"
                                 icon={<DownloadOutlined />}
                                 href={
-                                    currentAsset.url || currentAsset.external_url
+                                    currentAsset.url ||
+                                    currentAsset.external_url
                                 }
                                 target="_blank"
                                 download={currentAsset.name}
