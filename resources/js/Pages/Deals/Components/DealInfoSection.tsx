@@ -191,18 +191,29 @@ export default function DealInfoSection({
                     let processedValue = value;
                     if (fieldName === "value") {
                         // Handle new currency format: { amount, currency }
-                        if (value && typeof value === "object" && ("amount" in value || "currency" in value)) {
-                            const currencyCode = typeof value.currency === "string" 
-                                ? value.currency 
-                                : defaultCurrencyCode;
-                            
+                        if (
+                            value &&
+                            typeof value === "object" &&
+                            ("amount" in value || "currency" in value)
+                        ) {
+                            const currencyCode =
+                                typeof value.currency === "string"
+                                    ? value.currency
+                                    : defaultCurrencyCode;
+
                             // Find currency_id from currency_code
                             const foundCurrency = currencies.find(
-                                (c: any) => (c.currency_code || "").toUpperCase() === currencyCode.toUpperCase()
+                                (c: any) =>
+                                    (c.currency_code || "").toUpperCase() ===
+                                    currencyCode.toUpperCase(),
                             );
 
                             // Only set value if amount is explicitly provided (don't overwrite with 0)
-                            if (value.amount !== null && value.amount !== undefined && value.amount !== "") {
+                            if (
+                                value.amount !== null &&
+                                value.amount !== undefined &&
+                                value.amount !== ""
+                            ) {
                                 detailsChanges.value = Number(value.amount);
                             }
                             if (foundCurrency?.id) {
@@ -374,22 +385,33 @@ export default function DealInfoSection({
                 effectiveType = "contact";
             } else if (fieldName === "value") {
                 // Handle new currency format: { amount, currency }
-                if (value && typeof value === "object" && ("amount" in value || "currency" in value)) {
-                    const currencyCode = typeof value.currency === "string" 
-                        ? value.currency 
-                        : defaultCurrencyCode;
-                    
+                if (
+                    value &&
+                    typeof value === "object" &&
+                    ("amount" in value || "currency" in value)
+                ) {
+                    const currencyCode =
+                        typeof value.currency === "string"
+                            ? value.currency
+                            : defaultCurrencyCode;
+
                     // Find currency_id from currency_code
                     const foundCurrency = currencies.find(
-                        (c: any) => (c.currency_code || "").toUpperCase() === currencyCode.toUpperCase()
+                        (c: any) =>
+                            (c.currency_code || "").toUpperCase() ===
+                            currencyCode.toUpperCase(),
                     );
-                    
+
                     // Set currency_id and (optionally) value
                     const payloadData: Record<string, any> = {};
                     if (foundCurrency?.id) {
                         payloadData.currency_id = foundCurrency.id;
                     }
-                    if (value.amount !== null && value.amount !== undefined && value.amount !== "") {
+                    if (
+                        value.amount !== null &&
+                        value.amount !== undefined &&
+                        value.amount !== ""
+                    ) {
                         payloadData.value = Number(value.amount);
                     }
 
@@ -398,7 +420,7 @@ export default function DealInfoSection({
                         setUpdatingField(null);
                         return;
                     }
-                    
+
                     await updateDeal({
                         type: effectiveType,
                         data: payloadData,
@@ -515,6 +537,7 @@ export default function DealInfoSection({
                                 loading={isSavingAll || isFieldLoading("name")}
                                 alwaysEditing={isFieldEditable}
                                 onChange={handleFieldChange}
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -546,6 +569,7 @@ export default function DealInfoSection({
                                 loading={
                                     isSavingAll || isFieldLoading("package_id")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -592,6 +616,7 @@ export default function DealInfoSection({
                                 loading={
                                     isSavingAll || isFieldLoading("lead_id")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -613,6 +638,7 @@ export default function DealInfoSection({
                                             isSavingAll ||
                                             isFieldLoading("email")
                                         }
+                                        disabled={!canEdit}
                                     />
                                 </div>
                             ) : (
@@ -639,6 +665,7 @@ export default function DealInfoSection({
                                             isSavingAll ||
                                             isFieldLoading("mobile")
                                         }
+                                        disabled={!canEdit}
                                     />
                                 </div>
                             ) : (
@@ -660,6 +687,7 @@ export default function DealInfoSection({
                                     isSavingAll ||
                                     isFieldLoading("company_name")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -683,6 +711,7 @@ export default function DealInfoSection({
                                 loading={
                                     isSavingAll || isFieldLoading("category_id")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -711,6 +740,7 @@ export default function DealInfoSection({
                                 loading={
                                     isSavingAll || isFieldLoading("agent_id")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -756,6 +786,7 @@ export default function DealInfoSection({
                                     isSavingAll ||
                                     isFieldLoading("deal_watcher")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -801,6 +832,7 @@ export default function DealInfoSection({
                                     isSavingAll ||
                                     isFieldLoading("deal_participant")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -835,6 +867,7 @@ export default function DealInfoSection({
                                 loading={
                                     isSavingAll || isFieldLoading("close_date")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -842,7 +875,9 @@ export default function DealInfoSection({
                             <EditableField
                                 value={{
                                     amount: currentDeal.value ?? null,
-                                    currency: currentDeal.currency?.currency_code || defaultCurrencyCode,
+                                    currency:
+                                        currentDeal.currency?.currency_code ||
+                                        defaultCurrencyCode,
                                 }}
                                 fieldName="value"
                                 fieldType="currency"
@@ -859,14 +894,23 @@ export default function DealInfoSection({
                                     ) {
                                         return "--";
                                     }
-                                    const amount = typeof value === "object" ? value.amount : value;
-                                    const currencySymbol = currentDeal.currency?.currency_symbol || "£";
-                                    return formatCurrency(Number(amount), currencySymbol);
+                                    const amount =
+                                        typeof value === "object"
+                                            ? value.amount
+                                            : value;
+                                    const currencySymbol =
+                                        currentDeal.currency?.currency_symbol ||
+                                        "£";
+                                    return formatCurrency(
+                                        Number(amount),
+                                        currencySymbol,
+                                    );
                                 }}
                                 className="font-semibold"
                                 alwaysEditing={isFieldEditable}
                                 onChange={handleFieldChange}
                                 loading={isSavingAll || isFieldLoading("value")}
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
 
@@ -908,6 +952,7 @@ export default function DealInfoSection({
                                 loading={
                                     isSavingAll || isFieldLoading("product_id")
                                 }
+                                disabled={!canEdit}
                             />
                         </Descriptions.Item>
                     </Descriptions>
@@ -927,6 +972,7 @@ export default function DealInfoSection({
                     loadingField={updatingField}
                     onChange={handleFieldChange}
                     globalLoading={isSavingAll}
+                    disabled={!canEdit}
                 />
             ),
         },
@@ -948,6 +994,7 @@ export default function DealInfoSection({
                         loadingField={updatingField}
                         onChange={handleFieldChange}
                         globalLoading={isSavingAll}
+                        disabled={!canEdit}
                     />
                 </div>
             ),

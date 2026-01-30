@@ -63,6 +63,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('properties/filters/features', ['as' => 'api.properties.filters.features', 'uses' => 'Api\PropertyApiController@getFeatures']);
         ApiRoute::get('properties/filters/locations', ['as' => 'api.properties.filters.location', 'uses' => 'Api\PropertyApiController@getLocation']);
      
+
     });
 
 });
