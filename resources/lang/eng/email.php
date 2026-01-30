@@ -102,8 +102,8 @@ return array(
     ),
 
     'newTask' => array(
-        'subject' => 'Task Assignment: A New Task has been Assigned to You',
-        'text' => 'We hope you\'re having a great day! You have been assigned a new task.',
+        'subject' => 'A New Task has been Assigned to You',
+        'text' => 'A new task has been added to your dashboard. We\'ve compiled the details below so you can stay on top of your workflow.',
         'mentionSubject' => 'You\'ve Been Mentioned in a Task!',
         'mentionTask' => 'Heads up! You\'ve been mentioned in a task.',
 
@@ -116,12 +116,12 @@ return array(
     ),
     'newUser' => array(
         'subject' => 'Welcome to',
-        'text' => 'Congratulations! Your account has been created successfully. You can login now and start using our service.',
+        'text' => 'We’re thrilled to have you on board! Your account is officially ready to go. You can sign in now to explore your new dashboard and start getting things done.',
         'message' => 'Congratulations! Your account has been created successfully.',
         'action' => 'Login to Dashboard',
     ),
     'newUserViaLink' => array(
-        'subject' => 'New Team Member: Welcome to the Team!',
+        'subject' => 'Welcome to the Team!',
         'text' => 'New account has been created successfully via an invitation link. Following are the details-',
         'action' => 'View User Details',
     ),
@@ -138,7 +138,7 @@ return array(
     ),
     'taskUpdate' => array(
         'subject' => 'Your Task Has Been Updated!',
-        'text' => 'Just a quick heads-up! A task assigned to you has been updated.',
+        'text' => 'There’s been some progress on one of your tasks! Check out the updates below to stay in sync with the latest changes.',
         'text2' => 'To check out the changes and keep things moving, log in to your account and head over to the Task section.',
         'action' => 'View Task',
         'updatedBy' => 'Task Status Updated By',
@@ -289,6 +289,7 @@ return array(
     'leadAgent' => array(
         'subject' => 'New Deal Notification',
         'action' => 'View Deal',
+        'text' => 'Great news you’ve been assigned a new deal! We’ve gathered all the background info below so you can dive in and start building that relationship.',
         'viewMore' => 'View More',
     ),
 
@@ -302,9 +303,16 @@ return array(
         'action' => 'View Lead',
     ),
 
+    'deals' => array(
+        'subject' => 'New deals assigned.',
+        'action' => 'View Deal',
+        'text' => 'Great news you’ve been assigned a new deal! We’ve gathered all the background info below so you can dive in and start building that relationship.',
+    ),
+
     'dealStatus' => array(
         'subject' => 'Deal stage updated.',
         'action' => 'View Deal',
+        'text' => 'There has been an update regarding a deal in your pipeline. We\'ve outlined the latest changes below to help you stay coordinated with your team.',
     ),
 
     'subTaskCreated' => 'Sub task created.',
