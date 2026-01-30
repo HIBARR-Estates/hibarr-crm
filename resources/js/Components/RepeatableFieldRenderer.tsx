@@ -6,7 +6,7 @@ import {
     DatePicker,
     Row,
     Col,
-    Card,
+    Collapse,
     Select,
     Checkbox,
     Upload,
@@ -231,19 +231,25 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
         );
     };
 
+    const collapseItems = Array.from({ length: N }, (_, index) => ({
+        key: String(index),
+        label: `${field.label} (${index + 1})`,
+        children: (
+            <Row gutter={16}>
+                {schema.map((s) => renderSchemaField(s, index))}
+            </Row>
+        ),
+    }));
+
     return (
         <div className="repeatable-field">
             <div className="mb-2 font-medium">{field.label}</div>
             {err && <div className="text-red-500 text-sm mb-2">{err}</div>}
-            <div className="space-y-4">
-                {Array.from({ length: N }, (_, index) => (
-                    <Card size="small" key={index} title={`${field.label} (${index + 1})`}>
-                        <Row gutter={16}>
-                            {schema.map((s) => renderSchemaField(s, index))}
-                        </Row>
-                    </Card>
-                ))}
-            </div>
+            <Collapse
+                items={collapseItems}
+                defaultActiveKey={collapseItems.length > 0 ? [collapseItems[0].key] : []}
+                className="repeatable-field-collapse"
+            />
         </div>
     );
 };
