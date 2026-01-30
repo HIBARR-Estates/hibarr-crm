@@ -345,6 +345,49 @@ export interface CustomField {
     field_order: number;
     display_order?: number;
     show_rule_set?: ShowRuleSet;
+    /** For type=repeatable: the field whose value (N) dictates how many blocks to render. */
+    linked_field_id?: number | null;
+    /** Config for default/aggregate display (what is shown and how). */
+    display_config?: DisplayConfig | null;
+}
+
+/** Item schema for repeatable custom fields. Stored in values when type=repeatable. */
+export type RepeatableSchemaType =
+    | 'text'
+    | 'number'
+    | 'password'
+    | 'textarea'
+    | 'select'
+    | 'radio'
+    | 'date'
+    | 'checkbox'
+    | 'country'
+    | 'currency'
+    | 'phone'
+    | 'file';
+
+export interface RepeatableItemSchema {
+    key: string;
+    type: RepeatableSchemaType;
+    label: string;
+}
+
+/**
+ * Config for default/aggregate display of custom field value (e.g. repeatable).
+ * When useDefaultDisplay is true, the stored data is aggregated by fieldKey using aggregateBy
+ * and that result is shown instead of the full list.
+ */
+export interface DisplayConfig {
+    /** When true, show aggregated value based on schema instead of full list */
+    useDefaultDisplay?: boolean;
+    /** Schema key to aggregate (e.g. "price", "name"). Required when useDefaultDisplay is true. */
+    fieldKey?: string;
+    /** How to aggregate: first, last, concat, sum, sum_currency, count, list */
+    aggregateBy?: "first" | "last" | "concat" | "sum" | "sum_currency" | "count" | "list";
+    /** Separator for concat/list (default ", ") */
+    separator?: string;
+    /** Optional display template e.g. "Total: {value}" */
+    format?: string;
 }
 
 // New interfaces for visibility rules

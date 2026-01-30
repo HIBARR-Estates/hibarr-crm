@@ -89,15 +89,17 @@
                 </div>
                
             </div>
+            @php
+                $valueOptions = in_array($field->type, ['select','radio','checkbox']) ? (is_array($field->values) ? $field->values : []) : [];
+            @endphp
             <div class="form-group mt-repeater" @if ($field->type != 'radio' && $field->type != 'select' && $field->type != 'checkbox') style="display: none;" @endif>
-
-                @foreach ($field->values as $item)
+                @foreach ($valueOptions as $item)
                     <div id="addMoreBox{{ $loop->iteration }}" class="row mt-2">
                         <div class="col-md-10">
                             <div class="form-group">
                                 <label class="control-label">@lang('app.value')</label>
                                 <input class="form-control height-35 f-14" name="value[]" type="text"
-                                    value="{{ $item }}" placeholder="" />
+                                    value="{{ is_string($item) ? $item : '' }}" placeholder="" />
                             </div>
                         </div>
                         @if ($loop->iteration !== 1)
@@ -121,6 +123,101 @@
                 </div>
             </div>
 
+            <div class="form-group mt-repeater-repeatable" @if ($field->type != 'repeatable') style="display: none;" @endif>
+                <label class="control-label">@lang('modules.customFields.linkedField')</label>
+                <select name="linked_field_id" class="form-control select-picker" id="linkedFieldId">
+                    <option value="">@lang('app.select') @lang('modules.customFields.linkedField')</option>
+                    @foreach ($otherFields as $of)
+                        <option value="{{ $of->id }}" @if ($field->linked_field_id == $of->id) selected @endif>{{ $of->label }} ({{ $of->type }})</option>
+                    @endforeach
+                </select>
+                <label class="control-label mt-3">@lang('modules.customFields.itemSchema')</label>
+                <div id="schemaContainer">
+                    @php
+                        $schemaRows = ($field->type == 'repeatable' && is_array($field->values)) ? $field->values : [];
+                        $schemaTypeOptions = collect($schemaTypes ?? [])->map(fn ($t) => ['value' => $t, 'label' => __("app.{$t}")])->values()->all();
+                    @endphp
+                    @foreach ($schemaRows as $idx => $row)
+                        <div class="row mt-2 schema-row" id="schemaRow{{ $idx }}" data-index="{{ $idx }}">
+                            <div class="col-md-3">
+                                <input class="form-control height-35 f-14" name="value[{{ $idx }}][key]" type="text"
+                                    value="{{ $row['key'] ?? '' }}" placeholder="key" />
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-control height-35 f-14" name="value[{{ $idx }}][type]">
+                                    @foreach ($schemaTypeOptions as $opt)
+                                        <option value="{{ $opt['value'] }}" @if (($row['type'] ?? '') == $opt['value']) selected @endif>{{ $opt['label'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input class="form-control height-35 f-14" name="value[{{ $idx }}][label]" type="text"
+                                    value="{{ $row['label'] ?? '' }}" placeholder="Label" />
+                            </div>
+                            <div class="col-md-1">
+                                <a href="javascript:;" class="task_view_more d-flex align-items-center mt-2" onclick="removeSchemaRow({{ $idx }})"><i class="fa fa-trash"></i></a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                <div id="schemaInsertBefore"></div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <a class="f-15 f-w-500" href="javascript:;" id="addSchemaRow"><i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.customFields.addSchemaRow')</a>
+                    </div>
+                </div>
+                @php
+                    $displayConfig = $field->display_config ?? [];
+                    $schemaRowsForKeys = ($field->type == 'repeatable' && is_array($field->values)) ? $field->values : [];
+                @endphp
+                <div class="mt-4 pt-3 border-top display-config-repeatable">
+                    <label class="control-label f-w-500">@lang('modules.customFields.displayConfig')</label>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <input type="hidden" name="display_config[useDefaultDisplay]" value="0" />
+                            <x-forms.checkbox fieldId="display_config_use_default"
+                                :fieldLabel="__('modules.customFields.useDefaultDisplay')" fieldName="display_config[useDefaultDisplay]"
+                                fieldValue="1" :checked="!empty($displayConfig['useDefaultDisplay'])" />
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <label class="control-label">@lang('modules.customFields.aggregateFieldKey')</label>
+                            <select name="display_config[fieldKey]" class="form-control select-picker" id="displayConfigFieldKey">
+                                <option value="">@lang('app.select')</option>
+                                @foreach ($schemaRowsForKeys as $row)
+                                    <option value="{{ $row['key'] ?? '' }}" @if (($displayConfig['fieldKey'] ?? '') == ($row['key'] ?? '')) selected @endif>{{ $row['label'] ?? $row['key'] ?? '' }} ({{ $row['key'] ?? '' }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="control-label">@lang('modules.customFields.aggregateBy')</label>
+                            <select name="display_config[aggregateBy]" class="form-control select-picker" id="displayConfigAggregateBy">
+                                <option value="first" @if (($displayConfig['aggregateBy'] ?? '') == 'first') selected @endif>@lang('modules.customFields.aggregateByFirst')</option>
+                                <option value="last" @if (($displayConfig['aggregateBy'] ?? '') == 'last') selected @endif>@lang('modules.customFields.aggregateByLast')</option>
+                                <option value="concat" @if (($displayConfig['aggregateBy'] ?? 'concat') == 'concat') selected @endif>@lang('modules.customFields.aggregateByConcat')</option>
+                                <option value="list" @if (($displayConfig['aggregateBy'] ?? '') == 'list') selected @endif>@lang('modules.customFields.aggregateByList')</option>
+                                <option value="sum" @if (($displayConfig['aggregateBy'] ?? '') == 'sum') selected @endif>@lang('modules.customFields.aggregateBySum')</option>
+                                <option value="sum_currency" @if (($displayConfig['aggregateBy'] ?? '') == 'sum_currency') selected @endif>@lang('modules.customFields.aggregateBySumCurrency')</option>
+                                <option value="count" @if (($displayConfig['aggregateBy'] ?? '') == 'count') selected @endif>@lang('modules.customFields.aggregateByCount')</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.displayConfigSeparator')" fieldName="display_config[separator]"
+                                fieldId="display_config_separator" :fieldValue="$displayConfig['separator'] ?? ''"
+                                :fieldPlaceholder="', '" />
+                        </div>
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.displayConfigFormat')" fieldName="display_config[format]"
+                                fieldId="display_config_format" :fieldValue="$displayConfig['format'] ?? ''"
+                                :fieldPlaceholder="'Total: {value}'" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
                 </x-form>
             </div>
 
@@ -137,12 +234,18 @@
 </div>
 
 <script>
+    @php
+        $schemaTypeOptionsJs = collect($schemaTypes ?? [])->map(fn ($t) => ['value' => $t, 'label' => __("app.{$t}")])->values()->all();
+    @endphp
+    var schemaTypeOptions = @json($schemaTypeOptionsJs ?? []);
+
     $(".select-picker").selectpicker();
 
     var $insertBefore = $('#insertBefore');
-    var $i = {{ sizeof($field->values) }};
+    var $valueOptions = @json($valueOptions ?? []);
+    var $i = $valueOptions.length;
 
-    // Add More Inputs
+    // Add More Inputs (value[] for select/radio/checkbox)
     $('#plusButton').click(function() {
         $i = $i + 1;
         var indexs = $i + 1;
@@ -157,11 +260,70 @@
         $('#addMoreBox' + index).remove();
     }
 
+    var schemaIndex = {{ ($field->type == 'repeatable' && is_array($field->values)) ? count($field->values) : 0 }};
+
+    function addSchemaRow() {
+        var typeOpts = (schemaTypeOptions || []).map(function (o) {
+            return '<option value="' + o.value + '">' + (o.label || o.value) + '</option>';
+        }).join('');
+        var html = '<div class="row mt-2 schema-row" id="schemaRow' + schemaIndex + '" data-index="' + schemaIndex + '">' +
+            '<div class="col-md-3"><input class="form-control height-35 f-14" name="value[' + schemaIndex + '][key]" type="text" value="" placeholder="key" /></div>' +
+            '<div class="col-md-3"><select class="form-control height-35 f-14" name="value[' + schemaIndex + '][type]">' + typeOpts + '</select></div>' +
+            '<div class="col-md-4"><input class="form-control height-35 f-14" name="value[' + schemaIndex + '][label]" type="text" value="" placeholder="Label" /></div>' +
+            '<div class="col-md-1"><a href="javascript:;" class="task_view_more d-flex align-items-center mt-2" onclick="removeSchemaRow(' + schemaIndex + ')"><i class="fa fa-trash"></i></a></div></div>';
+        $(html).insertBefore('#schemaInsertBefore');
+        schemaIndex++;
+    }
+
+    function removeSchemaRow(idx) {
+        $('#schemaRow' + idx).remove();
+        refreshDisplayConfigFieldKeyOptions();
+    }
+
+    function refreshDisplayConfigFieldKeyOptions() {
+        var $sel = $('#displayConfigFieldKey');
+        if (!$sel.length) return;
+        var selected = $sel.val();
+        var options = [{ key: '', label: @json(__('app.select')) }];
+        $('.schema-row').each(function() {
+            var keyInput = $(this).find('input[name$="[key]"]').val();
+            var labelInput = $(this).find('input[name$="[label]"]').val();
+            if (keyInput && keyInput.trim() !== '') {
+                options.push({ key: keyInput.trim(), label: (labelInput && labelInput.trim()) ? labelInput.trim() : keyInput.trim() });
+            }
+        });
+        $sel.empty();
+        $.each(options, function(i, o) {
+            $sel.append($('<option></option>').attr('value', o.key).text(o.key === '' ? o.label : (o.label + ' (' + o.key + ')')));
+        });
+        if (selected && options.some(function(o) { return o.key === selected; })) {
+            $sel.val(selected);
+        }
+        $sel.selectpicker('refresh');
+    }
+
+    $('#addSchemaRow').on('click', function() {
+        addSchemaRow();
+        refreshDisplayConfigFieldKeyOptions();
+    });
+
     $('#type').on('change', function() {
-        if (this.value === 'select' || this.value === 'radio' || this.value === 'checkbox') {
+        var v = this.value;
+        $('.mt-repeater input, .mt-repeater select').prop('disabled', false);
+        $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', false);
+        if (v === 'select' || v === 'radio' || v === 'checkbox') {
             $(".mt-repeater").show();
+            $(".mt-repeater-repeatable").hide();
+            $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);
+        } else if (v === 'repeatable') {
+            $(".mt-repeater").hide();
+            $(".mt-repeater-repeatable").show();
+            $('.mt-repeater input, .mt-repeater select').prop('disabled', true);
         } else {
             $(".mt-repeater").hide();
+            $(".mt-repeater-repeatable").hide();
+            $('.mt-repeater input, .mt-repeater select').prop('disabled', true);
+            $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);
         }
     });
 
@@ -245,6 +407,7 @@
         if (selectedModule) {
             loadCategoriesForModule(selectedModule, selectedCategory);
         }
+        $('#type').trigger('change');
     });
 
     // Note: Module field is read-only in edit mode, so no change handler needed

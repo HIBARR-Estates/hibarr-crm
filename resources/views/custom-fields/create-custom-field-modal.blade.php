@@ -100,6 +100,59 @@
                     </div>
                 </div>
             </div>
+            <div class="form-group mt-repeater-repeatable d-none">
+                <label class="control-label">@lang('modules.customFields.linkedField')</label>
+                <select name="linked_field_id" class="form-control select-picker" id="createLinkedFieldId">
+                    <option value="">@lang('app.select') @lang('modules.customFields.linkedField')</option>
+                </select>
+                <label class="control-label mt-3">@lang('modules.customFields.itemSchema')</label>
+                <div id="createSchemaContainer"></div>
+                <div id="createSchemaInsertBefore"></div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <a class="f-15 f-w-500" href="javascript:;" id="createAddSchemaRow"><i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.customFields.addSchemaRow')</a>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-top display-config-repeatable">
+                    <label class="control-label f-w-500">@lang('modules.customFields.displayConfig')</label>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <input type="hidden" name="display_config[useDefaultDisplay]" value="0" />
+                            <x-forms.checkbox fieldId="create_display_config_use_default"
+                                :fieldLabel="__('modules.customFields.useDefaultDisplay')" fieldName="display_config[useDefaultDisplay]"
+                                fieldValue="1" />
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.aggregateFieldKey')" fieldName="display_config[fieldKey]"
+                                fieldId="create_display_config_field_key" :fieldPlaceholder="'e.g. price'" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="control-label">@lang('modules.customFields.aggregateBy')</label>
+                            <select name="display_config[aggregateBy]" class="form-control select-picker" id="createDisplayConfigAggregateBy">
+                                <option value="first">@lang('modules.customFields.aggregateByFirst')</option>
+                                <option value="last">@lang('modules.customFields.aggregateByLast')</option>
+                                <option value="concat" selected>@lang('modules.customFields.aggregateByConcat')</option>
+                                <option value="list">@lang('modules.customFields.aggregateByList')</option>
+                                <option value="sum">@lang('modules.customFields.aggregateBySum')</option>
+                                <option value="sum_currency">@lang('modules.customFields.aggregateBySumCurrency')</option>
+                                <option value="count">@lang('modules.customFields.aggregateByCount')</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.displayConfigSeparator')" fieldName="display_config[separator]"
+                                fieldId="create_display_config_separator" :fieldPlaceholder="', '" />
+                        </div>
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.displayConfigFormat')" fieldName="display_config[format]"
+                                fieldId="create_display_config_format" :fieldPlaceholder="'Total: {value}'" />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </x-form>
     </div>
 </div>
@@ -109,6 +162,10 @@
 </div>
 
 <script>
+    @php
+        $schemaTypeOptions = collect($schemaTypes ?? [])->map(fn ($t) => ['value' => $t, 'label' => __("app.{$t}")])->values()->all();
+    @endphp
+    var schemaTypeOptions = @json($schemaTypeOptions);
 
     $(".select-picker").selectpicker();
 
@@ -127,9 +184,63 @@
         $('#addMoreBox' + index).remove();
     }
 
-    $('#type').on('change', function () {
-        (this.value === 'select' || this.value === 'radio' || this.value === 'checkbox') ? $('.mt-repeater').removeClass('d-none') : $('.mt-repeater').addClass('d-none');
-    });
+    var createSchemaIndex = 0;
+    function loadFieldsForRepeatable(moduleId) {
+        var $sel = $('#createLinkedFieldId');
+        $sel.empty().append('<option value="">@lang('app.select') @lang('modules.customFields.linkedField')</option>');
+        if (!moduleId) { $sel.selectpicker('refresh'); return; }
+        $.easyAjax({
+            url: "{{ route('custom-fields.fields-by-group') }}",
+            type: "GET",
+            data: { group_id: moduleId },
+            success: function (r) {
+                $sel.empty().append('<option value="">@lang('app.select') @lang('modules.customFields.linkedField')</option>');
+                if (r.fields && r.fields.length) {
+                    $.each(r.fields, function (i, f) {
+                        var $opt = $('<option></option>').val(f.id).text((f.label || f.name) + ' (' + (f.type || '') + ')');
+                        $sel.append($opt);
+                    });
+                }
+                $sel.selectpicker('refresh');
+            },
+            error: function () { $sel.selectpicker('refresh'); }
+        });
+    }
+    function addCreateSchemaRow() {
+        var typeOpts = (schemaTypeOptions || []).map(function (o) {
+            return '<option value="' + o.value + '">' + (o.label || o.value) + '</option>';
+        }).join('');
+        var html = '<div class="row mt-2 schema-row" id="createSchemaRow' + createSchemaIndex + '">' +
+            '<div class="col-md-3"><input class="form-control height-35 f-14" name="value[' + createSchemaIndex + '][key]" type="text" placeholder="key" /></div>' +
+            '<div class="col-md-3"><select class="form-control height-35 f-14" name="value[' + createSchemaIndex + '][type]">' + typeOpts + '</select></div>' +
+            '<div class="col-md-4"><input class="form-control height-35 f-14" name="value[' + createSchemaIndex + '][label]" type="text" placeholder="Label" /></div>' +
+            '<div class="col-md-1"><a href="javascript:;" class="task_view_more d-flex align-items-center mt-2" onclick="jQuery(\'#createSchemaRow' + createSchemaIndex + '\').remove()"><i class="fa fa-trash"></i></a></div></div>';
+        $(html).insertBefore('#createSchemaInsertBefore');
+        createSchemaIndex++;
+    }
+    $('#createAddSchemaRow').on('click', function () { addCreateSchemaRow(); });
+
+    function syncTypeDependentSections() {
+        var v = $('#type').val();
+        $('.mt-repeater input, .mt-repeater select').prop('disabled', false);
+        $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', false);
+        if (v === 'select' || v === 'radio' || v === 'checkbox') {
+            $('.mt-repeater').removeClass('d-none');
+            $('.mt-repeater-repeatable').addClass('d-none');
+            $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);
+        } else if (v === 'repeatable') {
+            $('.mt-repeater').addClass('d-none');
+            $('.mt-repeater-repeatable').removeClass('d-none');
+            $('.mt-repeater input, .mt-repeater select').prop('disabled', true);
+            loadFieldsForRepeatable($('#module').val());
+        } else {
+            $('.mt-repeater').addClass('d-none');
+            $('.mt-repeater-repeatable').addClass('d-none');
+            $('.mt-repeater input, .mt-repeater select').prop('disabled', true);
+            $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);
+        }
+    }
+    $('#type').on('change', syncTypeDependentSections);
 
     function convertToSlug(Text) {
         return Text.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '-');
@@ -184,14 +295,16 @@
     $('#module').on('change', function() {
         var moduleId = $(this).val();
         loadCategoriesForModule(moduleId);
+        if ($('#type').val() === 'repeatable') loadFieldsForRepeatable(moduleId);
     });
 
-    // Load categories when modal opens (if module is pre-selected)
+    // Load categories and type-dependent sections when modal opens (if module/type pre-selected)
     $(document).ready(function() {
         var selectedModule = $('#module').val();
         if (selectedModule) {
             loadCategoriesForModule(selectedModule);
         }
+        syncTypeDependentSections();
     });
 
     $('#save-custom-field').click(function () {
