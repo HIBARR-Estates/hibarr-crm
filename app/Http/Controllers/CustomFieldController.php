@@ -173,7 +173,9 @@ class CustomFieldController extends AccountBaseController
         $field->name = $name;
         $field->type = $request->type;
         $field->custom_field_category_id = $request->category;
-        $field->values = json_encode($request->value ?? []);
+        if (in_array($request->type, ['select', 'radio', 'checkbox', 'repeatable'])) {
+            $field->values = is_array($request->value) ? json_encode($request->value) : ($request->value ?? $field->values);
+        }
         $field->required = $request->required;
         $field->export = $request->export;
         $field->visible = $request->visible;
