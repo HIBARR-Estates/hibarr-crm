@@ -13,6 +13,7 @@ use Yajra\DataTables\Facades\DataTables;
 use App\Http\Requests\CustomField\StoreCustomField;
 use App\Http\Requests\CustomField\UpdateCustomField;
 use App\Services\CustomFieldRuleService;
+use Illuminate\Support\Facades\Log;
 
 class CustomFieldController extends AccountBaseController
 {
@@ -53,7 +54,7 @@ class CustomFieldController extends AccountBaseController
             ])->orderBy('custom_fields.display_order')->get();
         } catch (\Exception $e) {
             // Log the error for debugging
-            \Log::warning('Failed to load custom field visibility rules', [
+            Log::warning('Failed to load custom field visibility rules', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
