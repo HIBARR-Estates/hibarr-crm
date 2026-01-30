@@ -31,6 +31,9 @@ import { createPropertyFilterConfig } from "@/configs/propertyFilterConfig";
 import { createPropertySearchConfig } from "@/configs/searchConfigs";
 import usePageSort from "@/Hooks/usePageSort";
 
+import type { DeveloperProjectOption } from "@/Types/developerProject";
+
+// Legacy Project interface - kept for backwards compatibility
 interface Project {
     id: number;
     project_name: string;
@@ -59,16 +62,49 @@ interface PaginationData {
 export interface IndexProps extends PageProps {
     pageTitle: string;
     properties: PaginationData;
-    projects: Project[];
-    developers: Developer[];
+    /** @deprecated Use developerProjects instead */
+    projects?: Project[];
+    developers?: Developer[];
+    /** New DeveloperProject list for bulk actions */
+    developerProjects?: DeveloperProjectOption[];
+    currencies?: any[];
+    default_currency_code?: string;
+    default_currency_symbol?: string;
 }
 
 const Index = ({
     pageTitle,
     properties,
     default_currency_code: currencyCode,
-    ...props
+    default_currency_symbol: currencySymbol,
+    currencies = [],
+    projects,
+    developers,
+    developerProjects,
 }: IndexProps) => {
+    // Debug: Log properties payload to see what price data looks like
+    useEffect(() => {
+        console.log("🔍 Properties payload:", properties);
+        if (properties?.data && properties.data.length > 0) {
+            const firstProperty = properties.data[0];
+            let parsedPrice = null;
+            try {
+                if (typeof firstProperty.price === "string") {
+                    parsedPrice = JSON.parse(firstProperty.price);
+                } else {
+                    parsedPrice = firstProperty.price;
+                }
+            } catch (e) {
+                parsedPrice = firstProperty.price;
+            }
+            console.log("🔍 First property price:", {
+                raw: firstProperty.price,
+                type: typeof firstProperty.price,
+                parsed: parsedPrice,
+                fullProperty: firstProperty,
+            });
+        }
+    }, [properties]);
     const {
         handleAction,
         handleClose,
@@ -97,9 +133,13 @@ const Index = ({
     // Memoize configs to prevent unnecessary re-renders and filter resets
     const filterConfig = useMemo(
         () =>
-            createPropertyFilterConfig({ ...props, excludeFields: ["search"] }),
-        [props]
-        // TODO: Check if props can be more specific
+            createPropertyFilterConfig({
+                // projects,
+                // developers,
+                developerProjects,
+                excludeFields: ["search"],
+            }),
+        [projects, developers, developerProjects],
     );
 
     // Setup search and filter contexts
@@ -159,7 +199,12 @@ const Index = ({
     ];
 
     // Table columns
-    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencyCode);
+    const columns = PROPERTY_TABLE_COLUMNS(
+        getActionItems,
+        currencies,
+        currencyCode,
+        currencySymbol,
+    );
 
     return (
         <>
@@ -209,7 +254,7 @@ const Index = ({
                             {selectedEntities.length > 0 && (
                                 <BulkActionSelector
                                     selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id
+                                        ({ id }) => id,
                                     )}
                                     clearSelected={clearSelected}
                                 />
@@ -244,7 +289,7 @@ const Index = ({
                                         {
                                             preserveState: true,
                                             preserveScroll: true,
-                                        }
+                                        },
                                     );
                                 },
                             }}
@@ -279,7 +324,7 @@ const Index = ({
             <UniversalFilterDrawer config={filterConfig} />
         </>
     );
-}
+};
 
 Index.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>

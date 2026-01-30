@@ -515,6 +515,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('stage-change/{id}', [DealController::class, 'stageChange'])->name('deals.stage_change');
     Route::post('save-stage-change', [DealController::class, 'saveStageChange'])->name('deals.save_stage_change');
     Route::post('deals/change-stage', [DealController::class, 'changeStage'])->name('deals.change_stage');
+    Route::post('deals/change-agent', [DealController::class, 'changeAgent'])->name('deals.change_agent');
     Route::post('deals/apply-quick-action', [DealController::class, 'applyQuickAction'])->name('deals.apply_quick_action');
 
     Route::get('deals/gdpr-consent', [DealController::class, 'consent'])->name('deals.gdpr_consent');
@@ -571,7 +572,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // deals route
 
     Route::resource('lead-contact', LeadContactController::class);
-    Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    // Accept both POST (for file uploads) and PATCH
+    Route::match(['post', 'patch'], 'lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
     Route::post('lead-contact/apply-quick-action', [LeadContactController::class, 'applyQuickAction'])->name('lead-contact.apply_quick_action');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
@@ -586,7 +588,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('gathering/search-leads', [DealGatheringController::class, 'searchLeads'])->name('gathering.search_leads');
         Route::patch('gathering/update-step/{id}', [DealGatheringController::class, 'updateStep'])->name('gathering.update_step');
         Route::get('gathering/custom-fields/{id}', [DealGatheringController::class, 'getDealCustomFields'])->name('gathering.get_custom_fields');
-        Route::patch('gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
+        // Accept both POST (for file uploads with method spoofing) and PATCH
+        Route::match(['post', 'patch'], 'gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
     });
 
     Route::resource('deals', DealController::class);
@@ -998,6 +1001,44 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
     Route::post('properties/{id}/expose/validate', [App\Http\Controllers\PropertyController::class, 'validateExpose'])->name('properties.expose.validate');
     Route::post('properties/{id}/expose/generate', [App\Http\Controllers\PropertyController::class, 'generateExpose'])->name('properties.expose.generate');
+
+    Route::get('properties/slug/{slug}', [App\Http\Controllers\PropertyController::class, 'showBySlug'])->name('properties.show_by_slug');
+
+    // =====================================================
+    // Developer Projects & Project Locations
+    // =====================================================
+    
+    // Project Locations - must be defined before developer-projects since projects reference locations
+    Route::prefix('project-locations')->name('project-locations.')->group(function () {
+        Route::get('/', [App\Http\Controllers\ProjectLocationController::class, 'index'])->name('index');
+        Route::get('/all', [App\Http\Controllers\ProjectLocationController::class, 'all'])->name('all');
+        Route::post('/', [App\Http\Controllers\ProjectLocationController::class, 'store'])->name('store');
+        Route::get('/{id}', [App\Http\Controllers\ProjectLocationController::class, 'show'])->name('show');
+        Route::put('/{id}', [App\Http\Controllers\ProjectLocationController::class, 'update'])->name('update');
+        Route::delete('/{id}', [App\Http\Controllers\ProjectLocationController::class, 'destroy'])->name('destroy');
+    });
+
+    // Developer Projects
+    Route::prefix('developer-projects')->name('developer-projects.')->group(function () {
+        Route::get('/', [App\Http\Controllers\DeveloperProjectController::class, 'index'])->name('index');
+        Route::get('/all', [App\Http\Controllers\DeveloperProjectController::class, 'all'])->name('all');
+        Route::post('/', [App\Http\Controllers\DeveloperProjectController::class, 'store'])->name('store');
+        Route::get('/{id}', [App\Http\Controllers\DeveloperProjectController::class, 'show'])->name('show');
+        Route::put('/{id}', [App\Http\Controllers\DeveloperProjectController::class, 'update'])->name('update');
+        Route::delete('/{id}', [App\Http\Controllers\DeveloperProjectController::class, 'destroy'])->name('destroy');
+        
+        // Property assignment
+        Route::post('/{id}/assign-properties', [App\Http\Controllers\DeveloperProjectController::class, 'assignProperties'])->name('assign-properties');
+        Route::post('/{id}/remove-properties', [App\Http\Controllers\DeveloperProjectController::class, 'removeProperties'])->name('remove-properties');
+        Route::get('/{id}/available-properties', [App\Http\Controllers\DeveloperProjectController::class, 'availableProperties'])->name('available-properties');
+        
+        // Expose Configuration
+        Route::get('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'show'])->name('expose-config.show');
+        Route::put('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'upsert'])->name('expose-config.upsert');
+        Route::patch('/{id}/expose-config/{section}', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'updateSection'])->name('expose-config.update-section');
+        Route::get('/{id}/expose-config/preview', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'previewData'])->name('expose-config.preview');
+        Route::get('/{id}/expose-config/validate', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'validateConfig'])->name('expose-config.validate');
+    });
 
     // Property Asset Management (New System)
     Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {

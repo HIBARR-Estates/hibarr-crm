@@ -152,7 +152,81 @@ trait CustomFieldsTrait
                     }
                 }
             }
-            $value = ($fieldType == 'file' && !is_string($value) && !is_null($value)) ? Files::uploadLocalOrS3($value, 'custom_fields') : $value;
+            
+            // Handle file uploads - supports single file or array of files
+            if ($fieldType == 'file') {
+                // Get existing files from database
+                $existingEntry = DB::table('custom_fields_data')
+                    ->where('model', $this->getModelName())
+                    ->where('model_id', $this->id)
+                    ->where('custom_field_id', $id)
+                    ->first();
+                
+                $existingFiles = [];
+                if ($existingEntry && !empty($existingEntry->value)) {
+                    // Try to parse as JSON array first
+                    $decoded = json_decode($existingEntry->value, true);
+                    if (is_array($decoded)) {
+                        $existingFiles = $decoded;
+                    } else {
+                        // Single file or comma-separated
+                        $existingFiles = array_filter(array_map('trim', explode(',', $existingEntry->value)));
+                    }
+                }
+                
+                // Handle clearing all files
+                if (empty($value) || $value === '') {
+                    // Delete all existing files
+                    foreach ($existingFiles as $oldFile) {
+                        Files::deleteFile($oldFile, 'custom_fields');
+                    }
+                    $value = '';
+                }
+                // Handle array of UploadedFile objects (new files to add)
+                elseif (is_array($value)) {
+                    $newFiles = [];
+                    foreach ($value as $file) {
+                        if ($file instanceof \Illuminate\Http\UploadedFile) {
+                            $newFiles[] = Files::uploadLocalOrS3($file, 'custom_fields');
+                        } elseif (is_string($file) && !empty($file)) {
+                            // Already a filename string (for removal operations)
+                            $newFiles[] = $file;
+                        }
+                    }
+                    
+                    // Combine existing and new files
+                    $allFiles = array_merge($existingFiles, $newFiles);
+                    $allFiles = array_unique(array_filter($allFiles));
+                    
+                    // Store as JSON array if multiple files, or single string if one file
+                    $value = count($allFiles) > 1 ? json_encode(array_values($allFiles)) : (reset($allFiles) ?: '');
+                }
+                // Handle single UploadedFile (replaces all existing files)
+                elseif ($value instanceof \Illuminate\Http\UploadedFile) {
+                    // Delete old files when replacing with single file
+                    foreach ($existingFiles as $oldFile) {
+                        Files::deleteFile($oldFile, 'custom_fields');
+                    }
+                    $value = Files::uploadLocalOrS3($value, 'custom_fields');
+                }
+                // Handle JSON string (for partial removal of files)
+                elseif (is_string($value) && !empty($value)) {
+                    $decoded = json_decode($value, true);
+                    if (is_array($decoded)) {
+                        // This is a JSON array of filenames to keep
+                        // Delete files that are no longer in the list
+                        $filesToKeep = $decoded;
+                        foreach ($existingFiles as $oldFile) {
+                            if (!in_array($oldFile, $filesToKeep)) {
+                                Files::deleteFile($oldFile, 'custom_fields');
+                            }
+                        }
+                        // Store as JSON if multiple, single string if one
+                        $value = count($filesToKeep) > 1 ? json_encode(array_values($filesToKeep)) : (reset($filesToKeep) ?: '');
+                    }
+                    // Otherwise it's just a single filename string, leave as-is
+                }
+            }
             
             // Handle checkbox and other array-based fields - convert arrays to comma-separated strings
             if (is_array($value)) {

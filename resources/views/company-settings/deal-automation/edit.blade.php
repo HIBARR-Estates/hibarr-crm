@@ -17,12 +17,12 @@
 
             <div class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100 p-4 ">
                 @if(isset($automation->id))
-                    <form method="POST" id="save-automation-form" action="{{ route('deal-automations.update', $automation->id) }}">
-                    @method('PUT')
+                    <input type="hidden" name="_form_action" id="form-action-url" value="{{ route('deal-automations.update', $automation->id) }}">
+                    <input type="hidden" name="_form_method" id="form-method" value="PUT">
                 @else
-                    <form method="POST" id="save-automation-form" action="{{ route('deal-automations.store') }}">
+                    <input type="hidden" name="_form_action" id="form-action-url" value="{{ route('deal-automations.store') }}">
+                    <input type="hidden" name="_form_method" id="form-method" value="POST">
                 @endif
-                @csrf
 
                 <div class="alert alert-info mb-4">
                     <h5 class="alert-heading f-14 font-weight-bold"><i class="fa fa-info-circle"></i> How Automations Work</h5>
@@ -112,7 +112,6 @@
                 </div>
                 <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-action"><i class="fa fa-plus"></i> Add Action</button>
 
-                </form>
             </div>
 
             <x-slot name="action">
@@ -182,7 +181,103 @@
                 }
             });
 
+
             // Condition Builder Logic
+            function updateConditionValueInput(row) {
+                const fieldSelect = row.find('.condition-field-select');
+                const operatorSelect = row.find('.condition-operator-select');
+                const valueContainer = row.find('.condition-value-container');
+                const existingInput = valueContainer.find('input, select');
+                // Get current value - check value attribute for initial load if val() is empty/default
+                let currentValue = existingInput.val();
+                if (currentValue === undefined || currentValue === null) currentValue = existingInput.attr('value');
+                
+                // Get base name for the input (handling array index)
+                // We look for name="conditions[X][value]"
+                let inputName = existingInput.attr('name');
+                if (!inputName) {
+                    // Try to construct from row index if we lost the element
+                    // This is a fail-safe, normally shouldn't happen if we replace correctly
+                    const index = row.index(); // Note: this index might be offset if there are other rows in container
+                    // better to rely on finding the name from the input before we destroy it
+                    // If we already destroyed it (hidden state?), we need a way to recover.
+                    // Actually, for "exists" operator we might have replaced it with hidden input.
+                    // Let's assume the name is always on the first child of valueContainer
+                }
+
+                const selectedOption = fieldSelect.find('option:selected');
+                const fieldType = selectedOption.data('type') || 'string';
+                const fieldValues = selectedOption.data('values'); // Expecting array or null
+                
+                const operator = operatorSelect.val();
+
+                // 1. Handle "Exists" / "Changed" operators -> Hide value input
+                if (operator === 'exists' || operator === 'changed') {
+                     if (!existingInput.is('input[type="hidden"]')) {
+                         const hiddenHtml = `<input type="hidden" name="${inputName}" value="__ANY__"> <span class="text-muted f-12 align-middle mt-2 d-inline-block">N/A</span>`;
+                         valueContainer.html(hiddenHtml);
+                     }
+                     return;
+                }
+
+                // 2. Handle "Boolean" type
+                if (fieldType === 'boolean') {
+                    if (!existingInput.is('select') || existingInput.find('option[value="1"]').length === 0) {
+                        let html = `<select name="${inputName}" class="form-control height-35 f-14">
+                            <option value="1" ${currentValue == '1' ? 'selected' : ''}>True / Yes</option>
+                            <option value="0" ${currentValue == '0' ? 'selected' : ''}>False / No</option>
+                        </select>`;
+                        valueContainer.html(html);
+                    }
+                    return;
+                }
+
+                // 3. Handle "Select" type (Custom Field Dropdown)
+                if (fieldType === 'select' && fieldValues) {
+                     // Check if we already have a select with these values to avoid re-rendering (optional optimization)
+                     // Re-rendering is safer to ensure options match
+                     let html = `<select name="${inputName}" class="form-control height-35 f-14">`;
+                     html += `<option value="">-- Select --</option>`;
+                     
+                     let options = fieldValues;
+                     if (typeof options === 'string') {
+                         try { options = JSON.parse(options); } catch(e) {}
+                     }
+
+                     if (Array.isArray(options)) {
+                         options.forEach(opt => {
+                             // Handle simple array ["A", "B"] or object array [{"value":"A", "label":"A"}]? 
+                             // Usually simple array for 'values' column
+                             let val = (typeof opt === 'object') ? opt.value : opt;
+                             let label = (typeof opt === 'object') ? opt.label : opt;
+                             html += `<option value="${val}" ${currentValue == val ? 'selected' : ''}>${label}</option>`;
+                         });
+                     } else if(typeof options === 'object' && options !== null) {
+                          for(const [key, val] of Object.entries(options)) {
+                              html += `<option value="${val}" ${currentValue == val ? 'selected' : ''}>${val}</option>`;
+                          }
+                     }
+                     html += `</select>`;
+                     valueContainer.html(html);
+                     return;
+                }
+                
+                // 4. Handle "Date" type
+                if (fieldType === 'date') {
+                     if (!existingInput.is('input[type="date"]')) {
+                        valueContainer.html(`<input type="date" name="${inputName}" class="form-control height-35 f-14" value="${currentValue || ''}">`);
+                     }
+                     return;
+                }
+
+                // 5. Default: Text Input (String, Number, etc)
+                if (!existingInput.is('input[type="text"]') && !existingInput.is('input[type="number"]')) {
+                     // restore text input
+                     const typeProp = fieldType === 'number' ? 'number' : 'text';
+                     valueContainer.html(`<input type="${typeProp}" name="${inputName}" class="form-control height-35 f-14" value="${currentValue !== '__ANY__' ? (currentValue || '') : ''}" placeholder="Value">`);
+                }
+            }
+
             function updateOperators(row) {
                 const fieldSelect = row.find('.condition-field-select');
                 const operatorSelect = row.find('.condition-operator-select');
@@ -204,10 +299,17 @@
                 if (operatorSelect.find('option:selected').prop('disabled')) {
                     operatorSelect.val(operatorSelect.find('option:not(:disabled):first').val());
                 }
+                
+                // Also update the value input based on new operator/field
+                updateConditionValueInput(row);
             }
 
             $('body').on('change', '.condition-field-select', function() {
                 updateOperators($(this).closest('.condition-row'));
+            });
+            
+            $('body').on('change', '.condition-operator-select', function() {
+                updateConditionValueInput($(this).closest('.condition-row'));
             });
 
             // Initialize operators for existing rows
@@ -298,14 +400,28 @@
             $('.forward-only-check').trigger('change');
 
             $('#save-automation').click(function() {
+                // Get form data and replace _method with the correct one for this action
+                var formData = $('#editSettings').serializeArray();
+                
+                // Remove any existing _method entries
+                formData = formData.filter(function(item) {
+                    return item.name !== '_method';
+                });
+                
+                // Add the correct _method based on create vs update
+                var method = $('#form-method').val();
+                if (method === 'PUT') {
+                    formData.push({ name: '_method', value: 'PUT' });
+                }
+                
                 $.easyAjax({
-                    url: $('#save-automation-form').attr('action'),
-                    container: '#save-automation-form',
+                    url: $('#form-action-url').val(),
+                    container: '#editSettings',
                     type: "POST",
                     disableButton: true,
                     blockUI: true,
                     buttonSelector: "#save-automation",
-                    data: $('#save-automation-form').serialize(),
+                    data: $.param(formData),
                     redirect: true
                 })
             });

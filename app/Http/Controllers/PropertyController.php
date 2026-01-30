@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use App\Helper\Files;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
+use Illuminate\Support\Facades\DB;
 
 
 class PropertyController extends AccountBaseController
@@ -39,13 +40,20 @@ class PropertyController extends AccountBaseController
         $this->excel = $excel;
         parent::__construct();
         
-        
+        $this->middleware(function ($request, $next) {
+            $this->addPropertyPermission = user()->permission('add_products');
+            $this->viewPropertyPermission = user()->permission('view_products');
+            $this->editPropertyPermission = user()->permission('edit_products');
+            $this->deletePropertyPermission = user()->permission('delete_products');
+            
+            return $next($request);
+        });
     }
 
     public function index(Request $request)
     {
         // Get properties with pagination and filtering
-        $query = Property::with('product');
+        $query = Property::with(['product', 'developerProject.location']);
 
         
         // Apply filters if provided
@@ -61,8 +69,28 @@ class PropertyController extends AccountBaseController
             $query->where('status', $request->status);
         }
 
+        // Filter by developer project
+        if ($request->filled('developer_project_id') && $request->developer_project_id !== 'all') {
+            $query->where('developer_project_id', $request->developer_project_id);
+        }
+
+        // Filter by city - search in property's own city OR project location name
         if ($request->filled('city')) {
-            $query->where('city', 'like', '%' . $request->city . '%');
+            $citySearch = $request->city;
+            $query->where(function($q) use ($citySearch) {
+                $q->where('city', 'like', '%' . $citySearch . '%')
+                  ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
+                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
+                  });
+            });
+        }
+
+        // Filter by project location (searches project location name)
+        if ($request->filled('project_location')) {
+            $locationSearch = $request->project_location;
+            $query->whereHas('developerProject.location', function($q) use ($locationSearch) {
+                $q->where('name', 'like', '%' . $locationSearch . '%');
+            });
         }
 
         if ($request->filled('min_price')) {
@@ -111,7 +139,9 @@ class PropertyController extends AccountBaseController
             $query->orderBy('created_at', 'desc');
         }
 
-        $properties = $query->paginate(15);
+        $perPage = (int) $request->get('per_page', 15) ?: 15;
+        $perPage = max(1, min(100, $perPage));
+        $properties = $query->paginate($perPage);
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -124,13 +154,13 @@ class PropertyController extends AccountBaseController
         $this->properties = $properties;
         
 
-        // TODO: Correct this to use the proper models
-        // Get projects for assignment
-        $projects = \App\Models\Project::select('id', 'project_name', 'project_admin')
-            ->with('projectAdmin:id,name')
+        // Get developer projects for assignment
+        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'project_location_id')
+            ->with('location:id,name')
+            ->where('company_id', user()->company_id)
             ->get();
             
-        // Get users with employee role for developer selection
+        // Legacy: Get users with employee role for developer selection (pinned for future)
         $developers = \App\Models\User::whereHas('roles', function($query) {
                 $query->where('name', 'employee');
             })
@@ -141,9 +171,9 @@ class PropertyController extends AccountBaseController
             'pageTitle' => 'Properties',
             'properties' => $this->properties,
             'products' => $products,
-            'projects' => $projects,
+            'developerProjects' => $developerProjects,
             'developers' => $developers,
-            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price'])
+            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price', 'developer_project_id', 'project_location'])
         ]);       
     }
 
@@ -188,9 +218,12 @@ class PropertyController extends AccountBaseController
         $property = new Property();
         $property->company_id = user()->company_id;
         $property->product_id = $product->id;
+        $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
-        $property->price = $request->price;
+        
+        $property->price = $this->normalizePrice($request->price);
+        
         $property->minimal_rental_period = $request->minimal_rental_period;
         $property->rent_payment_interval = $request->rent_payment_interval;
         $property->title_deed_type = $request->title_deed_type;
@@ -236,84 +269,51 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $this->property = Property::with(['product', 'assets' => function($query) {
+        $this->property = Property::with(['product', 'developerProject.location', 'assets' => function($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
-        
-        // // Check permission
-        // $canView = false;
-        // switch ($this->viewPropertyPermission) {
-        //     case 'all':
-        //         $canView = true;
-        //         break;
-        //     case 'added':
-        //         $canView = $this->property->product->added_by == user()->id;
-        //         break;
-        //     case 'owned':
-        //         $canView = $this->property->product->assigned_to == user()->id;
-        //         break;
-        //     case 'both':
-        //         $canView = $this->property->product->added_by == user()->id || $this->property->product->assigned_to == user()->id;
-        //         break;
-        // }
 
-        // abort_403(!$canView);
+        return $this->renderPropertyShow($this->property);
+    }
 
-        // $this->pageTitle = $this->property->title;
+    /**
+     * Show property by slug. Returns the same response as show($id).
+     */
+    public function showBySlug(string $slug)
+    {
+        $property = Property::with(['product', 'developerProject.location', 'assets' => function ($query) {
+            $query->orderBy('order')->orderBy('created_at', 'desc');
+        }])->where('slug', $slug)->firstOrFail();
 
-        // // Check if user can edit this property
+        return $this->renderPropertyShow($property);
+    }
+
+    /**
+     * Render the property show page (shared by show id and show by slug).
+     */
+    private function renderPropertyShow(Property $property)
+    {
+        $this->property = $property;
         $canEdit = false;
-        // switch ($this->editPropertyPermission) {
-        //     case 'all':
-        //         $canEdit = true;
-        //         break;
-        //     case 'added':
-        //         $canEdit = $this->property->product->added_by == user()->id;
-        //         break;
-        //     case 'owned':
-        //         $canEdit = $this->property->product->assigned_to == user()->id;
-        //         break;
-        //     case 'both':
-        //         $canEdit = $this->property->product->added_by == user()->id || $this->property->product->assigned_to == user()->id;
-        //         break;
-        // }
         $this->pageTitle = $this->property->title;
 
-        // Get tasks
         $tasks = $this->property->tasks()
             ->with(['users', 'category', 'boardColumn', 'labels'])
             ->orderBy('id', 'desc')
             ->get();
 
-        // Get task metadata for modal
         $taskCategories = \App\Models\TaskCategory::all();
         $taskLabels = \App\Models\TaskLabelList::all();
         $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
         $employees = User::allEmployees();
         $projects = \App\Models\Project::all();
 
-        // Get task permissions
         $taskPermissions = [
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
             'view_tasks' => user()->permission('view_tasks'),
         ];
-
-        if (request()->ajax()) {
-            return Inertia::render('Properties/Show', [
-                'pageTitle' => $this->pageTitle,
-                'property' => $this->property,
-                'canEdit' => $canEdit,
-                'tasks' => $tasks,
-                'taskCategories' => $taskCategories,
-                'taskLabels' => $taskLabels,
-                'taskBoardColumns' => $taskBoardColumns,
-                'employees' => $employees,
-                'projects' => $projects,
-                'taskPermissions' => $taskPermissions,
-            ]);
-        }
 
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
@@ -331,7 +331,7 @@ class PropertyController extends AccountBaseController
 
     public function edit($id)
     {
-        $this->property = Property::with('product')->findOrFail($id);
+        $this->property = Property::with(['product', 'developerProject.location'])->findOrFail($id);
         
         // Check permission
         $canEdit = false;
@@ -399,13 +399,16 @@ class PropertyController extends AccountBaseController
 
         // Check if updates are allowed based on current status
         $fieldsToUpdate = $request->only($property->getFillable());
+        
+        if (isset($fieldsToUpdate['price'])) {
+            $fieldsToUpdate['price'] = $this->normalizePrice($fieldsToUpdate['price']);
+        }
+        
         foreach ($fieldsToUpdate as $field => $value) {
             abort_403(!$property->canUpdateField($field), __('messages.propertyUpdateNotAllowed', ['field' => $field]));
         }
 
         $property->update($fieldsToUpdate);
-
-        
 
         return back()->with([
             'success' => true,
@@ -417,41 +420,7 @@ class PropertyController extends AccountBaseController
 
     public function destroy($id)
     {
-        $property = Property::with('product')->findOrFail($id);
-        
-        // Check permission
-        $canDelete = false;
-        switch ($this->deletePropertyPermission) {
-            case 'all':
-                $canDelete = true;
-                break;
-            case 'added':
-                $canDelete = $property->product->added_by == user()->id;
-                break;
-            case 'owned':
-                $canDelete = $property->product->assigned_to == user()->id;
-                break;
-            case 'both':
-                $canDelete = $property->product->added_by == user()->id || $property->product->assigned_to == user()->id;
-                break;
-        }
-
-        abort_403(!$canDelete);
-
-        // Don't allow deletion if property is sold or rented
-        if ($property->isSold() || $property->isRented()) {
-            return back()->with([
-                'success' => false,
-                'message' => __('messages.propertyCannotBeDeleted'),
-            ]);
-        }
-
-        $property->delete();
-
-        return back()->with([
-            'success' => true,
-            'message' => __('messages.recordDeleted'),
-        ]);
+        return $this->deleteProperties([$id]);
     }
 
     // API Methods for JSON responses
@@ -885,7 +854,7 @@ class PropertyController extends AccountBaseController
             'property_ids' => 'required|array|min:1',
             'property_ids.*' => 'integer|exists:properties,id',
             'action_type' => 'required|string|in:assign_to_project,change_status,delete',
-            'project_id' => 'required_if:action_type,assign_to_project|integer|exists:projects,id',
+            'project_id' => 'required_if:action_type,assign_to_project|integer|exists:developer_projects,id',
             'status' => 'required_if:action_type,change_status|string|in:Available,Under offer,Sold,Withdrawn',
         ]);
 
@@ -920,26 +889,22 @@ class PropertyController extends AccountBaseController
     }
 
     /**
-     * Assign multiple properties to a project
+     * Assign multiple properties to a developer project
+     * 
+     * Updated to use DeveloperProject model instead of legacy Project.
+     * Properties are now directly assigned via developer_project_id.
      */
     private function assignPropertiesToProject(array $propertyIds, int $projectId)
     {
-        $properties = Property::whereIn('id', $propertyIds)->get();
-        $project = \App\Models\Project::findOrFail($projectId);
+        $project = \App\Models\DeveloperProject::where('company_id', user()->company_id)
+            ->findOrFail($projectId);
         
-        $assignedCount = 0;
-        foreach ($properties as $property) {
-            // Update the property's product to associate with the project
-            if ($property->product) {
-                $property->product->project_id = $projectId;
-                $property->product->save();
-                $assignedCount++;
-            }
-        }
+        // Use the model's assignProperties method
+        $assignedCount = $project->assignProperties($propertyIds);
 
         $message = __('messages.propertiesAssignedToProject', [
             'count' => $assignedCount,
-            'project' => $project->project_name
+            'project' => $project->name
         ]);
 
         if (request()->expectsJson()) {
@@ -1160,5 +1125,69 @@ class PropertyController extends AccountBaseController
         
         // Return the download response directly
         return $this->exposeService->generate($config);
+    }
+
+    /**
+     * Normalize price value to JSON format with amount and currency.
+     *
+     * @param mixed $priceValue
+     * @return string|null
+     */
+    private function normalizePrice($priceValue): ?string
+    {
+        if ($priceValue === null || $priceValue === '') {
+            return null;
+        }
+
+        $defaultCurrency = company()?->currency?->currency_code ?? 'TRY';
+
+        if (is_array($priceValue)) {
+            $amount = isset($priceValue['amount']) && $priceValue['amount'] !== null && $priceValue['amount'] !== ''
+                ? (float) $priceValue['amount']
+                : null;
+            $currency = isset($priceValue['currency']) && !empty($priceValue['currency'])
+                ? strtoupper($priceValue['currency'])
+                : $defaultCurrency;
+
+            return $amount !== null && $amount >= 0
+                ? json_encode(['amount' => $amount, 'currency' => $currency])
+                : null;
+        }
+
+        if (is_string($priceValue)) {
+            $trimmed = trim($priceValue);
+            $firstChar = $trimmed[0] ?? '';
+
+            if ($firstChar === '{' || $firstChar === '[') {
+                $decoded = json_decode($priceValue, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $amountValue = $decoded['amount'] ?? null;
+                    $amount = ($amountValue !== null && $amountValue !== '' && is_numeric($amountValue))
+                        ? (float) $amountValue
+                        : null;
+                    $currency = isset($decoded['currency']) && !empty($decoded['currency'])
+                        ? strtoupper($decoded['currency'])
+                        : $defaultCurrency;
+
+                    return $amount !== null && $amount >= 0
+                        ? json_encode(['amount' => $amount, 'currency' => $currency])
+                        : null;
+                }
+            }
+
+            $numValue = is_numeric($priceValue) ? (float) $priceValue : null;
+            return $numValue !== null && $numValue >= 0
+                ? json_encode(['amount' => $numValue, 'currency' => $defaultCurrency])
+                : null;
+        }
+
+        if (is_numeric($priceValue)) {
+            $amount = (float) $priceValue;
+            return $amount >= 0
+                ? json_encode(['amount' => $amount, 'currency' => $defaultCurrency])
+                : null;
+        }
+
+        return null;
     }
 }

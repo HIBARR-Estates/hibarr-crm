@@ -56,6 +56,11 @@ export interface Deal {
     package_id?: number;
     downpayment_confirmed?: number;
 
+    // Counts for kanban card display
+    tasks_count?: number;
+    meetings_count?: number;
+    activities_count?: number;
+
     // Relationships
     contact: Contact;
     lead_stage: LeadStage;

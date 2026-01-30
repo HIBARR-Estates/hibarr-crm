@@ -1,24 +1,81 @@
-import { Descriptions, Tag, Upload, Button, message, Spin, Space } from "antd";
+import {
+    Descriptions,
+    Tag,
+    Upload,
+    Button,
+    message,
+    Spin,
+    Space,
+    List,
+    Tooltip,
+} from "antd";
 import {
     UploadOutlined,
     DeleteOutlined,
     DownloadOutlined,
     FileOutlined,
+    PlusOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { CustomField } from "@/Types";
 import EditableField from "@/Components/EditableField";
-import { useState } from "react";
+import React, { useState } from "react";
 import axios from "axios";
+import { usePage } from "@inertiajs/react";
 
-// Editable File Field Component
+// Helper to parse file value - can be single file string, comma-separated, or JSON array
+const parseFileValue = (value: string | null): string[] => {
+    if (!value) return [];
+
+    // Try to parse as JSON array first
+    try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+            return parsed.filter((f) => f && typeof f === "string");
+        }
+    } catch {
+        // Not JSON, continue
+    }
+
+    // Check if it's comma-separated (but not a single filename with comma)
+    // A filename typically has an extension, so we check for that pattern
+    if (value.includes(",")) {
+        const parts = value
+            .split(",")
+            .map((f) => f.trim())
+            .filter((f) => f);
+        // If all parts look like filenames (have extensions), treat as multiple files
+        if (parts.every((p) => p.includes("."))) {
+            return parts;
+        }
+    }
+
+    // Single file
+    return [value];
+};
+
+// Get display name from filename (extract original name if possible, otherwise show truncated hash)
+const getDisplayName = (filename: string): string => {
+    // If filename is a hash with extension (like abc123def.pdf), just show truncated
+    if (/^[a-f0-9]{20,}\.[a-z0-9]+$/i.test(filename)) {
+        const ext = filename.split(".").pop();
+        return `File.${ext}`;
+    }
+    return filename;
+};
+
+// Editable File Field Component - supports multiple files
 interface EditableFileFieldProps {
     value: string | null;
     fieldKey: string;
-    onSave: (fieldKey: string, value: File | string | null) => Promise<void>;
+    onSave: (
+        fieldKey: string,
+        value: File[] | File | string | null,
+    ) => Promise<void>;
     loading?: boolean;
     editable?: boolean;
+    multiple?: boolean;
 }
 
 const EditableFileField: React.FC<EditableFileFieldProps> = ({
@@ -27,33 +84,60 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     onSave,
     loading = false,
     editable = true,
+    multiple = true, // Default to supporting multiple files
 }) => {
     const [uploading, setUploading] = useState(false);
 
-    const handleUpload = async (file: File) => {
+    // Parse existing files
+    const existingFiles = parseFileValue(value);
+
+    // Handle file upload - for multiple files, fileList contains all selected files
+    const handleBeforeUpload = async (file: File, fileList: File[]) => {
+        // Only process when we receive the last file in the batch
+        // fileList contains all files, but beforeUpload is called per file
+        const isLastFile = file === fileList[fileList.length - 1];
+
+        if (!isLastFile) {
+            return false; // Skip processing until the last file
+        }
+
         setUploading(true);
         try {
-            // Upload file using FormData
-            const formData = new FormData();
-            formData.append("custom_fields[" + fieldKey + "]", file);
-
-            // Get the current URL's model info - we need to determine the endpoint
-            // For now, we'll use a generic custom field upload approach
-            await onSave(fieldKey, file);
-            message.success("File uploaded successfully");
+            // Send all selected files
+            await onSave(fieldKey, fileList);
+            message.success(
+                fileList.length > 1
+                    ? `${fileList.length} files uploaded successfully`
+                    : "File uploaded successfully",
+            );
         } catch (error) {
-            message.error("Failed to upload file");
+            message.error("Failed to upload file(s)");
         } finally {
             setUploading(false);
         }
+
         return false; // Prevent default upload behavior
     };
 
-    const handleRemove = async () => {
+    const handleRemove = async (fileToRemove?: string) => {
         setUploading(true);
         try {
-            // Send empty string to clear the file
-            await onSave(fieldKey, "");
+            if (multiple && fileToRemove && existingFiles.length > 1) {
+                // Remove specific file from the list
+                const remainingFiles = existingFiles.filter(
+                    (f) => f !== fileToRemove,
+                );
+                // Send the remaining files as JSON string to update
+                await onSave(
+                    fieldKey,
+                    remainingFiles.length > 0
+                        ? JSON.stringify(remainingFiles)
+                        : "",
+                );
+            } else {
+                // Clear all files
+                await onSave(fieldKey, "");
+            }
             message.success("File removed successfully");
         } catch (error) {
             message.error("Failed to remove file");
@@ -68,36 +152,75 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
         return <Spin size="small" />;
     }
 
-    if (value) {
-        const fileUrl = `/user-uploads/custom_fields/${value}`;
+    // Render file list
+    if (existingFiles.length > 0) {
         return (
-            <Space size="small">
-                <a
-                    href={fileUrl}
-                    className="text-blue-600 hover:text-blue-800"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <FileOutlined className="mr-1" />
-                    View File
-                </a>
-                <a
-                    href={fileUrl}
-                    className="text-blue-600 hover:text-blue-800"
-                    download
-                >
-                    <DownloadOutlined />
-                </a>
-                {editable && (
-                    <Button
-                        type="text"
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={handleRemove}
-                    />
+            <div className="space-y-1">
+                {existingFiles.map((filename, index) => {
+                    const fileUrl = `/user-uploads/custom_fields/${filename}`;
+                    const displayName = getDisplayName(filename);
+
+                    return (
+                        <div
+                            key={filename}
+                            className="flex items-center gap-2 py-1"
+                        >
+                            <Tooltip title={filename}>
+                                <a
+                                    href={fileUrl}
+                                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm truncate max-w-[150px]"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <FileOutlined className="flex-shrink-0" />
+                                    <span className="truncate">
+                                        {displayName}
+                                    </span>
+                                </a>
+                            </Tooltip>
+                            <a
+                                href={fileUrl}
+                                className="text-blue-600 hover:text-blue-800 flex-shrink-0"
+                                download
+                                title="Download"
+                            >
+                                <DownloadOutlined />
+                            </a>
+                            {editable && (
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => handleRemove(filename)}
+                                    className="flex-shrink-0"
+                                    title="Remove file"
+                                />
+                            )}
+                        </div>
+                    );
+                })}
+
+                {/* Add more files button */}
+                {editable && multiple && (
+                    <Upload
+                        beforeUpload={handleBeforeUpload}
+                        showUploadList={false}
+                        accept="*/*"
+                        multiple={true}
+                    >
+                        <Button
+                            type="dashed"
+                            size="small"
+                            icon={<PlusOutlined />}
+                            className="mt-1"
+                            loading={uploading}
+                        >
+                            Add File(s)
+                        </Button>
+                    </Upload>
                 )}
-            </Space>
+            </div>
         );
     }
 
@@ -106,9 +229,14 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     }
 
     return (
-        <Upload beforeUpload={handleUpload} showUploadList={false} accept="*/*">
-            <Button size="small" icon={<UploadOutlined />}>
-                Upload File
+        <Upload
+            beforeUpload={handleBeforeUpload}
+            showUploadList={false}
+            accept="*/*"
+            multiple={multiple}
+        >
+            <Button size="small" icon={<UploadOutlined />} loading={uploading}>
+                Upload File{multiple ? "(s)" : ""}
             </Button>
         </Upload>
     );
@@ -135,6 +263,7 @@ interface Props {
     loadingField?: string | null; // The specific field currently being updated
     onChange?: (fieldName: string, value: any) => void; // For tracking changes in edit mode
     globalLoading?: boolean; // When true, all fields are disabled (e.g., during save all)
+    disabled?: boolean; // When true, fields cannot be edited (for permission control)
 }
 
 export default function CustomFieldDisplay({
@@ -149,11 +278,21 @@ export default function CustomFieldDisplay({
     loadingField = null,
     onChange,
     globalLoading = false,
+    disabled = false,
 }: Props) {
+    const { props } = usePage<any>();
+    const { currencies = [], default_currency_code } = props;
+
+    // Use the application's default currency (current company setting)
+    const appDefaultCurrency: string =
+        default_currency_code ??
+        currencies?.[0]?.code ??
+        currencies?.[0]?.currency_code ??
+        "USD";
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
         ? fields.filter(
-              (field) => field.custom_field_category_id === categoryId
+              (field) => field.custom_field_category_id === categoryId,
           )
         : fields;
 
@@ -205,12 +344,12 @@ export default function CustomFieldDisplay({
                 display_order: 0,
                 show_rule_set: field.show_rule_set,
             };
-        }
+        },
     );
 
     const visibilityMap = evaluateAllFieldsVisibility(
         customFieldsForEvaluation,
-        fieldValuesForVisibility
+        fieldValuesForVisibility,
     );
 
     // Filter out fields that are not visible
@@ -394,15 +533,48 @@ export default function CustomFieldDisplay({
                 return value;
 
             case "file":
-                if (!value) return null;
+                // Parse file value - can be single string, JSON array, or comma-separated
+                const files = parseFileValue(value);
+                if (files.length === 0) {
+                    return <span className="text-gray-500">--</span>;
+                }
+
                 return (
-                    <a
-                        href={`/user-uploads/custom_fields/${value}`}
-                        className="text-blue-600 hover:text-blue-800"
-                        download
-                    >
-                        Download File
-                    </a>
+                    <div className="space-y-1">
+                        {files.map((filename, index) => {
+                            const fileUrl = `/user-uploads/custom_fields/${filename}`;
+                            const displayName = getDisplayName(filename);
+
+                            return (
+                                <div
+                                    key={filename}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Tooltip title={filename}>
+                                        <a
+                                            href={fileUrl}
+                                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm truncate max-w-[150px]"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <FileOutlined className="flex-shrink-0" />
+                                            <span className="truncate">
+                                                {displayName}
+                                            </span>
+                                        </a>
+                                    </Tooltip>
+                                    <a
+                                        href={fileUrl}
+                                        className="text-blue-600 hover:text-blue-800 flex-shrink-0"
+                                        download
+                                        title="Download"
+                                    >
+                                        <DownloadOutlined />
+                                    </a>
+                                </div>
+                            );
+                        })}
+                    </div>
                 );
 
             case "url":
@@ -427,15 +599,95 @@ export default function CustomFieldDisplay({
                     </a>
                 );
 
-            case "phone":
+            case "phone": {
+                // Supports:
+                // - plain string "+905338773001"
+                // - JSON string / object from antd-phone-input:
+                //   {"countryCode":"90","areaCode":"533","phoneNumber":"8773001","isoCode":"tr"}
+                // - JSON string / object from our custom PhoneInput:
+                //   {"phone":"+905338773001","country_code":"90","country_identifier":"Turkey"}
+                const parsePhoneValue = (
+                    raw: any,
+                ): { display: string; tel: string } => {
+                    const fallback = String(raw ?? "");
+
+                    const toDigits = (v: any) =>
+                        String(v ?? "").replace(/[^\d]/g, "");
+
+                    const formatFromParts = (
+                        country: any,
+                        area: any,
+                        num: any,
+                    ) => {
+                        const cc = toDigits(country);
+                        const ac = toDigits(area);
+                        const pn = toDigits(num);
+                        const digits = [cc, ac, pn].filter(Boolean).join("");
+                        if (!digits) return null;
+                        return {
+                            display: `+${digits}`,
+                            tel: `+${digits}`,
+                        };
+                    };
+
+                    const formatFromE164 = (phone: any) => {
+                        const s = String(phone ?? "").trim();
+                        if (!s) return null;
+                        // keep leading + if provided; otherwise just digits
+                        const tel = s.startsWith("+") ? s : toDigits(s);
+                        const display = s.startsWith("+") ? s : tel;
+                        return tel ? { display, tel } : null;
+                    };
+
+                    let obj: any = raw;
+                    if (typeof raw === "string") {
+                        const trimmed = raw.trim();
+                        // if it's already a normal phone string, don't show JSON
+                        if (
+                            trimmed.startsWith("+") ||
+                            /^\d[\d\s().-]*$/.test(trimmed)
+                        ) {
+                            return (
+                                formatFromE164(trimmed) ?? {
+                                    display: fallback,
+                                    tel: fallback,
+                                }
+                            );
+                        }
+                        try {
+                            obj = JSON.parse(trimmed);
+                        } catch {
+                            return { display: fallback, tel: fallback };
+                        }
+                    }
+
+                    if (obj && typeof obj === "object") {
+                        // antd-phone-input shape
+                        const fromAntd = formatFromParts(
+                            obj.countryCode,
+                            obj.areaCode,
+                            obj.phoneNumber,
+                        );
+                        if (fromAntd) return fromAntd;
+
+                        // our custom PhoneInput shape
+                        const fromCustom = formatFromE164(obj.phone);
+                        if (fromCustom) return fromCustom;
+                    }
+
+                    return { display: fallback, tel: fallback };
+                };
+
+                const { display, tel } = parsePhoneValue(value);
                 return (
                     <a
-                        href={`tel:${value}`}
+                        href={`tel:${tel}`}
                         className="text-blue-600 hover:text-blue-800"
                     >
-                        {value}
+                        {display}
                     </a>
                 );
+            }
 
             case "number":
                 return typeof value === "number"
@@ -470,6 +722,120 @@ export default function CustomFieldDisplay({
             case "password":
                 return <span className="text-gray-500">••••••••</span>;
 
+            case "currency": {
+                let currencyData: {
+                    amount: string | number | null;
+                    currency: string;
+                } | null = null;
+
+                // Handle plain numbers (most common case from DB)
+                if (typeof value === "number") {
+                    currencyData = {
+                        amount: value,
+                        currency: appDefaultCurrency,
+                    };
+                }
+                // Handle string numbers (e.g., "3235242")
+                else if (
+                    typeof value === "string" &&
+                    !isNaN(Number(value)) &&
+                    value.trim() !== ""
+                ) {
+                    const numValue = Number(value);
+                    if (!isNaN(numValue)) {
+                        currencyData = {
+                            amount: numValue,
+                            currency: appDefaultCurrency,
+                        };
+                    }
+                }
+                // Handle objects with amount property
+                else if (
+                    value &&
+                    typeof value === "object" &&
+                    value.amount !== undefined
+                ) {
+                    currencyData = value;
+                }
+                // Handle JSON strings
+                else if (value && typeof value === "string") {
+                    try {
+                        const parsed = JSON.parse(value);
+                        // If JSON.parse returns a number, treat it as amount
+                        if (typeof parsed === "number") {
+                            currencyData = {
+                                amount: parsed,
+                                currency: appDefaultCurrency,
+                            };
+                        } else if (
+                            typeof parsed === "object" &&
+                            parsed !== null
+                        ) {
+                            currencyData = parsed;
+                        }
+                    } catch {
+                        currencyData = {
+                            amount: value,
+                            currency: appDefaultCurrency,
+                        };
+                    }
+                }
+
+                // Ensure currencyData has a currency property with a default
+                if (currencyData) {
+                    currencyData.currency =
+                        currencyData.currency || appDefaultCurrency;
+                }
+
+                if (
+                    currencyData &&
+                    currencyData.amount !== null &&
+                    currencyData.amount !== ""
+                ) {
+                    const defaultSymbols: Record<string, string> = {
+                        USD: "$",
+                        EUR: "€",
+                        GBP: "£",
+                    };
+
+                    const currencyCode =
+                        currencyData.currency || appDefaultCurrency;
+                    let symbol = defaultSymbols[currencyCode] || "";
+                    if (currencies.length > 0 && currencyCode) {
+                        const currency = currencies.find(
+                            (c: any) =>
+                                c.currency_code === currencyCode ||
+                                (c.currency_name &&
+                                    c.currency_name.toUpperCase() ===
+                                        currencyCode.toUpperCase()),
+                        );
+                        symbol = currency?.currency_symbol || symbol;
+                    }
+
+                    // Format amount with commas
+                    const amount =
+                        typeof currencyData.amount === "number"
+                            ? currencyData.amount
+                            : parseFloat(
+                                  String(currencyData.amount).replace(/,/g, ""),
+                              );
+
+                    if (!isNaN(amount)) {
+                        const formatted = amount.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                        });
+                        return (
+                            <span className="font-medium">
+                                {symbol}
+                                {formatted}
+                            </span>
+                        );
+                    }
+                }
+                return <span className="text-gray-500">--</span>;
+            }
+
             default:
                 // Handle long text content with word breaking
                 if (typeof value === "string" && value.length > 50) {
@@ -480,7 +846,8 @@ export default function CustomFieldDisplay({
     };
 
     const renderEditable = (field: Field, value: any) => {
-        if (!editable || !onUpdate) {
+        // If no onUpdate handler, just display the value (read-only mode)
+        if (!onUpdate) {
             return formatFieldValue(field, value);
         }
 
@@ -494,7 +861,8 @@ export default function CustomFieldDisplay({
             | "boolean"
             | "textarea"
             | "country"
-            | "email" = "text";
+            | "email"
+            | "currency" = "text";
         let options: { label: string; value: string | number }[] = [];
 
         switch (field.type) {
@@ -512,6 +880,9 @@ export default function CustomFieldDisplay({
                 break;
             case "country":
                 type = "country";
+                break;
+            case "currency":
+                type = "currency";
                 break;
             case "select":
             case "radio":
@@ -564,7 +935,7 @@ export default function CustomFieldDisplay({
                             ([k, v]) => ({
                                 label: v as string,
                                 value: k,
-                            })
+                            }),
                         );
                     }
                 } else {
@@ -593,7 +964,7 @@ export default function CustomFieldDisplay({
                     fieldKey={fieldKey}
                     onSave={onUpdate!}
                     loading={isFieldLoading}
-                    editable={editable}
+                    editable={editable && !disabled}
                 />
             );
         }
@@ -602,6 +973,10 @@ export default function CustomFieldDisplay({
         if (field.type === "time") {
             return formatFieldValue(field, value);
         }
+
+        // alwaysEditing should only be true when explicitly in bulk edit mode
+        // When editable is false, we still render EditableField but in hover-to-edit mode
+        const effectiveAlwaysEditing = alwaysEditing || editable;
 
         return (
             <EditableField
@@ -612,8 +987,9 @@ export default function CustomFieldDisplay({
                 options={options}
                 displayValue={formatFieldValue(field, value)}
                 loading={isFieldLoading}
-                alwaysEditing={alwaysEditing}
+                alwaysEditing={effectiveAlwaysEditing}
                 onChange={onChange}
+                disabled={disabled}
             />
         );
     };

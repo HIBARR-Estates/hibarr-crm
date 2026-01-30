@@ -50,7 +50,7 @@ export default function PropertyDetailsTab({
     useEffect(() => {
         if (data) {
             // Transform the data to handle null values properly
-            const formData = {
+            const formData: any = {
                 ...data,
                 exterior_features: data.exterior_features || [],
                 interior_features: data.interior_features || [],
@@ -60,7 +60,8 @@ export default function PropertyDetailsTab({
             };
             form.setFieldsValue(formData);
         }
-    }, [data, form]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data]);
     const handleSubmit = (values: any) => {
         // Transform the values to match the API expectations
         const formData = {
@@ -84,7 +85,7 @@ export default function PropertyDetailsTab({
             onFinishFailed={(errorInfo) => {
                 console.log("Form validation failed:", errorInfo);
                 setErrors?.(
-                    errorInfo.errorFields.map((field) => field.errors).flat()
+                    errorInfo.errorFields.map((field) => field.errors).flat(),
                 );
                 // Extract validation errors and add to errors list
                 if (onErrorsClear) {

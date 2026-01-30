@@ -7,6 +7,7 @@ use App\Models\Lead;
 use App\Models\Package;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
+use App\Models\Currency;
 use Illuminate\Support\Str;
 use App\Enums\DealUpdateType;
 use Illuminate\Support\Facades\DB;
@@ -14,10 +15,14 @@ use Illuminate\Support\Facades\DB;
 class DealGatheringService
 {
     protected DealNotificationService $notificationService;
+    protected DealAutomationService $dealAutomationService;
 
-    public function __construct(DealNotificationService $notificationService)
-    {
+    public function __construct(
+        DealNotificationService $notificationService,
+        DealAutomationService $dealAutomationService
+    ) {
         $this->notificationService = $notificationService;
+        $this->dealAutomationService = $dealAutomationService;
     }
 
     /**
@@ -196,9 +201,45 @@ class DealGatheringService
                     'note', 'next_follow_up', 'status', 'currency_id'
                 ];
                 
-                foreach ($fillable as $field) {
-                    if (array_key_exists($field, $data)) {
-                        $cleanData[$field] = $data[$field];
+                // Handle new currency format: { amount, currency }
+                if (array_key_exists('value', $data) && is_array($data['value']) && (isset($data['value']['amount']) || isset($data['value']['currency']))) {
+                    // Only update value if amount is explicitly provided
+                    if (isset($data['value']['amount']) && $data['value']['amount'] !== null && $data['value']['amount'] !== '') {
+                        if (is_numeric($data['value']['amount'])) {
+                            $amount = (float) $data['value']['amount'];
+                            $cleanData['value'] = $amount;
+                        }
+                    }
+                    // If amount is not provided, don't update the value field (preserve existing value)
+                    
+                    // Handle currency update
+                    $currencyCode = isset($data['value']['currency']) && is_string($data['value']['currency'])
+                        ? strtoupper($data['value']['currency'])
+                        : null;
+                    
+                    // Find currency_id from currency_code
+                    if ($currencyCode) {
+                        $currency = Currency::where('currency_code', $currencyCode)
+                            ->where('company_id', $deal->company_id)
+                            ->first();
+                        
+                        if ($currency) {
+                            $cleanData['currency_id'] = $currency->id;
+                        }
+                    }
+                    
+                    // Process other fillable fields (excluding value and currency_id which we already handled)
+                    foreach ($fillable as $field) {
+                        if ($field !== 'value' && $field !== 'currency_id' && array_key_exists($field, $data)) {
+                            $cleanData[$field] = $data[$field];
+                        }
+                    }
+                } else {
+                    // Handle old format or direct value
+                    foreach ($fillable as $field) {
+                        if (array_key_exists($field, $data)) {
+                            $cleanData[$field] = $data[$field];
+                        }
                     }
                 }
 
@@ -265,14 +306,45 @@ class DealGatheringService
                 // Handle dynamic custom fields
                 // Data should be key-value pairs of field_id => value
                 $deal->updateCustomFieldData($data);
+                // Trigger deal automation for custom field updates
+                // This is needed because updating custom fields doesn't trigger the Deal model's observer
+                $this->dealAutomationService->process($deal, 'deal_updated');
                 break;
 
             case DealUpdateType::HIBARR_FIELD:
                 // Handle Hibarr specific fields
+                // Process file uploads for reservation_agreement and sales_contract
+                $hibarrData = [];
+                $fileFields = ['reservation_agreement', 'sales_contract'];
+                
+                foreach ($data as $key => $value) {
+                    if (in_array($key, $fileFields) && $value instanceof \Illuminate\Http\UploadedFile) {
+                        // Get existing file to delete if exists
+                        $existingFields = $deal->hibarrFields;
+                        if ($existingFields && $existingFields->{$key}) {
+                            Files::deleteFile($existingFields->{$key}, 'hibarr_fields');
+                        }
+                        // Upload new file
+                        $hibarrData[$key] = Files::uploadLocalOrS3($value, 'hibarr_fields');
+                    } elseif (in_array($key, $fileFields) && ($value === '' || $value === null)) {
+                        // Handle file deletion (empty string or null)
+                        $existingFields = $deal->hibarrFields;
+                        if ($existingFields && $existingFields->{$key}) {
+                            Files::deleteFile($existingFields->{$key}, 'hibarr_fields');
+                        }
+                        $hibarrData[$key] = null;
+                    } else {
+                        $hibarrData[$key] = $value;
+                    }
+                }
+                
                 $deal->hibarrFields()->updateOrCreate(
                     ['deal_id' => $deal->id],
-                    $data
+                    $hibarrData
                 );
+                // Trigger deal automation for Hibarr field updates
+                // This is needed because updating Hibarr fields doesn't trigger the Deal model's observer
+                $this->dealAutomationService->process($deal, 'deal_updated');
                 break;
         }
 

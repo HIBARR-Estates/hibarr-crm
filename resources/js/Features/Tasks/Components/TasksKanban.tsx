@@ -5,28 +5,18 @@ import {
     Draggable,
     DropResult,
 } from "@hello-pangea/dnd";
+import { Button, MenuProps, message, Tooltip } from "antd";
 import {
-    Card,
-    Tag,
-    Avatar,
-    Tooltip,
-    Button,
-    Dropdown,
-    MenuProps,
-    message,
-} from "antd";
-import {
-    ClockCircleOutlined,
-    MoreOutlined,
     EyeOutlined,
     EditOutlined,
     DeleteOutlined,
-    CheckSquareOutlined,
+    CopyOutlined,
     PlusOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { motion } from "framer-motion";
 import { Task } from "@/Types/Task";
+import KanbanTaskCard from "@/Components/KanbanTaskCard";
 // import QuickTaskAdd from "./QuickTaskAdd";
 
 // Types based on Laravel Task model (Deprecated)
@@ -65,8 +55,9 @@ interface TasksKanbanProps {
     onStatusChange: (
         taskId: number,
         newStatus: string,
-        newColumnId: number
+        newColumnId: number,
     ) => void;
+    onAddTask?: (columnId: number) => void;
 }
 
 const TasksKanban: React.FC<TasksKanbanProps> = ({
@@ -79,18 +70,22 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
     onDuplicate,
     onDelete,
     onStatusChange,
+    onAddTask,
 }) => {
     const [processingTasks, setProcessingTasks] = useState<Set<number>>(
-        new Set()
+        new Set(),
     );
 
     // Organize tasks by column
-    const tasksByColumn = columns.reduce((acc, column) => {
-        acc[column.id] = tasks.filter(
-            (task) => task.board_column_id === column.id
-        );
-        return acc;
-    }, {} as Record<number, Task[]>);
+    const tasksByColumn = columns.reduce(
+        (acc, column) => {
+            acc[column.id] = tasks.filter(
+                (task) => task.board_column_id === column.id,
+            );
+            return acc;
+        },
+        {} as Record<number, Task[]>,
+    );
 
     const handleDragEnd = useCallback(
         (result: DropResult) => {
@@ -143,14 +138,8 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                 });
             }, 1000);
         },
-        [tasks, columns, permissions, userId, onStatusChange]
+        [tasks, columns, permissions, userId, onStatusChange],
     );
-
-    const priorityConfig = {
-        low: { color: "#52c41a", icon: "🟢", bg: "#f6ffed" },
-        medium: { color: "#1890ff", icon: "🔵", bg: "#e6f7ff" },
-        high: { color: "#ff4d4f", icon: "🔴", bg: "#fff1f0" },
-    };
 
     const renderTask = (task: Task, index: number) => {
         const isProcessing = processingTasks.has(task.id);
@@ -193,7 +182,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
             },
             {
                 key: "duplicate",
-                icon: <CheckSquareOutlined />,
+                icon: <CopyOutlined />,
                 label: "Duplicate",
                 onClick: () => onDuplicate(task),
             },
@@ -212,6 +201,15 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                   ]
                 : []),
         ].filter(Boolean) as MenuProps["items"];
+
+        // Map task users to card users format
+        const cardUsers =
+            task.users?.map((user) => ({
+                id: user.id,
+                name: user.name,
+                image: user.image,
+                image_url: user.image,
+            })) || [];
 
         return (
             <Draggable
@@ -233,136 +231,20 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                             whileHover={{ scale: 1.02 }}
                             transition={{ duration: 0.2 }}
                         >
-                            <Card
-                                size="small"
-                                loading={isProcessing}
-                                className={`transition-all duration-200 ${
-                                    snapshot.isDragging
-                                        ? "shadow-lg rotate-2 z-50"
-                                        : "hover:shadow-md"
-                                } ${
-                                    isOverdue
-                                        ? "border-red-300 bg-red-50"
-                                        : "border-gray-200"
-                                }`}
-                                bodyStyle={{ padding: "12px" }}
-                                variant="outlined"
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Tag
-                                                color={
-                                                    priorityConfig[
-                                                        task.priority
-                                                    ]?.color
-                                                }
-                                                className="mr-0 text-[10px] px-1"
-                                            >
-                                                {task.priority.toUpperCase()}
-                                            </Tag>
-                                            {task.project && (
-                                                <Tooltip
-                                                    title={
-                                                        task.project
-                                                            .project_name
-                                                    }
-                                                >
-                                                    <span className="text-xs text-gray-500 truncate max-w-[100px]">
-                                                        {task.project
-                                                            .project_short_code ||
-                                                            task.project
-                                                                .project_name}
-                                                    </span>
-                                                </Tooltip>
-                                            )}
-                                        </div>
-                                        <h4
-                                            className="text-sm font-medium mb-1 cursor-pointer hover:text-blue-600 line-clamp-2"
-                                            onClick={() => onView(task)}
-                                        >
-                                            {task.heading}
-                                        </h4>
-                                    </div>
-                                    <Dropdown
-                                        menu={{ items: actionItems }}
-                                        trigger={["click"]}
-                                        placement="bottomRight"
-                                    >
-                                        <Button
-                                            type="text"
-                                            icon={<MoreOutlined />}
-                                            size="small"
-                                            className="text-gray-400 hover:text-gray-600 -mr-2 -mt-2"
-                                        />
-                                    </Dropdown>
-                                </div>
-
-                                <div className="flex items-center justify-between mt-3">
-                                    <div className="flex -space-x-2">
-                                        {task.users?.slice(0, 3).map((user) => (
-                                            <Tooltip
-                                                key={user.id}
-                                                title={user.name}
-                                            >
-                                                <Avatar
-                                                    src={user.image}
-                                                    size="small"
-                                                    className="border-2 border-white"
-                                                >
-                                                    {user.name.charAt(0)}
-                                                </Avatar>
-                                            </Tooltip>
-                                        ))}
-                                        {task.users &&
-                                            task.users.length > 3 && (
-                                                <Avatar
-                                                    size="small"
-                                                    className="border-2 border-white bg-gray-200 text-gray-600 text-xs"
-                                                >
-                                                    +{task.users.length - 3}
-                                                </Avatar>
-                                            )}
-                                    </div>
-
-                                    {task.due_date && (
-                                        <Tooltip
-                                            title={`Due: ${dayjs(
-                                                task.due_date
-                                            ).format("MMM D, YYYY h:mm A")}`}
-                                        >
-                                            <div
-                                                className={`flex items-center text-xs ${
-                                                    isOverdue
-                                                        ? "text-red-500 font-medium"
-                                                        : "text-gray-500"
-                                                }`}
-                                            >
-                                                <ClockCircleOutlined className="mr-1" />
-                                                {dayjs(task.due_date).format(
-                                                    "MMM D, h:mm A"
-                                                )}
-                                            </div>
-                                        </Tooltip>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
-                                    <div className="flex items-center text-xs text-gray-400 gap-3">
-                                        {task.subtasks_count ? (
-                                            <Tooltip title="Subtasks">
-                                                <span className="flex items-center">
-                                                    <CheckSquareOutlined className="mr-1" />
-                                                    {
-                                                        task.completed_subtasks_count
-                                                    }
-                                                    /{task.subtasks_count}
-                                                </span>
-                                            </Tooltip>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            </Card>
+                            <KanbanTaskCard
+                                users={cardUsers}
+                                title={task.heading}
+                                description={task.description}
+                                actions={actionItems}
+                                dueDate={task.due_date}
+                                priority={
+                                    task.priority as "low" | "medium" | "high"
+                                }
+                                isOverdue={!!isOverdue}
+                                isLoading={isProcessing}
+                                isDragging={snapshot.isDragging}
+                                onClick={() => onView(task)}
+                            />
                         </motion.div>
                     </div>
                 )}
@@ -372,27 +254,40 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
 
     return (
         <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="flex space-x-4 overflow-x-auto pb-4 h-full min-h-[calc(100vh-250px)]">
+            <div className="flex space-x-4 overflow-x-auto pb-4 min-h-[calc(100vh-250px)]">
                 {columns.map((column) => (
                     <div
                         key={column.id}
-                        className="flex-shrink-0 w-80 flex flex-col bg-gray-50 rounded-lg p-2 h-full"
+                        className="flex-shrink-0 w-80 flex flex-col bg-white rounded-lg p-2 h-full"
                     >
-                        <div className="flex items-center justify-between mb-3 px-2">
-                            <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between mb-6 mt-3 px-2">
+                            <div className="flex items-center gap-2.5">
+                                <h3 className="text-base font-semibold text-gray-800 m-0 tracking-tight">
+                                    {column.column_name}
+                                </h3>
                                 <div
-                                    className="w-3 h-3 rounded-full"
+                                    className="w-1.5 h-1.5 rounded-full"
                                     style={{
                                         backgroundColor: column.label_color,
                                     }}
                                 />
-                                <h3 className="font-semibold text-gray-700 m-0">
-                                    {column.column_name}
-                                </h3>
-                                <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                                <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full min-w-[24px] text-center">
                                     {tasksByColumn[column.id]?.length || 0}
                                 </span>
                             </div>
+                            {onAddTask && (
+                                <Tooltip
+                                    title={`Add task to ${column.column_name}`}
+                                >
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<PlusOutlined />}
+                                        className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                        onClick={() => onAddTask(column.id)}
+                                    />
+                                </Tooltip>
+                            )}
                         </div>
 
                         <Droppable droppableId={column.id.toString()}>
@@ -400,14 +295,15 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                                 <div
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
-                                    className={`flex-1 overflow-y-auto min-h-[100px] rounded-md transition-colors ${
+                                    className={`flex-1 max-h-[calc(100vh-250px)] overflow-x-hidden overflow-y-auto min-h-[100px] rounded-md transition-colors ${
                                         snapshot.isDraggingOver
                                             ? "bg-blue-50"
                                             : ""
                                     }`}
                                 >
                                     {tasksByColumn[column.id]?.map(
-                                        (task, index) => renderTask(task, index)
+                                        (task, index) =>
+                                            renderTask(task, index),
                                     )}
                                     {provided.placeholder}
                                     <div className="mt-2">
