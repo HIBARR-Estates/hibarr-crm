@@ -902,10 +902,17 @@ export default function CustomFieldDisplay({
                         return <span className="text-gray-500">--</span>;
                     }
                     if (React.isValidElement(displayValue)) {
-                        return dc.format ? (
-                            <span>{dc.format.replace(/\{value\}/g, "").trim()}{displayValue}</span>
-                        ) : (
-                            displayValue
+                        if (!dc.format) return displayValue;
+                        const parts = dc.format.split(/\{value\}/);
+                        return (
+                            <span>
+                                {parts.map((text, i) => (
+                                    <React.Fragment key={i}>
+                                        {text}
+                                        {i < parts.length - 1 ? displayValue : null}
+                                    </React.Fragment>
+                                ))}
+                            </span>
                         );
                     }
                     const text = dc.format
@@ -1212,11 +1219,6 @@ export default function CustomFieldDisplay({
                     displayValue={formatFieldValue(field, value)}
                 />
             );
-        }
-
-        // Repeatable: display-only for now (modal edit can be added later)
-        if (field.type === "repeatable") {
-            return formatFieldValue(field, value);
         }
 
         // alwaysEditing should only be true when explicitly in bulk edit mode
