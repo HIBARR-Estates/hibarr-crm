@@ -113,6 +113,45 @@
                         <a class="f-15 f-w-500" href="javascript:;" id="createAddSchemaRow"><i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.customFields.addSchemaRow')</a>
                     </div>
                 </div>
+                <div class="mt-4 pt-3 border-top display-config-repeatable">
+                    <label class="control-label f-w-500">@lang('modules.customFields.displayConfig')</label>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <input type="hidden" name="display_config[useDefaultDisplay]" value="0" />
+                            <x-forms.checkbox fieldId="create_display_config_use_default"
+                                :fieldLabel="__('modules.customFields.useDefaultDisplay')" fieldName="display_config[useDefaultDisplay]"
+                                fieldValue="1" />
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.aggregateFieldKey')" fieldName="display_config[fieldKey]"
+                                fieldId="create_display_config_field_key" :fieldPlaceholder="'e.g. price'" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="control-label">@lang('modules.customFields.aggregateBy')</label>
+                            <select name="display_config[aggregateBy]" class="form-control select-picker" id="createDisplayConfigAggregateBy">
+                                <option value="first">@lang('modules.customFields.aggregateByFirst')</option>
+                                <option value="last">@lang('modules.customFields.aggregateByLast')</option>
+                                <option value="concat" selected>@lang('modules.customFields.aggregateByConcat')</option>
+                                <option value="list">@lang('modules.customFields.aggregateByList')</option>
+                                <option value="sum">@lang('modules.customFields.aggregateBySum')</option>
+                                <option value="sum_currency">@lang('modules.customFields.aggregateBySumCurrency')</option>
+                                <option value="count">@lang('modules.customFields.aggregateByCount')</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.displayConfigSeparator')" fieldName="display_config[separator]"
+                                fieldId="create_display_config_separator" :fieldPlaceholder="', '" />
+                        </div>
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.displayConfigFormat')" fieldName="display_config[format]"
+                                fieldId="create_display_config_format" :fieldPlaceholder="'Total: {value}'" />
+                        </div>
+                    </div>
+                </div>
             </div>
         </x-form>
     </div>

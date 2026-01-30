@@ -15,6 +15,8 @@ import {
 import { UploadOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
 import type { RepeatableItemSchema } from "@/Types";
+import type { PageProps } from "@/Components/DashboardLayout";
+import CurrencyInput from "./CurrencyInput";
 
 interface RepeatableFieldRendererProps {
     field: {
@@ -50,7 +52,7 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
     isFieldVisible,
     currentCustomFieldsData: providedData,
 }) => {
-    const { props } = usePage<{ countries?: Array<{ id?: number; iso?: string; nicename?: string; name?: string; iso3?: string; nationality?: string }> }>();
+    const { props } = usePage<PageProps>();
     const countries = props?.countries ?? [];
     const watched = Form.useWatch(namePrefix, form);
     const currentCustomFieldsData = providedData ?? watched ?? {};
@@ -110,7 +112,7 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
     const renderSchemaField = (s: RepeatableItemSchema, index: number) => {
         const namePath = [namePrefix, fieldKey, index, s.key];
 
-        if (s.type === "number" || s.type === "currency") {
+        if (s.type === "number") {
             return (
                 <Col span={12} key={s.key}>
                     <Form.Item name={namePath} label={s.label}>
@@ -190,6 +192,15 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
                 <Col span={12} key={s.key}>
                     <Form.Item name={namePath} label={s.label} valuePropName="checked">
                         <Checkbox>{s.label}</Checkbox>
+                    </Form.Item>
+                </Col>
+            );
+        }
+        if (s.type === "currency") {
+            return (
+                <Col span={12} key={s.key}>
+                    <Form.Item name={namePath} label={s.label}>
+                        <CurrencyInput placeholder={s.label} />
                     </Form.Item>
                 </Col>
             );

@@ -21,6 +21,7 @@ use App\Models\CustomFieldVisibility;
  * @property string $type
  * @property string $required
  * @property string|null $values
+ * @property array|null $display_config
  * @property string|null $visible
  * @method static \Illuminate\Database\Eloquent\Builder|CustomField newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|CustomField newQuery()
@@ -51,6 +52,10 @@ class CustomField extends BaseModel
     public $timestamps = false;
 
     protected $guarded = ['id'];
+
+    protected $casts = [
+        'display_config' => 'array',
+    ];
 
     public function customFieldCategory(): BelongsTo
     {

@@ -18,11 +18,102 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
-import { CustomField } from "@/Types";
+import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
+import EditableRepeatableField from "@/Components/EditableRepeatableField";
 import React, { useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
+
+const DEFAULT_CURRENCY_CODE = "USD";
+
+interface ParsedCurrency {
+    amount: number;
+    currency: string;
+}
+
+/**
+ * Parses a stored currency value into { amount, currency }.
+ * Supports: number, "CODE|amount" (e.g. USD|1200), JSON string, object with amount/currency.
+ */
+function parseCurrencyValue(value: unknown): ParsedCurrency | null {
+    if (value == null || value === "") return null;
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return { amount: value, currency: DEFAULT_CURRENCY_CODE };
+    }
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (trimmed === "") return null;
+        const pipeMatch = /^([A-Z]{2,3})\|(.+)$/.exec(trimmed);
+        if (pipeMatch) {
+            const amount = parseFloat(pipeMatch[2].replace(/,/g, ""));
+            return Number.isFinite(amount) ? { amount, currency: pipeMatch[1] } : null;
+        }
+        const num = parseFloat(trimmed.replace(/,/g, ""));
+        if (Number.isFinite(num)) return { amount: num, currency: DEFAULT_CURRENCY_CODE };
+        try {
+            const parsed = JSON.parse(trimmed) as unknown;
+            if (typeof parsed === "number") return { amount: parsed, currency: DEFAULT_CURRENCY_CODE };
+            if (parsed && typeof parsed === "object" && "amount" in parsed) {
+                const amount =
+                    typeof (parsed as { amount: unknown }).amount === "number"
+                        ? (parsed as { amount: number }).amount
+                        : parseFloat(String((parsed as { amount: unknown }).amount ?? 0).replace(/,/g, ""));
+                const currency = String((parsed as { currency?: string }).currency || DEFAULT_CURRENCY_CODE);
+                return Number.isFinite(amount) ? { amount, currency } : null;
+            }
+        } catch {
+            // not JSON
+        }
+    }
+    if (value && typeof value === "object" && "amount" in value) {
+        const obj = value as { amount?: unknown; currency?: string };
+        const amount =
+            typeof obj.amount === "number" ? obj.amount : parseFloat(String(obj.amount ?? 0).replace(/,/g, ""));
+        const currency = obj.currency || DEFAULT_CURRENCY_CODE;
+        return Number.isFinite(amount) ? { amount, currency } : null;
+    }
+    return null;
+}
+
+/** Normalize repeatable field value to an array of item objects. */
+function parseRepeatableItems(value: unknown): Record<string, unknown>[] {
+    if (Array.isArray(value)) return value.filter((o) => o && typeof o === "object") as Record<string, unknown>[];
+    if (typeof value === "string" && value.trim()) {
+        try {
+            const parsed = JSON.parse(value) as unknown;
+            if (Array.isArray(parsed)) return parsed.filter((o) => o && typeof o === "object") as Record<string, unknown>[];
+            if (parsed && typeof parsed === "object") return [parsed as Record<string, unknown>];
+        } catch {
+            // ignore
+        }
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) return [value as Record<string, unknown>];
+    return [];
+}
+
+/** Build key -> type map from repeatable schema (field.values). */
+function getRepeatableSchemaMap(
+    values: string | Array<{ key: string; type: string; label: string }> | Record<string, string> | undefined,
+): Record<string, string> {
+    const schemaArr: Array<{ key: string; type: string; label: string }> = Array.isArray(values)
+        ? values
+        : typeof values === "string" && values.trim()
+          ? (() => {
+                try {
+                    const p = JSON.parse(values) as Array<{ key: string; type: string; label: string }>;
+                    return Array.isArray(p) ? p : [];
+                } catch {
+                    return [];
+                }
+            })()
+          : [];
+    const map: Record<string, string> = {};
+    schemaArr.forEach((s) => {
+        if (s?.key) map[s.key] = s.type || "text";
+    });
+    return map;
+}
 
 // Helper to parse file value - can be single file string, comma-separated, or JSON array
 const parseFileValue = (value: string | null): string[] => {
@@ -246,9 +337,19 @@ interface Field {
     id: string | number;
     label: string;
     type: string;
-    values?: Record<string, string> | string; // Updated to handle string (JSON) or object
+    values?: Record<string, string> | string | Array<{ key: string; type: string; label: string }>; // options or repeatable schema
     custom_field_category_id?: string | number;
     show_rule_set?: any; // Visibility rules
+    /** For type=repeatable: the field whose value (N) dictates how many blocks to render */
+    linked_field_id?: number | null;
+    /** Config for default/aggregate display: what is shown and how (e.g. which field is aggregated) */
+    display_config?: {
+        useDefaultDisplay?: boolean;
+        fieldKey?: string;
+        aggregateBy?: "first" | "last" | "concat" | "sum" | "sum_currency" | "count" | "list";
+        separator?: string;
+        format?: string;
+    } | null;
 }
 
 interface Props {
@@ -287,6 +388,33 @@ export default function CustomFieldDisplay({
         currencies?.[0]?.code ??
         currencies?.[0]?.currency_code ??
         "USD";
+
+    const defaultSymbols: Record<string, string> = { USD: "$", EUR: "€", GBP: "£" };
+    const formatCurrencyAsNode = (
+        amount: number,
+        currencyCode: string,
+    ): React.ReactNode => {
+        const code = currencyCode || appDefaultCurrency;
+        let symbol = defaultSymbols[code] ?? "";
+        if (currencies.length > 0 && code) {
+            const c = currencies.find(
+                (x: any) =>
+                    x.currency_code === code ||
+                    (x.currency_name && String(x.currency_name).toUpperCase() === code.toUpperCase()),
+            );
+            symbol = c?.currency_symbol ?? symbol;
+        }
+        const formatted = Number.isFinite(amount)
+            ? amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : "0.00";
+        return (
+            <span className="font-medium">
+                {symbol}
+                {formatted}
+            </span>
+        );
+    };
+
     // Filter fields by category if categoryId is provided
     let filteredFields = categoryId
         ? fields.filter(
@@ -341,6 +469,7 @@ export default function CustomFieldDisplay({
                 field_order: 0,
                 display_order: 0,
                 show_rule_set: field.show_rule_set,
+                linked_field_id: field.linked_field_id ?? undefined,
             };
         },
     );
@@ -692,55 +821,114 @@ export default function CustomFieldDisplay({
                     : value;
 
             case "repeatable": {
-                let items: Record<string, any>[] = [];
-                if (Array.isArray(value)) {
-                    items = value;
-                } else if (typeof value === "string" && value.trim()) {
-                    try {
-                        const parsed = JSON.parse(value);
-                        items = Array.isArray(parsed)
-                            ? parsed
-                            : parsed && typeof parsed === "object"
-                              ? [parsed]
-                              : [];
-                    } catch {
-                        items = [];
-                    }
-                } else if (value && typeof value === "object" && !Array.isArray(value)) {
-                    items = [value];
-                }
+                const items = parseRepeatableItems(value);
                 if (items.length === 0) {
                     return <span className="text-gray-500">--</span>;
                 }
-                const formatPart = (v: any): string => {
+                const schemaMap = getRepeatableSchemaMap(field.values);
+                const formatPart = (v: unknown): string => {
                     if (v == null || v === "") return "";
                     if (typeof v === "boolean") return v ? "Yes" : "No";
                     if (Array.isArray(v)) {
-                        const files = v.filter((x: any) => x?.name);
-                        return files.length ? files.map((f: any) => f.name).join(", ") : "";
+                        const files = (v as { name?: string }[]).filter((x) => x?.name);
+                        return files.length ? files.map((f) => f.name).join(", ") : "";
                     }
                     return String(v);
                 };
+                const formatPartWithSchema = (k: string, v: unknown): React.ReactNode => {
+                    if (v == null || v === "") return null;
+                    if (schemaMap[k] === "currency") {
+                        const parsed = parseCurrencyValue(v);
+                        if (parsed) return formatCurrencyAsNode(parsed.amount, parsed.currency);
+                    }
+                    return formatPart(v);
+                };
+                const dc = field.display_config;
+                if (dc?.useDefaultDisplay && dc?.fieldKey) {
+                    const key = dc.fieldKey;
+                    const sep = dc.separator ?? ", ";
+                    const rawValues = items
+                        .map((obj) => obj[key])
+                        .filter((v) => v != null && v !== "");
+                    if (rawValues.length === 0) {
+                        return <span className="text-gray-500">--</span>;
+                    }
+                    let displayValue: string | number | React.ReactNode;
+                    switch (dc.aggregateBy) {
+                        case "first":
+                            displayValue =
+                                schemaMap[key] === "currency"
+                                    ? formatPartWithSchema(key, rawValues[0])
+                                    : formatPart(rawValues[0]);
+                            break;
+                        case "last":
+                            displayValue =
+                                schemaMap[key] === "currency"
+                                    ? formatPartWithSchema(key, rawValues[rawValues.length - 1])
+                                    : formatPart(rawValues[rawValues.length - 1]);
+                            break;
+                        case "concat":
+                        case "list":
+                            displayValue = rawValues.map((v) => formatPart(v)).join(sep);
+                            break;
+                        case "sum": {
+                            const nums = rawValues.map((v) => {
+                                const n = typeof v === "number" ? v : Number(String(v).replace(/[^0-9.-]/g, ""));
+                                return Number.isFinite(n) ? n : 0;
+                            });
+                            displayValue = nums.reduce((a, b) => a + b, 0);
+                            break;
+                        }
+                        case "sum_currency": {
+                            const parsed = rawValues
+                                .map((v) => parseCurrencyValue(v))
+                                .filter((p): p is ParsedCurrency => p != null);
+                            if (parsed.length === 0) {
+                                displayValue = formatCurrencyAsNode(0, appDefaultCurrency);
+                            } else {
+                                const total = parsed.reduce((sum, p) => sum + p.amount, 0);
+                                const currency = parsed[0].currency || appDefaultCurrency;
+                                displayValue = formatCurrencyAsNode(total, currency);
+                            }
+                            break;
+                        }
+                        case "count":
+                            displayValue = rawValues.length;
+                            break;
+                        default:
+                            displayValue = rawValues.map((v) => formatPart(v)).join(sep);
+                    }
+                    if (displayValue == null) {
+                        return <span className="text-gray-500">--</span>;
+                    }
+                    if (React.isValidElement(displayValue)) {
+                        return dc.format ? (
+                            <span>{dc.format.replace(/\{value\}/g, "").trim()}{displayValue}</span>
+                        ) : (
+                            displayValue
+                        );
+                    }
+                    const text = dc.format
+                        ? dc.format.replace(/\{value\}/g, String(displayValue))
+                        : String(displayValue);
+                    return <span>{text}</span>;
+                }
                 return (
                     <div className="space-y-2">
                         {items.map((obj, index) => {
-                            if (!obj || typeof obj !== "object") return null;
                             const parts = Object.entries(obj)
-                                .map(([k, v]) => ({ k, s: formatPart(v) }))
-                                .filter(({ s }) => s !== "")
-                                .map(({ k, s }) => (
-                                    <span key={k}>
-                                        <span className="text-gray-500 capitalize">{k}:</span> {s}
-                                    </span>
-                                ));
+                                .map(([k, v]) => ({ k, node: formatPartWithSchema(k, v) }))
+                                .filter(({ node }) => node != null && node !== "");
                             if (parts.length === 0) return null;
                             return (
                                 <div key={index} className="text-sm">
                                     {field.label} {index + 1}:{" "}
-                                    {parts.reduce<React.ReactNode[]>(
-                                        (acc, el, i) => (i === 0 ? [el] : [...acc, ", ", el]),
-                                        []
-                                    )}
+                                    {parts.map(({ k, node }, i) => (
+                                        <span key={k}>
+                                            {i > 0 && ", "}
+                                            <span className="text-gray-500 capitalize">{k}:</span> {node}
+                                        </span>
+                                    ))}
                                 </div>
                             );
                         })}
@@ -912,10 +1100,12 @@ export default function CustomFieldDisplay({
                 if (valuesObj) {
                     // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
                     if (Array.isArray(valuesObj)) {
-                        options = valuesObj.map((v: string) => ({
-                            label: v,
-                            value: v,
-                        }));
+                        options = valuesObj.map(
+                            (v: string | { key: string; type: string; label: string }) =>
+                                typeof v === "string"
+                                    ? { label: v, value: v }
+                                    : { label: v.label, value: v.key },
+                        );
                     } else {
                         options = Object.entries(valuesObj).map(([k, v]) => ({
                             label: v as string,
@@ -942,10 +1132,15 @@ export default function CustomFieldDisplay({
                 ) {
                     type = "multiselect";
                     if (Array.isArray(multiCheckboxValues)) {
-                        options = multiCheckboxValues.map((v: string) => ({
-                            label: v,
-                            value: v,
-                        }));
+                        const arr = multiCheckboxValues as (
+                            | string
+                            | { key: string; type: string; label: string }
+                        )[];
+                        options = arr.map((v) =>
+                            typeof v === "string"
+                                ? { label: v, value: v }
+                                : { label: v.label, value: v.key },
+                        );
                     } else {
                         options = Object.entries(multiCheckboxValues).map(
                             ([k, v]) => ({
@@ -990,9 +1185,33 @@ export default function CustomFieldDisplay({
             return formatFieldValue(field, value);
         }
 
-        // Repeatable: display-only for now (modal edit can be added later)
+        // Repeatable: editable via modal with RepeatableFieldRenderer
         if (field.type === "repeatable") {
-            return formatFieldValue(field, value);
+            const repeatableValues: string | RepeatableItemSchema[] | null | undefined =
+                field.values === undefined || field.values === null
+                    ? null
+                    : Array.isArray(field.values) || typeof field.values === "string"
+                      ? (field.values as string | RepeatableItemSchema[])
+                      : null;
+            return (
+                <EditableRepeatableField
+                    field={{
+                        id: typeof field.id === "string" ? parseInt(field.id, 10) : field.id,
+                        label: field.label,
+                        linked_field_id: field.linked_field_id ?? null,
+                        values: repeatableValues,
+                    }}
+                    value={value}
+                    fieldKey={fieldKey}
+                    customFieldsData={customFieldsData ?? {}}
+                    onSave={async (key, val) => {
+                        await onUpdate!(key, val);
+                    }}
+                    loading={isFieldLoading}
+                    editable={editable}
+                    displayValue={formatFieldValue(field, value)}
+                />
+            );
         }
 
         // Repeatable: display-only for now (modal edit can be added later)

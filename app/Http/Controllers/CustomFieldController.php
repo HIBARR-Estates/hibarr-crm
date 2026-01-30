@@ -105,6 +105,9 @@ class CustomFieldController extends AccountBaseController
             $fieldData['linked_field_id'] = $request->get('linked_field_id');
             $fieldData['values'] = is_array($request->get('value')) ? json_encode($request->get('value')) : $request->get('value');
         }
+        if ($request->has('display_config')) {
+            $fieldData['display_config'] = $request->get('display_config');
+        }
         $group = ['fields' => [$fieldData]];
 
         $createdFields = $this->addCustomField($group);
@@ -178,8 +181,10 @@ class CustomFieldController extends AccountBaseController
         $field->display_order = $request->display_order ?? 0;
         if ($request->type === 'repeatable') {
             $field->linked_field_id = $request->linked_field_id ?: null;
+            $field->display_config = $request->has('display_config') ? $request->display_config : null;
         } else {
             $field->linked_field_id = null;
+            $field->display_config = null;
         }
         $field->save();
 
@@ -272,6 +277,10 @@ class CustomFieldController extends AccountBaseController
 
             if (!empty($field['linked_field_id'])) {
                 $insertData['linked_field_id'] = $field['linked_field_id'];
+            }
+
+            if (array_key_exists('display_config', $field)) {
+                $insertData['display_config'] = $field['display_config'];
             }
 
             $createdFields[] = CustomField::create($insertData);

@@ -4,7 +4,6 @@ namespace App\Http\Requests\CustomField;
 
 use App\Models\CustomField;
 use App\Http\Requests\CoreRequest;
-use Google\Service\BinaryAuthorization\Check;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
@@ -55,6 +54,15 @@ class StoreCustomField extends CoreRequest
             $rules['value.*.key'] = 'required|string';
             $rules['value.*.type'] = 'required|string|in:text,number,password,textarea,select,radio,date,checkbox,country,currency,phone,file';
             $rules['value.*.label'] = 'required|string';
+        }
+
+        if ($this->has('display_config')) {
+            $rules['display_config'] = 'nullable|array';
+            $rules['display_config.useDefaultDisplay'] = 'nullable|boolean';
+            $rules['display_config.fieldKey'] = 'nullable|string|max:100';
+            $rules['display_config.aggregateBy'] = 'nullable|string|in:first,last,concat,list,sum,sum_currency,count';
+            $rules['display_config.separator'] = 'nullable|string|max:50';
+            $rules['display_config.format'] = 'nullable|string|max:200';
         }
 
         return $rules;

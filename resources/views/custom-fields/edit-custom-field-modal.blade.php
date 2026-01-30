@@ -166,6 +166,56 @@
                         <a class="f-15 f-w-500" href="javascript:;" id="addSchemaRow"><i class="icons icon-plus font-weight-bold mr-1"></i>@lang('modules.customFields.addSchemaRow')</a>
                     </div>
                 </div>
+                @php
+                    $displayConfig = $field->display_config ?? [];
+                    $schemaRowsForKeys = ($field->type == 'repeatable' && is_array($field->values)) ? $field->values : [];
+                @endphp
+                <div class="mt-4 pt-3 border-top display-config-repeatable">
+                    <label class="control-label f-w-500">@lang('modules.customFields.displayConfig')</label>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <input type="hidden" name="display_config[useDefaultDisplay]" value="0" />
+                            <x-forms.checkbox fieldId="display_config_use_default"
+                                :fieldLabel="__('modules.customFields.useDefaultDisplay')" fieldName="display_config[useDefaultDisplay]"
+                                fieldValue="1" :checked="!empty($displayConfig['useDefaultDisplay'])" />
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <label class="control-label">@lang('modules.customFields.aggregateFieldKey')</label>
+                            <select name="display_config[fieldKey]" class="form-control select-picker" id="displayConfigFieldKey">
+                                <option value="">@lang('app.select')</option>
+                                @foreach ($schemaRowsForKeys as $row)
+                                    <option value="{{ $row['key'] ?? '' }}" @if (($displayConfig['fieldKey'] ?? '') == ($row['key'] ?? '')) selected @endif>{{ $row['label'] ?? $row['key'] ?? '' }} ({{ $row['key'] ?? '' }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="control-label">@lang('modules.customFields.aggregateBy')</label>
+                            <select name="display_config[aggregateBy]" class="form-control select-picker" id="displayConfigAggregateBy">
+                                <option value="first" @if (($displayConfig['aggregateBy'] ?? '') == 'first') selected @endif>@lang('modules.customFields.aggregateByFirst')</option>
+                                <option value="last" @if (($displayConfig['aggregateBy'] ?? '') == 'last') selected @endif>@lang('modules.customFields.aggregateByLast')</option>
+                                <option value="concat" @if (($displayConfig['aggregateBy'] ?? 'concat') == 'concat') selected @endif>@lang('modules.customFields.aggregateByConcat')</option>
+                                <option value="list" @if (($displayConfig['aggregateBy'] ?? '') == 'list') selected @endif>@lang('modules.customFields.aggregateByList')</option>
+                                <option value="sum" @if (($displayConfig['aggregateBy'] ?? '') == 'sum') selected @endif>@lang('modules.customFields.aggregateBySum')</option>
+                                <option value="sum_currency" @if (($displayConfig['aggregateBy'] ?? '') == 'sum_currency') selected @endif>@lang('modules.customFields.aggregateBySumCurrency')</option>
+                                <option value="count" @if (($displayConfig['aggregateBy'] ?? '') == 'count') selected @endif>@lang('modules.customFields.aggregateByCount')</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.displayConfigSeparator')" fieldName="display_config[separator]"
+                                fieldId="display_config_separator" :fieldValue="$displayConfig['separator'] ?? ''"
+                                :fieldPlaceholder="', '" />
+                        </div>
+                        <div class="col-md-6">
+                            <x-forms.text :fieldLabel="__('modules.customFields.displayConfigFormat')" fieldName="display_config[format]"
+                                fieldId="display_config_format" :fieldValue="$displayConfig['format'] ?? ''"
+                                :fieldPlaceholder="'Total: {value}'" />
+                        </div>
+                    </div>
+                </div>
             </div>
 
                 </x-form>
