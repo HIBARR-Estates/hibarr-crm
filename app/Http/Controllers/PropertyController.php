@@ -14,6 +14,8 @@ use App\Exports\PropertyExport;
 use App\Jobs\ImportPropertyJob;
 use App\Helper\Reply;
 use App\Traits\ImportExcel;
+use App\Exceptions\DuplicatePropertyException;
+use App\Services\PropertyDuplicateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Maatwebsite\Excel\Excel;
@@ -202,6 +204,27 @@ class PropertyController extends AccountBaseController
     {
         // abort_403(!in_array($this->addPropertyPermission, ['all', 'added']));
 
+        // Check for duplicates before creating
+        $duplicateService = app(PropertyDuplicateService::class);
+        $propertyData = [
+            'company_id' => user()->company_id,
+            'developer_project_id' => $request->developer_project_id,
+            'property_type' => $request->property_type,
+            'city' => $request->city,
+            'area' => $request->area,
+            'block_name' => $request->block_name,
+            'unit_number' => $request->unit_number,
+        ];
+
+        try {
+            $duplicateService->assertNoDuplicates($propertyData);
+        } catch (DuplicatePropertyException $e) {
+            if (request()->expectsJson()) {
+                return Reply::error($e->getMessage(), null, 422);
+            }
+            return back()->withErrors(['duplicate' => $e->getMessage()])->withInput();
+        }
+
         // create the product first, and then attach the product_id to property
         $product = Product::create([
                     'name' => $request->title,
@@ -241,6 +264,8 @@ class PropertyController extends AccountBaseController
         $property->building_age = $request->building_age;
         $property->furniture_status = $request->furniture_status;
         $property->within_site = $request->has('within_site') || $request->within_site;
+        $property->block_name = $request->block_name;
+        $property->unit_number = $request->unit_number;
         $property->exterior_features = $request->exterior_features ? (is_array($request->exterior_features) ? $request->exterior_features : json_decode($request->exterior_features, true)) : [];
         $property->interior_features = $request->interior_features ? (is_array($request->interior_features) ? $request->interior_features : json_decode($request->interior_features, true)) : [];
         $property->location_features = $request->location_features ? (is_array($request->location_features) ? $request->location_features : json_decode($request->location_features, true)) : [];
@@ -396,6 +421,24 @@ class PropertyController extends AccountBaseController
         // }
 
         // abort_403(!$canEdit);
+
+        // Check for duplicates if fingerprint-related fields are being updated
+        $fingerprintFields = ['developer_project_id', 'property_type', 'city', 'area', 'block_name', 'unit_number'];
+        $hasFingerprintChange = collect($fingerprintFields)->contains(fn($field) => $request->has($field));
+        
+        if ($hasFingerprintChange) {
+            $duplicateService = app(PropertyDuplicateService::class);
+            $propertyData = array_merge($property->toArray(), $request->only($fingerprintFields));
+            
+            try {
+                $duplicateService->assertNoDuplicates($propertyData, $property->id);
+            } catch (DuplicatePropertyException $e) {
+                if (request()->expectsJson()) {
+                    return Reply::error($e->getMessage(), null, 422);
+                }
+                return back()->withErrors(['duplicate' => $e->getMessage()])->withInput();
+            }
+        }
 
         // Check if updates are allowed based on current status
         $fieldsToUpdate = $request->only($property->getFillable());
@@ -898,6 +941,18 @@ class PropertyController extends AccountBaseController
     {
         $project = \App\Models\DeveloperProject::where('company_id', user()->company_id)
             ->findOrFail($projectId);
+        
+        // Check for duplicates before assignment
+        $duplicateService = app(PropertyDuplicateService::class);
+        
+        try {
+            $duplicateService->assertNoProjectAssignmentConflicts($propertyIds, $projectId, $project->name);
+        } catch (DuplicatePropertyException $e) {
+            if (request()->expectsJson()) {
+                return Reply::error($e->getMessage(), null, 422);
+            }
+            return back()->withErrors(['duplicate' => $e->getMessage()]);
+        }
         
         // Use the model's assignProperties method
         $assignedCount = $project->assignProperties($propertyIds);

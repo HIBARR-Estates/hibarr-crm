@@ -34,10 +34,10 @@ class Airport extends BaseModel
     public static function getDefaultItems(): array
     {
         return [
-            ['name' => 'Airport 1', 'code' => 'APT1'],
-            ['name' => 'Airport 2', 'code' => 'APT2'],
-            ['name' => 'Airport 3', 'code' => 'APT3'],
-            ['name' => 'Airport 4', 'code' => 'APT4'],
+            ['name' => 'Ercan', 'code' => 'ECN'],
+            ['name' => 'Lanarca', 'code' => 'LCA'],
+            ['name' => 'Paphos', 'code' => 'PFO'],
+         
         ];
     }
 }

@@ -46,6 +46,8 @@ export interface Property {
     status: PropertyStatus;
     city: string;
     area: string;
+    block_name?: string;
+    unit_number?: string;
     rooms?: number;
     bedrooms?: number;
     bathrooms?: number;
@@ -131,6 +133,8 @@ export interface PropertyFormData {
     status: PropertyStatus;
     city: string;
     area: string;
+    block_name?: string;
+    unit_number?: string;
     rooms?: string;
     bedrooms?: string;
     bathrooms?: string;
