@@ -50,7 +50,7 @@ class PatchRequest extends CoreRequest
             'lead_id' => 'sometimes|integer|exists:leads,id',
             
             // Categorization (all optional for patch)
-            'category_id' => 'sometimes|integer|exists:lead_categories,id',
+            'category_id' => 'sometimes|integer|exists:lead_category,id',
             'source_id' => 'sometimes|integer|exists:lead_sources,id',
             
             // Products (all optional for patch)
