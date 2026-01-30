@@ -277,9 +277,35 @@
 
     function removeSchemaRow(idx) {
         $('#schemaRow' + idx).remove();
+        refreshDisplayConfigFieldKeyOptions();
     }
 
-    $('#addSchemaRow').on('click', function() { addSchemaRow(); });
+    function refreshDisplayConfigFieldKeyOptions() {
+        var $sel = $('#displayConfigFieldKey');
+        if (!$sel.length) return;
+        var selected = $sel.val();
+        var options = [{ key: '', label: @json(__('app.select')) }];
+        $('.schema-row').each(function() {
+            var keyInput = $(this).find('input[name$="[key]"]').val();
+            var labelInput = $(this).find('input[name$="[label]"]').val();
+            if (keyInput && keyInput.trim() !== '') {
+                options.push({ key: keyInput.trim(), label: (labelInput && labelInput.trim()) ? labelInput.trim() : keyInput.trim() });
+            }
+        });
+        $sel.empty();
+        $.each(options, function(i, o) {
+            $sel.append($('<option></option>').attr('value', o.key).text(o.key === '' ? o.label : (o.label + ' (' + o.key + ')')));
+        });
+        if (selected && options.some(function(o) { return o.key === selected; })) {
+            $sel.val(selected);
+        }
+        $sel.selectpicker('refresh');
+    }
+
+    $('#addSchemaRow').on('click', function() {
+        addSchemaRow();
+        refreshDisplayConfigFieldKeyOptions();
+    });
 
     $('#type').on('change', function() {
         var v = this.value;

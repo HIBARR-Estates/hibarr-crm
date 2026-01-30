@@ -219,8 +219,8 @@
     }
     $('#createAddSchemaRow').on('click', function () { addCreateSchemaRow(); });
 
-    $('#type').on('change', function () {
-        var v = this.value;
+    function syncTypeDependentSections() {
+        var v = $('#type').val();
         $('.mt-repeater input, .mt-repeater select').prop('disabled', false);
         $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', false);
         if (v === 'select' || v === 'radio' || v === 'checkbox') {
@@ -238,7 +238,8 @@
             $('.mt-repeater input, .mt-repeater select').prop('disabled', true);
             $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);
         }
-    });
+    }
+    $('#type').on('change', syncTypeDependentSections);
 
     function convertToSlug(Text) {
         return Text.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '-');
@@ -296,12 +297,13 @@
         if ($('#type').val() === 'repeatable') loadFieldsForRepeatable(moduleId);
     });
 
-    // Load categories when modal opens (if module is pre-selected)
+    // Load categories and type-dependent sections when modal opens (if module/type pre-selected)
     $(document).ready(function() {
         var selectedModule = $('#module').val();
         if (selectedModule) {
             loadCategoriesForModule(selectedModule);
         }
+        syncTypeDependentSections();
     });
 
     $('#save-custom-field').click(function () {
