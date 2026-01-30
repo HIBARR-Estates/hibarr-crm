@@ -51,7 +51,7 @@ class PatchRequest extends CoreRequest
             'added_by' => 'sometimes|integer|exists:users,id',
             
             // Categorization (all optional for patch)
-            'category_id' => 'sometimes|integer|exists:lead_categories,id',
+            'category_id' => 'sometimes|integer|exists:lead_category,id',
             'source_id' => 'sometimes|integer|exists:lead_sources,id',
             'status_id' => 'sometimes|integer|exists:lead_statuses,id',
             
