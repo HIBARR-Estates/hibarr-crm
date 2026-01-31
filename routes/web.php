@@ -592,8 +592,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::match(['post', 'patch'], 'gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
     });
 
-    Route::resource('deals', DealController::class);
+    // Explicit deal routes (no resource)
+    Route::get('deals', [DealController::class, 'index'])->name('deals.index');
+    Route::get('deals/create', [DealController::class, 'create'])->name('deals.create');
+    Route::post('deals', [DealController::class, 'store'])->name('deals.store');
+    Route::get('deals/{deal}', [DealController::class, 'show'])->name('deals.show');
+    Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
+    Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
 
     // Property Recommendations
