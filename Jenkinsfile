@@ -51,6 +51,11 @@ pipeline {
                             # Initial environment setup
                             if [ -f ~/shared/.env ]; then cp ~/shared/.env .env; else touch .env; fi
 
+                            # --- Stationary File Fix ---
+                            mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
+                            chmod -R 775 bootstrap/cache storage
+                            # ----------------------------
+
                             # Run Build via Makefile
                             make build-artifact
                             
