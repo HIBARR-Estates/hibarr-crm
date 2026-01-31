@@ -1,8 +1,9 @@
 import { Button, Select } from "antd";
 import React from "react";
 import BulkDeleteLeads from "./BulkDeleteLeads";
+import BulkChangeCategory from "./BulkChangeCategory";
 
-type TLeadBulkAction = "delete";
+type TLeadBulkAction = "delete" | "change_category";
 interface Props {
     selectedEntityIds?: number[];
     actions?: {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const DEFAULT_LEAD_BULK_ACTIONS: Props["actions"] = [
+    { label: "Change Category", value: "change_category" },
     { label: "Delete", value: "delete" },
 ];
 
@@ -37,6 +39,12 @@ const BulkLeadActionSelector: React.FC<Props> = ({
                 ids={selectedEntityIds}
                 onClose={onClose}
                 open={open && action === "delete"}
+            />
+
+            <BulkChangeCategory
+                ids={selectedEntityIds}
+                onClose={onClose}
+                open={open && action === "change_category"}
             />
 
             <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
