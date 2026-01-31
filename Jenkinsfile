@@ -72,8 +72,8 @@ pipeline {
                             
                             echo 'Step 5: Permission Guard (The Fix)...'
                             # Force the group to www-data so Nginx can write to logs/cache
-                            sudo chown -R $TARGET_USER:www-data $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache
-                            sudo chmod -R 775 $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache
+                            sudo chown -R $TARGET_USER:www-data $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache || true
+                            sudo chmod -R 775 $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache || true
                             
                             echo 'Step 6: Production Optimization...'
                             cd $LIVE_LINK
