@@ -561,6 +561,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('import', [LeadContactController::class, 'importStore'])->name('lead-contact.import.store');
         Route::post('import/process', [LeadContactController::class, 'importProcess'])->name('lead-contact.import.process');
         Route::get('sample-import', [LeadContactController::class, 'downloadSampleImport'])->name('lead-contact.sample_import');
+        Route::post('apply-quick-action', [LeadContactController::class, 'applyQuickAction'])->name('lead-contact.apply_quick_action');
     });
 
     // Form Data API routes for performance optimization
@@ -574,7 +575,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::resource('lead-contact', LeadContactController::class);
     // Accept both POST (for file uploads) and PATCH
     Route::match(['post', 'patch'], 'lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
-    Route::post('lead-contact/apply-quick-action', [LeadContactController::class, 'applyQuickAction'])->name('lead-contact.apply_quick_action');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
