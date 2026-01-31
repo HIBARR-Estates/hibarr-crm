@@ -510,9 +510,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("client_name", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("client_name", value)
-                                }
+                                onChange={handleFieldChange}
                                 className="font-medium text-gray-900"
                                 loading={isFieldLoading("client_name")}
                                 alwaysEditing={isFieldEditable}
@@ -533,12 +531,7 @@ export default function LeadInfoSection({
                                                 value,
                                             )
                                         }
-                                        onChange={(_fn, value) =>
-                                            handleFieldChange(
-                                                "client_email",
-                                                value,
-                                            )
-                                        }
+                                        onChange={handleFieldChange}
                                         className="text-blue-600 hover:text-blue-800"
                                         alwaysEditing={isFieldEditable}
                                         loading={isFieldLoading("client_email")}
@@ -552,9 +545,7 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("client_email", value)
                                     }
-                                    onChange={(_fn, value) =>
-                                        handleFieldChange("client_email", value)
-                                    }
+                                    onChange={handleFieldChange}
                                     placeholder="Add email"
                                     alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("client_email")}
@@ -578,9 +569,7 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("mobile", value)
                                     }
-                                    onChange={(_fn, value) =>
-                                        handleFieldChange("mobile", value)
-                                    }
+                                    onChange={handleFieldChange}
                                     placeholder="Add mobile"
                                     alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("mobile")}
@@ -600,9 +589,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("office", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("office", value)
-                                }
+                                onChange={handleFieldChange}
                                 placeholder="Add office phone"
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("office")}
@@ -621,9 +608,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("gender", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("gender", value)
-                                }
+                                onChange={handleFieldChange}
                                 displayValue={
                                     currentLeadState.gender ? (
                                         <span className="capitalize">
@@ -648,9 +633,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("company_name", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("company_name", value)
-                                }
+                                onChange={handleFieldChange}
                                 placeholder="Add company name"
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("company_name")}
@@ -666,9 +649,7 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("website", value)
                                     }
-                                    onChange={(_fn, value) =>
-                                        handleFieldChange("website", value)
-                                    }
+                                    onChange={handleFieldChange}
                                     displayValue={
                                         <a
                                             href={String(
@@ -693,9 +674,7 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("website", value)
                                     }
-                                    onChange={(_fn, value) =>
-                                        handleFieldChange("website", value)
-                                    }
+                                    onChange={handleFieldChange}
                                     placeholder="Add website"
                                     alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("website")}
@@ -720,9 +699,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("lead_owner", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("lead_owner", value)
-                                }
+                                onChange={handleFieldChange}
                                 displayValue={
                                     currentLeadState.lead_owner ? (
                                         <UserIndicator
@@ -767,9 +744,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("source_id", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("source_id", value)
-                                }
+                                onChange={handleFieldChange}
                                 displayValue={
                                     currentLeadState.leadSource?.type ||
                                     currentLeadState.lead_source?.type ? (
@@ -801,9 +776,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("category_id", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("category_id", value)
-                                }
+                                onChange={handleFieldChange}
                                 displayValue={
                                     currentLeadState.category?.category_name ? (
                                         <Tag
@@ -861,9 +834,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("country", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("country", value)
-                                }
+                                onChange={handleFieldChange}
                                 placeholder="Select country"
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("country")}
@@ -878,9 +849,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("state", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("state", value)
-                                }
+                                onChange={handleFieldChange}
                                 placeholder="Add state"
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("state")}
@@ -895,9 +864,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("city", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("city", value)
-                                }
+                                onChange={handleFieldChange}
                                 placeholder="Add city"
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("city")}
@@ -912,9 +879,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("postal_code", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("postal_code", value)
-                                }
+                                onChange={handleFieldChange}
                                 placeholder="Add postal code"
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("postal_code")}
@@ -929,9 +894,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("address", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("address", value)
-                                }
+                                onChange={handleFieldChange}
                                 displayValue={
                                     currentLeadState.address ? (
                                         <span>
@@ -959,9 +922,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("note", value)
                                 }
-                                onChange={(_fn, value) =>
-                                    handleFieldChange("note", value)
-                                }
+                                onChange={handleFieldChange}
                                 placeholder="Add notes"
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("note")}
