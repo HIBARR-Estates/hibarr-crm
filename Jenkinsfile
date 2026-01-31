@@ -60,9 +60,17 @@ pipeline {
                             make build-artifact
                             
                             echo 'Step 2: Linking Shared Assets...'
-                            ln -sfn ~/shared/.env $BUILD_PATH/.env
-                            mkdir -p ~/shared/user-uploads
-                            ln -sfn ~/shared/user-uploads $BUILD_PATH/public/user-uploads
+                            # Use absolute paths to ensure the symlink never breaks
+                            ln -sfn /home/$TARGET_USER/shared/.env $BUILD_PATH/.env
+
+                            # Create shared folder if it doesn't exist (safety first)
+                            mkdir -p /home/$TARGET_USER/shared/user-uploads
+
+                            # Remove the folder Git created so the symlink can take its place
+                            rm -rf $BUILD_PATH/public/user-uploads
+
+                            # Create the symlink using the absolute path
+                            ln -sfn /home/$TARGET_USER/shared/user-uploads $BUILD_PATH/public/user-uploads
 
                             echo 'Step 3: Database & Finalization...'
                             make finalize-deploy
@@ -72,8 +80,8 @@ pipeline {
                             
                             echo 'Step 5: Permission Guard (The Fix)...'
                             # Force the group to www-data so Nginx can write to logs/cache
-                            sudo chown -R $TARGET_USER:www-data $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache
-                            sudo chmod -R 775 $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache
+                            sudo chown -R $TARGET_USER:www-data $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache || true
+                            sudo chmod -R 775 $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache || true
                             
                             echo 'Step 6: Production Optimization...'
                             cd $LIVE_LINK
