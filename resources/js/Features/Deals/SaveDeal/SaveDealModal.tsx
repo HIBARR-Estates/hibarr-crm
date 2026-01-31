@@ -19,7 +19,7 @@ interface SaveDealModalProps extends Omit<IModalProps, "onClose"> {
 
 const constructCustomFieldsData = (
     customFields: any[] = [],
-    custom_fields_data: Record<string, any> = {}
+    custom_fields_data: Record<string, any> = {},
 ) => {
     const data: Record<string, any> = {};
     customFields?.forEach((field) => {
@@ -56,9 +56,10 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         stage_id: deal?.pipeline_stage_id || undefined,
         value: (deal
             ? {
-                amount: deal.value ?? 0,
-                currency: (deal as any).currency?.currency_code ?? defaultCode,
-            }
+                  amount: deal.value ?? 0,
+                  currency:
+                      (deal as any).currency?.currency_code ?? defaultCode,
+              }
             : { amount: null, currency: defaultCode }) as any,
         close_date: deal?.close_date || "",
         category_id: deal?.category_id || undefined,
@@ -86,7 +87,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         CreateDealFormData,
         Deal,
         ApiResponse<Deal>
-    >(isEditing ? route("deals.patch", { deal: deal!.id }) : "", "PUT");
+    >(isEditing ? route("deals.patch", { deal: deal!.id }) : "", "PATCH");
 
     // Update form data when deal or modal opens
     useEffect(() => {
