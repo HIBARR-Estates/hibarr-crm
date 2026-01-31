@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\Company;
 use App\Traits\ExcelImportable;
 use App\Traits\UniversalSearchTrait;
+use App\Exceptions\DuplicatePropertyException;
+use App\Services\PropertyDuplicateService;
 use Exception;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
@@ -60,6 +62,26 @@ class ImportPropertyJob implements ShouldQueue
             Session::put('is_imported', true);
             
             try {
+                // Check for duplicates before creating
+                $duplicateService = app(PropertyDuplicateService::class);
+                $propertyData = [
+                    'company_id' => $this->company?->id,
+                    'developer_project_id' => null, // Import doesn't assign to projects by default
+                    'property_type' => $this->isColumnExists('property_type') ? $this->getColumnValue('property_type') : 'House',
+                    'city' => $this->isColumnExists('city') ? $this->getColumnValue('city') : null,
+                    'area' => $this->isColumnExists('area') ? $this->getColumnValue('area') : null,
+                    'block_name' => $this->isColumnExists('block_name') ? $this->getColumnValue('block_name') : null,
+                    'unit_number' => $this->isColumnExists('unit_number') ? $this->getColumnValue('unit_number') : null,
+                ];
+
+                try {
+                    $duplicateService->assertNoDuplicates($propertyData);
+                } catch (DuplicatePropertyException $e) {
+                    Log::warning('Duplicate property detected during import: ' . $e->getMessage(), ['row_data' => $this->row]);
+                    $this->failJobWithMessage('Duplicate: ' . $e->getMessage());
+                    return;
+                }
+
                 // TODO: First consolidate the data and then validate it before proceeding ...
                 // Create product first
                 $product = Product::create([
@@ -105,6 +127,12 @@ class ImportPropertyJob implements ShouldQueue
                 }
                 if ($this->isColumnExists('floors_in_building')) {
                     $property->floors_in_building = $this->getColumnValue('floors_in_building');
+                }
+                if ($this->isColumnExists('block_name')) {
+                    $property->block_name = $this->getColumnValue('block_name');
+                }
+                if ($this->isColumnExists('unit_number')) {
+                    $property->unit_number = $this->getColumnValue('unit_number');
                 }
 
                 // Set default values for required fields

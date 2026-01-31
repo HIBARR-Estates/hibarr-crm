@@ -456,6 +456,27 @@ export default function BasicInfoTab({
                             />
                         </Form.Item>
                     </Col>
+
+                    {/* Block and Unit fields for property identification within a project/location */}
+                    <Col span={12}>
+                        <Form.Item
+                            name="block_name"
+                            label="Block / Building"
+                            tooltip="Block, building, or tower name/number (e.g., Block B, Tower 1, Phase 2)"
+                        >
+                            <Input placeholder="e.g., Block B, Tower 1" />
+                        </Form.Item>
+                    </Col>
+
+                    <Col span={12}>
+                        <Form.Item
+                            name="unit_number"
+                            label="Unit / Apartment Number"
+                            tooltip="Unit, apartment, or house number within the block"
+                        >
+                            <Input placeholder="e.g., 101, A-5, Unit 12" />
+                        </Form.Item>
+                    </Col>
                 </Row>
                 <Divider />
 

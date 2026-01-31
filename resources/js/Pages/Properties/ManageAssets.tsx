@@ -56,7 +56,7 @@ const ManageAssets = ({
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
     const [selectedAssets, setSelectedAssets] = useState<number[]>([]);
     const [previewAsset, setPreviewAsset] = useState<PropertyAsset | null>(
-        null
+        null,
     );
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
@@ -81,7 +81,7 @@ const ManageAssets = ({
 
     const filterConfig = createPropertyAssetFilterConfig(
         availableTags,
-        availableTypes
+        availableTypes,
     );
 
     // Upload assets mutation
@@ -109,7 +109,7 @@ const ManageAssets = ({
     // Handle asset selection
     const handleAssetSelect = (assetId: number, checked: boolean) => {
         setSelectedAssets((prev) =>
-            checked ? [...prev, assetId] : prev.filter((id) => id !== assetId)
+            checked ? [...prev, assetId] : prev.filter((id) => id !== assetId),
         );
     };
 
@@ -146,7 +146,7 @@ const ManageAssets = ({
             {
                 preserveState: true,
                 preserveScroll: true,
-            }
+            },
         );
     };
 
@@ -227,7 +227,7 @@ const ManageAssets = ({
                                     onClick={() =>
                                         handlePaginationChange(
                                             assets.current_page - 1,
-                                            assets.per_page
+                                            assets.per_page,
                                         )
                                     }
                                 >
@@ -242,7 +242,7 @@ const ManageAssets = ({
                                     onClick={() =>
                                         handlePaginationChange(
                                             assets.current_page + 1,
-                                            assets.per_page
+                                            assets.per_page,
                                         )
                                     }
                                 >
@@ -286,6 +286,8 @@ const ManageAssets = ({
                     open={!!previewAsset}
                     asset={previewAsset}
                     allAssets={assets.data}
+                    propertyId={property.id}
+                    availableTags={availableTags}
                     onClose={() => setPreviewAsset(null)}
                     onNavigate={setPreviewAsset}
                 />

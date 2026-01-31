@@ -883,6 +883,24 @@ class LeadContactController extends AccountBaseController
                     }
                 }
                 
+                // Load and include relationship data when relationship IDs are updated
+                // This ensures the frontend can immediately display the updated relationship info
+                if ($request->has('category_id')) {
+                    $leadContact->load('category');
+                    $responseData['category'] = $leadContact->category;
+                }
+                
+                if ($request->has('source_id')) {
+                    $leadContact->load('leadSource');
+                    $responseData['leadSource'] = $leadContact->leadSource;
+                    $responseData['lead_source'] = $leadContact->leadSource; // Include both naming conventions
+                }
+                
+                if ($request->has('lead_owner')) {
+                    $leadContact->load('leadOwner');
+                    $responseData['lead_owner'] = $leadContact->leadOwner;
+                }
+                
                 // If custom fields were updated (including file uploads), include the updated custom_fields_data
                 if ($request->has('custom_fields') || $request->hasFile('custom_fields')) {
                     $leadContact->withCustomFields();
@@ -955,9 +973,55 @@ class LeadContactController extends AccountBaseController
 
     public function applyQuickAction(Request $request)
     {
-        Lead::whereIn('id', explode(',', $request->row_ids))->delete();
+        $rowIds = explode(',', $request->row_ids);
+        $actionType = $request->action_type ?? 'delete';
 
-        return Reply::success(__('messages.deleteSuccess'));
+        switch ($actionType) {
+            case 'change_category':
+                $categoryId = $request->category_id;
+                
+                // Validate category exists if provided
+                if ($categoryId) {
+                    $category = LeadCategory::find($categoryId);
+                    if (!$category) {
+                        return Reply::error(__('messages.categoryNotFound'));
+                    }
+                }
+                
+                Lead::whereIn('id', $rowIds)->update(['category_id' => $categoryId]);
+                return Reply::success(__('messages.updateSuccess'));
+
+            case 'change_source':
+                $sourceId = $request->source_id;
+                
+                if ($sourceId) {
+                    $source = LeadSource::find($sourceId);
+                    if (!$source) {
+                        return Reply::error(__('messages.sourceNotFound'));
+                    }
+                }
+                
+                Lead::whereIn('id', $rowIds)->update(['source_id' => $sourceId]);
+                return Reply::success(__('messages.updateSuccess'));
+
+            case 'change_owner':
+                $leadOwner = $request->lead_owner;
+                
+                if ($leadOwner) {
+                    $owner = User::find($leadOwner);
+                    if (!$owner) {
+                        return Reply::error(__('messages.userNotFound'));
+                    }
+                }
+                
+                Lead::whereIn('id', $rowIds)->update(['lead_owner' => $leadOwner]);
+                return Reply::success(__('messages.updateSuccess'));
+
+            case 'delete':
+            default:
+                Lead::whereIn('id', $rowIds)->delete();
+                return Reply::success(__('messages.deleteSuccess'));
+        }
     }
 
     public function importLead()

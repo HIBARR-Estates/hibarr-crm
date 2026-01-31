@@ -1012,10 +1012,26 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::prefix('project-locations')->name('project-locations.')->group(function () {
         Route::get('/', [App\Http\Controllers\ProjectLocationController::class, 'index'])->name('index');
         Route::get('/all', [App\Http\Controllers\ProjectLocationController::class, 'all'])->name('all');
+        Route::get('/infrastructures', [App\Http\Controllers\ProjectLocationController::class, 'allInfrastructures'])->name('infrastructures');
+        Route::get('/airports', [App\Http\Controllers\ProjectLocationController::class, 'allAirports'])->name('airports');
         Route::post('/', [App\Http\Controllers\ProjectLocationController::class, 'store'])->name('store');
         Route::get('/{id}', [App\Http\Controllers\ProjectLocationController::class, 'show'])->name('show');
         Route::put('/{id}', [App\Http\Controllers\ProjectLocationController::class, 'update'])->name('update');
         Route::delete('/{id}', [App\Http\Controllers\ProjectLocationController::class, 'destroy'])->name('destroy');
+    });
+
+    // Developers
+    Route::prefix('developers')->name('developers.')->group(function () {
+        Route::get('/', [App\Http\Controllers\DeveloperController::class, 'index'])->name('index');
+        Route::get('/all', [App\Http\Controllers\DeveloperController::class, 'all'])->name('all');
+        Route::post('/', [App\Http\Controllers\DeveloperController::class, 'store'])->name('store');
+        Route::get('/{id}', [App\Http\Controllers\DeveloperController::class, 'show'])->name('show');
+        Route::put('/{id}', [App\Http\Controllers\DeveloperController::class, 'update'])->name('update');
+        Route::delete('/{id}', [App\Http\Controllers\DeveloperController::class, 'destroy'])->name('destroy');
+        
+        // Project assignment
+        Route::post('/{id}/assign-projects', [App\Http\Controllers\DeveloperController::class, 'assignProjects'])->name('assign-projects');
+        Route::post('/{id}/remove-projects', [App\Http\Controllers\DeveloperController::class, 'removeProjects'])->name('remove-projects');
     });
 
     // Developer Projects
@@ -1031,6 +1047,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::post('/{id}/assign-properties', [App\Http\Controllers\DeveloperProjectController::class, 'assignProperties'])->name('assign-properties');
         Route::post('/{id}/remove-properties', [App\Http\Controllers\DeveloperProjectController::class, 'removeProperties'])->name('remove-properties');
         Route::get('/{id}/available-properties', [App\Http\Controllers\DeveloperProjectController::class, 'availableProperties'])->name('available-properties');
+        
+        // Expose Generation
+        Route::post('/{id}/expose/generate', [App\Http\Controllers\DeveloperProjectController::class, 'generateExpose'])->name('expose.generate');
         
         // Expose Configuration
         Route::get('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'show'])->name('expose-config.show');

@@ -60,11 +60,13 @@ migrate:
 	php artisan migrate --force
 
 ensure-storage:
+	@echo "Ensuring storage structure exists..."
 	mkdir -p storage/framework/cache/data
 	mkdir -p storage/framework/sessions
 	mkdir -p storage/framework/views
 	mkdir -p storage/logs
-	chmod -R 775 storage || true
+	# We use || true because in some builds the folder might be owned by www-data
+	chmod -R 775 storage bootstrap/cache || true
 
 queue-restart:
 	php artisan queue:restart
@@ -100,12 +102,18 @@ deploy-production:
 
 # Run this on Jenkins to prepare the artifact
 build-artifact:
-	$(MAKE) composer-install
-	$(MAKE) npm-build
+	@if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
+	php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
+	npm install
+	php artisan ziggy:generate
+	npm run production
 
 # This target is for the server to run after extracting the artifact
 finalize-deploy:
 	$(MAKE) ensure-storage
-	$(MAKE) migrate
-	$(MAKE) queue-restart
-	php artisan optimize:clear
+	php artisan migrate --force
+	php artisan queue:restart
+	# Clear old junk but do NOT cache yet (Jenkins does that after the symlink switch)
+	php artisan cache:clear
+	php artisan config:clear
+	php artisan route:clear

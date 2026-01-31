@@ -339,6 +339,15 @@ export default function LeadInfoSection({
                 } else if (fieldName === "gender") {
                     // Ensure gender is sent as the actual value (male/female) or null
                     processedValue = value || null;
+                } else if (
+                    fieldName === "category_id" ||
+                    fieldName === "source_id" ||
+                    fieldName === "lead_owner" ||
+                    fieldName === "status_id" ||
+                    fieldName === "agent_id"
+                ) {
+                    // Convert empty/falsy values to null for nullable integer fields
+                    processedValue = value ? value : null;
                 }
 
                 payloadData = { [fieldName]: processedValue };
