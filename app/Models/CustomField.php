@@ -21,6 +21,7 @@ use App\Models\CustomFieldVisibility;
  * @property string $type
  * @property string $required
  * @property string|null $values
+ * @property array|null $display_config
  * @property string|null $visible
  * @method static \Illuminate\Database\Eloquent\Builder|CustomField newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|CustomField newQuery()
@@ -52,6 +53,10 @@ class CustomField extends BaseModel
 
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'display_config' => 'array',
+    ];
+
     public function customFieldCategory(): BelongsTo
     {
         return $this->belongsTo(CustomFieldCategory::class, 'custom_field_category_id');
@@ -75,6 +80,14 @@ class CustomField extends BaseModel
     public function fieldGroup(): BelongsTo
     {
         return $this->belongsTo(CustomFieldGroup::class, 'custom_field_group_id');
+    }
+
+    /**
+     * For type=repeatable: the field whose value (N) dictates how many blocks to render.
+     */
+    public function linkedField(): BelongsTo
+    {
+        return $this->belongsTo(CustomField::class, 'linked_field_id');
     }
 
     /**

@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Contains all location-specific data used in expose PDF generation including
  * address, nearby attractions, infrastructure, and airport information.
  * 
+ * Address schema: {street?, state?, country?, postalCode?}
+ * Note: City is stored at the property level, not the project location level.
+ * 
  * A ProjectLocation has a 1:1 relationship with DeveloperProject - each project
  * is tied to exactly one location configuration.
  */
@@ -36,10 +39,10 @@ class ProjectLocation extends BaseModel
      * Cast JSON columns to arrays for easy manipulation
      */
     protected $casts = [
-        'address' => 'array',        // {street, city, state, country, postalCode?}
+        'address' => 'array',        // {street?, state?, country?, postalCode?}
         'attractions' => 'array',     // [{name, content[], images: {primary, secondary}}]
-        'infrastructure' => 'array',  // [{name, travelTimeInMin, image}]
-        'airports' => 'array',        // [{name, travelTimeInMin, image}]
+        'infrastructure' => 'array',  // [{infrastructure_id, travelTimeInMin}]
+        'airports' => 'array',        // [{airport_id, travelTimeInMin}]
     ];
 
     /**
@@ -59,15 +62,15 @@ class ProjectLocation extends BaseModel
      * 
      * Combines address components into a readable string.
      * Filters out null/empty values before joining.
+     * Note: City is not included as it's stored at the property level.
      * 
-     * @return string e.g., "123 Main St, London, England, UK, SW1A 1AA"
+     * @return string e.g., "123 Main St, England, UK, SW1A 1AA"
      */
     public function getFullAddressAttribute(): string
     {
         $address = $this->address ?? [];
         $parts = array_filter([
             $address['street'] ?? null,
-            $address['city'] ?? null,
             $address['state'] ?? null,
             $address['country'] ?? null,
             $address['postalCode'] ?? null,
@@ -77,11 +80,11 @@ class ProjectLocation extends BaseModel
     }
 
     /**
-     * Get the city from the address.
+     * Get the state from the address.
      */
-    public function getCityAttribute(): ?string
+    public function getStateAttribute(): ?string
     {
-        return $this->address['city'] ?? null;
+        return $this->address['state'] ?? null;
     }
 
     /**
@@ -112,15 +115,66 @@ class ProjectLocation extends BaseModel
             'description' => $this->description ?? '',
             'address' => $this->address ?? [
                 'street' => '',
-                'city' => '',
                 'state' => '',
                 'country' => '',
                 'postalCode' => '',
             ],
             'map' => $this->map_url ?? '',
             'attractions' => $this->attractions ?? [],
-            'infrastructure' => $this->infrastructure ?? [],
-            'airports' => $this->airports ?? [],
+            'infrastructure' => $this->getExpandedInfrastructure(),
+            'airports' => $this->getExpandedAirports(),
         ];
+    }
+
+    /**
+     * Get infrastructure with resolved names from Infrastructure model.
+     * 
+     * @return array [{name, travelTimeInMin, icon}]
+     */
+    public function getExpandedInfrastructure(): array
+    {
+        $items = $this->infrastructure ?? [];
+        $result = [];
+
+        foreach ($items as $item) {
+            if (isset($item['infrastructure_id'])) {
+                $infrastructure = Infrastructure::find($item['infrastructure_id']);
+                if ($infrastructure) {
+                    $result[] = [
+                        'name' => $infrastructure->name,
+                        'icon' => $infrastructure->icon,
+                        'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
+                    ];
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get airports with resolved names from Airport model.
+     * 
+     * @return array [{name, code, travelTimeInMin}]
+     */
+    public function getExpandedAirports(): array
+    {
+        $items = $this->airports ?? [];
+        $result = [];
+
+        foreach ($items as $item) {
+            if (isset($item['airport_id'])) {
+                $airport = Airport::find($item['airport_id']);
+                if ($airport) {
+                    $result[] = [
+                        'name' => $airport->name,
+                        'code' => $airport->code,
+                        'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
+                    ];
+                }
+            }
+        }
+
+        return $result;
     }
 }

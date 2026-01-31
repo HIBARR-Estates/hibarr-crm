@@ -107,6 +107,8 @@ class Property extends BaseModel
         'building_age',
         'furniture_status',
         'within_site',
+        'block_name',
+        'unit_number',
         'exterior_features',
         'interior_features',
         'location_features',
@@ -424,6 +426,140 @@ class Property extends BaseModel
     public function isDailyRental(): bool
     {
         return $this->sale_type === self::SALE_TYPE_DAILY_RENTAL;
+    }
+
+    /**
+     * Generate a suggested title based on property details.
+     * 
+     * Pattern: {Site Name} | {Beds}BR {Type} | {Sale Type} | {Location Name}
+     * Example: "Nest Projects | 4BR Apartment | SALE | Girne"
+     * 
+     * Falls back to simpler patterns if data is incomplete.
+     *
+     * @return string
+     */
+    public function generateSuggestedTitle(): string
+    {
+        $parts = [];
+
+        // Site/Project Name
+        $siteName = $this->developerProject?->name;
+        if ($siteName) {
+            $parts[] = $siteName;
+        }
+
+        // Bedrooms + Property Type
+        $typeDescription = '';
+        if ($this->bedrooms && is_numeric($this->bedrooms)) {
+            $typeDescription = $this->bedrooms . 'BR ';
+        }
+        if ($this->property_type) {
+            $typeDescription .= $this->property_type;
+        }
+        if (trim($typeDescription)) {
+            $parts[] = trim($typeDescription);
+        }
+
+        // Sale Type (shortened)
+        if ($this->sale_type) {
+            $saleTypeShort = match ($this->sale_type) {
+                self::SALE_TYPE_FOR_SALE => 'SALE',
+                self::SALE_TYPE_FOR_RENT => 'RENT',
+                self::SALE_TYPE_DAILY_RENTAL => 'DAILY RENTAL',
+                default => strtoupper($this->sale_type),
+            };
+            $parts[] = $saleTypeShort;
+        }
+
+        // Location Name (prefer project location, fall back to city)
+        $locationName = $this->effective_location['city'] ?? $this->city;
+        if ($locationName) {
+            $parts[] = $locationName;
+        }
+
+        // Join with separator
+        $title = implode(' | ', array_filter($parts));
+
+        // Fallback if we have very little info
+        if (empty($title)) {
+            $title = 'Property';
+            if ($this->block_name) {
+                $title .= ' - ' . $this->block_name;
+            }
+            if ($this->unit_number) {
+                $title .= ' Unit ' . $this->unit_number;
+            }
+        }
+
+        return $title;
+    }
+
+    /**
+     * Generate a suggested title from array data (static version for use before model creation).
+     * 
+     * @param array $data Property data array
+     * @param string|null $projectName Developer project name (if known)
+     * @param string|null $locationName Location name (if known)
+     * @return string
+     */
+    public static function generateSuggestedTitleFromData(array $data, ?string $projectName = null, ?string $locationName = null): string
+    {
+        $parts = [];
+
+        // Site/Project Name
+        if ($projectName) {
+            $parts[] = $projectName;
+        }
+
+        // Bedrooms + Property Type
+        $typeDescription = '';
+        $bedrooms = $data['bedrooms'] ?? null;
+        if ($bedrooms && is_numeric($bedrooms)) {
+            $typeDescription = $bedrooms . 'BR ';
+        }
+        $propertyType = $data['property_type'] ?? null;
+        if ($propertyType) {
+            $typeDescription .= $propertyType;
+        }
+        if (trim($typeDescription)) {
+            $parts[] = trim($typeDescription);
+        }
+
+        // Sale Type (shortened)
+        $saleType = $data['sale_type'] ?? null;
+        if ($saleType) {
+            $saleTypeShort = match ($saleType) {
+                self::SALE_TYPE_FOR_SALE => 'SALE',
+                self::SALE_TYPE_FOR_RENT => 'RENT',
+                self::SALE_TYPE_DAILY_RENTAL => 'DAILY RENTAL',
+                default => strtoupper($saleType),
+            };
+            $parts[] = $saleTypeShort;
+        }
+
+        // Location Name
+        $location = $locationName ?? $data['city'] ?? null;
+        if ($location) {
+            $parts[] = $location;
+        }
+
+        // Join with separator
+        $title = implode(' | ', array_filter($parts));
+
+        // Fallback
+        if (empty($title)) {
+            $title = 'Property';
+            $blockName = $data['block_name'] ?? null;
+            $unitNumber = $data['unit_number'] ?? null;
+            if ($blockName) {
+                $title .= ' - ' . $blockName;
+            }
+            if ($unitNumber) {
+                $title .= ' Unit ' . $unitNumber;
+            }
+        }
+
+        return $title;
     }
 
     // Get allowed property types based on category and sale type

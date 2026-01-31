@@ -1,6 +1,11 @@
 import React from "react";
 import { Card, Typography, Button, Tag } from "antd";
-import { EnvironmentOutlined, ProjectOutlined } from "@ant-design/icons";
+import {
+    EnvironmentOutlined,
+    ProjectOutlined,
+    HomeOutlined,
+    NumberOutlined,
+} from "@ant-design/icons";
 import { Property } from "@/Types";
 
 const { Text } = Typography;
@@ -32,6 +37,28 @@ export default function PropertyLocation({ property }: PropertyLocationProps) {
                         {area}, {city}
                     </Text>
                 </div>
+
+                {/* Block and Unit information */}
+                {(property.block_name || property.unit_number) && (
+                    <div className="flex items-center gap-4 mt-3 text-gray-600">
+                        {property.block_name && (
+                            <div className="flex items-center gap-1">
+                                <HomeOutlined />
+                                <Text type="secondary">
+                                    {property.block_name}
+                                </Text>
+                            </div>
+                        )}
+                        {property.unit_number && (
+                            <div className="flex items-center gap-1">
+                                <NumberOutlined />
+                                <Text type="secondary">
+                                    Unit {property.unit_number}
+                                </Text>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {property.map && (
                     <div className="mt-4">

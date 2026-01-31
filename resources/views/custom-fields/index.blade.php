@@ -115,12 +115,19 @@
                                         <td>
                                             @if(isset($field->values) && $field->values != '[null]')
                                                 @php
-                                                    $decodedValues = json_decode($field->values, true);
+                                                    $decodedValues = is_string($field->values) ? json_decode($field->values, true) : $field->values;
                                                 @endphp
                                                 @if(is_array($decodedValues) && count($decodedValues) > 0)
                                                     <ul class="value-list">
                                                         @foreach($decodedValues as $value)
-                                                            <li>{{ $value }}</li>
+                                                            <li>
+                                                                @if(is_array($value))
+                                                                    {{-- Repeatable schema row: key (type) label --}}
+                                                                    {{ ($value['key'] ?? '') }}{{ isset($value['type']) ? ' (' . ($value['type'] ?? '') . ')' : '' }}{{ isset($value['label']) && ($value['label'] ?? '') !== '' ? ': ' . ($value['label'] ?? '') : '' }}
+                                                                @else
+                                                                    {{ $value }}
+                                                                @endif
+                                                            </li>
                                                         @endforeach
                                                     </ul>
                                                 @else

@@ -27,6 +27,7 @@ class PropertyAsset extends BaseModel
     const TAG_EXTERIOR = 'exterior';
     const TAG_INTERIOR = 'interior';
     const TAG_FLOOR_PLAN = 'floor-plan';
+    const TAG_SITE_PLAN = 'site-plan';
     const TAG_FOOTER = 'footer';
     const TAG_GALLERY = 'gallery';
 
@@ -197,6 +198,7 @@ class PropertyAsset extends BaseModel
             self::TAG_EXTERIOR => 'Exterior',
             self::TAG_INTERIOR => 'Interior',
             self::TAG_FLOOR_PLAN => 'Floor Plan',
+            self::TAG_SITE_PLAN => 'Site Plan',
             self::TAG_FOOTER => 'Footer',
             self::TAG_GALLERY => 'Gallery',
         ];

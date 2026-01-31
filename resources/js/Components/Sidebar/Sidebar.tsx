@@ -167,10 +167,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             href: "/account/properties",
         },
         // {
-        //     key: "developer-projects",
-        //     label: "Developer Projects",
+        //     key: "developers",
+        //     label: "Developers",
         //     icon: <BankOutlined />,
-        //     href: "/account/developer-projects",
+        //     href: "/account/developers",
         // },
     ];
 

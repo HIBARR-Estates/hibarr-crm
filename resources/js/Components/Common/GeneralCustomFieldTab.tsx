@@ -17,6 +17,7 @@ import { UploadOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
 import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
 import CurrencyInput from "@/Components/CurrencyInput";
+import RepeatableFieldRenderer from "@/Components/RepeatableFieldRenderer";
 
 interface CustomFieldTabProps<CustomFormData = any> {
     data: CustomFormData;
@@ -434,6 +435,17 @@ const GeneralCustomFieldTab = <
         </Form.Item>
     );
 
+    const renderRepeatableField = (field: any) => (
+        <RepeatableFieldRenderer
+            field={field}
+            form={form}
+            namePrefix="custom_fields_data"
+            errors={errors}
+            isFieldVisible={isFieldVisible}
+            currentCustomFieldsData={currentCustomFieldsData}
+        />
+    );
+
     const renderField = (field: any) => {
         // Check visibility - if field is not visible, don't render it
         if (!isFieldVisible(field.id)) {
@@ -463,6 +475,8 @@ const GeneralCustomFieldTab = <
                 return renderPhoneField(field);
             case "file":
                 return renderFileField(field);
+            case "repeatable":
+                return renderRepeatableField(field);
             default:
                 return renderTextField(field);
         }
@@ -512,6 +526,8 @@ const determineSpan = (type: string): number => {
         case "file":
             return 24;
         case "currency":
+            return 24;
+        case "repeatable":
             return 24;
         default:
             return 12;

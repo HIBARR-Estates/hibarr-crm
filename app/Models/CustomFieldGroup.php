@@ -119,6 +119,10 @@ class CustomFieldGroup extends BaseModel
                     if (in_array($item->type, ['select', 'radio'])) {
                         $item->values = json_decode($item->values);
                     }
+                    if ($item->type === 'repeatable' && !empty($item->values)) {
+                        $decoded = is_string($item->values) ? json_decode($item->values, true) : $item->values;
+                        $item->values = is_array($decoded) ? $decoded : [];
+                    }
                     return $item;
                 });
             },

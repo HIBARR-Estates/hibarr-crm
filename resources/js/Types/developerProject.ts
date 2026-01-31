@@ -6,6 +6,30 @@
  */
 
 // ============================================
+// Developer Types
+// ============================================
+
+export interface Developer {
+    id: number;
+    company_id: number;
+    name: string;
+    logo_url: string | null;
+    description: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    // Computed
+    projects_count?: number;
+}
+
+// Minimal version for dropdowns
+export interface DeveloperOption {
+    id: number;
+    name: string;
+    logo_url?: string | null;
+}
+
+// ============================================
 // Project Location Types
 // ============================================
 
@@ -27,15 +51,33 @@ export interface LocationAttraction {
 }
 
 export interface LocationInfrastructure {
-    name: string;
+    infrastructure_id: number;
     travelTimeInMin: number;
-    image: string;
+    // Expanded fields (from API)
+    name?: string;
+    icon?: string;
+    image?: string;
 }
 
 export interface LocationAirport {
-    name: string;
+    airport_id: number;
     travelTimeInMin: number;
-    image: string;
+    // Expanded fields (from API)
+    name?: string;
+    code?: string;
+    image?: string;
+}
+
+export interface Infrastructure {
+    id: number;
+    name: string;
+    icon: string | null;
+}
+
+export interface Airport {
+    id: number;
+    name: string;
+    code: string | null;
 }
 
 export interface ProjectLocation {
@@ -53,7 +95,7 @@ export interface ProjectLocation {
     deleted_at: string | null;
     // Computed attributes
     full_address?: string;
-    city?: string;
+    state?: string;
     country?: string;
 }
 
@@ -63,6 +105,7 @@ export interface ProjectLocationOption {
     name: string;
     full_address?: string;
     city?: string;
+    state?: string;
 }
 
 // ============================================
@@ -72,6 +115,7 @@ export interface ProjectLocationOption {
 export interface DeveloperProject {
     id: number;
     company_id: number;
+    developer_id: number | null;
     name: string;
     description: string | null;
     project_location_id: number | null;
@@ -79,6 +123,7 @@ export interface DeveloperProject {
     updated_at: string;
     deleted_at: string | null;
     // Relations (when loaded)
+    developer?: Developer;
     location?: ProjectLocation;
     expose_config?: DeveloperProjectExposeConfig;
     properties?: Property[];
@@ -90,7 +135,12 @@ export interface DeveloperProject {
 export interface DeveloperProjectOption {
     id: number;
     name: string;
+    developer_id: number | null;
     project_location_id: number | null;
+    developer?: {
+        id: number;
+        name: string;
+    };
     location?: {
         id: number;
         name: string;
@@ -241,14 +291,27 @@ export interface ExposeProjectConfigData {
 // Form/Input Types for UI
 // ============================================
 
+// Input types for form submission (uses name-based structure for simplicity)
+export interface LocationInfrastructureInput {
+    name: string;
+    travelTimeInMin: number;
+    image?: string;
+}
+
+export interface LocationAirportInput {
+    name: string;
+    travelTimeInMin: number;
+    image?: string;
+}
+
 export interface CreateProjectLocationInput {
     name: string;
     description?: string;
     address?: LocationAddress;
     map_url?: string;
     attractions?: LocationAttraction[];
-    infrastructure?: LocationInfrastructure[];
-    airports?: LocationAirport[];
+    infrastructure?: LocationInfrastructureInput[];
+    airports?: LocationAirportInput[];
 }
 
 export interface UpdateProjectLocationInput extends Partial<CreateProjectLocationInput> {}
