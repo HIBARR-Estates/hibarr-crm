@@ -16,6 +16,17 @@ class PatchRequest extends CoreRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Convert empty string to null for close_date
+        if ($this->has('close_date') && $this->close_date === '') {
+            $this->merge(['close_date' => null]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
