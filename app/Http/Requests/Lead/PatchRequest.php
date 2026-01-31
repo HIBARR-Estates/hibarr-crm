@@ -46,14 +46,14 @@ class PatchRequest extends CoreRequest
             'note' => 'sometimes|string|max:2000',
             
             // Assignment (all optional for patch)
-            'agent_id' => 'sometimes|integer|exists:lead_agents,id',
-            'lead_owner' => 'sometimes|integer|exists:users,id',
-            'added_by' => 'sometimes|integer|exists:users,id',
+            'agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',
+            'lead_owner' => 'sometimes|nullable|integer|exists:users,id',
+            'added_by' => 'sometimes|nullable|integer|exists:users,id',
             
             // Categorization (all optional for patch)
-            'category_id' => 'sometimes|integer|exists:lead_category,id',
-            'source_id' => 'sometimes|integer|exists:lead_sources,id',
-            'status_id' => 'sometimes|integer|exists:lead_statuses,id',
+            'category_id' => 'sometimes|nullable|integer|exists:lead_category,id',
+            'source_id' => 'sometimes|nullable|integer|exists:lead_sources,id',
+            'status_id' => 'sometimes|nullable|integer|exists:lead_statuses,id',
             
             // Products (all optional for patch)
             'products' => 'sometimes|array',

@@ -171,6 +171,10 @@ class LeadService
             $query->where('source_id', $request->get('lead_source'));
         }
 
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->get('category_id'));
+        }
+
         if ($request->filled('lead_owner_id')) {
             $query->where('lead_owner', $request->get('lead_owner_id'));
         }
