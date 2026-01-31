@@ -510,7 +510,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("client_name", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("client_name", value)
                                 }
                                 className="font-medium text-gray-900"
@@ -533,7 +533,7 @@ export default function LeadInfoSection({
                                                 value,
                                             )
                                         }
-                                        onChange={(value) =>
+                                        onChange={(_fn, value) =>
                                             handleFieldChange(
                                                 "client_email",
                                                 value,
@@ -552,7 +552,7 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("client_email", value)
                                     }
-                                    onChange={(value) =>
+                                    onChange={(_fn, value) =>
                                         handleFieldChange("client_email", value)
                                     }
                                     placeholder="Add email"
@@ -578,7 +578,7 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("mobile", value)
                                     }
-                                    onChange={(value) =>
+                                    onChange={(_fn, value) =>
                                         handleFieldChange("mobile", value)
                                     }
                                     placeholder="Add mobile"
@@ -600,7 +600,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("office", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("office", value)
                                 }
                                 placeholder="Add office phone"
@@ -621,7 +621,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("gender", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("gender", value)
                                 }
                                 displayValue={
@@ -648,7 +648,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("company_name", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("company_name", value)
                                 }
                                 placeholder="Add company name"
@@ -666,7 +666,7 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("website", value)
                                     }
-                                    onChange={(value) =>
+                                    onChange={(_fn, value) =>
                                         handleFieldChange("website", value)
                                     }
                                     displayValue={
@@ -693,7 +693,7 @@ export default function LeadInfoSection({
                                     onSave={(value) =>
                                         handleFieldUpdate("website", value)
                                     }
-                                    onChange={(value) =>
+                                    onChange={(_fn, value) =>
                                         handleFieldChange("website", value)
                                     }
                                     placeholder="Add website"
@@ -720,7 +720,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("lead_owner", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("lead_owner", value)
                                 }
                                 displayValue={
@@ -767,7 +767,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("source_id", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("source_id", value)
                                 }
                                 displayValue={
@@ -801,7 +801,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("category_id", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("category_id", value)
                                 }
                                 displayValue={
@@ -861,7 +861,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("country", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("country", value)
                                 }
                                 placeholder="Select country"
@@ -878,7 +878,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("state", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("state", value)
                                 }
                                 placeholder="Add state"
@@ -895,7 +895,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("city", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("city", value)
                                 }
                                 placeholder="Add city"
@@ -912,7 +912,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("postal_code", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("postal_code", value)
                                 }
                                 placeholder="Add postal code"
@@ -929,7 +929,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("address", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("address", value)
                                 }
                                 displayValue={
@@ -959,7 +959,7 @@ export default function LeadInfoSection({
                                 onSave={(value) =>
                                     handleFieldUpdate("note", value)
                                 }
-                                onChange={(value) =>
+                                onChange={(_fn, value) =>
                                     handleFieldChange("note", value)
                                 }
                                 placeholder="Add notes"
