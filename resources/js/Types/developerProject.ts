@@ -35,6 +35,7 @@ export interface DeveloperOption {
 
 export interface LocationAddress {
     street?: string;
+    city?: string;
     state?: string;
     country?: string;
     postalCode?: string;
@@ -55,6 +56,7 @@ export interface LocationInfrastructure {
     // Expanded fields (from API)
     name?: string;
     icon?: string;
+    image?: string;
 }
 
 export interface LocationAirport {
@@ -63,6 +65,7 @@ export interface LocationAirport {
     // Expanded fields (from API)
     name?: string;
     code?: string;
+    image?: string;
 }
 
 export interface Infrastructure {
@@ -101,6 +104,7 @@ export interface ProjectLocationOption {
     id: number;
     name: string;
     full_address?: string;
+    city?: string;
     state?: string;
 }
 
@@ -287,14 +291,27 @@ export interface ExposeProjectConfigData {
 // Form/Input Types for UI
 // ============================================
 
+// Input types for form submission (uses name-based structure for simplicity)
+export interface LocationInfrastructureInput {
+    name: string;
+    travelTimeInMin: number;
+    image?: string;
+}
+
+export interface LocationAirportInput {
+    name: string;
+    travelTimeInMin: number;
+    image?: string;
+}
+
 export interface CreateProjectLocationInput {
     name: string;
     description?: string;
     address?: LocationAddress;
     map_url?: string;
     attractions?: LocationAttraction[];
-    infrastructure?: LocationInfrastructure[];
-    airports?: LocationAirport[];
+    infrastructure?: LocationInfrastructureInput[];
+    airports?: LocationAirportInput[];
 }
 
 export interface UpdateProjectLocationInput extends Partial<CreateProjectLocationInput> {}
