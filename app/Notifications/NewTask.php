@@ -99,9 +99,7 @@ class NewTask extends BaseNotification
                 'url' => $url,
                 'content' => $content,
                 'themeColor' => $this->company->header_color,
-                'notifiableName' => $notifiable->name,
-                'lightLogo' => $lightLogo,
-                'darkLogo' => $darkLogo
+                'notifiableName' => $notifiable->name
             ]);
 
         parent::resetLocale();

@@ -110,7 +110,7 @@
                                 <tr>
                                     <td style="padding:25px 0 0 0;">
                                         <p class="body-text" style="margin:0; font-size:15px; color:#333; line-height:1.7;">
-                                            @yield('actionDescription', 'ssss')
+                                            @yield('actionDescription', 'Click the button below to proceed.')
                                         </p>
                                     </td>
                                 </tr>
