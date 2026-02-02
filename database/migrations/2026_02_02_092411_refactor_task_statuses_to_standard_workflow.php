@@ -76,12 +76,15 @@ return new class extends Migration
             Task::where('board_column_id', $incompleteColumn->id)
                 ->update(['board_column_id' => $toDoColumn->id]);
 
-            // If default was incomplete, it should now be to_do
+            // If default was incomplete, update company FIRST before deleting column
             if ($oldDefaultStatusId == $incompleteColumn->id) {
                 $newDefaultStatusId = $toDoColumn->id;
+                // Update company default status BEFORE deleting to avoid FK constraint
+                $company->default_task_status = $newDefaultStatusId;
+                $company->saveQuietly();
             }
 
-            // Delete the incomplete column
+            // Now safe to delete the incomplete column
             $incompleteColumn->delete();
 
             // Update to_do column properties
