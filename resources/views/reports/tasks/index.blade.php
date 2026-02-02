@@ -27,7 +27,7 @@
                     <option value="all">@lang('app.all')</option>
                     <option value="not finished">@lang('modules.tasks.hideCompletedTask')</option>
                     @foreach ($taskBoardStatus as $status)
-                        <option value="{{ $status->id }}">{{ $status->slug == 'completed' || $status->slug == 'incomplete' ? __('app.' . $status->slug) :   $status->column_name }}</option>
+                        <option value="{{ $status->id }}">{{ $status->slug == 'done' || $status->slug == 'to_do' ? __('app.' . $status->slug) :   $status->column_name }}</option>
                     @endforeach
                 </select>
             </div>
