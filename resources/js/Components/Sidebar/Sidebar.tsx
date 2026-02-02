@@ -21,6 +21,7 @@ import {
     CheckSquareIcon,
 } from "../icons";
 import { PageProps } from "../DashboardLayout";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Pipeline {
     id: number;
@@ -48,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const { user } = auth;
     const pipelines = (props.pipelines || []) as Pipeline[];
     const defaultPipeline = pipelines.find((p) => p.default === 1);
+    const { t, isRtl } = useTranslation();
 
     const [expandedItems, setExpandedItems] = useState<Set<string>>(
         new Set(["deals"]),
@@ -119,19 +121,19 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const navItems: NavItem[] = [
         {
             key: "dashboard",
-            label: "Dashboard",
+            label: t("app.menu.dashboard"),
             icon: <HouseIcon />,
             href: "/account/dashboard",
         },
         {
             key: "leads",
-            label: "Leads",
+            label: t("app.menu.lead"),
             icon: <PersonIcon />,
             href: "/account/lead-contact",
         },
         {
             key: "deals",
-            label: "Deals",
+            label: t("app.menu.deal"),
             icon: <BriefcaseIcon />,
             children:
                 pipelines.length > 0
@@ -144,7 +146,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     : [
                           {
                               key: "deals-all",
-                              label: "All Deals",
+                              label: t("app.menu.allDeals"),
                               icon: null,
                               href: `/account/deals${
                                   defaultPipeline
@@ -156,13 +158,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         },
         {
             key: "tasks",
-            label: "Tasks",
+            label: t("app.menu.tasks"),
             icon: <CheckSquareIcon />,
             href: "/account/tasks",
         },
         {
             key: "properties",
-            label: "Properties",
+            label: t("app.menu.properties"),
             icon: <HouseDoorIcon />,
             href: "/account/properties",
         },
@@ -179,7 +181,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         {
             key: "settings",
             icon: <SettingOutlined />,
-            label: "Settings",
+            label: t("app.menu.settings"),
             onClick: () => router.visit("/account/settings/profile"),
         },
         {
@@ -188,7 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         {
             key: "logout",
             icon: <LogoutOutlined />,
-            label: "Sign out",
+            label: t("app.logout"),
             danger: true,
             onClick: () => router.post("/logout"),
         },
@@ -205,7 +207,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    Report Bugs
+                    {t("app.reportBugs")}
                 </a>
             ),
         },
@@ -218,7 +220,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    Request Features
+                    {t("app.requestFeatures")}
                 </a>
             ),
         },
@@ -352,11 +354,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     return (
         <aside
             className={`
-                fixed left-0 top-0 h-screen z-40
+                fixed top-0 h-screen z-40
                 flex flex-col
                 bg-[#001529]
-                border-r border-slate-700/50
                 transition-all duration-300 ease-out
+                ${isRtl ? "right-0 border-l border-slate-700/50" : "left-0 border-r border-slate-700/50"}
                 ${collapsed ? "w-[72px]" : "w-[260px]"}
             `}
         >
@@ -415,7 +417,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     >
                         <QuestionCircleOutlined className="text-lg text-slate-400" />
                         {!collapsed && (
-                            <span className="text-sm font-medium">Support</span>
+                            <span className="text-sm font-medium">{t("app.support")}</span>
                         )}
                     </div>
                 </Dropdown>
@@ -433,7 +435,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     <svg
                         className={`w-5 h-5 transition-transform duration-200 ${
                             collapsed ? "rotate-180" : ""
-                        }`}
+                        } ${isRtl ? "rotate-180" : ""}`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -446,7 +448,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                         />
                     </svg>
                     {!collapsed && (
-                        <span className="text-sm font-medium">Collapse</span>
+                        <span className="text-sm font-medium">{t("app.collapse")}</span>
                     )}
                 </button>
             </div>
