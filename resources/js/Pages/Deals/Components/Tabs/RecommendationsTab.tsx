@@ -60,7 +60,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     const [viewMode, setViewMode] = useState<ViewMode>("cards");
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
     const [addingPropertyIds, setAddingPropertyIds] = useState<Set<number>>(
-        new Set()
+        new Set(),
     );
 
     const queryPath = route("deals.recommendations.index", { deal: deal.id });
@@ -83,7 +83,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
         try {
             await axios.post(
                 route("deals.recommendations.refresh", { deal: deal.id }),
-                { limit: 10 }
+                { limit: 10 },
             );
             // Invalidate the query cache and refetch
             queryClient.invalidateQueries({ queryKey: [queryPath] });
@@ -99,7 +99,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     // Get existing product IDs from the deal
     const existingProductIds = useMemo(
         () => deal.products?.map((p) => p.id) || [],
-        [deal.products]
+        [deal.products],
     );
 
     // Add properties to deal mutation
@@ -119,13 +119,13 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                 {
                     type: "details",
                     data: { product_id: newProductIds },
-                }
+                },
             );
 
             message.success(
                 `${propertyIds.length} ${
                     propertyIds.length === 1 ? "property" : "properties"
-                } added to deal`
+                } added to deal`,
             );
 
             // Clear selection
@@ -135,7 +135,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
             router.reload({ only: ["deal", "productNames"] });
         } catch (error: any) {
             message.error(
-                error?.response?.data?.message || "Failed to add properties"
+                error?.response?.data?.message || "Failed to add properties",
             );
         } finally {
             // Remove property IDs from loading state
@@ -433,12 +433,8 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
             <div className="p-6">
                 <Row gutter={[16, 16]}>
                     {[1, 2, 3, 4].map((i) => (
-                        <Col xs={24} sm={12} lg={6} key={i}>
+                        <Col xs={24} sm={24} lg={24} key={i}>
                             <Card>
-                                <Skeleton.Image
-                                    active
-                                    style={{ width: "100%", height: 150 }}
-                                />
                                 <Skeleton active paragraph={{ rows: 3 }} />
                             </Card>
                         </Col>
@@ -593,7 +589,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
             {viewMode === "cards" && (
                 <Row gutter={[16, 16]}>
                     {recommendations.map((rec) => (
-                        <Col xs={24} sm={12} lg={8} xl={6} key={rec.rank}>
+                        <Col xs={24} sm={24} lg={24} xl={24} key={rec.rank}>
                             <RecommendationCard
                                 recommendation={rec}
                                 formatPrice={formatPrice}
@@ -602,14 +598,14 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                                 getFactorColor={getFactorColor}
                                 getFactorIcon={getFactorIcon}
                                 isInDeal={isPropertyInDeal(
-                                    rec.property?.id || null
+                                    rec.property?.id || null,
                                 )}
                                 onAddToDeal={() =>
                                     rec.property?.id &&
                                     handleAddPropertiesToDeal([rec.property.id])
                                 }
                                 isAdding={isPropertyAdding(
-                                    rec.property?.id || null
+                                    rec.property?.id || null,
                                 )}
                             />
                         </Col>
@@ -798,7 +794,7 @@ function RecommendationCard({
                                             <div className="flex items-center justify-between text-xs">
                                                 <span className="flex items-center gap-1">
                                                     {getFactorIcon(
-                                                        factor.score
+                                                        factor.score,
                                                     )}
                                                     <span className="capitalize">
                                                         {factor.name}
@@ -806,7 +802,7 @@ function RecommendationCard({
                                                 </span>
                                                 <Tag
                                                     color={getFactorColor(
-                                                        factor.score
+                                                        factor.score,
                                                     )}
                                                     style={{
                                                         fontSize: 10,
