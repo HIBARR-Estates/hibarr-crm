@@ -10,6 +10,7 @@ import {
     QuestionCircleOutlined,
     BugOutlined,
     BulbOutlined,
+    BellOutlined,
 } from "@ant-design/icons";
 
 import {
@@ -181,6 +182,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <SettingOutlined />,
             label: "Settings",
             onClick: () => router.visit("/account/settings/profile"),
+        },
+        {
+            key: "reminder-preferences",
+            icon: <BellOutlined />,
+            label: "Reminder Preferences",
+            onClick: () =>
+                router.visit("/account/settings/reminder-preferences/manage"),
         },
         {
             type: "divider",

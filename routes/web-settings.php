@@ -58,6 +58,7 @@ use App\Http\Controllers\ShiftRotationController;
 use App\Http\Controllers\SignUpSettingController;
 use App\Http\Controllers\TaxSettingController;
 use App\Http\Controllers\UnitTypeController;
+use App\Http\Controllers\UserReminderPreferenceController;
 use App\Http\Controllers\UpdateAppController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +67,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::post('app-settings/deleteSessions', [AppSettingController::class, 'deleteSessions'])->name('app-settings.delete_sessions');
     Route::resource('app-settings', AppSettingController::class);
     Route::resource('profile-settings', ProfileSettingController::class);
+
+    /* User Reminder Preferences */
+    Route::get('reminder-preferences/manage', [UserReminderPreferenceController::class, 'show'])->name('reminder-preferences.show');
+    Route::get('reminder-preferences', [UserReminderPreferenceController::class, 'index'])->name('reminder-preferences.index');
+    Route::post('reminder-preferences', [UserReminderPreferenceController::class, 'update'])->name('reminder-preferences.update');
+    Route::delete('reminder-preferences/{entityType}/reset', [UserReminderPreferenceController::class, 'reset'])->name('reminder-preferences.reset');
 
     /* 2FA */
     Route::get('2fa-codes-download', [TwoFASettingController::class, 'download'])->name('2fa_codes_download');
