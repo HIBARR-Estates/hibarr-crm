@@ -209,12 +209,12 @@ class TaskController extends AccountBaseController
         $stats = [
             'total' => $kanbanTasks->count(),
             'completed' => $kanbanTasks->filter(function ($task) {
-                return ($task->boardColumn->slug ?? '') === 'completed';
+                return ($task->boardColumn->slug ?? '') === 'done';
             })->count(),
             'overdue' => $kanbanTasks->filter(function ($task) {
                 return $task->due_date 
                     && $task->due_date->isPast() 
-                    && ($task->boardColumn->slug ?? '') !== 'completed';
+                    && ($task->boardColumn->slug ?? '') !== 'done';
             })->count(),
             'dueToday' => $kanbanTasks->filter(function ($task) {
                 return $task->due_date 
@@ -230,7 +230,7 @@ class TaskController extends AccountBaseController
                 'due_date' => $task->due_date?->format('Y-m-d H:i:s'),
                 'start_date' => $task->start_date?->format('Y-m-d H:i:s'),
                 'priority' => $task->priority,
-                'status' => $task->boardColumn->slug ?? 'incomplete',
+                'status' => $task->boardColumn->slug ?? 'to_do',
                 'board_column_id' => $task->board_column_id,
                 'completed_on' => $task->completed_on?->format('Y-m-d H:i:s'),
                 'project' => $task->project ? [
@@ -418,9 +418,9 @@ class TaskController extends AccountBaseController
         // Update tasks based on the requested status
         $taskIds = explode(',', $request->row_ids);
 
-        if ($taskBoardColumn && $taskBoardColumn->slug == 'completed') {
+        if ($taskBoardColumn && $taskBoardColumn->slug == 'done') {
             Task::whereIn('id', $taskIds)->update([
-                'status' => 'completed',
+                'status' => 'done',
                 'board_column_id' => $request->status,
                 'completed_on' => now()->format('Y-m-d')
             ]);
@@ -501,12 +501,12 @@ class TaskController extends AccountBaseController
         $taskBoardColumn = TaskboardColumn::where('slug', $status)->first();
         $task->board_column_id = $taskBoardColumn->id;
 
-        if ($task->status === 'completed' && $status !== 'completed') {
+        if ($task->status === 'done' && $status !== 'done') {
             $task->approval_send = 0; // Reset approval_send to 0
         }
 
-        if ($taskBoardColumn->slug == 'completed') {
-            $task->status = 'completed';
+        if ($taskBoardColumn->slug == 'done') {
+            $task->status = 'done';
             $task->completed_on = now()->format('Y-m-d');
         }
         else {
@@ -729,7 +729,7 @@ class TaskController extends AccountBaseController
         $this->categories = TaskCategory::all();
 
         $this->taskboardColumns = TaskboardColumn::orderBy('priority', 'asc')->get();
-        $completedTaskColumn = TaskboardColumn::where('slug', '=', 'completed')->first();
+        $completedTaskColumn = TaskboardColumn::where('slug', '=', 'done')->first();
 
         if (request()->has('default_assign') && request('default_assign') != '') {
             $this->defaultAssignee = request('default_assign');
@@ -858,7 +858,7 @@ class TaskController extends AccountBaseController
         $ganttTaskArray = [];
         $gantTaskLinkArray = [];
 
-        $taskBoardColumn = TaskboardColumn::where('slug', 'incomplete')->first();
+        $taskBoardColumn = TaskboardColumn::where('slug', 'to_do')->first();
         $task = new Task();
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
@@ -1121,7 +1121,7 @@ class TaskController extends AccountBaseController
 
         $this->taskboardColumns = TaskboardColumn::orderBy('priority', 'asc')->get();
         $this->changeStatusPermission = user()->permission('change_status');
-        $completedTaskColumn = TaskboardColumn::where('slug', '=', 'completed')->first();
+        $completedTaskColumn = TaskboardColumn::where('slug', '=', 'done')->first();
         $this->waitingApprovalTaskBoardColumn = TaskboardColumn::waitingForApprovalColumn();
         if ($completedTaskColumn) {
             $this->allTasks = Task::where('board_column_id', '<>', $completedTaskColumn->id)->whereNotNull('due_date')->where('id', '!=', $id)->where('project_id', $projectId)->get();
@@ -1270,7 +1270,7 @@ class TaskController extends AccountBaseController
             $task->approval_send = 0;
             $taskBoardColumn = TaskboardColumn::findOrFail($request->board_column_id);
 
-            if ($taskBoardColumn->slug == 'completed') {
+            if ($taskBoardColumn->slug == 'done') {
                 $task->completed_on = now()->format('Y-m-d');
             }
             else {
@@ -1706,7 +1706,7 @@ class TaskController extends AccountBaseController
             'due_date' => $task->due_date?->toISOString(),
             'start_date' => $task->start_date?->toISOString(),
             'priority' => $task->priority,
-            'status' => $task->boardColumn?->slug ?? 'incomplete',
+            'status' => $task->boardColumn?->slug ?? 'to_do',
             'board_column_id' => $task->board_column_id,
             'completed_on' => $task->completed_on?->toISOString(),
             'task_short_code' => $task->task_short_code,
@@ -1873,7 +1873,7 @@ class TaskController extends AccountBaseController
     public function sendApproval(Request $request){
 
         $task = Task::findOrFail($request->taskId);
-        $taskBoardColumn = TaskboardColumn::where('slug', 'waiting_approval')->first();
+        $taskBoardColumn = TaskboardColumn::where('slug', 'in_review')->first();
 
         $task->approval_send = $request->isApproval ?? 0;
         $task->board_column_id = $taskBoardColumn->id;
@@ -1990,7 +1990,7 @@ class TaskController extends AccountBaseController
 
         $options = '<option value="">--</option>';
 
-        $completedTaskColumn = TaskboardColumn::where('slug', '=', 'completed')->first();
+        $completedTaskColumn = TaskboardColumn::where('slug', '=', 'done')->first();
 
         $tasks = Task::where('board_column_id', '<>', $completedTaskColumn->id)->whereNotNull('due_date');
 

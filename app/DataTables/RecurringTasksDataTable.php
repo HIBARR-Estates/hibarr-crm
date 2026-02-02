@@ -789,7 +789,7 @@ class RecurringTasksDataTable extends BaseDataTable
 
     private function timer($row)
     {
-        if ($row->boardColumn->slug == 'completed' || $row->boardColumn->slug == 'waiting_approval' || is_null($row->is_task_user)) {
+        if ($row->boardColumn->slug == 'done' || $row->boardColumn->slug == 'in_review' || is_null($row->is_task_user)) {
             return null;
         }
 

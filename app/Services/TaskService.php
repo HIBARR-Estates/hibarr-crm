@@ -60,7 +60,7 @@ class TaskService
             $task->priority = $data['priority'] ?? 'medium';
             
             // Default Status
-            $taskBoardColumn = TaskboardColumn::where('slug', 'incomplete')->first();
+            $taskBoardColumn = TaskboardColumn::where('slug', 'to_do')->first();
             $task->board_column_id = $taskBoardColumn->id;
 
             // Dependent Task Logic
@@ -189,7 +189,7 @@ class TaskService
                 $task->board_column_id = $data['board_column_id'];
                 
                 $taskBoardColumn = TaskboardColumn::find($data['board_column_id']);
-                if ($taskBoardColumn && $taskBoardColumn->slug == 'completed') {
+                if ($taskBoardColumn && $taskBoardColumn->slug == 'done') {
                     $task->completed_on = now()->format('Y-m-d');
                 } else {
                     $task->completed_on = null;
@@ -290,7 +290,7 @@ class TaskService
         $taskBoardColumn = TaskboardColumn::find($columnId);
 
         // Approval Logic
-        if ($task->board_column && $task->board_column->slug === 'completed' && $taskBoardColumn && $taskBoardColumn->slug !== 'completed') {
+        if ($task->board_column && $task->board_column->slug === 'done' && $taskBoardColumn && $taskBoardColumn->slug !== 'done') {
              $task->approval_send = 0;
         }
 
@@ -300,7 +300,7 @@ class TaskService
         }
 
         // Completion Logic
-        if ($taskBoardColumn && $taskBoardColumn->slug == 'completed') {
+        if ($taskBoardColumn && $taskBoardColumn->slug == 'done') {
             $task->completed_on = now()->format('Y-m-d');
         } else {
             $task->completed_on = null;

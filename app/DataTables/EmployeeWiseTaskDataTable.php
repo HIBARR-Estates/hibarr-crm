@@ -78,9 +78,9 @@ class EmployeeWiseTaskDataTable extends BaseDataTable
             ->leftJoin('taskboard_columns', 'tasks.board_column_id', '=', 'taskboard_columns.id')
             ->select('users.*',
                 DB::raw('IFNULL(COUNT(DISTINCT task_users.task_id), "0") as total_tasks'),
-                DB::raw('SUM(CASE WHEN taskboard_columns.slug = "completed" THEN 1 ELSE 0 END) as total_tasks_completed'),
-                DB::raw('SUM(CASE WHEN taskboard_columns.slug != "completed" THEN 1 ELSE 0 END) as total_tasks_pending'),
-                DB::raw('SUM(CASE WHEN taskboard_columns.slug = "completed" AND tasks.completed_on > tasks.due_date THEN 1 ELSE 0 END) as task_missed_deadline')
+                DB::raw('SUM(CASE WHEN taskboard_columns.slug = "done" THEN 1 ELSE 0 END) as total_tasks_completed'),
+                DB::raw('SUM(CASE WHEN taskboard_columns.slug != "done" THEN 1 ELSE 0 END) as total_tasks_pending'),
+                DB::raw('SUM(CASE WHEN taskboard_columns.slug = "done" AND tasks.completed_on > tasks.due_date THEN 1 ELSE 0 END) as task_missed_deadline')
             )
             ->groupBy('users.id');
 
