@@ -26,6 +26,16 @@ class AutoFollowUpReminderListener
 
         $companyId = $event->followup->deal->company_id;
 
+        // If a specific target user is specified, send only to them
+        if ($event->targetUserId) {
+            $targetUser = User::find($event->targetUserId);
+            if ($targetUser) {
+                Notification::send($targetUser, new AutoFollowUpReminder($event->followup, $event->subject));
+            }
+            return;
+        }
+
+        // Fallback to original behavior: send to lead agent or admins
         $adminUserIds = User::allAdmins($companyId)->pluck('id')->toArray();
 
         /** @phpstan-ignore-next-line */
