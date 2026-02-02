@@ -102,6 +102,9 @@ class PropertyRecommendationService
 
             $data = $response->json();
             $recommendations = $this->enrichRecommendations($data['recommendations'] ?? $data ?? []);
+            
+            // Fetch factors for each recommendation using the compatibility endpoint
+            $recommendations = $this->enrichWithFactors($customerId, $recommendations);
 
             $result = [
                 'recommendations' => $recommendations,
@@ -125,6 +128,62 @@ class PropertyRecommendationService
                 'cached' => false,
             ];
         }
+    }
+
+    /**
+     * Enrich recommendations with factors from the compatibility endpoint.
+     * Makes parallel requests to fetch factors for each property.
+     *
+     * @param int $customerId The customer/lead ID
+     * @param array $recommendations The recommendations to enrich
+     * @return array Recommendations with factors added
+     */
+    protected function enrichWithFactors(int $customerId, array $recommendations): array
+    {
+        if (empty($recommendations)) {
+            return $recommendations;
+        }
+
+        // Collect property IDs that need factors
+        $propertyIds = collect($recommendations)
+            ->filter(fn($rec) => !empty($rec['property_id']) && empty($rec['factors']))
+            ->pluck('property_id')
+            ->toArray();
+
+        if (empty($propertyIds)) {
+            return $recommendations;
+        }
+
+        // Fetch factors for each property using HTTP pool for parallel requests
+        $responses = Http::pool(function ($pool) use ($customerId, $propertyIds) {
+            foreach ($propertyIds as $propertyId) {
+                $pool->as("prop_{$propertyId}")
+                    ->timeout($this->timeout)
+                    ->get("{$this->baseUrl}/compatibility", [
+                        'customer_id' => $customerId,
+                        'property_id' => $propertyId,
+                    ]);
+            }
+        });
+
+        // Map factors back to recommendations
+        $factorsByProperty = [];
+        foreach ($propertyIds as $propertyId) {
+            $key = "prop_{$propertyId}";
+            if (isset($responses[$key]) && $responses[$key]->successful()) {
+                $data = $responses[$key]->json();
+                $factorsByProperty[$propertyId] = $data['factors'] ?? [];
+            }
+        }
+
+        // Update recommendations with factors
+        return array_map(function ($rec) use ($factorsByProperty) {
+            $propertyId = $rec['property_id'] ?? null;
+            if ($propertyId && isset($factorsByProperty[$propertyId])) {
+                $rec['factors'] = $factorsByProperty[$propertyId];
+            }
+            return $rec;
+        }, $recommendations);
     }
 
     /**
@@ -220,11 +279,12 @@ class PropertyRecommendationService
             // If no property_id field, the recommendations might be structured differently
             // Return as-is with basic structure
             return array_map(function ($rec, $index) {
+                $score = $this->extractScore($rec);
                 return [
                     'rank' => $index + 1,
                     'property_id' => $rec['property_id'] ?? $rec['id'] ?? null,
-                    'score' => $rec['score'] ?? $rec['compatibility_score'] ?? null,
-                    'match_percentage' => isset($rec['score']) ? round($rec['score'] * 100) : null,
+                    'score' => $score,
+                    'match_percentage' => $score !== null ? round($score) : null,
                     'factors' => $rec['factors'] ?? $rec['matching_factors'] ?? [],
                     'property' => null, // No local property data
                     'raw' => $rec,
@@ -242,17 +302,54 @@ class PropertyRecommendationService
         return array_map(function ($rec, $index) use ($properties) {
             $propertyId = $rec['property_id'] ?? $rec['id'] ?? null;
             $property = $propertyId ? ($properties[$propertyId] ?? null) : null;
+            $score = $this->extractScore($rec);
 
             return [
                 'rank' => $index + 1,
                 'property_id' => $propertyId,
-                'score' => $rec['score'] ?? $rec['compatibility_score'] ?? null,
-                'match_percentage' => isset($rec['score']) ? round($rec['score'] * 100) : null,
+                'score' => $score,
+                'match_percentage' => $score !== null ? round($score) : null,
                 'factors' => $rec['factors'] ?? $rec['matching_factors'] ?? [],
                 'property' => $property ? $this->transformProperty($property) : null,
                 'raw' => $rec,
             ];
         }, $recommendations, array_keys($recommendations));
+    }
+
+    /**
+     * Extract the score from a recommendation record.
+     * Handles different field names from the API (suitability_score, score, compatibility_score).
+     *
+     * @param array $rec The recommendation record
+     * @return float|null The score as a percentage (0-100), or null if not available
+     */
+    protected function extractScore(array $rec): ?float
+    {
+        // suitability_score is already 0-100 from the recommendations endpoint
+        if (isset($rec['suitability_score'])) {
+            return (float) $rec['suitability_score'];
+        }
+
+        // score from compatibility endpoint is 0-1, convert to percentage
+        if (isset($rec['score'])) {
+            $score = (float) $rec['score'];
+            // If score is between 0 and 1, it's a decimal percentage
+            return $score <= 1 ? $score * 100 : $score;
+        }
+
+        // compatibility_score might be 0-1 or 0-100
+        if (isset($rec['compatibility_score'])) {
+            $score = (float) $rec['compatibility_score'];
+            return $score <= 1 ? $score * 100 : $score;
+        }
+
+        // overall_score from compatibility endpoint is 0-1
+        if (isset($rec['overall_score'])) {
+            $score = (float) $rec['overall_score'];
+            return $score <= 1 ? $score * 100 : $score;
+        }
+
+        return null;
     }
 
     /**
