@@ -228,7 +228,6 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            whileHover={{ scale: 1.02 }}
                             transition={{ duration: 0.2 }}
                         >
                             <KanbanTaskCard
