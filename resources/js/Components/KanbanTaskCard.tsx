@@ -93,6 +93,12 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
             style={{
                 backgroundColor: "#f3f4f545",
             }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#e5e7eb";
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#f3f4f545";
+            }}
             variant="outlined"
         >
             {/* Header: Users + Actions */}
@@ -177,13 +183,6 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                 <Text
                     strong
                     className="text-[15px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors font-medium"
-                    ellipsis={{ tooltip: title }}
-                    style={{
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                    }}
                 >
                     {title}
                 </Text>

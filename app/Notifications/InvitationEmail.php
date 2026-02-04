@@ -56,11 +56,12 @@ class InvitationEmail extends BaseNotification
 
         $build
             ->subject($this->invite->user->name . ' ' . __('email.invitation.subject') . config('app.name'))
-            ->markdown('mail.email', [
+            ->view('mail.invitation', [
                 'url' => $url,
                 'content' => $content,
                 'themeColor' => $this->company->header_color,
-                'actionText' => __('email.invitation.action')
+                'actionText' => __('email.invitation.action'),
+                'notifiableName' => $notifiable->name ?? null
             ]);
 
         parent::resetLocale();

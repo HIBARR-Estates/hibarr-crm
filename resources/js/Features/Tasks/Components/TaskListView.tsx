@@ -43,7 +43,7 @@ interface TaskListViewProps {
     onStatusChange: (
         task: Task,
         newStatus: string,
-        newColumnId: number
+        newColumnId: number,
     ) => void;
 }
 
@@ -126,7 +126,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
         if (e.target.checked) {
             onSelectionChange(
                 tasks.map((t) => t.id),
-                tasks
+                tasks,
             );
         } else {
             onSelectionChange([], []);
@@ -149,11 +149,19 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         onChange={handleSelectAll}
                     />
                 </div>
-                <div className="w-8 ml-6 flex items-center justify-center">Priority</div>
+                <div className="w-8 ml-6 flex items-center justify-center">
+                    Priority
+                </div>
                 <div className="flex-1 ml-6">Title</div>
-                <div className="w-24 ml-6 flex items-center justify-center">Status</div>
-                <div className="w-32 ml-6 hidden md:flex items-center justify-center">Assignee</div>
-                <div className="w-24 ml-6 hidden lg:flex items-center justify-center">Due</div>
+                <div className="w-24 ml-6 flex items-center justify-center">
+                    Status
+                </div>
+                <div className="w-32 ml-6 hidden md:flex items-center justify-center">
+                    Assignee
+                </div>
+                <div className="w-24 ml-6 hidden lg:flex items-center justify-center">
+                    Due
+                </div>
                 <div className="w-10 ml-6"></div>
             </div>
 
@@ -206,7 +214,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                             key={task.id}
                             className={clsx(
                                 "group flex items-center px-4 py-2 hover:bg-gray-50 transition-colors text-sm",
-                                isSelected && "bg-blue-50 hover:bg-blue-50"
+                                isSelected && "bg-blue-50 hover:bg-blue-50",
                             )}
                         >
                             {/* Checkbox */}
@@ -217,7 +225,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                     onChange={() => handleToggleSelect(task)}
                                     className={clsx(
                                         "opacity-0 group-hover:opacity-100 transition-opacity",
-                                        isSelected && "opacity-100"
+                                        isSelected && "opacity-100",
                                     )}
                                 />
                             </div>
@@ -278,7 +286,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                                 onStatusChange(
                                                     task,
                                                     col.slug,
-                                                    col.id
+                                                    col.id,
                                                 ),
                                         })),
                                     }}
@@ -324,14 +332,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                     <span
                                         className={clsx(
                                             dayjs(task.due_date).isBefore(
-                                                dayjs()
+                                                dayjs(),
                                             ) &&
-                                                task.status !== "completed" &&
-                                                "text-red-500"
+                                                task.status !== "done" &&
+                                                "text-red-500",
                                         )}
                                     >
                                         {dayjs(task.due_date).format(
-                                            "MMM D, h:mm A"
+                                            "MMM D, h:mm A",
                                         )}
                                     </span>
                                 ) : (

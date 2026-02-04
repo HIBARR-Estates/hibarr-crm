@@ -20,29 +20,18 @@ trait DealAutomationTrait
                 $followUp->load('deal');
             }
 
-            // Get timezone of the user making the request
-            $userTimezone = null;
+            // Get browser timezone from the request (required - same timezone used when saving)
+            // This should be the browser timezone that was used to convert to UTC when saving
+            $browserTimezone = request()->input('timezone');
             
-            // First, try to get timezone from the request (sent from browser/React form)
-            if (function_exists('user') && user()) {
-                $userTimezone = request()->input('timezone');
-                
-            }
-            
-
-            // Fallback to company timezone if user timezone not available
-            if (!$userTimezone) {
-                if ($followUp->deal && $followUp->deal->company) {
-                    $userTimezone = $followUp->deal->company->timezone;
-                } elseif (function_exists('company')) {
-                    $company = company();
-                    $userTimezone = $company ? $company->timezone : null;
-                }
-            }
-
-            // Final fallback to UTC
-            if (!$userTimezone) {
-                $userTimezone = 'UTC';
+            if (!$browserTimezone) {
+                // If timezone not in request, log warning but continue with UTC
+                // This might happen if automation is triggered outside of a request context
+                Log::warning('Browser timezone not found in request for follow-up automation', [
+                    'follow_up_id' => $followUp->id,
+                    'deal_id' => $followUp->deal_id,
+                ]);
+                $browserTimezone = 'UTC'; // Fallback only if absolutely necessary
             }
 
             $agentInfo = $this->getAgentInformation($followUp->deal);
@@ -60,7 +49,7 @@ trait DealAutomationTrait
                     'platform' => $followUp->location,
                     'meeting_link' => $followUp->meeting_link,
                     'next_follow_up_date' => $followUp->next_follow_up_date,
-                    'next_follow_up_date_timezone' => $userTimezone,
+                    'next_follow_up_date_timezone' => $browserTimezone,
                     'remark' => $followUp->remark,
                     'status' => $followUp->status,
                     'created_at' => $followUp->created_at->format('Y-m-d H:i:s'),

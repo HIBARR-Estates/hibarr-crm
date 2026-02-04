@@ -76,7 +76,7 @@
                             fieldName="default_task_status">
                             @foreach ($taskboardColumns as $item)
                                 <option @if ($item->id == company()->default_task_status) selected @endif value="{{ $item->id }}">
-                                    {{ $item->slug == 'completed' || $item->slug == 'incomplete' ? __('app.' . $item->slug) : $item->column_name }}</option>
+                                    {{ $item->slug == 'done' || $item->slug == 'to_do' ? __('app.' . $item->slug) : $item->column_name }}</option>
                             @endforeach
                         </x-forms.select>
                     </div>

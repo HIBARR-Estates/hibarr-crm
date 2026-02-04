@@ -198,7 +198,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         estimate_minutes: activeTask?.estimate_minutes || 0,
         board_column_id:
             activeTask?.board_column_id ||
-            columns.find((col) => col.slug === "incomplete")?.id,
+            columns.find((col) => col.slug === "to_do")?.id,
         is_private: activeTask?.is_private || false,
         billable: activeTask?.billable || false,
         without_duedate: activeTask?.without_duedate || false,

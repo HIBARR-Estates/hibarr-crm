@@ -12,7 +12,7 @@
             </a>
 
             <p class="mb-3 mx-0 f-15 text-dark-grey font-weight-bold"><i class="fa fa-circle mb-2 text-red"
-                                                                         style="color: {{ $column->label_color }}"></i>{{ $column->slug == 'completed' || $column->slug == 'incomplete' ? __('app.' . $column->slug) : $column->column_name }}
+                                                                         style="color: {{ $column->label_color }}"></i>{{ $column->slug == 'done' || $column->slug == 'to_do' ? __('app.' . $column->slug) : $column->column_name }}
             </p>
 
             <span
@@ -29,7 +29,7 @@
         <!-- TASK BOARD HEADER START -->
         <div class="d-flex m-3 b-p-header">
             <p class="mb-0 f-15 mr-3 text-dark-grey font-weight-bold"><i class="fa fa-circle mr-2 text-yellow"
-                                                                         style="color: {{ $column->label_color }}"></i>{{ $column->slug == 'completed' || $column->slug == 'incomplete' ? __('app.' . $column->slug) : $column->column_name }}
+                                                                         style="color: {{ $column->label_color }}"></i>{{ $column->slug == 'done' || $column->slug == 'to_do' ? __('app.' . $column->slug) : $column->column_name }}
             </p>
 
             <span

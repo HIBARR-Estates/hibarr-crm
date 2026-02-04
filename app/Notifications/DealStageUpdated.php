@@ -58,7 +58,7 @@ class DealStageUpdated extends BaseNotification
 
         $build
             ->subject(__('email.dealStatus.subject') . ' - ' . config('app.name'))
-            ->markdown('mail.email', [
+            ->view('mail.deal-updated', [
                 'url' => $url,
                 'content' => $content,
                 'themeColor' => $this->company->header_color,
