@@ -216,7 +216,7 @@ const TaskShow = ({
     const isOverdue =
         task.due_date &&
         dayjs().isAfter(dayjs(task.due_date)) &&
-        task.status !== "completed";
+        task.status !== "done";
     const subtasksCount = task.subtasks_count || task.subtasks?.length || 0;
     const completedSubtasksCount = task.completed_subtasks_count || 0;
     const subtaskProgress =

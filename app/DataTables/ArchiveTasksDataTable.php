@@ -140,7 +140,7 @@ class ArchiveTasksDataTable extends BaseDataTable
                 return implode(',', $members);
             })
             ->addColumn('timer', function ($row) {
-                if ($row->boardColumn->slug != 'completed' && !is_null($row->is_task_user)) {
+                if ($row->boardColumn->slug != 'done' && !is_null($row->is_task_user)) {
                     if (is_null($row->userActiveTimer)) {
                         return '<a href="javascript:;" class="text-primary btn border f-15 start-timer" data-task-id="' . $row->id . '" data-toggle="tooltip" data-original-title="' . __('modules.timeLogs.startTimer') . '"><i class="bi bi-play-circle-fill"></i></a>';
                     } else {

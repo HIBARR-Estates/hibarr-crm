@@ -146,7 +146,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
         const isOverdue =
             task.due_date &&
             dayjs(task.due_date).isBefore(dayjs(), "day") &&
-            task.status !== "completed";
+            task.status !== "done";
 
         const canEdit =
             permissions.edit_tasks === "all" ||
