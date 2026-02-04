@@ -132,4 +132,28 @@ class DealFollowUp extends BaseModel
         return $this->belongsTo(MeetingSummary::class, 'summary_id');
     }
 
+    /**
+     * Get effective reminders for a specific user
+     * 
+     * Priority:
+     * 1. Per-meeting custom reminders (if explicitly set via reminders field)
+     * 2. User's personal reminder preferences
+     * 3. System defaults (via UserReminderPreference::DEFAULT_REMINDERS)
+     * 
+     * @param int $userId
+     * @return array
+     */
+    public function getEffectiveReminders(int $userId): array
+    {
+        // If this follow-up has explicit custom reminders set, use them
+        // This preserves backward compatibility with per-meeting overrides
+        if (!empty($this->reminders)) {
+            // Merge default reminders with custom reminders for this specific meeting
+            return $this->getAllReminders();
+        }
+
+        // Otherwise, use the user's personal reminder preferences
+        return UserReminderPreference::getRemindersForUser($userId, 'meeting');
+    }
+
 }

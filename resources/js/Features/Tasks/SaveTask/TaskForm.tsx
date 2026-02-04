@@ -154,9 +154,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
             const initialValues: any = {
                 start_date: dayjs(),
                 priority: "medium",
-                board_column_id: columns.find(
-                    (col) => col.slug === "incomplete"
-                )?.id,
+                board_column_id: columns.find((col) => col.slug === "to_do")
+                    ?.id,
             };
 
             // Pre-fill related entity if provided
@@ -338,7 +337,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                             showSearch
                             filterOption={(input, option) => {
                                 const user = users.find(
-                                    (u) => u.id === option?.value
+                                    (u) => u.id === option?.value,
                                 );
                                 return (
                                     user?.name

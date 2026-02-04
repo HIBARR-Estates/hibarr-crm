@@ -69,7 +69,7 @@ class TaskObserver
                 $task->board_column_id = company()->default_task_status;
             }
             else {
-                $taskBoard = TaskboardColumn::where('slug', 'incomplete')->first();
+                $taskBoard = TaskboardColumn::where('slug', 'to_do')->first();
                 $task->board_column_id = $taskBoard->id;
             }
         }
@@ -210,9 +210,9 @@ class TaskObserver
 
             if ($task->isDirty('board_column_id')) {
 
-                if ($task->boardColumn->slug == 'completed'){
+                if ($task->boardColumn->slug == 'done'){
                     $notification = 'TaskCompleted';
-                } elseif ($task->boardColumn->slug == 'waiting_approval'){
+                } elseif ($task->boardColumn->slug == 'in_review'){
                     $notification = 'TaskApproval';
                 } else {
                     $notification = 'TaskStatusUpdated';
@@ -237,15 +237,11 @@ class TaskObserver
                         $admins = $admins->merge($projectAdmintask);
                     }
 
-                    // send task approval notification to admins
-                    event(new TaskEvent($task, $admins, $notification));
-
-                    if ($task->addedByUser) {
-                        $addedByUserRole = $task->addedByUser->roles->pluck('name')->toArray();
-
-                        if (!is_null($task->added_by) && !in_array('client', $addedByUserRole) && !in_array($task->added_by, $admins->pluck('id')->toArray())) {
-                            event(new TaskEvent($task, $task->addedByUser, $notification));
-                        }
+                // For in_review, also notify project admin if this is a project task
+                if ($task->boardColumn->slug == 'in_review' && $task->project_id && $task->project && $task->project->project_admin) {
+                    $projectAdmin = $task->project->projectAdmin;
+                    if ($projectAdmin && !in_array($projectAdmin->id, $notifiedUserIds)) {
+                        $usersToNotify = $usersToNotify->push($projectAdmin);
                     }
 
                     $taskUser = $task->users->whereNotIn('id', $admins->pluck('id'))->whereNotIn('id', [$task->added_by]);
@@ -275,7 +271,7 @@ class TaskObserver
                     ->where('task_id', $task->id)
                     ->get();
 
-                if ($timeLogs && ($task->boardColumn->slug == 'completed' || $task->boardColumn->slug == 'waiting_approval')) {
+                if ($timeLogs && ($task->boardColumn->slug == 'done' || $task->boardColumn->slug == 'in_review')) {
                     foreach ($timeLogs as $timeLog) {
 
                         $timeLog->end_time = now();

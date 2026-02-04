@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { router, useForm } from "@inertiajs/react";
-import { Typography, message } from "antd";
+import { Typography, message, Segmented } from "antd";
 import { Property } from "@/Types";
 import PropertyForm from "@/Features/Properties/SaveProperty/PropertyForm";
+import PropertyWizardForm from "@/Features/Properties/SaveProperty/PropertyWizardForm";
+import { UnorderedListOutlined, NumberOutlined } from "@ant-design/icons";
 
 // Import the new PropertyForm component
 
@@ -22,6 +24,7 @@ interface CreatePropertyProps {
     setProperty?: (property: Property | undefined) => void;
     title?: string; // Optional title
     isPage?: boolean; // True when displayed as a full page instead of drawer
+    useWizard?: boolean; // Use stepped wizard form (default: true for new, false for edit)
 }
 
 export default function CreateProperty({
@@ -33,11 +36,22 @@ export default function CreateProperty({
     setProperty,
     title = "Create New Property",
     isPage = false,
+    useWizard,
 }: CreatePropertyProps) {
     const [errors, setErrors] = useState<string[]>([]);
 
-    // Determine if we're editing or creating
-    const isEditing = !!property;
+    // Default: use wizard for new properties, tabs for editing (can be overridden)
+    const isEditing = !!property?.id;
+    const defaultFormMode = isEditing ? "tabs" : "wizard";
+    const [formMode, setFormMode] = useState<"wizard" | "tabs">(
+        useWizard === undefined
+            ? defaultFormMode
+            : useWizard
+              ? "wizard"
+              : "tabs",
+    );
+
+    // Submit button text based on mode
     const submitText = isEditing ? "Update Property" : "Create Property";
 
     // Use Inertia's useForm hook for better CSRF and error handling
@@ -152,32 +166,81 @@ export default function CreateProperty({
         ...Object.values(formErrors).flat().map(String),
     ];
 
-    const formContent = (
-        <PropertyForm
-            setProperty={setProperty}
-            data={property}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            loading={processing}
-            errors={allErrors}
-            setErrors={setErrors}
-            onErrorsClear={handleErrorsClear}
-            submitText={submitText}
-            cancelText="Cancel"
-            visible={visible}
-        />
-    );
+    // Form mode toggle options
+    const formModeOptions = [
+        {
+            value: "wizard",
+            label: "Wizard",
+            icon: <NumberOutlined />,
+        },
+        {
+            value: "tabs",
+            label: "Tabs",
+            icon: <UnorderedListOutlined />,
+        },
+    ];
+
+    const formContent =
+        formMode === "wizard" ? (
+            <PropertyWizardForm
+                setProperty={setProperty}
+                data={property}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+                loading={processing}
+                errors={allErrors}
+                setErrors={setErrors}
+                onErrorsClear={handleErrorsClear}
+                visible={visible}
+            />
+        ) : (
+            <PropertyForm
+                setProperty={setProperty}
+                data={property}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+                loading={processing}
+                errors={allErrors}
+                setErrors={setErrors}
+                onErrorsClear={handleErrorsClear}
+                submitText={submitText}
+                cancelText="Cancel"
+                visible={visible}
+            />
+        );
 
     if (isPage) {
         return (
             <div className="p-6">
-                <div className="mb-6">
+                <div className="mb-6 flex items-center justify-between">
                     <Title level={2}>{title}</Title>
+                    <Segmented
+                        options={formModeOptions}
+                        value={formMode}
+                        onChange={(value) =>
+                            setFormMode(value as "wizard" | "tabs")
+                        }
+                    />
                 </div>
                 {formContent}
             </div>
         );
     }
 
-    return <>{formContent}</>;
+    return (
+        <div>
+            {/* Form mode toggle for drawer mode */}
+            <div className="mb-4 flex justify-end">
+                <Segmented
+                    options={formModeOptions}
+                    value={formMode}
+                    onChange={(value) =>
+                        setFormMode(value as "wizard" | "tabs")
+                    }
+                    size="small"
+                />
+            </div>
+            {formContent}
+        </div>
+    );
 }

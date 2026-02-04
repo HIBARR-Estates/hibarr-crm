@@ -320,6 +320,24 @@ class PropertyAssetController extends AccountBaseController
     }
 
     /**
+     * Get available tags and asset types for property assets
+     * This is a static endpoint that doesn't require a property ID
+     */
+    public function getAssetOptions()
+    {
+        return Reply::dataOnly([
+            'tags' => collect(PropertyAsset::getAvailableTags())->map(fn($label, $value) => [
+                'value' => $value,
+                'label' => $label,
+            ])->values()->all(),
+            'types' => collect(PropertyAsset::getAvailableTypes())->map(fn($label, $value) => [
+                'value' => $value,
+                'label' => $label,
+            ])->values()->all(),
+        ]);
+    }
+
+    /**
      * Permission helpers
      */
     private function canViewProperty(Property $property): bool

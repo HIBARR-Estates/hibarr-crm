@@ -1,5 +1,5 @@
 import React from "react";
-import { Typography, Tag, Space, Button } from "antd";
+import { Typography, Tag, Space, Button, Tooltip, message } from "antd";
 import { router } from "@inertiajs/react";
 import {
     EditOutlined,
@@ -9,10 +9,20 @@ import {
     DollarOutlined,
     FilePdfOutlined,
     FolderOpenOutlined,
+    CheckCircleOutlined,
+    ClockCircleOutlined,
+    CopyOutlined,
+    GlobalOutlined,
+    EyeInvisibleOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
-import { getStatusColor, parsePropertyPrice, formatCurrencyWithSymbol } from "@/lib/utils";
+import {
+    getStatusColor,
+    parsePropertyPrice,
+    formatCurrencyWithSymbol,
+} from "@/lib/utils";
 import { usePage } from "@inertiajs/react";
+import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
 
 const { Title, Text } = Typography;
 
@@ -38,13 +48,16 @@ function PropertyHeader({
         currencies = [],
     } = props || {};
 
+    const permissions = usePropertyPermissions(property);
+
     const { amount, currency } = parsePropertyPrice(
         (property as any).price,
-        defaultCurrencyCode || "TRY"
+        defaultCurrencyCode || "TRY",
     );
 
     const resolvedSymbol =
-        currencies.find((c: any) => c?.currency_code === currency)?.currency_symbol ||
+        currencies.find((c: any) => c?.currency_code === currency)
+            ?.currency_symbol ||
         defaultCurrencySymbol ||
         "";
 
@@ -52,13 +65,62 @@ function PropertyHeader({
         router.visit(route("properties.assets.index", property.id));
     };
 
+    const handleCopyReferenceCode = () => {
+        if (property.reference_code) {
+            navigator.clipboard.writeText(property.reference_code);
+            message.success("Reference code copied to clipboard!");
+        }
+    };
+
+    const handlePublish = () => {
+        router.post(
+            route("properties.publish", property.id),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    message.success("Property published successfully!");
+                },
+            },
+        );
+    };
+
+    const handleUnpublish = () => {
+        router.post(
+            route("properties.unpublish", property.id),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    message.success("Property unpublished successfully!");
+                },
+            },
+        );
+    };
+
     return (
         <div className="mb-4">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    {/* Reference Code Badge */}
+                    {property.reference_code && (
+                        <div className="flex items-center gap-2 mb-2">
+                            <Tooltip title="Click to copy reference code">
+                                <Tag
+                                    color="geekblue"
+                                    className="text-xs cursor-pointer hover:opacity-80"
+                                    onClick={handleCopyReferenceCode}
+                                >
+                                    <CopyOutlined className="mr-1" />
+                                    {property.reference_code}
+                                </Tag>
+                            </Tooltip>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <Title level={2} className="mb-0">
-                            {property.title}
+                            {property.display_title || property.title}
                         </Title>
                         <Tag
                             color={getStatusColor(property.status)}
@@ -66,9 +128,38 @@ function PropertyHeader({
                         >
                             {property.status}
                         </Tag>
+                        {/* Publishing Status Badge */}
+                        {property.is_published !== undefined && (
+                            <Tooltip
+                                title={
+                                    property.is_published
+                                        ? "Visible to all agents"
+                                        : "Only visible to you and admins"
+                                }
+                            >
+                                <Tag
+                                    icon={
+                                        property.is_published ? (
+                                            <GlobalOutlined />
+                                        ) : (
+                                            <EyeInvisibleOutlined />
+                                        )
+                                    }
+                                    color={
+                                        property.is_published
+                                            ? "green"
+                                            : "orange"
+                                    }
+                                >
+                                    {property.is_published
+                                        ? "Published"
+                                        : "Draft"}
+                                </Tag>
+                            </Tooltip>
+                        )}
                     </div>
 
-                    <div className="flex items-center gap-4 mb-3 text-gray-600">
+                    <div className="flex items-center gap-4 mb-3 text-gray-600 flex-wrap">
                         <Space>
                             <EnvironmentOutlined />
                             <Text>
@@ -83,6 +174,9 @@ function PropertyHeader({
                             <DollarOutlined />
                             <Text>{property.sale_type}</Text>
                         </Space>
+                        {property.primary_category && (
+                            <Tag color="blue">{property.primary_category}</Tag>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2 mb-4">
@@ -97,15 +191,32 @@ function PropertyHeader({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* {canEdit && ( */}
-                        <Button
-                            icon={<FolderOpenOutlined />}
-                            onClick={handleManageAssets}
-                        >
-                            Manage Assets
-                        </Button>
-                    {/* )} */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Publish/Unpublish Button */}
+                    {permissions.canPublish &&
+                        (property.is_published ? (
+                            <Button
+                                icon={<EyeInvisibleOutlined />}
+                                onClick={handleUnpublish}
+                            >
+                                Unpublish
+                            </Button>
+                        ) : (
+                            <Button
+                                type="primary"
+                                ghost
+                                icon={<GlobalOutlined />}
+                                onClick={handlePublish}
+                            >
+                                Publish
+                            </Button>
+                        ))}
+                    <Button
+                        icon={<FolderOpenOutlined />}
+                        onClick={handleManageAssets}
+                    >
+                        Manage Assets
+                    </Button>
                     {onGenerateExpose && (
                         <Button
                             icon={<FilePdfOutlined />}
@@ -114,7 +225,7 @@ function PropertyHeader({
                             Generate Expose
                         </Button>
                     )}
-                    {canEdit && (
+                    {permissions.canEdit && (
                         <Button
                             type="primary"
                             icon={<EditOutlined />}
@@ -123,9 +234,6 @@ function PropertyHeader({
                             Edit Property
                         </Button>
                     )}
-                    {/* <Button icon={<ShareAltOutlined />} onClick={onShare}>
-                        Share
-                    </Button> */}
                 </div>
             </div>
         </div>

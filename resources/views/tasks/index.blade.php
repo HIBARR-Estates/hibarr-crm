@@ -32,7 +32,7 @@ $recurringTaskPermission = user()->permission('manage_recurring_task');
                     <option value="not finished">@lang('modules.tasks.hideCompletedTask')</option>
                     <option {{ request('status') == 'all' ? 'selected' : '' }} value="all">@lang('app.all')</option>
                     @foreach ($taskBoardStatus as $status)
-                        <option value="{{ $status->id }}">{{ $status->slug == 'completed' || $status->slug == 'incomplete' ? __('app.' . $status->slug) : $status->column_name }}</option>
+                        <option value="{{ $status->id }}">{{ $status->slug == 'done' || $status->slug == 'to_do' ? __('app.' . $status->slug) : $status->column_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -275,7 +275,7 @@ $recurringTaskPermission = user()->permission('manage_recurring_task');
                 <div class="select-status mr-3 d-none quick-action-field" id="change-status-action">
                     <select name="status" class="form-control select-picker">
                         @foreach ($taskBoardStatus as $status)
-                            <option value="{{ $status->id }}">{{ $status->slug == 'completed' || $status->slug == 'incomplete' ? __('app.' . $status->slug) : $status->column_name }}</option>
+                            <option value="{{ $status->id }}">{{ $status->slug == 'done' || $status->slug == 'to_do' ? __('app.' . $status->slug) : $status->column_name }}</option>
                         @endforeach
                     </select>
                 </div>

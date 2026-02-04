@@ -1335,4 +1335,23 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         return $this->belongsToMany(TicketReply::class, 'ticket_reply_users', 'user_id', 'ticket_reply_id');
     }
 
+    /**
+     * Get user's reminder preferences
+     */
+    public function reminderPreferences(): HasMany
+    {
+        return $this->hasMany(UserReminderPreference::class);
+    }
+
+    /**
+     * Get reminder preference for a specific entity type
+     * 
+     * @param string $entityType 'meeting', 'task', or 'all'
+     * @return array
+     */
+    public function getReminderPreference(string $entityType = 'meeting'): array
+    {
+        return UserReminderPreference::getRemindersForUser($this->id, $entityType);
+    }
+
 }

@@ -27,12 +27,149 @@ export interface PaginationLink {
 // Import DeveloperProject types
 import { DeveloperProject } from "./developerProject";
 
+// ================================================================
+// Property Enums/Types
+// ================================================================
+
+// Primary Category
+export type PrimaryCategory = "residential" | "commercial" | "land";
+
+// Unit Style (Subtype)
+export type UnitStyle =
+    | "standard"
+    | "penthouse"
+    | "loft"
+    | "garden"
+    | "duplex"
+    | "triplex"
+    | "studio";
+
+// Construction Status
+export type ConstructionStatus =
+    | "off_plan"
+    | "under_construction"
+    | "completed_new"
+    | "resale"
+    | "ruin_renovation";
+
+// View Types (multi-select)
+export type ViewType =
+    | "sea_front"
+    | "sea_view"
+    | "mountain_view"
+    | "pool_view"
+    | "garden_view"
+    | "city_view";
+
+// Occupancy Types
+export type OccupancyType = "owner_occupied" | "tenant" | "vacant";
+
+// Cities (TRNC)
+export type City =
+    | "nicosia"
+    | "kyrenia"
+    | "famagusta"
+    | "guzelyurt"
+    | "iskele"
+    | "lefke";
+
+// Enhanced Deed Types
+export type DeedType =
+    | "turkish_british"
+    | "exchange"
+    | "trnc_allocation"
+    | "leasehold"
+    | "mujahit";
+
+// Deed Status
+export type DeedStatus =
+    | "owner_individual"
+    | "owner_shared"
+    | "developer_ready"
+    | "no_deed";
+
+// Land Types
+export type LandType =
+    | "residential_zoned"
+    | "field"
+    | "residential_commercial"
+    | "commercial_zoned"
+    | "industrial_zoned"
+    | "touristic"
+    | "olive_grove";
+
+// ================================================================
+// JSON Field Interfaces
+// ================================================================
+
+export interface OwnerInfo {
+    full_name?: string;
+    telephone?: string;
+    email?: string;
+    key_holder_name?: string;
+    key_holder_phone?: string;
+}
+
+export interface LegalInfo {
+    military_distance?: string;
+    has_restrictions?: boolean;
+    restriction_notes?: string;
+    deed_status?: DeedStatus;
+    vat_paid?: boolean;
+    vat_amount?: number;
+    trafo_paid?: boolean;
+    stopaj_paid?: boolean;
+}
+
+export interface FinancialInfo {
+    owner_price?: number;
+    owner_price_currency?: string;
+    hibarr_price?: number;
+    hibarr_price_currency?: string;
+    commission_signed?: boolean;
+}
+
+export interface DocumentsChecklist {
+    search_document?: boolean;
+    sales_agreement?: boolean;
+    title_deed_copy?: boolean;
+    owner_passport?: boolean;
+    site_plan?: boolean;
+}
+
+export interface Distances {
+    sea_km?: number;
+    hospital_km?: number;
+    market_km?: number;
+    schools_km?: number;
+}
+
+export interface LandDetails {
+    land_type?: LandType;
+    price_per_donum?: number;
+    price_per_donum_currency?: string;
+    total_donums?: number;
+    development_rate_percent?: number;
+    max_floor_permission?: number;
+    location_features?: string[];
+}
+
+// ================================================================
+// Property Interface
+// ================================================================
+
 // Property Types
 export interface Property {
     id: number;
     product_id: number;
     developer_project_id?: number | null;
+    project_location_id?: number | null;
+    added_by?: number | null;
+    responsible_agent_id?: number | null;
     property_type: PropertyType;
+    primary_category?: PrimaryCategory;
+    unit_style?: UnitStyle;
+    construction_status?: ConstructionStatus;
     sale_type: "sale" | "rent";
     price: number;
     dues?: number;
@@ -42,8 +179,13 @@ export interface Property {
     title_deed_type?: TitleDeedType;
     title_deed_stage?: TitleDeedStage;
     furniture_status?: FurnitureStatus;
+    current_occupancy?: OccupancyType;
     open_to_trade: boolean;
+    open_to_swap?: boolean;
+    swap_notes?: string;
     status: PropertyStatus;
+    is_published?: boolean;
+    published_at?: string;
     city: string;
     area: string;
     block_name?: string;
@@ -54,27 +196,46 @@ export interface Property {
     floor_number?: number;
     floors_in_building?: number;
     building_age?: number;
+    completion_date?: string;
     is_furnished: boolean;
     within_site: boolean;
+    view_types?: ViewType[];
+    distances?: Distances;
     exterior_features?: string[];
     interior_features?: string[];
     location_features?: string[];
+    outside_features?: string[];
+    inside_features?: string[];
     title: string;
     description?: string;
     video_url?: string;
     tour_360_url?: string;
     map?: any;
     land_size?: number;
+    living_area_sqm?: number;
+    terrace_area_sqm?: number;
     living_room?: number;
     photos?: string[];
     add_ons?: any;
+    owner_info?: OwnerInfo;
+    legal_info?: LegalInfo;
+    financial_info?: FinancialInfo;
+    documents_checklist?: DocumentsChecklist;
+    allow_101evler?: boolean;
+    allow_hangiev?: boolean;
+    land_details?: LandDetails;
     created_at: string;
     updated_at: string;
     product?: Product;
     assets?: PropertyAsset[];
     // Relations
     developerProject?: DeveloperProject;
+    projectLocation?: ProjectLocation;
+    addedBy?: User;
+    responsibleAgent?: User;
     // Computed attributes from backend
+    reference_code: string;
+    display_title: string;
     effective_location: {
         city: string | null;
         area: string | null;
@@ -82,28 +243,107 @@ export interface Property {
     has_project_location: boolean;
 }
 
+// Project Location (simplified reference)
+export interface ProjectLocation {
+    id: number;
+    name: string;
+    description?: string;
+    address?: {
+        street?: string;
+        state?: string;
+        country?: string;
+        postalCode?: string;
+    };
+    map_url?: string;
+}
+
+// User (simplified reference)
+export interface User {
+    id: number;
+    name: string;
+    email: string;
+    image_url: string | undefined;
+}
+
 export type PropertyType =
-    | "apartment"
-    | "villa"
-    | "house"
-    | "office"
-    | "shop"
-    | "warehouse"
-    | "residential_land"
-    | "commercial_land";
+    | "Villa"
+    | "Twin Villa"
+    | "Apartment"
+    | "Family Home"
+    | "Townhouse"
+    | "Loft"
+    | "Penthouse"
+    | "Bungalow"
+    | "Commercial Property"
+    | "Block of apartments"
+    | "Complete Building"
+    | "Abandoned Building"
+    | "Residence"
+    | "Half Construction"
+    | "Time Share"
+    | "Residentially Zoned Land"
+    | "Field"
+    | "Residentially and Commercially Zoned Land"
+    | "Commercially Zoned Land"
+    | "Industrially Zoned land"
+    | "Tourism Zoned Land"
+    | "Olive Grove"
+    | "Shop"
+    | "Hotel"
+    | "Workplace"
+    | "Warehouse"
+    | "Workplace for sale"
+    | "Office";
 
 export type PropertyStatus =
-    | "available"
-    | "under_offer"
-    | "sold"
-    | "rented"
-    | "withdrawn";
+    | "Available"
+    | "Reserved"
+    | "Under offer"
+    | "Sold"
+    | "Rented"
+    | "Withdrawn";
 
-export type TitleDeedType = "green" | "blue" | "pink" | "white";
+export type TitleDeedType =
+    | "Exchange Title Deed"
+    | "Turkish Title Deed"
+    | "British Title Deed"
+    | "Tahsis Title Deed"
+    | "Mujahit Title Deed";
 
-export type TitleDeedStage = "ready" | "in_progress" | "not_available";
+export type TitleDeedStage =
+    | "Land Title Deed"
+    | "Shared Holder Title Deed"
+    | "Individual Title Deed"
+    | "Individiual (Kat Irtirfakli) Title Deed";
 
-export type FurnitureStatus = "furnished" | "semi_furnished" | "unfurnished";
+export type FurnitureStatus =
+    | "Unfurnished"
+    | "Fully Furnished"
+    | "Part Furnished"
+    | "White Goods Only";
+
+// ================================================================
+// Property Enum Values Interface (from backend)
+// ================================================================
+
+export interface PropertyEnumValues {
+    primary_categories: PrimaryCategory[];
+    unit_styles: UnitStyle[];
+    construction_statuses: ConstructionStatus[];
+    view_types: ViewType[];
+    occupancy_types: OccupancyType[];
+    cities: City[];
+    deed_types: DeedType[];
+    deed_statuses: DeedStatus[];
+    land_types: LandType[];
+    outside_features: string[];
+    inside_features: string[];
+    furniture_statuses: string[];
+    sale_types: string[];
+    statuses: string[];
+    type_codes: Record<string, string>;
+    subtype_codes: Record<string, string>;
+}
 
 // Product Interface
 export interface Product {
@@ -205,17 +445,46 @@ export interface PropertyShowProps extends PageProps {
 }
 
 // Property Asset Types
+export type AssetType = "image" | "video" | "video_url" | "tour_360_url";
+
+export type AssetTag =
+    | "hero"
+    | "facilities"
+    | "features"
+    | "area"
+    | "exterior"
+    | "interior"
+    | "floor-plan"
+    | "site-plan"
+    | "footer"
+    | "gallery";
+
+export interface AssetTagOption {
+    value: AssetTag;
+    label: string;
+}
+
+export interface AssetTypeOption {
+    value: AssetType;
+    label: string;
+}
+
+export interface PropertyAssetOptions {
+    tags: AssetTagOption[];
+    types: AssetTypeOption[];
+}
+
 export interface PropertyAsset {
     id: number;
     property_id: number;
     company_id: number;
     name: string;
-    asset_type: "image" | "video" | "video_url" | "tour_360_url";
+    asset_type: AssetType;
     file_path?: string;
     external_url?: string;
     mime_type?: string;
     file_size?: number;
-    tags?: string[];
+    tags?: AssetTag[];
     metadata?: Record<string, any>;
     order: number;
     url?: string;
@@ -228,8 +497,8 @@ export interface PropertyAsset {
 }
 
 export interface PropertyAssetFilters {
-    asset_type?: "image" | "video" | "video_url" | "tour_360_url" | "";
-    tags?: string[];
+    asset_type?: AssetType | "";
+    tags?: AssetTag[];
     search?: string;
     sort_by?: "created_at" | "name" | "size";
     sort_order?: "asc" | "desc";
@@ -260,7 +529,7 @@ export interface User {
     company_id: number;
     name: string;
     email: string;
-    image_url: string;
+    image_url: string | undefined;
     employee_detail?: {
         designation?: {
             name: string;
@@ -357,18 +626,18 @@ export interface CustomField {
 
 /** Item schema for repeatable custom fields. Stored in values when type=repeatable. */
 export type RepeatableSchemaType =
-    | 'text'
-    | 'number'
-    | 'password'
-    | 'textarea'
-    | 'select'
-    | 'radio'
-    | 'date'
-    | 'checkbox'
-    | 'country'
-    | 'currency'
-    | 'phone'
-    | 'file';
+    | "text"
+    | "number"
+    | "password"
+    | "textarea"
+    | "select"
+    | "radio"
+    | "date"
+    | "checkbox"
+    | "country"
+    | "currency"
+    | "phone"
+    | "file";
 
 export interface RepeatableItemSchema {
     key: string;
@@ -387,7 +656,14 @@ export interface DisplayConfig {
     /** Schema key to aggregate (e.g. "price", "name"). Required when useDefaultDisplay is true. */
     fieldKey?: string;
     /** How to aggregate: first, last, concat, sum, sum_currency, count, list */
-    aggregateBy?: "first" | "last" | "concat" | "sum" | "sum_currency" | "count" | "list";
+    aggregateBy?:
+        | "first"
+        | "last"
+        | "concat"
+        | "sum"
+        | "sum_currency"
+        | "count"
+        | "list";
     /** Separator for concat/list (default ", ") */
     separator?: string;
     /** Optional display template e.g. "Total: {value}" */

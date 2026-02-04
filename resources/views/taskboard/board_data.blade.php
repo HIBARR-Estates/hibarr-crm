@@ -17,7 +17,7 @@ $changeStatusPermission = user()->permission('change_status');
                 </a>
 
                 <p class="mb-3 mx-0 f-15 text-dark-grey font-weight-bold"><i class="fa fa-circle mb-2 text-red"
-                        style="color: {{ $column->label_color }}"></i>{{ $column->slug == 'completed' || $column->slug == 'incomplete' ? __('app.' . $column->slug) : $column->column_name }}</p>
+                        style="color: {{ $column->label_color }}"></i>{{ $column->slug == 'done' || $column->slug == 'to_do' ? __('app.' . $column->slug) : $column->column_name }}</p>
 
                 <span class="b-p-badge bg-grey f-13 px-2 py-2 text-lightest font-weight-bold rounded d-inline-block" id="task-column-count-{{ $column->id }}">{{ $column->tasks_count }}</span>
 
@@ -62,7 +62,7 @@ $changeStatusPermission = user()->permission('change_status');
                             <div class="dropdown-menu dropdown-menu-right border-grey rounded b-shadow-4 p-0"
                                 aria-labelledby="dropdownMenuLink" tabindex="0">
 
-                                @if (($addTaskPermission == 'all' || $addTaskPermission == 'added') && $column->slug != 'waiting_approval')
+                                @if (($addTaskPermission == 'all' || $addTaskPermission == 'added') && $column->slug != 'in_review')
                                     <a class="dropdown-item openRightModal"
                                         href="{{ route('tasks.create') }}?column_id={{ $column->id }}">@lang('app.addTask')
                                     </a>
@@ -74,7 +74,7 @@ $changeStatusPermission = user()->permission('change_status');
                                         data-column-id="{{ $column->id }}" data-status="{{ $column->slug }}" href="javascript:;">@lang('app.edit')</a>
                                 @endif
 
-                                @if ($column->slug != 'completed' && $column->slug != 'waiting_approval' && $column->slug != 'incomplete' && company()->default_task_status != $column->id && $boardDelete && $addStatusPermission == 'all')
+                                @if ($column->slug != 'done' && $column->slug != 'in_review' && $column->slug != 'to_do' && $column->slug != 'in_progress' && $column->slug != 'on_hold' && company()->default_task_status != $column->id && $boardDelete && $addStatusPermission == 'all')
                                     <a class="dropdown-item delete-column"
                                         data-column-id="{{ $column->id }}" data-status="{{ $column->slug }}"
                                         href="javascript:;">@lang('app.delete')</a>
@@ -98,7 +98,7 @@ $changeStatusPermission = user()->permission('change_status');
                                 <p class="mb-0">
                                     @if ($addTaskPermission == 'all' || $addTaskPermission == 'added')
                                         @if (isset($project))
-                                            @if($column->slug == 'waiting_approval')
+                                            @if($column->slug == 'in_review')
                                                 <div class="align-items-center d-flex flex-column text-lightest w-100">
                                                     <i class="fa fa-tasks f-15 w-100"></i>
                                                     <div class="f-15 mt-4">
@@ -109,14 +109,14 @@ $changeStatusPermission = user()->permission('change_status');
                                                 <a href="{{ route('tasks.create') }}?column_id={{ $column->id }}&task_project_id={{ $project->id }}" class="text-dark-grey openRightModal"><i class="fa fa-plus mr-2"></i>@lang('app.add')
                                                 @lang('app.task')</a>
                                             @endif
-                                        @elseif(isset($project) == false && $column->slug == 'waiting_approval')
+                                        @elseif(isset($project) == false && $column->slug == 'in_review')
                                             <div class="align-items-center d-flex flex-column text-lightest w-100">
                                                 <i class="fa fa-tasks f-15 w-100"></i>
                                                 <div class="f-15 mt-4">
                                                     - @lang('messages.noRecordFound') -
                                                 </div>
                                             </div>
-                                        @elseif(isset($project) == false && $column->slug != 'waiting_approval')
+                                        @elseif(isset($project) == false && $column->slug != 'in_review')
                                             <a href="{{ route('tasks.create') }}?column_id={{ $column->id }}" class="text-dark-grey openRightModal"><i class="fa fa-plus mr-2"></i>@lang('app.add')
                                             @lang('app.task')</a>
                                         @endif

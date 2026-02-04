@@ -122,9 +122,10 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                 className={`cursor-pointer transition-all hover:bg-gray-50 ${
                     !notification.is_read ? "bg-blue-50/50" : ""
                 }`}
-                style={{ padding: "12px 16px" }}
+                style={{ padding: "12px 16px", alignItems: "center" }}
             >
                 <List.Item.Meta
+                    style={{ alignItems: "center" }}
                     avatar={
                         <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -140,21 +141,21 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                         <div className="flex items-center justify-between">
                             <Text
                                 strong={!notification.is_read}
-                                className="text-sm truncate max-w-[180px]"
+                                className="text-sm max-w-[240px] mb-0"
                             >
                                 {notification.title}
                             </Text>
-                            {!notification.is_read && (
+                            {/* {!notification.is_read && (
                                 <Tooltip title="Mark as read">
                                     <Button
                                         type="text"
                                         size="small"
                                         icon={<CheckOutlined />}
                                         onClick={handleMarkRead}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="hidden opacity-0 group-hover:opacity-100 transition-opacity"
                                     />
                                 </Tooltip>
-                            )}
+                            )} */}
                         </div>
                     }
                     description={
@@ -175,7 +176,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                     }
                 />
                 {!notification.is_read && (
-                    <div className="w-2 h-2 rounded-full bg-blue-500 ml-2 flex-shrink-0" />
+                    <div className="w-2 h-2 rounded-full bg-[#1890ff] ml-2 flex-shrink-0" />
                 )}
             </List.Item>
         </motion.div>
