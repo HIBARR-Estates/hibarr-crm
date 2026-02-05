@@ -1,18 +1,18 @@
-import React from 'react';
-import { Dropdown, Button, Space } from 'antd';
-import { GlobalOutlined, CheckOutlined } from '@ant-design/icons';
-import type { MenuProps } from 'antd';
-import { useTranslation } from '@/hooks/useTranslation';
-import type { SupportedLocale } from '@/lib/i18n';
+import React from "react";
+import { Dropdown, Button, Space } from "antd";
+import { GlobalOutlined, CheckOutlined } from "@ant-design/icons";
+import type { MenuProps } from "antd";
+import { useTranslation } from "@/Hooks/useTranslation";
+import type { SupportedLocale } from "@/lib/i18n";
 
 // Flag emoji mapping for better visual representation
 const FLAG_EMOJI: Record<string, string> = {
-    gb: '🇬🇧',
-    ru: '🇷🇺',
-    tr: '🇹🇷',
-    de: '🇩🇪',
-    ir: '🇮🇷',
-    sa: '🇸🇦',
+    gb: "🇬🇧",
+    ru: "🇷🇺",
+    tr: "🇹🇷",
+    de: "🇩🇪",
+    ir: "🇮🇷",
+    sa: "🇸🇦",
 };
 
 interface LanguageSwitcherProps {
@@ -28,19 +28,19 @@ interface LanguageSwitcherProps {
  */
 const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
     compact = false,
-    className = '',
+    className = "",
 }) => {
     const { locale, availableLocales, changeLanguage, t } = useTranslation();
 
     // Build menu items from available locales
-    const items: MenuProps['items'] = Object.entries(availableLocales).map(
+    const items: MenuProps["items"] = Object.entries(availableLocales).map(
         ([code, lang]) => ({
             key: code,
             label: (
                 <Space className="w-full justify-between">
                     <Space>
                         <span className="text-base">
-                            {FLAG_EMOJI[lang.flag] || '🌐'}
+                            {FLAG_EMOJI[lang.flag] || "🌐"}
                         </span>
                         <span>{lang.native}</span>
                         {lang.name !== lang.native && (
@@ -59,13 +59,13 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
                     changeLanguage(code as SupportedLocale);
                 }
             },
-        })
+        }),
     );
 
     const currentLang = availableLocales[locale];
     const currentFlag = currentLang
-        ? FLAG_EMOJI[currentLang.flag] || '🌐'
-        : '🌐';
+        ? FLAG_EMOJI[currentLang.flag] || "🌐"
+        : "🌐";
 
     return (
         <Dropdown
@@ -73,18 +73,14 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
                 items,
                 selectedKeys: [locale],
             }}
-            trigger={['click']}
+            trigger={["click"]}
             placement="bottomRight"
         >
-            <Button
-                icon={<GlobalOutlined />}
-                className={className}
-                type="text"
-            >
+            <Button icon={<GlobalOutlined />} className={className} type="text">
                 {!compact && (
                     <Space>
                         <span>{currentFlag}</span>
-                        <span>{currentLang?.native || 'English'}</span>
+                        <span>{currentLang?.native || "English"}</span>
                     </Space>
                 )}
             </Button>
