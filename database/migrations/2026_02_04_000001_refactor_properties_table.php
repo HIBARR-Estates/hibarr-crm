@@ -21,138 +21,119 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Make title and description nullable
         Schema::table('properties', function (Blueprint $table) {
-            // Make title nullable (reference code will be computed dynamically)
             $table->string('title')->nullable()->change();
-            
-            // Make description nullable
             $table->text('description')->nullable()->change();
-
-            // ================================================================
-            // Core Classification Fields
-            // ================================================================
-            
-            // Primary category: residential, commercial, land
-            $table->string('primary_category')->nullable()->after('property_type');
-            
-            // Unit style: studio, penthouse, loft, garden, duplex, triplex, standard
-            $table->string('unit_style')->nullable()->after('primary_category');
-            
-            // Construction status: off_plan, under_construction, completed_new, resale, ruin_renovation
-            $table->string('construction_status')->nullable()->after('unit_style');
-            
-            // View types (multi-select): sea_front, sea_view, mountain_view, pool_view, garden_view, city_view
-            $table->json('view_types')->nullable()->after('construction_status');
-            
-            // Current occupancy: owner_occupied, tenant, vacant
-            $table->string('current_occupancy')->nullable()->after('furniture_status');
-
-            // ================================================================
-            // Location - Direct Relationship
-            // ================================================================
-            
-            // Direct link to project_locations table (priority over developer_project's location)
-            $table->foreignId('project_location_id')
-                ->nullable()
-                ->after('developer_project_id')
-                ->constrained('project_locations')
-                ->nullOnDelete();
-
-            // ================================================================
-            // Publishing & Ownership
-            // ================================================================
-            
-            // Publishing workflow
-            $table->boolean('is_published')->default(false)->after('status');
-            $table->timestamp('published_at')->nullable()->after('is_published');
-            
-            // Creator tracking (who added the property)
-            $table->foreignId('added_by')
-                ->nullable()
-                ->after('product_id')
-                ->constrained('users')
-                ->nullOnDelete();
-            
-            // Responsible agent (defaults to creator, can be changed)
-            $table->foreignId('responsible_agent_id')
-                ->nullable()
-                ->after('added_by')
-                ->constrained('users')
-                ->nullOnDelete();
-
-            // ================================================================
-            // Swap Feature
-            // ================================================================
-            
-            $table->boolean('open_to_swap')->default(false)->after('furniture_status');
-            $table->text('swap_notes')->nullable()->after('open_to_swap');
-
-            // ================================================================
-            // Distance Information
-            // ================================================================
-            
-            // Distances in JSON: {sea_km, hospital_km, market_km, schools_km}
-            $table->json('distances')->nullable()->after('map');
-
-            // ================================================================
-            // Area Measurements
-            // ================================================================
-            
-            $table->decimal('living_area_sqm', 10, 2)->nullable()->after('land_size');
-            $table->decimal('terrace_area_sqm', 10, 2)->nullable()->after('living_area_sqm');
-            $table->date('completion_date')->nullable()->after('building_age');
-
-            // ================================================================
-            // Features (Restructured)
-            // ================================================================
-            
-            // Outside features: barbeque, bounding_wall, double_glazing, car_park_closed, garage, etc.
-            $table->json('outside_features')->nullable()->after('location_features');
-            
-            // Inside features: air_condition, balcony, bath_tube, blind, built_in_kitchen, etc.
-            $table->json('inside_features')->nullable()->after('outside_features');
-
-            // ================================================================
-            // Internal/Restricted Information (JSON for flexibility)
-            // ================================================================
-            
-            // Owner info: {full_name, telephone, email, key_holder_name, key_holder_phone}
-            $table->json('owner_info')->nullable()->after('add_ons');
-            
-            // Legal info: {military_distance, has_restrictions, restriction_notes, deed_status, vat_paid, vat_amount, trafo_paid, stopaj_paid}
-            $table->json('legal_info')->nullable()->after('owner_info');
-            
-            // Financial info: {owner_price, owner_price_currency, hibarr_price, hibarr_price_currency, commission_signed}
-            $table->json('financial_info')->nullable()->after('legal_info');
-            
-            // Documents checklist: {search_document, sales_agreement, title_deed_copy, owner_passport, site_plan}
-            $table->json('documents_checklist')->nullable()->after('financial_info');
-
-            // ================================================================
-            // External Publishing Permissions
-            // ================================================================
-            
-            $table->boolean('allow_101evler')->default(false)->after('documents_checklist');
-            $table->boolean('allow_hangiev')->default(false)->after('allow_101evler');
-
-            // ================================================================
-            // Land-Specific Details (JSON for flexibility)
-            // ================================================================
-            
-            // land_details: {land_type, price_per_donum, price_per_donum_currency, total_donums, development_rate_percent, max_floor_permission, location_features: []}
-            $table->json('land_details')->nullable()->after('allow_hangiev');
-
-            // ================================================================
-            // Indexes for Performance
-            // ================================================================
-            
-            $table->index('primary_category');
-            $table->index('unit_style');
-            $table->index('construction_status');
-            $table->index('is_published');
-            $table->index(['is_published', 'status']);
-            $table->index('current_occupancy');
         });
+
+        // Add columns only if they don't exist
+        $this->addColumnIfNotExists('properties', 'primary_category', fn(Blueprint $table) => 
+            $table->string('primary_category')->nullable()->after('property_type'));
+        
+        $this->addColumnIfNotExists('properties', 'unit_style', fn(Blueprint $table) => 
+            $table->string('unit_style')->nullable()->after('primary_category'));
+        
+        $this->addColumnIfNotExists('properties', 'construction_status', fn(Blueprint $table) => 
+            $table->string('construction_status')->nullable()->after('unit_style'));
+        
+        $this->addColumnIfNotExists('properties', 'view_types', fn(Blueprint $table) => 
+            $table->json('view_types')->nullable()->after('construction_status'));
+        
+        $this->addColumnIfNotExists('properties', 'current_occupancy', fn(Blueprint $table) => 
+            $table->string('current_occupancy')->nullable()->after('furniture_status'));
+        
+        $this->addColumnIfNotExists('properties', 'project_location_id', fn(Blueprint $table) => 
+            $table->unsignedBigInteger('project_location_id')->nullable()->after('developer_project_id'));
+        
+        $this->addColumnIfNotExists('properties', 'is_published', fn(Blueprint $table) => 
+            $table->boolean('is_published')->default(false)->after('status'));
+        
+        $this->addColumnIfNotExists('properties', 'published_at', fn(Blueprint $table) => 
+            $table->timestamp('published_at')->nullable()->after('is_published'));
+        
+        // Using unsignedInteger to match users.id column type (int unsigned)
+        $this->addColumnIfNotExists('properties', 'added_by', fn(Blueprint $table) => 
+            $table->unsignedInteger('added_by')->nullable()->after('product_id'));
+        
+        $this->addColumnIfNotExists('properties', 'responsible_agent_id', fn(Blueprint $table) => 
+            $table->unsignedInteger('responsible_agent_id')->nullable()->after('added_by'));
+
+        // Fix column types if they exist but are wrong type (bigint instead of int)
+        $this->fixColumnTypeIfNeeded('properties', 'added_by', 'int unsigned');
+        $this->fixColumnTypeIfNeeded('properties', 'responsible_agent_id', 'int unsigned');
+        
+        $this->addColumnIfNotExists('properties', 'open_to_swap', fn(Blueprint $table) => 
+            $table->boolean('open_to_swap')->default(false)->after('furniture_status'));
+        
+        $this->addColumnIfNotExists('properties', 'swap_notes', fn(Blueprint $table) => 
+            $table->text('swap_notes')->nullable()->after('open_to_swap'));
+        
+        $this->addColumnIfNotExists('properties', 'distances', fn(Blueprint $table) => 
+            $table->json('distances')->nullable()->after('map'));
+        
+        $this->addColumnIfNotExists('properties', 'living_area_sqm', fn(Blueprint $table) => 
+            $table->decimal('living_area_sqm', 10, 2)->nullable()->after('land_size'));
+        
+        $this->addColumnIfNotExists('properties', 'terrace_area_sqm', fn(Blueprint $table) => 
+            $table->decimal('terrace_area_sqm', 10, 2)->nullable()->after('living_area_sqm'));
+        
+        $this->addColumnIfNotExists('properties', 'completion_date', fn(Blueprint $table) => 
+            $table->date('completion_date')->nullable()->after('building_age'));
+        
+        $this->addColumnIfNotExists('properties', 'outside_features', fn(Blueprint $table) => 
+            $table->json('outside_features')->nullable()->after('location_features'));
+        
+        $this->addColumnIfNotExists('properties', 'inside_features', fn(Blueprint $table) => 
+            $table->json('inside_features')->nullable()->after('outside_features'));
+        
+        $this->addColumnIfNotExists('properties', 'owner_info', fn(Blueprint $table) => 
+            $table->json('owner_info')->nullable()->after('add_ons'));
+        
+        $this->addColumnIfNotExists('properties', 'legal_info', fn(Blueprint $table) => 
+            $table->json('legal_info')->nullable()->after('owner_info'));
+        
+        $this->addColumnIfNotExists('properties', 'financial_info', fn(Blueprint $table) => 
+            $table->json('financial_info')->nullable()->after('legal_info'));
+        
+        $this->addColumnIfNotExists('properties', 'documents_checklist', fn(Blueprint $table) => 
+            $table->json('documents_checklist')->nullable()->after('financial_info'));
+        
+        $this->addColumnIfNotExists('properties', 'allow_101evler', fn(Blueprint $table) => 
+            $table->boolean('allow_101evler')->default(false)->after('documents_checklist'));
+        
+        $this->addColumnIfNotExists('properties', 'allow_hangiev', fn(Blueprint $table) => 
+            $table->boolean('allow_hangiev')->default(false)->after('allow_101evler'));
+        
+        $this->addColumnIfNotExists('properties', 'land_details', fn(Blueprint $table) => 
+            $table->json('land_details')->nullable()->after('allow_hangiev'));
+
+        // Add foreign keys if they don't exist
+        $this->addForeignKeyIfNotExists('properties', 'properties_project_location_id_foreign', function (Blueprint $table) {
+            $table->foreign('project_location_id')->references('id')->on('project_locations')->nullOnDelete();
+        });
+        
+        $this->addForeignKeyIfNotExists('properties', 'properties_added_by_foreign', function (Blueprint $table) {
+            $table->foreign('added_by')->references('id')->on('users')->nullOnDelete();
+        });
+        
+        $this->addForeignKeyIfNotExists('properties', 'properties_responsible_agent_id_foreign', function (Blueprint $table) {
+            $table->foreign('responsible_agent_id')->references('id')->on('users')->nullOnDelete();
+        });
+
+        // Add indexes if they don't exist
+        $this->addIndexIfNotExists('properties', 'properties_primary_category_index', fn(Blueprint $table) => 
+            $table->index('primary_category'));
+        $this->addIndexIfNotExists('properties', 'properties_unit_style_index', fn(Blueprint $table) => 
+            $table->index('unit_style'));
+        $this->addIndexIfNotExists('properties', 'properties_construction_status_index', fn(Blueprint $table) => 
+            $table->index('construction_status'));
+        $this->addIndexIfNotExists('properties', 'properties_is_published_index', fn(Blueprint $table) => 
+            $table->index('is_published'));
+        $this->addIndexIfNotExists('properties', 'properties_is_published_status_index', fn(Blueprint $table) => 
+            $table->index(['is_published', 'status']));
+        $this->addIndexIfNotExists('properties', 'properties_current_occupancy_index', fn(Blueprint $table) => 
+            $table->index('current_occupancy'));
 
         // ================================================================
         // Backfill existing data
@@ -199,8 +180,10 @@ return new class extends Migration
 
             // Drop foreign key constraints
             $table->dropConstrainedForeignId('project_location_id');
-            $table->dropConstrainedForeignId('added_by');
-            $table->dropConstrainedForeignId('responsible_agent_id');
+            $table->dropForeign(['added_by']);
+            $table->dropColumn('added_by');
+            $table->dropForeign(['responsible_agent_id']);
+            $table->dropColumn('responsible_agent_id');
 
             // Drop columns
             $table->dropColumn([
@@ -232,5 +215,73 @@ return new class extends Migration
             $table->string('title')->nullable(false)->change();
             $table->text('description')->nullable(false)->change();
         });
+    }
+
+    private function addColumnIfNotExists(string $table, string $column, callable $callback): void
+    {
+        if (!Schema::hasColumn($table, $column)) {
+            Schema::table($table, $callback);
+        }
+    }
+
+    private function addForeignKeyIfNotExists(string $table, string $keyName, callable $callback): void
+    {
+        if (!$this->foreignKeyExists($table, $keyName)) {
+            Schema::table($table, $callback);
+        }
+    }
+
+    private function addIndexIfNotExists(string $table, string $indexName, callable $callback): void
+    {
+        if (!$this->indexExists($table, $indexName)) {
+            Schema::table($table, $callback);
+        }
+    }
+
+    private function foreignKeyExists(string $table, string $keyName): bool
+    {
+        $database = config('database.connections.mysql.database');
+        $result = DB::select("
+            SELECT COUNT(*) as cnt FROM information_schema.TABLE_CONSTRAINTS 
+            WHERE CONSTRAINT_SCHEMA = ? 
+            AND TABLE_NAME = ? 
+            AND CONSTRAINT_NAME = ? 
+            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ", [$database, $table, $keyName]);
+        
+        return $result[0]->cnt > 0;
+    }
+
+    private function indexExists(string $table, string $indexName): bool
+    {
+        $database = config('database.connections.mysql.database');
+        $result = DB::select("
+            SELECT COUNT(*) as cnt FROM information_schema.STATISTICS 
+            WHERE TABLE_SCHEMA = ? 
+            AND TABLE_NAME = ? 
+            AND INDEX_NAME = ?
+        ", [$database, $table, $indexName]);
+        
+        return $result[0]->cnt > 0;
+    }
+
+    private function fixColumnTypeIfNeeded(string $table, string $column, string $expectedType): void
+    {
+        if (!Schema::hasColumn($table, $column)) {
+            return;
+        }
+
+        $database = config('database.connections.mysql.database');
+        $result = DB::select("
+            SELECT COLUMN_TYPE FROM information_schema.COLUMNS 
+            WHERE TABLE_SCHEMA = ? 
+            AND TABLE_NAME = ? 
+            AND COLUMN_NAME = ?
+        ", [$database, $table, $column]);
+
+        if (!empty($result) && $result[0]->COLUMN_TYPE !== $expectedType) {
+            // Column exists with wrong type, need to alter it
+            DB::statement("ALTER TABLE `{$table}` MODIFY `{$column}` INT UNSIGNED NULL");
+        }
     }
 };
