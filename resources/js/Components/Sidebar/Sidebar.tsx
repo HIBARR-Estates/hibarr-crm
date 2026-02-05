@@ -22,7 +22,7 @@ import {
     CheckSquareIcon,
 } from "../icons";
 import { PageProps } from "../DashboardLayout";
-import { useTranslation } from "@/hooks/useTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface Pipeline {
     id: number;
@@ -425,7 +425,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     >
                         <QuestionCircleOutlined className="text-lg text-slate-400" />
                         {!collapsed && (
-                            <span className="text-sm font-medium">{t("app.support")}</span>
+                            <span className="text-sm font-medium">
+                                {t("app.support")}
+                            </span>
                         )}
                     </div>
                 </Dropdown>
@@ -456,7 +458,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                         />
                     </svg>
                     {!collapsed && (
-                        <span className="text-sm font-medium">{t("app.collapse")}</span>
+                        <span className="text-sm font-medium">
+                            {t("app.collapse")}
+                        </span>
                     )}
                 </button>
             </div>
