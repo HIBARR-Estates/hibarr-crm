@@ -83,7 +83,7 @@ export default function BasicInfoStep({
     return (
         <Card size="small" className="border-0 shadow-none">
             <Row gutter={[16, 0]}>
-                <Col span={24}>
+                {/* <Col span={24}>
                     <Form.Item
                         name="title"
                         label="Property Title"
@@ -91,7 +91,7 @@ export default function BasicInfoStep({
                     >
                         <Input placeholder="Enter property title (optional - reference code will be auto-generated)" />
                     </Form.Item>
-                </Col>
+                </Col> */}
 
                 <Col xs={24} md={12}>
                     <Form.Item
