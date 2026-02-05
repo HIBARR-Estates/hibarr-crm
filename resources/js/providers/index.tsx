@@ -11,23 +11,22 @@ import { TranslationProvider } from "@/contexts/TranslationContext";
 export const OuterProviders: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
-    return (
-        <ReactQueryProvider>
-            <AntdConfigProvider>{children}</AntdConfigProvider>
-        </ReactQueryProvider>
-    );
+    return <ReactQueryProvider>{children}</ReactQueryProvider>;
 };
 
 /**
  * Providers that DO require Inertia context (usePage)
  * These must be rendered inside the Inertia <App /> component
+ * Note: AntdConfigProvider uses usePage() for locale/RTL settings
  */
 export const InnerProviders: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     return (
         <TranslationProvider>
-            <FilterProvider>{children}</FilterProvider>
+            <AntdConfigProvider>
+                <FilterProvider>{children}</FilterProvider>
+            </AntdConfigProvider>
         </TranslationProvider>
     );
 };
