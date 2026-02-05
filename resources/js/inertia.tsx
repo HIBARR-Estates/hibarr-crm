@@ -49,13 +49,14 @@ createInertiaApp({
             const component = require(`./Pages/${name}`).default;
             // console.log("Successfully loaded component:", component);
 
-            // Wrap each page component with InnerProviders (which need Inertia context)
+            // Always wrap with InnerProviders (which need Inertia context)
             // This ensures TranslationProvider has access to usePage()
-            if (!component.layout) {
-                component.layout = (page: React.ReactNode) => (
-                    <InnerProviders>{page}</InnerProviders>
-                );
-            }
+            const existingLayout = component.layout;
+            component.layout = (page: React.ReactNode) => (
+                <InnerProviders>
+                    {existingLayout ? existingLayout(page) : page}
+                </InnerProviders>
+            );
 
             return component;
         } catch (e) {
