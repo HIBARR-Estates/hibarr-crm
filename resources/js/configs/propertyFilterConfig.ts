@@ -20,6 +20,18 @@ export const createPropertyFilterConfig = (
             span: 24,
         },
         {
+            key: "publishing_status",
+            label: "Publishing Status",
+            type: "select",
+            placeholder: "Select publishing status",
+            span: 12,
+            options: [
+                { value: "all", label: "All" },
+                { value: "published", label: "Published" },
+                { value: "draft", label: "My Drafts" },
+            ],
+        },
+        {
             key: "developer_project_id",
             label: "Developer Project",
             type: "select",

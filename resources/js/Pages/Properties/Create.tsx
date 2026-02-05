@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { router, useForm } from "@inertiajs/react";
+import React, { useState, useEffect, useCallback } from "react";
+import { router } from "@inertiajs/react";
 import { Typography, message, Segmented } from "antd";
 import { Property } from "@/Types";
 import PropertyForm from "@/Features/Properties/SaveProperty/PropertyForm";
 import PropertyWizardForm from "@/Features/Properties/SaveProperty/PropertyWizardForm";
 import { UnorderedListOutlined, NumberOutlined } from "@ant-design/icons";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiSuccessResponse } from "@/lib/api/types";
 
 // Import the new PropertyForm component
 
@@ -38,8 +40,6 @@ export default function CreateProperty({
     isPage = false,
     useWizard,
 }: CreatePropertyProps) {
-    const [errors, setErrors] = useState<string[]>([]);
-
     // Default: use wizard for new properties, tabs for editing (can be overridden)
     const isEditing = !!property?.id;
     const defaultFormMode = isEditing ? "tabs" : "wizard";
@@ -54,98 +54,114 @@ export default function CreateProperty({
     // Submit button text based on mode
     const submitText = isEditing ? "Update Property" : "Create Property";
 
-    // Use Inertia's useForm hook for better CSRF and error handling
-    const {
-        data,
-        setData,
-        submit,
-        processing,
-        errors: formErrors,
-        reset,
-    } = useForm({});
+    // Form errors state
+    const [errors, setErrors] = useState<string[]>([]);
+    const [formErrors, setFormErrors] = useState<Record<string, string[]>>({});
 
-    const [pushing, setPushing] = useState(false);
+    // Create property mutation
+    const createMutation = useApiMutate<
+        any,
+        Property,
+        ApiSuccessResponse<Property>
+    >(route("properties.store"), "POST", (res) => {
+        if (res?.status === "success") {
+            if (onSuccess) {
+                onSuccess();
+            } else if (!isPage) {
+                onClose?.();
+            } else {
+                router.visit(route("properties.index"));
+            }
+        }
+    });
 
-    useEffect(() => {
-        if (pushing) {
-            // Handle the pushing state
+    // Update property mutation
+    const updateMutation = useApiMutate<
+        any,
+        Property,
+        ApiSuccessResponse<Property> & { property?: Property }
+    >(
+        isEditing ? route("properties.update", property?.id) : "",
+        "PUT",
+        (res) => {
+            if (res?.status === "success") {
+                // Update the property state if setter is provided
+                // Backend returns property at root level via Reply::successWithData
+                const updatedProperty = res.data || (res as any).property;
+                if (updatedProperty) {
+                    setProperty?.(updatedProperty);
+                }
+
+                if (onSuccess) {
+                    onSuccess();
+                } else if (!isPage) {
+                    onClose?.();
+                } else {
+                    router.visit(route("properties.index"));
+                }
+            }
+        },
+    );
+
+    // Combined loading state
+    const processing = createMutation.isPending || updateMutation.isPending;
+
+    const handleSubmit = useCallback(
+        (formData: any) => {
+            // Clear previous errors
+            setErrors([]);
+            setFormErrors({});
+
+            // Transform the values to match the API expectations
+            const submitData = {
+                ...formData,
+                within_site: formData.within_site || false,
+                // Handle city - convert array to string if needed
+                city: Array.isArray(formData.city)
+                    ? formData.city[0] || ""
+                    : formData.city || "",
+                // Handle array fields
+                exterior_features: formData.exterior_features || [],
+                interior_features: formData.interior_features || [],
+                location_features: formData.location_features || [],
+                photos: formData.photos || [],
+                add_ons: formData.add_ons || [],
+            };
+
             if (isEditing) {
-                submit("put", route("properties.update", property.id), {
-                    onSuccess: (res) => {
-                        // TODO: Update the returned property response to property to enable othe tab fields to be editable
-                        // setProperty?.(res);
-                        setPushing(false);
-
-                        const successMessage = "Property updated successfully";
-                        message.success(successMessage);
-
-                        if (onSuccess) {
-                            onSuccess();
-                        } else if (!isPage) {
-                            onClose?.();
-                        } else {
-                            router.visit(route("properties.index"));
+                updateMutation.mutate(submitData, {
+                    onError: (error: any) => {
+                        if (error?.errors) {
+                            setFormErrors(error.errors);
+                            const errorMessages = Object.values(
+                                error.errors,
+                            ).flat() as string[];
+                            setErrors(errorMessages);
+                        } else if (error?.message) {
+                            setErrors([error.message]);
                         }
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-
-                        const errorMessages = Object.values(errors).flat();
-                        setErrors(errorMessages as string[]);
                         message.error("Please check the form for errors");
                     },
                 });
             } else {
-                submit("post", route("properties.store"), {
-                    onSuccess: (page) => {
-                        // TODO: Update the returned property response to property to enable othe tab fields to be editable
-                        // setProperty?.(res);
-                        console.log(page, "post page ....");
-
-                        setPushing(false);
-                        const successMessage = "Property created successfully";
-                        message.success(successMessage);
-                        reset();
-
-                        if (onSuccess) {
-                            onSuccess();
-                        } else if (!isPage) {
-                            onClose?.();
-                        } else {
-                            router.visit(route("properties.index"));
+                createMutation.mutate(submitData, {
+                    onError: (error: any) => {
+                        if (error?.errors) {
+                            setFormErrors(error.errors);
+                            const errorMessages = Object.values(
+                                error.errors,
+                            ).flat() as string[];
+                            setErrors(errorMessages);
+                        } else if (error?.message) {
+                            setErrors([error.message]);
                         }
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-                        const errorMessages = Object.values(errors).flat();
-                        setErrors(errorMessages as string[]);
                         message.error("Please check the form for errors");
                     },
                 });
             }
-        }
-    }, [pushing]);
-
-    const handleSubmit = (formData: any) => {
-        // Clear previous errors
-        setErrors([]);
-
-        // Transform the values to match the API expectations
-        const submitData = {
-            ...formData,
-            within_site: formData.within_site || false,
-            // Handle array fields
-            exterior_features: formData.exterior_features || [],
-            interior_features: formData.interior_features || [],
-            location_features: formData.location_features || [],
-            photos: formData.photos || [],
-            add_ons: formData.add_ons || [],
-        };
-
-        // Update the form data
-        setData(submitData);
-        setPushing(true);
-    };
+        },
+        [isEditing, createMutation, updateMutation],
+    );
 
     const handleCancel = () => {
         if (isPage) {
@@ -154,17 +170,16 @@ export default function CreateProperty({
             onClose?.();
         }
         setErrors([]);
+        setFormErrors({});
     };
 
     const handleErrorsClear = () => {
         setErrors([]);
+        setFormErrors({});
     };
 
-    // Combine form errors with manual errors
-    const allErrors = [
-        ...errors,
-        ...Object.values(formErrors).flat().map(String),
-    ];
+    // All errors combined (errors array already contains flattened formErrors)
+    const allErrors = errors;
 
     // Form mode toggle options
     const formModeOptions = [

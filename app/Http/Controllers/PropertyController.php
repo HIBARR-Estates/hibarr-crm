@@ -304,10 +304,42 @@ class PropertyController extends AccountBaseController
             return back()->withErrors(['duplicate' => $e->getMessage()])->withInput();
         }
 
+        // Extract numeric price for Product model (expects simple number)
+        $productPrice = 0;
+        if ($request->price) {
+            if (is_numeric($request->price)) {
+                $productPrice = $request->price;
+            } elseif (is_array($request->price) && isset($request->price['amount'])) {
+                $productPrice = (float) $request->price['amount'];
+            } elseif (is_string($request->price)) {
+                $decoded = json_decode($request->price, true);
+                if (is_array($decoded) && isset($decoded['amount'])) {
+                    $productPrice = (float) $decoded['amount'];
+                }
+            }
+        }
+
+        // Generate a default product name if title is not provided
+        $productName = $request->title;
+        if (empty($productName)) {
+            // Create a descriptive name from property type, city, and area
+            $nameParts = [];
+            if ($request->property_type) {
+                $nameParts[] = $request->property_type;
+            }
+            if ($request->city) {
+                $nameParts[] = 'in ' . $request->city;
+            }
+            if ($request->area) {
+                $nameParts[] = '(' . $request->area . ')';
+            }
+            $productName = !empty($nameParts) ? implode(' ', $nameParts) : 'Property ' . now()->format('Y-m-d H:i:s');
+        }
+
         // create the product first, and then attach the product_id to property
         $product = Product::create([
-                    'name' => $request->title,
-                    'price' => $request->price ?? 0,
+                    'name' => $productName,
+                    'price' => $productPrice,
                     'description' => $request->description ?? '',
                     'allow_purchase' => $request->status == Property::STATUS_AVAILABLE ? 1 : 0, //TODO: Reach out to Team lead to confirm business specifications
                     'company_id' => user()->company_id,
@@ -319,6 +351,7 @@ class PropertyController extends AccountBaseController
 
         $property = new Property();
         $property->company_id = user()->company_id;
+        $property->added_by = user()->id;
         $property->product_id = $product->id;
         $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
@@ -331,7 +364,7 @@ class PropertyController extends AccountBaseController
         $property->title_deed_type = $request->title_deed_type;
         $property->title_deed_stage = $request->title_deed_stage;
         $property->status = $request->status ?? Property::STATUS_AVAILABLE;
-        $property->city = $request->city;
+        $property->city = $request->city ?? '';
         $property->map = $request->map;
         $property->area = $request->area;
         $property->land_size = $request->land_size;

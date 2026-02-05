@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { Link, router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
-import { Table, Button } from "antd";
+import { Table, Button, Segmented } from "antd";
 import type { MenuProps } from "antd";
 import {
     PlusOutlined,
@@ -12,6 +12,9 @@ import {
     DeleteOutlined,
     ImportOutlined,
     FilterOutlined,
+    GlobalOutlined,
+    FileTextOutlined,
+    AppstoreOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -150,6 +153,47 @@ const Index = ({
     // Extract commonly used values
     const { openDrawer, filters } = filter;
 
+    // Get current publishing status from URL params or default to 'all'
+    const currentPublishingStatus = useMemo(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get("publishing_status") || "all";
+    }, [filters]);
+
+    // Handle publishing status change
+    const handlePublishingStatusChange = (value: string) => {
+        router.get(
+            route("properties.index"),
+            {
+                ...filters,
+                publishing_status: value === "all" ? undefined : value,
+                page: 1, // Reset to first page on status change
+            },
+            {
+                preserveState: true,
+                preserveScroll: false,
+            },
+        );
+    };
+
+    // Publishing status options for the segmented control
+    const publishingStatusOptions = [
+        {
+            value: "all",
+            label: "All",
+            icon: <AppstoreOutlined />,
+        },
+        {
+            value: "published",
+            label: "Published",
+            icon: <GlobalOutlined />,
+        },
+        {
+            value: "draft",
+            label: "My Drafts",
+            icon: <FileTextOutlined />,
+        },
+    ];
+
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "properties.index" });
 
@@ -220,6 +264,18 @@ const Index = ({
                 filterSection={<ContextualActiveFilters />}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Publishing Status Toggle */}
+                    <div className="flex justify-center">
+                        <Segmented
+                            options={publishingStatusOptions}
+                            value={currentPublishingStatus}
+                            onChange={(value) =>
+                                handlePublishingStatusChange(value as string)
+                            }
+                            size="large"
+                        />
+                    </div>
+
                     {/* Header with Actions */}
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">

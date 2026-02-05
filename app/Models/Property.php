@@ -41,16 +41,32 @@ class Property extends BaseModel
     const TITLE_DEED_BRITISH = 'British Title Deed';
     const TITLE_DEED_TAHSIS = 'Tahsis Title Deed';
     const TITLE_DEED_MUJAHIT = 'Mujahit Title Deed';
+    // Additional deed types from frontend
+    const TITLE_DEED_FREEHOLD = 'Freehold';
+    const TITLE_DEED_LEASEHOLD = 'Leasehold';
+    const TITLE_DEED_EXCHANGE_KAT = 'Exchange (Kat Irtifakı)';
+    const TITLE_DEED_FULL_OWNERSHIP = 'Full Ownership (Kat Mülkiyeti)';
+    const TITLE_DEED_SHARED = 'Shared Title';
+    const TITLE_DEED_FLOOR_EASEMENT = 'Floor Easement';
+    const TITLE_DEED_LAND_REGISTRY = 'Land Registry';
 
     // Title Deed Stages
     const TITLE_DEED_STAGE_LAND = 'Land Title Deed';
     const TITLE_DEED_STAGE_SHARED = 'Shared Holder Title Deed';
     const TITLE_DEED_STAGE_INDIVIDUAL = 'Individual Title Deed';
     const TITLE_DEED_STAGE_KAT_IRTIRFAKLI = 'Individiual (Kat Irtirfakli) Title Deed';
+    // Additional deed statuses from frontend
+    const TITLE_DEED_STAGE_READY = 'Ready';
+    const TITLE_DEED_STAGE_IN_PROGRESS = 'In Progress';
+    const TITLE_DEED_STAGE_PENDING = 'Pending';
+    const TITLE_DEED_STAGE_APPLIED = 'Applied';
+    const TITLE_DEED_STAGE_UNDER_REVIEW = 'Under Review';
 
     // Furniture Status
     const FURNITURE_UNFURNISHED = 'Unfurnished';
     const FURNITURE_FULLY_FURNISHED = 'Fully Furnished';
+    const FURNITURE_FURNISHED = 'Furnished';
+    const FURNITURE_SEMI_FURNISHED = 'Semi-Furnished';
     const FURNITURE_PART_FURNISHED = 'Part Furnished';
     const FURNITURE_WHITE_GOODS_ONLY = 'White Goods Only';
 
@@ -478,7 +494,8 @@ class Property extends BaseModel
         $attempt = 0;
         while (true) {
             try {
-                return parent::save($options);
+                $result = parent::save($options);
+                return $result === true || $result === null ? true : (bool) $result;
             } catch (QueryException $e) {
                 $isUniqueViolation = $e->getCode() === '23000'
                     || str_contains($e->getMessage(), 'Duplicate entry')

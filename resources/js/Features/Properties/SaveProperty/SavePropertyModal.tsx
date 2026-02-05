@@ -3,7 +3,7 @@ import { IndexProps } from "@/Pages/Properties/Index";
 import { Property } from "@/Types";
 import { IModalProps } from "@/Types/common";
 import { router, usePage } from "@inertiajs/react";
-import { message, Modal } from "antd";
+import { Modal } from "antd";
 import React from "react";
 
 interface Props extends Omit<IModalProps, "onClose"> {
@@ -21,6 +21,12 @@ const SavePropertyModal: React.FC<Props> = ({
     const isEditing = !!property?.id;
     const title = isEditing ? "Edit Property" : "Create New Property";
 
+    const handleSuccess = () => {
+        onClose();
+        // Refresh the properties list to show newly created/updated property
+        router.reload({ only: ["properties"] });
+    };
+
     return (
         <Modal
             title={title}
@@ -28,8 +34,11 @@ const SavePropertyModal: React.FC<Props> = ({
             // size="large"
             open={open}
             onCancel={onClose}
-            // width="80%"
-            // style={{ maxWidth: "1200px" }}
+            footer={null}
+            width={1000}
+            destroyOnHidden
+            maskClosable={false}
+            className="top-8"
         >
             <CreateProperty
                 visible={open}
@@ -37,16 +46,7 @@ const SavePropertyModal: React.FC<Props> = ({
                 setProperty={setProperty}
                 products={[]}
                 onClose={onClose}
-                onSuccess={() => {
-                    onClose();
-                    // Refresh the properties list
-                    router.reload();
-                    message.success(
-                        isEditing
-                            ? "Property updated successfully"
-                            : "Property created successfully",
-                    );
-                }}
+                onSuccess={handleSuccess}
             />
         </Modal>
     );
