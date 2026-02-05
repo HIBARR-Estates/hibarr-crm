@@ -17,7 +17,7 @@ export const PROPERTY_TABLE_COLUMNS = (
     actionItems?: (item: Property) => MenuProps["items"],
     currencies: any[] = [],
     defaultCurrencyCode: string | null | undefined = "TRY",
-    defaultCurrencySymbol: string | null | undefined = ""
+    defaultCurrencySymbol: string | null | undefined = "",
 ): ColumnsType<Property> => [
     {
         title: (
@@ -26,15 +26,17 @@ export const PROPERTY_TABLE_COLUMNS = (
                 <PageDataSorter field="title" routeName="properties.index" />
             </span>
         ),
-        dataIndex: "title",
+        dataIndex: "display_title",
         key: "title",
         width: 250,
-        render: (title: string, record: Property) => (
+        render: (displayTitle: string, record: Property) => (
             <Link
                 href={route("properties.show", record.id)}
                 className="font-medium text-blue-600 hover:text-blue-800"
             >
-                {title}
+                {record?.reference_code ||
+                    displayTitle ||
+                    `Property #${record.id}`}
             </Link>
         ),
     },
@@ -73,10 +75,11 @@ export const PROPERTY_TABLE_COLUMNS = (
         render: (price: any, record: Property) => {
             const { amount, currency } = parsePropertyPrice(
                 price,
-                defaultCurrencyCode || "TRY"
+                defaultCurrencyCode || "TRY",
             );
             const symbol =
-                currencies.find((c: any) => c?.currency_code === currency)?.currency_symbol ||
+                currencies.find((c: any) => c?.currency_code === currency)
+                    ?.currency_symbol ||
                 defaultCurrencySymbol ||
                 "";
 
