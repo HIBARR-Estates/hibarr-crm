@@ -4,7 +4,7 @@ import { theme } from "antd";
 import { PageProps as InertiaPageProps } from "@inertiajs/core";
 import { AuthType } from "@/Types";
 import Sidebar from "./Sidebar/Sidebar";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 interface SidebarPermissions {
     [key: string]: number | string;
