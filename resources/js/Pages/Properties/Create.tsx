@@ -231,14 +231,16 @@ export default function CreateProperty({
         <div>
             {/* Form mode toggle for drawer mode */}
             <div className="mb-4 flex justify-end">
-                <Segmented
-                    options={formModeOptions}
-                    value={formMode}
-                    onChange={(value) =>
-                        setFormMode(value as "wizard" | "tabs")
-                    }
-                    size="small"
-                />
+                {isEditing ? (
+                    <Segmented
+                        options={formModeOptions}
+                        value={formMode}
+                        onChange={(value) =>
+                            setFormMode(value as "wizard" | "tabs")
+                        }
+                        size="small"
+                    />
+                ) : null}
             </div>
             {formContent}
         </div>
