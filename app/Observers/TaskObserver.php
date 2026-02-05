@@ -237,14 +237,18 @@ class TaskObserver
                         $admins = $admins->merge($projectAdmintask);
                     }
 
-                // For in_review, also notify project admin if this is a project task
-                if ($task->boardColumn->slug == 'in_review' && $task->project_id && $task->project && $task->project->project_admin) {
+                    $taskUser = $task->users->whereNotIn('id', $admins->pluck('id'))->whereNotIn('id', [$task->added_by]);
+
+                } elseif ($task->boardColumn->slug == 'in_review' && $task->project_id && $task->project && $task->project->project_admin) {
+                    // For in_review, also notify project admin if this is a project task
                     $projectAdmin = $task->project->projectAdmin;
-                    if ($projectAdmin && !in_array($projectAdmin->id, $notifiedUserIds)) {
-                        $usersToNotify = $usersToNotify->push($projectAdmin);
+                    $notifiedUserIds = [];
+                    
+                    if ($projectAdmin) {
+                        $notifiedUserIds[] = $projectAdmin->id;
                     }
 
-                    $taskUser = $task->users->whereNotIn('id', $admins->pluck('id'))->whereNotIn('id', [$task->added_by]);
+                    $taskUser = $task->users->whereNotIn('id', $notifiedUserIds);
 
                 } else {
                     // For TaskCompleted and TaskStatusUpdated, only notify task assignees and creator
@@ -265,6 +269,7 @@ class TaskObserver
 
                     $taskUser = $taskUser->whereNotIn('id', $notifiedUserIds);
                 }
+                
                 event(new TaskEvent($task, $taskUser, $notification));
 
                 $timeLogs = ProjectTimeLog::with('user')->whereNull('end_time')
