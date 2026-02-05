@@ -3,7 +3,7 @@ import { IndexProps } from "@/Pages/Properties/Index";
 import { Property } from "@/Types";
 import { IModalProps } from "@/Types/common";
 import { router, usePage } from "@inertiajs/react";
-import { Drawer, message } from "antd";
+import { message, Modal } from "antd";
 import React from "react";
 
 interface Props extends Omit<IModalProps, "onClose"> {
@@ -22,12 +22,12 @@ const SavePropertyModal: React.FC<Props> = ({
     const title = isEditing ? "Edit Property" : "Create New Property";
 
     return (
-        <Drawer
+        <Modal
             title={title}
-            placement="right"
-            size="large"
+            // placement="right"
+            // size="large"
             open={open}
-            onClose={onClose}
+            onCancel={onClose}
             // width="80%"
             // style={{ maxWidth: "1200px" }}
         >
@@ -42,13 +42,13 @@ const SavePropertyModal: React.FC<Props> = ({
                     // Refresh the properties list
                     router.reload();
                     message.success(
-                        isEditing 
-                            ? "Property updated successfully" 
-                            : "Property created successfully"
+                        isEditing
+                            ? "Property updated successfully"
+                            : "Property created successfully",
                     );
                 }}
             />
-        </Drawer>
+        </Modal>
     );
 };
 
