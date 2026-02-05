@@ -319,6 +319,7 @@ class PropertyController extends AccountBaseController
 
         $property = new Property();
         $property->company_id = user()->company_id;
+        $property->added_by = user()->id;
         $property->product_id = $product->id;
         $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
