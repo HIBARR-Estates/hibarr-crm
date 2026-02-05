@@ -104,7 +104,14 @@ class StoreRequest extends CoreRequest
                     Property::TITLE_DEED_TURKISH,
                     Property::TITLE_DEED_BRITISH,
                     Property::TITLE_DEED_TAHSIS,
-                    Property::TITLE_DEED_MUJAHIT
+                    Property::TITLE_DEED_MUJAHIT,
+                    Property::TITLE_DEED_FREEHOLD,
+                    Property::TITLE_DEED_LEASEHOLD,
+                    Property::TITLE_DEED_EXCHANGE_KAT,
+                    Property::TITLE_DEED_FULL_OWNERSHIP,
+                    Property::TITLE_DEED_SHARED,
+                    Property::TITLE_DEED_FLOOR_EASEMENT,
+                    Property::TITLE_DEED_LAND_REGISTRY,
                 ])
             ],
             'title_deed_stage' => [
@@ -114,7 +121,12 @@ class StoreRequest extends CoreRequest
                     Property::TITLE_DEED_STAGE_LAND,
                     Property::TITLE_DEED_STAGE_SHARED,
                     Property::TITLE_DEED_STAGE_INDIVIDUAL,
-                    Property::TITLE_DEED_STAGE_KAT_IRTIRFAKLI
+                    Property::TITLE_DEED_STAGE_KAT_IRTIRFAKLI,
+                    Property::TITLE_DEED_STAGE_READY,
+                    Property::TITLE_DEED_STAGE_IN_PROGRESS,
+                    Property::TITLE_DEED_STAGE_PENDING,
+                    Property::TITLE_DEED_STAGE_APPLIED,
+                    Property::TITLE_DEED_STAGE_UNDER_REVIEW,
                 ])
             ],
             'status' => [
@@ -158,6 +170,8 @@ class StoreRequest extends CoreRequest
                 Rule::in([
                     Property::FURNITURE_UNFURNISHED,
                     Property::FURNITURE_FULLY_FURNISHED,
+                    Property::FURNITURE_FURNISHED,
+                    Property::FURNITURE_SEMI_FURNISHED,
                     Property::FURNITURE_PART_FURNISHED,
                     Property::FURNITURE_WHITE_GOODS_ONLY
                 ])
