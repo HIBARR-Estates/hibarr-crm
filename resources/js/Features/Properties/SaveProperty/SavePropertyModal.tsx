@@ -28,8 +28,11 @@ const SavePropertyModal: React.FC<Props> = ({
             // size="large"
             open={open}
             onCancel={onClose}
-            // width="80%"
-            // style={{ maxWidth: "1200px" }}
+            footer={null}
+            width={1000}
+            destroyOnHidden
+            maskClosable={false}
+            className="top-8"
         >
             <CreateProperty
                 visible={open}
