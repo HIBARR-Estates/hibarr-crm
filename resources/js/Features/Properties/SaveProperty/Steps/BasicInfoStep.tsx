@@ -9,6 +9,7 @@ import {
     AutoComplete,
     Divider,
     Alert,
+    InputNumber,
 } from "antd";
 import { FormInstance } from "antd/lib/form";
 import { Property, PropertyEnumValues } from "@/Types";
@@ -107,6 +108,7 @@ export default function BasicInfoStep({
     const projectLocations = (props?.projectLocations ||
         []) as ProjectLocation[];
     const cities = enumValues?.cities || [];
+    const unitStyles = enumValues?.unit_styles || [];
 
     const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
         data?.developer_project_id ?? null,
@@ -202,6 +204,66 @@ export default function BasicInfoStep({
                                 </Option>
                             ))}
                         </Select>
+                    </Form.Item>
+                </Col>
+
+                <Col xs={24} md={12}>
+                    <Form.Item
+                        name="unit_style"
+                        label="Unit Style"
+                        tooltip="Used in reference code (e.g., APT-LFT-11-402 for Loft)"
+                    >
+                        <Select
+                            placeholder="Select unit style"
+                            allowClear
+                            showSearch
+                            optionFilterProp="children"
+                        >
+                            {unitStyles.map((style) => (
+                                <Option key={style} value={style}>
+                                    {style
+                                        .split("_")
+                                        .map(
+                                            (word: string) =>
+                                                word.charAt(0).toUpperCase() +
+                                                word.slice(1),
+                                        )
+                                        .join(" ")}
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                </Col>
+
+                {/* Room counts for reference code */}
+                <Col xs={12} md={6}>
+                    <Form.Item
+                        name="bedrooms"
+                        label="Bedrooms"
+                        tooltip="Used in reference code (e.g., 3+1 = 31)"
+                    >
+                        <InputNumber
+                            placeholder="0-8"
+                            min={0}
+                            max={8}
+                            style={{ width: "100%" }}
+                        />
+                    </Form.Item>
+                </Col>
+
+                <Col xs={12} md={6}>
+                    <Form.Item
+                        name="living_room"
+                        label="Living Rooms"
+                        tooltip="Used in reference code (e.g., 3+1 = 31)"
+                        initialValue={1}
+                    >
+                        <InputNumber
+                            placeholder="1"
+                            min={0}
+                            max={5}
+                            style={{ width: "100%" }}
+                        />
                     </Form.Item>
                 </Col>
 

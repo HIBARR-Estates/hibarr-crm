@@ -172,6 +172,9 @@ export default function PropertyWizardForm({
                     "description",
                     "property_type",
                     "sale_type",
+                    "unit_style",
+                    "bedrooms",
+                    "living_room",
                     "price",
                     "status",
                     "developer_project_id",
@@ -182,7 +185,6 @@ export default function PropertyWizardForm({
             case "classification":
                 return [
                     "primary_category",
-                    "unit_style",
                     "construction_status",
                     "view_types",
                     "occupancy_type",
@@ -194,7 +196,7 @@ export default function PropertyWizardForm({
                     "rooms",
                     "bedrooms",
                     "bathrooms",
-                    "living_rooms",
+                    "living_room",
                     "total_floors",
                     "floor",
                     "net_sqm",

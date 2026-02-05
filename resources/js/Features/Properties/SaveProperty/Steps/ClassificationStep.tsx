@@ -18,7 +18,6 @@ export default function ClassificationStep({
     data,
 }: ClassificationStepProps) {
     const primaryCategories = enumValues?.primary_categories || [];
-    const unitStyles = enumValues?.unit_styles || [];
     const constructionStatuses = enumValues?.construction_statuses || [];
     const viewTypes = enumValues?.view_types || [];
     const occupancyTypes = enumValues?.occupancy_types || [];
@@ -53,27 +52,6 @@ export default function ClassificationStep({
                             {primaryCategories.map((category) => (
                                 <Option key={category} value={category}>
                                     {formatLabel(category)}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
-
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="unit_style"
-                        label="Unit Style"
-                        tooltip="The architectural style or configuration of the unit"
-                    >
-                        <Select
-                            placeholder="Select unit style"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                        >
-                            {unitStyles.map((style) => (
-                                <Option key={style} value={style}>
-                                    {formatLabel(style)}
                                 </Option>
                             ))}
                         </Select>
