@@ -1,21 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
-import {
-    Form,
-    Input,
-    Select,
-    Row,
-    Col,
-    Card,
-    Typography,
-    Divider,
-    Alert,
-} from "antd";
+import { Form, Input, Row, Col, Card, Typography, Divider, Alert } from "antd";
 import { FormInstance } from "antd/lib/form";
 import { Property, PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { EnvironmentOutlined, GlobalOutlined } from "@ant-design/icons";
 
-const { Option } = Select;
 const { Text } = Typography;
 
 interface LocationStepProps {
@@ -28,12 +17,6 @@ interface DeveloperProject {
     id: number;
     name: string;
     location?: { id: number; name: string } | null;
-    project_location_id?: number;
-}
-
-interface ProjectLocation {
-    id: number;
-    name: string;
 }
 
 export default function LocationStep({
@@ -44,9 +27,6 @@ export default function LocationStep({
     const { props } = usePage<any>();
     const developerProjects = (props?.developerProjects ||
         []) as DeveloperProject[];
-    const projectLocations = (props?.projectLocations ||
-        []) as ProjectLocation[];
-    const cities = enumValues?.cities || [];
 
     const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
         data?.developer_project_id ?? null,
@@ -73,139 +53,26 @@ export default function LocationStep({
         );
     }, [selectedProject]);
 
-    const handleProjectChange = (value: number | undefined) => {
-        setSelectedProjectId(value ?? null);
-        // If project has location, clear project_location_id field
-        if (value) {
-            const project = developerProjects.find((p) => p.id === value);
-            if (project?.location) {
-                form.setFieldValue("project_location_id", undefined);
-            }
-        }
-    };
-
     return (
         <Card size="small" className="border-0 shadow-none">
             <Text type="secondary" className="block mb-4">
                 <EnvironmentOutlined className="mr-2" />
-                Specify the property location. You can link to a developer
-                project or set the location directly.
+                Additional location details. The primary location (city/area)
+                was set in Basic Info.
             </Text>
 
             <Row gutter={[16, 0]}>
-                {/* Developer Project Selection */}
-                <Col span={24}>
-                    <Form.Item
-                        name="developer_project_id"
-                        label="Developer Project"
-                        tooltip="Link this property to a developer project. The project's location will be used if available."
-                    >
-                        <Select
-                            placeholder="Select developer project (optional)"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                            onChange={handleProjectChange}
-                        >
-                            {developerProjects.map((project) => (
-                                <Option key={project.id} value={project.id}>
-                                    {project.name}
-                                    {project.location && (
-                                        <Text type="secondary" className="ml-2">
-                                            ({project.location.name})
-                                        </Text>
-                                    )}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
-
-                {/* Show info if project has location */}
-                {projectHasLocation && (
+                {/* Show current project info if selected */}
+                {selectedProject && (
                     <Col span={24}>
                         <Alert
-                            message={`Location inherited from project: ${selectedProject?.location?.name}`}
+                            message={`Linked to project: ${selectedProject.name}${projectHasLocation ? ` (${selectedProject.location?.name})` : ""}`}
                             type="info"
                             showIcon
                             className="mb-4"
                         />
                     </Col>
                 )}
-
-                {/* Direct Project Location - only show if no project selected or project has no location */}
-                {!projectHasLocation && (
-                    <Col span={24}>
-                        <Form.Item
-                            name="project_location_id"
-                            label="Project Location"
-                            tooltip="Select a predefined project location for this property"
-                        >
-                            <Select
-                                placeholder="Select project location"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {projectLocations.map((location) => (
-                                    <Option
-                                        key={location.id}
-                                        value={location.id}
-                                    >
-                                        {location.name}
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-                )}
-
-                <Col span={24}>
-                    <Divider className="my-2">Manual Location Details</Divider>
-                </Col>
-
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="city"
-                        label="City"
-                        rules={[
-                            {
-                                required: true,
-                                message: "Please enter or select city",
-                            },
-                        ]}
-                    >
-                        <Select
-                            placeholder="Select or enter city"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                            mode="tags"
-                            maxCount={1}
-                        >
-                            {cities.map((city) => (
-                                <Option key={city} value={city}>
-                                    {city}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
-
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="area"
-                        label="Area / District"
-                        rules={[
-                            {
-                                required: true,
-                                message: "Please enter area or district",
-                            },
-                        ]}
-                    >
-                        <Input placeholder="Enter area or district name" />
-                    </Form.Item>
-                </Col>
 
                 <Col span={24}>
                     <Form.Item

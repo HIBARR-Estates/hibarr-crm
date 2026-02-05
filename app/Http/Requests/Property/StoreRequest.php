@@ -52,7 +52,40 @@ class StoreRequest extends CoreRequest
                     Property::SALE_TYPE_DAILY_RENTAL
                 ])
             ],
-            'price' => 'nullable|numeric|min:0',
+            // Price can be:
+            // - null
+            // - numeric (backward compatible)
+            // - array (currency input shape)
+            // - JSON string representing an array/object (currency input shape)
+            // Controller normalizePrice() will coerce these into stored JSON-string format.
+            'price' => [
+                'nullable',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value === null) {
+                        return;
+                    }
+
+                    if (is_numeric($value)) {
+                        return;
+                    }
+
+                    if (is_array($value)) {
+                        return;
+                    }
+
+                    if (is_string($value)) {
+                        $decoded = json_decode($value, true);
+                        if (json_last_error() === JSON_ERROR_NONE && ($decoded !== null) && (is_array($decoded) || is_object($decoded))) {
+                            return;
+                        }
+
+                        $fail("The {$attribute} must be a numeric value, an array, or a valid JSON string.");
+                        return;
+                    }
+
+                    $fail("The {$attribute} must be a numeric value, an array, or a valid JSON string.");
+                },
+            ],
             'minimal_rental_period' => 'nullable|string|max:255',
             'rent_payment_interval' => [
                 'nullable',
@@ -133,8 +166,8 @@ class StoreRequest extends CoreRequest
             'exterior_features' => 'nullable|array',
             'interior_features' => 'nullable|array',
             'location_features' => 'nullable|array',
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
+            'title' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
             'video_url' => 'nullable|url',
             'tour_360_url' => 'nullable|url',
             'photos' => 'nullable|array',
@@ -181,17 +214,17 @@ class StoreRequest extends CoreRequest
         // Get allowed fields for this property type
         $allowedFields = Property::getAllowedFields($propertyType);
 
-        // Make certain fields required based on property type
+        // Make certain fields optional based on property type
         if (in_array('title', $allowedFields)) {
-            $rules['title'] = 'required|string|max:255';
+            $rules['title'] = 'nullable|string|max:255';
         }
 
         if (in_array('description', $allowedFields)) {
-            $rules['description'] = 'required|string';
+            $rules['description'] = 'nullable|string';
         }
 
         if (in_array('city', $allowedFields)) {
-            $rules['city'] = 'required|string|max:255';
+            $rules['city'] = 'nullable|string|max:255';
         }
 
         if (in_array('price', $allowedFields)) {

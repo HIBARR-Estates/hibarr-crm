@@ -174,6 +174,10 @@ export default function PropertyWizardForm({
                     "sale_type",
                     "price",
                     "status",
+                    "developer_project_id",
+                    "project_location_id",
+                    "city",
+                    "area",
                 ];
             case "classification":
                 return [
@@ -184,15 +188,7 @@ export default function PropertyWizardForm({
                     "occupancy_type",
                 ];
             case "location":
-                return [
-                    "city",
-                    "area",
-                    "address",
-                    "developer_project_id",
-                    "project_location_id",
-                    "latitude",
-                    "longitude",
-                ];
+                return ["address", "latitude", "longitude"];
             case "details":
                 return [
                     "rooms",

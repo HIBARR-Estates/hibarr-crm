@@ -478,7 +478,8 @@ class Property extends BaseModel
         $attempt = 0;
         while (true) {
             try {
-                return parent::save($options);
+                $result = parent::save($options);
+                return $result === true || $result === null ? true : (bool) $result;
             } catch (QueryException $e) {
                 $isUniqueViolation = $e->getCode() === '23000'
                     || str_contains($e->getMessage(), 'Duplicate entry')
