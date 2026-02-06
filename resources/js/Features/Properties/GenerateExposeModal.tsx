@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Button, Alert, Radio, Space, Card, Skeleton } from "antd";
-import { FilePdfOutlined, WarningOutlined } from "@ant-design/icons";
+import {
+    Modal,
+    Button,
+    Alert,
+    Radio,
+    Space,
+    Card,
+    Skeleton,
+    Collapse,
+    Input,
+} from "antd";
+import {
+    FilePdfOutlined,
+    WarningOutlined,
+    UserOutlined,
+    MailOutlined,
+} from "@ant-design/icons";
 import { useFileDownloadMutate } from "@/lib/api/client/useFileDownloadMutate";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
@@ -12,7 +27,10 @@ interface GenerateExposeModalProps {
 }
 
 interface ExposeGeneratePayload {
-    layout: "vertical_standard" | "horizontal_premium";
+    // layout: "vertical_standard" | "horizontal_premium";
+    layout: string;
+    client_name?: string;
+    client_email?: string;
 }
 
 interface ValidationData {
@@ -26,7 +44,8 @@ interface Warning {
 }
 
 interface LayoutOption {
-    value: "vertical_standard" | "horizontal_premium";
+    // value: "vertical_standard" | "horizontal_premium";
+    value: string;
     title: string;
     description: string;
     previewWidth: string;
@@ -35,18 +54,27 @@ interface LayoutOption {
 }
 
 const LAYOUT_OPTIONS: LayoutOption[] = [
+    // {
+    //     value: "vertical_standard",
+    //     title: "Vertical",
+    //     description: "Classic portrait layout suitable for printing.",
+    //     previewWidth: "w-12",
+    //     previewHeight: "h-16",
+    //     previewLabel: "Vertical",
+    // },
+    // {
+    //     value: "horizontal_premium",
+    //     title: "Horizontal",
+    //     description: "Modern landscape layout optimized for screens.",
+    //     previewWidth: "w-16",
+    //     previewHeight: "h-12",
+    //     previewLabel: "Horizontal",
+    // },
     {
-        value: "vertical_standard",
-        title: "Vertical",
-        description: "Classic portrait layout suitable for printing.",
-        previewWidth: "w-12",
-        previewHeight: "h-16",
-        previewLabel: "Vertical",
-    },
-    {
-        value: "horizontal_premium",
-        title: "Horizontal",
-        description: "Modern landscape layout optimized for screens.",
+        value: "expose-template",
+        title: "Expose Template",
+        description:
+            "A customizable template designed for showcasing properties in a professional format.",
         previewWidth: "w-16",
         previewHeight: "h-12",
         previewLabel: "Horizontal",
@@ -59,51 +87,63 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
     propertyId,
 }) => {
     const [warnings, setWarnings] = useState<Warning[]>([]);
-    const [layout, setLayout] = useState<
-        "vertical_standard" | "horizontal_premium"
-    >("vertical_standard");
+    const [layout, setLayout] = useState<string>("vertical_standard");
+    const [clientName, setClientName] = useState<string>("");
+    const [clientEmail, setClientEmail] = useState<string>("");
+    // const [layout, setLayout] = useState<
+    //     "vertical_standard" | "horizontal_premium"
+    // >("vertical_standard");
 
     const { mutate: validateExpose, isPending: isValidating } = useApiMutate<
         Record<string, never>,
         ValidationData,
         ApiResponse<ValidationData>
-    >(
-        `/account/properties/${propertyId}/expose/validate`,
-        "POST",
-       
-    );
+    >(`/account/properties/${propertyId}/expose/validate`, "POST");
 
-    const { mutate: generateExpose, isPending: isGenerating } = useFileDownloadMutate<ExposeGeneratePayload>(
-        `/account/properties/${propertyId}/expose/generate`,
-        "POST",
-        {
-            filename: `property-expose-${propertyId}.pdf`,
-            onSuccess: () => {
-                onClose();
+    const { mutate: generateExpose, isPending: isGenerating } =
+        useFileDownloadMutate<ExposeGeneratePayload>(
+            `/account/properties/${propertyId}/expose/generate`,
+            "POST",
+            {
+                filename: `property-expose-${propertyId}.pdf`,
+                onSuccess: () => {
+                    onClose();
+                },
+                onError: (error) => {
+                    console.error("Failed to generate expose:", error);
+                },
             },
-            onError: (error) => {
-                console.error("Failed to generate expose:", error);
-            },
-        }
-    );
+        );
 
     useEffect(() => {
         if (open) {
             setWarnings([]);
-            validateExpose({}, {
-                onSuccess: (response) => {
-                     if (response?.data?.warnings) {
-                        setWarnings(response.data.warnings);
-                    } else {
-                        setWarnings([]);
-                    }
-                }
-            });
+            setClientName("");
+            setClientEmail("");
+            validateExpose(
+                {},
+                {
+                    onSuccess: (response) => {
+                        if (response?.data?.warnings) {
+                            setWarnings(response.data.warnings);
+                        } else {
+                            setWarnings([]);
+                        }
+                    },
+                },
+            );
         }
     }, [open, propertyId]);
 
     const handleGenerate = () => {
-        generateExpose({ layout });
+        const payload: ExposeGeneratePayload = { layout };
+        if (clientName.trim()) {
+            payload.client_name = clientName.trim();
+        }
+        if (clientEmail.trim()) {
+            payload.client_email = clientEmail.trim();
+        }
+        generateExpose(payload);
     };
 
     return (
@@ -137,7 +177,8 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                                 <ul className="list-disc pl-4 mt-2">
                                     {warnings.map((warning, index) => (
                                         <li key={index}>
-                                            <strong>{warning.field}:</strong> {warning.message}
+                                            <strong>{warning.field}:</strong>{" "}
+                                            {warning.message}
                                         </li>
                                     ))}
                                 </ul>
@@ -158,7 +199,11 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                             onChange={(e) => setLayout(e.target.value)}
                             className="w-full"
                         >
-                            <Space direction="horizontal" size="middle" className="w-full flex">
+                            <Space
+                                direction="horizontal"
+                                size="middle"
+                                className="w-full flex"
+                            >
                                 {LAYOUT_OPTIONS.map((option) => (
                                     <Card
                                         key={option.value}
@@ -170,7 +215,10 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                                         }`}
                                         onClick={() => setLayout(option.value)}
                                     >
-                                        <Radio value={option.value} className="w-full">
+                                        <Radio
+                                            value={option.value}
+                                            className="w-full"
+                                        >
                                             <div className="flex flex-col items-center gap-3 text-center">
                                                 <div
                                                     className={`${option.previewWidth} ${option.previewHeight} bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 rounded flex items-center justify-center`}
@@ -194,6 +242,65 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                             </Space>
                         </Radio.Group>
                     </div>
+
+                    <Collapse
+                        ghost
+                        items={[
+                            {
+                                key: "personalization",
+                                label: (
+                                    <span className="text-base font-semibold text-gray-800">
+                                        Personalization (Optional)
+                                    </span>
+                                ),
+                                children: (
+                                    <div className="flex flex-col gap-4">
+                                        <p className="text-sm text-gray-600 mb-2">
+                                            Add client details to personalize
+                                            the expose PDF.
+                                        </p>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Client Name
+                                            </label>
+                                            <Input
+                                                placeholder="Enter client name"
+                                                prefix={
+                                                    <UserOutlined className="text-gray-400" />
+                                                }
+                                                value={clientName}
+                                                onChange={(e) =>
+                                                    setClientName(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                allowClear
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Client Email
+                                            </label>
+                                            <Input
+                                                placeholder="Enter client email"
+                                                prefix={
+                                                    <MailOutlined className="text-gray-400" />
+                                                }
+                                                value={clientEmail}
+                                                onChange={(e) =>
+                                                    setClientEmail(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                type="email"
+                                                allowClear
+                                            />
+                                        </div>
+                                    </div>
+                                ),
+                            },
+                        ]}
+                    />
                 </div>
             </Skeleton>
         </Modal>

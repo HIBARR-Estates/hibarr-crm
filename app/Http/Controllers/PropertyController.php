@@ -1288,10 +1288,17 @@ class PropertyController extends AccountBaseController
 
     public function generateExpose(Request $request, $id)
     {
-        $property = Property::with(['product.addedBy'])->findOrFail($id);
-        $layout = $request->input('layout', 'vertical_standard');
+        $property = Property::with(['product.addedBy', 'assets'])->findOrFail($id);
+        // $layout = $request->input('layout', 'expose-template');
+        $layout = 'expose-template';
         
-        $config = ExposeConfiguration::fromProperty($property, $layout);
+        // Collect client data for personalization
+        $clientData = [
+            'client_name' => $request->input('client_name'),
+            'client_email' => $request->input('client_email'),
+        ];
+        
+        $config = ExposeConfiguration::fromProperty($property, $layout, $clientData);
         
         // Return the download response directly
         return $this->exposeService->generate($config);

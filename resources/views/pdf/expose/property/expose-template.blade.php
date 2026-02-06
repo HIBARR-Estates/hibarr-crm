@@ -674,7 +674,11 @@ p {
         </div>
     </div>
 
-    <div class="customer-name"></div> <!-- keep for future personalization if needed -->
+    @if(!empty($data['client']['name']))
+    <div class="customer-name" style="position: absolute; bottom: 40mm; left: 15mm; color: white; font-size: 24px; font-weight: 500; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+        Prepared for: {{ $data['client']['name'] }}
+    </div>
+    @endif
     <div class="page-num">01</div>
 </div>
 
@@ -704,7 +708,7 @@ p {
 
                     <div class="item">
                         <h3 class="item-header">Living Area</h3>
-                        <div class="item-value">{{ $data['area'] ?? '—' }} m²</div>
+                        <div class="item-value">{{ $data['living_area_sqm'] ?? '—' }} m²</div>
                     </div>
 
                     <div class="item">
@@ -802,14 +806,14 @@ p {
                     <div class="expose-title">
                         <img style="width: 25%" src="property/icons/hibarr-rounded.png" alt="rounded" />
                         <div class="text blue">
-                            <h1 class="fw-500">GARDEN SERENITY</h1>
+                            <h1 class="fw-500">{{ strtoupper($data['unit_style'] ?? 'PROPERTY') }}</h1>
                         </div>
                     </div>
 
-                    <h1>STUDIO <span class="more">(BLOCK A)</span></h1>
+                    <h1>{{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? '+' . ($data['living_room'] ?? '1') : '' }} {{ strtoupper($data['property_type'] ?? 'UNIT') }}</h1>
 
                     <p>
-                        {{ $data['description'] ? strip_tags($data['description']) : 'Modern studio with smart layout, sea views and natural light.' }}
+                        {{ $data['description'] ? Str::limit(strip_tags($data['description']), 300) : 'Modern property with smart layout and natural light.' }}
                     </p>
                 </div>
             </div>
@@ -881,7 +885,8 @@ p {
     <div class="page-num">06</div>
 </div>
 
-<!-- PAGE — Cost / Investment breakdown (still mostly static — consider making dynamic later) -->
+{{-- PAGE — Cost / Investment breakdown (DEFERRED: Requires financial_info data structure)
+     TODO: Enable this page when financial data is populated in Property model
 <div class="page">
     <div class="container">
         <div class="sheet">
@@ -1022,6 +1027,7 @@ p {
     </div>
     <div class="page-num">07</div>
 </div>
+--}}
 
 <!-- PAGE — Split layout with quote -->
 <div class="page">
@@ -1048,34 +1054,27 @@ p {
 </div>
 
 <!-- PAGE — Infrastructure / Distances -->
+@if(!empty($data['distances']))
 <div class="page">
     <div class="infrastructure">
         <div class="header">
             <span class="title">INFRASTRUCTURE</span>
-            <span class="title end">AIRPORT</span>
+            <span class="title end">DISTANCES</span>
         </div>
 
         <div class="container">
             <div class="row">
                 <div class="col-5">
                     <div class="infrastructure-grid">
-                        <div class="grid-item">
-                            <img src="{{ $data['assets']['exterior'][0] ?? 'property/images/test.png' }}" alt="Schools & Universities">
-                            <span>Schools & Universities</span>
-                            <p>10 min</p>
-                        </div>
-
-                         <div class="grid-item">
-                            <img src="{{ $data['assets']['exterior'][1] ?? 'property/images/test.png' }}" alt="Hospital">
-                            <span>Hospital</span>
-                            <p>10 min</p>
-                        </div>
-
-                         <div class="grid-item">
-                            <img src="{{ $data['assets']['exterior'][2] ?? 'property/images/test.png' }}" alt="Supermarket">
-                            <span>Supermarket</span>
-                            <p>10 min</p>
-                        </div>
+                        @foreach($data['distances'] as $key => $distance)
+                            @if($loop->index < 6)
+                            <div class="grid-item">
+                                <img src="{{ $data['assets']['exterior'][$loop->index] ?? 'property/images/test.png' }}" alt="{{ $distance['name'] ?? $key }}">
+                                <span>{{ $distance['name'] ?? ucwords(str_replace('_', ' ', $key)) }}</span>
+                                <p>{{ $distance['time'] ?? $distance['distance'] ?? $distance }} {{ is_numeric($distance['time'] ?? $distance['distance'] ?? $distance) ? 'min' : '' }}</p>
+                            </div>
+                            @endif
+                        @endforeach
                     </div>
                 </div>
                 <div class="col-7"></div>
@@ -1084,16 +1083,19 @@ p {
     </div>
     <div class="page-num">09</div>
 </div>
+@endif
 
 <!-- PAGE — Floor Plan -->
+@if(!empty($data['assets']['floor-plan']))
 <div class="page">
     <div class="container">
         <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 20px;">
-            <img src="{{ $data['assets']['floor-plan'][0] ?? 'property/images/test.png' }}" style="max-height: 150mm; width: auto;" alt="Floor plan" />
+            <img src="{{ $data['assets']['floor-plan'][0] }}" style="max-height: 150mm; width: auto;" alt="Floor plan" />
         </div>
     </div>
     <div class="page-num">10</div>
 </div>
+@endif
 
 <!-- PAGE — Closure / Contact -->
 <div class="page">
@@ -1104,7 +1106,7 @@ p {
 
                 <div>
                     <h1>{{ $data['agent']['name'] ?? 'Rabih Rabea' }}</h1>
-                    <p>Founder & CEO</p>
+                    <p>{{ $data['agent']['position'] ?? 'Real Estate Consultant' }}</p>
                 </div>
 
                 <div>
