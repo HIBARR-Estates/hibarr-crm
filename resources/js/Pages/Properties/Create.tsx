@@ -42,7 +42,8 @@ export default function CreateProperty({
 }: CreatePropertyProps) {
     // Default: use wizard for new properties, tabs for editing (can be overridden)
     const isEditing = !!property?.id;
-    const defaultFormMode = isEditing ? "tabs" : "wizard";
+    // const defaultFormMode = isEditing ? "tabs" : "wizard";
+    const defaultFormMode = "wizard";
     const [formMode, setFormMode] = useState<"wizard" | "tabs">(
         useWizard === undefined
             ? defaultFormMode
@@ -245,7 +246,7 @@ export default function CreateProperty({
     return (
         <div>
             {/* Form mode toggle for drawer mode */}
-            <div className="mb-4 flex justify-end">
+            {/* <div className="mb-4 flex justify-end">
                 {isEditing ? (
                     <Segmented
                         options={formModeOptions}
@@ -256,7 +257,7 @@ export default function CreateProperty({
                         size="small"
                     />
                 ) : null}
-            </div>
+            </div> */}
             {formContent}
         </div>
     );

@@ -120,7 +120,7 @@ const Show = ({
             />
         </>
     );
-}
+};
 
 Show.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>
