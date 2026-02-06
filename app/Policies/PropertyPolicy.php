@@ -144,7 +144,7 @@ class PropertyPolicy
     {
         // Check if user has 'all' scope for edit_properties permission
         $permission = $this->getPermissionScope($user, 'edit_properties');
-        return $permission === 'all' || $permission === 4;
+        return $permission === 'all';
     }
 
     /**
@@ -153,7 +153,8 @@ class PropertyPolicy
     protected function hasPermission(User $user, string $permissionName): bool
     {
         $permission = $this->getPermissionScope($user, $permissionName);
-        return $permission !== 'none' && $permission !== 5 && $permission !== null;
+        // User has permission if scope is not 'none' and not null (i.e., has some level of access)
+        return $permission !== 'none' && $permission !== null;
     }
 
     /**
@@ -161,22 +162,11 @@ class PropertyPolicy
      */
     protected function getPermissionScope(User $user, string $permissionName): mixed
     {
-        // Get permissions from user's role
-        $permissions = $user->permission ?? null;
+        // Use the User model's permission() method which returns the permission scope
+        // Returns: 'all', 'none', 'added', 'owned', 'both', or false if not found
+        $permissionScope = $user->permission($permissionName);
         
-        if (!$permissions) {
-            return null;
-        }
-
-        // Handle different permission data structures
-        if (is_object($permissions)) {
-            return $permissions->{$permissionName} ?? null;
-        }
-        
-        if (is_array($permissions)) {
-            return $permissions[$permissionName] ?? null;
-        }
-
-        return null;
+        // Convert false to null for consistency
+        return $permissionScope === false ? null : $permissionScope;
     }
 }
