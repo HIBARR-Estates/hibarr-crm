@@ -152,6 +152,63 @@ class PropertyAssetController extends AccountBaseController
     }
 
     /**
+     * Store assets from pre-uploaded URLs (from external file upload service)
+     * This receives URLs of files already uploaded to an external service
+     */
+    public function storeFromUrls(Request $request, $propertyId)
+    {
+        $property = Property::findOrFail($propertyId);
+        
+        abort_if(!$this->canEditProperty($property), 403);
+
+        $request->validate([
+            'assets' => 'required|array|min:1',
+            'assets.*.url' => 'required|url',
+            'assets.*.name' => 'required|string|max:255',
+            'assets.*.object_path' => 'nullable|string|max:500',
+            'assets.*.asset_type' => 'required|in:image,video',
+            'assets.*.mime_type' => 'nullable|string|max:100',
+            'assets.*.file_size' => 'nullable|integer',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|in:hero,facilities,features,area,exterior,interior,floor-plan,footer,gallery',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $createdAssets = [];
+            $tags = $request->input('tags', []);
+            $maxOrder = PropertyAsset::where('property_id', $propertyId)->max('order') ?? 0;
+
+            foreach ($request->input('assets') as $index => $assetData) {
+                $asset = PropertyAsset::create([
+                    'property_id' => $property->id,
+                    'asset_type' => $assetData['asset_type'],
+                    'name' => $assetData['name'],
+                    'url' => $assetData['url'],
+                    'object_path' => $assetData['object_path'] ?? null,
+                    'mime_type' => $assetData['mime_type'] ?? null,
+                    'file_size' => $assetData['file_size'] ?? null,
+                    'tags' => $tags,
+                    'order' => $maxOrder + $index + 1,
+                ]);
+
+                $createdAssets[] = $asset;
+            }
+
+            DB::commit();
+
+            return Reply::successWithData(__('messages.assetUploadSuccess'), [
+                'assets' => $createdAssets,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return Reply::error($e->getMessage());
+        }
+    }
+
+    /**
      * Update asset details (name, tags)
      */
     public function update(Request $request, $propertyId, $assetId)
