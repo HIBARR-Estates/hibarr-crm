@@ -9,6 +9,7 @@ import { message } from "antd";
 import PropertyView from "@/Features/Properties/PropertyView/PropertyView";
 import { Task } from "@/Types/api/tasks";
 import GenerateExposeModal from "@/Features/Properties/GenerateExposeModal";
+import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyModal";
 
 interface ShowProps {
     pageTitle: string;
@@ -44,8 +45,23 @@ const Show = ({
         },
     ];
 
+    // State for modals
+    const [showExposeModal, setShowExposeModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [currentProperty, setCurrentProperty] = useState<Property>(property);
+
     const handleEdit = () => {
-        router.visit(route("properties.edit", property.id));
+        setShowEditModal(true);
+    };
+
+    const handleEditModalClose = () => {
+        setShowEditModal(false);
+    };
+
+    const handlePropertyUpdate = (updatedProperty: Property | undefined) => {
+        if (updatedProperty) {
+            setCurrentProperty(updatedProperty);
+        }
     };
 
     const handleShare = () => {
@@ -70,15 +86,13 @@ const Show = ({
         router.visit(route("properties.index"));
     };
 
-    const [showExposeModal, setShowExposeModal] = useState(false);
-
     return (
         <>
             <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
                 <div className="max-w-7xl mx-auto">
                     <PropertyView
-                        property={property}
-                        onEdit={canEdit ? handleEdit : undefined}
+                        property={currentProperty}
+                        onEdit={handleEdit}
                         onShare={handleShare}
                         onGenerateExpose={() => setShowExposeModal(true)}
                         canEdit={canEdit}
@@ -95,7 +109,14 @@ const Show = ({
             <GenerateExposeModal
                 open={showExposeModal}
                 onClose={() => setShowExposeModal(false)}
-                propertyId={property.id}
+                propertyId={currentProperty.id}
+            />
+
+            <SavePropertyModal
+                open={showEditModal}
+                onClose={handleEditModalClose}
+                property={currentProperty}
+                setProperty={handlePropertyUpdate}
             />
         </>
     );
