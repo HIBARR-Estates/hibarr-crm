@@ -29,20 +29,20 @@
                                     $isEmployee = in_array('employee', $userRoles);
                                 @endphp
 
-                                @if($task->project && $task->project->need_approval_by_admin == 1 && ($isEmployee && $task->project->project_admin != user()->id) && !$isAdmin && $task->boardColumn->slug != 'completed')
+                                @if($task->project && $task->project->need_approval_by_admin == 1 && ($isEmployee && $task->project->project_admin != user()->id) && !$isAdmin && $task->boardColumn->slug != 'done')
                                     <x-forms.button-primary icon="check" data-send-approval="1"
                                                             class="send-approval mr-2 mb-2 mb-lg-0 mb-md-0
                                                             {{ $task->approval_send == 1 ? 'disabled' : '' }}">
                                         @lang('modules.tasks.sendForApproval')
                                     </x-forms.button-primary>
                                 @else
-                                    @if ($task->boardColumn->slug != 'completed')
-                                        <x-forms.button-primary icon="check" data-status="completed"
+                                    @if ($task->boardColumn->slug != 'done')
+                                        <x-forms.button-primary icon="check" data-status="done"
                                                                 class="change-task-status mr-2 mb-2 mb-lg-0 mb-md-0">
                                             @lang('modules.tasks.markComplete')
                                         </x-forms.button-primary>
                                     @else
-                                        <x-forms.button-secondary icon="times" data-status="incomplete"
+                                        <x-forms.button-secondary icon="times" data-status="to_do"
                                                                 class="change-task-status mr-3">
                                             @lang('modules.tasks.markIncomplete')
                                         </x-forms.button-secondary>
@@ -50,7 +50,7 @@
                                 @endif
                             @endif
 
-                            @if ($task->boardColumn->slug != 'completed' && !is_null($task->is_task_user) && in_array('timelogs', user_modules()))
+                            @if ($task->boardColumn->slug != 'done' && !is_null($task->is_task_user) && in_array('timelogs', user_modules()))
                                 @if (is_null($task->userActiveTimer))
                                     @if($task->approval_send == 0)
                                         <x-forms.button-secondary id="start-task-timer" icon="play">
@@ -96,7 +96,7 @@
                                 <div class="dropdown-menu dropdown-menu-right border-grey rounded b-shadow-4 p-0"
                                      aria-labelledby="dropdownMenuLink" tabindex="0">
 
-                                    @if ($sendReminderPermission == 'all' && $task->boardColumn->slug != 'completed')
+                                    @if ($sendReminderPermission == 'all' && $task->boardColumn->slug != 'done')
                                         <a class="dropdown-item" id="reminderButton"
                                            href="javascript:;">@lang('modules.tasks.reminder')</a>
                                     @endif

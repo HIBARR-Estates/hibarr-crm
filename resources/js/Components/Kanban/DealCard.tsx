@@ -195,7 +195,7 @@ const DealCard: React.FC<DealCardProps> = ({
                 )}
 
                 {/* Agent + Deal Value Row */}
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 gap-2">
                     <div className="flex-1 min-w-0">
                         {canEdit && onAgentChange ? (
                             // Interactive agent selector using useFormData

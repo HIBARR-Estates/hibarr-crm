@@ -1,8 +1,9 @@
 import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
-import { Providers } from "./providers";
+import { OuterProviders, InnerProviders } from "./providers";
 import { route } from "ziggy-js";
-import { Ziggy } from "./ziggy";
+import React from "react";
+// import { Ziggy } from "./ziggy";
 
 // Declare global route function
 declare global {
@@ -31,7 +32,7 @@ window.route = route;
 //         root.render(
 //             <Providers>
 //                 <App {...props} />
-//             </Providers>
+//             </Providers>,
 //         );
 //     },
 // });
@@ -47,6 +48,16 @@ createInertiaApp({
             // );
             const component = require(`./Pages/${name}`).default;
             // console.log("Successfully loaded component:", component);
+
+            // Always wrap with InnerProviders (which need Inertia context)
+            // This ensures TranslationProvider has access to usePage()
+            const existingLayout = component.layout;
+            component.layout = (page: React.ReactNode) => (
+                <InnerProviders>
+                    {existingLayout ? existingLayout(page) : page}
+                </InnerProviders>
+            );
+
             return component;
         } catch (e) {
             // console.error("Could not load page:", name, e);
@@ -74,10 +85,11 @@ createInertiaApp({
 
         const root = createRoot(el);
         // console.log("Creating React root and rendering...");
+
         root.render(
-            <Providers>
+            <OuterProviders>
                 <App {...props} />
-            </Providers>,
+            </OuterProviders>,
         );
         // console.log("React app rendered successfully");
     },

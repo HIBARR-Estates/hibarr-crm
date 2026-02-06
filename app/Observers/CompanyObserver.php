@@ -626,16 +626,16 @@ class CompanyObserver
     public function taskBoard($company): void
     {
         $columns = [
-            ['column_name' => 'Incomplete', 'label_color' => '#d21010', 'priority' => 1, 'slug' => str_slug('Incomplete', '_'), 'company_id' => $company->id],
-            ['column_name' => 'To Do', 'label_color' => '#f5c308', 'priority' => 2, 'slug' => str_slug('To Do', '_'), 'company_id' => $company->id],
-            ['column_name' => 'Doing', 'label_color' => '#00b5ff', 'priority' => 3, 'slug' => str_slug('Doing', '_'), 'company_id' => $company->id],
-            ['column_name' => 'Completed', 'label_color' => '#679c0d', 'priority' => 4, 'slug' => str_slug('Completed', '_'), 'company_id' => $company->id],
-            ['column_name' => 'Waiting Approval', 'label_color' => '#000', 'priority' => 5, 'slug' => str_slug('Waiting Approval', '_'), 'company_id' => $company->id],
+            ['column_name' => 'To Do', 'label_color' => '#f5c308', 'priority' => 1, 'slug' => 'to_do', 'company_id' => $company->id],
+            ['column_name' => 'In Progress', 'label_color' => '#00b5ff', 'priority' => 2, 'slug' => 'in_progress', 'company_id' => $company->id],
+            ['column_name' => 'In Review', 'label_color' => '#9b59b6', 'priority' => 3, 'slug' => 'in_review', 'company_id' => $company->id],
+            ['column_name' => 'On Hold', 'label_color' => '#f39c12', 'priority' => 4, 'slug' => 'on_hold', 'company_id' => $company->id],
+            ['column_name' => 'Done', 'label_color' => '#679c0d', 'priority' => 5, 'slug' => 'done', 'company_id' => $company->id],
         ];
 
         TaskboardColumn::insert($columns);
 
-        $board = TaskboardColumn::where('slug', 'incomplete')
+        $board = TaskboardColumn::where('slug', 'to_do')
             ->where('company_id', $company->id)
             ->first();
 

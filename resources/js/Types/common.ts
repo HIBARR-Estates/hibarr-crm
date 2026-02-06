@@ -46,8 +46,19 @@ export type TFilter = Partial<{
     priority?: string;
     assigned_to?: number;
     project_id?: number;
+
+    // Property-specific filters
+    primary_category?: string;
+    unit_style?: string;
+    construction_status?: string;
+    view_types?: string[];
+    is_published?: boolean;
+    added_by?: number;
+    responsible_agent_id?: number;
+    occupancy_type?: string;
+
     // due_date_range?: [string, string];
-    [key: string]: string | number | undefined;
+    [key: string]: string | number | boolean | string[] | undefined;
 }>;
 
 export type Currency = {

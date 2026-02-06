@@ -5,7 +5,7 @@ export interface Task {
     due_date?: string;
     start_date?: string;
     priority: "low" | "medium" | "high";
-    status: string;
+    status: "to_do" | "in_progress" | "in_review" | "on_hold" | "done" | string;
     board_column_id?: number;
     completed_on?: string;
     project?: {

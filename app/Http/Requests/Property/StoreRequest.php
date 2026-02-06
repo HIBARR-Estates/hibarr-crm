@@ -52,7 +52,40 @@ class StoreRequest extends CoreRequest
                     Property::SALE_TYPE_DAILY_RENTAL
                 ])
             ],
-            'price' => 'nullable|numeric|min:0',
+            // Price can be:
+            // - null
+            // - numeric (backward compatible)
+            // - array (currency input shape)
+            // - JSON string representing an array/object (currency input shape)
+            // Controller normalizePrice() will coerce these into stored JSON-string format.
+            'price' => [
+                'nullable',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value === null) {
+                        return;
+                    }
+
+                    if (is_numeric($value)) {
+                        return;
+                    }
+
+                    if (is_array($value)) {
+                        return;
+                    }
+
+                    if (is_string($value)) {
+                        $decoded = json_decode($value, true);
+                        if (json_last_error() === JSON_ERROR_NONE && ($decoded !== null) && (is_array($decoded) || is_object($decoded))) {
+                            return;
+                        }
+
+                        $fail("The {$attribute} must be a numeric value, an array, or a valid JSON string.");
+                        return;
+                    }
+
+                    $fail("The {$attribute} must be a numeric value, an array, or a valid JSON string.");
+                },
+            ],
             'minimal_rental_period' => 'nullable|string|max:255',
             'rent_payment_interval' => [
                 'nullable',
@@ -71,7 +104,14 @@ class StoreRequest extends CoreRequest
                     Property::TITLE_DEED_TURKISH,
                     Property::TITLE_DEED_BRITISH,
                     Property::TITLE_DEED_TAHSIS,
-                    Property::TITLE_DEED_MUJAHIT
+                    Property::TITLE_DEED_MUJAHIT,
+                    Property::TITLE_DEED_FREEHOLD,
+                    Property::TITLE_DEED_LEASEHOLD,
+                    Property::TITLE_DEED_EXCHANGE_KAT,
+                    Property::TITLE_DEED_FULL_OWNERSHIP,
+                    Property::TITLE_DEED_SHARED,
+                    Property::TITLE_DEED_FLOOR_EASEMENT,
+                    Property::TITLE_DEED_LAND_REGISTRY,
                 ])
             ],
             'title_deed_stage' => [
@@ -81,7 +121,12 @@ class StoreRequest extends CoreRequest
                     Property::TITLE_DEED_STAGE_LAND,
                     Property::TITLE_DEED_STAGE_SHARED,
                     Property::TITLE_DEED_STAGE_INDIVIDUAL,
-                    Property::TITLE_DEED_STAGE_KAT_IRTIRFAKLI
+                    Property::TITLE_DEED_STAGE_KAT_IRTIRFAKLI,
+                    Property::TITLE_DEED_STAGE_READY,
+                    Property::TITLE_DEED_STAGE_IN_PROGRESS,
+                    Property::TITLE_DEED_STAGE_PENDING,
+                    Property::TITLE_DEED_STAGE_APPLIED,
+                    Property::TITLE_DEED_STAGE_UNDER_REVIEW,
                 ])
             ],
             'status' => [
@@ -125,6 +170,8 @@ class StoreRequest extends CoreRequest
                 Rule::in([
                     Property::FURNITURE_UNFURNISHED,
                     Property::FURNITURE_FULLY_FURNISHED,
+                    Property::FURNITURE_FURNISHED,
+                    Property::FURNITURE_SEMI_FURNISHED,
                     Property::FURNITURE_PART_FURNISHED,
                     Property::FURNITURE_WHITE_GOODS_ONLY
                 ])
@@ -133,8 +180,8 @@ class StoreRequest extends CoreRequest
             'exterior_features' => 'nullable|array',
             'interior_features' => 'nullable|array',
             'location_features' => 'nullable|array',
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
+            'title' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
             'video_url' => 'nullable|url',
             'tour_360_url' => 'nullable|url',
             'photos' => 'nullable|array',
@@ -181,17 +228,17 @@ class StoreRequest extends CoreRequest
         // Get allowed fields for this property type
         $allowedFields = Property::getAllowedFields($propertyType);
 
-        // Make certain fields required based on property type
+        // Make certain fields optional based on property type
         if (in_array('title', $allowedFields)) {
-            $rules['title'] = 'required|string|max:255';
+            $rules['title'] = 'nullable|string|max:255';
         }
 
         if (in_array('description', $allowedFields)) {
-            $rules['description'] = 'required|string';
+            $rules['description'] = 'nullable|string';
         }
 
         if (in_array('city', $allowedFields)) {
-            $rules['city'] = 'required|string|max:255';
+            $rules['city'] = 'nullable|string|max:255';
         }
 
         if (in_array('price', $allowedFields)) {

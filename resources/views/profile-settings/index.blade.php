@@ -45,6 +45,13 @@ $viewClientDocumentPermission = user()->permission('view_client_document');
                                 aria-controls="documents" aria-selected="true" ajax="false">@lang('app.menu.documents')
                                 </a>
                             @endif
+
+                            @if (!in_array('client', user_roles()))
+                                <a class="nav-item nav-link f-15 reminder-preferences"
+                                href="{{ route('profile-settings.index') }}?tab=reminder-preferences" role="tab"
+                                aria-controls="reminder-preferences" aria-selected="true" ajax="false">@lang('modules.settings.reminderPreferences')
+                                </a>
+                            @endif
                         </div>
                     </nav>
                 </div>

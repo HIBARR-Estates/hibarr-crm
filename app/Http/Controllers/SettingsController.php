@@ -7,6 +7,7 @@ use App\Http\Requests\Settings\UpdateOrganisationSettings;
 use App\Traits\CurrencyExchange;
 use App\Models\User;
 use App\Models\DealAutomation;
+use Illuminate\Http\Request;
 
 class SettingsController extends AccountBaseController
 {
@@ -66,6 +67,37 @@ class SettingsController extends AccountBaseController
         session()->forget('company');
 
         return Reply::success('Webohook alert box has been removed permanently');
+    }
+
+    /**
+     * Change the application language
+     * Updates user preference and session locale
+     */
+    public function changeLanguage(Request $request)
+    {
+        $locale = $request->get('locale', 'en');
+
+        // Validate locale is supported
+        $supportedLocales = ['en', 'ar', 'ru', 'tr', 'de', 'fa'];
+        if (!in_array($locale, $supportedLocales)) {
+            $locale = 'en';
+        }
+
+        // Update user preference if logged in
+        if (auth()->check()) {
+            $user = auth()->user();
+            $user->locale = $locale;
+            // Set RTL flag based on locale
+            $user->rtl = in_array($locale, ['ar', 'fa', 'he']) ? 1 : 0;
+            $user->save();
+        }
+
+        // Update session locale
+        session(['locale' => $locale]);
+        app()->setLocale($locale);
+
+        // Redirect back to previous page
+        return redirect()->back();
     }
 
 }

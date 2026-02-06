@@ -5,6 +5,7 @@ import { HomeOutlined } from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import NotificationDropdown from "./NotificationDropdown";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 interface BreadcrumbItem {
     name: string;
@@ -93,7 +94,7 @@ export default function PageLayout({
                                     // Redirect to login page on successful logout
                                     window.location.href = route("login");
                                 },
-                            }
+                            },
                         );
                     }}
                     className="w-full text-left cursor-pointer"
@@ -141,6 +142,7 @@ export default function PageLayout({
                             </div>
                         )}
                         <div className="ml-auto flex items-center gap-4">
+                            <LanguageSwitcher compact />
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}

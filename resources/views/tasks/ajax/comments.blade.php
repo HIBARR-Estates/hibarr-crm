@@ -59,7 +59,7 @@
             $isEmployee = in_array('employee', $userRoles);
         @endphp
 
-        @if ($task->approval_send == 1 && $task->project->need_approval_by_admin == 1 && $isEmployee && !$isAdmin && $status->slug == 'waiting_approval')
+        @if ($task->approval_send == 1 && $task->project->need_approval_by_admin == 1 && $isEmployee && !$isAdmin && $status->slug == 'in_review')
             <!-- Popup for Send Approval -->
             @include('tasks.ajax.sent-approval-modal')
         @else

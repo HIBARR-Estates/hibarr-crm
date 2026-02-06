@@ -91,6 +91,11 @@ class PropertyDuplicateService
     /**
      * Build a fingerprint for a property or property data array.
      * 
+     * Enhanced fingerprint now includes:
+     * - primary_category
+     * - unit_style  
+     * - project_location_id (takes priority over developer_project_id for location)
+     * 
      * @param Property|array $data Property model or array with property data
      * @return string The composite fingerprint
      */
@@ -102,29 +107,32 @@ class PropertyDuplicateService
 
         $companyId = $data['company_id'] ?? 0;
         $projectId = $data['developer_project_id'] ?? null;
+        $projectLocationId = $data['project_location_id'] ?? null;
         $propertyType = $this->normalizeIdentifier($data['property_type'] ?? '');
+        $primaryCategory = $this->normalizeIdentifier($data['primary_category'] ?? '');
+        $unitStyle = $this->normalizeIdentifier($data['unit_style'] ?? '');
         $blockName = $this->normalizeIdentifier($data['block_name'] ?? '');
         $unitNumber = $this->normalizeIdentifier($data['unit_number'] ?? '');
 
-        // If property has a project, use project-based fingerprint
-        if ($projectId) {
-            return implode('|', [
-                $companyId,
-                'project:' . $projectId,
-                $propertyType,
-                $blockName,
-                $unitNumber,
-            ]);
+        // Build location component - priority: project_location_id > developer_project_id > city/area
+        $locationComponent = '';
+        if ($projectLocationId) {
+            $locationComponent = 'loc:' . $projectLocationId;
+        } elseif ($projectId) {
+            $locationComponent = 'project:' . $projectId;
+        } else {
+            // Standalone property: use city + area as location identifier
+            $city = $this->normalizeIdentifier($data['city'] ?? '');
+            $area = $this->normalizeIdentifier($data['area'] ?? '');
+            $locationComponent = 'location:' . $city . ':' . $area;
         }
-
-        // Standalone property: use city + area as location identifier
-        $city = $this->normalizeIdentifier($data['city'] ?? '');
-        $area = $this->normalizeIdentifier($data['area'] ?? '');
 
         return implode('|', [
             $companyId,
-            'location:' . $city . ':' . $area,
+            $locationComponent,
+            $primaryCategory,
             $propertyType,
+            $unitStyle,
             $blockName,
             $unitNumber,
         ]);
@@ -135,6 +143,8 @@ class PropertyDuplicateService
      * 
      * Only checks for duplicates when both block_name and unit_number are provided.
      * This allows incomplete data while still catching definite duplicates.
+     * 
+     * Enhanced to include primary_category, unit_style, and project_location_id.
      *
      * @param Property|array $data Property model or array with property data
      * @param int|null $excludeId Property ID to exclude (for updates)
@@ -148,7 +158,10 @@ class PropertyDuplicateService
 
         $companyId = $data['company_id'] ?? null;
         $projectId = $data['developer_project_id'] ?? null;
+        $projectLocationId = $data['project_location_id'] ?? null;
         $propertyType = $this->normalizeIdentifier($data['property_type'] ?? '');
+        $primaryCategory = $this->normalizeIdentifier($data['primary_category'] ?? '');
+        $unitStyle = $this->normalizeIdentifier($data['unit_style'] ?? '');
         $blockName = $this->normalizeIdentifier($data['block_name'] ?? '');
         $unitNumber = $this->normalizeIdentifier($data['unit_number'] ?? '');
 
@@ -166,12 +179,15 @@ class PropertyDuplicateService
             $query->where('id', '!=', $excludeId);
         }
 
-        // Match on project or location
-        if ($projectId) {
+        // Match on location - priority: project_location_id > developer_project_id > city/area
+        if ($projectLocationId) {
+            $query->where('project_location_id', $projectLocationId);
+        } elseif ($projectId) {
             $query->where('developer_project_id', $projectId);
         } else {
             // Standalone: match on city + area
-            $query->whereNull('developer_project_id');
+            $query->whereNull('developer_project_id')
+                  ->whereNull('project_location_id');
             
             $city = $data['city'] ?? '';
             $area = $data['area'] ?? '';
@@ -187,8 +203,10 @@ class PropertyDuplicateService
         // Get candidates and filter by normalized comparison
         $candidates = $query->get();
 
-        return $candidates->filter(function (Property $candidate) use ($propertyType, $blockName, $unitNumber) {
+        return $candidates->filter(function (Property $candidate) use ($propertyType, $primaryCategory, $unitStyle, $blockName, $unitNumber) {
             $candidateType = $this->normalizeIdentifier($candidate->property_type);
+            $candidateCategory = $this->normalizeIdentifier($candidate->primary_category);
+            $candidateStyle = $this->normalizeIdentifier($candidate->unit_style);
             $candidateBlock = $this->normalizeIdentifier($candidate->block_name);
             $candidateUnit = $this->normalizeIdentifier($candidate->unit_number);
 
@@ -197,7 +215,10 @@ class PropertyDuplicateService
                 return false;
             }
 
+            // All fields must match for a duplicate
             return $candidateType === $propertyType
+                && $candidateCategory === $primaryCategory
+                && $candidateStyle === $unitStyle
                 && $candidateBlock === $blockName
                 && $candidateUnit === $unitNumber;
         });

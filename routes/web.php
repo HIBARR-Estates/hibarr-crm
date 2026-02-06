@@ -996,6 +996,12 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::get('properties/configurations', [App\Http\Controllers\PropertyController::class, 'getPropertyConfigurations'])->name('properties.configurations');
     Route::get('properties/allowed-types', [App\Http\Controllers\PropertyController::class, 'getAllowedPropertyTypes'])->name('properties.allowed_types');
     Route::get('properties/allowed-fields', [App\Http\Controllers\PropertyController::class, 'getAllowedFields'])->name('properties.allowed_fields');
+    Route::get('properties/enum-values', [App\Http\Controllers\PropertyController::class, 'getEnumValues'])->name('properties.enum_values');
+    
+    // Publishing & Access Request Routes
+    Route::post('properties/{id}/publish', [App\Http\Controllers\PropertyController::class, 'publish'])->name('properties.publish');
+    Route::post('properties/{id}/unpublish', [App\Http\Controllers\PropertyController::class, 'unpublish'])->name('properties.unpublish');
+    Route::post('properties/{id}/request-access', [App\Http\Controllers\PropertyController::class, 'requestAccess'])->name('properties.request_access');
     
     // Property Asset Management Routes
     Route::post('properties/{property}/photos', [App\Http\Controllers\PropertyController::class, 'updatePhotos'])->name('properties.update_photos');
@@ -1067,9 +1073,11 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     });
 
     // Property Asset Management (New System)
+    Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');
     Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {
         Route::get('/', [App\Http\Controllers\PropertyAssetController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\PropertyAssetController::class, 'store'])->name('store');
+        Route::post('/from-urls', [App\Http\Controllers\PropertyAssetController::class, 'storeFromUrls'])->name('store_from_urls');
         Route::post('/external-url', [App\Http\Controllers\PropertyAssetController::class, 'storeExternalUrl'])->name('store_external_url');
         Route::get('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'show'])->name('show');
         Route::put('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'update'])->name('update');

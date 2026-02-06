@@ -1,5 +1,5 @@
-import React from "react";
-import { Typography, Tag, Space, Button } from "antd";
+import React, { useState } from "react";
+import { Typography, Tag, Space, Button, Tooltip, message } from "antd";
 import { router } from "@inertiajs/react";
 import {
     EditOutlined,
@@ -9,10 +9,23 @@ import {
     DollarOutlined,
     FilePdfOutlined,
     FolderOpenOutlined,
+    CheckCircleOutlined,
+    ClockCircleOutlined,
+    CopyOutlined,
+    GlobalOutlined,
+    EyeInvisibleOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
-import { getStatusColor, parsePropertyPrice, formatCurrencyWithSymbol } from "@/lib/utils";
+import {
+    getStatusColor,
+    parsePropertyPrice,
+    formatCurrencyWithSymbol,
+} from "@/lib/utils";
 import { usePage } from "@inertiajs/react";
+import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiSuccessResponse } from "@/lib/api/types";
+import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 
 const { Title, Text } = Typography;
 
@@ -38,27 +51,104 @@ function PropertyHeader({
         currencies = [],
     } = props || {};
 
+    const permissions = usePropertyPermissions(property);
+
+    // Confirmation modal state
+    const [confirmModal, setConfirmModal] = useState<{
+        open: boolean;
+        action: "publish" | "unpublish" | null;
+    }>({ open: false, action: null });
+
     const { amount, currency } = parsePropertyPrice(
         (property as any).price,
-        defaultCurrencyCode || "TRY"
+        defaultCurrencyCode || "TRY",
     );
 
     const resolvedSymbol =
-        currencies.find((c: any) => c?.currency_code === currency)?.currency_symbol ||
+        currencies.find((c: any) => c?.currency_code === currency)
+            ?.currency_symbol ||
         defaultCurrencySymbol ||
         "";
 
+    // Publish mutation
+    const { mutate: publishProperty, isPending: isPublishing } = useApiMutate<
+        Record<string, never>,
+        { property: Property },
+        ApiSuccessResponse<{ property: Property }>
+    >(route("properties.publish", property.id), "POST", () => {
+        setConfirmModal({ open: false, action: null });
+        // Refresh the page to get updated property data
+        router.reload({ only: ["property"] });
+    });
+
+    // Unpublish mutation
+    const { mutate: unpublishProperty, isPending: isUnpublishing } =
+        useApiMutate<
+            Record<string, never>,
+            { property: Property },
+            ApiSuccessResponse<{ property: Property }>
+        >(route("properties.unpublish", property.id), "POST", () => {
+            setConfirmModal({ open: false, action: null });
+            // Refresh the page to get updated property data
+            router.reload({ only: ["property"] });
+        });
+
     const handleManageAssets = () => {
         router.visit(route("properties.assets.index", property.id));
+    };
+
+    const handleCopyReferenceCode = () => {
+        if (property.reference_code) {
+            navigator.clipboard.writeText(property.reference_code);
+            message.success("Reference code copied to clipboard!");
+        }
+    };
+
+    const handlePublish = () => {
+        setConfirmModal({ open: true, action: "publish" });
+    };
+
+    const handleUnpublish = () => {
+        setConfirmModal({ open: true, action: "unpublish" });
+    };
+
+    const handleConfirmAction = () => {
+        if (confirmModal.action === "publish") {
+            publishProperty({});
+        } else if (confirmModal.action === "unpublish") {
+            unpublishProperty({});
+        }
+    };
+
+    const handleCloseConfirmModal = () => {
+        if (!isPublishing && !isUnpublishing) {
+            setConfirmModal({ open: false, action: null });
+        }
     };
 
     return (
         <div className="mb-4">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    {/* Reference Code Badge */}
+                    {property.reference_code && (
+                        <div className="flex items-center gap-2 mb-2">
+                            <Tooltip title="Click to copy reference code">
+                                <Tag
+                                    color="geekblue"
+                                    className="text-xs cursor-pointer hover:opacity-80"
+                                    onClick={handleCopyReferenceCode}
+                                >
+                                    <CopyOutlined className="mr-1" />
+                                    {property.reference_code}
+                                </Tag>
+                            </Tooltip>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <Title level={2} className="mb-0">
-                            {property.title}
+                            {property.display_title || property.title}
                         </Title>
                         <Tag
                             color={getStatusColor(property.status)}
@@ -66,9 +156,38 @@ function PropertyHeader({
                         >
                             {property.status}
                         </Tag>
+                        {/* Publishing Status Badge */}
+                        {property.is_published !== undefined && (
+                            <Tooltip
+                                title={
+                                    property.is_published
+                                        ? "Visible to all agents"
+                                        : "Only visible to you and admins"
+                                }
+                            >
+                                <Tag
+                                    icon={
+                                        property.is_published ? (
+                                            <GlobalOutlined />
+                                        ) : (
+                                            <EyeInvisibleOutlined />
+                                        )
+                                    }
+                                    color={
+                                        property.is_published
+                                            ? "green"
+                                            : "orange"
+                                    }
+                                >
+                                    {property.is_published
+                                        ? "Published"
+                                        : "Draft"}
+                                </Tag>
+                            </Tooltip>
+                        )}
                     </div>
 
-                    <div className="flex items-center gap-4 mb-3 text-gray-600">
+                    <div className="flex items-center gap-4 mb-3 text-gray-600 flex-wrap">
                         <Space>
                             <EnvironmentOutlined />
                             <Text>
@@ -83,6 +202,9 @@ function PropertyHeader({
                             <DollarOutlined />
                             <Text>{property.sale_type}</Text>
                         </Space>
+                        {property.primary_category && (
+                            <Tag color="blue">{property.primary_category}</Tag>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2 mb-4">
@@ -97,15 +219,36 @@ function PropertyHeader({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* {canEdit && ( */}
-                        <Button
-                            icon={<FolderOpenOutlined />}
-                            onClick={handleManageAssets}
-                        >
-                            Manage Assets
-                        </Button>
-                    {/* )} */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Publish/Unpublish Button */}
+                    {permissions.canPublish &&
+                        (property.is_published ? (
+                            <Button
+                                icon={<EyeInvisibleOutlined />}
+                                onClick={handleUnpublish}
+                                loading={isUnpublishing}
+                                disabled={isUnpublishing}
+                            >
+                                Unpublish
+                            </Button>
+                        ) : (
+                            <Button
+                                type="primary"
+                                ghost
+                                icon={<GlobalOutlined />}
+                                onClick={handlePublish}
+                                loading={isPublishing}
+                                disabled={isPublishing}
+                            >
+                                Publish
+                            </Button>
+                        ))}
+                    <Button
+                        icon={<FolderOpenOutlined />}
+                        onClick={handleManageAssets}
+                    >
+                        Manage Assets
+                    </Button>
                     {onGenerateExpose && (
                         <Button
                             icon={<FilePdfOutlined />}
@@ -114,7 +257,7 @@ function PropertyHeader({
                             Generate Expose
                         </Button>
                     )}
-                    {canEdit && (
+                    {permissions.canEdit && (
                         <Button
                             type="primary"
                             icon={<EditOutlined />}
@@ -123,11 +266,40 @@ function PropertyHeader({
                             Edit Property
                         </Button>
                     )}
-                    {/* <Button icon={<ShareAltOutlined />} onClick={onShare}>
-                        Share
-                    </Button> */}
                 </div>
             </div>
+
+            {/* Publish/Unpublish Confirmation Modal */}
+            <ConfirmationModal
+                open={confirmModal.open}
+                onClose={handleCloseConfirmModal}
+                onSubmit={{
+                    fn: handleConfirmAction,
+                    loading: isPublishing || isUnpublishing,
+                }}
+                title={
+                    confirmModal.action === "publish"
+                        ? "Publish Property?"
+                        : "Unpublish Property?"
+                }
+                description={
+                    confirmModal.action === "publish"
+                        ? "This property will become visible to all agents. Are you sure you want to publish?"
+                        : "This property will only be visible to you and admins. Are you sure you want to unpublish?"
+                }
+                icon={
+                    confirmModal.action === "publish" ? (
+                        <GlobalOutlined className="text-green-500 text-2xl" />
+                    ) : (
+                        <EyeInvisibleOutlined className="text-orange-500 text-2xl" />
+                    )
+                }
+                confirmText={
+                    confirmModal.action === "publish" ? "Publish" : "Unpublish"
+                }
+                confirmType="primary"
+                confirmDanger={confirmModal.action === "unpublish"}
+            />
         </div>
     );
 }
