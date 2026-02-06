@@ -23,6 +23,8 @@ import {
 } from "@/lib/utils";
 import { usePage } from "@inertiajs/react";
 import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiSuccessResponse } from "@/lib/api/types";
 
 const { Title, Text } = Typography;
 
@@ -61,6 +63,27 @@ function PropertyHeader({
         defaultCurrencySymbol ||
         "";
 
+    // Publish mutation
+    const { mutate: publishProperty, isPending: isPublishing } = useApiMutate<
+        Record<string, never>,
+        { property: Property },
+        ApiSuccessResponse<{ property: Property }>
+    >(route("properties.publish", property.id), "POST", () => {
+        // Refresh the page to get updated property data
+        router.reload({ only: ["property"] });
+    });
+
+    // Unpublish mutation
+    const { mutate: unpublishProperty, isPending: isUnpublishing } =
+        useApiMutate<
+            Record<string, never>,
+            { property: Property },
+            ApiSuccessResponse<{ property: Property }>
+        >(route("properties.unpublish", property.id), "POST", () => {
+            // Refresh the page to get updated property data
+            router.reload({ only: ["property"] });
+        });
+
     const handleManageAssets = () => {
         router.visit(route("properties.assets.index", property.id));
     };
@@ -73,29 +96,11 @@ function PropertyHeader({
     };
 
     const handlePublish = () => {
-        router.post(
-            route("properties.publish", property.id),
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    message.success("Property published successfully!");
-                },
-            },
-        );
+        publishProperty({});
     };
 
     const handleUnpublish = () => {
-        router.post(
-            route("properties.unpublish", property.id),
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    message.success("Property unpublished successfully!");
-                },
-            },
-        );
+        unpublishProperty({});
     };
 
     return (
@@ -198,6 +203,8 @@ function PropertyHeader({
                             <Button
                                 icon={<EyeInvisibleOutlined />}
                                 onClick={handleUnpublish}
+                                loading={isUnpublishing}
+                                disabled={isUnpublishing}
                             >
                                 Unpublish
                             </Button>
@@ -207,6 +214,8 @@ function PropertyHeader({
                                 ghost
                                 icon={<GlobalOutlined />}
                                 onClick={handlePublish}
+                                loading={isPublishing}
+                                disabled={isPublishing}
                             >
                                 Publish
                             </Button>

@@ -1077,6 +1077,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {
         Route::get('/', [App\Http\Controllers\PropertyAssetController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\PropertyAssetController::class, 'store'])->name('store');
+        Route::post('/from-urls', [App\Http\Controllers\PropertyAssetController::class, 'storeFromUrls'])->name('store_from_urls');
         Route::post('/external-url', [App\Http\Controllers\PropertyAssetController::class, 'storeExternalUrl'])->name('store_external_url');
         Route::get('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'show'])->name('show');
         Route::put('/{asset}', [App\Http\Controllers\PropertyAssetController::class, 'update'])->name('update');
