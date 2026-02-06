@@ -356,6 +356,9 @@ class PropertyController extends AccountBaseController
         $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
+        $property->unit_style = $request->unit_style;
+        $property->primary_category = $request->primary_category;
+        $property->construction_status = $request->construction_status;
         
         $property->price = $this->normalizePrice($request->price);
         

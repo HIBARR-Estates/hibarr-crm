@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Typography, Tag, Space, Button, Tooltip, message } from "antd";
 import { router } from "@inertiajs/react";
 import {
@@ -23,6 +23,9 @@ import {
 } from "@/lib/utils";
 import { usePage } from "@inertiajs/react";
 import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiSuccessResponse } from "@/lib/api/types";
+import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 
 const { Title, Text } = Typography;
 
@@ -50,6 +53,12 @@ function PropertyHeader({
 
     const permissions = usePropertyPermissions(property);
 
+    // Confirmation modal state
+    const [confirmModal, setConfirmModal] = useState<{
+        open: boolean;
+        action: "publish" | "unpublish" | null;
+    }>({ open: false, action: null });
+
     const { amount, currency } = parsePropertyPrice(
         (property as any).price,
         defaultCurrencyCode || "TRY",
@@ -60,6 +69,29 @@ function PropertyHeader({
             ?.currency_symbol ||
         defaultCurrencySymbol ||
         "";
+
+    // Publish mutation
+    const { mutate: publishProperty, isPending: isPublishing } = useApiMutate<
+        Record<string, never>,
+        { property: Property },
+        ApiSuccessResponse<{ property: Property }>
+    >(route("properties.publish", property.id), "POST", () => {
+        setConfirmModal({ open: false, action: null });
+        // Refresh the page to get updated property data
+        router.reload({ only: ["property"] });
+    });
+
+    // Unpublish mutation
+    const { mutate: unpublishProperty, isPending: isUnpublishing } =
+        useApiMutate<
+            Record<string, never>,
+            { property: Property },
+            ApiSuccessResponse<{ property: Property }>
+        >(route("properties.unpublish", property.id), "POST", () => {
+            setConfirmModal({ open: false, action: null });
+            // Refresh the page to get updated property data
+            router.reload({ only: ["property"] });
+        });
 
     const handleManageAssets = () => {
         router.visit(route("properties.assets.index", property.id));
@@ -73,29 +105,25 @@ function PropertyHeader({
     };
 
     const handlePublish = () => {
-        router.post(
-            route("properties.publish", property.id),
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    message.success("Property published successfully!");
-                },
-            },
-        );
+        setConfirmModal({ open: true, action: "publish" });
     };
 
     const handleUnpublish = () => {
-        router.post(
-            route("properties.unpublish", property.id),
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    message.success("Property unpublished successfully!");
-                },
-            },
-        );
+        setConfirmModal({ open: true, action: "unpublish" });
+    };
+
+    const handleConfirmAction = () => {
+        if (confirmModal.action === "publish") {
+            publishProperty({});
+        } else if (confirmModal.action === "unpublish") {
+            unpublishProperty({});
+        }
+    };
+
+    const handleCloseConfirmModal = () => {
+        if (!isPublishing && !isUnpublishing) {
+            setConfirmModal({ open: false, action: null });
+        }
     };
 
     return (
@@ -198,6 +226,8 @@ function PropertyHeader({
                             <Button
                                 icon={<EyeInvisibleOutlined />}
                                 onClick={handleUnpublish}
+                                loading={isUnpublishing}
+                                disabled={isUnpublishing}
                             >
                                 Unpublish
                             </Button>
@@ -207,6 +237,8 @@ function PropertyHeader({
                                 ghost
                                 icon={<GlobalOutlined />}
                                 onClick={handlePublish}
+                                loading={isPublishing}
+                                disabled={isPublishing}
                             >
                                 Publish
                             </Button>
@@ -236,6 +268,38 @@ function PropertyHeader({
                     )}
                 </div>
             </div>
+
+            {/* Publish/Unpublish Confirmation Modal */}
+            <ConfirmationModal
+                open={confirmModal.open}
+                onClose={handleCloseConfirmModal}
+                onSubmit={{
+                    fn: handleConfirmAction,
+                    loading: isPublishing || isUnpublishing,
+                }}
+                title={
+                    confirmModal.action === "publish"
+                        ? "Publish Property?"
+                        : "Unpublish Property?"
+                }
+                description={
+                    confirmModal.action === "publish"
+                        ? "This property will become visible to all agents. Are you sure you want to publish?"
+                        : "This property will only be visible to you and admins. Are you sure you want to unpublish?"
+                }
+                icon={
+                    confirmModal.action === "publish" ? (
+                        <GlobalOutlined className="text-green-500 text-2xl" />
+                    ) : (
+                        <EyeInvisibleOutlined className="text-orange-500 text-2xl" />
+                    )
+                }
+                confirmText={
+                    confirmModal.action === "publish" ? "Publish" : "Unpublish"
+                }
+                confirmType="primary"
+                confirmDanger={confirmModal.action === "unpublish"}
+            />
         </div>
     );
 }
