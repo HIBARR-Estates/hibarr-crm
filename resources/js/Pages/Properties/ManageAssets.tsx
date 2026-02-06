@@ -15,7 +15,7 @@ import {
     Progress,
     Alert,
     Typography,
-    message,
+    App,
 } from "antd";
 import {
     AppstoreOutlined,
@@ -71,6 +71,8 @@ const ManageAssets = ({
     availableTypes,
     filters,
 }: ManageAssetsProps) => {
+    const { message } = App.useApp();
+
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
     const [selectedAssets, setSelectedAssets] = useState<number[]>([]);
     const [previewAsset, setPreviewAsset] = useState<PropertyAsset | null>(
@@ -270,11 +272,24 @@ const ManageAssets = ({
                                 : s,
                         ),
                     );
+
+                    // Show individual file error notification
+                    message.error(
+                        `Failed to upload "${file.name}": ${errorMessage}`,
+                    );
                 }
             }
 
             // If we have successful uploads, save them to the backend
             if (successfulUploads.length > 0) {
+                // Notify about partial failures if any
+                const failedUploads = files.length - successfulUploads.length;
+                if (failedUploads > 0) {
+                    message.warning(
+                        `${failedUploads} file(s) failed to upload. ${successfulUploads.length} file(s) will be saved.`,
+                    );
+                }
+
                 const assetsToSave = successfulUploads.map((upload, index) => {
                     const fileId = `file-${index}-${upload.originalName}`;
                     const metadata = fileMetadata.get(fileId);
@@ -300,10 +315,18 @@ const ManageAssets = ({
                     tags: selectedTags,
                 });
             } else {
-                message.error("All uploads failed. Please try again.");
+                message.error(
+                    "All uploads failed. Please check your files and try again.",
+                );
+                setIsUploading(false);
             }
         } catch (error) {
-            message.error("Upload process failed. Please try again.");
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : "Upload process failed";
+            message.error(`Upload error: ${errorMessage}. Please try again.`);
+            setIsUploading(false);
         } finally {
             setIsUploading(false);
         }
@@ -369,7 +392,7 @@ const ManageAssets = ({
     return (
         <>
             <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
-                <div className="max-w-7xl mx-auto space-y-6">
+                <div className="max-w-7xl mx-auto flex flex-col gap-y-6">
                     {/* Actions Bar */}
                     <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
                         <Space size="middle">
@@ -532,7 +555,7 @@ const ManageAssets = ({
                             />
 
                             {/* Individual file statuses */}
-                            <div className="mt-4 max-h-48 overflow-y-auto space-y-2">
+                            <div className="mt-4 max-h-48 overflow-y-auto flex flex-col gap-y-2">
                                 {uploadStatuses.map((status) => (
                                     <div
                                         key={status.fileId}
@@ -606,14 +629,14 @@ const ManageAssets = ({
                                     <div style={{ marginTop: 8 }}>Upload</div>
                                 </div>
                             </Upload>
-
-                            <Alert
-                                type="info"
-                                showIcon
-                                className="mt-4"
-                                message="Upload Info"
-                                description="Files will be uploaded to our secure cloud storage. Supported formats: JPEG, PNG, GIF, WebP, MP4, WebM. Maximum file size: 50MB."
-                            />
+                            <div className="mt-4">
+                                <Alert
+                                    type="info"
+                                    showIcon
+                                    message="Upload Info"
+                                    description="Files will be uploaded to our secure cloud storage. Supported formats: JPEG, PNG, GIF, WebP, MP4, WebM. Maximum file size: 50MB."
+                                />
+                            </div>
                         </>
                     )}
                 </Modal>
