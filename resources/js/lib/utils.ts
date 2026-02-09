@@ -17,7 +17,7 @@ export const isLoading = ({
 export const pluralOrSingular = (
     count: number,
     singular: string,
-    plural: string
+    plural: string,
 ) => {
     return count === 1 ? singular : `${count} ${plural}`;
 };
@@ -61,7 +61,7 @@ export const getPropertyTypeColor = (type: string): string => {
 
 export const formatCurrency = (
     amount: number,
-    currencyCode: string | null | undefined = "GBP"
+    currencyCode: string | null | undefined = "GBP",
 ): string => {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -76,7 +76,7 @@ export const formatCurrency = (
 // - object: {amount, currency}
 export const parsePropertyPrice = (
     price: any,
-    defaultCurrency: string = "TRY"
+    defaultCurrency: string = "TRY",
 ): { amount: number; currency: string } => {
     const fallback = { amount: 0, currency: defaultCurrency };
 
@@ -137,7 +137,10 @@ export const formatNumber = (amount: number): string => {
     }).format(amount);
 };
 
-export const formatCurrencyWithSymbol = (amount: number, symbol: string): string => {
+export const formatCurrencyWithSymbol = (
+    amount: number,
+    symbol: string,
+): string => {
     const s = symbol || "";
     return `${s}${formatNumber(amount)}`;
 };
@@ -149,7 +152,7 @@ export const truncateText = (text: string, maxLength: number = 200): string => {
 
 export const filterProperties = (
     data: Property[],
-    filters: TFilter
+    filters: TFilter,
 ): Property[] => {
     return data.filter((property) => {
         // Search filter - check title, description, city, and area
@@ -201,4 +204,122 @@ export const filterProperties = (
 
         return true;
     });
+};
+
+/**
+ * Generate a human-readable property subtitle using a fallthrough narrative strategy.
+ *
+ * Sequence:
+ *  1. The Elevated Living   – Beds + Unit Style + Property Type + View Type + Furniture
+ *  2. The Vista Narrative   – View Type + Unit Style + Property Type + Beds
+ *  3. The Architectural Hook– Unit Style + Property Type + Location + Beds
+ *  4. The Setting Focus     – Property Type + View Type + Location
+ *  5. The Distinction       – Primary Category + Property Type + Beds
+ *  6. The Foundation        – Property Type + Location (catch-all)
+ */
+export const generatePropertySubtitle = (record: Property): string | null => {
+    const beds = record.bedrooms;
+    const unitStyle = formatEnumLabel(record.unit_style);
+    const propertyType = record.property_type;
+    const viewType = formatViewTypes(record.view_types);
+    const furniture = formatFurniture(record.furniture_status);
+    const location = resolveLocation(record);
+    const category = formatEnumLabel(record.primary_category);
+    const constructionStatus = formatEnumLabel(record.construction_status);
+
+    const hasBeds = beds !== undefined && beds !== null && beds > 0;
+    const hasUnitStyle = !!unitStyle;
+    const hasPropertyType = !!propertyType;
+    const hasViewType = !!viewType;
+    const hasFurniture = !!furniture;
+    const hasLocation = !!location;
+    const hasCategory = !!category;
+    const hasConstructionStatus = !!constructionStatus;
+
+    // 1. The Elevated Living
+    if (
+        hasBeds &&
+        hasUnitStyle &&
+        hasPropertyType &&
+        hasViewType &&
+        hasFurniture
+    ) {
+        return `${beds} Bedroom ${unitStyle} ${propertyType} with ${viewType} and ${furniture} interiors`;
+    }
+
+    // 2. The Vista Narrative
+    if (hasViewType && hasUnitStyle && hasPropertyType && hasBeds) {
+        const furniturePart = hasFurniture
+            ? ` featuring ${furniture} finishes and`
+            : " with";
+        return `${viewType} ${unitStyle} ${propertyType}${furniturePart} ${beds} Bedrooms`;
+    }
+
+    // 3. The Architectural Hook
+    if (hasUnitStyle && hasPropertyType && hasLocation && hasBeds) {
+        const furniturePart = hasFurniture ? ` and ${furniture} interiors` : "";
+        return `${unitStyle} ${propertyType} in ${location} with ${beds} Bedrooms${furniturePart}`;
+    }
+
+    // 4. The Setting Focus
+    if (hasPropertyType && hasViewType && hasLocation) {
+        const bedsPart = hasBeds ? ` with ${beds} Bedrooms` : "";
+        return `${propertyType} set within ${viewType} surroundings in ${location}${bedsPart}`;
+    }
+
+    // 5. The Distinction
+    if (hasCategory && hasPropertyType && hasBeds) {
+        const furniturePart = hasFurniture ? `${furniture} ` : "";
+        const viewPart = hasViewType ? ` capturing ${viewType}` : "";
+        return `${furniturePart}${beds} Bedroom ${category} ${propertyType}${viewPart}`;
+    }
+
+    // 6. The Foundation (catch-all)
+    if (hasPropertyType) {
+        const statusPart = hasConstructionStatus
+            ? `${constructionStatus} `
+            : "";
+        const locationPart = hasLocation ? ` in ${location}` : "";
+        return `${statusPart}${propertyType}${locationPart}`;
+    }
+
+    return null;
+};
+
+/** Format an enum value like "studio" or "part_furnished" into "Studio" or "Part Furnished" */
+const formatEnumLabel = (value?: string | null): string | null => {
+    if (!value) return null;
+    return value
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+};
+
+/** Join view_types array into a readable string: "Sea View", "Sea & Mountain View" */
+const formatViewTypes = (viewTypes?: string[] | null): string | null => {
+    if (!viewTypes || viewTypes.length === 0) return null;
+    if (viewTypes.length === 1) return viewTypes[0];
+    if (viewTypes.length === 2) return `${viewTypes[0]} & ${viewTypes[1]}`;
+    return `${viewTypes.slice(0, -1).join(", ")} & ${viewTypes[viewTypes.length - 1]}`;
+};
+
+/** Normalise furniture_status into a concise adjective form */
+const formatFurniture = (status?: string | null): string | null => {
+    if (!status) return null;
+    const map: Record<string, string> = {
+        "Fully Furnished": "Fully Furnished",
+        "Part Furnished": "Part Furnished",
+        "Semi-Furnished": "Semi-Furnished",
+        Unfurnished: "Unfurnished",
+        "White Goods Only": "White Goods",
+    };
+    return map[status] ?? formatEnumLabel(status);
+};
+
+/** Resolve the best available location string from effective_location or direct fields */
+const resolveLocation = (record: Property): string | null => {
+    const city = record.effective_location?.city ?? record.city;
+    const area = record.effective_location?.area ?? record.area;
+    if (city && area) return `${area}, ${city}`;
+    return city || area || null;
 };

@@ -140,7 +140,7 @@ const Index = ({
                 // projects,
                 // developers,
                 developerProjects,
-                excludeFields: ["search"],
+                excludeFields: ["publishing_status", "search"],
             }),
         [projects, developers, developerProjects],
     );
