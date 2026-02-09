@@ -670,7 +670,7 @@ p {
 <div class="page bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/icons/test.png' }}')">
     <div class="container">
         <div class="logo">
-            <img src="property/icons/hibarr-expose.png" alt="hibarr-expose-logo" />
+            <img src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652057861-0a7a72b8-._hibarr-expose.png" alt="hibarr-expose-logo" />
         </div>
     </div>
 
@@ -688,7 +688,7 @@ p {
         <div class="row">
             <div class="col-half">
                 <div class="expose-title">
-                    <img style="width: 25%" src="property/icons/hibarr-rounded.png" alt="rounded" />
+                    <img style="width: 25%" src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652164703-4793030e-._hibarr-rounded.png" alt="rounded" />
 
                     <div class="text">
                         <h1 style="margin-bottom: 0">PROPERTY OVERVIEW</h1>
@@ -748,7 +748,7 @@ p {
     </div>
 
     <div class="logo-watermark">
-        <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+        <img src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652307710-d4b7f017-._logo-white.png" alt="hibarr-logo" />
       </div>
     <div class="page-num">03</div>
 </div>
@@ -758,7 +758,7 @@ p {
     <div class="container">
         <div class="bg" style="--bg-image: url('{{ $data['assets']['exterior'][3] ?? 'property/images/test.png' }}')">
             <div class="logo-watermark">
-                <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+                <img src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652307710-d4b7f017-._logo-white.png" alt="hibarr-logo" />
             </div>
             <div class="page-num">04</div>
         </div>
@@ -770,7 +770,7 @@ p {
     <div class="container">
         <div class="header">
             <span class="title">FACILITIES</span>
-            <img style="width: 12%" src="{{ $data['company']['logo'] ?? 'property/icons/logo.png' }}" alt="hibarr-logo" />
+            <img style="width: 12%" src="{{ $data['company']['logo'] ?? 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770652253319-e2275926-._logo.png' }}" alt="hibarr-logo" />
         </div>
 
         <div class="gallery-grid">
@@ -804,7 +804,7 @@ p {
             <div class="col-5">
                 <div class="content">
                     <div class="expose-title">
-                        <img style="width: 25%" src="property/icons/hibarr-rounded.png" alt="rounded" />
+                        <img style="width: 25%" src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652164703-4793030e-._hibarr-rounded.png" alt="rounded" />
                         <div class="text blue">
                             <h1 class="fw-500">{{ strtoupper($data['unit_style'] ?? 'PROPERTY') }}</h1>
                         </div>
@@ -828,7 +828,7 @@ p {
 
     <div class="footer-brand">Premium Real Estate</div>
       <div class="logo-watermark">
-        <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+        <img src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652307710-d4b7f017-._logo-white.png" alt="hibarr-logo" />
     </div>
     <div class="page-num">04</div>
 </div>
@@ -844,7 +844,7 @@ p {
         </div>
 
         <div class="logo-watermark">
-            <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+            <img src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652307710-d4b7f017-._logo-white.png" alt="hibarr-logo" />
         </div>
     </div>
     <div class="page-num">05</div>
@@ -860,7 +860,7 @@ p {
             <div class="block-title">
             <img
                 style="width: 80%"
-                src="property/icons/block-title.svg"
+                src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770651944669-8ac53256-._block-title.svg"
                 alt="rounded"
             />
 
@@ -1023,7 +1023,7 @@ p {
     </div>
 
      <div class="logo-watermark">
-        <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+        <img src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652307710-d4b7f017-._logo-white.png" alt="hibarr-logo" />
     </div>
     <div class="page-num">07</div>
 </div>
@@ -1041,7 +1041,7 @@ p {
             </div>
         </div>
         <div class="expose-title blue absolute">
-            <img style="width: 80%" src="property/icons/hibarr-rounded.png" alt="rounded" />
+            <img style="width: 80%" src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652164703-4793030e-._hibarr-rounded.png" alt="rounded" />
             <div class="text blue">
                 <h1 class="fw-500">ROOTED IN BEAUTY, GROWING IN VALUE</h1>
             </div>
