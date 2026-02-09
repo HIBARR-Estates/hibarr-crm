@@ -455,6 +455,16 @@ class PropertyController extends AccountBaseController
             'view_tasks' => user()->permission('view_tasks'),
         ];
 
+        // Data needed by the edit property modal
+        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'project_location_id')
+            ->with('location:id,name')
+            ->where('company_id', user()->company_id)
+            ->get();
+
+        $projectLocations = \App\Models\ProjectLocation::select('id', 'name')
+            ->where('company_id', user()->company_id)
+            ->get();
+
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
             'property' => $this->property,
@@ -466,6 +476,9 @@ class PropertyController extends AccountBaseController
             'employees' => $employees,
             'projects' => $projects,
             'taskPermissions' => $taskPermissions,
+            'enumValues' => Property::getEnumValues(),
+            'developerProjects' => $developerProjects,
+            'projectLocations' => $projectLocations,
         ]);
     }
 

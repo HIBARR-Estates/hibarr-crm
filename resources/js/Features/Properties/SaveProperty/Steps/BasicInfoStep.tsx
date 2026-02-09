@@ -192,16 +192,20 @@ export default function BasicInfoStep({
 
     // Derived flags
     const isLand = selectedCategory === "land";
+    const isResidential = selectedCategory === "residential";
     const isStudio = selectedUnitStyle === "studio";
+    const showUnitStyle = isResidential;
     const showRoomFields = !isLand && !isStudio;
 
     // Filtered property types based on selected category
-    const propertyTypeGroups = useMemo(() => {
+    const propertyTypeOptions = useMemo(() => {
         if (selectedCategory && PROPERTY_TYPES_BY_CATEGORY[selectedCategory]) {
-            return PROPERTY_TYPES_BY_CATEGORY[selectedCategory];
+            // Flat list when a category is selected
+            return PROPERTY_TYPES_BY_CATEGORY[selectedCategory].flatMap(
+                (g) => g.types,
+            );
         }
-        // Fallback: show all grouped
-        return Object.values(ALL_PROPERTY_CATEGORIES);
+        return null; // null = show grouped fallback
     }, [selectedCategory]);
 
     // Filtered sale types
@@ -236,6 +240,11 @@ export default function BasicInfoStep({
             form.setFieldValue("unit_style", undefined);
             form.setFieldValue("bedrooms", undefined);
             form.setFieldValue("living_room", undefined);
+            setSelectedUnitStyle(null);
+        }
+        // Clear unit style for non-residential categories
+        if (value && value !== "residential") {
+            form.setFieldValue("unit_style", undefined);
             setSelectedUnitStyle(null);
         }
     };
@@ -305,6 +314,34 @@ export default function BasicInfoStep({
                     </Form.Item>
                 </Col>
 
+                {/* Developer Project Selection */}
+                <Col span={24}>
+                    <Form.Item
+                        name="developer_project_id"
+                        label="Developer Project"
+                        tooltip="Link this property to a developer project. The project's location will be used if available."
+                    >
+                        <Select
+                            placeholder="Select developer project (optional)"
+                            allowClear
+                            showSearch
+                            optionFilterProp="children"
+                            onChange={handleProjectChange}
+                        >
+                            {developerProjects.map((project) => (
+                                <Option key={project.id} value={project.id}>
+                                    {project.name}
+                                    {project.location && (
+                                        <span className="text-gray-400 ml-2">
+                                            ({project.location.name})
+                                        </span>
+                                    )}
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                </Col>
+
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="property_type"
@@ -321,18 +358,29 @@ export default function BasicInfoStep({
                             showSearch
                             optionFilterProp="children"
                         >
-                            {propertyTypeGroups.map((category) => (
-                                <Select.OptGroup
-                                    key={category.label}
-                                    label={category.label}
-                                >
-                                    {category.types.map((type) => (
-                                        <Option key={type} value={type}>
-                                            {type}
-                                        </Option>
-                                    ))}
-                                </Select.OptGroup>
-                            ))}
+                            {propertyTypeOptions
+                                ? propertyTypeOptions.map((type) => (
+                                      <Option key={type} value={type}>
+                                          {type}
+                                      </Option>
+                                  ))
+                                : Object.values(ALL_PROPERTY_CATEGORIES).map(
+                                      (category) => (
+                                          <Select.OptGroup
+                                              key={category.label}
+                                              label={category.label}
+                                          >
+                                              {category.types.map((type) => (
+                                                  <Option
+                                                      key={type}
+                                                      value={type}
+                                                  >
+                                                      {type}
+                                                  </Option>
+                                              ))}
+                                          </Select.OptGroup>
+                                      ),
+                                  )}
                         </Select>
                     </Form.Item>
                 </Col>
@@ -358,8 +406,8 @@ export default function BasicInfoStep({
                     </Form.Item>
                 </Col>
 
-                {/* Unit Style - hidden for land */}
-                {!isLand && (
+                {/* Unit Style - only for residential */}
+                {showUnitStyle && (
                     <Col xs={24} md={12}>
                         <Form.Item
                             name="unit_style"
@@ -475,40 +523,12 @@ export default function BasicInfoStep({
                     </Form.Item>
                 </Col>
 
-                {/* Location Section - Required Fields */}
+                {/* Location Section */}
                 <Col span={24}>
                     <Divider className="my-2">
                         <EnvironmentOutlined className="mr-2" />
                         Location
                     </Divider>
-                </Col>
-
-                {/* Developer Project Selection */}
-                <Col span={24}>
-                    <Form.Item
-                        name="developer_project_id"
-                        label="Developer Project"
-                        tooltip="Link this property to a developer project. The project's location will be used if available."
-                    >
-                        <Select
-                            placeholder="Select developer project (optional)"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                            onChange={handleProjectChange}
-                        >
-                            {developerProjects.map((project) => (
-                                <Option key={project.id} value={project.id}>
-                                    {project.name}
-                                    {project.location && (
-                                        <span className="text-gray-400 ml-2">
-                                            ({project.location.name})
-                                        </span>
-                                    )}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
                 </Col>
 
                 {/* Show info if project has location */}
