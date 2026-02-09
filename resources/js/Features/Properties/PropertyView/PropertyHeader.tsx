@@ -53,6 +53,9 @@ function PropertyHeader({
 
     const permissions = usePropertyPermissions(property);
 
+    // Copied state for reference code
+    const [copied, setCopied] = useState(false);
+
     // Confirmation modal state
     const [confirmModal, setConfirmModal] = useState<{
         open: boolean;
@@ -97,10 +100,16 @@ function PropertyHeader({
         router.visit(route("properties.assets.index", property.id));
     };
 
-    const handleCopyReferenceCode = () => {
+    const handleCopyReferenceCode = async () => {
         if (property.reference_code) {
-            navigator.clipboard.writeText(property.reference_code);
-            message.success("Reference code copied to clipboard!");
+            try {
+                await navigator.clipboard.writeText(property.reference_code);
+                setCopied(true);
+                message.success("Reference code copied!");
+                setTimeout(() => setCopied(false), 2000);
+            } catch {
+                message.error("Failed to copy");
+            }
         }
     };
 
@@ -133,13 +142,23 @@ function PropertyHeader({
                     {/* Reference Code Badge */}
                     {property.reference_code && (
                         <div className="flex items-center gap-2 mb-2">
-                            <Tooltip title="Click to copy reference code">
+                            <Tooltip
+                                title={
+                                    copied
+                                        ? "Copied!"
+                                        : "Click to copy reference code"
+                                }
+                            >
                                 <Tag
-                                    color="geekblue"
-                                    className="text-xs cursor-pointer hover:opacity-80"
+                                    color={copied ? "green" : "geekblue"}
+                                    className="text-xs cursor-pointer hover:opacity-80 transition-all"
                                     onClick={handleCopyReferenceCode}
                                 >
-                                    <CopyOutlined className="mr-1" />
+                                    {copied ? (
+                                        <CheckCircleOutlined className="mr-1" />
+                                    ) : (
+                                        <CopyOutlined className="mr-1" />
+                                    )}
                                     {property.reference_code}
                                 </Tag>
                             </Tooltip>
