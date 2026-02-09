@@ -59,6 +59,13 @@ pipeline {
                             # Run Build via Makefile
                             make build-artifact
                             
+                            echo 'Step 1b: gRPC Setup...'                            # Generate PHP classes from Protocol Buffer definitions
+                            make proto
+                            
+                            # Install RoadRunner binary for Linux
+                            make rr-install
+                            chmod +x ./rr
+                            
                             echo 'Step 2: Linking Shared Assets...'
                             # Use absolute paths to ensure the symlink never breaks
                             ln -sfn /home/$TARGET_USER/shared/.env $BUILD_PATH/.env
@@ -91,6 +98,16 @@ pipeline {
                             
                             # Reload PHP-FPM to clear OPcache
                             sudo systemctl reload php8.3-fpm || true
+                            
+                            echo 'Step 7: gRPC Server Restart...'
+                            # Restart RoadRunner gRPC server if service exists
+                            if systemctl list-units --type=service | grep -q roadrunner-grpc; then
+                                sudo systemctl restart roadrunner-grpc || true
+                                echo 'RoadRunner gRPC service restarted'
+                            else
+                                echo 'WARNING: roadrunner-grpc service not found. Please create systemd service.'
+                                echo 'See: /etc/systemd/system/roadrunner-grpc.service'
+                            fi
 
                             echo 'Deployment Successful!'
                         "

@@ -109,6 +109,34 @@ rr-workers:
 	rr.exe workers -c .rr.yaml
 
 # ------------------------------------
+# RoadRunner Linux Commands (Production)
+# ------------------------------------
+
+# Start RoadRunner server (development) - Linux
+rr-serve-linux:
+	./rr serve -c .rr.yaml
+
+# Start RoadRunner server (production) - Linux
+rr-serve-prod-linux:
+	./rr serve -c .rr.yaml -o "logs.mode=production" -o "reload.enabled=false"
+
+# Stop RoadRunner server - Linux
+rr-stop-linux:
+	./rr stop -c .rr.yaml || true
+
+# Check RoadRunner workers - Linux
+rr-workers-linux:
+	./rr workers -c .rr.yaml
+
+# Restart RoadRunner systemd service
+rr-restart-service:
+	sudo systemctl restart roadrunner-grpc || true
+
+# Check RoadRunner systemd service status
+rr-status-service:
+	sudo systemctl status roadrunner-grpc
+
+# ------------------------------------
 # Storage and permissions
 # ------------------------------------
 
