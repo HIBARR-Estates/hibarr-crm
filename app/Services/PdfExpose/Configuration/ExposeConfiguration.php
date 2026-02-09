@@ -52,17 +52,23 @@ class ExposeConfiguration implements Arrayable
                 // Location
                 'city' => $property->city,
                 'area' => $property->area, // District/area name
-                'address' => $property->city, // Kept for backward compatibility
+                'address' => $property->address ?? $property->city,
+                'latitude' => $property->latitude,
+                'longitude' => $property->longitude,
                 
                 // Size & rooms
                 'living_area_sqm' => $property->living_area_sqm,
+                'gross_sqm' => $property->gross_sqm,
                 'land_size' => $property->land_size,
                 'terrace_area_sqm' => $property->terrace_area_sqm,
                 'bedrooms' => $property->bedrooms,
                 'bathrooms' => $property->bathrooms,
+                'rooms' => $property->rooms,
                 'living_room' => $property->living_room,
                 'floor_number' => $property->floor_number,
                 'floors_in_building' => $property->floors_in_building,
+                'balcony_count' => $property->balcony_count,
+                'balcony_net_sqm' => $property->balcony_net_sqm,
                 
                 // Property classification
                 'property_type' => $property->property_type,
@@ -76,6 +82,7 @@ class ExposeConfiguration implements Arrayable
                 'completion_date' => $property->completion_date?->format('Y'),
                 'construction_status' => $property->construction_status,
                 'furniture_status' => $property->furniture_status,
+                'heating_type' => $property->heating_type,
                 'title_deed_type' => $property->title_deed_type,
                 
                 // Content
