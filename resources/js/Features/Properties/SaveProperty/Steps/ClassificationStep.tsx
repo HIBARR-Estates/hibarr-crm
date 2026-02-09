@@ -17,7 +17,6 @@ export default function ClassificationStep({
     enumValues,
     data,
 }: ClassificationStepProps) {
-    const primaryCategories = enumValues?.primary_categories || [];
     const constructionStatuses = enumValues?.construction_statuses || [];
     const viewTypes = enumValues?.view_types || [];
     const occupancyTypes = enumValues?.occupancy_types || [];
@@ -37,27 +36,6 @@ export default function ClassificationStep({
             </Text>
 
             <Row gutter={[16, 0]}>
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="primary_category"
-                        label="Primary Category"
-                        tooltip="The main category that best describes this property"
-                    >
-                        <Select
-                            placeholder="Select primary category"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                        >
-                            {primaryCategories.map((category) => (
-                                <Option key={category} value={category}>
-                                    {formatLabel(category)}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
-
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="construction_status"
