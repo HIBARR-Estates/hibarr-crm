@@ -169,30 +169,31 @@ export default function PropertyWizardForm({
             case "basic":
                 return [
                     "primary_category",
-                    "title",
                     "description",
                     "property_type",
                     "sale_type",
                     "unit_style",
                     "bedrooms",
+                    "bathrooms",
                     "living_room",
                     "price",
                     "status",
                     "developer_project_id",
-                    "project_location_id",
-                    "city",
-                    "area",
                 ];
             case "classification":
                 return ["construction_status", "view_types", "occupancy_type"];
             case "location":
-                return ["address", "latitude", "longitude"];
+                return [
+                    "project_location_id",
+                    "city",
+                    "area",
+                    "address",
+                    "latitude",
+                    "longitude",
+                ];
             case "details":
                 return [
                     "rooms",
-                    "bedrooms",
-                    "bathrooms",
-                    "living_room",
                     "total_floors",
                     "floor",
                     "net_sqm",

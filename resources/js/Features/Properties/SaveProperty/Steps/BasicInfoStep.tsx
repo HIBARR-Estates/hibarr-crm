@@ -1,21 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
-import {
-    Form,
-    Input,
-    Select,
-    Row,
-    Col,
-    Card,
-    AutoComplete,
-    Divider,
-    Alert,
-    InputNumber,
-} from "antd";
+import { Form, Input, Select, Row, Col, Card, InputNumber } from "antd";
 import { FormInstance } from "antd/lib/form";
 import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "@/Components/CurrencyInput";
-import { EnvironmentOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -150,11 +138,6 @@ interface DeveloperProject {
     project_location_id?: number;
 }
 
-interface ProjectLocation {
-    id: number;
-    name: string;
-}
-
 export default function BasicInfoStep({
     form,
     enumValues,
@@ -163,9 +146,6 @@ export default function BasicInfoStep({
     const { props } = usePage<any>();
     const developerProjects = (props?.developerProjects ||
         []) as DeveloperProject[];
-    const projectLocations = (props?.projectLocations ||
-        []) as ProjectLocation[];
-    const cities = enumValues?.cities || [];
     const unitStyles = enumValues?.unit_styles || [];
     const primaryCategories = enumValues?.primary_categories || [];
 
@@ -264,21 +244,6 @@ export default function BasicInfoStep({
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(" ");
     };
-
-    // Find selected project and check if it has a location
-    const selectedProject = useMemo(() => {
-        if (!selectedProjectId) return null;
-        return (
-            developerProjects.find((p) => p.id === selectedProjectId) ?? null
-        );
-    }, [selectedProjectId, developerProjects]);
-
-    const projectHasLocation = useMemo(() => {
-        return (
-            selectedProject?.location !== undefined &&
-            selectedProject?.location !== null
-        );
-    }, [selectedProject]);
 
     const handleProjectChange = (value: number | undefined) => {
         setSelectedProjectId(value ?? null);
@@ -459,6 +424,17 @@ export default function BasicInfoStep({
                         </Col>
 
                         <Col xs={12} md={6}>
+                            <Form.Item name="bathrooms" label="Bathrooms">
+                                <InputNumber
+                                    placeholder="0-8"
+                                    min={0}
+                                    max={8}
+                                    style={{ width: "100%" }}
+                                />
+                            </Form.Item>
+                        </Col>
+
+                        <Col xs={12} md={6}>
                             <Form.Item
                                 name="living_room"
                                 label="Living Rooms"
@@ -519,108 +495,6 @@ export default function BasicInfoStep({
                         <TextArea
                             rows={4}
                             placeholder="Describe the property features, condition, and any notable details..."
-                        />
-                    </Form.Item>
-                </Col>
-
-                {/* Location Section */}
-                <Col span={24}>
-                    <Divider className="my-2">
-                        <EnvironmentOutlined className="mr-2" />
-                        Location
-                    </Divider>
-                </Col>
-
-                {/* Show info if project has location */}
-                {projectHasLocation && (
-                    <Col span={24}>
-                        <Alert
-                            message={`Location inherited from project: ${selectedProject?.location?.name}`}
-                            type="info"
-                            showIcon
-                            className="mb-4"
-                        />
-                    </Col>
-                )}
-
-                {/* Direct Project Location - only show if no project selected or project has no location */}
-                {!projectHasLocation && (
-                    <Col span={24}>
-                        <Form.Item
-                            name="project_location_id"
-                            label="Project Location"
-                            tooltip="Select a predefined project location for this property"
-                        >
-                            <Select
-                                placeholder="Select project location"
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {projectLocations.map((location) => (
-                                    <Option
-                                        key={location.id}
-                                        value={location.id}
-                                    >
-                                        {location.name}
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-                )}
-
-                {/* City and Area - Optional fields */}
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="city"
-                        label="City"
-                        tooltip={
-                            projectHasLocation
-                                ? "Derived from project location"
-                                : undefined
-                        }
-                    >
-                        <AutoComplete
-                            placeholder={
-                                projectHasLocation
-                                    ? "From project location"
-                                    : "Select or enter city"
-                            }
-                            allowClear
-                            disabled={projectHasLocation}
-                            className={projectHasLocation ? "bg-gray-50" : ""}
-                            options={cities.map((city) => ({
-                                value: city,
-                                label: city,
-                            }))}
-                            filterOption={(inputValue, option) =>
-                                option?.value
-                                    ?.toLowerCase()
-                                    .includes(inputValue.toLowerCase()) ?? false
-                            }
-                        />
-                    </Form.Item>
-                </Col>
-
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="area"
-                        label="Area / District"
-                        tooltip={
-                            projectHasLocation
-                                ? "Derived from project location"
-                                : undefined
-                        }
-                    >
-                        <Input
-                            placeholder={
-                                projectHasLocation
-                                    ? "From project location"
-                                    : "Enter area or district name"
-                            }
-                            disabled={projectHasLocation}
-                            className={projectHasLocation ? "bg-gray-50" : ""}
                         />
                     </Form.Item>
                 </Col>

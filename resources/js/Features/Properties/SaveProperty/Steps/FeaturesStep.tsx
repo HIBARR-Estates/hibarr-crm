@@ -1,7 +1,7 @@
-import React from "react";
-import { Form, Select, Row, Col, Card, Typography, Divider } from "antd";
+import React, { useEffect, useState } from "react";
+import { Form, Checkbox, Row, Col, Card, Typography, Divider } from "antd";
 import { FormInstance } from "antd/lib/form";
-import { Property, PropertyEnumValues } from "@/Types";
+import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import {
     HomeOutlined,
     CarOutlined,
@@ -130,6 +130,28 @@ export default function FeaturesStep({
     enumValues,
     data,
 }: FeaturesStepProps) {
+    const [selectedCategory, setSelectedCategory] =
+        useState<PrimaryCategory | null>(
+            (data?.primary_category as PrimaryCategory) ?? null,
+        );
+
+    // Watch primary_category from the form
+    useEffect(() => {
+        const category = form.getFieldValue("primary_category");
+        setSelectedCategory(category ?? null);
+    }, [form]);
+
+    const isLand = selectedCategory === "land";
+
+    // Clear non-location features when switching to land
+    useEffect(() => {
+        if (isLand) {
+            form.setFieldValue("interior_features", []);
+            form.setFieldValue("exterior_features", []);
+            form.setFieldValue("add_ons", []);
+        }
+    }, [isLand, form]);
+
     return (
         <Card size="small" className="border-0 shadow-none">
             <Text type="secondary" className="block mb-4">
@@ -137,77 +159,79 @@ export default function FeaturesStep({
             </Text>
 
             <Row gutter={[16, 0]}>
-                {/* Interior Features */}
-                <Col span={24}>
-                    <Form.Item
-                        name="interior_features"
-                        label={
-                            <span>
-                                <HomeOutlined className="mr-2" />
-                                Interior Features
-                            </span>
-                        }
-                    >
-                        <Select
-                            mode="multiple"
-                            placeholder="Select interior features"
-                            allowClear
-                            maxTagCount={5}
-                            maxTagPlaceholder={(omitted) =>
-                                `+${omitted.length} more`
-                            }
-                            showSearch
-                            optionFilterProp="children"
-                        >
-                            {INTERIOR_FEATURES.map((feature) => (
-                                <Select.Option key={feature} value={feature}>
-                                    {feature}
-                                </Select.Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
+                {/* Interior Features - hidden for land */}
+                {!isLand && (
+                    <>
+                        <Col span={24}>
+                            <Form.Item
+                                name="interior_features"
+                                label={
+                                    <span>
+                                        <HomeOutlined className="mr-2" />
+                                        Interior Features
+                                    </span>
+                                }
+                            >
+                                <Checkbox.Group style={{ width: "100%" }}>
+                                    <Row gutter={[8, 4]}>
+                                        {INTERIOR_FEATURES.map((feature) => (
+                                            <Col
+                                                xs={24}
+                                                sm={12}
+                                                md={8}
+                                                key={feature}
+                                            >
+                                                <Checkbox value={feature}>
+                                                    {feature}
+                                                </Checkbox>
+                                            </Col>
+                                        ))}
+                                    </Row>
+                                </Checkbox.Group>
+                            </Form.Item>
+                        </Col>
 
-                <Col span={24}>
-                    <Divider className="my-2" />
-                </Col>
+                        <Col span={24}>
+                            <Divider className="my-2" />
+                        </Col>
 
-                {/* Exterior Features */}
-                <Col span={24}>
-                    <Form.Item
-                        name="exterior_features"
-                        label={
-                            <span>
-                                <CarOutlined className="mr-2" />
-                                Exterior Features & Amenities
-                            </span>
-                        }
-                    >
-                        <Select
-                            mode="multiple"
-                            placeholder="Select exterior features"
-                            allowClear
-                            maxTagCount={5}
-                            maxTagPlaceholder={(omitted) =>
-                                `+${omitted.length} more`
-                            }
-                            showSearch
-                            optionFilterProp="children"
-                        >
-                            {EXTERIOR_FEATURES.map((feature) => (
-                                <Select.Option key={feature} value={feature}>
-                                    {feature}
-                                </Select.Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
+                        {/* Exterior Features */}
+                        <Col span={24}>
+                            <Form.Item
+                                name="exterior_features"
+                                label={
+                                    <span>
+                                        <CarOutlined className="mr-2" />
+                                        Exterior Features & Amenities
+                                    </span>
+                                }
+                            >
+                                <Checkbox.Group style={{ width: "100%" }}>
+                                    <Row gutter={[8, 4]}>
+                                        {EXTERIOR_FEATURES.map((feature) => (
+                                            <Col
+                                                xs={24}
+                                                sm={12}
+                                                md={8}
+                                                key={feature}
+                                            >
+                                                <Checkbox value={feature}>
+                                                    {feature}
+                                                </Checkbox>
+                                            </Col>
+                                        ))}
+                                    </Row>
+                                </Checkbox.Group>
+                            </Form.Item>
+                        </Col>
 
-                <Col span={24}>
-                    <Divider className="my-2" />
-                </Col>
+                        <Col span={24}>
+                            <Divider className="my-2" />
+                        </Col>
+                    </>
+                )}
 
-                {/* Location Features */}
+                {/* Location Features - always shown */}
                 <Col span={24}>
                     <Form.Item
                         name="location_features"
@@ -218,60 +242,57 @@ export default function FeaturesStep({
                             </span>
                         }
                     >
-                        <Select
-                            mode="multiple"
-                            placeholder="Select location features"
-                            allowClear
-                            maxTagCount={5}
-                            maxTagPlaceholder={(omitted) =>
-                                `+${omitted.length} more`
-                            }
-                            showSearch
-                            optionFilterProp="children"
-                        >
-                            {LOCATION_FEATURES.map((feature) => (
-                                <Select.Option key={feature} value={feature}>
-                                    {feature}
-                                </Select.Option>
-                            ))}
-                        </Select>
+                        <Checkbox.Group style={{ width: "100%" }}>
+                            <Row gutter={[8, 4]}>
+                                {LOCATION_FEATURES.map((feature) => (
+                                    <Col xs={24} sm={12} md={8} key={feature}>
+                                        <Checkbox value={feature}>
+                                            {feature}
+                                        </Checkbox>
+                                    </Col>
+                                ))}
+                            </Row>
+                        </Checkbox.Group>
                     </Form.Item>
                 </Col>
 
-                <Col span={24}>
-                    <Divider className="my-2" />
-                </Col>
+                {/* Add-ons - hidden for land */}
+                {!isLand && (
+                    <>
+                        <Col span={24}>
+                            <Divider className="my-2" />
+                        </Col>
 
-                {/* Add-ons */}
-                <Col span={24}>
-                    <Form.Item
-                        name="add_ons"
-                        label={
-                            <span>
-                                <GiftOutlined className="mr-2" />
-                                Included Add-ons & Services
-                            </span>
-                        }
-                    >
-                        <Select
-                            mode="multiple"
-                            placeholder="Select included add-ons"
-                            allowClear
-                            maxTagCount={5}
-                            maxTagPlaceholder={(omitted) =>
-                                `+${omitted.length} more`
-                            }
-                            showSearch
-                            optionFilterProp="children"
-                        >
-                            {ADD_ONS.map((addon) => (
-                                <Select.Option key={addon} value={addon}>
-                                    {addon}
-                                </Select.Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
+                        <Col span={24}>
+                            <Form.Item
+                                name="add_ons"
+                                label={
+                                    <span>
+                                        <GiftOutlined className="mr-2" />
+                                        Included Add-ons & Services
+                                    </span>
+                                }
+                            >
+                                <Checkbox.Group style={{ width: "100%" }}>
+                                    <Row gutter={[8, 4]}>
+                                        {ADD_ONS.map((addon) => (
+                                            <Col
+                                                xs={24}
+                                                sm={12}
+                                                md={8}
+                                                key={addon}
+                                            >
+                                                <Checkbox value={addon}>
+                                                    {addon}
+                                                </Checkbox>
+                                            </Col>
+                                        ))}
+                                    </Row>
+                                </Checkbox.Group>
+                            </Form.Item>
+                        </Col>
+                    </>
+                )}
             </Row>
         </Card>
     );

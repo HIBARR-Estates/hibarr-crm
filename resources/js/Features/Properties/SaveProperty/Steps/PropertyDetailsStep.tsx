@@ -74,36 +74,6 @@ export default function PropertyDetailsStep({
                 </Col>
 
                 <Col xs={12} md={6}>
-                    <Form.Item name="bedrooms" label="Bedrooms">
-                        <InputNumber
-                            placeholder="Bedrooms"
-                            min={0}
-                            style={{ width: "100%" }}
-                        />
-                    </Form.Item>
-                </Col>
-
-                <Col xs={12} md={6}>
-                    <Form.Item name="bathrooms" label="Bathrooms">
-                        <InputNumber
-                            placeholder="Bathrooms"
-                            min={0}
-                            style={{ width: "100%" }}
-                        />
-                    </Form.Item>
-                </Col>
-
-                <Col xs={12} md={6}>
-                    <Form.Item name="living_room" label="Living Rooms">
-                        <InputNumber
-                            placeholder="Living"
-                            min={0}
-                            style={{ width: "100%" }}
-                        />
-                    </Form.Item>
-                </Col>
-
-                <Col xs={12} md={6}>
                     <Form.Item name="total_floors" label="Total Floors">
                         <InputNumber
                             placeholder="Building floors"
