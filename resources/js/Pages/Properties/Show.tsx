@@ -10,6 +10,7 @@ import PropertyView from "@/Features/Properties/PropertyView/PropertyView";
 import { Task } from "@/Types/api/tasks";
 import GenerateExposeModal from "@/Features/Properties/GenerateExposeModal";
 import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyModal";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 interface ShowProps {
     pageTitle: string;
@@ -41,7 +42,10 @@ const Show = ({
             url: route("properties.index"),
         },
         {
-            name: property.title,
+            name:
+                generatePropertySubtitle(property) ||
+                property.reference_code ||
+                `Property #${property.id}`,
         },
     ];
 
