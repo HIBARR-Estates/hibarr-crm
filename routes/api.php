@@ -59,6 +59,9 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         // Lead API Routes (paginated: first_name, last_name, email)
         ApiRoute::get('leads', ['as' => 'api.leads.index', 'uses' => 'Api\LeadApiController@index']);
 
+        // Task API Routes (paginated: tasks for the current day app-wide)
+        ApiRoute::get('tasks/today', ['as' => 'api.tasks.today', 'uses' => 'Api\TaskApiController@tasksForToday']);
+
         // Property API Routes
         ApiRoute::get('properties', ['as' => 'api.properties.index', 'uses' => 'Api\PropertyApiController@index']);
         ApiRoute::get('properties/{identifier}', ['as' => 'api.properties.show', 'uses' => 'Api\PropertyApiController@showByIdOrSlug']);
