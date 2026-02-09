@@ -76,6 +76,8 @@ class ExposeConfiguration implements Arrayable
                 'unit_style' => $property->unit_style,
                 'sale_type' => $property->sale_type,
                 'status' => $property->status,
+                'block_name' => $property->block_name,
+                'unit_number' => $property->unit_number,
                 
                 // Building info
                 'building_age' => $property->building_age,
