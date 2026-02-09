@@ -59,6 +59,59 @@ npm-build:
 migrate:
 	php artisan migrate --force
 
+# ------------------------------------
+# gRPC / Protocol Buffers
+# ------------------------------------
+
+PROTO_DIR := proto
+PROTO_OUT := app/Grpc/Generated
+PROTOC := protoc
+
+# Generate PHP classes from .proto files
+proto:
+	@echo "Generating PHP classes from Protocol Buffer definitions..."
+	@mkdir -p $(PROTO_OUT)
+	$(PROTOC) \
+		--proto_path=$(PROTO_DIR) \
+		--php_out=$(PROTO_OUT) \
+		$(PROTO_DIR)/common.proto $(PROTO_DIR)/deal.proto $(PROTO_DIR)/lead.proto $(PROTO_DIR)/property.proto $(PROTO_DIR)/task.proto
+	@if [ -d "$(PROTO_OUT)/App/Grpc/Generated" ]; then \
+		cp -r $(PROTO_OUT)/App/Grpc/Generated/* $(PROTO_OUT)/ && \
+		rm -rf $(PROTO_OUT)/App; \
+	fi
+	@echo "Proto generation complete. Output in $(PROTO_OUT)"
+
+# Clean generated proto files and regenerate
+proto-clean:
+	@echo "Cleaning generated files..."
+	rm -rf $(PROTO_OUT)/Common $(PROTO_OUT)/Deal $(PROTO_OUT)/Lead $(PROTO_OUT)/Property $(PROTO_OUT)/Task $(PROTO_OUT)/GPBMetadata
+	$(MAKE) proto
+
+# Install RoadRunner binary
+rr-install:
+	@echo "Installing RoadRunner binary..."
+	php vendor/bin/rr get-binary
+
+# Start RoadRunner server (development) - Windows
+rr-serve:
+	rr.exe serve -c .rr.yaml
+
+# Start RoadRunner server (production) - Windows
+rr-serve-prod:
+	rr.exe serve -c .rr.yaml -o "logs.mode=production" -o "reload.enabled=false"
+
+# Stop RoadRunner server - Windows
+rr-stop:
+	rr.exe stop -c .rr.yaml
+
+# Check RoadRunner workers - Windows
+rr-workers:
+	rr.exe workers -c .rr.yaml
+
+# ------------------------------------
+# Storage and permissions
+# ------------------------------------
+
 ensure-storage:
 	@echo "Ensuring storage structure exists..."
 	mkdir -p storage/framework/cache/data
