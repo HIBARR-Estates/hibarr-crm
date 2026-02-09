@@ -12,7 +12,7 @@ import {
     InputNumber,
 } from "antd";
 import { FormInstance } from "antd/lib/form";
-import { Property, PropertyEnumValues } from "@/Types";
+import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "@/Components/CurrencyInput";
 import { EnvironmentOutlined } from "@ant-design/icons";
@@ -20,8 +20,64 @@ import { EnvironmentOutlined } from "@ant-design/icons";
 const { Option } = Select;
 const { TextArea } = Input;
 
-// Property type categories for better organization
-const PROPERTY_CATEGORIES = {
+// Property types organized by primary category
+const PROPERTY_TYPES_BY_CATEGORY: Record<
+    PrimaryCategory,
+    { label: string; types: string[] }[]
+> = {
+    residential: [
+        {
+            label: "Housing",
+            types: [
+                "Villa",
+                "Twin Villa",
+                "Apartment",
+                "Family Home",
+                "Townhouse",
+                "Loft",
+                "Penthouse",
+                "Bungalow",
+                "Block of apartments",
+                "Complete Building",
+                "Abandoned Building",
+                "Residence",
+                "Half Construction",
+                "Time Share",
+            ],
+        },
+    ],
+    commercial: [
+        {
+            label: "Commercial Real Estate",
+            types: [
+                "Shop",
+                "Hotel",
+                "Workplace",
+                "Warehouse",
+                "Workplace for sale",
+                "Office",
+                "Commercial Property",
+            ],
+        },
+    ],
+    land: [
+        {
+            label: "Land",
+            types: [
+                "Residentially Zoned Land",
+                "Field",
+                "Residentially and Commercially Zoned Land",
+                "Commercially Zoned Land",
+                "Industrially Zoned land",
+                "Tourism Zoned Land",
+                "Olive Grove",
+            ],
+        },
+    ],
+};
+
+// All property types (fallback when no category selected)
+const ALL_PROPERTY_CATEGORIES = {
     housing: {
         label: "Housing",
         types: [
@@ -67,7 +123,9 @@ const PROPERTY_CATEGORIES = {
     },
 };
 
-const SALE_TYPES = ["For Sale", "For Rent", "For Daily Rental"];
+const ALL_SALE_TYPES = ["For Sale", "For Rent", "For Daily Rental"];
+const SALE_ONLY_TYPES = ["For Sale"];
+
 const STATUS_OPTIONS = [
     "Available",
     "Under offer",
@@ -109,16 +167,94 @@ export default function BasicInfoStep({
         []) as ProjectLocation[];
     const cities = enumValues?.cities || [];
     const unitStyles = enumValues?.unit_styles || [];
+    const primaryCategories = enumValues?.primary_categories || [];
 
     const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
         data?.developer_project_id ?? null,
     );
+    const [selectedCategory, setSelectedCategory] =
+        useState<PrimaryCategory | null>(
+            (data?.primary_category as PrimaryCategory) ?? null,
+        );
+    const [selectedUnitStyle, setSelectedUnitStyle] = useState<string | null>(
+        data?.unit_style ?? null,
+    );
 
-    // Update local state when form value changes
+    // Sync state from form values on mount / data change
     useEffect(() => {
         const projectId = form.getFieldValue("developer_project_id");
         setSelectedProjectId(projectId ?? null);
+        const category = form.getFieldValue("primary_category");
+        setSelectedCategory(category ?? null);
+        const unitStyle = form.getFieldValue("unit_style");
+        setSelectedUnitStyle(unitStyle ?? null);
     }, [form]);
+
+    // Derived flags
+    const isLand = selectedCategory === "land";
+    const isStudio = selectedUnitStyle === "studio";
+    const showRoomFields = !isLand && !isStudio;
+
+    // Filtered property types based on selected category
+    const propertyTypeGroups = useMemo(() => {
+        if (selectedCategory && PROPERTY_TYPES_BY_CATEGORY[selectedCategory]) {
+            return PROPERTY_TYPES_BY_CATEGORY[selectedCategory];
+        }
+        // Fallback: show all grouped
+        return Object.values(ALL_PROPERTY_CATEGORIES);
+    }, [selectedCategory]);
+
+    // Filtered sale types
+    const saleTypes = useMemo(() => {
+        if (isLand) return SALE_ONLY_TYPES;
+        return ALL_SALE_TYPES;
+    }, [isLand]);
+
+    const handleCategoryChange = (value: PrimaryCategory | undefined) => {
+        setSelectedCategory(value ?? null);
+        // Reset dependent fields when category changes
+        const currentPropertyType = form.getFieldValue("property_type");
+        if (currentPropertyType) {
+            // Check if current type is still valid for new category
+            const validTypes =
+                value && PROPERTY_TYPES_BY_CATEGORY[value]
+                    ? PROPERTY_TYPES_BY_CATEGORY[value].flatMap((g) => g.types)
+                    : Object.values(ALL_PROPERTY_CATEGORIES).flatMap(
+                          (g) => g.types,
+                      );
+            if (!validTypes.includes(currentPropertyType)) {
+                form.setFieldValue("property_type", undefined);
+            }
+        }
+        // Reset sale_type if switching to land and current is a rent type
+        if (value === "land") {
+            const currentSaleType = form.getFieldValue("sale_type");
+            if (currentSaleType && !SALE_ONLY_TYPES.includes(currentSaleType)) {
+                form.setFieldValue("sale_type", undefined);
+            }
+            // Clear fields not applicable to land
+            form.setFieldValue("unit_style", undefined);
+            form.setFieldValue("bedrooms", undefined);
+            form.setFieldValue("living_room", undefined);
+            setSelectedUnitStyle(null);
+        }
+    };
+
+    const handleUnitStyleChange = (value: string | undefined) => {
+        setSelectedUnitStyle(value ?? null);
+        // Clear room fields when studio is selected
+        if (value === "studio") {
+            form.setFieldValue("bedrooms", undefined);
+            form.setFieldValue("living_room", undefined);
+        }
+    };
+
+    const formatLabel = (value: string) => {
+        return value
+            .split("_")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
+    };
 
     // Find selected project and check if it has a location
     const selectedProject = useMemo(() => {
@@ -142,15 +278,32 @@ export default function BasicInfoStep({
     return (
         <Card size="small" className="border-0 shadow-none">
             <Row gutter={[16, 0]}>
-                {/* <Col span={24}>
+                {/* Primary Category - First Field */}
+                <Col span={24}>
                     <Form.Item
-                        name="title"
-                        label="Property Title"
-                        tooltip="A descriptive title for the property. If left blank, a reference code will be generated automatically."
+                        name="primary_category"
+                        label="Primary Category"
+                        tooltip="The main category determines available property types, sale types, and fields"
+                        rules={[
+                            {
+                                required: true,
+                                message: "Please select a primary category",
+                            },
+                        ]}
                     >
-                        <Input placeholder="Enter property title (optional - reference code will be auto-generated)" />
+                        <Select
+                            placeholder="Select primary category"
+                            allowClear
+                            onChange={handleCategoryChange}
+                        >
+                            {primaryCategories.map((category) => (
+                                <Option key={category} value={category}>
+                                    {formatLabel(category)}
+                                </Option>
+                            ))}
+                        </Select>
                     </Form.Item>
-                </Col> */}
+                </Col>
 
                 <Col xs={24} md={12}>
                     <Form.Item
@@ -168,20 +321,18 @@ export default function BasicInfoStep({
                             showSearch
                             optionFilterProp="children"
                         >
-                            {Object.entries(PROPERTY_CATEGORIES).map(
-                                ([key, category]) => (
-                                    <Select.OptGroup
-                                        key={key}
-                                        label={category.label}
-                                    >
-                                        {category.types.map((type) => (
-                                            <Option key={type} value={type}>
-                                                {type}
-                                            </Option>
-                                        ))}
-                                    </Select.OptGroup>
-                                ),
-                            )}
+                            {propertyTypeGroups.map((category) => (
+                                <Select.OptGroup
+                                    key={category.label}
+                                    label={category.label}
+                                >
+                                    {category.types.map((type) => (
+                                        <Option key={type} value={type}>
+                                            {type}
+                                        </Option>
+                                    ))}
+                                </Select.OptGroup>
+                            ))}
                         </Select>
                     </Form.Item>
                 </Col>
@@ -198,7 +349,7 @@ export default function BasicInfoStep({
                         ]}
                     >
                         <Select placeholder="Select sale type">
-                            {SALE_TYPES.map((type) => (
+                            {saleTypes.map((type) => (
                                 <Option key={type} value={type}>
                                     {type}
                                 </Option>
@@ -207,65 +358,75 @@ export default function BasicInfoStep({
                     </Form.Item>
                 </Col>
 
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="unit_style"
-                        label="Unit Style"
-                        tooltip="Used in reference code (e.g., APT-LFT-11-402 for Loft)"
-                    >
-                        <Select
-                            placeholder="Select unit style"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
+                {/* Unit Style - hidden for land */}
+                {!isLand && (
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            name="unit_style"
+                            label="Unit Style"
+                            tooltip="Used in reference code (e.g., APT-LFT-11-402 for Loft)"
                         >
-                            {unitStyles.map((style) => (
-                                <Option key={style} value={style}>
-                                    {style
-                                        .split("_")
-                                        .map(
-                                            (word: string) =>
-                                                word.charAt(0).toUpperCase() +
-                                                word.slice(1),
-                                        )
-                                        .join(" ")}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
+                            <Select
+                                placeholder="Select unit style"
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
+                                onChange={handleUnitStyleChange}
+                            >
+                                {unitStyles.map((style) => (
+                                    <Option key={style} value={style}>
+                                        {style
+                                            .split("_")
+                                            .map(
+                                                (word: string) =>
+                                                    word
+                                                        .charAt(0)
+                                                        .toUpperCase() +
+                                                    word.slice(1),
+                                            )
+                                            .join(" ")}
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    </Col>
+                )}
 
-                {/* Room counts for reference code */}
-                <Col xs={12} md={6}>
-                    <Form.Item
-                        name="bedrooms"
-                        label="Bedrooms"
-                        tooltip="Used in reference code (e.g., 3+1 = 31)"
-                    >
-                        <InputNumber
-                            placeholder="0-8"
-                            min={0}
-                            max={8}
-                            style={{ width: "100%" }}
-                        />
-                    </Form.Item>
-                </Col>
+                {/* Room counts - hidden for land and studio */}
+                {showRoomFields && (
+                    <>
+                        <Col xs={12} md={6}>
+                            <Form.Item
+                                name="bedrooms"
+                                label="Bedrooms"
+                                tooltip="Used in reference code (e.g., 3+1 = 31)"
+                            >
+                                <InputNumber
+                                    placeholder="0-8"
+                                    min={0}
+                                    max={8}
+                                    style={{ width: "100%" }}
+                                />
+                            </Form.Item>
+                        </Col>
 
-                <Col xs={12} md={6}>
-                    <Form.Item
-                        name="living_room"
-                        label="Living Rooms"
-                        tooltip="Used in reference code (e.g., 3+1 = 31)"
-                        initialValue={1}
-                    >
-                        <InputNumber
-                            placeholder="1"
-                            min={0}
-                            max={5}
-                            style={{ width: "100%" }}
-                        />
-                    </Form.Item>
-                </Col>
+                        <Col xs={12} md={6}>
+                            <Form.Item
+                                name="living_room"
+                                label="Living Rooms"
+                                tooltip="Used in reference code (e.g., 3+1 = 31)"
+                                initialValue={1}
+                            >
+                                <InputNumber
+                                    placeholder="1"
+                                    min={0}
+                                    max={5}
+                                    style={{ width: "100%" }}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </>
+                )}
 
                 <Col xs={24} md={12}>
                     <Form.Item

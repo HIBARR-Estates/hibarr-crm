@@ -168,6 +168,7 @@ export default function PropertyWizardForm({
         switch (stepKey) {
             case "basic":
                 return [
+                    "primary_category",
                     "title",
                     "description",
                     "property_type",
@@ -183,12 +184,7 @@ export default function PropertyWizardForm({
                     "area",
                 ];
             case "classification":
-                return [
-                    "primary_category",
-                    "construction_status",
-                    "view_types",
-                    "occupancy_type",
-                ];
+                return ["construction_status", "view_types", "occupancy_type"];
             case "location":
                 return ["address", "latitude", "longitude"];
             case "details":
