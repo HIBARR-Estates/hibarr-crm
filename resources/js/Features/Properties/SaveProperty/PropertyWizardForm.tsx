@@ -194,9 +194,9 @@ export default function PropertyWizardForm({
             case "details":
                 return [
                     "rooms",
-                    "total_floors",
-                    "floor",
-                    "net_sqm",
+                    "floors_in_building",
+                    "floor_number",
+                    "living_area_sqm",
                     "gross_sqm",
                     "land_size",
                     "balcony_count",
@@ -204,7 +204,7 @@ export default function PropertyWizardForm({
                     "building_age",
                     "furniture_status",
                     "heating_type",
-                    "delivery_date",
+                    "completion_date",
                 ];
             case "features":
                 return [

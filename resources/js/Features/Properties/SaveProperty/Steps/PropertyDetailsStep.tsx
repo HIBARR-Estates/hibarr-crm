@@ -74,7 +74,10 @@ export default function PropertyDetailsStep({
                 </Col>
 
                 <Col xs={12} md={6}>
-                    <Form.Item name="total_floors" label="Total Floors">
+                    <Form.Item
+                        name="floors_in_building"
+                        label="Floors in Building"
+                    >
                         <InputNumber
                             placeholder="Building floors"
                             min={1}
@@ -85,8 +88,8 @@ export default function PropertyDetailsStep({
 
                 <Col xs={12} md={6}>
                     <Form.Item
-                        name="floor"
-                        label="Unit Floor"
+                        name="floor_number"
+                        label="Floor Number"
                         tooltip="Which floor is this unit on"
                     >
                         <InputNumber
@@ -126,8 +129,8 @@ export default function PropertyDetailsStep({
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={8}>
                     <Form.Item
-                        name="net_sqm"
-                        label="Net Area (m²)"
+                        name="living_area_sqm"
+                        label="Living Area (m²)"
                         tooltip="Usable interior space"
                     >
                         <InputNumber
@@ -209,12 +212,12 @@ export default function PropertyDetailsStep({
 
                 <Col xs={24} md={12}>
                     <Form.Item
-                        name="delivery_date"
-                        label="Expected Delivery Date"
+                        name="completion_date"
+                        label="Completion Date"
                         tooltip="For off-plan or under construction properties"
                     >
                         <DatePicker
-                            placeholder="Select delivery date"
+                            placeholder="Select completion date"
                             style={{ width: "100%" }}
                             format="YYYY-MM-DD"
                         />

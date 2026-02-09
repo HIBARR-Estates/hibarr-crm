@@ -674,8 +674,18 @@ p {
         </div>
     </div>
 
+    <div style="position: absolute; bottom: 60mm; left: 15mm; color: white; text-shadow: 2px 2px 8px rgba(0,0,0,0.6);">
+        <h1 style="color: white; font-size: 36px; margin-bottom: 8px;">{{ $data['title'] ?? $data['reference_code'] ?? '' }}</h1>
+        @if(!empty($data['price']))
+        <p style="color: white; font-size: 24px; font-weight: 500;">{{ $data['price'] }}</p>
+        @endif
+        @if(!empty($data['sale_type']))
+        <p style="color: rgba(255,255,255,0.85); font-size: 16px; margin-top: 4px;">{{ ucfirst(str_replace('_', ' ', $data['sale_type'])) }}</p>
+        @endif
+    </div>
+
     @if(!empty($data['client']['name']))
-    <div class="customer-name" style="position: absolute; bottom: 40mm; left: 15mm; color: white; font-size: 24px; font-weight: 500; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+    <div class="customer-name" style="position: absolute; bottom: 20mm; left: 15mm; color: white; font-size: 20px; font-weight: 500; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
         Prepared for: {{ $data['client']['name'] }}
     </div>
     @endif
@@ -697,32 +707,87 @@ p {
 
                 <div class="items">
                     <div class="item">
-                        <h3 class="item-header">City</h3>
-                        <div class="item-value">{{ $data['city'] ?? 'Kyrenia' }}</div>
+                        <h3 class="item-header">Location</h3>
+                        <div class="item-value">{{ $data['city'] ?? '—' }}{{ !empty($data['area']) ? ', ' . $data['area'] : '' }}</div>
                     </div>
 
                     <div class="item">
                         <h3 class="item-header">Property Type</h3>
-                        <div class="item-value">{{ $data['property_type'] ?? 'Villa' }}</div>
+                        <div class="item-value">{{ ucfirst(str_replace('_', ' ', $data['property_type'] ?? '—')) }}</div>
                     </div>
+
+                    @if(!empty($data['price']))
+                    <div class="item">
+                        <h3 class="item-header">Price</h3>
+                        <div class="item-value">{{ $data['price'] }}</div>
+                    </div>
+                    @endif
 
                     <div class="item">
                         <h3 class="item-header">Living Area</h3>
-                        <div class="item-value">{{ $data['living_area_sqm'] ?? '—' }} m²</div>
+                        <div class="item-value">
+                            {{ $data['living_area_sqm'] ?? '—' }} m²
+                            @if(!empty($data['gross_sqm']))
+                                <span style="color: #999; font-size: 14px;">({{ $data['gross_sqm'] }} m² gross)</span>
+                            @endif
+                        </div>
                     </div>
 
+                    @if(!empty($data['floor_number']) || !empty($data['floors_in_building']))
                     <div class="item">
-                        <h3 class="item-header">Building Age</h3>
-                        <div class="item-value">{{ $data['building_age'] ?? 'New' }} Years</div>
+                        <h3 class="item-header">Floor</h3>
+                        <div class="item-value">
+                            @if(!empty($data['floor_number']) && !empty($data['floors_in_building']))
+                                {{ $data['floor_number'] }} / {{ $data['floors_in_building'] }}
+                            @elseif(!empty($data['floor_number']))
+                                {{ $data['floor_number'] }}
+                            @else
+                                {{ $data['floors_in_building'] }} floors
+                            @endif
+                        </div>
                     </div>
+                    @endif
+
+                    @if(!empty($data['building_age']) || !empty($data['completion_date']))
+                    <div class="item">
+                        <h3 class="item-header">{{ !empty($data['completion_date']) && ($data['construction_status'] ?? '') !== 'completed' ? 'Completion' : 'Building Age' }}</h3>
+                        <div class="item-value">
+                            @if(!empty($data['completion_date']) && ($data['construction_status'] ?? '') !== 'completed')
+                                {{ $data['completion_date'] }}
+                            @else
+                                {{ $data['building_age'] ?? 'New' }} Years
+                            @endif
+                        </div>
+                    </div>
+                    @endif
 
                     <div class="item">
-                        <h3 class="item-header">Facilities</h3>
+                        <h3 class="item-header">Rooms</h3>
                         <ul class="item-list">
                             <li>{{ $data['bedrooms'] ?? '—' }} Bedrooms</li>
                             <li>{{ $data['bathrooms'] ?? '—' }} Bathrooms</li>
+                            @if(!empty($data['rooms']))
+                            <li>{{ $data['rooms'] }} Total Rooms</li>
+                            @endif
+                            @if(!empty($data['living_room']))
+                            <li>{{ $data['living_room'] }} Living Room{{ $data['living_room'] > 1 ? 's' : '' }}</li>
+                            @endif
                         </ul>
                     </div>
+
+                    @if(!empty($data['view_types']))
+                    <div class="item">
+                        <h3 class="item-header">Views</h3>
+                        <div class="item-value">{{ is_array($data['view_types']) ? implode(', ', array_map(fn($v) => ucfirst(str_replace('_', ' ', $v)), $data['view_types'])) : $data['view_types'] }}</div>
+                    </div>
+                    @endif
+
+                    @if(!empty($data['furniture_status']))
+                    <div class="item">
+                        <h3 class="item-header">Furniture</h3>
+                        <div class="item-value">{{ $data['furniture_status'] }}</div>
+                    </div>
+                    @endif
                 </div>
             </div>
 
@@ -775,7 +840,7 @@ p {
 
         <div class="gallery-grid">
             @php
-                $amenityImages = $data['assets']['exterior'] ?? [];
+                $amenityImages = $data['assets']['facilities'] ?? $data['assets']['exterior'] ?? [];
                 $amenityNames  = $data['exterior_features'] ?? ['Gym & Fitness', 'Swimming Pool', 'Landscaped Gardens', 'Outdoor Seating', 'Parking Area', 'Children’s Playground'];
             @endphp
 
@@ -830,7 +895,7 @@ p {
       <div class="logo-watermark">
         <img src="https://minio.hibarr.org/backend-uploads/backend-uploads/1770652307710-d4b7f017-._logo-white.png" alt="hibarr-logo" />
     </div>
-    <div class="page-num">04</div>
+    <div class="page-num">05</div>
 </div>
 
 <!-- PAGE — Quad grid (4 big images) -->
@@ -850,12 +915,11 @@ p {
     <div class="page-num">05</div>
 </div>
 
-<!-- PAGE 6: Custom Layout -->
+<!-- PAGE 6: Unit Layout -->
 <div class="page">
     <div class="container">
     <div class="row">
         <div class="col-4">
-        <!-- Column 3 content -->
         <div class="">
             <div class="block-title">
             <img
@@ -865,18 +929,55 @@ p {
             />
 
             <div class="text">
-                <h1>1 + 1 GARDEN <span class="more">(BLOCK A)</span></h1>
+                <h1>{{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }} {{ strtoupper($data['unit_style'] ?? 'UNIT') }} <span class="more">{{ !empty($data['block_name']) ? '(' . strtoupper($data['block_name']) . ')' : '' }}</span></h1>
             </div>
             </div>
+
+            @if(!empty($data['unit_number']))
+            <div style="margin-top: 1rem; padding-left: 10px;">
+                <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Unit Number</h3>
+                <p style="color: #053160; font-size: 18px; font-weight: 600;">{{ $data['unit_number'] }}</p>
+            </div>
+            @endif
+
+            @if(!empty($data['living_area_sqm']) || !empty($data['gross_sqm']))
+            <div style="margin-top: 1rem; padding-left: 10px;">
+                <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Area</h3>
+                <p style="color: #053160; font-size: 18px; font-weight: 600;">
+                    {{ $data['living_area_sqm'] ?? '—' }} m²
+                    @if(!empty($data['gross_sqm']))
+                        <span style="font-weight: 400; font-size: 14px; color: #888;">({{ $data['gross_sqm'] }} m² gross)</span>
+                    @endif
+                </p>
+            </div>
+            @endif
+
+            @if(!empty($data['balcony_count']))
+            <div style="margin-top: 1rem; padding-left: 10px;">
+                <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Balcony</h3>
+                <p style="color: #053160; font-size: 18px; font-weight: 600;">
+                    {{ $data['balcony_count'] }}{{ !empty($data['balcony_net_sqm']) ? ' (' . $data['balcony_net_sqm'] . ' m²)' : '' }}
+                </p>
+            </div>
+            @endif
         </div>
         </div>
 
         <div class="col-8">
-        <!-- Column 9 content -->
         <div class="content flex-center">
-            <div class="placeholder-img" style="width: 90%; height: 200px">
-            Image Here
-            </div>
+            @if(!empty($data['assets']['floor-plan'][0]))
+                <div class="illustration" style="width: 90%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                    <img src="{{ $data['assets']['floor-plan'][0] }}" alt="Floor plan" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                </div>
+            @elseif(!empty($data['assets']['interior'][0]))
+                <div class="illustration" style="width: 90%; height: 100%;">
+                    <img src="{{ $data['assets']['interior'][0] }}" alt="Interior" />
+                </div>
+            @else
+                <div class="placeholder-img" style="width: 90%; height: 200px">
+                    Floor Plan
+                </div>
+            @endif
         </div>
         </div>
     </div>
