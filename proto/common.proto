@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package hibarr.crm.common;
+
+option php_namespace = "App\\Grpc\\Generated\\Common";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Empty message for requests/responses that don't need data
+message Empty {}
+
+// Generic ID message
+message Id {
+  int64 id = 1;
+}
+
+// Pagination request parameters
+message PaginationRequest {
+  int32 page = 1; // Page number (1-based)
+  int32 per_page = 2; // Items per page (default: 15, max: 100)
+  string sort_by = 3; // Field to sort by
+  string sort_order = 4; // "asc" or "desc"
+}
+
+// Pagination metadata in response
+message PaginationMeta {
+  int32 current_page = 1;
+  int32 per_page = 2;
+  int64 total = 3;
+  int32 total_pages = 4;
+  bool has_more = 5;
+}
+
+// Stream control for bulk data transfers
+message StreamRequest {
+  int32 batch_size = 1; // Records per chunk (default: 300)
+  int64 since_id = 2; // Resume from this ID (for incremental sync)
+  string since_updated = 3; // ISO8601 timestamp for incremental sync
+  repeated int64 ids = 4; // Specific IDs to stream (optional filter)
+}
+
+// Stream progress indicator
+message StreamProgress {
+  int64 processed = 1;
+  int64 total = 2;
+  bool is_complete = 3;
+}
+
+// Timestamp wrapper for consistent date handling
+message Timestamp {
+  string iso8601 = 1; // ISO8601 formatted string
+  int64 unix = 2; // Unix timestamp (seconds)
+}
+
+// Generic error details
+message ErrorDetail {
+  string field = 1;
+  string message = 2;
+  string code = 3;
+}
+
+// Validation error response
+message ValidationError {
+  repeated ErrorDetail errors = 1;
+}
