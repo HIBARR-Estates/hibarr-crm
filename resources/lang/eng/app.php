@@ -1,6 +1,7 @@
 <?php
 
 return array(
+    'support' => 'Support',
 
     // resolution status
     'unresolved' => 'Unresolved',
