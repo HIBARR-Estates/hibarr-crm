@@ -15,11 +15,11 @@ class TemplateRenderer
      * and doesn't depend on Puppeteer being able to reach minio over the network.
      */
     private const BRANDING_URLS = [
-        'logo_expose'  => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770652057861-0a7a72b8-._hibarr-expose.png',
-        'logo_rounded' => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770652164703-4793030e-._hibarr-rounded.png',
-        'logo_white'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770652307710-d4b7f017-._logo-white.png',
-        'block_title'  => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770651944669-8ac53256-._block-title.svg',
-        'logo_full'    => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770652253319-e2275926-._logo.png',
+        'logo_expose'  => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719874403-1303eff6-hibarr-expose.png',
+        'logo_rounded' => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719912107-6b8eafb3-hibarr-rounded.png',
+        'logo_white'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719985906-ae8b2c90-logo-white.png',
+        'block_title'  => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719787183-e155489e-block-title.svg',
+        'logo_full'    => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719947639-23a7e25b-logo.png',
     ];
 
     /**
