@@ -590,6 +590,10 @@ class PropertyController extends AccountBaseController
 
         $property->update($fieldsToUpdate);
 
+        if (request()->expectsJson()) {
+            return Reply::successWithData(__('messages.recordUpdated'), ['property' => $property->fresh()]);
+        }
+
         return back()->with([
             'success' => true,
             'message' => __('messages.recordUpdated'),
