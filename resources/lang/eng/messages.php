@@ -1,6 +1,8 @@
 <?php
 
 return array(
+    'availabilityRequestSent' => 'Availability request sent successfully.',
+    'availabilityRequestApproved' => 'Availability request approved successfully.',
     'leadAgentNotFound' => 'No lead agent found for the selected category.',
     'assetUploadSuccess' => 'Asset uploaded successfully.',
     'bulkAssetsDeleteSuccess' => 'Assets deleted successfully.',

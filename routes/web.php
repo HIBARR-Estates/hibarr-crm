@@ -136,6 +136,10 @@ use App\Http\Controllers\TimelogWeeklyApprovalController;
 use App\Http\Controllers\WeeklyTimesheetController;
 use App\Http\Controllers\MeetingTypeController;
 
+// Signed URL route for availability request email responses (no auth required)
+Route::get('availability-requests/{id}/respond/{action}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'respondFromEmail'])
+    ->name('availability-requests.respond-email')
+    ->middleware('signed');
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('image/upload', [ImageController::class, 'store'])->name('image.store');
@@ -1002,6 +1006,16 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::post('properties/{id}/publish', [App\Http\Controllers\PropertyController::class, 'publish'])->name('properties.publish');
     Route::post('properties/{id}/unpublish', [App\Http\Controllers\PropertyController::class, 'unpublish'])->name('properties.unpublish');
     Route::post('properties/{id}/request-access', [App\Http\Controllers\PropertyController::class, 'requestAccess'])->name('properties.request_access');
+    
+    // Property Availability Requests
+    Route::prefix('availability-requests')->name('availability-requests.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'store'])->name('store');
+        Route::get('/property/{propertyId}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'forProperty'])->name('for-property');
+        Route::get('/{id}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
+        Route::post('/{id}/approve', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'approve'])->name('approve');
+        Route::post('/{id}/deny', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'deny'])->name('deny');
+    });
     
     // Property Asset Management Routes
     Route::post('properties/{property}/photos', [App\Http\Controllers\PropertyController::class, 'updatePhotos'])->name('properties.update_photos');

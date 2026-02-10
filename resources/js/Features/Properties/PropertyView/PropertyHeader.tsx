@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { Typography, Tag, Space, Button, Tooltip, message } from "antd";
+import {
+    Typography,
+    Tag,
+    Space,
+    Button,
+    Tooltip,
+    message,
+    Modal,
+    Input,
+} from "antd";
 import { router } from "@inertiajs/react";
 import {
     EditOutlined,
@@ -14,6 +23,7 @@ import {
     CopyOutlined,
     GlobalOutlined,
     EyeInvisibleOutlined,
+    SafetyOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import {
@@ -62,6 +72,10 @@ function PropertyHeader({
         action: "publish" | "unpublish" | null;
     }>({ open: false, action: null });
 
+    // Availability request modal state
+    const [availabilityModal, setAvailabilityModal] = useState(false);
+    const [availabilityMessage, setAvailabilityMessage] = useState("");
+
     const { amount, currency } = parsePropertyPrice(
         (property as any).price,
         defaultCurrencyCode || "TRY",
@@ -94,6 +108,17 @@ function PropertyHeader({
             setConfirmModal({ open: false, action: null });
             // Refresh the page to get updated property data
             router.reload({ only: ["property"] });
+        });
+
+    // Check Availability mutation
+    const { mutate: requestAvailability, isPending: isRequestingAvailability } =
+        useApiMutate<
+            { property_id: number; message?: string },
+            any,
+            ApiSuccessResponse<any>
+        >(route("availability-requests.store"), "POST", () => {
+            setAvailabilityModal(false);
+            setAvailabilityMessage("");
         });
 
     const handleManageAssets = () => {
@@ -133,6 +158,17 @@ function PropertyHeader({
         if (!isPublishing && !isUnpublishing) {
             setConfirmModal({ open: false, action: null });
         }
+    };
+
+    const handleCheckAvailability = () => {
+        setAvailabilityModal(true);
+    };
+
+    const handleSubmitAvailabilityRequest = () => {
+        requestAvailability({
+            property_id: property.id,
+            message: availabilityMessage || undefined,
+        });
     };
 
     return (
@@ -262,6 +298,18 @@ function PropertyHeader({
                                 Publish
                             </Button>
                         ))}
+                    {/* Check Availability Button */}
+                    {permissions.canRequestAccess && !permissions.isAdmin && (
+                        <Tooltip title="Request availability check before presenting to customer">
+                            <Button
+                                icon={<SafetyOutlined />}
+                                onClick={handleCheckAvailability}
+                                loading={isRequestingAvailability}
+                            >
+                                Check Availability
+                            </Button>
+                        </Tooltip>
+                    )}
                     <Button
                         icon={<FolderOpenOutlined />}
                         onClick={handleManageAssets}
@@ -319,6 +367,47 @@ function PropertyHeader({
                 confirmType="primary"
                 confirmDanger={confirmModal.action === "unpublish"}
             />
+
+            {/* Check Availability Modal */}
+            <Modal
+                title="Check Property Availability"
+                open={availabilityModal}
+                onOk={handleSubmitAvailabilityRequest}
+                onCancel={() => {
+                    if (!isRequestingAvailability) {
+                        setAvailabilityModal(false);
+                        setAvailabilityMessage("");
+                    }
+                }}
+                confirmLoading={isRequestingAvailability}
+                okText="Send Request"
+                cancelText="Cancel"
+            >
+                <div className="py-2">
+                    <p className="mb-3 text-gray-600">
+                        Before presenting this property to your customer, you
+                        must request an availability check from the responsible
+                        agent. They will be notified and have 8 business hours
+                        to respond.
+                    </p>
+                    <p className="mb-2 font-medium">
+                        Property: {property.display_title || property.title}
+                    </p>
+                    {property.reference_code && (
+                        <p className="mb-3 text-gray-500 text-sm">
+                            Reference: {property.reference_code}
+                        </p>
+                    )}
+                    <Input.TextArea
+                        placeholder="Optional message to the responsible agent (e.g., customer details, urgency)"
+                        value={availabilityMessage}
+                        onChange={(e) => setAvailabilityMessage(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        showCount
+                    />
+                </div>
+            </Modal>
         </div>
     );
 }

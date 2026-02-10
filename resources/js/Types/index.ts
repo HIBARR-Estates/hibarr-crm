@@ -708,3 +708,35 @@ export interface ShowCriterion {
     negate: boolean;
     reference_field?: CustomField; // Populated from backend
 }
+
+// ================================================================
+// Property Availability Request
+// ================================================================
+
+export interface PropertyAvailabilityRequest {
+    id: number;
+    property_id: number;
+    requesting_agent_id: number;
+    responsible_agent_id?: number;
+    status: "pending" | "approved" | "denied" | "escalated" | "expired";
+    message: string | null;
+    response_message: string | null;
+    responded_at: string | null;
+    escalated_at: string | null;
+    expires_at: string | null;
+    created_at: string;
+    updated_at: string;
+    property?: Pick<
+        Property,
+        | "id"
+        | "title"
+        | "reference_code"
+        | "city"
+        | "area"
+        | "status"
+        | "property_type"
+        | "sale_type"
+    >;
+    requesting_agent?: User;
+    responsible_agent?: User;
+}

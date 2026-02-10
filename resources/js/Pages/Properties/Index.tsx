@@ -15,6 +15,7 @@ import {
     GlobalOutlined,
     FileTextOutlined,
     AppstoreOutlined,
+    SafetyOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -295,6 +296,11 @@ const Index = ({
                             >
                                 Import
                             </Button>
+                            <Link href="/account/availability-requests">
+                                <Button type="text" icon={<SafetyOutlined />}>
+                                    Availability Requests
+                                </Button>
+                            </Link>
                         </div>
 
                         <div className="flex items-center gap-3">
