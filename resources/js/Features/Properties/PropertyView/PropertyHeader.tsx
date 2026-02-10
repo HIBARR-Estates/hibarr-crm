@@ -126,15 +126,27 @@ function PropertyHeader({
     };
 
     const handleCopyReferenceCode = async () => {
-        if (property.reference_code) {
-            try {
+        if (!property.reference_code) return;
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(property.reference_code);
-                setCopied(true);
-                message.success("Reference code copied!");
-                setTimeout(() => setCopied(false), 2000);
-            } catch {
-                message.error("Failed to copy");
+            } else {
+                // Fallback for non-HTTPS environments
+                const textarea = document.createElement("textarea");
+                textarea.value = property.reference_code;
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textarea);
             }
+            setCopied(true);
+            message.success("Reference code copied!");
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            message.error("Failed to copy");
         }
     };
 
