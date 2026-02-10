@@ -619,6 +619,14 @@ class Property extends BaseModel
     }
 
     /**
+     * Get availability requests for this property.
+     */
+    public function availabilityRequests(): HasMany
+    {
+        return $this->hasMany(PropertyAvailabilityRequest::class);
+    }
+
+    /**
      * Check if property is assigned to a project.
      */
     public function isAssignedToProject(): bool
