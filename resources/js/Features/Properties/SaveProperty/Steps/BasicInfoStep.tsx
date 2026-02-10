@@ -453,16 +453,7 @@ export default function BasicInfoStep({
                 )}
 
                 <Col xs={24} md={12}>
-                    <Form.Item
-                        name="price"
-                        label="Price"
-                        rules={[
-                            {
-                                required: true,
-                                message: "Please enter price",
-                            },
-                        ]}
-                    >
+                    <Form.Item name="price" label="Price">
                         <CurrencyInput
                             placeholder="Enter price"
                             showLabel={false}

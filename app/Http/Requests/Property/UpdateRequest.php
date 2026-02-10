@@ -107,7 +107,14 @@ class UpdateRequest extends CoreRequest
                     Property::TITLE_DEED_TURKISH,
                     Property::TITLE_DEED_BRITISH,
                     Property::TITLE_DEED_TAHSIS,
-                    Property::TITLE_DEED_MUJAHIT
+                    Property::TITLE_DEED_MUJAHIT,
+                    Property::TITLE_DEED_FREEHOLD,
+                    Property::TITLE_DEED_LEASEHOLD,
+                    Property::TITLE_DEED_EXCHANGE_KAT,
+                    Property::TITLE_DEED_FULL_OWNERSHIP,
+                    Property::TITLE_DEED_SHARED,
+                    Property::TITLE_DEED_FLOOR_EASEMENT,
+                    Property::TITLE_DEED_LAND_REGISTRY,
                 ])
             ],
             'title_deed_stage' => [
@@ -117,7 +124,12 @@ class UpdateRequest extends CoreRequest
                     Property::TITLE_DEED_STAGE_LAND,
                     Property::TITLE_DEED_STAGE_SHARED,
                     Property::TITLE_DEED_STAGE_INDIVIDUAL,
-                    Property::TITLE_DEED_STAGE_KAT_IRTIRFAKLI
+                    Property::TITLE_DEED_STAGE_KAT_IRTIRFAKLI,
+                    Property::TITLE_DEED_STAGE_READY,
+                    Property::TITLE_DEED_STAGE_IN_PROGRESS,
+                    Property::TITLE_DEED_STAGE_PENDING,
+                    Property::TITLE_DEED_STAGE_APPLIED,
+                    Property::TITLE_DEED_STAGE_UNDER_REVIEW,
                 ])
             ],
             'status' => [
@@ -127,27 +139,17 @@ class UpdateRequest extends CoreRequest
                     Property::STATUS_AVAILABLE,
                     Property::STATUS_UNDER_OFFER,
                     Property::STATUS_SOLD,
-                    Property::STATUS_WITHDRAWN
+                    Property::STATUS_WITHDRAWN,
+                    'Rented',
+                    'Reserved',
+                    'Let agreed',
+                    'Sale agreed',
                 ])
             ],
             'developer_project_id' => 'nullable|exists:developer_projects,id',
-            'city' => [
-                Rule::requiredIf(function () use ($property) {
-                    return !$this->projectHasLocation($property);
-                }),
-                'nullable',
-                'string',
-                'max:255'
-            ],
+            'city' => 'nullable|string|max:255',
             'map' => 'nullable|string',
-            'area' => [
-                Rule::requiredIf(function () use ($property) {
-                    return !$this->projectHasLocation($property);
-                }),
-                'nullable',
-                'string',
-                'max:255'
-            ],
+            'area' => 'nullable|string|max:255',
             'land_size' => 'nullable|numeric|min:0',
             'living_room' => 'nullable|string|max:255',
             'bedrooms' => 'nullable|string|max:255',
@@ -161,6 +163,8 @@ class UpdateRequest extends CoreRequest
                 Rule::in([
                     Property::FURNITURE_UNFURNISHED,
                     Property::FURNITURE_FULLY_FURNISHED,
+                    Property::FURNITURE_FURNISHED,
+                    Property::FURNITURE_SEMI_FURNISHED,
                     Property::FURNITURE_PART_FURNISHED,
                     Property::FURNITURE_WHITE_GOODS_ONLY
                 ])

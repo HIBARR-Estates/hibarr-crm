@@ -298,7 +298,7 @@ const ManageAssets = ({
                     const isVideo = metadata?.mimeType?.startsWith("video/");
 
                     return {
-                        url: encodeURI(upload.downloadUrl),
+                        url: upload.downloadUrl,
                         name: upload.originalName,
                         object_path: upload.objectPath,
                         asset_type: (isVideo ? "video" : "image") as

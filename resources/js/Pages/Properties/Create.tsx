@@ -114,19 +114,22 @@ export default function CreateProperty({
             setFormErrors({});
 
             // Transform the values to match the API expectations
+            // Strip internal flags before sending to API
+            const { _isDraft, ...cleanData } = formData;
+
             const submitData = {
-                ...formData,
-                within_site: formData.within_site || false,
-                // Handle city - convert array to string if needed
-                city: Array.isArray(formData.city)
-                    ? formData.city[0] || ""
-                    : formData.city || "",
+                ...cleanData,
+                within_site: cleanData.within_site || false,
+                // Handle city - convert array to string, send null if empty so backend nullable rule applies
+                city: Array.isArray(cleanData.city)
+                    ? cleanData.city[0] || null
+                    : cleanData.city || null,
                 // Handle array fields
-                exterior_features: formData.exterior_features || [],
-                interior_features: formData.interior_features || [],
-                location_features: formData.location_features || [],
-                photos: formData.photos || [],
-                add_ons: formData.add_ons || [],
+                exterior_features: cleanData.exterior_features || [],
+                interior_features: cleanData.interior_features || [],
+                location_features: cleanData.location_features || [],
+                photos: cleanData.photos || [],
+                add_ons: cleanData.add_ons || [],
             };
 
             if (isEditing) {
