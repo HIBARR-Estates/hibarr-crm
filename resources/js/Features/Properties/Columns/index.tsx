@@ -31,22 +31,24 @@ export const PROPERTY_TABLE_COLUMNS = (
         key: "title",
         width: 250,
         render: (displayTitle: string, record: Property) => {
-            const subtitle = generatePropertySubtitle(record);
+            const title = generatePropertySubtitle(record);
+            const referenceCode =
+                record?.reference_code ||
+                displayTitle ||
+                `Property #${record.id}`;
             return (
                 <div>
                     <Link
                         href={route("properties.show", record.id)}
                         className="font-medium text-blue-600 hover:text-blue-800"
                     >
-                        {record?.reference_code ||
-                            displayTitle ||
-                            `Property #${record.id}`}
+                        {title && (
+                            <div className="text-xs text-gray-500 mt-0.5 leading-tight hover:text-gray-700">
+                                {truncateText(title, 50)}
+                            </div>
+                        )}
+                        <span>{referenceCode}</span>
                     </Link>
-                    {subtitle && (
-                        <div className="text-xs text-gray-500 mt-0.5 leading-tight">
-                            {truncateText(subtitle, 50)}
-                        </div>
-                    )}
                 </div>
             );
         },
