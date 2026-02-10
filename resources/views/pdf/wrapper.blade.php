@@ -25,42 +25,21 @@
 <body>
     {!! $content !!}
 
-    {{-- Preload all images (including CSS background-image URLs) so Puppeteer waits for them --}}
+    {{-- Images are now embedded as base64 data URIs by TemplateRenderer.
+         This minimal preloader handles any remaining remote URLs as a safety net. --}}
     <script>
         (function() {
             var urls = new Set();
-
-            // Collect all <img> src attributes
             document.querySelectorAll('img[src]').forEach(function(img) {
                 if (img.src && img.src.startsWith('http')) urls.add(img.src);
             });
-
-            // Collect all inline style background-image URLs
             document.querySelectorAll('[style]').forEach(function(el) {
-                var style = el.getAttribute('style') || '';
-                var matches = style.match(/url\(['"]?(https?:\/\/[^'")\s]+)['"]?\)/g);
-                if (matches) {
-                    matches.forEach(function(m) {
-                        var url = m.replace(/url\(['"]?/, '').replace(/['"]?\)/, '');
-                        urls.add(url);
-                    });
-                }
+                var matches = (el.getAttribute('style') || '').match(/url\(['"]?(https?:\/\/[^'")\s]+)['"]?\)/g);
+                if (matches) matches.forEach(function(m) {
+                    urls.add(m.replace(/url\(['"]?/, '').replace(/['"]?\)/, ''));
+                });
             });
-
-            // Also check CSS custom properties (--bg-image)
-            document.querySelectorAll('[style*="--bg-image"]').forEach(function(el) {
-                var val = getComputedStyle(el).getPropertyValue('--bg-image');
-                if (val) {
-                    var match = val.match(/url\(['"]?(https?:\/\/[^'")\s]+)['"]?\)/);
-                    if (match) urls.add(match[1]);
-                }
-            });
-
-            // Preload each URL into an Image object to force the browser to fetch it
-            urls.forEach(function(url) {
-                var img = new Image();
-                img.src = url;
-            });
+            urls.forEach(function(url) { new Image().src = url; });
         })();
     </script>
 </body>
