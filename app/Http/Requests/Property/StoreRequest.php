@@ -136,27 +136,17 @@ class StoreRequest extends CoreRequest
                     Property::STATUS_AVAILABLE,
                     Property::STATUS_UNDER_OFFER,
                     Property::STATUS_SOLD,
-                    Property::STATUS_WITHDRAWN
+                    Property::STATUS_WITHDRAWN,
+                    'Rented',
+                    'Reserved',
+                    'Let agreed',
+                    'Sale agreed',
                 ])
             ],
             'developer_project_id' => 'nullable|exists:developer_projects,id',
-            'city' => [
-                Rule::requiredIf(function () {
-                    return !$this->projectHasLocation();
-                }),
-                'nullable',
-                'string',
-                'max:255'
-            ],
+            'city' => 'nullable|string|max:255',
             'map' => 'nullable|string',
-            'area' => [
-                Rule::requiredIf(function () {
-                    return !$this->projectHasLocation();
-                }),
-                'nullable',
-                'string',
-                'max:255'
-            ],
+            'area' => 'nullable|string|max:255',
             'land_size' => 'nullable|numeric|min:0',
             'living_room' => 'nullable|string|max:255',
             'bedrooms' => 'nullable|string|max:255',

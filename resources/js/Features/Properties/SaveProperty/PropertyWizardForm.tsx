@@ -275,24 +275,21 @@ export default function PropertyWizardForm({
 
     // Handle save (submit partial data)
     const handleSave = async () => {
-        // Validate required fields only
+        // Merge current form values with previously saved step values
         const currentValues = form.getFieldsValue();
         const finalValues = { ...formValues, ...currentValues };
 
-        // Check required fields for basic step
-        if (
-            !finalValues.title ||
-            !finalValues.property_type ||
-            !finalValues.sale_type
-        ) {
+        // Only property_type and sale_type are required by the backend
+        if (!finalValues.property_type || !finalValues.sale_type) {
             message.error(
-                "Please complete at least the Basic Info step with title, property type, and sale type",
+                "Please fill in at least Property Type and Sale Type before saving",
             );
             setCurrentStep(0);
             return;
         }
 
-        onSubmit(finalValues);
+        // Mark as draft save
+        onSubmit({ ...finalValues, _isDraft: true });
     };
 
     // Handle final submit
@@ -483,16 +480,14 @@ export default function PropertyWizardForm({
                         </Button>
                     )}
 
-                    {/* Save Draft button (always visible after first step) */}
-                    {(currentStep > 0 || isEditMode) && (
-                        <Button
-                            icon={<SaveOutlined />}
-                            onClick={handleSave}
-                            loading={loading}
-                        >
-                            Save Draft
-                        </Button>
-                    )}
+                    {/* Save Draft button (always visible) */}
+                    <Button
+                        icon={<SaveOutlined />}
+                        onClick={handleSave}
+                        loading={loading}
+                    >
+                        {isEditMode ? "Save" : "Save Draft"}
+                    </Button>
 
                     {isLastStep ? (
                         <Button
