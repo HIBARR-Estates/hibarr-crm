@@ -237,6 +237,10 @@ class UpdateRequest extends CoreRequest
             'documents_checklist.title_deed_copy_url' => 'nullable|string',
             'documents_checklist.owner_passport_copy_url' => 'nullable|string',
             'documents_checklist.site_plan_layout_url' => 'nullable|string',
+
+            // Swap fields
+            'open_to_swap' => 'nullable|boolean',
+            'swap_notes' => 'nullable|string|max:1000',
         ];
 
         // Add conditional validation and status-based restrictions

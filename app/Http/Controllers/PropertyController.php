@@ -418,6 +418,10 @@ class PropertyController extends AccountBaseController
         // New fields: Notes
         $property->general_notes = $request->general_notes;
 
+        // Swap fields
+        $property->open_to_swap = $request->boolean('open_to_swap');
+        $property->swap_notes = $request->swap_notes;
+
         // Distances (merge into existing distances JSON)
         if ($request->has('distances')) {
             $property->distances = $request->distances;
