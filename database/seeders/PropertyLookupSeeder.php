@@ -492,6 +492,24 @@ class PropertyLookupSeeder extends Seeder
         }
     }
 
+    // -----------------------------------------------------------------
+    // Helper: insert lookup rows with explicit name+label pairs
+    // -----------------------------------------------------------------
+    private function insertLookupWithLabels(string $table, int $companyId, array $items): void
+    {
+        foreach ($items as $item) {
+            DB::table($table)->updateOrInsert(
+                ['company_id' => $companyId, 'name' => $item['name']],
+                [
+                    'label' => $item['label'],
+                    'description' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
+    }
+
     /**
      * Convert a snake_case or slug-style name to a Title Case label.
      * e.g. "sea_front" → "Sea Front", "barbeque" → "Barbeque"
