@@ -12,17 +12,28 @@ use App\Models\PropertyExteriorFeature;
 use App\Models\PropertyInteriorFeature;
 use App\Models\PropertyFloorType;
 use App\Models\PropertyDeedStatus;
+use App\Models\PropertyConstructionStatus;
+use App\Models\PropertyOccupancyType;
+use App\Models\PropertyFurnitureStatus;
+use App\Models\PropertyHeatingType;
+use App\Models\PropertyCity;
+use App\Models\PropertySaleType;
+use App\Models\PropertyStatus;
+use App\Models\PropertyLocationFeature;
+use App\Models\PropertyAddOn;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /**
- * CRUD controller for all 9 property lookup/configuration tables.
+ * CRUD controller for all 18 property lookup/configuration tables.
  *
  * Routes accept a {type} parameter that maps to the model:
  *   property-types, sub-types, primary-categories, view-types,
  *   title-deed-types, exterior-features, interior-features,
- *   floor-types, deed-statuses
+ *   floor-types, deed-statuses, construction-statuses, occupancy-types,
+ *   furniture-statuses, heating-types, cities, sale-types, statuses,
+ *   location-features, add-ons
  */
 class PropertyConfigController extends AccountBaseController
 {
@@ -30,15 +41,24 @@ class PropertyConfigController extends AccountBaseController
      * Map route type slugs to model classes.
      */
     private const TYPE_MAP = [
-        'property-types'      => PropertyType::class,
-        'sub-types'           => PropertySubType::class,
-        'primary-categories'  => PropertyPrimaryCategory::class,
-        'view-types'          => PropertyViewType::class,
-        'title-deed-types'    => PropertyTitleDeedType::class,
-        'exterior-features'   => PropertyExteriorFeature::class,
-        'interior-features'   => PropertyInteriorFeature::class,
-        'floor-types'         => PropertyFloorType::class,
-        'deed-statuses'       => PropertyDeedStatus::class,
+        'property-types'        => PropertyType::class,
+        'sub-types'             => PropertySubType::class,
+        'primary-categories'    => PropertyPrimaryCategory::class,
+        'view-types'            => PropertyViewType::class,
+        'title-deed-types'      => PropertyTitleDeedType::class,
+        'exterior-features'     => PropertyExteriorFeature::class,
+        'interior-features'     => PropertyInteriorFeature::class,
+        'floor-types'           => PropertyFloorType::class,
+        'deed-statuses'         => PropertyDeedStatus::class,
+        'construction-statuses' => PropertyConstructionStatus::class,
+        'occupancy-types'       => PropertyOccupancyType::class,
+        'furniture-statuses'    => PropertyFurnitureStatus::class,
+        'heating-types'         => PropertyHeatingType::class,
+        'cities'                => PropertyCity::class,
+        'sale-types'            => PropertySaleType::class,
+        'statuses'              => PropertyStatus::class,
+        'location-features'     => PropertyLocationFeature::class,
+        'add-ons'               => PropertyAddOn::class,
     ];
 
     public function __construct()
@@ -85,6 +105,7 @@ class PropertyConfigController extends AccountBaseController
             'label'       => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'parent_type' => 'nullable|string|max:255',
+            'category'    => 'nullable|string|max:255',
         ]);
 
         $fillable = [
@@ -97,6 +118,11 @@ class PropertyConfigController extends AccountBaseController
         // Only PropertySubType has parent_type
         if ($type === 'sub-types' && isset($validated['parent_type'])) {
             $fillable['parent_type'] = $validated['parent_type'];
+        }
+
+        // Only PropertyType has category
+        if ($type === 'property-types' && isset($validated['category'])) {
+            $fillable['category'] = $validated['category'];
         }
 
         $item = $modelClass::create($fillable);
@@ -134,9 +160,19 @@ class PropertyConfigController extends AccountBaseController
             'label'       => 'sometimes|string|max:255',
             'description' => 'nullable|string|max:1000',
             'parent_type' => 'nullable|string|max:255',
+            'category'    => 'nullable|string|max:255',
         ]);
 
-        $item->update($validated);
+        // Filter out fields not applicable to this type
+        $updateData = $validated;
+        if ($type !== 'sub-types') {
+            unset($updateData['parent_type']);
+        }
+        if ($type !== 'property-types') {
+            unset($updateData['category']);
+        }
+
+        $item->update($updateData);
 
         return Reply::successWithData('Lookup item updated', ['data' => $item->fresh()]);
     }

@@ -1267,45 +1267,92 @@ class Property extends BaseModel
      * This provides a single source of truth for all dropdown options.
      *
      * Values are sourced from lookup tables when available, falling
-     * back to the legacy constants for backward compatibility.
+     * All dropdown/enum values are sourced from their respective lookup tables
+     * (single source of truth). Falls back to legacy constants only if the
+     * lookup table is empty or doesn't exist yet.
+     *
+     * Every key returns [{name, label}] pairs for consistent frontend rendering,
+     * except type_codes / subtype_codes which are code-mapping records.
      */
     public static function getEnumValues(): array
     {
         return [
-            'primary_categories' => self::getLookupNames(PropertyPrimaryCategory::class, self::PRIMARY_CATEGORIES),
-            'unit_styles' => self::getLookupNames(PropertySubType::class, self::UNIT_STYLES),
-            'construction_statuses' => self::CONSTRUCTION_STATUSES,
-            'view_types' => self::getLookupNames(PropertyViewType::class, self::VIEW_TYPES),
-            'occupancy_types' => self::OCCUPANCY_TYPES,
-            'cities' => self::CITIES,
-            'deed_types' => self::getLookupNames(PropertyTitleDeedType::class, self::DEED_TYPES),
-            'deed_statuses' => self::getLookupNames(PropertyDeedStatus::class, self::DEED_STATUSES),
-            'land_types' => self::LAND_TYPES,
-            'outside_features' => self::getLookupNames(PropertyExteriorFeature::class, self::OUTSIDE_FEATURES),
-            'inside_features' => self::getLookupNames(PropertyInteriorFeature::class, self::INSIDE_FEATURES),
-            'property_types' => self::getLookupValues(PropertyType::class, self::getAllPropertyTypes()),
-            'floor_types' => self::getLookupValues(PropertyFloorType::class, []),
-            'furniture_statuses' => [
+            'primary_categories'    => self::getLookupValues(PropertyPrimaryCategory::class, self::PRIMARY_CATEGORIES),
+            'unit_styles'           => self::getLookupValues(PropertySubType::class, self::UNIT_STYLES),
+            'construction_statuses' => self::getLookupValues(PropertyConstructionStatus::class, self::CONSTRUCTION_STATUSES),
+            'view_types'            => self::getLookupValues(PropertyViewType::class, self::VIEW_TYPES),
+            'occupancy_types'       => self::getLookupValues(PropertyOccupancyType::class, self::OCCUPANCY_TYPES),
+            'cities'                => self::getLookupValues(PropertyCity::class, self::CITIES),
+            'deed_types'            => self::getLookupValues(PropertyTitleDeedType::class, self::DEED_TYPES),
+            'deed_statuses'         => self::getLookupValues(PropertyDeedStatus::class, self::DEED_STATUSES),
+            'land_types'            => self::getLookupValues(PropertyPrimaryCategory::class, self::LAND_TYPES), // kept for backward compat
+            'outside_features'      => self::getLookupValues(PropertyExteriorFeature::class, self::OUTSIDE_FEATURES),
+            'inside_features'       => self::getLookupValues(PropertyInteriorFeature::class, self::INSIDE_FEATURES),
+            'property_types'        => self::getLookupValues(PropertyType::class, self::getAllPropertyTypes()),
+            'floor_types'           => self::getLookupValues(PropertyFloorType::class, []),
+            'furniture_statuses'    => self::getLookupValues(PropertyFurnitureStatus::class, [
                 self::FURNITURE_UNFURNISHED,
                 self::FURNITURE_FULLY_FURNISHED,
                 self::FURNITURE_PART_FURNISHED,
                 self::FURNITURE_WHITE_GOODS_ONLY,
-            ],
-            'sale_types' => [
+            ]),
+            'sale_types'            => self::getLookupValues(PropertySaleType::class, [
                 self::SALE_TYPE_FOR_SALE,
                 self::SALE_TYPE_FOR_RENT,
                 self::SALE_TYPE_DAILY_RENTAL,
-            ],
-            'statuses' => [
+            ]),
+            'statuses'              => self::getLookupValues(PropertyStatus::class, [
                 self::STATUS_AVAILABLE,
                 self::STATUS_RESERVED,
                 self::STATUS_UNDER_OFFER,
                 self::STATUS_SOLD,
                 self::STATUS_RENTED,
                 self::STATUS_WITHDRAWN,
-            ],
-            'type_codes' => self::TYPE_CODES,
-            'subtype_codes' => self::SUBTYPE_CODES,
+            ]),
+            'heating_types'         => self::getLookupValues(PropertyHeatingType::class, []),
+            'location_features'     => self::getLookupValues(PropertyLocationFeature::class, []),
+            'add_ons'               => self::getLookupValues(PropertyAddOn::class, []),
+            'type_codes'            => self::TYPE_CODES,
+            'subtype_codes'         => self::SUBTYPE_CODES,
+            'property_types_by_category' => self::getPropertyTypesByCategory(),
+        ];
+    }
+
+    /**
+     * Get property types grouped by their category column.
+     * Returns e.g. { residential: [{name, label}], commercial: [...], land: [...] }
+     */
+    private static function getPropertyTypesByCategory(): array
+    {
+        try {
+            $types = PropertyType::select('name', 'label', 'category')->get();
+            if ($types->isNotEmpty()) {
+                return $types->groupBy('category')->map(function ($group) {
+                    return $group->map(fn($t) => ['name' => $t->name, 'label' => $t->label])->values()->toArray();
+                })->toArray();
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        // Fallback: derive from constants
+        return [
+            'residential' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Villa', 'Twin Villa', 'Apartment', 'Family Home', 'Townhouse',
+                'Loft', 'Penthouse', 'Bungalow', 'Block of apartments',
+                'Complete Building', 'Abandoned Building', 'Residence',
+                'Half Construction', 'Time Share',
+            ]),
+            'commercial' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Shop', 'Hotel', 'Workplace', 'Warehouse', 'Workplace for sale',
+                'Office', 'Commercial Property',
+            ]),
+            'land' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Residentially Zoned Land', 'Field',
+                'Residentially and Commercially Zoned Land',
+                'Commercially Zoned Land', 'Industrially Zoned land',
+                'Tourism Zoned Land', 'Olive Grove',
+            ]),
         ];
     }
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { Form, Select, InputNumber, Switch, Row, Col } from "antd";
 import type { FormInstance } from "antd/lib/form";
-import type { PrimaryCategory } from "@/Types";
+import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
 import {
     SPECIFICATION_FIELDS,
     BEDROOM_OPTIONS,
@@ -9,22 +9,27 @@ import {
     FLOOR_OPTIONS,
     FLOORS_IN_BUILDING_OPTIONS,
     BUILDING_AGE_OPTIONS,
-    FURNITURE_STATUS_OPTIONS,
-    HEATING_TYPE_OPTIONS,
 } from "../fieldConfig";
+import { useFormOptions } from "../useFormOptions";
 
 const { Option } = Select;
 
 interface SpecificationsSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
+    enumValues?: PropertyEnumValues;
 }
 
 const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
     form,
     primaryCategory,
+    enumValues,
 }) => {
     const fields = SPECIFICATION_FIELDS[primaryCategory];
+    const { furnitureStatusOptions, heatingTypeOptions } = useFormOptions(
+        enumValues,
+        primaryCategory,
+    );
     const unitStyle = Form.useWatch("unit_style", form);
     const isStudio = unitStyle === "studio";
 
@@ -215,7 +220,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                 <Col xs={12} md={8}>
                     <Form.Item name="furniture_status" label="Furniture Status">
                         <Select placeholder="Select" allowClear>
-                            {FURNITURE_STATUS_OPTIONS.map((o) => (
+                            {furnitureStatusOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
                                 </Option>
@@ -230,7 +235,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                 <Col xs={12} md={8}>
                     <Form.Item name="heating_type" label="Heating Type">
                         <Select placeholder="Select" allowClear>
-                            {HEATING_TYPE_OPTIONS.map((o) => (
+                            {heatingTypeOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
                                 </Option>

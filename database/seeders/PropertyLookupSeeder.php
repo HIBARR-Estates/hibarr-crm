@@ -43,6 +43,20 @@ class PropertyLookupSeeder extends Seeder
         $this->seedPropertyInteriorFeatures($companyId);
         $this->seedPropertyFloorTypes($companyId);
         $this->seedPropertyDeedStatuses($companyId);
+
+        // New lookup tables
+        $this->seedConstructionStatuses($companyId);
+        $this->seedOccupancyTypes($companyId);
+        $this->seedFurnitureStatuses($companyId);
+        $this->seedHeatingTypes($companyId);
+        $this->seedCities($companyId);
+        $this->seedSaleTypes($companyId);
+        $this->seedStatuses($companyId);
+        $this->seedLocationFeatures($companyId);
+        $this->seedAddOns($companyId);
+
+        // Assign categories to property types
+        $this->assignPropertyTypeCategories($companyId);
     }
 
     // -----------------------------------------------------------------
@@ -287,6 +301,207 @@ class PropertyLookupSeeder extends Seeder
                 ['company_id' => $companyId, 'name' => $name],
                 [
                     'label' => $this->nameToLabel($name),
+                    'description' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // 10. Construction Statuses
+    // -----------------------------------------------------------------
+    private function seedConstructionStatuses(int $companyId): void
+    {
+        $items = [
+            ['name' => 'off_plan',            'label' => 'Off-Plan'],
+            ['name' => 'under_construction',   'label' => 'Under Construction'],
+            ['name' => 'completed_new',        'label' => 'Completed (New)'],
+            ['name' => 'resale',               'label' => 'Resale'],
+            ['name' => 'ruin_renovation',      'label' => 'Ruin (For Renovation)'],
+        ];
+
+        $this->insertLookupWithLabels('property_construction_statuses', $companyId, $items);
+    }
+
+    // -----------------------------------------------------------------
+    // 11. Occupancy Types
+    // -----------------------------------------------------------------
+    private function seedOccupancyTypes(int $companyId): void
+    {
+        $items = [
+            ['name' => 'owner_occupied', 'label' => 'Owner Occupied'],
+            ['name' => 'tenant',         'label' => 'Tenant'],
+            ['name' => 'vacant',         'label' => 'Vacant'],
+        ];
+
+        $this->insertLookupWithLabels('property_occupancy_types', $companyId, $items);
+    }
+
+    // -----------------------------------------------------------------
+    // 12. Furniture Statuses
+    // -----------------------------------------------------------------
+    private function seedFurnitureStatuses(int $companyId): void
+    {
+        // Names match values stored in properties.furniture_status (Title Case)
+        $items = [
+            ['name' => 'Unfurnished',      'label' => 'Unfurnished'],
+            ['name' => 'Fully Furnished',  'label' => 'Fully Furnished'],
+            ['name' => 'Furnished',        'label' => 'Furnished'],
+            ['name' => 'Semi-Furnished',   'label' => 'Semi-Furnished'],
+            ['name' => 'Part Furnished',   'label' => 'Part Furnished'],
+            ['name' => 'White Goods Only', 'label' => 'White Goods Only'],
+        ];
+
+        $this->insertLookupWithLabels('property_furniture_statuses', $companyId, $items);
+    }
+
+    // -----------------------------------------------------------------
+    // 13. Heating Types
+    // -----------------------------------------------------------------
+    private function seedHeatingTypes(int $companyId): void
+    {
+        $items = [
+            ['name' => 'central',    'label' => 'Central Heating'],
+            ['name' => 'underfloor', 'label' => 'Underfloor Heating'],
+            ['name' => 'ac',         'label' => 'Air Conditioning'],
+            ['name' => 'stove',      'label' => 'Stove'],
+            ['name' => 'solar',      'label' => 'Solar'],
+            ['name' => 'none',       'label' => 'None'],
+        ];
+
+        $this->insertLookupWithLabels('property_heating_types', $companyId, $items);
+    }
+
+    // -----------------------------------------------------------------
+    // 14. Cities
+    // -----------------------------------------------------------------
+    private function seedCities(int $companyId): void
+    {
+        $items = [
+            ['name' => 'nicosia',   'label' => 'Nicosia (Lefkoşa)'],
+            ['name' => 'kyrenia',   'label' => 'Kyrenia (Girne)'],
+            ['name' => 'famagusta', 'label' => 'Famagusta (Gazimağusa)'],
+            ['name' => 'guzelyurt', 'label' => 'Güzelyurt (Morphou)'],
+            ['name' => 'iskele',    'label' => 'İskele (Trikomo)'],
+            ['name' => 'lefke',     'label' => 'Lefke (Lefka)'],
+        ];
+
+        $this->insertLookupWithLabels('property_cities', $companyId, $items);
+    }
+
+    // -----------------------------------------------------------------
+    // 15. Sale Types
+    // -----------------------------------------------------------------
+    private function seedSaleTypes(int $companyId): void
+    {
+        // Names match values stored in properties.sale_type (Title Case)
+        $items = [
+            ['name' => 'For Sale',         'label' => 'For Sale'],
+            ['name' => 'For Rent',         'label' => 'For Rent'],
+            ['name' => 'For Daily Rental', 'label' => 'For Daily Rental'],
+        ];
+
+        $this->insertLookupWithLabels('property_sale_types', $companyId, $items);
+    }
+
+    // -----------------------------------------------------------------
+    // 16. Statuses
+    // -----------------------------------------------------------------
+    private function seedStatuses(int $companyId): void
+    {
+        // Names match values stored in properties.status (Title Case / mixed)
+        $items = [
+            ['name' => 'Available',   'label' => 'Available'],
+            ['name' => 'Reserved',    'label' => 'Reserved'],
+            ['name' => 'Under offer', 'label' => 'Under Offer'],
+            ['name' => 'Sold',        'label' => 'Sold'],
+            ['name' => 'Rented',      'label' => 'Rented'],
+            ['name' => 'Withdrawn',   'label' => 'Withdrawn'],
+        ];
+
+        $this->insertLookupWithLabels('property_statuses', $companyId, $items);
+    }
+
+    // -----------------------------------------------------------------
+    // 17. Location Features
+    // -----------------------------------------------------------------
+    private function seedLocationFeatures(int $companyId): void
+    {
+        $features = [
+            'Near Beach', 'Near School', 'Near Hospital', 'Near Market',
+            'Near Public Transport', 'Near Mosque', 'Near Restaurant',
+            'Near Highway', 'Near Airport', 'City Center', 'Quiet Area',
+            'Rural Area', 'Mountain Area', 'Coastal Area', 'Forest Area',
+            'Nature View', 'Walking Distance to Beach', 'Near University',
+            'Near Park', 'Near Marina', 'Near Golf Course', 'Near Casino',
+            'Near Shopping Mall',
+        ];
+
+        $this->insertLookup('property_location_features', $companyId, $features);
+    }
+
+    // -----------------------------------------------------------------
+    // 18. Add-Ons
+    // -----------------------------------------------------------------
+    private function seedAddOns(int $companyId): void
+    {
+        $addOns = [
+            'Furniture Package', 'White Goods Package', 'Rental Management',
+            'Maintenance Package', 'Insurance', 'Legal Support',
+            'Title Deed Transfer Costs', 'VAT Included', 'Rental Guarantee',
+            'Buy-Back Guarantee', 'Payment Plan Available',
+            'Crypto Payment Accepted', 'Exchange Available',
+            'Part Exchange Considered', 'Company Name Transfer',
+            'Investment Package',
+        ];
+
+        $this->insertLookup('property_add_ons', $companyId, $addOns);
+    }
+
+    // -----------------------------------------------------------------
+    // Assign category to existing property types
+    // -----------------------------------------------------------------
+    private function assignPropertyTypeCategories(int $companyId): void
+    {
+        $categoryMap = [
+            'residential' => [
+                'Villa', 'Twin Villa', 'Apartment', 'Family Home', 'Townhouse',
+                'Loft', 'Penthouse', 'Bungalow', 'Block of apartments',
+                'Complete Building', 'Abandoned Building', 'Residence',
+                'Half Construction', 'Time Share',
+            ],
+            'commercial' => [
+                'Shop', 'Hotel', 'Workplace', 'Warehouse', 'Workplace for sale',
+                'Office', 'Commercial Property', 'Business',
+            ],
+            'land' => [
+                'Residentially Zoned Land', 'Field',
+                'Residentially and Commercially Zoned Land',
+                'Commercially Zoned Land', 'Industrially Zoned land',
+                'Tourism Zoned Land', 'Olive Grove',
+            ],
+        ];
+
+        foreach ($categoryMap as $category => $types) {
+            DB::table('property_types')
+                ->where('company_id', $companyId)
+                ->whereIn('name', $types)
+                ->update(['category' => $category]);
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Helper: insert lookup rows with explicit name+label pairs
+    // -----------------------------------------------------------------
+    private function insertLookupWithLabels(string $table, int $companyId, array $items): void
+    {
+        foreach ($items as $item) {
+            DB::table($table)->updateOrInsert(
+                ['company_id' => $companyId, 'name' => $item['name']],
+                [
+                    'label' => $item['label'],
                     'description' => null,
                     'created_at' => now(),
                     'updated_at' => now(),
