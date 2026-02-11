@@ -271,8 +271,11 @@ export default function BasicInfoStep({
                             onChange={handleCategoryChange}
                         >
                             {primaryCategories.map((category) => (
-                                <Option key={category} value={category}>
-                                    {formatLabel(category)}
+                                <Option
+                                    key={category.name}
+                                    value={category.name}
+                                >
+                                    {category.label}
                                 </Option>
                             ))}
                         </Select>
@@ -387,17 +390,8 @@ export default function BasicInfoStep({
                                 onChange={handleUnitStyleChange}
                             >
                                 {unitStyles.map((style) => (
-                                    <Option key={style} value={style}>
-                                        {style
-                                            .split("_")
-                                            .map(
-                                                (word: string) =>
-                                                    word
-                                                        .charAt(0)
-                                                        .toUpperCase() +
-                                                    word.slice(1),
-                                            )
-                                            .join(" ")}
+                                    <Option key={style.name} value={style.name}>
+                                        {style.label}
                                     </Option>
                                 ))}
                             </Select>
