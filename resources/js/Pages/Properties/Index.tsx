@@ -16,6 +16,7 @@ import {
     FileTextOutlined,
     AppstoreOutlined,
     SafetyOutlined,
+    SettingOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -299,6 +300,11 @@ const Index = ({
                             <Link href="/account/availability-requests">
                                 <Button type="text" icon={<SafetyOutlined />}>
                                     Availability Requests
+                                </Button>
+                            </Link>
+                            <Link href={route("property-config.page")}>
+                                <Button type="text" icon={<SettingOutlined />}>
+                                    Configuration
                                 </Button>
                             </Link>
                         </div>

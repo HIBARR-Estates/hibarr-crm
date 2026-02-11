@@ -1034,6 +1034,17 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     // =====================================================
     // Developer Projects & Project Locations
     // =====================================================
+
+    // Property Config / Lookup Tables Management
+    Route::prefix('property-config')->name('property-config.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyConfigController::class, 'page'])->name('page');
+        Route::get('/types', [App\Http\Controllers\PropertyConfigController::class, 'types'])->name('types');
+        Route::get('/{type}', [App\Http\Controllers\PropertyConfigController::class, 'index'])->name('index');
+        Route::post('/{type}', [App\Http\Controllers\PropertyConfigController::class, 'store'])->name('store');
+        Route::get('/{type}/{id}', [App\Http\Controllers\PropertyConfigController::class, 'show'])->name('show');
+        Route::put('/{type}/{id}', [App\Http\Controllers\PropertyConfigController::class, 'update'])->name('update');
+        Route::delete('/{type}/{id}', [App\Http\Controllers\PropertyConfigController::class, 'destroy'])->name('destroy');
+    });
     
     // Project Locations - must be defined before developer-projects since projects reference locations
     Route::prefix('project-locations')->name('project-locations.')->group(function () {

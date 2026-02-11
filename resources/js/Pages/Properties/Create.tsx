@@ -4,7 +4,12 @@ import { Typography, message, Segmented } from "antd";
 import { Property } from "@/Types";
 import PropertyForm from "@/Features/Properties/SaveProperty/PropertyForm";
 import PropertyWizardForm from "@/Features/Properties/SaveProperty/PropertyWizardForm";
-import { UnorderedListOutlined, NumberOutlined } from "@ant-design/icons";
+import PropertyCategoryForm from "@/Features/Properties/SaveProperty/PropertyCategoryForm";
+import {
+    UnorderedListOutlined,
+    NumberOutlined,
+    AppstoreOutlined,
+} from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 
@@ -40,11 +45,10 @@ export default function CreateProperty({
     isPage = false,
     useWizard,
 }: CreatePropertyProps) {
-    // Default: use wizard for new properties, tabs for editing (can be overridden)
+    // Default: use category form for all (new default), keep wizard and tabs as alternatives
     const isEditing = !!property?.id;
-    // const defaultFormMode = isEditing ? "tabs" : "wizard";
-    const defaultFormMode = "wizard";
-    const [formMode, setFormMode] = useState<"wizard" | "tabs">(
+    const defaultFormMode = "category";
+    const [formMode, setFormMode] = useState<"wizard" | "tabs" | "category">(
         useWizard === undefined
             ? defaultFormMode
             : useWizard
@@ -188,6 +192,11 @@ export default function CreateProperty({
     // Form mode toggle options
     const formModeOptions = [
         {
+            value: "category",
+            label: "Form",
+            icon: <AppstoreOutlined />,
+        },
+        {
             value: "wizard",
             label: "Wizard",
             icon: <NumberOutlined />,
@@ -200,7 +209,19 @@ export default function CreateProperty({
     ];
 
     const formContent =
-        formMode === "wizard" ? (
+        formMode === "category" ? (
+            <PropertyCategoryForm
+                setProperty={setProperty}
+                data={property}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+                loading={processing}
+                errors={allErrors}
+                setErrors={setErrors}
+                onErrorsClear={handleErrorsClear}
+                visible={visible}
+            />
+        ) : formMode === "wizard" ? (
             <PropertyWizardForm
                 setProperty={setProperty}
                 data={property}
@@ -237,7 +258,7 @@ export default function CreateProperty({
                         options={formModeOptions}
                         value={formMode}
                         onChange={(value) =>
-                            setFormMode(value as "wizard" | "tabs")
+                            setFormMode(value as "wizard" | "tabs" | "category")
                         }
                     />
                 </div>
@@ -255,7 +276,7 @@ export default function CreateProperty({
                         options={formModeOptions}
                         value={formMode}
                         onChange={(value) =>
-                            setFormMode(value as "wizard" | "tabs")
+                            setFormMode(value as "wizard" | "tabs" | "category")
                         }
                         size="small"
                     />
