@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property string $name        Unique per company, used as string reference in properties.property_type
  * @property string $label       Human-readable display label
  * @property string|null $description
+ * @property string|null $category    Primary category: residential, commercial, land
  */
 class PropertyType extends BaseModel
 {
@@ -28,6 +29,7 @@ class PropertyType extends BaseModel
         'name',
         'label',
         'description',
+        'category',
     ];
 
     protected $hidden = ['pivot'];
