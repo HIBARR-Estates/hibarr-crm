@@ -392,6 +392,16 @@ class Property extends BaseModel
         'allow_101evler',
         'allow_hangiev',
         'land_details',
+        'total_area_sqm',
+        'plot_size_sqm',
+        'floor',
+        'has_restrictions',
+        'restriction_notes',
+        'deed_status',
+        'price_to_owner',
+        'hibarr_price',
+        'commission_agreement_signed',
+        'general_notes',
     ];
 
     /**
@@ -402,6 +412,23 @@ class Property extends BaseModel
      */
     protected $hidden = ["pivot"];
 
+    /**
+     * Distances JSON structure (stored in the `distances` column):
+     * {
+     *   "military_base": "string|null",  // text description
+     *   "sea": number|null,              // decimal km
+     *   "hospital": number|null,         // decimal km
+     *   "market": number|null,           // decimal km
+     *   "schools": number|null           // decimal km
+     * }
+     *
+     * Tax info is stored inside `legal_info` JSON:
+     * { "tax_info": { "vat_paid": bool, "vat_not_paid": bool, "trafo_fee_paid": bool, "stopaj_paid": bool } }
+     *
+     * Document uploads are stored inside `documents_checklist` JSON:
+     * { "search_document_url": "url", "sales_agreement_url": "url", "title_deed_copy_url": "url",
+     *   "owner_passport_copy_url": "url", "site_plan_layout_url": "url" }
+     */
     protected $casts = [
         'price' => PriceCast::class,
         'land_size' => 'decimal:2',
@@ -439,6 +466,12 @@ class Property extends BaseModel
         'financial_info' => 'array',
         'documents_checklist' => 'array',
         'land_details' => 'array',
+        'total_area_sqm' => 'decimal:2',
+        'plot_size_sqm' => 'decimal:2',
+        'has_restrictions' => 'boolean',
+        'price_to_owner' => 'decimal:2',
+        'hibarr_price' => 'decimal:2',
+        'commission_agreement_signed' => 'boolean',
     ];
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
@@ -1207,7 +1240,7 @@ class Property extends BaseModel
     {
         // If property is sold, only allow certain fields to be updated
         if ($this->isSold()) {
-            $allowedWhenSold = ['description', 'video_url', 'tour_360_url'];
+            $allowedWhenSold = ['description', 'video_url', 'tour_360_url', 'general_notes'];
             return in_array($field, $allowedWhenSold);
         }
 
@@ -1232,21 +1265,26 @@ class Property extends BaseModel
     /**
      * Get all enum values for the frontend.
      * This provides a single source of truth for all dropdown options.
+     *
+     * Values are sourced from lookup tables when available, falling
+     * back to the legacy constants for backward compatibility.
      */
     public static function getEnumValues(): array
     {
         return [
-            'primary_categories' => self::PRIMARY_CATEGORIES,
-            'unit_styles' => self::UNIT_STYLES,
+            'primary_categories' => self::getLookupNames(PropertyPrimaryCategory::class, self::PRIMARY_CATEGORIES),
+            'unit_styles' => self::getLookupNames(PropertySubType::class, self::UNIT_STYLES),
             'construction_statuses' => self::CONSTRUCTION_STATUSES,
-            'view_types' => self::VIEW_TYPES,
+            'view_types' => self::getLookupNames(PropertyViewType::class, self::VIEW_TYPES),
             'occupancy_types' => self::OCCUPANCY_TYPES,
             'cities' => self::CITIES,
-            'deed_types' => self::DEED_TYPES,
-            'deed_statuses' => self::DEED_STATUSES,
+            'deed_types' => self::getLookupNames(PropertyTitleDeedType::class, self::DEED_TYPES),
+            'deed_statuses' => self::getLookupNames(PropertyDeedStatus::class, self::DEED_STATUSES),
             'land_types' => self::LAND_TYPES,
-            'outside_features' => self::OUTSIDE_FEATURES,
-            'inside_features' => self::INSIDE_FEATURES,
+            'outside_features' => self::getLookupNames(PropertyExteriorFeature::class, self::OUTSIDE_FEATURES),
+            'inside_features' => self::getLookupNames(PropertyInteriorFeature::class, self::INSIDE_FEATURES),
+            'property_types' => self::getLookupValues(PropertyType::class, self::getAllPropertyTypes()),
+            'floor_types' => self::getLookupValues(PropertyFloorType::class, []),
             'furniture_statuses' => [
                 self::FURNITURE_UNFURNISHED,
                 self::FURNITURE_FULLY_FURNISHED,
@@ -1269,6 +1307,46 @@ class Property extends BaseModel
             'type_codes' => self::TYPE_CODES,
             'subtype_codes' => self::SUBTYPE_CODES,
         ];
+    }
+
+    /**
+     * Get lookup names from a lookup table model, falling back to constants.
+     *
+     * @param class-string $modelClass  The lookup model class
+     * @param array        $fallback    Fallback constant values
+     * @return array<string>            List of name values
+     */
+    private static function getLookupNames(string $modelClass, array $fallback): array
+    {
+        try {
+            $values = $modelClass::pluck('name')->toArray();
+            return !empty($values) ? $values : $fallback;
+        } catch (\Throwable) {
+            return $fallback;
+        }
+    }
+
+    /**
+     * Get lookup values (name + label pairs) from a lookup table model.
+     * Returns [{name, label}] for richer dropdown rendering on the frontend.
+     *
+     * @param class-string $modelClass  The lookup model class
+     * @param array        $fallback    Fallback constant values (plain names)
+     * @return array
+     */
+    private static function getLookupValues(string $modelClass, array $fallback): array
+    {
+        try {
+            $values = $modelClass::select('name', 'label')->get()->toArray();
+            if (!empty($values)) {
+                return $values;
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        // Return fallback as [{name, label}] format
+        return array_map(fn($name) => ['name' => $name, 'label' => $name], $fallback);
     }
 
     /**

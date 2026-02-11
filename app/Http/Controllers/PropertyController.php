@@ -400,6 +400,39 @@ class PropertyController extends AccountBaseController
         $property->photos = $request->photos ? (is_array($request->photos) ? $request->photos : json_decode($request->photos, true)) : [];
         $property->add_ons = $request->add_ons ? (is_array($request->add_ons) ? $request->add_ons : json_decode($request->add_ons, true)) : [];
         
+        // New fields: Physical Attributes
+        $property->total_area_sqm = $request->total_area_sqm;
+        $property->plot_size_sqm = $request->plot_size_sqm;
+        $property->floor = $request->floor;
+
+        // New fields: Legal Info
+        $property->has_restrictions = $request->boolean('has_restrictions');
+        $property->restriction_notes = $request->restriction_notes;
+        $property->deed_status = $request->deed_status;
+
+        // New fields: Financial Information
+        $property->price_to_owner = $request->price_to_owner;
+        $property->hibarr_price = $request->hibarr_price;
+        $property->commission_agreement_signed = $request->boolean('commission_agreement_signed');
+
+        // New fields: Notes
+        $property->general_notes = $request->general_notes;
+
+        // Distances (merge into existing distances JSON)
+        if ($request->has('distances')) {
+            $property->distances = $request->distances;
+        }
+
+        // Legal info with tax_info (merge into existing legal_info JSON)
+        if ($request->has('legal_info')) {
+            $property->legal_info = $request->legal_info;
+        }
+
+        // Documents checklist
+        if ($request->has('documents_checklist')) {
+            $property->documents_checklist = $request->documents_checklist;
+        }
+
         $property->save();
 
 

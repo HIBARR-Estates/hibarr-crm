@@ -30,18 +30,17 @@ class StoreRequest extends CoreRequest
             'property_type' => [
                 'required',
                 'string',
-                Rule::in([
-                    Property::PROPERTY_TYPE_VILLA, Property::PROPERTY_TYPE_TWIN_VILLA, Property::PROPERTY_TYPE_APARTMENT,
-                    Property::PROPERTY_TYPE_FAMILY_HOME, Property::PROPERTY_TYPE_TOWNHOUSE, Property::PROPERTY_TYPE_LOFT,
-                    Property::PROPERTY_TYPE_PENTHOUSE, Property::PROPERTY_TYPE_BUNGALOW, Property::PROPERTY_TYPE_COMMERCIAL_PROPERTY,
-                    Property::PROPERTY_TYPE_BLOCK_APARTMENTS, Property::PROPERTY_TYPE_COMPLETE_BUILDING, Property::PROPERTY_TYPE_ABANDONED_BUILDING,
-                    Property::PROPERTY_TYPE_RESIDENCE, Property::PROPERTY_TYPE_HALF_CONSTRUCTION, Property::PROPERTY_TYPE_TIME_SHARE,
-                    Property::PROPERTY_TYPE_RESIDENTIALLY_ZONED_LAND, Property::PROPERTY_TYPE_FIELD, Property::PROPERTY_TYPE_RESIDENTIAL_COMMERCIAL_LAND,
-                    Property::PROPERTY_TYPE_COMMERCIALLY_ZONED_LAND, Property::PROPERTY_TYPE_INDUSTRIALLY_ZONED_LAND, Property::PROPERTY_TYPE_TOURISM_ZONED_LAND,
-                    Property::PROPERTY_TYPE_OLIVE_GROVE, Property::PROPERTY_TYPE_SHOP, Property::PROPERTY_TYPE_HOTEL,
-                    Property::PROPERTY_TYPE_WORKPLACE, Property::PROPERTY_TYPE_WAREHOUSE, Property::PROPERTY_TYPE_WORKPLACE_FOR_SALE,
-                    Property::PROPERTY_TYPE_OFFICE
-                ])
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    // Check lookup table first, then fall back to constants
+                    $existsInLookup = \App\Models\PropertyType::where('name', $value)->exists();
+                    if ($existsInLookup) {
+                        return;
+                    }
+                    $allTypes = Property::getAllPropertyTypes();
+                    if (!in_array($value, $allTypes)) {
+                        $fail("The selected {$attribute} is invalid.");
+                    }
+                },
             ],
             'sale_type' => [
                 'required',
@@ -178,6 +177,63 @@ class StoreRequest extends CoreRequest
             'photos.*' => 'string',
             'add_ons' => 'nullable|array',
             'add_ons.*' => 'string',
+
+            // New fields: Physical Attributes
+            'total_area_sqm' => 'nullable|numeric|min:0',
+            'plot_size_sqm' => 'nullable|numeric|min:0',
+            'floor' => 'nullable|string|max:255',
+
+            // New fields: Legal Info
+            'has_restrictions' => 'nullable|boolean',
+            'restriction_notes' => 'nullable|string|required_if:has_restrictions,true',
+            'deed_status' => [
+                'nullable',
+                'string',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value === null) {
+                        return;
+                    }
+                    $existsInLookup = \App\Models\PropertyDeedStatus::where('name', $value)->exists();
+                    if ($existsInLookup) {
+                        return;
+                    }
+                    if (!in_array($value, Property::DEED_STATUSES)) {
+                        $fail("The selected {$attribute} is invalid.");
+                    }
+                },
+            ],
+
+            // New fields: Financial Information
+            'price_to_owner' => 'nullable|numeric|min:0',
+            'hibarr_price' => 'nullable|numeric|min:0',
+            'commission_agreement_signed' => 'nullable|boolean',
+
+            // New fields: Notes
+            'general_notes' => 'nullable|string',
+
+            // Distances (stored in distances JSON column)
+            'distances' => 'nullable|array',
+            'distances.military_base' => 'nullable|string|max:255',
+            'distances.sea' => 'nullable|numeric|min:0',
+            'distances.hospital' => 'nullable|numeric|min:0',
+            'distances.market' => 'nullable|numeric|min:0',
+            'distances.schools' => 'nullable|numeric|min:0',
+
+            // Tax info (stored in legal_info JSON)
+            'legal_info' => 'nullable|array',
+            'legal_info.tax_info' => 'nullable|array',
+            'legal_info.tax_info.vat_paid' => 'nullable|boolean',
+            'legal_info.tax_info.vat_not_paid' => 'nullable|boolean',
+            'legal_info.tax_info.trafo_fee_paid' => 'nullable|boolean',
+            'legal_info.tax_info.stopaj_paid' => 'nullable|boolean',
+
+            // Document uploads (stored in documents_checklist JSON)
+            'documents_checklist' => 'nullable|array',
+            'documents_checklist.search_document_url' => 'nullable|string',
+            'documents_checklist.sales_agreement_url' => 'nullable|string',
+            'documents_checklist.title_deed_copy_url' => 'nullable|string',
+            'documents_checklist.owner_passport_copy_url' => 'nullable|string',
+            'documents_checklist.site_plan_layout_url' => 'nullable|string',
         ];
 
         // Add conditional validation based on property type and sale type
@@ -300,6 +356,16 @@ class StoreRequest extends CoreRequest
             'tour_360_url' => __('modules.properties.tour360Url'),
             'photos' => __('modules.properties.photos'),
             'add_ons' => __('modules.properties.addOns'),
+            'total_area_sqm' => 'Total Area (sqm)',
+            'plot_size_sqm' => 'Plot Size (sqm)',
+            'floor' => 'Floor',
+            'has_restrictions' => 'Has Restrictions',
+            'restriction_notes' => 'Restriction Notes',
+            'deed_status' => 'Deed Status',
+            'price_to_owner' => 'Price to Owner',
+            'hibarr_price' => 'HIBARR Price',
+            'commission_agreement_signed' => 'Commission Agreement Signed',
+            'general_notes' => 'General Notes',
         ];
     }
 
