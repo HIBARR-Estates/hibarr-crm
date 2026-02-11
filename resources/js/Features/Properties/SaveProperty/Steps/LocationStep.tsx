@@ -142,12 +142,13 @@ export default function LocationStep({
                             disabled={projectHasLocation}
                             className={projectHasLocation ? "bg-gray-50" : ""}
                             options={cities.map((city) => ({
-                                value: city,
-                                label: city,
+                                value: city.name,
+                                label: city.label,
                             }))}
                             filterOption={(inputValue, option) =>
-                                option?.value
-                                    ?.toLowerCase()
+                                option?.label
+                                    ?.toString()
+                                    .toLowerCase()
                                     .includes(inputValue.toLowerCase()) ?? false
                             }
                         />

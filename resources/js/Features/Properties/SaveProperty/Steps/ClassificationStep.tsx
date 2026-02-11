@@ -47,8 +47,8 @@ export default function ClassificationStep({
                             allowClear
                         >
                             {constructionStatuses.map((status) => (
-                                <Option key={status} value={status}>
-                                    {formatLabel(status)}
+                                <Option key={status.name} value={status.name}>
+                                    {status.label}
                                 </Option>
                             ))}
                         </Select>
@@ -66,8 +66,8 @@ export default function ClassificationStep({
                             allowClear
                         >
                             {occupancyTypes.map((type) => (
-                                <Option key={type} value={type}>
-                                    {formatLabel(type)}
+                                <Option key={type.name} value={type.name}>
+                                    {type.label}
                                 </Option>
                             ))}
                         </Select>
@@ -94,8 +94,8 @@ export default function ClassificationStep({
                             }
                         >
                             {viewTypes.map((view) => (
-                                <Option key={view} value={view}>
-                                    {formatLabel(view)}
+                                <Option key={view.name} value={view.name}>
+                                    {view.label}
                                 </Option>
                             ))}
                         </Select>
