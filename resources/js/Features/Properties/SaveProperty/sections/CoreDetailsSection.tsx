@@ -1,15 +1,10 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Form, Select, Row, Col } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
-import {
-    PROPERTY_TYPES_BY_CATEGORY,
-    getSaleTypesForCategory,
-    STATUS_OPTIONS,
-    UNIT_STYLE_OPTIONS,
-} from "../fieldConfig";
 import { SPECIFICATION_FIELDS } from "../fieldConfig";
+import { useFormOptions } from "../useFormOptions";
 
 const { Option } = Select;
 
@@ -34,8 +29,12 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
     const developerProjects = (props?.developerProjects ||
         []) as DeveloperProject[];
 
-    const propertyTypes = PROPERTY_TYPES_BY_CATEGORY[primaryCategory] || [];
-    const saleTypes = getSaleTypesForCategory(primaryCategory);
+    const {
+        propertyTypeOptions,
+        saleTypeOptions,
+        statusOptions,
+        unitStyleOptions,
+    } = useFormOptions(enumValues, primaryCategory);
     const specFields = SPECIFICATION_FIELDS[primaryCategory];
 
     // Unit style change handler
@@ -65,9 +64,9 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                         showSearch
                         optionFilterProp="children"
                     >
-                        {propertyTypes.map((type) => (
-                            <Option key={type} value={type}>
-                                {type}
+                        {propertyTypeOptions.map((o) => (
+                            <Option key={o.value} value={o.value}>
+                                {o.label}
                             </Option>
                         ))}
                     </Select>
@@ -84,9 +83,9 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                     ]}
                 >
                     <Select placeholder="Select status">
-                        {STATUS_OPTIONS.map((s) => (
-                            <Option key={s} value={s}>
-                                {s}
+                        {statusOptions.map((o) => (
+                            <Option key={o.value} value={o.value}>
+                                {o.label}
                             </Option>
                         ))}
                     </Select>
@@ -103,9 +102,9 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                     ]}
                 >
                     <Select placeholder="Select sale type">
-                        {saleTypes.map((type) => (
-                            <Option key={type} value={type}>
-                                {type}
+                        {saleTypeOptions.map((o) => (
+                            <Option key={o.value} value={o.value}>
+                                {o.label}
                             </Option>
                         ))}
                     </Select>
@@ -121,7 +120,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                             allowClear
                             onChange={handleUnitStyleChange}
                         >
-                            {UNIT_STYLE_OPTIONS.map((o) => (
+                            {unitStyleOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
                                 </Option>

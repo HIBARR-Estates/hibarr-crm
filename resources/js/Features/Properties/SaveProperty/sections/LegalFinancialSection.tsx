@@ -11,12 +11,12 @@ import {
     Typography,
 } from "antd";
 import type { FormInstance } from "antd/lib/form";
-import type { PrimaryCategory } from "@/Types";
+import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
 import {
-    TITLE_DEED_TYPE_OPTIONS,
     RENTAL_PERIOD_OPTIONS,
     PAYMENT_INTERVAL_OPTIONS,
 } from "../fieldConfig";
+import { useFormOptions } from "../useFormOptions";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -25,18 +25,18 @@ const { Text } = Typography;
 interface LegalFinancialSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
+    enumValues?: PropertyEnumValues;
 }
-
-const DEED_STATUS_OPTIONS = [
-    { value: "ready", label: "Ready" },
-    { value: "in_progress", label: "In Progress" },
-    { value: "pending", label: "Pending" },
-];
 
 const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
     form,
     primaryCategory,
+    enumValues,
 }) => {
+    const { deedTypeOptions, deedStatusOptions } = useFormOptions(
+        enumValues,
+        primaryCategory,
+    );
     const saleType = Form.useWatch("sale_type", form);
     const isRental = saleType === "For Rent" || saleType === "For Daily Rental";
 
@@ -50,7 +50,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item name="title_deed_type" label="Deed Type">
                         <Select placeholder="Select deed type" allowClear>
-                            {TITLE_DEED_TYPE_OPTIONS.map((o) => (
+                            {deedTypeOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
                                 </Option>
@@ -61,7 +61,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item name="title_deed_stage" label="Deed Status">
                         <Select placeholder="Select status" allowClear>
-                            {DEED_STATUS_OPTIONS.map((o) => (
+                            {deedStatusOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
                                 </Option>
@@ -87,7 +87,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         label="Legal Status"
                     >
                         <Select placeholder="Select" allowClear>
-                            {DEED_STATUS_OPTIONS.map((o) => (
+                            {deedStatusOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
                                 </Option>

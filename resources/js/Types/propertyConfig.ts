@@ -59,7 +59,16 @@ export type ConfigTypeSlug =
     | "exterior-features"
     | "interior-features"
     | "floor-types"
-    | "deed-statuses";
+    | "deed-statuses"
+    | "construction-statuses"
+    | "occupancy-types"
+    | "furniture-statuses"
+    | "heating-types"
+    | "cities"
+    | "sale-types"
+    | "statuses"
+    | "location-features"
+    | "add-ons";
 
 /** Human-readable labels and descriptions for each config type */
 export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
@@ -75,7 +84,8 @@ export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
     },
     "primary-categories": {
         label: "Primary Categories",
-        description: "Primary listing categories (Sale, Rent, etc.)",
+        description:
+            "Primary listing categories (Residential, Commercial, Land)",
         icon: "TagOutlined",
     },
     "view-types": {
@@ -85,7 +95,7 @@ export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
     },
     "title-deed-types": {
         label: "Title Deed Types",
-        description: "Types of title deeds (Freehold, Leasehold, etc.)",
+        description: "Types of title deeds (Turkish/British, Exchange, etc.)",
         icon: "FileProtectOutlined",
     },
     "exterior-features": {
@@ -95,18 +105,67 @@ export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
     },
     "interior-features": {
         label: "Interior Features",
-        description: "Interior amenities (AC, Fireplace, Smart Home, etc.)",
+        description:
+            "Interior amenities (AC, Fireplace, Built-in Kitchen, etc.)",
         icon: "AppstoreOutlined",
     },
     "floor-types": {
         label: "Floor Types",
-        description: "Floor covering materials (Marble, Tile, Parquet, etc.)",
+        description: "Floor levels (Ground Floor, Floor 1–15, etc.)",
         icon: "BorderBottomOutlined",
     },
     "deed-statuses": {
         label: "Deed Statuses",
-        description: "Status of property deeds (Ready, In Progress, etc.)",
+        description:
+            "Status of property deeds (Owner Individual, No Deed, etc.)",
         icon: "CheckCircleOutlined",
+    },
+    "construction-statuses": {
+        label: "Construction Statuses",
+        description:
+            "Construction stage (Off-Plan, Under Construction, Resale, etc.)",
+        icon: "ToolOutlined",
+    },
+    "occupancy-types": {
+        label: "Occupancy Types",
+        description: "Current occupancy (Owner Occupied, Tenant, Vacant)",
+        icon: "UserOutlined",
+    },
+    "furniture-statuses": {
+        label: "Furniture Statuses",
+        description: "Furnishing level (Unfurnished, Fully Furnished, etc.)",
+        icon: "ShopOutlined",
+    },
+    "heating-types": {
+        label: "Heating Types",
+        description: "Heating system (Central, Underfloor, AC, Solar, etc.)",
+        icon: "FireOutlined",
+    },
+    cities: {
+        label: "Cities",
+        description: "TRNC cities (Kyrenia, Famagusta, Nicosia, etc.)",
+        icon: "EnvironmentOutlined",
+    },
+    "sale-types": {
+        label: "Sale Types",
+        description: "Listing purpose (For Sale, For Rent, For Daily Rental)",
+        icon: "ShoppingOutlined",
+    },
+    statuses: {
+        label: "Property Statuses",
+        description: "Listing status (Available, Reserved, Sold, etc.)",
+        icon: "FlagOutlined",
+    },
+    "location-features": {
+        label: "Location Features",
+        description: "Proximity features (Near Beach, Near School, etc.)",
+        icon: "CompassOutlined",
+    },
+    "add-ons": {
+        label: "Add-Ons",
+        description:
+            "Optional extras (Furniture Package, Rental Guarantee, etc.)",
+        icon: "PlusCircleOutlined",
     },
 };
 
@@ -121,4 +180,13 @@ export const CONFIG_TYPE_ORDER: ConfigTypeSlug[] = [
     "interior-features",
     "floor-types",
     "deed-statuses",
+    "construction-statuses",
+    "occupancy-types",
+    "furniture-statuses",
+    "heating-types",
+    "cities",
+    "sale-types",
+    "statuses",
+    "location-features",
+    "add-ons",
 ];

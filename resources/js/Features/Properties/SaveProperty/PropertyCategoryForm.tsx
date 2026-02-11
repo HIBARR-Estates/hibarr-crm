@@ -277,6 +277,7 @@ export default function PropertyCategoryForm({
                                     <SpecificationsSection
                                         form={form}
                                         primaryCategory={primaryCategory}
+                                        enumValues={enumValues}
                                     />
                                 </FormSection>
                             )}
@@ -324,6 +325,7 @@ export default function PropertyCategoryForm({
                                     <FeaturesSection
                                         form={form}
                                         primaryCategory={primaryCategory}
+                                        enumValues={enumValues}
                                     />
                                 </FormSection>
                             )}
@@ -339,6 +341,7 @@ export default function PropertyCategoryForm({
                                     <LegalFinancialSection
                                         form={form}
                                         primaryCategory={primaryCategory}
+                                        enumValues={enumValues}
                                     />
                                 </FormSection>
                             )}

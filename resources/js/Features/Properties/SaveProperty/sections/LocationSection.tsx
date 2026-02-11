@@ -45,7 +45,6 @@ const LocationSection: React.FC<LocationSectionProps> = ({
         []) as ProjectLocation[];
 
     const developerProjectId = Form.useWatch("developer_project_id", form);
-    const cities = enumValues?.cities || [];
 
     // Find selected project
     const selectedProject = useMemo(() => {
@@ -57,16 +56,14 @@ const LocationSection: React.FC<LocationSectionProps> = ({
 
     const hasProjectLocation = !!selectedProject?.location;
 
-    // City autocomplete options
+    // City autocomplete options — derived from DB lookup values
     const cityOptions = useMemo(() => {
+        const cities = enumValues?.cities || [];
         return cities.map((c) => ({
-            value: c,
-            label: c
-                .split("_")
-                .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-                .join(" "),
+            value: c.name,
+            label: c.label,
         }));
-    }, [cities]);
+    }, [enumValues?.cities]);
 
     return (
         <Row gutter={[16, 0]}>

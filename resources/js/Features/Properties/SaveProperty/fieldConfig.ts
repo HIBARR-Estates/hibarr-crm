@@ -1,226 +1,15 @@
 /**
  * Category-driven field configuration for the Property form.
  *
- * Defines which sections and fields are visible for each primary_category,
- * replacing hardcoded arrays spread across multiple step components.
+ * Defines which sections and fields are visible for each primary_category.
+ *
+ * ALL dropdown option values are now sourced from the database via enumValues
+ * (single source of truth). This file only contains:
+ *   - Section/field visibility rules per category
+ *   - Numeric range generators (bedrooms 0-8, bathrooms 1-5, etc.)
+ *   - Static UI-only options (rental periods, payment intervals)
  */
 import type { PrimaryCategory } from "@/Types";
-
-// ================================================================
-// Property type options filtered by category
-// ================================================================
-
-export const PROPERTY_TYPES_BY_CATEGORY: Record<PrimaryCategory, string[]> = {
-    residential: [
-        "Villa",
-        "Twin Villa",
-        "Apartment",
-        "Family Home",
-        "Townhouse",
-        "Loft",
-        "Penthouse",
-        "Bungalow",
-        "Block of apartments",
-        "Complete Building",
-        "Abandoned Building",
-        "Residence",
-        "Half Construction",
-        "Time Share",
-    ],
-    commercial: [
-        "Shop",
-        "Hotel",
-        "Business",
-        "Warehouse",
-        "Workplace",
-        "Office",
-        "Commercial Property",
-    ],
-    land: [
-        "Residentially Zoned Land",
-        "Field",
-        "Residentially and Commercially Zoned Land",
-        "Commercially Zoned Land",
-        "Industrially Zoned land",
-        "Tourism Zoned Land",
-        "Olive Grove",
-    ],
-};
-
-// ================================================================
-// Sale type options
-// ================================================================
-
-export const ALL_SALE_TYPES = ["For Sale", "For Rent", "For Daily Rental"];
-export const SALE_ONLY_TYPES = ["For Sale"];
-
-export const getSaleTypesForCategory = (
-    category: PrimaryCategory | null,
-): string[] => {
-    if (category === "land") return SALE_ONLY_TYPES;
-    return ALL_SALE_TYPES;
-};
-
-// ================================================================
-// Status options
-// ================================================================
-
-export const STATUS_OPTIONS = [
-    "Available",
-    "Reserved",
-    "Sold",
-    "Rented",
-    "Withdrawn",
-];
-
-// ================================================================
-// Construction status options
-// ================================================================
-
-export const CONSTRUCTION_STATUS_OPTIONS = [
-    { value: "off_plan", label: "Off-Plan" },
-    { value: "under_construction", label: "Under Construction" },
-    { value: "completed_new", label: "Completed (New)" },
-    { value: "resale", label: "Resale" },
-    { value: "ruin_renovation", label: "Ruin (For Renovation)" },
-];
-
-// ================================================================
-// Title deed type options
-// ================================================================
-
-export const TITLE_DEED_TYPE_OPTIONS = [
-    { value: "turkish_british", label: "Turkish/British" },
-    { value: "exchange", label: "Exchange (Eşdeğer)" },
-    { value: "trnc_allocation", label: "TRNC Allocation (Tahsis/TMD)" },
-    { value: "leasehold", label: "Leasehold (Vakıf/Ministry)" },
-    { value: "mujahit", label: "Mücahit" },
-];
-
-// ================================================================
-// View types
-// ================================================================
-
-export const VIEW_TYPE_OPTIONS = [
-    { value: "sea_front", label: "Sea Front (Direct)" },
-    { value: "sea_view", label: "Sea View" },
-    { value: "mountain_view", label: "Mountain View" },
-    { value: "pool_view", label: "Pool View" },
-    { value: "garden_view", label: "Garden View" },
-    { value: "city_view", label: "City View" },
-];
-
-// ================================================================
-// Feature lists
-// ================================================================
-
-export const INTERIOR_FEATURES = [
-    "Air Conditioning",
-    "Central Heating",
-    "Underfloor Heating",
-    "Fireplace",
-    "Elevator",
-    "Smart Home System",
-    "Alarm System",
-    "Satellite TV",
-    "Internet",
-    "Built-in Kitchen",
-    "Dishwasher",
-    "Washing Machine",
-    "Dryer",
-    "Water Heater",
-    "Solar Panels",
-    "Jacuzzi",
-    "Sauna",
-    "Storage Room",
-    "Dressing Room",
-    "En-suite Bathroom",
-    "Guest Toilet",
-    "Laundry Room",
-    "Double Glazing",
-    "Blinds/Shutters",
-    "Walk-in Closet",
-];
-
-export const EXTERIOR_FEATURES = [
-    "Swimming Pool",
-    "Private Pool",
-    "Shared Pool",
-    "Garden",
-    "Private Garden",
-    "Shared Garden",
-    "Terrace",
-    "Balcony",
-    "Parking",
-    "Covered Parking",
-    "Garage",
-    "Gym",
-    "Tennis Court",
-    "Basketball Court",
-    "Children's Playground",
-    "Security",
-    "24/7 Security",
-    "CCTV",
-    "Gated Community",
-    "BBQ Area",
-    "Communal Pool",
-    "Concierge",
-    "Generator",
-    "Water Tank",
-    "Transformer",
-    "Landscaping",
-    "Sea Access",
-    "Beach Access",
-    "Wheelchair Access",
-    "Pet Friendly",
-    "Roof Terrace",
-    "Caretaker",
-];
-
-export const LOCATION_FEATURES = [
-    "Near Beach",
-    "Near School",
-    "Near Hospital",
-    "Near Market",
-    "Near Public Transport",
-    "Near Mosque",
-    "Near Restaurant",
-    "Near Highway",
-    "Near Airport",
-    "City Center",
-    "Quiet Area",
-    "Rural Area",
-    "Mountain Area",
-    "Coastal Area",
-    "Forest Area",
-    "Nature View",
-    "Walking Distance to Beach",
-    "Near University",
-    "Near Park",
-    "Near Marina",
-    "Near Golf Course",
-    "Near Casino",
-    "Near Shopping Mall",
-];
-
-export const ADD_ON_OPTIONS = [
-    "Furniture Package",
-    "White Goods Package",
-    "Rental Management",
-    "Maintenance Package",
-    "Insurance",
-    "Legal Support",
-    "Title Deed Transfer Costs",
-    "VAT Included",
-    "Rental Guarantee",
-    "Buy-Back Guarantee",
-    "Payment Plan Available",
-    "Crypto Payment Accepted",
-    "Exchange Available",
-    "Part Exchange Considered",
-    "Company Name Transfer",
-    "Investment Package",
-];
 
 // ================================================================
 // Section visibility by category
@@ -394,22 +183,6 @@ export const BUILDING_AGE_OPTIONS = Array.from({ length: 17 }, (_, i) => ({
     label: i === 16 ? "15+" : `${i}`,
 }));
 
-export const FURNITURE_STATUS_OPTIONS = [
-    { value: "Unfurnished", label: "Unfurnished" },
-    { value: "Fully Furnished", label: "Fully Furnished" },
-    { value: "Part Furnished", label: "Part Furnished" },
-    { value: "White Goods Only", label: "White Goods Only" },
-];
-
-export const HEATING_TYPE_OPTIONS = [
-    { value: "central", label: "Central Heating" },
-    { value: "underfloor", label: "Underfloor Heating" },
-    { value: "ac", label: "Air Conditioning" },
-    { value: "stove", label: "Stove" },
-    { value: "solar", label: "Solar" },
-    { value: "none", label: "None" },
-];
-
 export const RENTAL_PERIOD_OPTIONS = [
     { value: 1, label: "1 Month" },
     { value: 3, label: "3 Months" },
@@ -424,18 +197,4 @@ export const PAYMENT_INTERVAL_OPTIONS = [
     { value: "biannual", label: "Bi-Annual" },
     { value: "annual", label: "Annual" },
     { value: "upfront", label: "Upfront" },
-];
-
-// ================================================================
-// Unit style options
-// ================================================================
-
-export const UNIT_STYLE_OPTIONS = [
-    { value: "standard", label: "Standard" },
-    { value: "penthouse", label: "Penthouse" },
-    { value: "loft", label: "Loft" },
-    { value: "garden", label: "Garden Flat" },
-    { value: "duplex", label: "Duplex" },
-    { value: "triplex", label: "Triplex" },
-    { value: "studio", label: "Studio" },
 ];

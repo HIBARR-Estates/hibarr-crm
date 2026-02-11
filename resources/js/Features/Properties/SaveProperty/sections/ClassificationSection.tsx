@@ -2,7 +2,7 @@ import React from "react";
 import { Form, Select, DatePicker, Row, Col } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
-import { CONSTRUCTION_STATUS_OPTIONS, VIEW_TYPE_OPTIONS } from "../fieldConfig";
+import { useFormOptions } from "../useFormOptions";
 
 const { Option } = Select;
 
@@ -17,7 +17,8 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
     primaryCategory,
     enumValues,
 }) => {
-    const occupancyTypes = enumValues?.occupancy_types || [];
+    const { constructionStatusOptions, viewTypeOptions, occupancyTypeOptions } =
+        useFormOptions(enumValues, primaryCategory);
 
     return (
         <Row gutter={[16, 0]}>
@@ -28,7 +29,7 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
                     label="Construction Status"
                 >
                     <Select placeholder="Select status" allowClear>
-                        {CONSTRUCTION_STATUS_OPTIONS.map((o) => (
+                        {constructionStatusOptions.map((o) => (
                             <Option key={o.value} value={o.value}>
                                 {o.label}
                             </Option>
@@ -60,7 +61,7 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
                         placeholder="Select view types"
                         allowClear
                     >
-                        {VIEW_TYPE_OPTIONS.map((o) => (
+                        {viewTypeOptions.map((o) => (
                             <Option key={o.value} value={o.value}>
                                 {o.label}
                             </Option>
@@ -77,16 +78,9 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
                         label="Current Occupancy"
                     >
                         <Select placeholder="Select" allowClear>
-                            {occupancyTypes.map((type) => (
-                                <Option key={type} value={type}>
-                                    {type
-                                        .split("_")
-                                        .map(
-                                            (w: string) =>
-                                                w.charAt(0).toUpperCase() +
-                                                w.slice(1),
-                                        )
-                                        .join(" ")}
+                            {occupancyTypeOptions.map((o) => (
+                                <Option key={o.value} value={o.value}>
+                                    {o.label}
                                 </Option>
                             ))}
                         </Select>
