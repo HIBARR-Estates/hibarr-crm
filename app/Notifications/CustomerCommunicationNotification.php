@@ -134,7 +134,6 @@ class CustomerCommunicationNotification extends BaseNotification
         
         // Get company details
         $companyName = $this->company->company_name ?? config('app.name');
-        $logoUrl = $this->company->masked_logo_url ?? config('app.logo');
         $themeColor = $this->company->header_color ?? '#0056b3';
         
         // Get website URL (if available)
@@ -177,7 +176,6 @@ class CustomerCommunicationNotification extends BaseNotification
                 'senderJobTitle' => $senderJobTitle,
                 'senderPhone' => $senderPhone,
                 'companyName' => $companyName,
-                'logoUrl' => $logoUrl,
                 'websiteUrl' => $websiteUrl,
             ]);
         
