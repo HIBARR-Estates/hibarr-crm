@@ -128,13 +128,8 @@ export function useFormOptions(
             filteredPropertyTypes = enumValues.property_types ?? [];
         }
 
-        // Sale types: land only gets "For Sale"
+        // Sale types: all categories get the full list
         let filteredSaleTypes = enumValues.sale_types ?? [];
-        if (primaryCategory === "land") {
-            filteredSaleTypes = filteredSaleTypes.filter(
-                (st) => st.name === "For Sale",
-            );
-        }
 
         return {
             propertyTypeOptions: toSelectOptions(filteredPropertyTypes),

@@ -7,6 +7,16 @@ import CurrencyInput from "@/Components/CurrencyInput";
 const { Text } = Typography;
 const { TextArea } = Input;
 
+// 1 Dönüm = 1,338 m²
+const DONUM_TO_SQM = 1338;
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: "$",
+    EUR: "€",
+    GBP: "£",
+    TRY: "₺",
+};
+
 interface PricingSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
@@ -17,6 +27,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
     primaryCategory,
 }) => {
     const openToSwap = Form.useWatch("open_to_swap", form);
+    const isLand = primaryCategory === "land";
 
     return (
         <Row gutter={[16, 0]}>
@@ -29,11 +40,15 @@ const PricingSection: React.FC<PricingSectionProps> = ({
                         { required: true, message: "Please enter the price" },
                     ]}
                 >
-                    <CurrencyInput noFormItem placeholder="Enter price" />
+                    <CurrencyInput
+                        noFormItem
+                        placeholder="Enter price"
+                        defaultCurrency={isLand ? "GBP" : undefined}
+                    />
                 </Form.Item>
             </Col>
 
-            {/* Price per m² — informational, computed */}
+            {/* Price per m² (and per dönüm for land) — informational, computed */}
             <Col xs={24} md={12}>
                 <Form.Item
                     shouldUpdate={(prev, cur) =>
@@ -50,8 +65,9 @@ const PricingSection: React.FC<PricingSectionProps> = ({
                         const livingSqm = form.getFieldValue("living_area_sqm");
                         const landSize = form.getFieldValue("land_size");
 
-                        // Parse price amount
+                        // Parse price amount and currency
                         let priceAmount: number | null = null;
+                        let currency = "";
                         if (price) {
                             if (typeof price === "number") {
                                 priceAmount = price;
@@ -60,41 +76,82 @@ const PricingSection: React.FC<PricingSectionProps> = ({
                                 price?.amount
                             ) {
                                 priceAmount = Number(price.amount);
+                                currency = price.currency || "";
                             } else if (typeof price === "string") {
                                 try {
                                     const parsed = JSON.parse(price);
                                     priceAmount = parsed?.amount
                                         ? Number(parsed.amount)
                                         : Number(price);
+                                    currency = parsed?.currency || "";
                                 } catch {
                                     priceAmount = Number(price);
                                 }
                             }
                         }
 
-                        const area =
-                            primaryCategory === "land"
-                                ? landSize
-                                : grossSqm || livingSqm;
+                        const currencySymbol =
+                            CURRENCY_SYMBOLS[currency] || currency || "";
+
+                        const area = isLand ? landSize : grossSqm || livingSqm;
 
                         const pricePerSqm =
                             priceAmount && area && Number(area) > 0
                                 ? Math.round(priceAmount / Number(area))
                                 : null;
 
+                        // For land, also calculate price per dönüm
+                        const pricePerDonum =
+                            isLand &&
+                            priceAmount &&
+                            landSize &&
+                            Number(landSize) > 0
+                                ? Math.round(
+                                      priceAmount /
+                                          (Number(landSize) / DONUM_TO_SQM),
+                                  )
+                                : null;
+
                         return (
-                            <Form.Item label="Price / m²">
-                                <div className="bg-gray-50 rounded-md px-3 py-2 border border-gray-200 min-h-[32px] flex items-center">
+                            <Form.Item
+                                label={
+                                    isLand ? "Price / m² & Dönüm" : "Price / m²"
+                                }
+                            >
+                                <div className="bg-gray-50 rounded-md px-3 py-2 border border-gray-200 min-h-[32px] flex items-center gap-4">
                                     {pricePerSqm !== null ? (
-                                        <Text strong>
-                                            {pricePerSqm.toLocaleString()}
-                                            <Text
-                                                type="secondary"
-                                                className="ml-1 text-xs font-normal"
-                                            >
-                                                / m²
+                                        <>
+                                            <Text strong>
+                                                {currencySymbol}
+                                                {pricePerSqm.toLocaleString()}
+                                                <Text
+                                                    type="secondary"
+                                                    className="ml-1 text-xs font-normal"
+                                                >
+                                                    / m²
+                                                </Text>
                                             </Text>
-                                        </Text>
+                                            {pricePerDonum !== null && (
+                                                <>
+                                                    <Text
+                                                        type="secondary"
+                                                        className="text-xs"
+                                                    >
+                                                        |
+                                                    </Text>
+                                                    <Text strong>
+                                                        {currencySymbol}
+                                                        {pricePerDonum.toLocaleString()}
+                                                        <Text
+                                                            type="secondary"
+                                                            className="ml-1 text-xs font-normal"
+                                                        >
+                                                            / dönüm
+                                                        </Text>
+                                                    </Text>
+                                                </>
+                                            )}
+                                        </>
                                     ) : (
                                         <Text
                                             type="secondary"

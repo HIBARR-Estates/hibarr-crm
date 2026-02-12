@@ -374,6 +374,7 @@ class PropertyController extends AccountBaseController
         $property->latitude = $request->latitude;
         $property->longitude = $request->longitude;
         $property->land_size = $request->land_size;
+        $property->land_size_donum = $request->land_size_donum;
         $property->living_area_sqm = $request->living_area_sqm;
         $property->gross_sqm = $request->gross_sqm;
         $property->living_room = $request->living_room;

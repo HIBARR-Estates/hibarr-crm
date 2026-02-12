@@ -349,6 +349,7 @@ class Property extends BaseModel
         'area',
         'distances',
         'land_size',
+        'land_size_donum',
         'living_area_sqm',
         'gross_sqm',
         'terrace_area_sqm',
@@ -432,6 +433,7 @@ class Property extends BaseModel
     protected $casts = [
         'price' => PriceCast::class,
         'land_size' => 'decimal:2',
+        'land_size_donum' => 'decimal:4',
         'living_area_sqm' => 'decimal:2',
         'terrace_area_sqm' => 'decimal:2',
         'minimal_rental_period' => 'integer',
