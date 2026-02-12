@@ -132,8 +132,7 @@ class CustomerCommunicationEmail extends Mailable
         // Get company details for template
         $themeColor = $this->company?->header_color ?? '#0056b3';
         
-        // Get logo and website URL
-        $logoUrl = $this->company?->masked_logo_url ?? config('app.logo');
+        // Get website URL
         $websiteUrl = $this->company?->website ?? url('/');
 
         // Sender photo (absolute URL for email)
@@ -166,7 +165,6 @@ class CustomerCommunicationEmail extends Mailable
                 'senderJobTitle' => $senderJobTitle,
                 'senderPhone' => $senderPhone,
                 'companyName' => $companyName,
-                'logoUrl' => $logoUrl,
                 'websiteUrl' => $websiteUrl,
                 'senderImageUrl' => $senderImageUrl,
                 'companyAddress' => $companyAddress,
