@@ -1,5 +1,5 @@
-import React from "react";
-import { Form, Select, InputNumber, Switch, Row, Col } from "antd";
+import React, { useRef, useCallback } from "react";
+import { Form, Select, InputNumber, Switch, Row, Col, Typography } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
 import {
@@ -13,6 +13,10 @@ import {
 import { useFormOptions } from "../useFormOptions";
 
 const { Option } = Select;
+const { Text } = Typography;
+
+// 1 Dönüm = 1,338 m²
+const DONUM_TO_SQM = 1338;
 
 interface SpecificationsSectionProps {
     form: FormInstance;
@@ -32,6 +36,48 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
     );
     const unitStyle = Form.useWatch("unit_style", form);
     const isStudio = unitStyle === "studio";
+
+    // Prevent infinite loops during donum ↔ m² conversion
+    const isConverting = useRef(false);
+
+    const handleSqmChange = useCallback(
+        (value: number | null) => {
+            if (isConverting.current) return;
+            isConverting.current = true;
+            if (value !== null && value > 0) {
+                form.setFieldValue(
+                    "land_size_donum",
+                    Math.round((value / DONUM_TO_SQM) * 10000) / 10000,
+                );
+            } else {
+                form.setFieldValue("land_size_donum", null);
+            }
+            // Use setTimeout to ensure state is flushed before unlocking
+            setTimeout(() => {
+                isConverting.current = false;
+            }, 0);
+        },
+        [form],
+    );
+
+    const handleDonumChange = useCallback(
+        (value: number | null) => {
+            if (isConverting.current) return;
+            isConverting.current = true;
+            if (value !== null && value > 0) {
+                form.setFieldValue(
+                    "land_size",
+                    Math.round(value * DONUM_TO_SQM * 100) / 100,
+                );
+            } else {
+                form.setFieldValue("land_size", null);
+            }
+            setTimeout(() => {
+                isConverting.current = false;
+            }, 0);
+        },
+        [form],
+    );
 
     return (
         <Row gutter={[16, 0]}>
@@ -66,18 +112,41 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                 </Col>
             )}
 
-            {/* Plot size — land only */}
+            {/* Plot size — land: dual m² / dönüm fields with auto-conversion */}
             {fields.plotSize && (
-                <Col xs={12} md={8}>
-                    <Form.Item name="land_size" label="Plot Size (m²)">
-                        <InputNumber
-                            placeholder="0"
-                            min={0}
-                            style={{ width: "100%" }}
-                            addonAfter="m²"
-                        />
-                    </Form.Item>
-                </Col>
+                <>
+                    <Col xs={12} md={8}>
+                        <Form.Item name="land_size" label="Plot Size (m²)">
+                            <InputNumber
+                                placeholder="0"
+                                min={0}
+                                style={{ width: "100%" }}
+                                addonAfter="m²"
+                                onChange={handleSqmChange}
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col xs={12} md={8}>
+                        <Form.Item
+                            name="land_size_donum"
+                            label="Plot Size (Dönüm)"
+                        >
+                            <InputNumber
+                                placeholder="0"
+                                min={0}
+                                step={0.1}
+                                style={{ width: "100%" }}
+                                addonAfter="dönüm"
+                                onChange={handleDonumChange}
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col xs={24} md={8} className="flex items-end pb-6">
+                        <Text type="secondary" className="text-xs">
+                            1 Dönüm = 1,338 m²
+                        </Text>
+                    </Col>
+                </>
             )}
 
             {/* Bedrooms */}

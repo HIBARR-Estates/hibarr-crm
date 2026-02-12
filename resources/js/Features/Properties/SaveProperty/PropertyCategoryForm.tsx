@@ -252,6 +252,22 @@ export default function PropertyCategoryForm({
                                 </FormSection>
                             )}
 
+                            {/* Specifications — before pricing for land (need area to calculate price/m²) */}
+                            {primaryCategory === "land" &&
+                                sections.specifications && (
+                                    <FormSection
+                                        title="Land Area"
+                                        icon={<AppstoreOutlined />}
+                                        description="Plot size in m² and dönüm"
+                                    >
+                                        <SpecificationsSection
+                                            form={form}
+                                            primaryCategory={primaryCategory}
+                                            enumValues={enumValues}
+                                        />
+                                    </FormSection>
+                                )}
+
                             {/* Pricing */}
                             {sections.pricing && (
                                 <FormSection
@@ -266,21 +282,22 @@ export default function PropertyCategoryForm({
                                 </FormSection>
                             )}
 
-                            {/* Specifications */}
-                            {sections.specifications && (
-                                <FormSection
-                                    title="Specifications"
-                                    icon={<AppstoreOutlined />}
-                                    description="Rooms, areas, and building details"
-                                    defaultOpen={false}
-                                >
-                                    <SpecificationsSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                        enumValues={enumValues}
-                                    />
-                                </FormSection>
-                            )}
+                            {/* Specifications — after pricing for non-land */}
+                            {primaryCategory !== "land" &&
+                                sections.specifications && (
+                                    <FormSection
+                                        title="Specifications"
+                                        icon={<AppstoreOutlined />}
+                                        description="Rooms, areas, and building details"
+                                        defaultOpen={false}
+                                    >
+                                        <SpecificationsSection
+                                            form={form}
+                                            primaryCategory={primaryCategory}
+                                            enumValues={enumValues}
+                                        />
+                                    </FormSection>
+                                )}
 
                             {/* Location */}
                             {sections.location && (

@@ -212,6 +212,7 @@ export interface Property {
     tour_360_url?: string;
     map?: any;
     land_size?: number;
+    land_size_donum?: number;
     living_area_sqm?: number;
     terrace_area_sqm?: number;
     living_room?: number;

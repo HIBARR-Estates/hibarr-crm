@@ -130,32 +130,34 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                 </Col>
             )}
 
-            {/* Developer Project */}
-            <Col xs={24} md={12}>
-                <Form.Item
-                    name="developer_project_id"
-                    label="Developer Project"
-                    tooltip="Link this property to a developer project"
-                >
-                    <Select
-                        placeholder="Select developer project (optional)"
-                        allowClear
-                        showSearch
-                        optionFilterProp="children"
+            {/* Developer Project — not applicable for land */}
+            {primaryCategory !== "land" && (
+                <Col xs={24} md={12}>
+                    <Form.Item
+                        name="developer_project_id"
+                        label="Developer Project"
+                        tooltip="Link this property to a developer project"
                     >
-                        {developerProjects.map((project) => (
-                            <Option key={project.id} value={project.id}>
-                                {project.name}
-                                {project.location && (
-                                    <span className="text-gray-400 ml-2">
-                                        ({project.location.name})
-                                    </span>
-                                )}
-                            </Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-            </Col>
+                        <Select
+                            placeholder="Select developer project (optional)"
+                            allowClear
+                            showSearch
+                            optionFilterProp="children"
+                        >
+                            {developerProjects.map((project) => (
+                                <Option key={project.id} value={project.id}>
+                                    {project.name}
+                                    {project.location && (
+                                        <span className="text-gray-400 ml-2">
+                                            ({project.location.name})
+                                        </span>
+                                    )}
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                </Col>
+            )}
         </Row>
     );
 };

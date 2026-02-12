@@ -138,19 +138,23 @@ const LocationSection: React.FC<LocationSectionProps> = ({
                 </Form.Item>
             </Col>
 
-            {/* Block Name */}
-            <Col xs={12} md={6}>
-                <Form.Item name="block_name" label="Block Name">
-                    <Input placeholder="e.g. Block A" />
-                </Form.Item>
-            </Col>
+            {/* Block Name — not applicable for land */}
+            {primaryCategory !== "land" && (
+                <Col xs={12} md={6}>
+                    <Form.Item name="block_name" label="Block Name">
+                        <Input placeholder="e.g. Block A" />
+                    </Form.Item>
+                </Col>
+            )}
 
-            {/* Unit Number */}
-            <Col xs={12} md={6}>
-                <Form.Item name="unit_number" label="Unit Number">
-                    <Input placeholder="e.g. 301" />
-                </Form.Item>
-            </Col>
+            {/* Unit Number — not applicable for land */}
+            {primaryCategory !== "land" && (
+                <Col xs={12} md={6}>
+                    <Form.Item name="unit_number" label="Unit Number">
+                        <Input placeholder="e.g. 301" />
+                    </Form.Item>
+                </Col>
+            )}
 
             {/* Latitude */}
             <Col xs={12} md={6}>
