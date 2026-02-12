@@ -709,7 +709,7 @@ class TaskBoardController extends AccountBaseController
 
         $board->column_name = $request->column_name;
 
-        if ($board->getOriginal('slug') != 'incomplete' && $board->getOriginal('slug') != 'completed' && $board->getOriginal('slug') != 'waiting_approval') {
+        if ($board->getOriginal('slug') != 'to_do' && $board->getOriginal('slug') != 'done' && $board->getOriginal('slug') != 'in_review' && $board->getOriginal('slug') != 'in_progress' && $board->getOriginal('slug') != 'on_hold') {
             $board->slug = str_slug($request->column_name, '_');
         }
 

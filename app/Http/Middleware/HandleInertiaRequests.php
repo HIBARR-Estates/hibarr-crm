@@ -3,10 +3,28 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
+    /**
+     * RTL locales for right-to-left text direction
+     */
+    protected array $rtlLocales = ['ar', 'fa', 'he'];
+
+    /**
+     * Locale to language folder mapping
+     */
+    protected array $localeToFolder = [
+        'en' => 'eng',
+        'ar' => 'ar',
+        'ru' => 'ru',
+        'tr' => 'tr',
+        'de' => 'de',
+        'fa' => 'fa',
+    ];
+
     /**
      * The root template that's loaded on the first page visit.
      */
@@ -72,6 +90,12 @@ class HandleInertiaRequests extends Middleware
             ],
             'currentRouteName' => $request->route() ? $request->route()->getName() : '',
             'pipelines' => fn () => $this->getPipelines(),
+
+            // Internationalization props
+            'locale' => fn () => $this->getCurrentLocale(),
+            'translations' => fn () => $this->getTranslations(),
+            'isRtl' => fn () => $this->isRtlLocale(),
+            'availableLocales' => fn () => $this->getAvailableLocales(),
         ]);
     }
      /**
@@ -242,5 +266,92 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $permissions;
+    }
+
+    /**
+     * Get current locale from user preference or session
+     */
+    private function getCurrentLocale(): string
+    {
+        // Priority: User preference > Session > App default
+        if (function_exists('user') && user() && user()->locale) {
+            return user()->locale;
+        }
+
+        return session('locale', app()->getLocale());
+    }
+
+    /**
+     * Check if current locale is RTL
+     */
+    private function isRtlLocale(): bool
+    {
+        return in_array($this->getCurrentLocale(), $this->rtlLocales);
+    }
+
+    /**
+     * Get translations for frontend (cached per locale)
+     */
+    private function getTranslations(): array
+    {
+        $locale = $this->getCurrentLocale();
+
+        return Cache::rememberForever("translations_{$locale}", function () use ($locale) {
+            $folder = $this->localeToFolder[$locale] ?? 'eng';
+            $path = lang_path($folder);
+
+            // Fallback to English if locale folder doesn't exist
+            if (!is_dir($path)) {
+                $path = lang_path('eng');
+            }
+
+            // Load specific translation files needed for frontend (key UI strings)
+            $files = ['app', 'modules', 'messages', 'permissions', 'placeholders'];
+            $translations = [];
+
+            foreach ($files as $file) {
+                $filePath = $path . '/' . $file . '.php';
+                if (file_exists($filePath)) {
+                    $translations[$file] = require $filePath;
+                }
+            }
+
+            return $this->flattenTranslations($translations);
+        });
+    }
+
+    /**
+     * Flatten nested translation arrays for i18next
+     */
+    private function flattenTranslations(array $translations, string $prefix = ''): array
+    {
+        $flat = [];
+
+        foreach ($translations as $key => $value) {
+            $newKey = $prefix ? "{$prefix}.{$key}" : $key;
+
+            if (is_array($value)) {
+                $flat = array_merge($flat, $this->flattenTranslations($value, $newKey));
+            } else {
+                $flat[$newKey] = $value;
+            }
+        }
+
+        return $flat;
+    }
+
+    /**
+     * Get available locales for language switcher
+     */
+    private function getAvailableLocales(): array
+    {
+        return [
+            'en' => ['name' => 'English', 'native' => 'English', 'dir' => 'ltr', 'flag' => 'gb'],
+            'ru' => ['name' => 'Russian', 'native' => 'Русский', 'dir' => 'ltr', 'flag' => 'ru'],
+            'tr' => ['name' => 'Turkish', 'native' => 'Türkçe', 'dir' => 'ltr', 'flag' => 'tr'],
+            'de' => ['name' => 'German', 'native' => 'Deutsch', 'dir' => 'ltr', 'flag' => 'de'],
+            'fa' => ['name' => 'Persian', 'native' => 'فارسی', 'dir' => 'rtl', 'flag' => 'ir'],
+            'ar' => ['name' => 'Arabic', 'native' => 'العربية', 'dir' => 'rtl', 'flag' => 'sa'],
+        ];
     }
 }

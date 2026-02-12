@@ -175,8 +175,8 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
                     <span
                         className={`text-gray-600 truncate ${
                             isSmall
-                                ? "text-[13px] max-w-[60px]"
-                                : "text-sm max-w-[100px]"
+                                ? "text-[13px] max-w-[164px]"
+                                : "text-sm max-w-[160px]"
                         }`}
                     >
                         {currentAgent.name}

@@ -7,6 +7,18 @@ use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 class ContentValidator
 {
     /**
+     * Required image counts per tag for expose template
+     */
+    private array $imageRequirements = [
+        'hero' => ['min' => 1, 'label' => 'Hero image'],
+        'exterior' => ['min' => 5, 'label' => 'Exterior images'],
+        'interior' => ['min' => 2, 'label' => 'Interior images'],
+        'facilities' => ['min' => 6, 'label' => 'Facilities images'],
+        'floor-plan' => ['min' => 1, 'label' => 'Floor plan'],
+        'area' => ['min' => 1, 'label' => 'Area/location image'],
+    ];
+
+    /**
      * Validation rules per entity type
      */
     private array $rules = [
@@ -14,18 +26,19 @@ class ContentValidator
             'required' => [
                 'title' => 'Property title is required',
                 'price' => 'Property price is required',
-                'address' => 'Property address is required',
+                'city' => 'Property city is required',
             ],
             'recommended' => [
-                'images' => 'Property images are recommended (at least 3)',
                 'description' => 'Property description is recommended',
                 'bedrooms' => 'Number of bedrooms is recommended',
                 'bathrooms' => 'Number of bathrooms is recommended',
-                'area' => 'Property area is recommended',
+                'living_area_sqm' => 'Living area (sqm) is recommended',
+                'property_type' => 'Property type is recommended',
             ],
             'optimal' => [
                 'features' => 'Property features enhance the expose',
                 'agent.name' => 'Agent information improves credibility',
+                'distances' => 'Distance information enhances the infrastructure page',
             ]
         ],
         'developer_project' => [
@@ -97,6 +110,46 @@ class ContentValidator
         // Check for text overflow risks
         $overflowWarnings = $this->checkTextOverflow($config);
         $warnings = array_merge($warnings, $overflowWarnings);
+
+        // Check image counts for property exposes
+        if ($config->entityType === 'property') {
+            $imageWarnings = $this->checkImageCounts($config);
+            $warnings = array_merge($warnings, $imageWarnings);
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * Check if required image counts are met
+     */
+    private function checkImageCounts(ExposeConfiguration $config): array
+    {
+        $warnings = [];
+        $assets = $config->get('assets', []);
+
+        foreach ($this->imageRequirements as $tag => $requirement) {
+            $count = count($assets[$tag] ?? []);
+            $minRequired = $requirement['min'];
+            $label = $requirement['label'];
+
+            if ($count === 0) {
+                // Critical - no images at all for this tag
+                $severity = in_array($tag, ['hero', 'exterior']) ? 'error' : 'warning';
+                $warnings[] = [
+                    'severity' => $severity,
+                    'field' => "assets.{$tag}",
+                    'message' => "{$label}: No images uploaded (requires {$minRequired})",
+                ];
+            } elseif ($count < $minRequired) {
+                // Has some but not enough
+                $warnings[] = [
+                    'severity' => 'warning',
+                    'field' => "assets.{$tag}",
+                    'message' => "{$label}: {$count} of {$minRequired} required",
+                ];
+            }
+        }
 
         return $warnings;
     }

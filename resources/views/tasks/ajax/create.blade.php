@@ -118,20 +118,23 @@
                                             fieldName="board_column_id" search="true">
                                 @foreach ($taskboardColumns as $item)
                                     @php
-                                        if ($item->slug == 'completed' || $item->slug == 'incomplete') {
-                                            if ($item->slug == 'completed') {
+                                        if ($item->slug == 'done' || $item->slug == 'to_do') {
+                                            if ($item->slug == 'done') {
                                                 $icon = "<i class='fa fa-circle mr-2 text-dark-green'></i>".__('app.' . $item->slug);
                                             }
-                                            elseif($item->slug == 'incomplete'){
-                                                $icon = "<i class='fa fa-circle mr-2 text-red'></i>".__('app.' . $item->slug);
+                                            elseif($item->slug == 'to_do'){
+                                                $icon = "<i class='fa fa-circle mr-2 text-yellow'></i>".__('app.' . $item->slug);
                                             }
                                         }
                                         else {
-                                            if ($item->slug == 'to_do') {
-                                                $icon = "<i class='fa fa-circle mr-2 text-yellow'></i>".__('app.' . $item->slug);
-                                            }
-                                            elseif($item->slug == 'doing'){
+                                            if ($item->slug == 'in_progress') {
                                                 $icon = "<i class='fa fa-circle mr-2 text-blue'></i>".__('app.' . $item->slug);
+                                            }
+                                            elseif($item->slug == 'in_review'){
+                                                $icon = "<i class='fa fa-circle mr-2 text-purple'></i>".__('app.' . $item->slug);
+                                            }
+                                            elseif($item->slug == 'on_hold'){
+                                                $icon = "<i class='fa fa-circle mr-2 text-warning'></i>".__('app.' . $item->slug);
                                             }
                                             else {
                                                 $icon = "<i class='fa fa-circle mr-2' style='color: " . ($item->label_color ?? '#000000') . "'></i>". $item->column_name;

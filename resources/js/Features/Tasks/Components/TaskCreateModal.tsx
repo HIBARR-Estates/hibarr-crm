@@ -236,7 +236,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                                 ?.toString()
                                                 .toLowerCase()
                                                 .includes(
-                                                    input.toLowerCase()
+                                                    input.toLowerCase(),
                                                 ) ?? false
                                         }
                                     >
@@ -276,7 +276,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                                 ?.toString()
                                                 .toLowerCase()
                                                 .includes(
-                                                    input.toLowerCase()
+                                                    input.toLowerCase(),
                                                 ) ?? false
                                         }
                                     >
@@ -424,7 +424,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                     extra="Starting status for this task"
                                     initialValue={
                                         columns.find(
-                                            (col) => col.slug === "incomplete"
+                                            (col) => col.slug === "to_do",
                                         )?.id
                                     }
                                 >

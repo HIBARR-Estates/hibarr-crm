@@ -670,11 +670,25 @@ p {
 <div class="page bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/icons/test.png' }}')">
     <div class="container">
         <div class="logo">
-            <img src="property/icons/hibarr-expose.png" alt="hibarr-expose-logo" />
+            <img src="{{ $data['branding']['logo_expose'] }}" alt="hibarr-expose-logo" />
         </div>
     </div>
 
-    <div class="customer-name"></div> <!-- keep for future personalization if needed -->
+    <div style="position: absolute; bottom: 60mm; left: 15mm; color: white; text-shadow: 2px 2px 8px rgba(0,0,0,0.6);">
+        <h1 style="color: white; font-size: 36px; margin-bottom: 8px;">{{ $data['title'] ?? $data['reference_code'] ?? '' }}</h1>
+        @if(!empty($data['price']))
+        <p style="color: white; font-size: 24px; font-weight: 500;">{{ $data['price'] }}</p>
+        @endif
+        @if(!empty($data['sale_type']))
+        <p style="color: rgba(255,255,255,0.85); font-size: 16px; margin-top: 4px;">{{ ucfirst(str_replace('_', ' ', $data['sale_type'])) }}</p>
+        @endif
+    </div>
+
+    @if(!empty($data['client']['name']))
+    <div class="customer-name" style="position: absolute; bottom: 20mm; left: 15mm; color: white; font-size: 20px; font-weight: 500; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+        Prepared for: {{ $data['client']['name'] }}
+    </div>
+    @endif
     <div class="page-num">01</div>
 </div>
 
@@ -684,7 +698,7 @@ p {
         <div class="row">
             <div class="col-half">
                 <div class="expose-title">
-                    <img style="width: 25%" src="property/icons/hibarr-rounded.png" alt="rounded" />
+                    <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
 
                     <div class="text">
                         <h1 style="margin-bottom: 0">PROPERTY OVERVIEW</h1>
@@ -693,32 +707,87 @@ p {
 
                 <div class="items">
                     <div class="item">
-                        <h3 class="item-header">City</h3>
-                        <div class="item-value">{{ $data['city'] ?? 'Kyrenia' }}</div>
+                        <h3 class="item-header">Location</h3>
+                        <div class="item-value">{{ $data['city'] ?? '—' }}{{ !empty($data['area']) ? ', ' . $data['area'] : '' }}</div>
                     </div>
 
                     <div class="item">
                         <h3 class="item-header">Property Type</h3>
-                        <div class="item-value">{{ $data['property_type'] ?? 'Villa' }}</div>
+                        <div class="item-value">{{ ucfirst(str_replace('_', ' ', $data['property_type'] ?? '—')) }}</div>
                     </div>
+
+                    @if(!empty($data['price']))
+                    <div class="item">
+                        <h3 class="item-header">Price</h3>
+                        <div class="item-value">{{ $data['price'] }}</div>
+                    </div>
+                    @endif
 
                     <div class="item">
                         <h3 class="item-header">Living Area</h3>
-                        <div class="item-value">{{ $data['area'] ?? '—' }} m²</div>
+                        <div class="item-value">
+                            {{ $data['living_area_sqm'] ?? '—' }} m²
+                            @if(!empty($data['gross_sqm']))
+                                <span style="color: #999; font-size: 14px;">({{ $data['gross_sqm'] }} m² gross)</span>
+                            @endif
+                        </div>
                     </div>
 
+                    @if(!empty($data['floor_number']) || !empty($data['floors_in_building']))
                     <div class="item">
-                        <h3 class="item-header">Building Age</h3>
-                        <div class="item-value">{{ $data['building_age'] ?? 'New' }} Years</div>
+                        <h3 class="item-header">Floor</h3>
+                        <div class="item-value">
+                            @if(!empty($data['floor_number']) && !empty($data['floors_in_building']))
+                                {{ $data['floor_number'] }} / {{ $data['floors_in_building'] }}
+                            @elseif(!empty($data['floor_number']))
+                                {{ $data['floor_number'] }}
+                            @else
+                                {{ $data['floors_in_building'] }} floors
+                            @endif
+                        </div>
                     </div>
+                    @endif
+
+                    @if(!empty($data['building_age']) || !empty($data['completion_date']))
+                    <div class="item">
+                        <h3 class="item-header">{{ !empty($data['completion_date']) && ($data['construction_status'] ?? '') !== 'completed' ? 'Completion' : 'Building Age' }}</h3>
+                        <div class="item-value">
+                            @if(!empty($data['completion_date']) && ($data['construction_status'] ?? '') !== 'completed')
+                                {{ $data['completion_date'] }}
+                            @else
+                                {{ $data['building_age'] ?? 'New' }} Years
+                            @endif
+                        </div>
+                    </div>
+                    @endif
 
                     <div class="item">
-                        <h3 class="item-header">Facilities</h3>
+                        <h3 class="item-header">Rooms</h3>
                         <ul class="item-list">
                             <li>{{ $data['bedrooms'] ?? '—' }} Bedrooms</li>
                             <li>{{ $data['bathrooms'] ?? '—' }} Bathrooms</li>
+                            @if(!empty($data['rooms']))
+                            <li>{{ $data['rooms'] }} Total Rooms</li>
+                            @endif
+                            @if(!empty($data['living_room']))
+                            <li>{{ $data['living_room'] }} Living Room{{ $data['living_room'] > 1 ? 's' : '' }}</li>
+                            @endif
                         </ul>
                     </div>
+
+                    @if(!empty($data['view_types']))
+                    <div class="item">
+                        <h3 class="item-header">Views</h3>
+                        <div class="item-value">{{ is_array($data['view_types']) ? implode(', ', array_map(fn($v) => ucfirst(str_replace('_', ' ', $v)), $data['view_types'])) : $data['view_types'] }}</div>
+                    </div>
+                    @endif
+
+                    @if(!empty($data['furniture_status']))
+                    <div class="item">
+                        <h3 class="item-header">Furniture</h3>
+                        <div class="item-value">{{ $data['furniture_status'] }}</div>
+                    </div>
+                    @endif
                 </div>
             </div>
 
@@ -744,7 +813,7 @@ p {
     </div>
 
     <div class="logo-watermark">
-        <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+        <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
       </div>
     <div class="page-num">03</div>
 </div>
@@ -754,7 +823,7 @@ p {
     <div class="container">
         <div class="bg" style="--bg-image: url('{{ $data['assets']['exterior'][3] ?? 'property/images/test.png' }}')">
             <div class="logo-watermark">
-                <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+                <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
             </div>
             <div class="page-num">04</div>
         </div>
@@ -766,12 +835,12 @@ p {
     <div class="container">
         <div class="header">
             <span class="title">FACILITIES</span>
-            <img style="width: 12%" src="{{ $data['company']['logo'] ?? 'property/icons/logo.png' }}" alt="hibarr-logo" />
+            <img style="width: 12%" src="{{ $data['company']['logo'] ?? $data['branding']['logo_full'] }}" alt="hibarr-logo" />
         </div>
 
         <div class="gallery-grid">
             @php
-                $amenityImages = $data['assets']['exterior'] ?? [];
+                $amenityImages = $data['assets']['facilities'] ?? $data['assets']['exterior'] ?? [];
                 $amenityNames  = $data['exterior_features'] ?? ['Gym & Fitness', 'Swimming Pool', 'Landscaped Gardens', 'Outdoor Seating', 'Parking Area', 'Children’s Playground'];
             @endphp
 
@@ -800,16 +869,16 @@ p {
             <div class="col-5">
                 <div class="content">
                     <div class="expose-title">
-                        <img style="width: 25%" src="property/icons/hibarr-rounded.png" alt="rounded" />
+                        <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
                         <div class="text blue">
-                            <h1 class="fw-500">GARDEN SERENITY</h1>
+                            <h1 class="fw-500">{{ strtoupper($data['unit_style'] ?? 'PROPERTY') }}</h1>
                         </div>
                     </div>
 
-                    <h1>STUDIO <span class="more">(BLOCK A)</span></h1>
+                    <h1>{{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? '+' . ($data['living_room'] ?? '1') : '' }} {{ strtoupper($data['property_type'] ?? 'UNIT') }}</h1>
 
                     <p>
-                        {{ $data['description'] ? strip_tags($data['description']) : 'Modern studio with smart layout, sea views and natural light.' }}
+                        {{ $data['description'] ? Str::limit(strip_tags($data['description']), 300) : 'Modern property with smart layout and natural light.' }}
                     </p>
                 </div>
             </div>
@@ -824,9 +893,9 @@ p {
 
     <div class="footer-brand">Premium Real Estate</div>
       <div class="logo-watermark">
-        <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+        <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
-    <div class="page-num">04</div>
+    <div class="page-num">05</div>
 </div>
 
 <!-- PAGE — Quad grid (4 big images) -->
@@ -840,39 +909,75 @@ p {
         </div>
 
         <div class="logo-watermark">
-            <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+            <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
         </div>
     </div>
     <div class="page-num">05</div>
 </div>
 
-<!-- PAGE 6: Custom Layout -->
+<!-- PAGE 6: Unit Layout -->
 <div class="page">
     <div class="container">
     <div class="row">
         <div class="col-4">
-        <!-- Column 3 content -->
         <div class="">
             <div class="block-title">
             <img
                 style="width: 80%"
-                src="property/icons/block-title.svg"
+                src="{{ $data['branding']['block_title'] }}"
                 alt="rounded"
             />
 
             <div class="text">
-                <h1>1 + 1 GARDEN <span class="more">(BLOCK A)</span></h1>
+                <h1>{{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }} {{ strtoupper($data['unit_style'] ?? 'UNIT') }} <span class="more">{{ !empty($data['block_name']) ? '(' . strtoupper($data['block_name']) . ')' : '' }}</span></h1>
             </div>
             </div>
+
+            @if(!empty($data['unit_number']))
+            <div style="margin-top: 1rem; padding-left: 10px;">
+                <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Unit Number</h3>
+                <p style="color: #053160; font-size: 18px; font-weight: 600;">{{ $data['unit_number'] }}</p>
+            </div>
+            @endif
+
+            @if(!empty($data['living_area_sqm']) || !empty($data['gross_sqm']))
+            <div style="margin-top: 1rem; padding-left: 10px;">
+                <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Area</h3>
+                <p style="color: #053160; font-size: 18px; font-weight: 600;">
+                    {{ $data['living_area_sqm'] ?? '—' }} m²
+                    @if(!empty($data['gross_sqm']))
+                        <span style="font-weight: 400; font-size: 14px; color: #888;">({{ $data['gross_sqm'] }} m² gross)</span>
+                    @endif
+                </p>
+            </div>
+            @endif
+
+            @if(!empty($data['balcony_count']))
+            <div style="margin-top: 1rem; padding-left: 10px;">
+                <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Balcony</h3>
+                <p style="color: #053160; font-size: 18px; font-weight: 600;">
+                    {{ $data['balcony_count'] }}{{ !empty($data['balcony_net_sqm']) ? ' (' . $data['balcony_net_sqm'] . ' m²)' : '' }}
+                </p>
+            </div>
+            @endif
         </div>
         </div>
 
         <div class="col-8">
-        <!-- Column 9 content -->
         <div class="content flex-center">
-            <div class="placeholder-img" style="width: 90%; height: 200px">
-            Image Here
-            </div>
+            @if(!empty($data['assets']['floor-plan'][0]))
+                <div class="illustration" style="width: 90%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                    <img src="{{ $data['assets']['floor-plan'][0] }}" alt="Floor plan" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                </div>
+            @elseif(!empty($data['assets']['interior'][0]))
+                <div class="illustration" style="width: 90%; height: 100%;">
+                    <img src="{{ $data['assets']['interior'][0] }}" alt="Interior" />
+                </div>
+            @else
+                <div class="placeholder-img" style="width: 90%; height: 200px">
+                    Floor Plan
+                </div>
+            @endif
         </div>
         </div>
     </div>
@@ -881,7 +986,8 @@ p {
     <div class="page-num">06</div>
 </div>
 
-<!-- PAGE — Cost / Investment breakdown (still mostly static — consider making dynamic later) -->
+{{-- PAGE — Cost / Investment breakdown (DEFERRED: Requires financial_info data structure)
+     TODO: Enable this page when financial data is populated in Property model
 <div class="page">
     <div class="container">
         <div class="sheet">
@@ -1018,10 +1124,11 @@ p {
     </div>
 
      <div class="logo-watermark">
-        <img src="property/icons/logo-white.png" alt="hibarr-logo" />
+        <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
     <div class="page-num">07</div>
 </div>
+--}}
 
 <!-- PAGE — Split layout with quote -->
 <div class="page">
@@ -1035,7 +1142,7 @@ p {
             </div>
         </div>
         <div class="expose-title blue absolute">
-            <img style="width: 80%" src="property/icons/hibarr-rounded.png" alt="rounded" />
+            <img style="width: 80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
             <div class="text blue">
                 <h1 class="fw-500">ROOTED IN BEAUTY, GROWING IN VALUE</h1>
             </div>
@@ -1048,34 +1155,27 @@ p {
 </div>
 
 <!-- PAGE — Infrastructure / Distances -->
+@if(!empty($data['distances']))
 <div class="page">
     <div class="infrastructure">
         <div class="header">
             <span class="title">INFRASTRUCTURE</span>
-            <span class="title end">AIRPORT</span>
+            <span class="title end">DISTANCES</span>
         </div>
 
         <div class="container">
             <div class="row">
                 <div class="col-5">
                     <div class="infrastructure-grid">
-                        <div class="grid-item">
-                            <img src="{{ $data['assets']['exterior'][0] ?? 'property/images/test.png' }}" alt="Schools & Universities">
-                            <span>Schools & Universities</span>
-                            <p>10 min</p>
-                        </div>
-
-                         <div class="grid-item">
-                            <img src="{{ $data['assets']['exterior'][1] ?? 'property/images/test.png' }}" alt="Hospital">
-                            <span>Hospital</span>
-                            <p>10 min</p>
-                        </div>
-
-                         <div class="grid-item">
-                            <img src="{{ $data['assets']['exterior'][2] ?? 'property/images/test.png' }}" alt="Supermarket">
-                            <span>Supermarket</span>
-                            <p>10 min</p>
-                        </div>
+                        @foreach($data['distances'] as $key => $distance)
+                            @if($loop->index < 6)
+                            <div class="grid-item">
+                                <img src="{{ $data['assets']['exterior'][$loop->index] ?? 'property/images/test.png' }}" alt="{{ $distance['name'] ?? $key }}">
+                                <span>{{ $distance['name'] ?? ucwords(str_replace('_', ' ', $key)) }}</span>
+                                <p>{{ $distance['time'] ?? $distance['distance'] ?? $distance }} {{ is_numeric($distance['time'] ?? $distance['distance'] ?? $distance) ? 'min' : '' }}</p>
+                            </div>
+                            @endif
+                        @endforeach
                     </div>
                 </div>
                 <div class="col-7"></div>
@@ -1084,16 +1184,19 @@ p {
     </div>
     <div class="page-num">09</div>
 </div>
+@endif
 
 <!-- PAGE — Floor Plan -->
+@if(!empty($data['assets']['floor-plan']))
 <div class="page">
     <div class="container">
         <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 20px;">
-            <img src="{{ $data['assets']['floor-plan'][0] ?? 'property/images/test.png' }}" style="max-height: 150mm; width: auto;" alt="Floor plan" />
+            <img src="{{ $data['assets']['floor-plan'][0] }}" style="max-height: 150mm; width: auto;" alt="Floor plan" />
         </div>
     </div>
     <div class="page-num">10</div>
 </div>
+@endif
 
 <!-- PAGE — Closure / Contact -->
 <div class="page">
@@ -1104,7 +1207,7 @@ p {
 
                 <div>
                     <h1>{{ $data['agent']['name'] ?? 'Rabih Rabea' }}</h1>
-                    <p>Founder & CEO</p>
+                    <p>{{ $data['agent']['position'] ?? 'Real Estate Consultant' }}</p>
                 </div>
 
                 <div>

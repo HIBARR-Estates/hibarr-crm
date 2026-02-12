@@ -54,4 +54,9 @@ resources/js/ziggy.js
 public/mix-manifest.json
 docker-compose.override.yml
 
+# gRPC generated files
+/app/Grpc/Generated/
 
+# RoadRunner binary
+/rr
+/rr.exe

@@ -84,7 +84,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     tasks = [],
 }) => {
     const [processingTasks, setProcessingTasks] = useState<Set<number>>(
-        new Set()
+        new Set(),
     );
     const {
         props: {
@@ -187,13 +187,13 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     // Separate tasks by status and urgency
     const overdueTasks = tasks.filter((task) => isOverdue(task.due_date));
     const todayTasks = tasks.filter(
-        (task) => isDueToday(task.due_date) && !isOverdue(task.due_date)
+        (task) => isDueToday(task.due_date) && !isOverdue(task.due_date),
     );
     const upcomingTasks = tasks.filter(
         (task) =>
             !isOverdue(task.due_date) &&
             !isDueToday(task.due_date) &&
-            (!task.due_date || dayjs(task.due_date).isAfter(dayjs(), "day"))
+            (!task.due_date || dayjs(task.due_date).isAfter(dayjs(), "day")),
     );
 
     const allTasks = [...overdueTasks, ...todayTasks, ...upcomingTasks];
@@ -217,8 +217,8 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                         isTaskOverdue
                             ? "border-red-200 bg-red-50"
                             : isTaskToday
-                            ? "border-amber-200 bg-amber-50"
-                            : "border-gray-200 hover:border-blue-300"
+                              ? "border-amber-200 bg-amber-50"
+                              : "border-gray-200 hover:border-blue-300"
                     }`}
                     loading={isProcessing}
                     variant="outlined"
@@ -258,7 +258,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                         <span className="flex items-center">
                                             <CalendarOutlined className="mr-1" />
                                             {dayjs(task.due_date).format(
-                                                "MMM DD"
+                                                "MMM DD",
                                             )}
                                             <span className="ml-1 text-gray-500">
                                                 (
@@ -296,7 +296,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                                         >
                                                             {!user.image &&
                                                                 user.name?.charAt(
-                                                                    0
+                                                                    0,
                                                                 )}
                                                         </Avatar>
                                                     </Tooltip>
@@ -350,9 +350,9 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     const completionRate =
         tasks.length > 0
             ? Math.round(
-                  (tasks.filter((t) => t.status === "completed").length /
+                  (tasks.filter((t) => t.status === "done").length /
                       tasks.length) *
-                      100
+                      100,
               )
             : 0;
 
@@ -426,7 +426,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                             size="small"
                                             onClick={() =>
                                                 router.visit(
-                                                    route("tasks.index")
+                                                    route("tasks.index"),
                                                 )
                                             }
                                         >

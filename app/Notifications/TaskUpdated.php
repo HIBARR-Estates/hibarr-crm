@@ -62,10 +62,9 @@ class TaskUpdated extends BaseNotification
         $content = __('email.taskUpdate.text') . ' <br><br>' . $this->task->heading . ' - ' . $taskShortCode . ' <br><br>' . __('email.taskUpdate.text2');
         $subject = __('email.taskUpdate.subject') . ' - ' . $taskShortCode . ' - ' . config('app.name'). '.';
 
-
         $build
             ->subject($subject)
-            ->markdown('mail.email', [
+            ->view('mail.task.updated', [
                 'url' => $url,
                 'content' => $content,
                 'themeColor' => $this->company->header_color,

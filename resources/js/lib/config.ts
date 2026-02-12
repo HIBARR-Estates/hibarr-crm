@@ -27,7 +27,7 @@ interface FileUploadEnvVars {
 // Default Values
 // ============================================================================
 
-const DEFAULT_FILE_UPLOAD_BASE_URL = "https://staging-api.hibarr.org";
+const DEFAULT_FILE_UPLOAD_BASE_URL = "https://staging-api.hibarr.org/v1";
 const DEFAULT_FILE_UPLOAD_API_KEY = "363769e1290c4d5ea6d351ef8c23dc6e";
 
 // ============================================================================

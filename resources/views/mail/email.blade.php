@@ -1,3 +1,4 @@
+{{-- OLD TEMPLATE - This template is kept for backward compatibility but new event reminders use mail.event.reminder --}}
 @component('mail::message')
 # @lang('email.hello')@if(!empty($notifiableName)){{ ' '.$notifiableName }}@endif!
 

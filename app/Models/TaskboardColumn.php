@@ -56,13 +56,66 @@ class TaskboardColumn extends BaseModel
         return $this->hasOne(UserTaskboardSetting::class, 'board_column_id')->where('user_id', user()->id);
     }
 
+    /**
+     * Get the "Done" column (completed tasks)
+     * @return TaskboardColumn|null
+     */
     public static function completeColumn()
     {
-        return TaskboardColumn::where('slug', 'completed')->first();
+        return TaskboardColumn::where('slug', 'done')->first();
     }
 
+    /**
+     * Alias for completeColumn for new naming convention
+     * @return TaskboardColumn|null
+     */
+    public static function doneColumn()
+    {
+        return self::completeColumn();
+    }
+
+    /**
+     * Get the "In Review" column (waiting for approval)
+     * @return TaskboardColumn|null
+     */
     public static function waitingForApprovalColumn()
     {
-        return TaskboardColumn::where('slug', 'waiting_approval')->first();
+        return TaskboardColumn::where('slug', 'in_review')->first();
+    }
+
+    /**
+     * Alias for waitingForApprovalColumn for new naming convention
+     * @return TaskboardColumn|null
+     */
+    public static function inReviewColumn()
+    {
+        return self::waitingForApprovalColumn();
+    }
+
+    /**
+     * Get the "To Do" column
+     * @return TaskboardColumn|null
+     */
+    public static function toDoColumn()
+    {
+        return TaskboardColumn::where('slug', 'to_do')->first();
+    }
+
+    /**
+     * Get the "In Progress" column
+     * @return TaskboardColumn|null
+     */
+    public static function inProgressColumn()
+    {
+        return TaskboardColumn::where('slug', 'in_progress')->first();
+    }
+
+    /**
+     * Get the "On Hold" column
+     * @return TaskboardColumn|null
+     */
+    public static function onHoldColumn()
+    {
+        return TaskboardColumn::where('slug', 'on_hold')->first();
     }
 }

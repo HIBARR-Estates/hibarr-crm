@@ -55,12 +55,70 @@ class PropertyController extends AccountBaseController
     public function index(Request $request)
     {
         // Get properties with pagination and filtering
-        $query = Property::with(['product', 'developerProject.location']);
+        $query = Property::with(['product', 'developerProject.location', 'projectLocation', 'addedBy', 'responsibleAgent']);
 
+        // Apply visibility filter - users see published + their own drafts
+        $userId = user()->id;
+        $isAdmin = $this->editPropertyPermission === 'all';
+        
+        if (!$isAdmin) {
+            $query->where(function ($q) use ($userId) {
+                $q->where('is_published', true)
+                  ->orWhere('added_by', $userId)
+                  ->orWhere('responsible_agent_id', $userId);
+            });
+        }
+
+        // Filter by publishing status (for users who can see drafts)
+        if ($request->filled('publishing_status') && $request->publishing_status !== 'all') {
+            if ($request->publishing_status === 'published') {
+                $query->where('is_published', true);
+            } elseif ($request->publishing_status === 'draft') {
+                $query->where('is_published', false);
+            }
+        }
         
         // Apply filters if provided
         if ($request->filled('property_type') && $request->property_type !== 'all') {
             $query->where('property_type', $request->property_type);
+        }
+
+        // Filter by primary category
+        if ($request->filled('primary_category') && $request->primary_category !== 'all') {
+            $query->where('primary_category', $request->primary_category);
+        }
+
+        // Filter by unit style
+        if ($request->filled('unit_style') && $request->unit_style !== 'all') {
+            $query->where('unit_style', $request->unit_style);
+        }
+
+        // Filter by construction status
+        if ($request->filled('construction_status') && $request->construction_status !== 'all') {
+            $query->where('construction_status', $request->construction_status);
+        }
+
+        // Filter by view types (JSON array contains)
+        if ($request->filled('view_types')) {
+            $viewTypes = is_array($request->view_types) ? $request->view_types : [$request->view_types];
+            foreach ($viewTypes as $viewType) {
+                $query->whereJsonContains('view_types', $viewType);
+            }
+        }
+
+        // Filter by occupancy type
+        if ($request->filled('occupancy_type') && $request->occupancy_type !== 'all') {
+            $query->where('occupancy_type', $request->occupancy_type);
+        }
+
+        // Filter by added_by (property creator)
+        if ($request->filled('added_by')) {
+            $query->where('added_by', $request->added_by);
+        }
+
+        // Filter by responsible_agent_id
+        if ($request->filled('responsible_agent_id')) {
+            $query->where('responsible_agent_id', $request->responsible_agent_id);
         }
 
         if ($request->filled('sale_type') && $request->sale_type !== 'all') {
@@ -76,12 +134,20 @@ class PropertyController extends AccountBaseController
             $query->where('developer_project_id', $request->developer_project_id);
         }
 
+        // Filter by direct project location
+        if ($request->filled('project_location_id') && $request->project_location_id !== 'all') {
+            $query->where('project_location_id', $request->project_location_id);
+        }
+
         // Filter by city - search in property's own city OR project location name
         if ($request->filled('city')) {
             $citySearch = $request->city;
             $query->where(function($q) use ($citySearch) {
                 $q->where('city', 'like', '%' . $citySearch . '%')
                   ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
+                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
+                  })
+                  ->orWhereHas('projectLocation', function($locQuery) use ($citySearch) {
                       $locQuery->where('name', 'like', '%' . $citySearch . '%');
                   });
             });
@@ -169,13 +235,26 @@ class PropertyController extends AccountBaseController
             ->select('id', 'name', 'email')
             ->get();
         
+        // Get project locations for direct assignment
+        $projectLocations = \App\Models\ProjectLocation::select('id', 'name')
+            ->where('company_id', user()->company_id)
+            ->get();
+
         return Inertia::render('Properties/Index', [
             'pageTitle' => 'Properties',
             'properties' => $this->properties,
             'products' => $products,
             'developerProjects' => $developerProjects,
+            'projectLocations' => $projectLocations,
             'developers' => $developers,
-            'filters' => $request->only(['search', 'property_type', 'sale_type', 'status', 'city', 'min_price', 'max_price', 'developer_project_id', 'project_location'])
+            'enumValues' => Property::getEnumValues(),
+            'filters' => $request->only([
+                'search', 'property_type', 'sale_type', 'status', 'city', 
+                'min_price', 'max_price', 'developer_project_id', 'project_location',
+                'primary_category', 'unit_style', 'construction_status', 
+                'publishing_status', 'project_location_id', 'view_types',
+                'occupancy_type', 'added_by', 'responsible_agent_id'
+            ])
         ]);       
     }
 
@@ -225,10 +304,42 @@ class PropertyController extends AccountBaseController
             return back()->withErrors(['duplicate' => $e->getMessage()])->withInput();
         }
 
+        // Extract numeric price for Product model (expects simple number)
+        $productPrice = 0;
+        if ($request->price) {
+            if (is_numeric($request->price)) {
+                $productPrice = $request->price;
+            } elseif (is_array($request->price) && isset($request->price['amount'])) {
+                $productPrice = (float) $request->price['amount'];
+            } elseif (is_string($request->price)) {
+                $decoded = json_decode($request->price, true);
+                if (is_array($decoded) && isset($decoded['amount'])) {
+                    $productPrice = (float) $decoded['amount'];
+                }
+            }
+        }
+
+        // Generate a default product name if title is not provided
+        $productName = $request->title;
+        if (empty($productName)) {
+            // Create a descriptive name from property type, city, and area
+            $nameParts = [];
+            if ($request->property_type) {
+                $nameParts[] = $request->property_type;
+            }
+            if ($request->city) {
+                $nameParts[] = 'in ' . $request->city;
+            }
+            if ($request->area) {
+                $nameParts[] = '(' . $request->area . ')';
+            }
+            $productName = !empty($nameParts) ? implode(' ', $nameParts) : 'Property ' . now()->format('Y-m-d H:i:s');
+        }
+
         // create the product first, and then attach the product_id to property
         $product = Product::create([
-                    'name' => $request->title,
-                    'price' => $request->price ?? 0,
+                    'name' => $productName,
+                    'price' => $productPrice,
                     'description' => $request->description ?? '',
                     'allow_purchase' => $request->status == Property::STATUS_AVAILABLE ? 1 : 0, //TODO: Reach out to Team lead to confirm business specifications
                     'company_id' => user()->company_id,
@@ -240,10 +351,14 @@ class PropertyController extends AccountBaseController
 
         $property = new Property();
         $property->company_id = user()->company_id;
+        $property->added_by = user()->id;
         $property->product_id = $product->id;
         $property->developer_project_id = $request->developer_project_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
+        $property->unit_style = $request->unit_style;
+        $property->primary_category = $request->primary_category;
+        $property->construction_status = $request->construction_status;
         
         $property->price = $this->normalizePrice($request->price);
         
@@ -252,17 +367,27 @@ class PropertyController extends AccountBaseController
         $property->title_deed_type = $request->title_deed_type;
         $property->title_deed_stage = $request->title_deed_stage;
         $property->status = $request->status ?? Property::STATUS_AVAILABLE;
-        $property->city = $request->city;
+        $property->city = $request->city ?? '';
         $property->map = $request->map;
         $property->area = $request->area;
+        $property->address = $request->address;
+        $property->latitude = $request->latitude;
+        $property->longitude = $request->longitude;
         $property->land_size = $request->land_size;
+        $property->land_size_donum = $request->land_size_donum;
+        $property->living_area_sqm = $request->living_area_sqm;
+        $property->gross_sqm = $request->gross_sqm;
         $property->living_room = $request->living_room;
         $property->bedrooms = $request->bedrooms;
         $property->bathrooms = $request->bathrooms;
+        $property->rooms = $request->rooms;
         $property->floor_number = $request->floor_number;
         $property->floors_in_building = $request->floors_in_building;
+        $property->balcony_count = $request->balcony_count;
+        $property->balcony_net_sqm = $request->balcony_net_sqm;
         $property->building_age = $request->building_age;
         $property->furniture_status = $request->furniture_status;
+        $property->heating_type = $request->heating_type;
         $property->within_site = $request->has('within_site') || $request->within_site;
         $property->block_name = $request->block_name;
         $property->unit_number = $request->unit_number;
@@ -276,6 +401,43 @@ class PropertyController extends AccountBaseController
         $property->photos = $request->photos ? (is_array($request->photos) ? $request->photos : json_decode($request->photos, true)) : [];
         $property->add_ons = $request->add_ons ? (is_array($request->add_ons) ? $request->add_ons : json_decode($request->add_ons, true)) : [];
         
+        // New fields: Physical Attributes
+        $property->total_area_sqm = $request->total_area_sqm;
+        $property->plot_size_sqm = $request->plot_size_sqm;
+        $property->floor = $request->floor;
+
+        // New fields: Legal Info
+        $property->has_restrictions = $request->boolean('has_restrictions');
+        $property->restriction_notes = $request->restriction_notes;
+        $property->deed_status = $request->deed_status;
+
+        // New fields: Financial Information
+        $property->price_to_owner = $request->price_to_owner;
+        $property->hibarr_price = $request->hibarr_price;
+        $property->commission_agreement_signed = $request->boolean('commission_agreement_signed');
+
+        // New fields: Notes
+        $property->general_notes = $request->general_notes;
+
+        // Swap fields
+        $property->open_to_swap = $request->boolean('open_to_swap');
+        $property->swap_notes = $request->swap_notes;
+
+        // Distances (merge into existing distances JSON)
+        if ($request->has('distances')) {
+            $property->distances = $request->distances;
+        }
+
+        // Legal info with tax_info (merge into existing legal_info JSON)
+        if ($request->has('legal_info')) {
+            $property->legal_info = $request->legal_info;
+        }
+
+        // Documents checklist
+        if ($request->has('documents_checklist')) {
+            $property->documents_checklist = $request->documents_checklist;
+        }
+
         $property->save();
 
 
@@ -340,6 +502,16 @@ class PropertyController extends AccountBaseController
             'view_tasks' => user()->permission('view_tasks'),
         ];
 
+        // Data needed by the edit property modal
+        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'project_location_id')
+            ->with('location:id,name')
+            ->where('company_id', user()->company_id)
+            ->get();
+
+        $projectLocations = \App\Models\ProjectLocation::select('id', 'name')
+            ->where('company_id', user()->company_id)
+            ->get();
+
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
             'property' => $this->property,
@@ -351,6 +523,9 @@ class PropertyController extends AccountBaseController
             'employees' => $employees,
             'projects' => $projects,
             'taskPermissions' => $taskPermissions,
+            'enumValues' => Property::getEnumValues(),
+            'developerProjects' => $developerProjects,
+            'projectLocations' => $projectLocations,
         ]);
     }
 
@@ -452,6 +627,10 @@ class PropertyController extends AccountBaseController
         }
 
         $property->update($fieldsToUpdate);
+
+        if (request()->expectsJson()) {
+            return Reply::successWithData(__('messages.recordUpdated'), ['property' => $property->fresh()]);
+        }
 
         return back()->with([
             'success' => true,
@@ -1173,10 +1352,17 @@ class PropertyController extends AccountBaseController
 
     public function generateExpose(Request $request, $id)
     {
-        $property = Property::with(['product.addedBy'])->findOrFail($id);
-        $layout = $request->input('layout', 'vertical_standard');
+        $property = Property::with(['product.addedBy', 'assets'])->findOrFail($id);
+        // $layout = $request->input('layout', 'expose-template');
+        $layout = 'expose-template';
         
-        $config = ExposeConfiguration::fromProperty($property, $layout);
+        // Collect client data for personalization
+        $clientData = [
+            'client_name' => $request->input('client_name'),
+            'client_email' => $request->input('client_email'),
+        ];
+        
+        $config = ExposeConfiguration::fromProperty($property, $layout, $clientData);
         
         // Return the download response directly
         return $this->exposeService->generate($config);
@@ -1244,5 +1430,120 @@ class PropertyController extends AccountBaseController
         }
 
         return null;
+    }
+
+    // ================================================================
+    // Publishing Endpoints
+    // ================================================================
+
+    /**
+     * Publish a property.
+     * Only the creator or admin can publish.
+     */
+    public function publish($id)
+    {
+        $property = Property::findOrFail($id);
+        
+        // Check authorization
+        $this->authorize('publish', $property);
+        
+        if ($property->is_published) {
+            return Reply::error('Property is already published');
+        }
+
+        $property->publish();
+        
+        return Reply::successWithData(
+            'Property published successfully',
+            ['property' => $property->fresh(['addedBy', 'responsibleAgent'])]
+        );
+    }
+
+    /**
+     * Unpublish a property (set to draft).
+     * Only the creator or admin can unpublish.
+     */
+    public function unpublish($id)
+    {
+        $property = Property::findOrFail($id);
+        
+        // Check authorization
+        $this->authorize('publish', $property);
+        
+        if (!$property->is_published) {
+            return Reply::error('Property is already a draft');
+        }
+
+        $property->unpublish();
+        
+        return Reply::successWithData(
+            'Property set to draft successfully',
+            ['property' => $property->fresh(['addedBy', 'responsibleAgent'])]
+        );
+    }
+
+    // ================================================================
+    // Access Request Endpoint
+    // ================================================================
+
+    /**
+     * Request access to a property for selling or viewing.
+     * Creates a notification to the responsible agent.
+     */
+    public function requestAccess(Request $request, $id)
+    {
+        $property = Property::with(['responsibleAgent', 'addedBy'])->findOrFail($id);
+        
+        // Check authorization
+        $this->authorize('requestAccess', $property);
+        
+        $validated = $request->validate([
+            'message' => 'required|string|max:500',
+            'type' => 'required|in:viewing,selling',
+        ]);
+
+        $requestingUser = user();
+        $responsibleAgent = $property->responsibleAgent ?? $property->addedBy;
+        
+        if (!$responsibleAgent) {
+            return Reply::error('No responsible agent found for this property');
+        }
+
+        // Create notification with metadata
+        // Using Laravel's notification system with database channel
+        $notificationData = [
+            'type' => 'property_access_request',
+            'property_id' => $property->id,
+            'property_reference' => $property->reference_code,
+            'property_title' => $property->display_title,
+            'requesting_user_id' => $requestingUser->id,
+            'requesting_user_name' => $requestingUser->name,
+            'request_type' => $validated['type'],
+            'message' => $validated['message'],
+            'created_at' => now()->toISOString(),
+        ];
+
+        // Send notification to responsible agent
+        $responsibleAgent->notify(new \App\Notifications\PropertyAccessRequest(
+            $property,
+            $requestingUser,
+            $validated['type'],
+            $validated['message']
+        ));
+
+        return Reply::success('Access request sent successfully to ' . $responsibleAgent->name);
+    }
+
+    // ================================================================
+    // Enum Values Endpoint
+    // ================================================================
+
+    /**
+     * Get all enum values for property dropdowns.
+     * Single source of truth for frontend.
+     */
+    public function getEnumValues()
+    {
+        return response()->json(Property::getEnumValues());
     }
 }

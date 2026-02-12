@@ -1,18 +1,12 @@
-@component('mail::message')
-# @lang('email.hello')@if(!empty($notifiableName)){{ ' '.$notifiableName }}@endif!
+@extends('mail.layouts.base')
 
-@lang('email.newTask.text')
+@section('title', __('email.newTask.subject'))
+@section('notifiableName', $notifiableName)
 
-# @lang('app.taskDetails')
-
-@component('mail::text', ['text' => $content])
-
-@endcomponent
-
-@component('mail::button', ['url' => $url, 'themeColor' => $themeColor])
-@lang('app.viewTask')
-@endcomponent
-
-@lang('email.regards'),<br>
-{{ config('app.name') }}
-@endcomponent
+@section('actionText', __('app.viewTask'))
+@section('actionUrl', $url)
+@section('actionDescription', __('You can view the full details and take action on this task by clicking the button below:'))
+@section('intro', __('email.newTask.text'))
+@section('content')
+    {!! $content !!}
+@endsection

@@ -1,6 +1,7 @@
 <?php
 
 return array(
+    'support' => 'Support',
 
     // resolution status
     'unresolved' => 'Unresolved',
@@ -58,10 +59,14 @@ return array(
     'projects' => 'Projects',
     'completion' => 'Completion',
     'address' => 'Address',
-    'completed' => 'Completed',
+    'completed' => 'Done', // Alias for backward compatibility
+    'done' => 'Done',
     'to_do' => 'To Do',
-    'doing' => 'Doing',
-    'waiting_approval' => 'Waiting Approval',
+    'in_progress' => 'In Progress',
+    'doing' => 'In Progress', // Alias for backward compatibility
+    'in_review' => 'In Review',
+    'waiting_approval' => 'In Review', // Alias for backward compatibility
+    'on_hold' => 'On Hold',
     'failed' => 'Failed',
     'dueDate' => 'Due Date',
     'status' => 'Status',
@@ -74,7 +79,7 @@ return array(
     'stop' => 'Stop',
     'remove' => 'Remove',
     'description' => 'Description',
-    'incomplete' => 'Incomplete',
+    'incomplete' => 'To Do', // Alias for backward compatibility
     'invoice' => 'Invoice',
     'date' => 'Date',
     'apply' => 'Apply',

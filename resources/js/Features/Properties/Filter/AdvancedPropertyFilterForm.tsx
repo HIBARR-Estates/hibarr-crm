@@ -9,9 +9,12 @@ import {
     Divider,
     Typography,
     InputNumber,
+    Switch,
+    Tag,
 } from "antd";
 import { usePage } from "@inertiajs/react";
 import { TFilter } from "@/Types/common";
+import { PropertyEnumValues } from "@/Types";
 import dayjs from "dayjs";
 
 const { Title } = Typography;
@@ -34,7 +37,10 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
     onFilterChange,
 }) => {
     const { props } = usePage<any>();
-    const { projects = [], developers = [] } = props;
+    const { projects = [], developers = [], enumValues } = props;
+
+    // Cast enumValues with proper typing
+    const propertyEnums = enumValues as PropertyEnumValues | undefined;
 
     const {
         search,
@@ -46,6 +52,14 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
         max_price,
         start_date,
         end_date,
+        // New filter fields
+        primary_category,
+        unit_style,
+        construction_status,
+        view_types,
+        is_published,
+        added_by,
+        responsible_agent_id,
     } = filters;
 
     const propertyTypes = [
@@ -196,14 +210,174 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             City
                         </label>
-                        <Input
-                            value={city}
-                            onChange={(e) =>
-                                onFilterChange("city", e.target.value)
-                            }
-                            placeholder="Enter city name"
+                        <Select
+                            value={city || undefined}
+                            onChange={(value) => onFilterChange("city", value)}
+                            placeholder="Select city"
+                            style={{ width: "100%" }}
                             allowClear
-                        />
+                            showSearch
+                            filterOption={(input, option) =>
+                                (option?.children as unknown as string)
+                                    ?.toLowerCase()
+                                    .includes(input.toLowerCase())
+                            }
+                        >
+                            {propertyEnums?.cities?.map((c) => (
+                                <Select.Option key={c.name} value={c.name}>
+                                    {c.label}
+                                </Select.Option>
+                            ))}
+                        </Select>
+                    </Col>
+                </Row>
+            </div>
+
+            <Divider />
+
+            {/* Property Classification */}
+            <div>
+                <Title level={5} className="!mb-3">
+                    Property Classification
+                </Title>
+                <Row gutter={[16, 16]}>
+                    <Col span={12}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Primary Category
+                        </label>
+                        <Select
+                            value={
+                                (filters as any).primary_category || undefined
+                            }
+                            onChange={(value) =>
+                                onFilterChange(
+                                    "primary_category" as keyof TFilter,
+                                    value,
+                                )
+                            }
+                            placeholder="Select category"
+                            style={{ width: "100%" }}
+                            allowClear
+                        >
+                            {propertyEnums?.primary_categories?.map((cat) => (
+                                <Select.Option key={cat.name} value={cat.name}>
+                                    {cat.label}
+                                </Select.Option>
+                            ))}
+                        </Select>
+                    </Col>
+
+                    <Col span={12}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Unit Style
+                        </label>
+                        <Select
+                            value={(filters as any).unit_style || undefined}
+                            onChange={(value) =>
+                                onFilterChange(
+                                    "unit_style" as keyof TFilter,
+                                    value,
+                                )
+                            }
+                            placeholder="Select unit style"
+                            style={{ width: "100%" }}
+                            allowClear
+                        >
+                            {propertyEnums?.unit_styles?.map((style) => (
+                                <Select.Option
+                                    key={style.name}
+                                    value={style.name}
+                                >
+                                    {style.label}
+                                </Select.Option>
+                            ))}
+                        </Select>
+                    </Col>
+
+                    <Col span={12}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Construction Status
+                        </label>
+                        <Select
+                            value={
+                                (filters as any).construction_status ||
+                                undefined
+                            }
+                            onChange={(value) =>
+                                onFilterChange(
+                                    "construction_status" as keyof TFilter,
+                                    value,
+                                )
+                            }
+                            placeholder="Select construction status"
+                            style={{ width: "100%" }}
+                            allowClear
+                        >
+                            {propertyEnums?.construction_statuses?.map(
+                                (status) => (
+                                    <Select.Option
+                                        key={status.name}
+                                        value={status.name}
+                                    >
+                                        {status.label}
+                                    </Select.Option>
+                                ),
+                            )}
+                        </Select>
+                    </Col>
+
+                    <Col span={12}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            View Types
+                        </label>
+                        <Select
+                            mode="multiple"
+                            value={(filters as any).view_types || []}
+                            onChange={(value) =>
+                                onFilterChange(
+                                    "view_types" as keyof TFilter,
+                                    value,
+                                )
+                            }
+                            placeholder="Select view types"
+                            style={{ width: "100%" }}
+                            allowClear
+                            maxTagCount={2}
+                        >
+                            {propertyEnums?.view_types?.map((view) => (
+                                <Select.Option
+                                    key={view.name}
+                                    value={view.name}
+                                >
+                                    {view.label}
+                                </Select.Option>
+                            ))}
+                        </Select>
+                    </Col>
+
+                    <Col span={12}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Publishing Status
+                        </label>
+                        <Select
+                            value={(filters as any).is_published}
+                            onChange={(value) =>
+                                onFilterChange(
+                                    "is_published" as keyof TFilter,
+                                    value,
+                                )
+                            }
+                            placeholder="All properties"
+                            style={{ width: "100%" }}
+                            allowClear
+                        >
+                            <Select.Option value={true}>
+                                <Tag color="green">Published</Tag>
+                            </Select.Option>
+                            <Select.Option value={false}>
+                                <Tag color="orange">Draft</Tag>
+                            </Select.Option>
+                        </Select>
                     </Col>
                 </Row>
             </div>
@@ -230,7 +404,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                             formatter={(value) =>
                                 `$ ${value}`.replace(
                                     /\B(?=(\d{3})+(?!\d))/g,
-                                    ","
+                                    ",",
                                 )
                             }
                             parser={(value) =>
@@ -254,7 +428,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                             formatter={(value) =>
                                 `$ ${value}`.replace(
                                     /\B(?=(\d{3})+(?!\d))/g,
-                                    ","
+                                    ",",
                                 )
                             }
                             parser={(value) =>
@@ -286,11 +460,11 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                             onChange={(dates, dateStrings) => {
                                 onFilterChange(
                                     "start_date",
-                                    dateStrings[0] || undefined
+                                    dateStrings[0] || undefined,
                                 );
                                 onFilterChange(
                                     "end_date",
-                                    dateStrings[1] || undefined
+                                    dateStrings[1] || undefined,
                                 );
                             }}
                             style={{ width: "100%" }}

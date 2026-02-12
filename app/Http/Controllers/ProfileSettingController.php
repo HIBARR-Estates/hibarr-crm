@@ -50,6 +50,9 @@ class ProfileSettingController extends AccountBaseController
             }
 
             break;
+        case 'reminder-preferences':
+            $this->view = 'profile-settings.ajax.reminder-preferences';
+            break;
         default:
             $this->view = 'profile-settings.ajax.profile';
             break;

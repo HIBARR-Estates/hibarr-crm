@@ -49,15 +49,25 @@ class EventReminder extends BaseNotification
         $url = route('events.show', $this->event->id);
         $url = getDomainSpecificUrl($url, $this->company);
 
-        $content = __('email.eventReminder.text') . '<br>' . __('app.name') . ': ' . $this->event->event_name . '<br>' . __('app.venue') . ': ' . $this->event->where . '<br>' . __('app.time') . ': ' . $this->event->start_date_time->toDayDateTimeString();
+        // Format date and time for the new template
+        // Convert from UTC to company timezone
+        $timezone = $this->company->timezone ?? 'UTC';
+        $startDateTime = $this->event->start_date_time->copy()->setTimezone($timezone);
+        $endDateTime = $this->event->end_date_time->copy()->setTimezone($timezone);
+        
+        // Format: "Mon Jan 19, 2026 15:00 - 16:00 (Timezone)"
+        $dateTime = $startDateTime->format('D M d, Y H:i') . ' - ' . $endDateTime->format('H:i') . ' (' . $timezone . ')';
+
+        // Only include meeting link if it exists and is not empty
+        $meetingLink = !empty($this->event->event_link) ? $this->event->event_link : null;
 
         $build
             ->subject(__('email.eventReminder.subject') . ' - ' . config('app.name'))
-            ->markdown('mail.email', [
-                'url' => $url,
-                'content' => $content,
-                'themeColor' => $this->company->header_color,
-                'actionText' => __('email.eventReminder.action'),
+            ->view('mail.event.reminder', [
+                'eventName' => $this->event->event_name,
+                'dateTime' => $dateTime,
+                'meetingLink' => $meetingLink,
+                'viewEventUrl' => $url,
                 'notifiableName' => $notifiable->name
             ]);
 

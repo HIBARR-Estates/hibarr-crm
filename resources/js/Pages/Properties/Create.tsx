@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from "react";
-import { router, useForm } from "@inertiajs/react";
-import { Typography, message } from "antd";
+import React, { useState, useEffect, useCallback } from "react";
+import { router } from "@inertiajs/react";
+import { Typography, message, Segmented } from "antd";
 import { Property } from "@/Types";
 import PropertyForm from "@/Features/Properties/SaveProperty/PropertyForm";
+import PropertyWizardForm from "@/Features/Properties/SaveProperty/PropertyWizardForm";
+import PropertyCategoryForm from "@/Features/Properties/SaveProperty/PropertyCategoryForm";
+import {
+    UnorderedListOutlined,
+    NumberOutlined,
+    AppstoreOutlined,
+} from "@ant-design/icons";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiSuccessResponse } from "@/lib/api/types";
 
 // Import the new PropertyForm component
 
@@ -22,6 +31,7 @@ interface CreatePropertyProps {
     setProperty?: (property: Property | undefined) => void;
     title?: string; // Optional title
     isPage?: boolean; // True when displayed as a full page instead of drawer
+    useWizard?: boolean; // Use stepped wizard form (default: true for new, false for edit)
 }
 
 export default function CreateProperty({
@@ -33,105 +43,133 @@ export default function CreateProperty({
     setProperty,
     title = "Create New Property",
     isPage = false,
+    useWizard,
 }: CreatePropertyProps) {
-    const [errors, setErrors] = useState<string[]>([]);
+    // Default: use category form for all (new default), keep wizard and tabs as alternatives
+    const isEditing = !!property?.id;
+    const defaultFormMode = "category";
+    const [formMode, setFormMode] = useState<"wizard" | "tabs" | "category">(
+        useWizard === undefined
+            ? defaultFormMode
+            : useWizard
+              ? "wizard"
+              : "tabs",
+    );
 
-    // Determine if we're editing or creating
-    const isEditing = !!property;
+    // Submit button text based on mode
     const submitText = isEditing ? "Update Property" : "Create Property";
 
-    // Use Inertia's useForm hook for better CSRF and error handling
-    const {
-        data,
-        setData,
-        submit,
-        processing,
-        errors: formErrors,
-        reset,
-    } = useForm({});
+    // Form errors state
+    const [errors, setErrors] = useState<string[]>([]);
+    const [formErrors, setFormErrors] = useState<Record<string, string[]>>({});
 
-    const [pushing, setPushing] = useState(false);
+    // Create property mutation
+    const createMutation = useApiMutate<
+        any,
+        Property,
+        ApiSuccessResponse<Property>
+    >(route("properties.store"), "POST", (res) => {
+        if (res?.status === "success") {
+            if (onSuccess) {
+                onSuccess();
+            } else if (!isPage) {
+                onClose?.();
+            } else {
+                router.visit(route("properties.index"));
+            }
+        }
+    });
 
-    useEffect(() => {
-        if (pushing) {
-            // Handle the pushing state
+    // Update property mutation
+    const updateMutation = useApiMutate<
+        any,
+        Property,
+        ApiSuccessResponse<Property> & { property?: Property }
+    >(
+        isEditing ? route("properties.update", property?.id) : "",
+        "PUT",
+        (res) => {
+            if (res?.status === "success") {
+                // Update the property state if setter is provided
+                // Backend returns property at root level via Reply::successWithData
+                const updatedProperty = res.data || (res as any).property;
+                if (updatedProperty) {
+                    setProperty?.(updatedProperty);
+                }
+
+                if (onSuccess) {
+                    onSuccess();
+                } else if (!isPage) {
+                    onClose?.();
+                } else {
+                    router.visit(route("properties.index"));
+                }
+            }
+        },
+    );
+
+    // Combined loading state
+    const processing = createMutation.isPending || updateMutation.isPending;
+
+    const handleSubmit = useCallback(
+        (formData: any) => {
+            // Clear previous errors
+            setErrors([]);
+            setFormErrors({});
+
+            // Transform the values to match the API expectations
+            // Strip internal flags before sending to API
+            const { _isDraft, ...cleanData } = formData;
+
+            const submitData = {
+                ...cleanData,
+                within_site: cleanData.within_site || false,
+                // Handle city - convert array to string, send null if empty so backend nullable rule applies
+                city: Array.isArray(cleanData.city)
+                    ? cleanData.city[0] || null
+                    : cleanData.city || null,
+                // Handle array fields
+                exterior_features: cleanData.exterior_features || [],
+                interior_features: cleanData.interior_features || [],
+                location_features: cleanData.location_features || [],
+                photos: cleanData.photos || [],
+                add_ons: cleanData.add_ons || [],
+            };
+
             if (isEditing) {
-                submit("put", route("properties.update", property.id), {
-                    onSuccess: (res) => {
-                        // TODO: Update the returned property response to property to enable othe tab fields to be editable
-                        // setProperty?.(res);
-                        setPushing(false);
-
-                        const successMessage = "Property updated successfully";
-                        message.success(successMessage);
-
-                        if (onSuccess) {
-                            onSuccess();
-                        } else if (!isPage) {
-                            onClose?.();
-                        } else {
-                            router.visit(route("properties.index"));
+                updateMutation.mutate(submitData, {
+                    onError: (error: any) => {
+                        if (error?.errors) {
+                            setFormErrors(error.errors);
+                            const errorMessages = Object.values(
+                                error.errors,
+                            ).flat() as string[];
+                            setErrors(errorMessages);
+                        } else if (error?.message) {
+                            setErrors([error.message]);
                         }
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-
-                        const errorMessages = Object.values(errors).flat();
-                        setErrors(errorMessages as string[]);
                         message.error("Please check the form for errors");
                     },
                 });
             } else {
-                submit("post", route("properties.store"), {
-                    onSuccess: (page) => {
-                        // TODO: Update the returned property response to property to enable othe tab fields to be editable
-                        // setProperty?.(res);
-                        console.log(page, "post page ....");
-
-                        setPushing(false);
-                        const successMessage = "Property created successfully";
-                        message.success(successMessage);
-                        reset();
-
-                        if (onSuccess) {
-                            onSuccess();
-                        } else if (!isPage) {
-                            onClose?.();
-                        } else {
-                            router.visit(route("properties.index"));
+                createMutation.mutate(submitData, {
+                    onError: (error: any) => {
+                        if (error?.errors) {
+                            setFormErrors(error.errors);
+                            const errorMessages = Object.values(
+                                error.errors,
+                            ).flat() as string[];
+                            setErrors(errorMessages);
+                        } else if (error?.message) {
+                            setErrors([error.message]);
                         }
-                    },
-                    onError: (errors) => {
-                        setPushing(false);
-                        const errorMessages = Object.values(errors).flat();
-                        setErrors(errorMessages as string[]);
                         message.error("Please check the form for errors");
                     },
                 });
             }
-        }
-    }, [pushing]);
-
-    const handleSubmit = (formData: any) => {
-        // Clear previous errors
-        setErrors([]);
-
-        // Transform the values to match the API expectations
-        const submitData = {
-            ...formData,
-            within_site: formData.within_site || false,
-            // Handle array fields
-            exterior_features: formData.exterior_features || [],
-            interior_features: formData.interior_features || [],
-            location_features: formData.location_features || [],
-            photos: formData.photos || [],
-            add_ons: formData.add_ons || [],
-        };
-
-        // Update the form data
-        setData(submitData);
-        setPushing(true);
-    };
+        },
+        [isEditing, createMutation, updateMutation],
+    );
 
     const handleCancel = () => {
         if (isPage) {
@@ -140,44 +178,111 @@ export default function CreateProperty({
             onClose?.();
         }
         setErrors([]);
+        setFormErrors({});
     };
 
     const handleErrorsClear = () => {
         setErrors([]);
+        setFormErrors({});
     };
 
-    // Combine form errors with manual errors
-    const allErrors = [
-        ...errors,
-        ...Object.values(formErrors).flat().map(String),
+    // All errors combined (errors array already contains flattened formErrors)
+    const allErrors = errors;
+
+    // Form mode toggle options
+    const formModeOptions = [
+        {
+            value: "category",
+            label: "Form",
+            icon: <AppstoreOutlined />,
+        },
+        {
+            value: "wizard",
+            label: "Wizard",
+            icon: <NumberOutlined />,
+        },
+        {
+            value: "tabs",
+            label: "Tabs",
+            icon: <UnorderedListOutlined />,
+        },
     ];
 
-    const formContent = (
-        <PropertyForm
-            setProperty={setProperty}
-            data={property}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            loading={processing}
-            errors={allErrors}
-            setErrors={setErrors}
-            onErrorsClear={handleErrorsClear}
-            submitText={submitText}
-            cancelText="Cancel"
-            visible={visible}
-        />
-    );
+    const formContent =
+        formMode === "category" ? (
+            <PropertyCategoryForm
+                setProperty={setProperty}
+                data={property}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+                loading={processing}
+                errors={allErrors}
+                setErrors={setErrors}
+                onErrorsClear={handleErrorsClear}
+                visible={visible}
+            />
+        ) : formMode === "wizard" ? (
+            <PropertyWizardForm
+                setProperty={setProperty}
+                data={property}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+                loading={processing}
+                errors={allErrors}
+                setErrors={setErrors}
+                onErrorsClear={handleErrorsClear}
+                visible={visible}
+            />
+        ) : (
+            <PropertyForm
+                setProperty={setProperty}
+                data={property}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+                loading={processing}
+                errors={allErrors}
+                setErrors={setErrors}
+                onErrorsClear={handleErrorsClear}
+                submitText={submitText}
+                cancelText="Cancel"
+                visible={visible}
+            />
+        );
 
     if (isPage) {
         return (
             <div className="p-6">
-                <div className="mb-6">
+                <div className="mb-6 flex items-center justify-between">
                     <Title level={2}>{title}</Title>
+                    <Segmented
+                        options={formModeOptions}
+                        value={formMode}
+                        onChange={(value) =>
+                            setFormMode(value as "wizard" | "tabs" | "category")
+                        }
+                    />
                 </div>
                 {formContent}
             </div>
         );
     }
 
-    return <>{formContent}</>;
+    return (
+        <div>
+            {/* Form mode toggle for drawer mode */}
+            {/* <div className="mb-4 flex justify-end">
+                {isEditing ? (
+                    <Segmented
+                        options={formModeOptions}
+                        value={formMode}
+                        onChange={(value) =>
+                            setFormMode(value as "wizard" | "tabs" | "category")
+                        }
+                        size="small"
+                    />
+                ) : null}
+            </div> */}
+            {formContent}
+        </div>
+    );
 }

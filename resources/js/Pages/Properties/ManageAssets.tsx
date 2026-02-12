@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { router } from "@inertiajs/react";
 import { Property, PropertyAsset, Pagination } from "@/Types";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiSuccessResponse } from "@/lib/api/types";
 import {
     Button,
     Space,
@@ -12,15 +12,19 @@ import {
     Upload,
     Modal,
     Select,
-    Input,
-    message,
+    Progress,
+    Alert,
+    Typography,
+    App,
 } from "antd";
 import {
     AppstoreOutlined,
     UnorderedListOutlined,
     UploadOutlined,
     PlusOutlined,
-    FilterOutlined,
+    LoadingOutlined,
+    CheckCircleOutlined,
+    CloseCircleOutlined,
 } from "@ant-design/icons";
 import AssetGridView from "@/Features/Properties/Assets/AssetGridView";
 import AssetTableView from "@/Features/Properties/Assets/AssetTableView";
@@ -28,7 +32,11 @@ import AssetPreviewModal from "@/Features/Properties/Assets/AssetPreviewModal";
 import BulkAssetActionSelector from "@/Features/Properties/Assets/BulkActions/BulkAssetActionSelector";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import createPropertyAssetFilterConfig from "@/configs/propertyAssetFilterConfig";
+import { getFileUploadService } from "@/Services/FileUploadService";
+import { IUploadResponseItem, IUploadProgress } from "@/Types/uploads";
 import type { UploadFile } from "antd";
+
+const { Text } = Typography;
 
 interface ManageAssetsProps {
     pageTitle: string;
@@ -45,6 +53,16 @@ interface ManageAssetsProps {
     };
 }
 
+// Track upload status for each file
+interface FileUploadStatus {
+    fileId: string;
+    fileName: string;
+    progress: number;
+    status: "pending" | "uploading" | "success" | "error";
+    error?: string;
+    response?: IUploadResponseItem;
+}
+
 const ManageAssets = ({
     pageTitle,
     property,
@@ -53,6 +71,8 @@ const ManageAssets = ({
     availableTypes,
     filters,
 }: ManageAssetsProps) => {
+    const { message } = App.useApp();
+
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
     const [selectedAssets, setSelectedAssets] = useState<number[]>([]);
     const [previewAsset, setPreviewAsset] = useState<PropertyAsset | null>(
@@ -61,50 +81,81 @@ const ManageAssets = ({
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
 
+    // Upload progress tracking
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadStatuses, setUploadStatuses] = useState<FileUploadStatus[]>(
+        [],
+    );
+    const [selectedAssetType, setSelectedAssetType] = useState<
+        "image" | "video"
+    >("image");
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
     const breadcrumbs = [
         { name: "Properties", url: route("properties.index") },
         {
-            name: property.title,
+            name: property.title || property.reference_code || "Property",
             url: route("properties.show", property.id),
         },
         { name: "Manage Assets" },
     ];
-
-    // Debug: Check assets data
-    React.useEffect(() => {
-        console.log("Assets data:", assets);
-        if (assets.data && assets.data.length > 0) {
-            console.log("First asset:", assets.data[0]);
-            console.log("First asset URL:", assets.data[0].url);
-        }
-    }, [assets]);
 
     const filterConfig = createPropertyAssetFilterConfig(
         availableTags,
         availableTypes,
     );
 
-    // Upload assets mutation
-    interface UploadAssetsPayload {
-        files: File[];
-        asset_type: string;
+    // Initialize the file upload service with property-specific folder
+    const uploadService = useMemo(() => {
+        return getFileUploadService({
+            defaultTargetFolder: `properties/${property.id}/assets`,
+            allowedTypes: [
+                "image/jpeg",
+                "image/png",
+                "image/gif",
+                "image/webp",
+                "video/mp4",
+                "video/webm",
+                "video/quicktime",
+            ],
+            maxFileSize: 50 * 1024 * 1024, // 50MB for videos
+        });
+    }, [property.id]);
+
+    // Mutation to save asset URLs to the backend
+    interface SaveAssetsPayload {
+        assets: Array<{
+            url: string;
+            name: string;
+            object_path: string | null;
+            asset_type: "image" | "video";
+            mime_type?: string;
+            file_size?: number;
+        }>;
+        tags: string[];
     }
 
-    interface UploadAssetsResponse {
+    interface SaveAssetsResponse {
         assets: PropertyAsset[];
     }
 
-    const { mutate: uploadAssets, isPending: isUploading } = useApiMutate<
-        FormData,
-        UploadAssetsResponse,
-        ApiResponse<UploadAssetsResponse>
-    >(route("properties.assets.store", property.id), "POST", (response) => {
-        console.log("Upload response:", response);
-        setIsUploadModalOpen(false);
-        setUploadFileList([]);
-        // Refresh the page to show new assets
-        router.reload({ only: ["assets"] });
-    });
+    const { mutate: saveAssetsToBackend, isPending: isSavingToBackend } =
+        useApiMutate<
+            SaveAssetsPayload,
+            SaveAssetsResponse,
+            ApiSuccessResponse<SaveAssetsResponse>
+        >(
+            route("properties.assets.store_from_urls", property.id),
+            "POST",
+            () => {
+                // Reset state and refresh
+                setIsUploadModalOpen(false);
+                setUploadFileList([]);
+                setUploadStatuses([]);
+                setSelectedTags([]);
+                router.reload({ only: ["assets"] });
+            },
+        );
 
     // Handle asset selection
     const handleAssetSelect = (assetId: number, checked: boolean) => {
@@ -117,23 +168,195 @@ const ManageAssets = ({
         setSelectedAssets(checked ? assets.data.map((a) => a.id) : []);
     };
 
-    // Handle asset upload
-    const handleUpload = () => {
+    // Handle file upload using FileUploadService
+    const handleUpload = useCallback(async () => {
         if (uploadFileList.length === 0) {
             message.warning("Please select files to upload");
             return;
         }
 
-        const formData = new FormData();
-        uploadFileList.forEach((file) => {
-            if (file.originFileObj) {
-                formData.append("files[]", file.originFileObj);
+        // Get actual File objects from UploadFile list
+        const files: File[] = [];
+        for (const f of uploadFileList) {
+            if (f.originFileObj) {
+                files.push(f.originFileObj as File);
             }
-        });
-        formData.append("asset_type", "image");
+        }
 
-        uploadAssets(formData as any);
-    };
+        if (files.length === 0) {
+            message.error("No valid files to upload");
+            return;
+        }
+
+        // Initialize upload statuses
+        const initialStatuses: FileUploadStatus[] = files.map(
+            (file, index) => ({
+                fileId: `file-${index}-${file.name}`,
+                fileName: file.name,
+                progress: 0,
+                status: "pending",
+            }),
+        );
+        setUploadStatuses(initialStatuses);
+        setIsUploading(true);
+
+        const successfulUploads: IUploadResponseItem[] = [];
+        const fileMetadata: Map<string, { mimeType: string; size: number }> =
+            new Map();
+
+        // Store metadata for each file
+        files.forEach((file, index) => {
+            fileMetadata.set(`file-${index}-${file.name}`, {
+                mimeType: file.type,
+                size: file.size,
+            });
+        });
+
+        try {
+            // Upload files to external service with progress tracking
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileId = `file-${i}-${file.name}`;
+
+                // Update status to uploading
+                setUploadStatuses((prev) =>
+                    prev.map((s) =>
+                        s.fileId === fileId ? { ...s, status: "uploading" } : s,
+                    ),
+                );
+
+                try {
+                    // Validate file before upload
+                    uploadService.validateFile(file);
+
+                    // Upload single file with progress tracking
+                    const result = await uploadService.uploadSingle(
+                        file,
+                        `properties/${property.id}/assets`,
+                        (_fileId, progressPercent) => {
+                            setUploadStatuses((prev) =>
+                                prev.map((s) =>
+                                    s.fileId === fileId
+                                        ? { ...s, progress: progressPercent }
+                                        : s,
+                                ),
+                            );
+                        },
+                    );
+
+                    // Update status to success
+                    setUploadStatuses((prev) =>
+                        prev.map((s) =>
+                            s.fileId === fileId
+                                ? {
+                                      ...s,
+                                      status: "success",
+                                      progress: 100,
+                                      response: result,
+                                  }
+                                : s,
+                        ),
+                    );
+
+                    successfulUploads.push(result);
+                } catch (error) {
+                    // Update status to error
+                    const errorMessage =
+                        error instanceof Error
+                            ? error.message
+                            : "Upload failed";
+                    setUploadStatuses((prev) =>
+                        prev.map((s) =>
+                            s.fileId === fileId
+                                ? { ...s, status: "error", error: errorMessage }
+                                : s,
+                        ),
+                    );
+
+                    // Show individual file error notification
+                    message.error(
+                        `Failed to upload "${file.name}": ${errorMessage}`,
+                    );
+                }
+            }
+
+            // If we have successful uploads, save them to the backend
+            if (successfulUploads.length > 0) {
+                // Notify about partial failures if any
+                const failedUploads = files.length - successfulUploads.length;
+                if (failedUploads > 0) {
+                    message.warning(
+                        `${failedUploads} file(s) failed to upload. ${successfulUploads.length} file(s) will be saved.`,
+                    );
+                }
+
+                const assetsToSave = successfulUploads.map((upload, index) => {
+                    const fileId = `file-${index}-${upload.originalName}`;
+                    const metadata = fileMetadata.get(fileId);
+
+                    // Determine asset type from mime type
+                    const isVideo = metadata?.mimeType?.startsWith("video/");
+
+                    return {
+                        // url: upload.downloadUrl,
+                        url: encodeURI(upload.downloadUrl), // Ensure URL is properly encoded
+                        name: upload.originalName,
+                        object_path: upload.objectPath,
+                        asset_type: (isVideo ? "video" : "image") as
+                            | "image"
+                            | "video",
+                        mime_type: metadata?.mimeType,
+                        file_size: metadata?.size,
+                    };
+                });
+
+                // Save to backend
+                saveAssetsToBackend({
+                    assets: assetsToSave,
+                    tags: selectedTags,
+                });
+            } else {
+                message.error(
+                    "All uploads failed. Please check your files and try again.",
+                );
+                setIsUploading(false);
+            }
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : "Upload process failed";
+            message.error(`Upload error: ${errorMessage}. Please try again.`);
+            setIsUploading(false);
+        } finally {
+            setIsUploading(false);
+        }
+    }, [
+        uploadFileList,
+        uploadService,
+        property.id,
+        selectedTags,
+        saveAssetsToBackend,
+    ]);
+
+    // Cancel all uploads
+    const handleCancelUploads = useCallback(() => {
+        uploadService.cancelAll();
+        setIsUploading(false);
+        setUploadStatuses([]);
+        message.info("Uploads cancelled");
+    }, [uploadService]);
+
+    // Close modal and reset state
+    const handleCloseModal = useCallback(() => {
+        if (isUploading) {
+            handleCancelUploads();
+        }
+        setIsUploadModalOpen(false);
+        setUploadFileList([]);
+        setUploadStatuses([]);
+        setSelectedTags([]);
+    }, [isUploading, handleCancelUploads]);
 
     const handlePaginationChange = (page: number, pageSize: number) => {
         router.get(
@@ -150,10 +373,27 @@ const ManageAssets = ({
         );
     };
 
+    // Calculate overall progress
+    const overallProgress = useMemo(() => {
+        if (uploadStatuses.length === 0) return 0;
+        const totalProgress = uploadStatuses.reduce(
+            (sum, s) => sum + s.progress,
+            0,
+        );
+        return Math.round(totalProgress / uploadStatuses.length);
+    }, [uploadStatuses]);
+
+    const completedCount = uploadStatuses.filter(
+        (s) => s.status === "success",
+    ).length;
+    const failedCount = uploadStatuses.filter(
+        (s) => s.status === "error",
+    ).length;
+
     return (
         <>
             <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
-                <div className="max-w-7xl mx-auto space-y-6">
+                <div className="max-w-7xl mx-auto flex flex-col gap-y-6">
                     {/* Actions Bar */}
                     <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
                         <Space size="middle">
@@ -257,28 +497,149 @@ const ManageAssets = ({
                 <Modal
                     title="Upload Assets"
                     open={isUploadModalOpen}
-                    onCancel={() => {
-                        setIsUploadModalOpen(false);
-                        setUploadFileList([]);
-                    }}
-                    onOk={handleUpload}
-                    okText="Upload"
-                    confirmLoading={isUploading}
-                    width={600}
+                    onCancel={handleCloseModal}
+                    footer={
+                        isUploading || isSavingToBackend ? (
+                            <Space>
+                                <Button onClick={handleCancelUploads} danger>
+                                    Cancel
+                                </Button>
+                            </Space>
+                        ) : (
+                            <Space>
+                                <Button onClick={handleCloseModal}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    onClick={handleUpload}
+                                    disabled={uploadFileList.length === 0}
+                                >
+                                    Upload{" "}
+                                    {uploadFileList.length > 0 &&
+                                        `(${uploadFileList.length})`}
+                                </Button>
+                            </Space>
+                        )
+                    }
+                    width={700}
+                    maskClosable={!isUploading && !isSavingToBackend}
+                    closable={!isUploading && !isSavingToBackend}
                 >
-                    <Upload
-                        listType="picture-card"
-                        fileList={uploadFileList}
-                        onChange={({ fileList }) => setUploadFileList(fileList)}
-                        beforeUpload={() => false}
-                        multiple
-                        accept="image/*,video/*"
-                    >
-                        <div>
-                            <PlusOutlined />
-                            <div style={{ marginTop: 8 }}>Upload</div>
+                    {/* Upload Progress Section */}
+                    {(isUploading || isSavingToBackend) && (
+                        <div className="mb-6">
+                            <div className="mb-3">
+                                <Text strong>
+                                    {isSavingToBackend
+                                        ? "Saving to property..."
+                                        : `Uploading ${uploadStatuses.length} file(s)...`}
+                                </Text>
+                            </div>
+                            <Progress
+                                percent={
+                                    isSavingToBackend ? 100 : overallProgress
+                                }
+                                status={
+                                    isSavingToBackend
+                                        ? "active"
+                                        : failedCount > 0 &&
+                                            completedCount === 0
+                                          ? "exception"
+                                          : "active"
+                                }
+                                format={() =>
+                                    isSavingToBackend
+                                        ? "Saving..."
+                                        : `${completedCount}/${uploadStatuses.length}`
+                                }
+                            />
+
+                            {/* Individual file statuses */}
+                            <div className="mt-4 max-h-48 overflow-y-auto flex flex-col gap-y-2">
+                                {uploadStatuses.map((status) => (
+                                    <div
+                                        key={status.fileId}
+                                        className="flex items-center gap-2 text-sm"
+                                    >
+                                        {status.status === "uploading" && (
+                                            <LoadingOutlined className="text-blue-500" />
+                                        )}
+                                        {status.status === "success" && (
+                                            <CheckCircleOutlined className="text-green-500" />
+                                        )}
+                                        {status.status === "error" && (
+                                            <CloseCircleOutlined className="text-red-500" />
+                                        )}
+                                        {status.status === "pending" && (
+                                            <span className="w-4 h-4 rounded-full bg-gray-300" />
+                                        )}
+                                        <span className="truncate flex-1">
+                                            {status.fileName}
+                                        </span>
+                                        {status.status === "uploading" && (
+                                            <span className="text-gray-500">
+                                                {status.progress}%
+                                            </span>
+                                        )}
+                                        {status.status === "error" && (
+                                            <span className="text-red-500 text-xs truncate max-w-[150px]">
+                                                {status.error}
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </Upload>
+                    )}
+
+                    {/* File Selection Section */}
+                    {!isUploading && !isSavingToBackend && (
+                        <>
+                            <div className="mb-4">
+                                <Text className="block mb-2">
+                                    Tags (optional)
+                                </Text>
+                                <Select
+                                    mode="multiple"
+                                    placeholder="Select tags to apply to all uploaded assets"
+                                    value={selectedTags}
+                                    onChange={setSelectedTags}
+                                    className="w-full"
+                                    options={Object.entries(availableTags).map(
+                                        ([value, label]) => ({
+                                            value,
+                                            label,
+                                        }),
+                                    )}
+                                />
+                            </div>
+
+                            <Upload
+                                listType="picture-card"
+                                fileList={uploadFileList}
+                                onChange={({ fileList }) =>
+                                    setUploadFileList(fileList)
+                                }
+                                beforeUpload={() => false}
+                                multiple
+                                accept="image/*,video/*"
+                            >
+                                <div>
+                                    <PlusOutlined />
+                                    <div style={{ marginTop: 8 }}>Upload</div>
+                                </div>
+                            </Upload>
+                            <div className="mt-4">
+                                <Alert
+                                    type="info"
+                                    showIcon
+                                    message="Upload Info"
+                                    description="Files will be uploaded to our secure cloud storage. Supported formats: JPEG, PNG, GIF, WebP, MP4, WebM. Maximum file size: 50MB."
+                                />
+                            </div>
+                        </>
+                    )}
                 </Modal>
 
                 {/* Preview Modal */}
