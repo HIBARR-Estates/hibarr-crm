@@ -132,9 +132,14 @@ class CustomerCommunicationEmail extends Mailable
         // Get company details for template
         $themeColor = $this->company?->header_color ?? '#0056b3';
         
-        // Get logo and website URL
-        $logoUrl = $this->company?->masked_logo_url ?? config('app.logo');
+        // Get website URL
         $websiteUrl = $this->company?->website ?? url('/');
+
+        // Sender photo (absolute URL for email)
+        $senderImageUrl = $this->sender->maskedImageUrl ?? $this->sender->image_url ?? '';
+
+        // Company address for signature (optional)
+        $companyAddress = $this->company?->address ?? '';
         
         // Sanitize email content to prevent XSS attacks
         // Allow only safe HTML tags commonly used in email formatting
@@ -160,8 +165,9 @@ class CustomerCommunicationEmail extends Mailable
                 'senderJobTitle' => $senderJobTitle,
                 'senderPhone' => $senderPhone,
                 'companyName' => $companyName,
-                'logoUrl' => $logoUrl,
                 'websiteUrl' => $websiteUrl,
+                'senderImageUrl' => $senderImageUrl,
+                'companyAddress' => $companyAddress,
                 'subject' => $this->subject
             ]);
     }
