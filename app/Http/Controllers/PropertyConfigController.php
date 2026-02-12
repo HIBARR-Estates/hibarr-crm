@@ -21,18 +21,19 @@ use App\Models\PropertySaleType;
 use App\Models\PropertyStatus;
 use App\Models\PropertyLocationFeature;
 use App\Models\PropertyAddOn;
+use App\Models\PropertyArea;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /**
- * CRUD controller for all 18 property lookup/configuration tables.
+ * CRUD controller for all 19 property lookup/configuration tables.
  *
  * Routes accept a {type} parameter that maps to the model:
  *   property-types, sub-types, primary-categories, view-types,
  *   title-deed-types, exterior-features, interior-features,
  *   floor-types, deed-statuses, construction-statuses, occupancy-types,
- *   furniture-statuses, heating-types, cities, sale-types, statuses,
+ *   furniture-statuses, heating-types, cities, areas, sale-types, statuses,
  *   location-features, add-ons
  */
 class PropertyConfigController extends AccountBaseController
@@ -55,6 +56,7 @@ class PropertyConfigController extends AccountBaseController
         'furniture-statuses'    => PropertyFurnitureStatus::class,
         'heating-types'         => PropertyHeatingType::class,
         'cities'                => PropertyCity::class,
+        'areas'                 => PropertyArea::class,
         'sale-types'            => PropertySaleType::class,
         'statuses'              => PropertyStatus::class,
         'location-features'     => PropertyLocationFeature::class,
@@ -106,6 +108,7 @@ class PropertyConfigController extends AccountBaseController
             'description' => 'nullable|string|max:1000',
             'parent_type' => 'nullable|string|max:255',
             'category'    => 'nullable|string|max:255',
+            'city_id'     => 'nullable|integer|exists:property_cities,id',
         ]);
 
         $fillable = [
@@ -123,6 +126,11 @@ class PropertyConfigController extends AccountBaseController
         // Only PropertyType has category
         if ($type === 'property-types' && isset($validated['category'])) {
             $fillable['category'] = $validated['category'];
+        }
+
+        // Only PropertyArea has city_id
+        if ($type === 'areas' && isset($validated['city_id'])) {
+            $fillable['city_id'] = $validated['city_id'];
         }
 
         $item = $modelClass::create($fillable);
@@ -161,6 +169,7 @@ class PropertyConfigController extends AccountBaseController
             'description' => 'nullable|string|max:1000',
             'parent_type' => 'nullable|string|max:255',
             'category'    => 'nullable|string|max:255',
+            'city_id'     => 'nullable|integer|exists:property_cities,id',
         ]);
 
         // Filter out fields not applicable to this type
@@ -170,6 +179,9 @@ class PropertyConfigController extends AccountBaseController
         }
         if ($type !== 'property-types') {
             unset($updateData['category']);
+        }
+        if ($type !== 'areas') {
+            unset($updateData['city_id']);
         }
 
         $item->update($updateData);

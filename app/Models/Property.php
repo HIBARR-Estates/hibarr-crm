@@ -1314,10 +1314,35 @@ class Property extends BaseModel
             'heating_types'         => self::getLookupValues(PropertyHeatingType::class, []),
             'location_features'     => self::getLookupValues(PropertyLocationFeature::class, []),
             'add_ons'               => self::getLookupValues(PropertyAddOn::class, []),
+            'areas'                 => self::getLookupValues(PropertyArea::class, []),
             'type_codes'            => self::TYPE_CODES,
             'subtype_codes'         => self::SUBTYPE_CODES,
             'property_types_by_category' => self::getPropertyTypesByCategory(),
+            'areas_by_city'         => self::getAreasByCity(),
         ];
+    }
+
+    /**
+     * Get areas grouped by their parent city name.
+     * Returns e.g. { nicosia: [{name, label}], kyrenia: [...], ... }
+     */
+    private static function getAreasByCity(): array
+    {
+        try {
+            $areas = PropertyArea::select('property_areas.name', 'property_areas.label', 'property_cities.name as city_name')
+                ->join('property_cities', 'property_areas.city_id', '=', 'property_cities.id')
+                ->get();
+
+            if ($areas->isNotEmpty()) {
+                return $areas->groupBy('city_name')->map(function ($group) {
+                    return $group->map(fn($a) => ['name' => $a->name, 'label' => $a->label])->values()->toArray();
+                })->toArray();
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        return [];
     }
 
     /**
