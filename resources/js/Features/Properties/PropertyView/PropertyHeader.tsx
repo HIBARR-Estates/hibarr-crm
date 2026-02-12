@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { Typography, Tag, Space, Button, Tooltip, message } from "antd";
+import {
+    Typography,
+    Tag,
+    Space,
+    Button,
+    Tooltip,
+    message,
+    Modal,
+    Input,
+} from "antd";
 import { router } from "@inertiajs/react";
 import {
     EditOutlined,
@@ -14,6 +23,7 @@ import {
     CopyOutlined,
     GlobalOutlined,
     EyeInvisibleOutlined,
+    SafetyOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import {
@@ -53,11 +63,18 @@ function PropertyHeader({
 
     const permissions = usePropertyPermissions(property);
 
+    // Copied state for reference code
+    const [copied, setCopied] = useState(false);
+
     // Confirmation modal state
     const [confirmModal, setConfirmModal] = useState<{
         open: boolean;
         action: "publish" | "unpublish" | null;
     }>({ open: false, action: null });
+
+    // Availability request modal state
+    const [availabilityModal, setAvailabilityModal] = useState(false);
+    const [availabilityMessage, setAvailabilityMessage] = useState("");
 
     const { amount, currency } = parsePropertyPrice(
         (property as any).price,
@@ -93,14 +110,43 @@ function PropertyHeader({
             router.reload({ only: ["property"] });
         });
 
+    // Check Availability mutation
+    const { mutate: requestAvailability, isPending: isRequestingAvailability } =
+        useApiMutate<
+            { property_id: number; message?: string },
+            any,
+            ApiSuccessResponse<any>
+        >(route("availability-requests.store"), "POST", () => {
+            setAvailabilityModal(false);
+            setAvailabilityMessage("");
+        });
+
     const handleManageAssets = () => {
         router.visit(route("properties.assets.index", property.id));
     };
 
-    const handleCopyReferenceCode = () => {
-        if (property.reference_code) {
-            navigator.clipboard.writeText(property.reference_code);
-            message.success("Reference code copied to clipboard!");
+    const handleCopyReferenceCode = async () => {
+        if (!property.reference_code) return;
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(property.reference_code);
+            } else {
+                // Fallback for non-HTTPS environments
+                const textarea = document.createElement("textarea");
+                textarea.value = property.reference_code;
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textarea);
+            }
+            setCopied(true);
+            message.success("Reference code copied!");
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            message.error("Failed to copy");
         }
     };
 
@@ -126,6 +172,17 @@ function PropertyHeader({
         }
     };
 
+    const handleCheckAvailability = () => {
+        setAvailabilityModal(true);
+    };
+
+    const handleSubmitAvailabilityRequest = () => {
+        requestAvailability({
+            property_id: property.id,
+            message: availabilityMessage || undefined,
+        });
+    };
+
     return (
         <div className="mb-4">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -133,13 +190,23 @@ function PropertyHeader({
                     {/* Reference Code Badge */}
                     {property.reference_code && (
                         <div className="flex items-center gap-2 mb-2">
-                            <Tooltip title="Click to copy reference code">
+                            <Tooltip
+                                title={
+                                    copied
+                                        ? "Copied!"
+                                        : "Click to copy reference code"
+                                }
+                            >
                                 <Tag
-                                    color="geekblue"
-                                    className="text-xs cursor-pointer hover:opacity-80"
+                                    color={copied ? "green" : "geekblue"}
+                                    className="text-xs cursor-pointer hover:opacity-80 transition-all"
                                     onClick={handleCopyReferenceCode}
                                 >
-                                    <CopyOutlined className="mr-1" />
+                                    {copied ? (
+                                        <CheckCircleOutlined className="mr-1" />
+                                    ) : (
+                                        <CopyOutlined className="mr-1" />
+                                    )}
                                     {property.reference_code}
                                 </Tag>
                             </Tooltip>
@@ -243,6 +310,18 @@ function PropertyHeader({
                                 Publish
                             </Button>
                         ))}
+                    {/* Check Availability Button */}
+                    {permissions.canRequestAccess && !permissions.isAdmin && (
+                        <Tooltip title="Request availability check before presenting to customer">
+                            <Button
+                                icon={<SafetyOutlined />}
+                                onClick={handleCheckAvailability}
+                                loading={isRequestingAvailability}
+                            >
+                                Check Availability
+                            </Button>
+                        </Tooltip>
+                    )}
                     <Button
                         icon={<FolderOpenOutlined />}
                         onClick={handleManageAssets}
@@ -300,6 +379,47 @@ function PropertyHeader({
                 confirmType="primary"
                 confirmDanger={confirmModal.action === "unpublish"}
             />
+
+            {/* Check Availability Modal */}
+            <Modal
+                title="Check Property Availability"
+                open={availabilityModal}
+                onOk={handleSubmitAvailabilityRequest}
+                onCancel={() => {
+                    if (!isRequestingAvailability) {
+                        setAvailabilityModal(false);
+                        setAvailabilityMessage("");
+                    }
+                }}
+                confirmLoading={isRequestingAvailability}
+                okText="Send Request"
+                cancelText="Cancel"
+            >
+                <div className="py-2">
+                    <p className="mb-3 text-gray-600">
+                        Before presenting this property to your customer, you
+                        must request an availability check from the responsible
+                        agent. They will be notified and have 8 business hours
+                        to respond.
+                    </p>
+                    <p className="mb-2 font-medium">
+                        Property: {property.display_title || property.title}
+                    </p>
+                    {property.reference_code && (
+                        <p className="mb-3 text-gray-500 text-sm">
+                            Reference: {property.reference_code}
+                        </p>
+                    )}
+                    <Input.TextArea
+                        placeholder="Optional message to the responsible agent (e.g., customer details, urgency)"
+                        value={availabilityMessage}
+                        onChange={(e) => setAvailabilityMessage(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        showCount
+                    />
+                </div>
+            </Modal>
         </div>
     );
 }

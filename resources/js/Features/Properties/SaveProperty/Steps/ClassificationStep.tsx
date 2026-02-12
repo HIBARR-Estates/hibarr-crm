@@ -17,7 +17,6 @@ export default function ClassificationStep({
     enumValues,
     data,
 }: ClassificationStepProps) {
-    const primaryCategories = enumValues?.primary_categories || [];
     const constructionStatuses = enumValues?.construction_statuses || [];
     const viewTypes = enumValues?.view_types || [];
     const occupancyTypes = enumValues?.occupancy_types || [];
@@ -39,27 +38,6 @@ export default function ClassificationStep({
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={12}>
                     <Form.Item
-                        name="primary_category"
-                        label="Primary Category"
-                        tooltip="The main category that best describes this property"
-                    >
-                        <Select
-                            placeholder="Select primary category"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                        >
-                            {primaryCategories.map((category) => (
-                                <Option key={category} value={category}>
-                                    {formatLabel(category)}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
-
-                <Col xs={24} md={12}>
-                    <Form.Item
                         name="construction_status"
                         label="Construction Status"
                         tooltip="Current construction or completion status"
@@ -69,8 +47,8 @@ export default function ClassificationStep({
                             allowClear
                         >
                             {constructionStatuses.map((status) => (
-                                <Option key={status} value={status}>
-                                    {formatLabel(status)}
+                                <Option key={status.name} value={status.name}>
+                                    {status.label}
                                 </Option>
                             ))}
                         </Select>
@@ -88,8 +66,8 @@ export default function ClassificationStep({
                             allowClear
                         >
                             {occupancyTypes.map((type) => (
-                                <Option key={type} value={type}>
-                                    {formatLabel(type)}
+                                <Option key={type.name} value={type.name}>
+                                    {type.label}
                                 </Option>
                             ))}
                         </Select>
@@ -116,8 +94,8 @@ export default function ClassificationStep({
                             }
                         >
                             {viewTypes.map((view) => (
-                                <Option key={view} value={view}>
-                                    {formatLabel(view)}
+                                <Option key={view.name} value={view.name}>
+                                    {view.label}
                                 </Option>
                             ))}
                         </Select>

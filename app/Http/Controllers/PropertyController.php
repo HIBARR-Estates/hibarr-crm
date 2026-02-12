@@ -370,14 +370,23 @@ class PropertyController extends AccountBaseController
         $property->city = $request->city ?? '';
         $property->map = $request->map;
         $property->area = $request->area;
+        $property->address = $request->address;
+        $property->latitude = $request->latitude;
+        $property->longitude = $request->longitude;
         $property->land_size = $request->land_size;
+        $property->living_area_sqm = $request->living_area_sqm;
+        $property->gross_sqm = $request->gross_sqm;
         $property->living_room = $request->living_room;
         $property->bedrooms = $request->bedrooms;
         $property->bathrooms = $request->bathrooms;
+        $property->rooms = $request->rooms;
         $property->floor_number = $request->floor_number;
         $property->floors_in_building = $request->floors_in_building;
+        $property->balcony_count = $request->balcony_count;
+        $property->balcony_net_sqm = $request->balcony_net_sqm;
         $property->building_age = $request->building_age;
         $property->furniture_status = $request->furniture_status;
+        $property->heating_type = $request->heating_type;
         $property->within_site = $request->has('within_site') || $request->within_site;
         $property->block_name = $request->block_name;
         $property->unit_number = $request->unit_number;
@@ -391,6 +400,43 @@ class PropertyController extends AccountBaseController
         $property->photos = $request->photos ? (is_array($request->photos) ? $request->photos : json_decode($request->photos, true)) : [];
         $property->add_ons = $request->add_ons ? (is_array($request->add_ons) ? $request->add_ons : json_decode($request->add_ons, true)) : [];
         
+        // New fields: Physical Attributes
+        $property->total_area_sqm = $request->total_area_sqm;
+        $property->plot_size_sqm = $request->plot_size_sqm;
+        $property->floor = $request->floor;
+
+        // New fields: Legal Info
+        $property->has_restrictions = $request->boolean('has_restrictions');
+        $property->restriction_notes = $request->restriction_notes;
+        $property->deed_status = $request->deed_status;
+
+        // New fields: Financial Information
+        $property->price_to_owner = $request->price_to_owner;
+        $property->hibarr_price = $request->hibarr_price;
+        $property->commission_agreement_signed = $request->boolean('commission_agreement_signed');
+
+        // New fields: Notes
+        $property->general_notes = $request->general_notes;
+
+        // Swap fields
+        $property->open_to_swap = $request->boolean('open_to_swap');
+        $property->swap_notes = $request->swap_notes;
+
+        // Distances (merge into existing distances JSON)
+        if ($request->has('distances')) {
+            $property->distances = $request->distances;
+        }
+
+        // Legal info with tax_info (merge into existing legal_info JSON)
+        if ($request->has('legal_info')) {
+            $property->legal_info = $request->legal_info;
+        }
+
+        // Documents checklist
+        if ($request->has('documents_checklist')) {
+            $property->documents_checklist = $request->documents_checklist;
+        }
+
         $property->save();
 
 
@@ -455,6 +501,16 @@ class PropertyController extends AccountBaseController
             'view_tasks' => user()->permission('view_tasks'),
         ];
 
+        // Data needed by the edit property modal
+        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'project_location_id')
+            ->with('location:id,name')
+            ->where('company_id', user()->company_id)
+            ->get();
+
+        $projectLocations = \App\Models\ProjectLocation::select('id', 'name')
+            ->where('company_id', user()->company_id)
+            ->get();
+
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
             'property' => $this->property,
@@ -466,6 +522,9 @@ class PropertyController extends AccountBaseController
             'employees' => $employees,
             'projects' => $projects,
             'taskPermissions' => $taskPermissions,
+            'enumValues' => Property::getEnumValues(),
+            'developerProjects' => $developerProjects,
+            'projectLocations' => $projectLocations,
         ]);
     }
 
@@ -567,6 +626,10 @@ class PropertyController extends AccountBaseController
         }
 
         $property->update($fieldsToUpdate);
+
+        if (request()->expectsJson()) {
+            return Reply::successWithData(__('messages.recordUpdated'), ['property' => $property->fresh()]);
+        }
 
         return back()->with([
             'success' => true,

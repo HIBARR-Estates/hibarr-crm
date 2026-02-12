@@ -350,15 +350,23 @@ class Property extends BaseModel
         'distances',
         'land_size',
         'living_area_sqm',
+        'gross_sqm',
         'terrace_area_sqm',
         'living_room',
         'bedrooms',
         'bathrooms',
+        'rooms',
         'floor_number',
         'floors_in_building',
+        'balcony_count',
+        'balcony_net_sqm',
         'building_age',
         'completion_date',
         'furniture_status',
+        'heating_type',
+        'address',
+        'latitude',
+        'longitude',
         'current_occupancy',
         'open_to_swap',
         'swap_notes',
@@ -384,6 +392,16 @@ class Property extends BaseModel
         'allow_101evler',
         'allow_hangiev',
         'land_details',
+        'total_area_sqm',
+        'plot_size_sqm',
+        'floor',
+        'has_restrictions',
+        'restriction_notes',
+        'deed_status',
+        'price_to_owner',
+        'hibarr_price',
+        'commission_agreement_signed',
+        'general_notes',
     ];
 
     /**
@@ -394,6 +412,23 @@ class Property extends BaseModel
      */
     protected $hidden = ["pivot"];
 
+    /**
+     * Distances JSON structure (stored in the `distances` column):
+     * {
+     *   "military_base": "string|null",  // text description
+     *   "sea": number|null,              // decimal km
+     *   "hospital": number|null,         // decimal km
+     *   "market": number|null,           // decimal km
+     *   "schools": number|null           // decimal km
+     * }
+     *
+     * Tax info is stored inside `legal_info` JSON:
+     * { "tax_info": { "vat_paid": bool, "vat_not_paid": bool, "trafo_fee_paid": bool, "stopaj_paid": bool } }
+     *
+     * Document uploads are stored inside `documents_checklist` JSON:
+     * { "search_document_url": "url", "sales_agreement_url": "url", "title_deed_copy_url": "url",
+     *   "owner_passport_copy_url": "url", "site_plan_layout_url": "url" }
+     */
     protected $casts = [
         'price' => PriceCast::class,
         'land_size' => 'decimal:2',
@@ -402,8 +437,14 @@ class Property extends BaseModel
         'minimal_rental_period' => 'integer',
         'building_age' => 'integer',
         'bathrooms' => 'integer',
+        'rooms' => 'integer',
         'floor_number' => 'integer',
         'floors_in_building' => 'integer',
+        'balcony_count' => 'integer',
+        'gross_sqm' => 'decimal:2',
+        'balcony_net_sqm' => 'decimal:2',
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
         'within_site' => 'boolean',
         'is_published' => 'boolean',
         'published_at' => 'datetime',
@@ -425,6 +466,12 @@ class Property extends BaseModel
         'financial_info' => 'array',
         'documents_checklist' => 'array',
         'land_details' => 'array',
+        'total_area_sqm' => 'decimal:2',
+        'plot_size_sqm' => 'decimal:2',
+        'has_restrictions' => 'boolean',
+        'price_to_owner' => 'decimal:2',
+        'hibarr_price' => 'decimal:2',
+        'commission_agreement_signed' => 'boolean',
     ];
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
@@ -602,6 +649,14 @@ class Property extends BaseModel
     public function responsibleAgent(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_agent_id');
+    }
+
+    /**
+     * Get availability requests for this property.
+     */
+    public function availabilityRequests(): HasMany
+    {
+        return $this->hasMany(PropertyAvailabilityRequest::class);
     }
 
     /**
@@ -1185,7 +1240,7 @@ class Property extends BaseModel
     {
         // If property is sold, only allow certain fields to be updated
         if ($this->isSold()) {
-            $allowedWhenSold = ['description', 'video_url', 'tour_360_url'];
+            $allowedWhenSold = ['description', 'video_url', 'tour_360_url', 'general_notes'];
             return in_array($field, $allowedWhenSold);
         }
 
@@ -1210,43 +1265,135 @@ class Property extends BaseModel
     /**
      * Get all enum values for the frontend.
      * This provides a single source of truth for all dropdown options.
+     *
+     * Values are sourced from lookup tables when available, falling
+     * All dropdown/enum values are sourced from their respective lookup tables
+     * (single source of truth). Falls back to legacy constants only if the
+     * lookup table is empty or doesn't exist yet.
+     *
+     * Every key returns [{name, label}] pairs for consistent frontend rendering,
+     * except type_codes / subtype_codes which are code-mapping records.
      */
     public static function getEnumValues(): array
     {
         return [
-            'primary_categories' => self::PRIMARY_CATEGORIES,
-            'unit_styles' => self::UNIT_STYLES,
-            'construction_statuses' => self::CONSTRUCTION_STATUSES,
-            'view_types' => self::VIEW_TYPES,
-            'occupancy_types' => self::OCCUPANCY_TYPES,
-            'cities' => self::CITIES,
-            'deed_types' => self::DEED_TYPES,
-            'deed_statuses' => self::DEED_STATUSES,
-            'land_types' => self::LAND_TYPES,
-            'outside_features' => self::OUTSIDE_FEATURES,
-            'inside_features' => self::INSIDE_FEATURES,
-            'furniture_statuses' => [
+            'primary_categories'    => self::getLookupValues(PropertyPrimaryCategory::class, self::PRIMARY_CATEGORIES),
+            'unit_styles'           => self::getLookupValues(PropertySubType::class, self::UNIT_STYLES),
+            'construction_statuses' => self::getLookupValues(PropertyConstructionStatus::class, self::CONSTRUCTION_STATUSES),
+            'view_types'            => self::getLookupValues(PropertyViewType::class, self::VIEW_TYPES),
+            'occupancy_types'       => self::getLookupValues(PropertyOccupancyType::class, self::OCCUPANCY_TYPES),
+            'cities'                => self::getLookupValues(PropertyCity::class, self::CITIES),
+            'deed_types'            => self::getLookupValues(PropertyTitleDeedType::class, self::DEED_TYPES),
+            'deed_statuses'         => self::getLookupValues(PropertyDeedStatus::class, self::DEED_STATUSES),
+            'land_types'            => self::getLookupValues(PropertyPrimaryCategory::class, self::LAND_TYPES), // kept for backward compat
+            'outside_features'      => self::getLookupValues(PropertyExteriorFeature::class, self::OUTSIDE_FEATURES),
+            'inside_features'       => self::getLookupValues(PropertyInteriorFeature::class, self::INSIDE_FEATURES),
+            'property_types'        => self::getLookupValues(PropertyType::class, self::getAllPropertyTypes()),
+            'floor_types'           => self::getLookupValues(PropertyFloorType::class, []),
+            'furniture_statuses'    => self::getLookupValues(PropertyFurnitureStatus::class, [
                 self::FURNITURE_UNFURNISHED,
                 self::FURNITURE_FULLY_FURNISHED,
                 self::FURNITURE_PART_FURNISHED,
                 self::FURNITURE_WHITE_GOODS_ONLY,
-            ],
-            'sale_types' => [
+            ]),
+            'sale_types'            => self::getLookupValues(PropertySaleType::class, [
                 self::SALE_TYPE_FOR_SALE,
                 self::SALE_TYPE_FOR_RENT,
                 self::SALE_TYPE_DAILY_RENTAL,
-            ],
-            'statuses' => [
+            ]),
+            'statuses'              => self::getLookupValues(PropertyStatus::class, [
                 self::STATUS_AVAILABLE,
                 self::STATUS_RESERVED,
                 self::STATUS_UNDER_OFFER,
                 self::STATUS_SOLD,
                 self::STATUS_RENTED,
                 self::STATUS_WITHDRAWN,
-            ],
-            'type_codes' => self::TYPE_CODES,
-            'subtype_codes' => self::SUBTYPE_CODES,
+            ]),
+            'heating_types'         => self::getLookupValues(PropertyHeatingType::class, []),
+            'location_features'     => self::getLookupValues(PropertyLocationFeature::class, []),
+            'add_ons'               => self::getLookupValues(PropertyAddOn::class, []),
+            'type_codes'            => self::TYPE_CODES,
+            'subtype_codes'         => self::SUBTYPE_CODES,
+            'property_types_by_category' => self::getPropertyTypesByCategory(),
         ];
+    }
+
+    /**
+     * Get property types grouped by their category column.
+     * Returns e.g. { residential: [{name, label}], commercial: [...], land: [...] }
+     */
+    private static function getPropertyTypesByCategory(): array
+    {
+        try {
+            $types = PropertyType::select('name', 'label', 'category')->get();
+            if ($types->isNotEmpty()) {
+                return $types->groupBy('category')->map(function ($group) {
+                    return $group->map(fn($t) => ['name' => $t->name, 'label' => $t->label])->values()->toArray();
+                })->toArray();
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        // Fallback: derive from constants
+        return [
+            'residential' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Villa', 'Twin Villa', 'Apartment', 'Family Home', 'Townhouse',
+                'Loft', 'Penthouse', 'Bungalow', 'Block of apartments',
+                'Complete Building', 'Abandoned Building', 'Residence',
+                'Half Construction', 'Time Share',
+            ]),
+            'commercial' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Shop', 'Hotel', 'Workplace', 'Warehouse', 'Workplace for sale',
+                'Office', 'Commercial Property',
+            ]),
+            'land' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Residentially Zoned Land', 'Field',
+                'Residentially and Commercially Zoned Land',
+                'Commercially Zoned Land', 'Industrially Zoned land',
+                'Tourism Zoned Land', 'Olive Grove',
+            ]),
+        ];
+    }
+
+    /**
+     * Get lookup names from a lookup table model, falling back to constants.
+     *
+     * @param class-string $modelClass  The lookup model class
+     * @param array        $fallback    Fallback constant values
+     * @return array<string>            List of name values
+     */
+    private static function getLookupNames(string $modelClass, array $fallback): array
+    {
+        try {
+            $values = $modelClass::pluck('name')->toArray();
+            return !empty($values) ? $values : $fallback;
+        } catch (\Throwable) {
+            return $fallback;
+        }
+    }
+
+    /**
+     * Get lookup values (name + label pairs) from a lookup table model.
+     * Returns [{name, label}] for richer dropdown rendering on the frontend.
+     *
+     * @param class-string $modelClass  The lookup model class
+     * @param array        $fallback    Fallback constant values (plain names)
+     * @return array
+     */
+    private static function getLookupValues(string $modelClass, array $fallback): array
+    {
+        try {
+            $values = $modelClass::select('name', 'label')->get()->toArray();
+            if (!empty($values)) {
+                return $values;
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        // Return fallback as [{name, label}] format
+        return array_map(fn($name) => ['name' => $name, 'label' => $name], $fallback);
     }
 
     /**

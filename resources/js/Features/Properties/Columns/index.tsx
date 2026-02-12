@@ -4,6 +4,7 @@ import {
     truncateText,
     parsePropertyPrice,
     formatCurrencyWithSymbol,
+    generatePropertySubtitle,
 } from "@/lib/utils";
 import { Property } from "@/Types";
 import { Link } from "@inertiajs/react";
@@ -29,16 +30,28 @@ export const PROPERTY_TABLE_COLUMNS = (
         dataIndex: "display_title",
         key: "title",
         width: 250,
-        render: (displayTitle: string, record: Property) => (
-            <Link
-                href={route("properties.show", record.id)}
-                className="font-medium text-blue-600 hover:text-blue-800"
-            >
-                {record?.reference_code ||
-                    displayTitle ||
-                    `Property #${record.id}`}
-            </Link>
-        ),
+        render: (displayTitle: string, record: Property) => {
+            const title = generatePropertySubtitle(record);
+            const referenceCode =
+                record?.reference_code ||
+                displayTitle ||
+                `Property #${record.id}`;
+            return (
+                <div>
+                    <Link
+                        href={route("properties.show", record.id)}
+                        className="font-medium text-blue-600 hover:text-blue-800"
+                    >
+                        {title && (
+                            <div className="text-xs text-gray-500 mt-0.5 leading-tight hover:text-gray-700">
+                                {truncateText(title, 50)}
+                            </div>
+                        )}
+                        <span>{referenceCode}</span>
+                    </Link>
+                </div>
+            );
+        },
     },
     {
         title: "Type",
@@ -110,14 +123,13 @@ export const PROPERTY_TABLE_COLUMNS = (
         },
     },
     {
-        title: "Details",
-        key: "details",
+        title: "Visibility",
+        key: "publish_status",
         width: 120,
         render: (_, record: Property) => (
-            <div className="text-sm">
-                <div>🛏️ {record?.bedrooms ?? "No"} bed</div>
-                <div>🚿 {record?.bathrooms ?? "No"} bath</div>
-            </div>
+            <Tag color={record.is_published ? "green" : "orange"}>
+                {record.is_published ? "Published" : "Draft"}
+            </Tag>
         ),
     },
     {

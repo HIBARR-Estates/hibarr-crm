@@ -168,38 +168,35 @@ export default function PropertyWizardForm({
         switch (stepKey) {
             case "basic":
                 return [
-                    "title",
+                    "primary_category",
                     "description",
                     "property_type",
                     "sale_type",
                     "unit_style",
                     "bedrooms",
+                    "bathrooms",
                     "living_room",
                     "price",
                     "status",
                     "developer_project_id",
+                ];
+            case "classification":
+                return ["construction_status", "view_types", "occupancy_type"];
+            case "location":
+                return [
                     "project_location_id",
                     "city",
                     "area",
+                    "address",
+                    "latitude",
+                    "longitude",
                 ];
-            case "classification":
-                return [
-                    "primary_category",
-                    "construction_status",
-                    "view_types",
-                    "occupancy_type",
-                ];
-            case "location":
-                return ["address", "latitude", "longitude"];
             case "details":
                 return [
                     "rooms",
-                    "bedrooms",
-                    "bathrooms",
-                    "living_room",
-                    "total_floors",
-                    "floor",
-                    "net_sqm",
+                    "floors_in_building",
+                    "floor_number",
+                    "living_area_sqm",
                     "gross_sqm",
                     "land_size",
                     "balcony_count",
@@ -207,7 +204,7 @@ export default function PropertyWizardForm({
                     "building_age",
                     "furniture_status",
                     "heating_type",
-                    "delivery_date",
+                    "completion_date",
                 ];
             case "features":
                 return [
@@ -278,24 +275,21 @@ export default function PropertyWizardForm({
 
     // Handle save (submit partial data)
     const handleSave = async () => {
-        // Validate required fields only
+        // Merge current form values with previously saved step values
         const currentValues = form.getFieldsValue();
         const finalValues = { ...formValues, ...currentValues };
 
-        // Check required fields for basic step
-        if (
-            !finalValues.title ||
-            !finalValues.property_type ||
-            !finalValues.sale_type
-        ) {
+        // Only property_type and sale_type are required by the backend
+        if (!finalValues.property_type || !finalValues.sale_type) {
             message.error(
-                "Please complete at least the Basic Info step with title, property type, and sale type",
+                "Please fill in at least Property Type and Sale Type before saving",
             );
             setCurrentStep(0);
             return;
         }
 
-        onSubmit(finalValues);
+        // Mark as draft save
+        onSubmit({ ...finalValues, _isDraft: true });
     };
 
     // Handle final submit
@@ -486,16 +480,14 @@ export default function PropertyWizardForm({
                         </Button>
                     )}
 
-                    {/* Save Draft button (always visible after first step) */}
-                    {(currentStep > 0 || isEditMode) && (
-                        <Button
-                            icon={<SaveOutlined />}
-                            onClick={handleSave}
-                            loading={loading}
-                        >
-                            Save Draft
-                        </Button>
-                    )}
+                    {/* Save Draft button (always visible) */}
+                    <Button
+                        icon={<SaveOutlined />}
+                        onClick={handleSave}
+                        loading={loading}
+                    >
+                        {isEditMode ? "Save" : "Save Draft"}
+                    </Button>
 
                     {isLastStep ? (
                         <Button

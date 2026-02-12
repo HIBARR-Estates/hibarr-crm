@@ -326,23 +326,35 @@ export type FurnitureStatus =
 // Property Enum Values Interface (from backend)
 // ================================================================
 
+/** A single lookup value from the database */
+export interface LookupValue {
+    name: string;
+    label: string;
+}
+
 export interface PropertyEnumValues {
-    primary_categories: PrimaryCategory[];
-    unit_styles: UnitStyle[];
-    construction_statuses: ConstructionStatus[];
-    view_types: ViewType[];
-    occupancy_types: OccupancyType[];
-    cities: City[];
-    deed_types: DeedType[];
-    deed_statuses: DeedStatus[];
-    land_types: LandType[];
-    outside_features: string[];
-    inside_features: string[];
-    furniture_statuses: string[];
-    sale_types: string[];
-    statuses: string[];
+    primary_categories: LookupValue[];
+    unit_styles: LookupValue[];
+    construction_statuses: LookupValue[];
+    view_types: LookupValue[];
+    occupancy_types: LookupValue[];
+    cities: LookupValue[];
+    deed_types: LookupValue[];
+    deed_statuses: LookupValue[];
+    land_types: LookupValue[];
+    outside_features: LookupValue[];
+    inside_features: LookupValue[];
+    property_types: LookupValue[];
+    floor_types: LookupValue[];
+    furniture_statuses: LookupValue[];
+    sale_types: LookupValue[];
+    statuses: LookupValue[];
+    heating_types: LookupValue[];
+    location_features: LookupValue[];
+    add_ons: LookupValue[];
     type_codes: Record<string, string>;
     subtype_codes: Record<string, string>;
+    property_types_by_category: Record<string, LookupValue[]>;
 }
 
 // Product Interface
@@ -707,4 +719,36 @@ export interface ShowCriterion {
     reference_value: string;
     negate: boolean;
     reference_field?: CustomField; // Populated from backend
+}
+
+// ================================================================
+// Property Availability Request
+// ================================================================
+
+export interface PropertyAvailabilityRequest {
+    id: number;
+    property_id: number;
+    requesting_agent_id: number;
+    responsible_agent_id?: number;
+    status: "pending" | "approved" | "denied" | "escalated" | "expired";
+    message: string | null;
+    response_message: string | null;
+    responded_at: string | null;
+    escalated_at: string | null;
+    expires_at: string | null;
+    created_at: string;
+    updated_at: string;
+    property?: Pick<
+        Property,
+        | "id"
+        | "title"
+        | "reference_code"
+        | "city"
+        | "area"
+        | "status"
+        | "property_type"
+        | "sale_type"
+    >;
+    requesting_agent?: User;
+    responsible_agent?: User;
 }

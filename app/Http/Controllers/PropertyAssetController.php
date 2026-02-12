@@ -183,10 +183,11 @@ class PropertyAssetController extends AccountBaseController
             foreach ($request->input('assets') as $index => $assetData) {
                 $asset = PropertyAsset::create([
                     'property_id' => $property->id,
+                    'company_id' => $property->company_id,
                     'asset_type' => $assetData['asset_type'],
                     'name' => $assetData['name'],
-                    'url' => $assetData['url'],
-                    'object_path' => $assetData['object_path'] ?? null,
+                    'external_url' => $assetData['url'],
+                    'file_path' => $assetData['object_path'] ?? null,
                     'mime_type' => $assetData['mime_type'] ?? null,
                     'file_size' => $assetData['file_size'] ?? null,
                     'tags' => $tags,

@@ -35,7 +35,7 @@ const SavePropertyModal: React.FC<Props> = ({
             open={open}
             onCancel={onClose}
             footer={null}
-            width={1000}
+            width={1100}
             destroyOnHidden
             maskClosable={false}
             className="top-8"
