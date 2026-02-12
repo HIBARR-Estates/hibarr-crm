@@ -20,9 +20,12 @@ class LeadMarketing extends BaseModel
         'utm_audience',
         // Traffic Source
         'traffic_source_id',
-        // Social Media Tracking
+        // Lead Source Tracking
         'facebook_click_id',
         'facebook_lead_id',
+        'facebook_browser_id',
+        'user_agent',
+        'ip_address',
         // Engagement Tracking
         'has_registered_for_the_webinar',
         'has_joined_the_facebook_group',

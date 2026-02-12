@@ -43,7 +43,10 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'utmInfo.content' => 'nullable|string|max:255',
             'facebook_click_id' => 'nullable|string|max:255',
             'facebook_lead_id' => 'nullable|string|max:255',
-            
+            'facebook_browser_id' => 'nullable|string|max:255',
+            'user_agent' => 'nullable|string|max:1024',
+            'ip_address' => 'nullable|string|max:45',
+
             // Optional engagement tracking fields
             'has_registered_for_the_webinar' => 'nullable|boolean',
             'has_joined_the_facebook_group' => 'nullable|boolean',
@@ -52,6 +55,14 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'registered_for_zoom_meeting' => 'nullable|boolean',
             'last_webinar_date' => 'nullable|date',
             'contact_score' => 'nullable|integer|min:0',
+
+            // Optional Lead Contact fields
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'country' => 'nullable|string|max:255',
+            'postal_code' => 'nullable|string|max:255',
+            'date_of_birth' => 'nullable|date',
         ];
     }
 

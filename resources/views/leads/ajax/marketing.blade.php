@@ -71,6 +71,21 @@
                         :value="$deal->contact->marketing->facebook_lead_id ?? '--'" 
                     />
 
+                    <x-cards.data-row 
+                        :label="__('Facebook Browser ID')" 
+                        :value="$deal->contact->marketing->facebook_browser_id ?? '--'" 
+                    />
+
+                    <x-cards.data-row 
+                        :label="__('IP Address')" 
+                        :value="$deal->contact->marketing->ip_address ?? '--'" 
+                    />
+
+                    <x-cards.data-row 
+                        :label="__('User Agent')" 
+                        :value="$deal->contact->marketing->user_agent ?? '--'" 
+                    />
+
                     {{-- Engagement Tracking Section --}}
                     <div class="col-12 px-0 mb-3 mt-3">
                         <h5 class="f-16 f-w-500 mb-3 text-capitalize">
