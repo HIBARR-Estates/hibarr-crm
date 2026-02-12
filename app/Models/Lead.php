@@ -37,6 +37,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $state
  * @property string|null $country
  * @property string|null $postal_code
+ * @property \Illuminate\Support\Carbon|null $date_of_birth
  * @property string|null $note
  * @property string $next_follow_up
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -87,6 +88,7 @@ use Illuminate\Notifications\Notifiable;
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereNote($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereOffice($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead wherePostalCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Lead whereDateOfBirth($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereSalutation($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereSourceId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereState($value)
@@ -124,6 +126,7 @@ class Lead extends BaseModel
         'salutation' => Salutation::class,
         'type' => ContactType::class,
         'gender' => Gender::class,
+        'date_of_birth' => 'date',
     ];
 
     public function getImageUrlAttribute()
@@ -167,13 +170,41 @@ class Lead extends BaseModel
         // Clean the phone number (remove all non-numeric characters)
         $cleanPhone = preg_replace('/[^0-9]/', '', $this->office);
         
-        // If the phone number is empty after cleaning, return --
+        // If the phone number is empty after cleaning, return -- 
         if (empty($cleanPhone)) {
             return '--';
         }
 
         // Add + prefix to match mobile phone format
         return '+' . $cleanPhone;
+    }
+
+    /**
+     * Get the 2-letter ISO country code from the stored country value (nicename, iso, or iso3).
+     */
+    public function getCountryIsoAttribute(): ?string
+    {
+        if (empty($this->country)) {
+            return null;
+        }
+
+        $countryValue = trim($this->country);
+
+        // Already 2-letter ISO (uppercase or lowercase)
+        if (strlen($countryValue) === 2) {
+            return strtoupper($countryValue);
+        }
+
+        $countries = \Illuminate\Support\Facades\Cache::remember('countries_list', 3600, fn () => Country::all());
+
+        $match = $countries->first(function ($c) use ($countryValue) {
+            return strcasecmp($c->nicename, $countryValue) === 0
+                || strcasecmp($c->name ?? '', $countryValue) === 0
+                || strcasecmp($c->iso3 ?? '', $countryValue) === 0
+                || strcasecmp($c->iso, $countryValue) === 0;
+        });
+
+        return $match ? strtoupper($match->iso) : null;
     }
 
     /**

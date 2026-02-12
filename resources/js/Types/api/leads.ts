@@ -77,6 +77,9 @@ export interface LeadMarketing {
     traffic_source_id?: string | null;
     facebook_click_id?: string | null;
     facebook_lead_id?: string | null;
+    facebook_browser_id?: string | null;
+    user_agent?: string | null;
+    ip_address?: string | null;
     has_registered_for_the_webinar: boolean;
     has_joined_the_facebook_group: boolean;
     has_downloaded_the_ebook: boolean;

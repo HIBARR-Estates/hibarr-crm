@@ -92,7 +92,13 @@ class CreateDealRequest extends CoreRequest
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
-            
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'country' => 'nullable|string|max:255',
+            'postal_code' => 'nullable|string|max:255',
+            'date_of_birth' => 'nullable|date',
+
             // Optional deal fields
             'package_id' => 'nullable|array',
             'package_id.*' => $packageRule,
@@ -111,7 +117,10 @@ class CreateDealRequest extends CoreRequest
             'utmInfo.content' => 'nullable|string|max:255',
             'facebook_click_id' => 'nullable|string|max:255',
             'facebook_lead_id' => 'nullable|string|max:255',
-            
+            'facebook_browser_id' => 'nullable|string|max:255',
+            'user_agent' => 'nullable|string|max:1024',
+            'ip_address' => 'nullable|string|max:45',
+
             // Optional engagement tracking fields
             'has_registered_for_the_webinar' => 'nullable|boolean',
             'has_joined_the_facebook_group' => 'nullable|boolean',
