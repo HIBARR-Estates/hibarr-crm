@@ -340,6 +340,7 @@ export interface PropertyEnumValues {
     view_types: LookupValue[];
     occupancy_types: LookupValue[];
     cities: LookupValue[];
+    areas: LookupValue[];
     deed_types: LookupValue[];
     deed_statuses: LookupValue[];
     land_types: LookupValue[];
@@ -356,6 +357,7 @@ export interface PropertyEnumValues {
     type_codes: Record<string, string>;
     subtype_codes: Record<string, string>;
     property_types_by_category: Record<string, LookupValue[]>;
+    areas_by_city: Record<string, LookupValue[]>;
 }
 
 // Product Interface

@@ -83,6 +83,12 @@ const Config = ({ pageTitle }: ConfigProps) => {
         path: route("property-config.index", { type: activeType }),
     });
 
+    // Fetch cities (used for the areas type to show parent city)
+    const citiesQuery = useApiQuery<ConfigItemsResponse>({
+        path: route("property-config.index", { type: "cities" }),
+    });
+    const cityItems = citiesQuery.data?.data || [];
+
     // Delete mutation
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const deleteMutation = useApiMutate<
@@ -170,6 +176,24 @@ const Config = ({ pageTitle }: ConfigProps) => {
                     ) : (
                         <Text type="secondary">—</Text>
                     ),
+            });
+        }
+
+        // Show city column only for areas
+        if (activeType === "areas") {
+            cols.push({
+                title: "City",
+                dataIndex: "city_id",
+                key: "city_id",
+                width: 160,
+                render: (val: number | null) => {
+                    const city = cityItems.find((c) => c.id === val);
+                    return city ? (
+                        <Tag color="green">{city.label}</Tag>
+                    ) : (
+                        <Text type="secondary">—</Text>
+                    );
+                },
             });
         }
 
@@ -415,6 +439,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                 activeType={activeType}
                 categoryMeta={activeMeta}
                 editingItem={editingItem}
+                cities={cityItems.map((c) => ({ id: c.id, label: c.label }))}
             />
         </PageLayout>
     );
