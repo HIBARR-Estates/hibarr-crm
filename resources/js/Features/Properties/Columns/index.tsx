@@ -40,14 +40,16 @@ export const PROPERTY_TABLE_COLUMNS = (
                 <div>
                     <Link
                         href={route("properties.show", record.id)}
-                        className="font-medium text-blue-600 hover:text-blue-800"
+                        className="hover:text-blue-800"
                     >
                         {title && (
-                            <div className="text-xs text-gray-500 mt-0.5 leading-tight hover:text-gray-700">
+                            <div className="font-semibold text-sm text-gray-900 leading-tight">
                                 {truncateText(title, 50)}
                             </div>
                         )}
-                        <span>{referenceCode}</span>
+                        <span className="text-xs text-gray-500 mt-0.5">
+                            {referenceCode}
+                        </span>
                     </Link>
                 </div>
             );

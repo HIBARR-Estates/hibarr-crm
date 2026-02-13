@@ -14,6 +14,7 @@ import {
     Space,
     Tag,
     Tooltip,
+    Select,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -45,6 +46,13 @@ import type {
 import { CONFIG_CATEGORIES, CONFIG_TYPE_ORDER } from "@/Types/propertyConfig";
 
 const { Text, Title } = Typography;
+
+/** Map category name → Tag color for the table */
+const CATEGORY_COLOR_MAP: Record<string, string> = {
+    residential: "green",
+    commercial: "blue",
+    land: "orange",
+};
 
 /** Icon component map — resolves icon name strings to actual components */
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -88,6 +96,34 @@ const Config = ({ pageTitle }: ConfigProps) => {
         path: route("property-config.index", { type: "cities" }),
     });
     const cityItems = citiesQuery.data?.data || [];
+
+    // Fetch primary categories (used for property-types to assign a category)
+    const categoriesQuery = useApiQuery<ConfigItemsResponse>({
+        path: route("property-config.index", { type: "primary-categories" }),
+    });
+    const categoryItems = categoriesQuery.data?.data || [];
+
+    // Row selection for bulk actions (property-types only)
+    const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+    const [bulkCategory, setBulkCategory] = useState<string | undefined>();
+
+    // Bulk assign category mutation
+    const bulkCategoryMutation = useApiMutate<
+        { ids: number[]; category: string },
+        null,
+        ApiSuccessResponse<null>
+    >(route("property-config.bulk-category"), "POST", () => {
+        setSelectedRowKeys([]);
+        setBulkCategory(undefined);
+    });
+
+    const handleBulkAssignCategory = () => {
+        if (!bulkCategory || selectedRowKeys.length === 0) return;
+        bulkCategoryMutation.mutate({
+            ids: selectedRowKeys as number[],
+            category: bulkCategory,
+        });
+    };
 
     // Delete mutation
     const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -197,6 +233,30 @@ const Config = ({ pageTitle }: ConfigProps) => {
             });
         }
 
+        // Show category column only for property-types
+        if (activeType === "property-types") {
+            cols.push({
+                title: "Category",
+                dataIndex: "category",
+                key: "category",
+                width: 140,
+                filters: categoryItems.map((c) => ({
+                    text: c.label,
+                    value: c.name,
+                })),
+                onFilter: (value, record) => record.category === value,
+                render: (val: string | null | undefined) => {
+                    if (!val) return <Text type="secondary">—</Text>;
+                    const cat = categoryItems.find((c) => c.name === val);
+                    return (
+                        <Tag color={CATEGORY_COLOR_MAP[val] || "default"}>
+                            {cat?.label || val}
+                        </Tag>
+                    );
+                },
+            });
+        }
+
         cols.push(
             {
                 title: "Description",
@@ -253,7 +313,13 @@ const Config = ({ pageTitle }: ConfigProps) => {
         );
 
         return cols;
-    }, [activeType, deletingId, deleteMutation.isPending]);
+    }, [
+        activeType,
+        deletingId,
+        deleteMutation.isPending,
+        cityItems,
+        categoryItems,
+    ]);
 
     // Build vertical tab items
     const tabItems = CONFIG_TYPE_ORDER.map((slug) => {
@@ -293,7 +359,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
         >
             <div className="max-w-7xl mx-auto space-y-4">
                 {/* Back to Properties */}
-                <div>
+                {/* <div>
                     <Link href={route("properties.index")}>
                         <Button
                             type="text"
@@ -303,13 +369,13 @@ const Config = ({ pageTitle }: ConfigProps) => {
                             Back to Properties
                         </Button>
                     </Link>
-                </div>
+                </div> */}
 
                 {/* Main Content: Vertical Tabs + Table */}
                 <Card className="shadow-sm" styles={{ body: { padding: 0 } }}>
                     <div className="flex min-h-[70vh]">
                         {/* Left: Vertical Tabs */}
-                        <div className="border-r border-gray-200 bg-gray-50/50">
+                        <div className="border-r border-gray-200 bg-gray-50/50 w-[240px] md:w-[240px]">
                             <div className="p-4 border-b border-gray-200">
                                 <Title
                                     level={5}
@@ -386,6 +452,52 @@ const Config = ({ pageTitle }: ConfigProps) => {
 
                             {/* Table */}
                             <div className="flex-1 p-4">
+                                {/* Bulk action bar for property-types */}
+                                {activeType === "property-types" &&
+                                    selectedRowKeys.length > 0 && (
+                                        <div className="flex items-center gap-3 mb-3 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                                            <Text className="text-sm text-blue-700">
+                                                {selectedRowKeys.length}{" "}
+                                                selected
+                                            </Text>
+                                            <Select
+                                                placeholder="Assign category"
+                                                value={bulkCategory}
+                                                onChange={setBulkCategory}
+                                                style={{ width: 180 }}
+                                                size="small"
+                                                allowClear
+                                                options={categoryItems.map(
+                                                    (c) => ({
+                                                        value: c.name,
+                                                        label: c.label,
+                                                    }),
+                                                )}
+                                            />
+                                            <Button
+                                                type="primary"
+                                                size="small"
+                                                disabled={!bulkCategory}
+                                                loading={
+                                                    bulkCategoryMutation.isPending
+                                                }
+                                                onClick={
+                                                    handleBulkAssignCategory
+                                                }
+                                            >
+                                                Assign
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                onClick={() => {
+                                                    setSelectedRowKeys([]);
+                                                    setBulkCategory(undefined);
+                                                }}
+                                            >
+                                                Clear
+                                            </Button>
+                                        </div>
+                                    )}
                                 {items.length === 0 && !isLoadingItems ? (
                                     <div className="flex items-center justify-center h-full">
                                         <Empty
@@ -414,6 +526,17 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                         dataSource={items}
                                         rowKey="id"
                                         loading={isLoadingItems}
+                                        rowSelection={
+                                            activeType === "property-types"
+                                                ? {
+                                                      selectedRowKeys,
+                                                      onChange: (keys) =>
+                                                          setSelectedRowKeys(
+                                                              keys,
+                                                          ),
+                                                  }
+                                                : undefined
+                                        }
                                         pagination={
                                             items.length > 20
                                                 ? {
@@ -440,6 +563,10 @@ const Config = ({ pageTitle }: ConfigProps) => {
                 categoryMeta={activeMeta}
                 editingItem={editingItem}
                 cities={cityItems.map((c) => ({ id: c.id, label: c.label }))}
+                primaryCategories={categoryItems.map((c) => ({
+                    name: c.name,
+                    label: c.label,
+                }))}
             />
         </PageLayout>
     );
