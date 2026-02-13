@@ -10,11 +10,14 @@ const { Text } = Typography;
 interface OwnerInfoSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
+    /** Whether the current user is a sales manager (controls agent & publishing visibility) */
+    isSalesManager?: boolean;
 }
 
 const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
     form,
     primaryCategory,
+    isSalesManager = false,
 }) => {
     const isLand = primaryCategory === "land";
     const { props } = usePage<any>();
@@ -77,49 +80,62 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
                     </Col>
                 </Row>
 
-                {/* Agent Responsible — read-only, auto-populated */}
-                <Row gutter={[16, 0]}>
-                    <Col xs={24} md={8}>
-                        <Form.Item
-                            name={["owner_info", "agent_responsible"]}
-                            label="Agent Responsible"
-                            tooltip="Automatically assigned to the agent who creates this listing"
-                        >
-                            <Input disabled />
-                        </Form.Item>
-                    </Col>
-                </Row>
+                {isSalesManager && (
+                    <>
+                        {/* Agent Responsible — read-only, auto-populated */}
+                        <Row gutter={[16, 0]}>
+                            <Col xs={24} md={8}>
+                                <Form.Item
+                                    name={["owner_info", "agent_responsible"]}
+                                    label="Agent Responsible"
+                                    tooltip="Automatically assigned to the agent who creates this listing"
+                                >
+                                    <Input disabled />
+                                </Form.Item>
+                            </Col>
+                        </Row>
 
-                {/* Publishing Permissions */}
-                <Text type="secondary" className="text-xs block mb-2 mt-1">
-                    Publishing Permissions
-                </Text>
-                <Row gutter={[16, 0]}>
-                    <Col xs={24} md={8}>
-                        <Form.Item
-                            name={["owner_info", "allow_101evler_publish"]}
-                            label="Permission for 101evler"
-                            valuePropName="checked"
+                        {/* Publishing Permissions */}
+                        <Text
+                            type="secondary"
+                            className="text-xs block mb-2 mt-1"
                         >
-                            <Switch
-                                checkedChildren="Yes"
-                                unCheckedChildren="No"
-                            />
-                        </Form.Item>
-                    </Col>
-                    <Col xs={24} md={8}>
-                        <Form.Item
-                            name={["owner_info", "allow_hangiev_publish"]}
-                            label="Permission for Hangiev"
-                            valuePropName="checked"
-                        >
-                            <Switch
-                                checkedChildren="Yes"
-                                unCheckedChildren="No"
-                            />
-                        </Form.Item>
-                    </Col>
-                </Row>
+                            Publishing Permissions
+                        </Text>
+                        <Row gutter={[16, 0]}>
+                            <Col xs={24} md={8}>
+                                <Form.Item
+                                    name={[
+                                        "owner_info",
+                                        "allow_101evler_publish",
+                                    ]}
+                                    label="Permission for 101evler"
+                                    valuePropName="checked"
+                                >
+                                    <Switch
+                                        checkedChildren="Yes"
+                                        unCheckedChildren="No"
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={8}>
+                                <Form.Item
+                                    name={[
+                                        "owner_info",
+                                        "allow_hangiev_publish",
+                                    ]}
+                                    label="Permission for Hangiev"
+                                    valuePropName="checked"
+                                >
+                                    <Switch
+                                        checkedChildren="Yes"
+                                        unCheckedChildren="No"
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </>
+                )}
             </div>
         );
     }
