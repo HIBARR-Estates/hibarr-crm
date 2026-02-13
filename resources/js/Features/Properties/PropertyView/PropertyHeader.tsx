@@ -303,10 +303,7 @@ function PropertyHeader({
                         </Tooltip>
                     )}
                     {onShare && (
-                        <Button
-                            icon={<ShareAltOutlined />}
-                            onClick={onShare}
-                        >
+                        <Button icon={<ShareAltOutlined />} onClick={onShare}>
                             Share
                         </Button>
                     )}

@@ -52,7 +52,11 @@ export default function DescriptionMediaCard({
             {hasDescription && (
                 <Paragraph
                     className="text-gray-700 text-sm leading-relaxed mb-4"
-                    ellipsis={{ rows: 4, expandable: true, symbol: "Read more" }}
+                    ellipsis={{
+                        rows: 4,
+                        expandable: true,
+                        symbol: "Read more",
+                    }}
                 >
                     {property.description}
                 </Paragraph>

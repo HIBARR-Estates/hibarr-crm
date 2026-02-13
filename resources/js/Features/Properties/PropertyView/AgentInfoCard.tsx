@@ -48,9 +48,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                 {/* Responsible agent */}
                 {property.responsibleAgent && (
                     <>
-                        {property.addedBy && (
-                            <Divider className="my-2" />
-                        )}
+                        {property.addedBy && <Divider className="my-2" />}
                         <div className="flex items-center gap-3">
                             <Avatar
                                 src={property.responsibleAgent.image_url}

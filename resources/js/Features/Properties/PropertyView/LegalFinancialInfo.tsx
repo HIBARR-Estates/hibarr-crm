@@ -51,10 +51,7 @@ export default function LegalFinancialInfo({
                                     : "orange"
                             }
                         >
-                            {property.legal_info.deed_status.replace(
-                                /_/g,
-                                " ",
-                            )}
+                            {property.legal_info.deed_status.replace(/_/g, " ")}
                         </Tag>
                     </Descriptions.Item>
                 )}
@@ -80,21 +77,39 @@ export default function LegalFinancialInfo({
                 )}
                 {property.legal_info?.vat_paid !== undefined && (
                     <Descriptions.Item label="VAT Paid">
-                        <Tag color={property.legal_info.vat_paid ? "green" : "orange"}>
+                        <Tag
+                            color={
+                                property.legal_info.vat_paid
+                                    ? "green"
+                                    : "orange"
+                            }
+                        >
                             {property.legal_info.vat_paid ? "Yes" : "No"}
                         </Tag>
                     </Descriptions.Item>
                 )}
                 {property.legal_info?.trafo_paid !== undefined && (
                     <Descriptions.Item label="Trafo Paid">
-                        <Tag color={property.legal_info.trafo_paid ? "green" : "orange"}>
+                        <Tag
+                            color={
+                                property.legal_info.trafo_paid
+                                    ? "green"
+                                    : "orange"
+                            }
+                        >
                             {property.legal_info.trafo_paid ? "Yes" : "No"}
                         </Tag>
                     </Descriptions.Item>
                 )}
                 {property.legal_info?.stopaj_paid !== undefined && (
                     <Descriptions.Item label="Stopaj Paid">
-                        <Tag color={property.legal_info.stopaj_paid ? "green" : "orange"}>
+                        <Tag
+                            color={
+                                property.legal_info.stopaj_paid
+                                    ? "green"
+                                    : "orange"
+                            }
+                        >
                             {property.legal_info.stopaj_paid ? "Yes" : "No"}
                         </Tag>
                     </Descriptions.Item>
@@ -124,19 +139,27 @@ export default function LegalFinancialInfo({
             {/* Payment Plan — land */}
             {property.legal_info?.has_payment_plan && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                    <Typography.Text type="secondary" className="text-xs block mb-2">
+                    <Typography.Text
+                        type="secondary"
+                        className="text-xs block mb-2"
+                    >
                         Payment Plan
                     </Typography.Text>
                     <Descriptions column={{ xs: 1, sm: 2 }} size="small">
-                        {property.legal_info.downpayment_value !== undefined && (
+                        {property.legal_info.downpayment_value !==
+                            undefined && (
                             <Descriptions.Item label="Down Payment">
                                 {property.legal_info.downpayment_value}
-                                {property.legal_info.downpayment_is_percentage ? "%" : ""}
+                                {property.legal_info.downpayment_is_percentage
+                                    ? "%"
+                                    : ""}
                             </Descriptions.Item>
                         )}
-                        {property.legal_info.payment_period_months !== undefined && (
+                        {property.legal_info.payment_period_months !==
+                            undefined && (
                             <Descriptions.Item label="Payment Period">
-                                {property.legal_info.payment_period_months} months
+                                {property.legal_info.payment_period_months}{" "}
+                                months
                             </Descriptions.Item>
                         )}
                         {property.legal_info.interest_rate !== undefined && (

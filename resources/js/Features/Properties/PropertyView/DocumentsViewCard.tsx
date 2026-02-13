@@ -59,7 +59,9 @@ export default function DocumentsViewCard({
                                 )}
                                 <Text
                                     className={
-                                        hasDoc ? "text-sm" : "text-sm text-gray-400"
+                                        hasDoc
+                                            ? "text-sm"
+                                            : "text-sm text-gray-400"
                                     }
                                 >
                                     {label}

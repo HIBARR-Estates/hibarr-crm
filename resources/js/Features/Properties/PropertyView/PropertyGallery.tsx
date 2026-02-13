@@ -94,10 +94,7 @@ export default function PropertyGallery({
 
                     {/* Side images — 4 slots */}
                     {sideImages.map((img, i) => (
-                        <div
-                            key={i}
-                            className="relative group cursor-pointer"
-                        >
+                        <div key={i} className="relative group cursor-pointer">
                             <Image
                                 src={img}
                                 alt={`Property photo ${i + 2}`}
@@ -146,8 +143,7 @@ export default function PropertyGallery({
             <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
                 <span className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
                     <CameraOutlined className="mr-1" />
-                    {images.length}{" "}
-                    {images.length === 1 ? "photo" : "photos"}
+                    {images.length} {images.length === 1 ? "photo" : "photos"}
                 </span>
                 {canEdit && (
                     <Button

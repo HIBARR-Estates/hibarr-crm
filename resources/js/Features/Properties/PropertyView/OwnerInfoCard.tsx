@@ -63,10 +63,7 @@ export default function OwnerInfoCard({
             {canViewOwnerInfo ? (
                 hasOwnerInfo ? (
                     <>
-                        <Descriptions
-                            column={{ xs: 1, sm: 2 }}
-                            size="small"
-                        >
+                        <Descriptions column={{ xs: 1, sm: 2 }} size="small">
                             {ownerInfo?.full_name && (
                                 <Descriptions.Item label="Owner Name">
                                     <Space>
@@ -79,9 +76,7 @@ export default function OwnerInfoCard({
                                 <Descriptions.Item label="Phone">
                                     <Space>
                                         <PhoneOutlined />
-                                        <a
-                                            href={`tel:${ownerInfo.telephone}`}
-                                        >
+                                        <a href={`tel:${ownerInfo.telephone}`}>
                                             {ownerInfo.telephone}
                                         </a>
                                     </Space>
@@ -91,9 +86,7 @@ export default function OwnerInfoCard({
                                 <Descriptions.Item label="Email">
                                     <Space>
                                         <MailOutlined />
-                                        <a
-                                            href={`mailto:${ownerInfo.email}`}
-                                        >
+                                        <a href={`mailto:${ownerInfo.email}`}>
                                             {ownerInfo.email}
                                         </a>
                                     </Space>
@@ -121,10 +114,7 @@ export default function OwnerInfoCard({
                             <>
                                 {ownerInfo?.agent_responsible && (
                                     <div className="mt-3 pt-3 border-t border-gray-100">
-                                        <Descriptions
-                                            column={1}
-                                            size="small"
-                                        >
+                                        <Descriptions column={1} size="small">
                                             <Descriptions.Item label="Agent Responsible">
                                                 <Space>
                                                     <TeamOutlined />
@@ -191,9 +181,7 @@ export default function OwnerInfoCard({
                         )}
                     </>
                 ) : (
-                    <Text type="secondary">
-                        No owner information available
-                    </Text>
+                    <Text type="secondary">No owner information available</Text>
                 )
             ) : (
                 <Alert

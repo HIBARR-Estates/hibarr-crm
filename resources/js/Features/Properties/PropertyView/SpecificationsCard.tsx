@@ -33,7 +33,11 @@ export default function SpecificationsCard({
 
     const stats: StatBlock[] = [];
 
-    if (fields.bedrooms && property.bedrooms !== undefined && property.bedrooms !== null) {
+    if (
+        fields.bedrooms &&
+        property.bedrooms !== undefined &&
+        property.bedrooms !== null
+    ) {
         stats.push({
             label: "Bedrooms",
             value: property.bedrooms === 0 ? "Studio" : property.bedrooms,
@@ -88,7 +92,11 @@ export default function SpecificationsCard({
         });
     }
 
-    if (fields.floorNumber && property.floor_number !== undefined && property.floor_number !== null) {
+    if (
+        fields.floorNumber &&
+        property.floor_number !== undefined &&
+        property.floor_number !== null
+    ) {
         stats.push({
             label: "Floor",
             value:
@@ -109,7 +117,11 @@ export default function SpecificationsCard({
         });
     }
 
-    if (fields.buildingAge && property.building_age !== undefined && property.building_age !== null) {
+    if (
+        fields.buildingAge &&
+        property.building_age !== undefined &&
+        property.building_age !== null
+    ) {
         stats.push({
             label: "Building Age",
             value: `${property.building_age} yrs`,

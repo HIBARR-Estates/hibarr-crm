@@ -13,14 +13,20 @@ export default function InternalInfoCard({ property }: InternalInfoCardProps) {
     const fi = property.financial_info;
 
     // Internal info is stored across financial_info and top-level fields
-    const hasPriceToOwner = fi?.owner_price !== undefined && fi?.owner_price !== null;
-    const hasHibarrPrice = fi?.hibarr_price !== undefined && fi?.hibarr_price !== null;
+    const hasPriceToOwner =
+        fi?.owner_price !== undefined && fi?.owner_price !== null;
+    const hasHibarrPrice =
+        fi?.hibarr_price !== undefined && fi?.hibarr_price !== null;
     const hasCommission = fi?.commission_signed !== undefined;
     const hasDues = !!(property as any).dues;
     const hasNotes = !!(property as any).general_notes;
 
     const hasAny =
-        hasPriceToOwner || hasHibarrPrice || hasCommission || hasDues || hasNotes;
+        hasPriceToOwner ||
+        hasHibarrPrice ||
+        hasCommission ||
+        hasDues ||
+        hasNotes;
 
     if (!hasAny) return null;
 

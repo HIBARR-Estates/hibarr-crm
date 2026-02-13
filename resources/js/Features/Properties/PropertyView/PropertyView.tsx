@@ -106,10 +106,9 @@ export default function PropertyView({
                         )}
 
                         {/* Documents — land only, permission-gated */}
-                        {sections.documents &&
-                            permissions.canViewDocuments && (
-                                <DocumentsViewCard property={property} />
-                            )}
+                        {sections.documents && permissions.canViewDocuments && (
+                            <DocumentsViewCard property={property} />
+                        )}
 
                         {/* Description & Media */}
                         {sections.descriptionMedia && (
@@ -133,11 +132,7 @@ export default function PropertyView({
                             )}
 
                         {/* Tasks */}
-                        <Card
-                            title="Tasks"
-                            variant="outlined"
-                            size="small"
-                        >
+                        <Card title="Tasks" variant="outlined" size="small">
                             <TasksTab
                                 tasks={tasks}
                                 relatedEntity={{
