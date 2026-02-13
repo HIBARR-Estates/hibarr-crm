@@ -132,11 +132,11 @@ export function usePropertyPermissions(
             isResponsibleAgent ||
             (property.is_published !== false && canViewPublished);
 
-        // Can edit if: admin, creator, or responsible agent
-        const canEdit = isAdmin || isCreator || isResponsibleAgent;
+        // Can edit if: creator or responsible agent only
+        const canEdit = isCreator || isResponsibleAgent;
 
-        // Can delete if: admin, creator, or responsible agent
-        const canDelete = isAdmin || isCreator || isResponsibleAgent;
+        // Can delete if: creator or responsible agent only
+        const canDelete = isCreator || isResponsibleAgent;
 
         // Can publish if: admin or creator only
         const canPublish = isAdmin || isCreator;
@@ -264,8 +264,8 @@ export function getPropertyPermissions(
         isCreator ||
         isResponsibleAgent ||
         (property.is_published !== false && canViewPublished);
-    const canEdit = isAdmin || isCreator || isResponsibleAgent;
-    const canDelete = isAdmin || isCreator || isResponsibleAgent;
+    const canEdit = isCreator || isResponsibleAgent;
+    const canDelete = isCreator || isResponsibleAgent;
     const canPublish = isAdmin || isCreator;
     const isSalesManager = isAdmin;
     const canViewOwnerInfo = isAdmin || isCreator;
