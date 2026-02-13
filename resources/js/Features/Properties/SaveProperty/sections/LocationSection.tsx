@@ -1,14 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import {
-    Form,
-    Select,
-    AutoComplete,
-    Input,
-    InputNumber,
-    Row,
-    Col,
-    Alert,
-} from "antd";
+import { Form, Select, Input, InputNumber, Row, Col, Alert } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
@@ -56,7 +47,10 @@ const LocationSection: React.FC<LocationSectionProps> = ({
 
     const hasProjectLocation = !!selectedProject?.location;
 
-    // City autocomplete options — derived from DB lookup values
+    // Watch city value for area filtering
+    const selectedCity = Form.useWatch("city", form);
+
+    // City select options — derived from DB lookup values
     const cityOptions = useMemo(() => {
         const cities = enumValues?.cities || [];
         return cities.map((c) => ({
@@ -64,6 +58,21 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             label: c.label,
         }));
     }, [enumValues?.cities]);
+
+    // Area options filtered by selected city
+    const areaOptions = useMemo(() => {
+        if (!selectedCity || !enumValues?.areas_by_city) return [];
+        const areas = enumValues.areas_by_city[selectedCity] || [];
+        return areas.map((a) => ({
+            value: a.name,
+            label: a.label,
+        }));
+    }, [selectedCity, enumValues?.areas_by_city]);
+
+    // Clear area when city changes
+    useEffect(() => {
+        form.setFieldValue("area", undefined);
+    }, [selectedCity]);
 
     return (
         <Row gutter={[16, 0]}>
@@ -105,14 +114,12 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             {/* City */}
             <Col xs={24} md={12}>
                 <Form.Item name="city" label="City">
-                    <AutoComplete
+                    <Select
                         options={cityOptions}
-                        placeholder="Select or type city"
-                        filterOption={(input, option) =>
-                            (option?.label as string)
-                                ?.toLowerCase()
-                                .includes(input.toLowerCase()) ?? false
-                        }
+                        placeholder="Select city"
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
                         disabled={hasProjectLocation}
                     />
                 </Form.Item>
@@ -121,9 +128,15 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             {/* Area / District */}
             <Col xs={24} md={12}>
                 <Form.Item name="area" label="Area / District">
-                    <Input
-                        placeholder="e.g. Alsancak, Catalkoy"
-                        disabled={hasProjectLocation}
+                    <Select
+                        options={areaOptions}
+                        placeholder={
+                            selectedCity ? "Select area" : "Select a city first"
+                        }
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        disabled={hasProjectLocation || !selectedCity}
                     />
                 </Form.Item>
             </Col>

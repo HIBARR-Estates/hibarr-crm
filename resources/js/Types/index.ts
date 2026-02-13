@@ -108,6 +108,10 @@ export interface OwnerInfo {
     email?: string;
     key_holder_name?: string;
     key_holder_phone?: string;
+    /** Land-only fields */
+    agent_responsible?: string;
+    allow_101evler_publish?: boolean;
+    allow_hangiev_publish?: boolean;
 }
 
 export interface LegalInfo {
@@ -119,6 +123,15 @@ export interface LegalInfo {
     vat_amount?: number;
     trafo_paid?: boolean;
     stopaj_paid?: boolean;
+    /** Land-only fields */
+    development_rate?: number;
+    max_floor_permission?: number;
+    has_payment_plan?: boolean;
+    downpayment_value?: number;
+    downpayment_is_percentage?: boolean;
+    payment_period_months?: number;
+    interest_rate?: number;
+    payment_plan_notes?: string;
 }
 
 export interface FinancialInfo {
@@ -130,11 +143,12 @@ export interface FinancialInfo {
 }
 
 export interface DocumentsChecklist {
-    search_document?: boolean;
-    sales_agreement?: boolean;
-    title_deed_copy?: boolean;
-    owner_passport?: boolean;
-    site_plan?: boolean;
+    onboarding_contract_url?: string;
+    search_document_url?: string;
+    sales_agreement_url?: string;
+    title_deed_copy_url?: string;
+    owner_passport_url?: string;
+    site_plan_url?: string;
 }
 
 export interface Distances {
@@ -340,6 +354,7 @@ export interface PropertyEnumValues {
     view_types: LookupValue[];
     occupancy_types: LookupValue[];
     cities: LookupValue[];
+    areas: LookupValue[];
     deed_types: LookupValue[];
     deed_statuses: LookupValue[];
     land_types: LookupValue[];
@@ -356,6 +371,7 @@ export interface PropertyEnumValues {
     type_codes: Record<string, string>;
     subtype_codes: Record<string, string>;
     property_types_by_category: Record<string, LookupValue[]>;
+    areas_by_city: Record<string, LookupValue[]>;
 }
 
 // Product Interface

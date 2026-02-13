@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Modal, Form, Input, Alert } from "antd";
+import { Modal, Form, Input, Alert, Select } from "antd";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import type {
@@ -15,6 +15,8 @@ interface ConfigItemModalProps {
     activeType: ConfigTypeSlug;
     categoryMeta: ConfigCategoryMeta;
     editingItem: PropertyConfigItem | null;
+    /** Pass cities for the areas type so user can pick parent city */
+    cities?: { id: number; label: string }[];
 }
 
 const ConfigItemModal = ({
@@ -23,6 +25,7 @@ const ConfigItemModal = ({
     activeType,
     categoryMeta,
     editingItem,
+    cities,
 }: ConfigItemModalProps) => {
     const [form] = Form.useForm<PropertyConfigPayload>();
     const isEditing = !!editingItem;
@@ -66,6 +69,7 @@ const ConfigItemModal = ({
                 label: editingItem.label,
                 description: editingItem.description ?? undefined,
                 parent_type: editingItem.parent_type ?? undefined,
+                city_id: editingItem.city_id ?? undefined,
             });
         } else if (open) {
             form.resetFields();
@@ -83,6 +87,10 @@ const ConfigItemModal = ({
 
             if (activeType === "sub-types" && values.parent_type) {
                 payload.parent_type = values.parent_type.trim();
+            }
+
+            if (activeType === "areas" && values.city_id) {
+                payload.city_id = values.city_id;
             }
 
             if (isEditing) {
@@ -155,6 +163,31 @@ const ConfigItemModal = ({
                             tooltip="The parent property type this sub-type belongs to"
                         >
                             <Input placeholder="e.g. APARTMENT" />
+                        </Form.Item>
+                    )}
+
+                    {activeType === "areas" && (
+                        <Form.Item
+                            name="city_id"
+                            label="City"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "City is required for areas",
+                                },
+                            ]}
+                            tooltip="The city this area belongs to"
+                        >
+                            <Select
+                                placeholder="Select city"
+                                allowClear
+                                showSearch
+                                optionFilterProp="label"
+                                options={(cities || []).map((c) => ({
+                                    value: c.id,
+                                    label: c.label,
+                                }))}
+                            />
                         </Form.Item>
                     )}
 

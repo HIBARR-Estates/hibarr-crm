@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { router } from "@inertiajs/react";
 import { Typography, message, Segmented } from "antd";
 import { Property } from "@/Types";
@@ -56,6 +56,9 @@ export default function CreateProperty({
               : "tabs",
     );
 
+    // Ref to track "save for upload" flow (don't navigate away after create)
+    const saveForUploadRef = useRef(false);
+
     // Submit button text based on mode
     const submitText = isEditing ? "Update Property" : "Create Property";
 
@@ -70,6 +73,18 @@ export default function CreateProperty({
         ApiSuccessResponse<Property>
     >(route("properties.store"), "POST", (res) => {
         if (res?.status === "success") {
+            // If this was a "save for upload" flow, stay on the form
+            // and transition to edit mode with the created property
+            if (saveForUploadRef.current) {
+                saveForUploadRef.current = false;
+                const createdProperty = (res.data as any)?.property || res.data;
+                if (createdProperty) {
+                    setProperty?.(createdProperty);
+                }
+                message.success("Property saved! You can now upload photos.");
+                return;
+            }
+
             if (onSuccess) {
                 onSuccess();
             } else if (!isPage) {
@@ -119,7 +134,12 @@ export default function CreateProperty({
 
             // Transform the values to match the API expectations
             // Strip internal flags before sending to API
-            const { _isDraft, ...cleanData } = formData;
+            const { _isDraft, _saveForUpload, ...cleanData } = formData;
+
+            // Track save-for-upload intent so the success callback stays on form
+            if (_saveForUpload) {
+                saveForUploadRef.current = true;
+            }
 
             const submitData = {
                 ...cleanData,

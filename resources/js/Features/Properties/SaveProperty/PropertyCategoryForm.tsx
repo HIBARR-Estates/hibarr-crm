@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Form, Button, Alert, Space, message } from "antd";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Form, Button, Alert, Space, Modal, message } from "antd";
 import {
     SaveOutlined,
     CheckOutlined,
@@ -10,6 +10,8 @@ import {
     TagsOutlined,
     StarOutlined,
     SafetyCertificateOutlined,
+    FolderOpenOutlined,
+    PictureOutlined,
     FileTextOutlined,
     UserOutlined,
     LockOutlined,
@@ -27,6 +29,8 @@ import {
     ClassificationSection,
     FeaturesSection,
     LegalFinancialSection,
+    DocumentsSection,
+    PhotosSection,
     DescriptionMediaSection,
     OwnerInfoSection,
     InternalInfoSection,
@@ -57,6 +61,7 @@ export default function PropertyCategoryForm({
 }: PropertyCategoryFormProps) {
     const [form] = Form.useForm();
     const contentRef = useRef<HTMLDivElement>(null);
+    const saveForUploadRef = useRef(false);
 
     const { props } = usePage<any>();
     const enumValues = props.enumValues as PropertyEnumValues | undefined;
@@ -116,6 +121,35 @@ export default function PropertyCategoryForm({
         const submitValues = transformValues(values);
         onSubmit({ ...submitValues, _isDraft: true });
     };
+
+    // Handle "Save & Continue" for photo uploads (create mode)
+    const handleSaveForUpload = useCallback(() => {
+        const values = form.getFieldsValue(true);
+
+        if (!values.property_type || !values.sale_type) {
+            message.error(
+                "Please fill in at least Property Type and Sale Type before saving",
+            );
+            return;
+        }
+
+        Modal.confirm({
+            title: "Save property to upload photos?",
+            content:
+                "Your current form data will be saved as a draft so you can start uploading photos.",
+            okText: "Save & Continue",
+            cancelText: "Cancel",
+            onOk: () => {
+                saveForUploadRef.current = true;
+                const submitValues = transformValues(values);
+                onSubmit({
+                    ...submitValues,
+                    _isDraft: true,
+                    _saveForUpload: true,
+                });
+            },
+        });
+    }, [form, onSubmit]);
 
     // Handle full submit
     const handleFinish = async () => {
@@ -359,6 +393,39 @@ export default function PropertyCategoryForm({
                                         form={form}
                                         primaryCategory={primaryCategory}
                                         enumValues={enumValues}
+                                    />
+                                </FormSection>
+                            )}
+
+                            {/* Documents (land only) */}
+                            {sections.documents && (
+                                <FormSection
+                                    title="Documents Checklist"
+                                    icon={<FolderOpenOutlined />}
+                                    description="Upload required documents for this land listing"
+                                    defaultOpen={false}
+                                >
+                                    <DocumentsSection
+                                        form={form}
+                                        primaryCategory={primaryCategory}
+                                    />
+                                </FormSection>
+                            )}
+
+                            {/* Photos */}
+                            {sections.photos && (
+                                <FormSection
+                                    title="Photos"
+                                    icon={<PictureOutlined />}
+                                    description="Upload and tag property photos"
+                                    defaultOpen={false}
+                                >
+                                    <PhotosSection
+                                        form={form}
+                                        primaryCategory={primaryCategory}
+                                        propertyId={data?.id}
+                                        existingAssets={(data as any)?.assets}
+                                        onSaveForUpload={handleSaveForUpload}
                                     />
                                 </FormSection>
                             )}
