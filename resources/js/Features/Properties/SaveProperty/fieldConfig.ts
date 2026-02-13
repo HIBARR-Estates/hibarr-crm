@@ -59,7 +59,7 @@ export const CATEGORY_SECTIONS: Record<PrimaryCategory, CategorySections> = {
         pricing: true,
         specifications: true, // limited: only plot size, no rooms
         location: true,
-        classification: true,
+        classification: false, // No classification for land
         features: false, // No interior/exterior for land
         legalFinancial: true,
         descriptionMedia: true,

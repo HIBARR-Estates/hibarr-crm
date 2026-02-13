@@ -119,6 +119,15 @@ export interface LegalInfo {
     vat_amount?: number;
     trafo_paid?: boolean;
     stopaj_paid?: boolean;
+    /** Land-only fields */
+    development_rate?: number;
+    max_floor_permission?: number;
+    has_payment_plan?: boolean;
+    downpayment_value?: number;
+    downpayment_is_percentage?: boolean;
+    payment_period_months?: number;
+    interest_rate?: number;
+    payment_plan_notes?: string;
 }
 
 export interface FinancialInfo {
