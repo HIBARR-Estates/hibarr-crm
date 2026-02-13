@@ -218,6 +218,23 @@ class PropertyConfigController extends AccountBaseController
     }
 
     /**
+     * Bulk-assign a primary category to multiple property types.
+     */
+    public function bulkUpdateCategory(Request $request)
+    {
+        $validated = $request->validate([
+            'ids'      => 'required|array|min:1',
+            'ids.*'    => 'integer|exists:property_types,id',
+            'category' => 'required|string|max:255',
+        ]);
+
+        PropertyType::whereIn('id', $validated['ids'])
+            ->update(['category' => $validated['category']]);
+
+        return Reply::success('Category assigned to ' . count($validated['ids']) . ' property type(s)');
+    }
+
+    /**
      * Resolve the model class from the route type slug.
      *
      * @param string $type
