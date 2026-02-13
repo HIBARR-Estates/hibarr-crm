@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import { Table, Button, Segmented } from "antd";
@@ -87,6 +87,12 @@ const Index = ({
     developers,
     developerProjects,
 }: IndexProps) => {
+    // Check if user is a sales manager (edit_product === 'all')
+    const { props } = usePage<any>();
+    const isSalesManager =
+        props.auth?.permissions?.edit_product === "all" ||
+        props.auth?.permissions?.edit_product === 4;
+
     // Debug: Log properties payload to see what price data looks like
     useEffect(() => {
         console.log("🔍 Properties payload:", properties);
@@ -302,11 +308,16 @@ const Index = ({
                                     Availability Requests
                                 </Button>
                             </Link>
-                            <Link href={route("property-config.page")}>
-                                <Button type="text" icon={<SettingOutlined />}>
-                                    Configuration
-                                </Button>
-                            </Link>
+                            {isSalesManager && (
+                                <Link href={route("property-config.page")}>
+                                    <Button
+                                        type="text"
+                                        icon={<SettingOutlined />}
+                                    >
+                                        Configuration
+                                    </Button>
+                                </Link>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-3">
