@@ -25,6 +25,7 @@ export interface CategorySections {
     features: boolean;
     legalFinancial: boolean;
     documents: boolean;
+    photos: boolean;
     descriptionMedia: boolean;
     ownerInfo: boolean;
     internalInfo: boolean;
@@ -40,6 +41,7 @@ export const CATEGORY_SECTIONS: Record<PrimaryCategory, CategorySections> = {
         features: true,
         legalFinancial: true,
         documents: false,
+        photos: true,
         descriptionMedia: true,
         ownerInfo: true,
         internalInfo: true,
@@ -53,6 +55,7 @@ export const CATEGORY_SECTIONS: Record<PrimaryCategory, CategorySections> = {
         features: true,
         legalFinancial: true,
         documents: false,
+        photos: true,
         descriptionMedia: true,
         ownerInfo: true,
         internalInfo: true,
@@ -66,6 +69,7 @@ export const CATEGORY_SECTIONS: Record<PrimaryCategory, CategorySections> = {
         features: false, // No interior/exterior for land
         legalFinancial: true,
         documents: true, // Land-only documents checklist
+        photos: true,
         descriptionMedia: true,
         ownerInfo: true,
         internalInfo: true,
