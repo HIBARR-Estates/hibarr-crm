@@ -13,6 +13,8 @@ export interface PropertyConfigItem {
     parent_type?: string;
     /** Only present for areas */
     city_id?: number;
+    /** Only present for property-types — the primary category this type belongs to */
+    category?: string;
     created_at: string;
     updated_at: string;
 }
@@ -24,6 +26,7 @@ export interface PropertyConfigPayload {
     description?: string | null;
     parent_type?: string;
     city_id?: number;
+    category?: string;
 }
 
 /** Summary returned by GET /property-config/types */

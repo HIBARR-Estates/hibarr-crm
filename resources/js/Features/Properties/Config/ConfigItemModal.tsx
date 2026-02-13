@@ -17,6 +17,8 @@ interface ConfigItemModalProps {
     editingItem: PropertyConfigItem | null;
     /** Pass cities for the areas type so user can pick parent city */
     cities?: { id: number; label: string }[];
+    /** Pass primary categories for property-types so user can assign a category */
+    primaryCategories?: { name: string; label: string }[];
 }
 
 const ConfigItemModal = ({
@@ -26,6 +28,7 @@ const ConfigItemModal = ({
     categoryMeta,
     editingItem,
     cities,
+    primaryCategories,
 }: ConfigItemModalProps) => {
     const [form] = Form.useForm<PropertyConfigPayload>();
     const isEditing = !!editingItem;
@@ -70,6 +73,7 @@ const ConfigItemModal = ({
                 description: editingItem.description ?? undefined,
                 parent_type: editingItem.parent_type ?? undefined,
                 city_id: editingItem.city_id ?? undefined,
+                category: editingItem.category ?? undefined,
             });
         } else if (open) {
             form.resetFields();
@@ -91,6 +95,10 @@ const ConfigItemModal = ({
 
             if (activeType === "areas" && values.city_id) {
                 payload.city_id = values.city_id;
+            }
+
+            if (activeType === "property-types" && values.category) {
+                payload.category = values.category;
             }
 
             if (isEditing) {
@@ -185,6 +193,32 @@ const ConfigItemModal = ({
                                 optionFilterProp="label"
                                 options={(cities || []).map((c) => ({
                                     value: c.id,
+                                    label: c.label,
+                                }))}
+                            />
+                        </Form.Item>
+                    )}
+
+                    {activeType === "property-types" && (
+                        <Form.Item
+                            name="category"
+                            label="Primary Category"
+                            rules={[
+                                {
+                                    required: true,
+                                    message:
+                                        "Category is required for property types",
+                                },
+                            ]}
+                            tooltip="The primary category this property type belongs to (Residential, Commercial, or Land)"
+                        >
+                            <Select
+                                placeholder="Select category"
+                                allowClear
+                                showSearch
+                                optionFilterProp="label"
+                                options={(primaryCategories || []).map((c) => ({
+                                    value: c.name,
                                     label: c.label,
                                 }))}
                             />
