@@ -10,6 +10,7 @@ import {
     TagsOutlined,
     StarOutlined,
     SafetyCertificateOutlined,
+    FolderOpenOutlined,
     FileTextOutlined,
     UserOutlined,
     LockOutlined,
@@ -27,6 +28,7 @@ import {
     ClassificationSection,
     FeaturesSection,
     LegalFinancialSection,
+    DocumentsSection,
     DescriptionMediaSection,
     OwnerInfoSection,
     InternalInfoSection,
@@ -359,6 +361,21 @@ export default function PropertyCategoryForm({
                                         form={form}
                                         primaryCategory={primaryCategory}
                                         enumValues={enumValues}
+                                    />
+                                </FormSection>
+                            )}
+
+                            {/* Documents (land only) */}
+                            {sections.documents && (
+                                <FormSection
+                                    title="Documents Checklist"
+                                    icon={<FolderOpenOutlined />}
+                                    description="Upload required documents for this land listing"
+                                    defaultOpen={false}
+                                >
+                                    <DocumentsSection
+                                        form={form}
+                                        primaryCategory={primaryCategory}
                                     />
                                 </FormSection>
                             )}

@@ -8,5 +8,6 @@ export { default as ClassificationSection } from "./ClassificationSection";
 export { default as FeaturesSection } from "./FeaturesSection";
 export { default as LegalFinancialSection } from "./LegalFinancialSection";
 export { default as DescriptionMediaSection } from "./DescriptionMediaSection";
+export { default as DocumentsSection } from "./DocumentsSection";
 export { default as OwnerInfoSection } from "./OwnerInfoSection";
 export { default as InternalInfoSection } from "./InternalInfoSection";

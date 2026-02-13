@@ -108,6 +108,10 @@ export interface OwnerInfo {
     email?: string;
     key_holder_name?: string;
     key_holder_phone?: string;
+    /** Land-only fields */
+    agent_responsible?: string;
+    allow_101evler_publish?: boolean;
+    allow_hangiev_publish?: boolean;
 }
 
 export interface LegalInfo {
@@ -139,11 +143,12 @@ export interface FinancialInfo {
 }
 
 export interface DocumentsChecklist {
-    search_document?: boolean;
-    sales_agreement?: boolean;
-    title_deed_copy?: boolean;
-    owner_passport?: boolean;
-    site_plan?: boolean;
+    onboarding_contract_url?: string;
+    search_document_url?: string;
+    sales_agreement_url?: string;
+    title_deed_copy_url?: string;
+    owner_passport_url?: string;
+    site_plan_url?: string;
 }
 
 export interface Distances {
