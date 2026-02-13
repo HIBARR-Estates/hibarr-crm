@@ -308,6 +308,11 @@ const Index = ({
                                     Availability Requests
                                 </Button>
                             </Link>
+                            <Link href="/account/publish-requests">
+                                <Button type="text" icon={<GlobalOutlined />}>
+                                    Publish Requests
+                                </Button>
+                            </Link>
                             {isSalesManager && (
                                 <Link href={route("property-config.page")}>
                                     <Button
