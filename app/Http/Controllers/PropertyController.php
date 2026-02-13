@@ -16,6 +16,7 @@ use App\Helper\Reply;
 use App\Traits\ImportExcel;
 use App\Exceptions\DuplicatePropertyException;
 use App\Services\PropertyDuplicateService;
+use App\Models\PropertyPublishRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Maatwebsite\Excel\Excel;
@@ -512,10 +513,16 @@ class PropertyController extends AccountBaseController
             ->where('company_id', user()->company_id)
             ->get();
 
+        // Check if there's a pending publish request for this property
+        $hasPendingPublishRequest = PropertyPublishRequest::where('property_id', $this->property->id)
+            ->pending()
+            ->exists();
+
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
             'property' => $this->property,
             'canEdit' => $canEdit,
+            'hasPendingPublishRequest' => $hasPendingPublishRequest,
             'tasks' => $tasks,
             'taskCategories' => $taskCategories,
             'taskLabels' => $taskLabels,
@@ -627,6 +634,22 @@ class PropertyController extends AccountBaseController
         }
 
         $property->update($fieldsToUpdate);
+
+        // Auto-revert to draft: if the property was published before this edit,
+        // unpublish it so the agent must request re-publishing via a Sales Manager.
+        $wasPublished = $property->getOriginal('is_published');
+        if ($wasPublished) {
+            $property->unpublish();
+
+            // Cancel any pending publish request for this property
+            PropertyPublishRequest::where('property_id', $property->id)
+                ->pending()
+                ->update([
+                    'status'           => PropertyPublishRequest::STATUS_REJECTED,
+                    'response_message' => 'Auto-cancelled: property was edited after publishing.',
+                    'reviewed_at'      => now(),
+                ]);
+        }
 
         if (request()->expectsJson()) {
             return Reply::successWithData(__('messages.recordUpdated'), ['property' => $property->fresh()]);

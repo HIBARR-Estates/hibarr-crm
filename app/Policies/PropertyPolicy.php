@@ -92,13 +92,24 @@ class PropertyPolicy
     }
 
     /**
-     * Determine whether the user can publish/unpublish the property.
+     * Determine whether the user can directly publish/unpublish the property.
      * 
-     * Only creator or admin.
+     * Only admin/sales-manager (handled by before() bypass).
+     * Regular agents must go through the publish-request workflow.
      */
     public function publish(User $user, Property $property): bool
     {
-        return $property->isCreator($user->id);
+        return false;
+    }
+
+    /**
+     * Determine whether the user can request publishing for the property.
+     * 
+     * Creator or responsible agent can request (non-admin users).
+     */
+    public function requestPublish(User $user, Property $property): bool
+    {
+        return $property->isCreator($user->id) || $property->isResponsibleAgent($user->id);
     }
 
     /**
