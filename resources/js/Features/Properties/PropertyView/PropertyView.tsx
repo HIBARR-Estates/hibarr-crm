@@ -25,6 +25,7 @@ import AgentInfoCard from "./AgentInfoCard";
 
 interface PropertyViewProps {
     property: Property;
+    hasPendingPublishRequest?: boolean;
     onEdit?: () => void;
     onShare?: () => void;
     onGenerateExpose?: () => void;
@@ -39,6 +40,7 @@ interface PropertyViewProps {
 
 export default function PropertyView({
     property,
+    hasPendingPublishRequest = false,
     onEdit,
     onShare,
     onGenerateExpose,
@@ -65,6 +67,7 @@ export default function PropertyView({
             <PropertyHeader
                 property={property}
                 permissions={permissions}
+                hasPendingPublishRequest={hasPendingPublishRequest}
                 onEdit={onEdit}
                 onShare={onShare}
                 onGenerateExpose={onGenerateExpose}

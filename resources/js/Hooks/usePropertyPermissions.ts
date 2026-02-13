@@ -25,8 +25,10 @@ export interface PropertyPermissions {
     canDelete: boolean;
     /** Whether the user can view the property */
     canView: boolean;
-    /** Whether the user can publish/unpublish the property */
+    /** Whether the user can directly publish/unpublish the property (SM/admin only) */
     canPublish: boolean;
+    /** Whether the user can request publishing (non-SM creator/responsible agent) */
+    canRequestPublish: boolean;
     /** Whether the user can view owner information */
     canViewOwnerInfo: boolean;
     /** Whether the user can request access to the property */
@@ -73,6 +75,7 @@ export function usePropertyPermissions(
             canDelete: false,
             canView: false,
             canPublish: false,
+            canRequestPublish: false,
             canViewOwnerInfo: false,
             canRequestAccess: false,
             hasAnyRole: false,
@@ -138,8 +141,11 @@ export function usePropertyPermissions(
         // Can delete if: creator or responsible agent only
         const canDelete = isCreator || isResponsibleAgent;
 
-        // Can publish if: admin or creator only
-        const canPublish = isAdmin || isCreator;
+        // Can publish directly if: admin/sales-manager only
+        const canPublish = isAdmin;
+
+        // Can request publish if: creator or responsible agent (but NOT admin/SM)
+        const canRequestPublish = !isAdmin && (isCreator || isResponsibleAgent);
 
         // Sales manager is effectively the same as admin (edit_product === 'all')
         const isSalesManager = isAdmin;
@@ -171,6 +177,7 @@ export function usePropertyPermissions(
             canDelete,
             canView,
             canPublish,
+            canRequestPublish,
             canViewOwnerInfo,
             canRequestAccess,
             hasAnyRole,
@@ -212,6 +219,7 @@ export function getPropertyPermissions(
         canDelete: false,
         canView: false,
         canPublish: false,
+        canRequestPublish: false,
         canViewOwnerInfo: false,
         canRequestAccess: false,
         hasAnyRole: false,
@@ -266,7 +274,8 @@ export function getPropertyPermissions(
         (property.is_published !== false && canViewPublished);
     const canEdit = isCreator || isResponsibleAgent;
     const canDelete = isCreator || isResponsibleAgent;
-    const canPublish = isAdmin || isCreator;
+    const canPublish = isAdmin;
+    const canRequestPublish = !isAdmin && (isCreator || isResponsibleAgent);
     const isSalesManager = isAdmin;
     const canViewOwnerInfo = isAdmin || isCreator;
     const canViewDocuments = isAdmin || isCreator;
@@ -284,6 +293,7 @@ export function getPropertyPermissions(
         canDelete,
         canView,
         canPublish,
+        canRequestPublish,
         canViewOwnerInfo,
         canRequestAccess,
         hasAnyRole,

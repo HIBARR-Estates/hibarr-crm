@@ -1017,6 +1017,14 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::post('/{id}/deny', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'deny'])->name('deny');
     });
     
+    // Property Publish Requests
+    Route::prefix('publish-requests')->name('publish-requests.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyPublishRequestController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PropertyPublishRequestController::class, 'store'])->name('store');
+        Route::post('/{id}/approve', [App\Http\Controllers\PropertyPublishRequestController::class, 'approve'])->name('approve');
+        Route::post('/{id}/reject', [App\Http\Controllers\PropertyPublishRequestController::class, 'reject'])->name('reject');
+    });
+    
     // Property Asset Management Routes
     Route::post('properties/{property}/photos', [App\Http\Controllers\PropertyController::class, 'updatePhotos'])->name('properties.update_photos');
     Route::post('properties/{property}/photos/add', [App\Http\Controllers\PropertyController::class, 'addSinglePhoto'])->name('properties.add_single_photo');
