@@ -293,7 +293,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
         >
             <div className="max-w-7xl mx-auto space-y-4">
                 {/* Back to Properties */}
-                <div>
+                {/* <div>
                     <Link href={route("properties.index")}>
                         <Button
                             type="text"
@@ -303,13 +303,13 @@ const Config = ({ pageTitle }: ConfigProps) => {
                             Back to Properties
                         </Button>
                     </Link>
-                </div>
+                </div> */}
 
                 {/* Main Content: Vertical Tabs + Table */}
                 <Card className="shadow-sm" styles={{ body: { padding: 0 } }}>
                     <div className="flex min-h-[70vh]">
                         {/* Left: Vertical Tabs */}
-                        <div className="border-r border-gray-200 bg-gray-50/50">
+                        <div className="border-r border-gray-200 bg-gray-50/50 w-[240px] md:w-[240px]">
                             <div className="p-4 border-b border-gray-200">
                                 <Title
                                     level={5}
