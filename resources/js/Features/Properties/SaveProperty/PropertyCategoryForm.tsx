@@ -17,7 +17,9 @@ import {
     LockOutlined,
 } from "@ant-design/icons";
 import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
+import { AppPermission } from "@/Types/permission";
 import { usePage } from "@inertiajs/react";
+import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
 import { CATEGORY_SECTIONS } from "./fieldConfig";
 import {
     CategorySelector,
@@ -67,6 +69,34 @@ export default function PropertyCategoryForm({
     const enumValues = props.enumValues as PropertyEnumValues | undefined;
 
     const isEditMode = !!data?.id;
+
+    // Permission checks
+    const propertyPermissions = usePropertyPermissions(
+        isEditMode ? (data as Property) : null,
+    );
+    const userPermissions = props.auth?.permissions as
+        | AppPermission
+        | undefined;
+    const isSalesManagerUser = !!(
+        userPermissions?.edit_product === "all" ||
+        userPermissions?.edit_product === 4
+    );
+
+    // Section-level permission gating:
+    // - Edit mode: use property-specific permissions (SM or creator)
+    // - Create mode: only SM can see restricted sections
+    const canSeeOwnerInfo = isEditMode
+        ? propertyPermissions.canViewOwnerInfo
+        : isSalesManagerUser;
+    const canSeeDocuments = isEditMode
+        ? propertyPermissions.canViewDocuments
+        : isSalesManagerUser;
+    const canSeeInternalInfo = isEditMode
+        ? propertyPermissions.canViewInternalInfo
+        : isSalesManagerUser;
+    const isSalesManager = isEditMode
+        ? propertyPermissions.isSalesManager
+        : isSalesManagerUser;
 
     // Track category from form
     const primaryCategory = Form.useWatch("primary_category", form) as
@@ -398,7 +428,7 @@ export default function PropertyCategoryForm({
                             )}
 
                             {/* Documents (land only) */}
-                            {sections.documents && (
+                            {canSeeDocuments && sections.documents && (
                                 <FormSection
                                     title="Documents Checklist"
                                     icon={<FolderOpenOutlined />}
@@ -446,7 +476,7 @@ export default function PropertyCategoryForm({
                             )}
 
                             {/* Owner Info */}
-                            {sections.ownerInfo && (
+                            {canSeeOwnerInfo && sections.ownerInfo && (
                                 <FormSection
                                     title="Owner Information"
                                     icon={<UserOutlined />}
@@ -456,12 +486,13 @@ export default function PropertyCategoryForm({
                                     <OwnerInfoSection
                                         form={form}
                                         primaryCategory={primaryCategory}
+                                        isSalesManager={isSalesManager}
                                     />
                                 </FormSection>
                             )}
 
                             {/* Internal Info */}
-                            {sections.internalInfo && (
+                            {canSeeInternalInfo && sections.internalInfo && (
                                 <FormSection
                                     title="Internal Info"
                                     icon={<LockOutlined />}

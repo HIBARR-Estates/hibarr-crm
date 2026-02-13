@@ -481,7 +481,7 @@ class PropertyController extends AccountBaseController
     private function renderPropertyShow(Property $property)
     {
         $this->property = $property;
-        $canEdit = false;
+        $canEdit = $this->property->added_by === user()->id || $this->property->responsible_agent_id === user()->id;
         $this->pageTitle = $this->property->title;
 
         $tasks = $this->property->tasks()

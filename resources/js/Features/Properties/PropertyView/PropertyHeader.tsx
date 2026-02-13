@@ -14,12 +14,9 @@ import {
     EditOutlined,
     ShareAltOutlined,
     EnvironmentOutlined,
-    HomeOutlined,
     DollarOutlined,
     FilePdfOutlined,
-    FolderOpenOutlined,
     CheckCircleOutlined,
-    ClockCircleOutlined,
     CopyOutlined,
     GlobalOutlined,
     EyeInvisibleOutlined,
@@ -32,7 +29,7 @@ import {
     formatCurrencyWithSymbol,
 } from "@/lib/utils";
 import { usePage } from "@inertiajs/react";
-import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
+import { PropertyPermissions } from "@/Hooks/usePropertyPermissions";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
@@ -41,18 +38,18 @@ const { Title, Text } = Typography;
 
 interface PropertyHeaderProps {
     property: Property;
+    permissions: PropertyPermissions;
     onEdit?: () => void;
     onShare?: () => void;
     onGenerateExpose?: () => void;
-    canEdit?: boolean;
 }
 
 function PropertyHeader({
     property,
+    permissions,
     onEdit,
     onShare,
     onGenerateExpose,
-    canEdit = false,
 }: PropertyHeaderProps) {
     const { props } = usePage<any>();
     const {
@@ -60,8 +57,6 @@ function PropertyHeader({
         default_currency_symbol: defaultCurrencySymbol,
         currencies = [],
     } = props || {};
-
-    const permissions = usePropertyPermissions(property);
 
     // Copied state for reference code
     const [copied, setCopied] = useState(false);
@@ -120,10 +115,6 @@ function PropertyHeader({
             setAvailabilityModal(false);
             setAvailabilityMessage("");
         });
-
-    const handleManageAssets = () => {
-        router.visit(route("properties.assets.index", property.id));
-    };
 
     const handleCopyReferenceCode = async () => {
         if (!property.reference_code) return;
@@ -261,17 +252,6 @@ function PropertyHeader({
                                 {property.area}, {property.city}
                             </Text>
                         </Space>
-                        <Space>
-                            <HomeOutlined />
-                            <Text>{property.property_type}</Text>
-                        </Space>
-                        <Space>
-                            <DollarOutlined />
-                            <Text>{property.sale_type}</Text>
-                        </Space>
-                        {property.primary_category && (
-                            <Tag color="blue">{property.primary_category}</Tag>
-                        )}
                     </div>
 
                     <div className="flex items-center gap-2 mb-4">
@@ -322,12 +302,11 @@ function PropertyHeader({
                             </Button>
                         </Tooltip>
                     )}
-                    <Button
-                        icon={<FolderOpenOutlined />}
-                        onClick={handleManageAssets}
-                    >
-                        Manage Assets
-                    </Button>
+                    {onShare && (
+                        <Button icon={<ShareAltOutlined />} onClick={onShare}>
+                            Share
+                        </Button>
+                    )}
                     {onGenerateExpose && (
                         <Button
                             icon={<FilePdfOutlined />}
