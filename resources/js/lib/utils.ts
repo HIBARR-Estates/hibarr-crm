@@ -219,7 +219,10 @@ export const filterProperties = (
  */
 export const generatePropertySubtitle = (record: Property): string | null => {
     const beds = record.bedrooms;
-    const unitStyle = formatEnumLabel(record.unit_style);
+    const unitStyle =
+        Array.isArray(record.unit_style) && record.unit_style.length > 0
+            ? record.unit_style.map(formatEnumLabel).join(" / ")
+            : null;
     const propertyType = record.property_type;
     const viewType = formatViewTypes(record.view_types);
     const furniture = formatFurniture(record.furniture_status);

@@ -141,29 +141,26 @@ class Property extends BaseModel
     // ================================================================
     // Reference Code Mapping - Unit Style/Subtype Codes
     // ================================================================
-    const UNIT_STYLE_STANDARD = 'standard';
     const UNIT_STYLE_PENTHOUSE = 'penthouse';
     const UNIT_STYLE_LOFT = 'loft';
-    const UNIT_STYLE_GARDEN = 'garden';
+    const UNIT_STYLE_GARDEN_APARTMENT = 'garden_apartment';
     const UNIT_STYLE_DUPLEX = 'duplex';
     const UNIT_STYLE_TRIPLEX = 'triplex';
     const UNIT_STYLE_STUDIO = 'studio';
 
     const SUBTYPE_CODES = [
-        self::UNIT_STYLE_STANDARD => 'STD',
         self::UNIT_STYLE_PENTHOUSE => 'PEN',
         self::UNIT_STYLE_LOFT => 'LFT',
-        self::UNIT_STYLE_GARDEN => 'GRD',
+        self::UNIT_STYLE_GARDEN_APARTMENT => 'GRD',
         self::UNIT_STYLE_DUPLEX => 'DPL',
         self::UNIT_STYLE_TRIPLEX => 'TPL',
         self::UNIT_STYLE_STUDIO => 'STU',
     ];
 
     const UNIT_STYLES = [
-        self::UNIT_STYLE_STANDARD,
         self::UNIT_STYLE_PENTHOUSE,
         self::UNIT_STYLE_LOFT,
-        self::UNIT_STYLE_GARDEN,
+        self::UNIT_STYLE_GARDEN_APARTMENT,
         self::UNIT_STYLE_DUPLEX,
         self::UNIT_STYLE_TRIPLEX,
         self::UNIT_STYLE_STUDIO,
@@ -478,6 +475,7 @@ class Property extends BaseModel
         'price_to_owner' => 'decimal:2',
         'hibarr_price' => 'decimal:2',
         'commission_agreement_signed' => 'boolean',
+        'unit_style' => 'array',
     ];
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
@@ -772,11 +770,23 @@ class Property extends BaseModel
         // Get type code
         $typeCode = self::TYPE_CODES[$this->property_type] ?? 'OTH';
         
-        // Get subtype code
-        $subtypeCode = self::SUBTYPE_CODES[$this->unit_style ?? self::UNIT_STYLE_STANDARD] ?? 'STD';
+        // Get subtype code(s) — unit_style is now an array (multi-select)
+        $styles = $this->unit_style ?? [];
+        if (!is_array($styles)) {
+            $styles = $styles ? [$styles] : [];
+        }
+        
+        // Build concatenated subtype codes (e.g. PEN-DPL), fallback to STD
+        if (empty($styles)) {
+            $subtypeCode = 'STD';
+        } else {
+            $codes = array_map(fn($s) => self::SUBTYPE_CODES[$s] ?? null, $styles);
+            $codes = array_filter($codes); // remove nulls
+            $subtypeCode = empty($codes) ? 'STD' : implode('-', $codes);
+        }
         
         // Get room code: bedrooms + living room (1), or 'S' for studio
-        if ($this->unit_style === self::UNIT_STYLE_STUDIO) {
+        if (is_array($styles) && in_array(self::UNIT_STYLE_STUDIO, $styles)) {
             $roomCode = 'S';
         } else {
             $bedrooms = (int) ($this->bedrooms ?? 0);
@@ -1469,7 +1479,7 @@ class Property extends BaseModel
      */
     public function scopeByUnitStyle($query, string $style)
     {
-        return $query->where('unit_style', $style);
+        return $query->whereJsonContains('unit_style', $style);
     }
 
     /**

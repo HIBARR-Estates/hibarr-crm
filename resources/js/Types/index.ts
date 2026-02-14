@@ -34,12 +34,11 @@ import { DeveloperProject } from "./developerProject";
 // Primary Category
 export type PrimaryCategory = "residential" | "commercial" | "land";
 
-// Unit Style (Subtype)
+// Unit Style (Subtype) — multi-select
 export type UnitStyle =
-    | "standard"
     | "penthouse"
     | "loft"
-    | "garden"
+    | "garden_apartment"
     | "duplex"
     | "triplex"
     | "studio";
@@ -182,7 +181,7 @@ export interface Property {
     responsible_agent_id?: number | null;
     property_type: PropertyType;
     primary_category?: PrimaryCategory;
-    unit_style?: UnitStyle;
+    unit_style?: UnitStyle[];
     construction_status?: ConstructionStatus;
     sale_type: "sale" | "rent";
     price: number;

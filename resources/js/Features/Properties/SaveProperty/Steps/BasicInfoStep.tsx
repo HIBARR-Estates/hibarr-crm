@@ -141,7 +141,7 @@ export default function BasicInfoStep({
         useState<PrimaryCategory | null>(
             (data?.primary_category as PrimaryCategory) ?? null,
         );
-    const [selectedUnitStyle, setSelectedUnitStyle] = useState<string | null>(
+    const [selectedUnitStyle, setSelectedUnitStyle] = useState<string[] | null>(
         data?.unit_style ?? null,
     );
 
@@ -158,7 +158,9 @@ export default function BasicInfoStep({
     // Derived flags
     const isLand = selectedCategory === "land";
     const isResidential = selectedCategory === "residential";
-    const isStudio = selectedUnitStyle === "studio";
+    const isStudio =
+        Array.isArray(selectedUnitStyle) &&
+        selectedUnitStyle.includes("studio");
     const showUnitStyle = isResidential;
     const showRoomFields = !isLand && !isStudio;
 
@@ -214,10 +216,10 @@ export default function BasicInfoStep({
         }
     };
 
-    const handleUnitStyleChange = (value: string | undefined) => {
-        setSelectedUnitStyle(value ?? null);
+    const handleUnitStyleChange = (value: string[]) => {
+        setSelectedUnitStyle(value?.length ? value : null);
         // Clear room fields when studio is selected
-        if (value === "studio") {
+        if (value?.includes("studio")) {
             form.setFieldValue("bedrooms", undefined);
             form.setFieldValue("living_room", undefined);
         }
@@ -359,7 +361,7 @@ export default function BasicInfoStep({
                     </Form.Item>
                 </Col>
 
-                {/* Unit Style - only for residential */}
+                {/* Unit Style - only for residential, multi-select */}
                 {showUnitStyle && (
                     <Col xs={24} md={12}>
                         <Form.Item
@@ -368,7 +370,8 @@ export default function BasicInfoStep({
                             tooltip="Used in reference code (e.g., APT-LFT-11-402 for Loft)"
                         >
                             <Select
-                                placeholder="Select unit style"
+                                mode="multiple"
+                                placeholder="Select unit style(s)"
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
