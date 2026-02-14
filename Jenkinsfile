@@ -92,6 +92,10 @@ pipeline {
                             # Reload PHP-FPM to clear OPcache
                             sudo systemctl reload php8.3-fpm || true
 
+                            echo 'Step 7: Cleanup old deployments...'
+                            cd /home/$TARGET_USER/deployments
+                            ls -dt ${ENV_NAME}_build_* | tail -n +6 | xargs rm -rf || true
+
                             echo 'Deployment Successful!'
                         "
                     '''

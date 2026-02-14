@@ -45,11 +45,19 @@ class StoreRequest extends CoreRequest
             'sale_type' => [
                 'required',
                 'string',
-                Rule::in([
-                    Property::SALE_TYPE_FOR_SALE,
-                    Property::SALE_TYPE_FOR_RENT,
-                    Property::SALE_TYPE_DAILY_RENTAL
-                ])
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    // Check lookup table first
+                    if (\App\Models\PropertySaleType::where('name', $value)->exists()) return;
+                    // Fall back to constants
+                    $allowed = [
+                        Property::SALE_TYPE_FOR_SALE,
+                        Property::SALE_TYPE_FOR_RENT,
+                        Property::SALE_TYPE_DAILY_RENTAL,
+                    ];
+                    if (!in_array($value, $allowed)) {
+                        $fail('The selected Sale Type is invalid.');
+                    }
+                },
             ],
             // Price can be:
             // - null
@@ -98,49 +106,66 @@ class StoreRequest extends CoreRequest
             'title_deed_type' => [
                 'nullable',
                 'string',
-                Rule::in([
-                    Property::TITLE_DEED_EXCHANGE,
-                    Property::TITLE_DEED_TURKISH,
-                    Property::TITLE_DEED_BRITISH,
-                    Property::TITLE_DEED_TAHSIS,
-                    Property::TITLE_DEED_MUJAHIT,
-                    Property::TITLE_DEED_FREEHOLD,
-                    Property::TITLE_DEED_LEASEHOLD,
-                    Property::TITLE_DEED_EXCHANGE_KAT,
-                    Property::TITLE_DEED_FULL_OWNERSHIP,
-                    Property::TITLE_DEED_SHARED,
-                    Property::TITLE_DEED_FLOOR_EASEMENT,
-                    Property::TITLE_DEED_LAND_REGISTRY,
-                ])
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value === null) return;
+                    // Check lookup table first
+                    if (\App\Models\PropertyTitleDeedType::where('name', $value)->exists()) return;
+                    // Fall back to old + new constants
+                    $allowed = array_merge([
+                        Property::TITLE_DEED_EXCHANGE, Property::TITLE_DEED_TURKISH,
+                        Property::TITLE_DEED_BRITISH, Property::TITLE_DEED_TAHSIS,
+                        Property::TITLE_DEED_MUJAHIT, Property::TITLE_DEED_FREEHOLD,
+                        Property::TITLE_DEED_LEASEHOLD, Property::TITLE_DEED_EXCHANGE_KAT,
+                        Property::TITLE_DEED_FULL_OWNERSHIP, Property::TITLE_DEED_SHARED,
+                        Property::TITLE_DEED_FLOOR_EASEMENT, Property::TITLE_DEED_LAND_REGISTRY,
+                    ], Property::DEED_TYPES);
+                    if (!in_array($value, $allowed)) {
+                        $fail('The selected Title Deed Type is invalid.');
+                    }
+                },
             ],
             'title_deed_stage' => [
                 'nullable',
                 'string',
-                Rule::in([
-                    Property::TITLE_DEED_STAGE_LAND,
-                    Property::TITLE_DEED_STAGE_SHARED,
-                    Property::TITLE_DEED_STAGE_INDIVIDUAL,
-                    Property::TITLE_DEED_STAGE_KAT_IRTIRFAKLI,
-                    Property::TITLE_DEED_STAGE_READY,
-                    Property::TITLE_DEED_STAGE_IN_PROGRESS,
-                    Property::TITLE_DEED_STAGE_PENDING,
-                    Property::TITLE_DEED_STAGE_APPLIED,
-                    Property::TITLE_DEED_STAGE_UNDER_REVIEW,
-                ])
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value === null) return;
+                    // Check lookup table first
+                    if (\App\Models\PropertyDeedStatus::where('name', $value)->exists()) return;
+                    // Fall back to old + new constants
+                    $allowed = array_merge([
+                        Property::TITLE_DEED_STAGE_LAND, Property::TITLE_DEED_STAGE_SHARED,
+                        Property::TITLE_DEED_STAGE_INDIVIDUAL, Property::TITLE_DEED_STAGE_KAT_IRTIRFAKLI,
+                        Property::TITLE_DEED_STAGE_READY, Property::TITLE_DEED_STAGE_IN_PROGRESS,
+                        Property::TITLE_DEED_STAGE_PENDING, Property::TITLE_DEED_STAGE_APPLIED,
+                        Property::TITLE_DEED_STAGE_UNDER_REVIEW,
+                    ], Property::DEED_STATUSES);
+                    if (!in_array($value, $allowed)) {
+                        $fail('The selected Title Deed Stage is invalid.');
+                    }
+                },
             ],
             'status' => [
                 'nullable',
                 'string',
-                Rule::in([
-                    Property::STATUS_AVAILABLE,
-                    Property::STATUS_UNDER_OFFER,
-                    Property::STATUS_SOLD,
-                    Property::STATUS_WITHDRAWN,
-                    'Rented',
-                    'Reserved',
-                    'Let agreed',
-                    'Sale agreed',
-                ])
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value === null) return;
+                    // Check lookup table first
+                    if (\App\Models\PropertyStatus::where('name', $value)->exists()) return;
+                    // Fall back to constants
+                    $allowed = [
+                        Property::STATUS_AVAILABLE,
+                        Property::STATUS_UNDER_OFFER,
+                        Property::STATUS_SOLD,
+                        Property::STATUS_WITHDRAWN,
+                        Property::STATUS_RESERVED,
+                        Property::STATUS_RENTED,
+                        'Let agreed',
+                        'Sale agreed',
+                    ];
+                    if (!in_array($value, $allowed)) {
+                        $fail('The selected Status is invalid.');
+                    }
+                },
             ],
             'developer_project_id' => 'nullable|exists:developer_projects,id',
             'city' => 'nullable|string|max:255',
@@ -156,14 +181,23 @@ class StoreRequest extends CoreRequest
             'furniture_status' => [
                 'nullable',
                 'string',
-                Rule::in([
-                    Property::FURNITURE_UNFURNISHED,
-                    Property::FURNITURE_FULLY_FURNISHED,
-                    Property::FURNITURE_FURNISHED,
-                    Property::FURNITURE_SEMI_FURNISHED,
-                    Property::FURNITURE_PART_FURNISHED,
-                    Property::FURNITURE_WHITE_GOODS_ONLY
-                ])
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value === null) return;
+                    // Check lookup table first
+                    if (\App\Models\PropertyFurnitureStatus::where('name', $value)->exists()) return;
+                    // Fall back to constants
+                    $allowed = [
+                        Property::FURNITURE_UNFURNISHED,
+                        Property::FURNITURE_FULLY_FURNISHED,
+                        Property::FURNITURE_FURNISHED,
+                        Property::FURNITURE_SEMI_FURNISHED,
+                        Property::FURNITURE_PART_FURNISHED,
+                        Property::FURNITURE_WHITE_GOODS_ONLY,
+                    ];
+                    if (!in_array($value, $allowed)) {
+                        $fail('The selected Furniture Status is invalid.');
+                    }
+                },
             ],
             'within_site' => 'nullable|boolean',
             'exterior_features' => 'nullable|array',

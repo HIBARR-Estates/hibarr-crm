@@ -283,6 +283,7 @@ export interface User {
 export type PropertyType =
     | "Villa"
     | "Twin Villa"
+    | "Semi-Detached Villa"
     | "Apartment"
     | "Family Home"
     | "Townhouse"
@@ -293,6 +294,7 @@ export type PropertyType =
     | "Block of apartments"
     | "Complete Building"
     | "Abandoned Building"
+    | "Ruin"
     | "Residence"
     | "Half Construction"
     | "Time Share"

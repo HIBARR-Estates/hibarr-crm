@@ -57,9 +57,9 @@ class PropertyPublishRequestController extends AccountBaseController
         $requests = $query->orderByDesc('created_at')->paginate(20);
 
         // For Inertia page visits return the page; for AJAX return JSON
-        if ($request->expectsJson() || $request->ajax()) {
-            return Reply::successWithData('', ['data' => $requests]);
-        }
+        // if ($request->expectsJson() || $request->ajax()) {
+        //     return Reply::successWithData('', ['data' => $requests]);
+        // }
 
         return Inertia::render('PublishRequests/Index', [
             'pageTitle' => 'Publish Requests',

@@ -64,17 +64,13 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
     const propertyTypes = [
         // Housing Types
-        "Villa",
-        "Twin Villa",
         "Apartment",
-        "Family Home",
-        "Townhouse",
-        "Loft",
-        "Penthouse",
+        "Villa",
+        "Semi-Detached Villa",
         "Bungalow",
-        "Duplex",
-        "Studio",
-        "Maisonette",
+        "Townhouse",
+        "Complete Building",
+        "Ruin",
         // Land Types
         "Residential Land",
         "Commercial Land",

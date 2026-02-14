@@ -308,12 +308,17 @@ const Index = ({
                                     Availability Requests
                                 </Button>
                             </Link>
-                            <Link href="/account/publish-requests">
-                                <Button type="text" icon={<GlobalOutlined />}>
-                                    Publish Requests
-                                </Button>
-                            </Link>
-                            {isSalesManager && (
+                            {isSalesManager ? (
+                                <Link href="/account/publish-requests">
+                                    <Button
+                                        type="text"
+                                        icon={<GlobalOutlined />}
+                                    >
+                                        Publish Requests
+                                    </Button>
+                                </Link>
+                            ) : null}
+                            {isSalesManager ? (
                                 <Link href={route("property-config.page")}>
                                     <Button
                                         type="text"
@@ -322,7 +327,7 @@ const Index = ({
                                         Configuration
                                     </Button>
                                 </Link>
-                            )}
+                            ) : null}
                         </div>
 
                         <div className="flex items-center gap-3">

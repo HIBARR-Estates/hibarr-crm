@@ -68,6 +68,7 @@ class PropertyLookupSeeder extends Seeder
         $types = [
             'Villa',
             'Twin Villa',
+            'Semi-Detached Villa',
             'Apartment',
             'Family Home',
             'Townhouse',
@@ -78,6 +79,7 @@ class PropertyLookupSeeder extends Seeder
             'Block of apartments',
             'Complete Building',
             'Abandoned Building',
+            'Ruin',
             'Residence',
             'Half Construction',
             'Time Share',
@@ -468,10 +470,8 @@ class PropertyLookupSeeder extends Seeder
     {
         $categoryMap = [
             'residential' => [
-                'Villa', 'Twin Villa', 'Apartment', 'Family Home', 'Townhouse',
-                'Loft', 'Penthouse', 'Bungalow', 'Block of apartments',
-                'Complete Building', 'Abandoned Building', 'Residence',
-                'Half Construction', 'Time Share',
+                'Apartment', 'Villa', 'Semi-Detached Villa', 'Bungalow',
+                'Townhouse', 'Complete Building', 'Ruin',
             ],
             'commercial' => [
                 'Shop', 'Hotel', 'Workplace', 'Warehouse', 'Workplace for sale',
