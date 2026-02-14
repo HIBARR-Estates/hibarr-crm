@@ -44,9 +44,10 @@ class PropertySubType extends BaseModel
 
     /**
      * Get all properties using this sub type/unit style.
+     * Note: unit_style is now a JSON array column, so we use whereJsonContains.
      */
     public function properties()
     {
-        return $this->hasMany(Property::class, 'unit_style', 'name');
+        return Property::whereJsonContains('unit_style', $this->name);
     }
 }

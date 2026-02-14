@@ -37,9 +37,9 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
     } = useFormOptions(enumValues, primaryCategory);
     const specFields = SPECIFICATION_FIELDS[primaryCategory];
 
-    // Unit style change handler
-    const handleUnitStyleChange = (value: string | undefined) => {
-        if (value === "studio") {
+    // Unit style change handler (multi-select)
+    const handleUnitStyleChange = (value: string[]) => {
+        if (value?.includes("studio")) {
             form.setFieldValue("bedrooms", 0);
             form.setFieldValue("living_room", undefined);
         }
@@ -111,12 +111,13 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                 </Form.Item>
             </Col>
 
-            {/* Unit Style — residential only */}
+            {/* Unit Style — residential only, multi-select */}
             {specFields.unitStyle && (
                 <Col xs={24} md={12}>
                     <Form.Item name="unit_style" label="Unit Style">
                         <Select
-                            placeholder="Select unit style"
+                            mode="multiple"
+                            placeholder="Select unit style(s)"
                             allowClear
                             onChange={handleUnitStyleChange}
                         >

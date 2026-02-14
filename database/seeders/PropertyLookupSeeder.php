@@ -107,10 +107,9 @@ class PropertyLookupSeeder extends Seeder
     private function seedPropertySubTypes(int $companyId): void
     {
         $subTypes = [
-            'standard',
             'penthouse',
             'loft',
-            'garden',
+            'garden_apartment',
             'duplex',
             'triplex',
             'studio',

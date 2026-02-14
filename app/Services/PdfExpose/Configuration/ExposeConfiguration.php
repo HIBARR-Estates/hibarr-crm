@@ -73,7 +73,7 @@ class ExposeConfiguration implements Arrayable
                 // Property classification
                 'property_type' => $property->property_type,
                 'primary_category' => $property->primary_category,
-                'unit_style' => $property->unit_style,
+                'unit_style' => is_array($property->unit_style) ? implode(' / ', array_map('ucfirst', $property->unit_style)) : ($property->unit_style ?? null),
                 'sale_type' => $property->sale_type,
                 'status' => $property->status,
                 'block_name' => $property->block_name,

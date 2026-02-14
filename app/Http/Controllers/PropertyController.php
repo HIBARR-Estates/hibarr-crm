@@ -91,7 +91,7 @@ class PropertyController extends AccountBaseController
 
         // Filter by unit style
         if ($request->filled('unit_style') && $request->unit_style !== 'all') {
-            $query->where('unit_style', $request->unit_style);
+            $query->whereJsonContains('unit_style', $request->unit_style);
         }
 
         // Filter by construction status

@@ -33,9 +33,13 @@ export default function CoreDetailsCard({ property }: CoreDetailsCardProps) {
                         </Tag>
                     </Descriptions.Item>
                 )}
-                {property.unit_style && (
+                {property.unit_style && property.unit_style.length > 0 && (
                     <Descriptions.Item label="Unit Style">
-                        {property.unit_style}
+                        {property.unit_style.map((style) => (
+                            <Tag key={style} className="capitalize">
+                                {style.replace(/_/g, " ")}
+                            </Tag>
+                        ))}
                     </Descriptions.Item>
                 )}
             </Descriptions>

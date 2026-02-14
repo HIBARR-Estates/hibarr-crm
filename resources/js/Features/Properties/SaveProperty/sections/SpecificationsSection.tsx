@@ -35,7 +35,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
         primaryCategory,
     );
     const unitStyle = Form.useWatch("unit_style", form);
-    const isStudio = unitStyle === "studio";
+    const isStudio = Array.isArray(unitStyle) && unitStyle.includes("studio");
 
     // Prevent infinite loops during donum ↔ m² conversion
     const isConverting = useRef(false);

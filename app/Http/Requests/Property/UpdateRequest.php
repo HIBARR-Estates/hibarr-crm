@@ -96,6 +96,18 @@ class UpdateRequest extends CoreRequest
                     $fail("The {$attribute} must be a numeric value, an array, or a valid JSON string.");
                 },
             ],
+            'unit_style' => 'nullable|array',
+            'unit_style.*' => [
+                'string',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    // Check lookup table first
+                    if (\App\Models\PropertySubType::where('name', $value)->exists()) return;
+                    // Fall back to constants
+                    if (!in_array($value, Property::UNIT_STYLES)) {
+                        $fail('The selected unit style is invalid.');
+                    }
+                },
+            ],
             'minimal_rental_period' => 'nullable|string|max:255',
             'rent_payment_interval' => [
                 'nullable',
