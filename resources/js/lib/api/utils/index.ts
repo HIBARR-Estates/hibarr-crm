@@ -1,11 +1,12 @@
 import { QueryClient } from "@tanstack/react-query";
-import { QUERY_INVALIDATION } from "./invalidation-mapping";
+import { getQueryInvalidation } from "./invalidation-mapping";
 
 export const invalidateOnSuccess = (
     client: QueryClient,
-    mutationKey: string
+    mutationKey: string,
 ) => {
-    const keysToInvalidate = QUERY_INVALIDATION?.[mutationKey];
+    const mapping = getQueryInvalidation();
+    const keysToInvalidate = mapping?.[mutationKey];
     keysToInvalidate?.forEach((queryKey) => {
         client.invalidateQueries({
             queryKey,
