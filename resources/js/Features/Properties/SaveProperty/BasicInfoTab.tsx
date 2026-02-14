@@ -13,7 +13,7 @@ import {
 } from "antd";
 import { PropertyFormProps } from "./PropertyForm";
 import { Property } from "@/Types";
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { DeveloperProjectOption } from "@/Types/developerProject";
 import { usePage } from "@inertiajs/react";
 import { PageProps } from "@/Components/DashboardLayout";
@@ -22,6 +22,11 @@ import { parsePropertyPrice } from "@/lib/utils";
 
 const { Option } = Select;
 const { TextArea } = Input;
+
+interface DeveloperOption {
+    id: number;
+    name: string;
+}
 
 // Property type categories for better organization
 const PROPERTY_CATEGORIES = {
@@ -91,7 +96,10 @@ export default function BasicInfoTab({
     setErrors,
 }: BasicInfoTabProps) {
     const [form] = Form.useForm<
-        Omit<Property, "id"> & { developer_project_id?: number }
+        Omit<Property, "id"> & {
+            developer_project_id?: number;
+            _selected_developer_id?: number;
+        }
     >();
     const { props } = usePage<PageProps>();
     // const defaultCurrencyId = props.company?.currency_id;
@@ -103,15 +111,26 @@ export default function BasicInfoTab({
     const previousDataIdRef = useRef<number | undefined>(undefined);
     const isInitialMountRef = useRef(true);
 
-    // Populate form when data changes (only on initial mount or when data ID changes)
     // Get developer projects from page props
     const developerProjects = (props?.developerProjects ||
         []) as DeveloperProjectOption[];
+    const developers = (props?.developers || []) as DeveloperOption[];
 
     // Track selected project to manage location field behavior
     const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
         data?.developer_project_id ?? null,
     );
+    const [selectedDeveloperId, setSelectedDeveloperId] = useState<
+        number | null
+    >(() => {
+        if (data?.developer_project_id) {
+            const project = (
+                (props?.developerProjects as DeveloperProjectOption[]) || []
+            ).find((p) => p.id === data.developer_project_id);
+            return (project as any)?.developer_id ?? null;
+        }
+        return null;
+    });
 
     // Find the selected project and check if it has a location
     const selectedProject = useMemo(() => {
@@ -127,6 +146,37 @@ export default function BasicInfoTab({
             selectedProject?.location !== null
         );
     }, [selectedProject]);
+
+    const withinSite = Form.useWatch("within_site", form);
+
+    // Filter projects by selected developer
+    const filteredProjects = useMemo(() => {
+        if (!selectedDeveloperId) return developerProjects;
+        return developerProjects.filter(
+            (p) => (p as any).developer_id === selectedDeveloperId,
+        );
+    }, [selectedDeveloperId, developerProjects]);
+
+    const handleWithinSiteChange = useCallback(
+        (value: boolean | undefined) => {
+            if (!value) {
+                setSelectedDeveloperId(null);
+                setSelectedProjectId(null);
+                form.setFieldValue("_selected_developer_id", undefined);
+                form.setFieldValue("developer_project_id", undefined);
+            }
+        },
+        [form],
+    );
+
+    const handleDeveloperChange = useCallback(
+        (value: number | undefined) => {
+            setSelectedDeveloperId(value ?? null);
+            setSelectedProjectId(null);
+            form.setFieldValue("developer_project_id", undefined);
+        },
+        [form],
+    );
 
     // Populate form when data changes
     useEffect(() => {
@@ -180,16 +230,18 @@ export default function BasicInfoTab({
             priceValue = JSON.stringify(priceValue);
         }
 
+        const { _selected_developer_id, ...cleanValues } = values;
+
         const formData = {
-            ...values,
+            ...cleanValues,
             price: priceValue,
-            within_site: values.within_site || false,
+            within_site: cleanValues.within_site || false,
             // Handle array fields
-            exterior_features: values.exterior_features || [],
-            interior_features: values.interior_features || [],
-            location_features: values.location_features || [],
-            photos: values.photos || [],
-            add_ons: values.add_ons || [],
+            exterior_features: cleanValues.exterior_features || [],
+            interior_features: cleanValues.interior_features || [],
+            location_features: cleanValues.location_features || [],
+            photos: cleanValues.photos || [],
+            add_ons: cleanValues.add_ons || [],
         };
 
         onSubmit(formData);
@@ -346,34 +398,95 @@ export default function BasicInfoTab({
                         </Form.Item>
                     </Col>
 
-                    {/* Developer Project Selection */}
+                    {/* Residence / Project flow */}
                     <Col span={24}>
+                        <Divider
+                            plain
+                            className="!my-2 !text-xs !text-gray-400"
+                        >
+                            Residence / Project
+                        </Divider>
+                    </Col>
+
+                    <Col xs={24} md={12}>
                         <Form.Item
-                            name="developer_project_id"
-                            label="Developer Project"
-                            tooltip="Selecting a project will derive location from the project's location settings"
+                            name="within_site"
+                            label="Is this property in a residence or project?"
                         >
                             <Select
-                                placeholder="Select a developer project (optional)"
+                                placeholder="Select"
                                 allowClear
-                                showSearch
-                                optionFilterProp="children"
-                                // onChange={handleProjectChange}
-                                value={selectedProjectId ?? undefined}
+                                onChange={handleWithinSiteChange}
                             >
-                                {developerProjects.map((project) => (
-                                    <Option key={project.id} value={project.id}>
-                                        {project.name}
-                                        {project.location && (
-                                            <span className="text-gray-400 ml-2">
-                                                ({project.location.name})
-                                            </span>
-                                        )}
-                                    </Option>
-                                ))}
+                                <Option value={true}>Yes</Option>
+                                <Option value={false}>No</Option>
                             </Select>
                         </Form.Item>
                     </Col>
+
+                    {withinSite === true && (
+                        <>
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    name="_selected_developer_id"
+                                    label="Construction Company"
+                                    tooltip="Select the construction company / developer"
+                                >
+                                    <Select
+                                        placeholder="Select construction company"
+                                        allowClear
+                                        showSearch
+                                        optionFilterProp="children"
+                                        onChange={handleDeveloperChange}
+                                    >
+                                        {developers.map((dev) => (
+                                            <Option key={dev.id} value={dev.id}>
+                                                {dev.name}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    name="developer_project_id"
+                                    label="Project Name"
+                                    tooltip="Selecting a project will derive location from the project's location settings"
+                                >
+                                    <Select
+                                        placeholder={
+                                            selectedDeveloperId
+                                                ? "Select project"
+                                                : "Select a company first, or pick from all projects"
+                                        }
+                                        allowClear
+                                        showSearch
+                                        optionFilterProp="children"
+                                        value={selectedProjectId ?? undefined}
+                                        onChange={(v: number | undefined) =>
+                                            setSelectedProjectId(v ?? null)
+                                        }
+                                    >
+                                        {filteredProjects.map((project) => (
+                                            <Option
+                                                key={project.id}
+                                                value={project.id}
+                                            >
+                                                {project.name}
+                                                {project.location && (
+                                                    <span className="text-gray-400 ml-2">
+                                                        ({project.location.name}
+                                                        )
+                                                    </span>
+                                                )}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                        </>
+                    )}
 
                     {/* Warning when project has no location */}
                     {selectedProjectId && !projectHasLocation && (

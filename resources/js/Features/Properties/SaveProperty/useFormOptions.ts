@@ -146,10 +146,17 @@ export function useFormOptions(
             unitStyleOptions: toSelectOptions(enumValues.unit_styles),
             furnitureStatusOptions: toSelectOptions(
                 enumValues.furniture_statuses,
+            ).filter(
+                (o) =>
+                    o.value !== "Semi-Furnished" &&
+                    o.value !== "Fully Furnished",
             ),
             heatingTypeOptions: toSelectOptions(enumValues.heating_types),
             floorTypeOptions: toSelectOptions(enumValues.floor_types),
-            interiorFeatureOptions: toLabelOptions(enumValues.inside_features),
+            interiorFeatureOptions: [
+                ...toLabelOptions(enumValues.inside_features),
+                { value: "Elevator", label: "Elevator" },
+            ],
             exteriorFeatureOptions: toLabelOptions(enumValues.outside_features),
             locationFeatureOptions: toLabelOptions(
                 enumValues.location_features,

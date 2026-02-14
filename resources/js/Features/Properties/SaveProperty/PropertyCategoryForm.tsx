@@ -115,12 +115,16 @@ export default function PropertyCategoryForm({
         if (data && visible) {
             const initialValues = { ...data };
 
-            // Map elevator from interior_features to virtual _has_elevator field
-            if (
-                Array.isArray(initialValues.interior_features) &&
-                initialValues.interior_features.includes("Elevator")
-            ) {
-                (initialValues as any)._has_elevator = true;
+            // Derive _selected_developer_id from existing developer project
+            if (initialValues.developer_project_id) {
+                const projects = (props?.developerProjects || []) as any[];
+                const project = projects.find(
+                    (p: any) => p.id === initialValues.developer_project_id,
+                );
+                if (project?.developer_id) {
+                    (initialValues as any)._selected_developer_id =
+                        project.developer_id;
+                }
             }
 
             form.setFieldsValue(initialValues);
@@ -205,21 +209,11 @@ export default function PropertyCategoryForm({
 
     // Transform form values for API submission
     const transformValues = (values: any) => {
-        const { _has_elevator, _isDraft, ...cleanData } = values;
-
-        // Merge elevator into interior_features
-        let interiorFeatures = cleanData.interior_features || [];
-        if (_has_elevator && !interiorFeatures.includes("Elevator")) {
-            interiorFeatures = [...interiorFeatures, "Elevator"];
-        } else if (!_has_elevator) {
-            interiorFeatures = interiorFeatures.filter(
-                (f: string) => f !== "Elevator",
-            );
-        }
+        const { _isDraft, _selected_developer_id, ...cleanData } = values;
 
         return {
             ...cleanData,
-            interior_features: interiorFeatures,
+            interior_features: cleanData.interior_features || [],
             within_site: cleanData.within_site || false,
             city: Array.isArray(cleanData.city)
                 ? cleanData.city[0] || null
@@ -312,6 +306,7 @@ export default function PropertyCategoryForm({
                                         form={form}
                                         primaryCategory={primaryCategory}
                                         enumValues={enumValues}
+                                        isSalesManager={isSalesManager}
                                     />
                                 </FormSection>
                             )}

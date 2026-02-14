@@ -87,22 +87,6 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
                     </Form.Item>
                 </Col>
             )}
-
-            {/* Within Site */}
-            {primaryCategory !== "land" && (
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="within_site"
-                        label="Within a Site/Complex"
-                        valuePropName="checked"
-                    >
-                        <Select placeholder="Select" allowClear>
-                            <Option value={true}>Yes</Option>
-                            <Option value={false}>No</Option>
-                        </Select>
-                    </Form.Item>
-                </Col>
-            )}
         </Row>
     );
 };

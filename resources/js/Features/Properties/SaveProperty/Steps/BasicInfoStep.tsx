@@ -1,5 +1,14 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { Form, Input, Select, Row, Col, Card, InputNumber } from "antd";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
+import {
+    Form,
+    Input,
+    Select,
+    Row,
+    Col,
+    Card,
+    InputNumber,
+    Divider,
+} from "antd";
 import { FormInstance } from "antd/lib/form";
 import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import { usePage } from "@inertiajs/react";
@@ -119,8 +128,14 @@ interface BasicInfoStepProps {
 interface DeveloperProject {
     id: number;
     name: string;
+    developer_id?: number | null;
     location?: { id: number; name: string } | null;
     project_location_id?: number;
+}
+
+interface DeveloperOption {
+    id: number;
+    name: string;
 }
 
 export default function BasicInfoStep({
@@ -131,12 +146,25 @@ export default function BasicInfoStep({
     const { props } = usePage<any>();
     const developerProjects = (props?.developerProjects ||
         []) as DeveloperProject[];
+    const developers = (props?.developers || []) as DeveloperOption[];
     const unitStyles = enumValues?.unit_styles || [];
     const primaryCategories = enumValues?.primary_categories || [];
 
     const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
         data?.developer_project_id ?? null,
     );
+    const [selectedDeveloperId, setSelectedDeveloperId] = useState<
+        number | null
+    >(() => {
+        // Try to derive developer from existing project
+        if (data?.developer_project_id) {
+            const project = (
+                (props?.developerProjects as DeveloperProject[]) || []
+            ).find((p) => p.id === data.developer_project_id);
+            return project?.developer_id ?? null;
+        }
+        return null;
+    });
     const [selectedCategory, setSelectedCategory] =
         useState<PrimaryCategory | null>(
             (data?.primary_category as PrimaryCategory) ?? null,
@@ -163,6 +191,15 @@ export default function BasicInfoStep({
         selectedUnitStyle.includes("studio");
     const showUnitStyle = isResidential;
     const showRoomFields = !isLand && !isStudio;
+    const withinSite = Form.useWatch("within_site", form);
+
+    // Filter projects by selected developer
+    const filteredProjects = useMemo(() => {
+        if (!selectedDeveloperId) return developerProjects;
+        return developerProjects.filter(
+            (p) => p.developer_id === selectedDeveloperId,
+        );
+    }, [selectedDeveloperId, developerProjects]);
 
     // Filtered property types based on selected category
     const propertyTypeOptions = useMemo(() => {
@@ -236,6 +273,27 @@ export default function BasicInfoStep({
         setSelectedProjectId(value ?? null);
     };
 
+    const handleWithinSiteChange = useCallback(
+        (value: boolean | undefined) => {
+            if (!value) {
+                setSelectedDeveloperId(null);
+                setSelectedProjectId(null);
+                form.setFieldValue("_selected_developer_id", undefined);
+                form.setFieldValue("developer_project_id", undefined);
+            }
+        },
+        [form],
+    );
+
+    const handleDeveloperChange = useCallback(
+        (value: number | undefined) => {
+            setSelectedDeveloperId(value ?? null);
+            setSelectedProjectId(null);
+            form.setFieldValue("developer_project_id", undefined);
+        },
+        [form],
+    );
+
     return (
         <Card size="small" className="border-0 shadow-none">
             <Row gutter={[16, 0]}>
@@ -269,33 +327,103 @@ export default function BasicInfoStep({
                     </Form.Item>
                 </Col>
 
-                {/* Developer Project Selection */}
-                <Col span={24}>
-                    <Form.Item
-                        name="developer_project_id"
-                        label="Developer Project"
-                        tooltip="Link this property to a developer project. The project's location will be used if available."
-                    >
-                        <Select
-                            placeholder="Select developer project (optional)"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                            onChange={handleProjectChange}
-                        >
-                            {developerProjects.map((project) => (
-                                <Option key={project.id} value={project.id}>
-                                    {project.name}
-                                    {project.location && (
-                                        <span className="text-gray-400 ml-2">
-                                            ({project.location.name})
-                                        </span>
-                                    )}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
+                {/* Residence / Project flow — not applicable for land */}
+                {!isLand && (
+                    <>
+                        <Col span={24}>
+                            <Divider
+                                plain
+                                className="!my-2 !text-xs !text-gray-400"
+                            >
+                                Residence / Project
+                            </Divider>
+                        </Col>
+
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="within_site"
+                                label="Is this property in a residence or project?"
+                            >
+                                <Select
+                                    placeholder="Select"
+                                    allowClear
+                                    onChange={handleWithinSiteChange}
+                                >
+                                    <Option value={true}>Yes</Option>
+                                    <Option value={false}>No</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+
+                        {withinSite === true && (
+                            <>
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="_selected_developer_id"
+                                        label="Construction Company"
+                                        tooltip="Select the construction company / developer"
+                                    >
+                                        <Select
+                                            placeholder="Select construction company"
+                                            allowClear
+                                            showSearch
+                                            optionFilterProp="children"
+                                            onChange={handleDeveloperChange}
+                                        >
+                                            {developers.map((dev) => (
+                                                <Option
+                                                    key={dev.id}
+                                                    value={dev.id}
+                                                >
+                                                    {dev.name}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                    </Form.Item>
+                                </Col>
+
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="developer_project_id"
+                                        label="Project Name"
+                                        tooltip="Select the project / residence name"
+                                    >
+                                        <Select
+                                            placeholder={
+                                                selectedDeveloperId
+                                                    ? "Select project"
+                                                    : "Select a company first, or pick from all projects"
+                                            }
+                                            allowClear
+                                            showSearch
+                                            optionFilterProp="children"
+                                            onChange={handleProjectChange}
+                                        >
+                                            {filteredProjects.map((project) => (
+                                                <Option
+                                                    key={project.id}
+                                                    value={project.id}
+                                                >
+                                                    {project.name}
+                                                    {project.location && (
+                                                        <span className="text-gray-400 ml-2">
+                                                            (
+                                                            {
+                                                                project.location
+                                                                    .name
+                                                            }
+                                                            )
+                                                        </span>
+                                                    )}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                    </Form.Item>
+                                </Col>
+                            </>
+                        )}
+                    </>
+                )}
 
                 <Col xs={24} md={12}>
                     <Form.Item
