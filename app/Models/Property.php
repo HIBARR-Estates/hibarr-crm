@@ -73,6 +73,7 @@ class Property extends BaseModel
     // Property Types
     const PROPERTY_TYPE_VILLA = 'Villa';
     const PROPERTY_TYPE_TWIN_VILLA = 'Twin Villa';
+    const PROPERTY_TYPE_SEMI_DETACHED_VILLA = 'Semi-Detached Villa';
     const PROPERTY_TYPE_APARTMENT = 'Apartment';
     const PROPERTY_TYPE_FAMILY_HOME = 'Family Home';
     const PROPERTY_TYPE_TOWNHOUSE = 'Townhouse';
@@ -83,6 +84,7 @@ class Property extends BaseModel
     const PROPERTY_TYPE_BLOCK_APARTMENTS = 'Block of apartments';
     const PROPERTY_TYPE_COMPLETE_BUILDING = 'Complete Building';
     const PROPERTY_TYPE_ABANDONED_BUILDING = 'Abandoned Building';
+    const PROPERTY_TYPE_RUIN = 'Ruin';
     const PROPERTY_TYPE_RESIDENCE = 'Residence';
     const PROPERTY_TYPE_HALF_CONSTRUCTION = 'Half Construction';
     const PROPERTY_TYPE_TIME_SHARE = 'Time Share';
@@ -107,10 +109,12 @@ class Property extends BaseModel
         self::PROPERTY_TYPE_APARTMENT => 'APT',
         self::PROPERTY_TYPE_VILLA => 'VIL',
         self::PROPERTY_TYPE_TWIN_VILLA => 'SMV',
+        self::PROPERTY_TYPE_SEMI_DETACHED_VILLA => 'SMV',
         self::PROPERTY_TYPE_BUNGALOW => 'BNG',
         self::PROPERTY_TYPE_TOWNHOUSE => 'TWN',
         self::PROPERTY_TYPE_COMPLETE_BUILDING => 'BLD',
         self::PROPERTY_TYPE_ABANDONED_BUILDING => 'RUN',
+        self::PROPERTY_TYPE_RUIN => 'RUN',
         self::PROPERTY_TYPE_RESIDENTIALLY_ZONED_LAND => 'LND',
         self::PROPERTY_TYPE_FIELD => 'LND',
         self::PROPERTY_TYPE_RESIDENTIAL_COMMERCIAL_LAND => 'LND',
@@ -1101,23 +1105,22 @@ class Property extends BaseModel
         return [
             self::CATEGORY_HOUSING => [
                 self::SALE_TYPE_FOR_SALE => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_TWIN_VILLA, self::PROPERTY_TYPE_APARTMENT,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_LOFT,
-                    self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW, self::PROPERTY_TYPE_COMMERCIAL_PROPERTY,
-                    self::PROPERTY_TYPE_BLOCK_APARTMENTS, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 self::SALE_TYPE_FOR_RENT => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_TWIN_VILLA,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW,
-                    self::PROPERTY_TYPE_TIME_SHARE, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 self::SALE_TYPE_DAILY_RENTAL => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_TWIN_VILLA,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW,
-                    self::PROPERTY_TYPE_TIME_SHARE, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 'allowableFields' => [
                     'propertyType' => true, 'price' => true, 'minRentalPeriod' => true,
@@ -1365,10 +1368,8 @@ class Property extends BaseModel
         // Fallback: derive from constants
         return [
             'residential' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
-                'Villa', 'Twin Villa', 'Apartment', 'Family Home', 'Townhouse',
-                'Loft', 'Penthouse', 'Bungalow', 'Block of apartments',
-                'Complete Building', 'Abandoned Building', 'Residence',
-                'Half Construction', 'Time Share',
+                'Apartment', 'Villa', 'Semi-Detached Villa', 'Bungalow',
+                'Townhouse', 'Complete Building', 'Ruin',
             ]),
             'commercial' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
                 'Shop', 'Hotel', 'Workplace', 'Warehouse', 'Workplace for sale',

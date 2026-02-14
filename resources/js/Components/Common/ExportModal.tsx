@@ -40,21 +40,13 @@ interface ExportFilters {
 }
 
 const propertyTypes = [
-    "Villa",
-    "Twin Villa",
     "Apartment",
-    "Family Home",
-    "Townhouse",
-    "Loft",
-    "Penthouse",
+    "Villa",
+    "Semi-Detached Villa",
     "Bungalow",
-    "Commercial Property",
-    "Block of apartments",
+    "Townhouse",
     "Complete Building",
-    "Abandoned Building",
-    "Residence",
-    "Half Construction",
-    "Time Share",
+    "Ruin",
     "Residentially Zoned Land",
     "Field",
     "Residentially and Commercially Zoned Land",
@@ -221,7 +213,7 @@ export default function ExportModal({
                                 formatter={(value) =>
                                     `$ ${value}`.replace(
                                         /\B(?=(\d{3})+(?!\d))/g,
-                                        ","
+                                        ",",
                                     )
                                 }
                                 parser={(value) =>
@@ -239,7 +231,7 @@ export default function ExportModal({
                                 formatter={(value) =>
                                     `$ ${value}`.replace(
                                         /\B(?=(\d{3})+(?!\d))/g,
-                                        ","
+                                        ",",
                                     )
                                 }
                                 parser={(value) =>
