@@ -319,6 +319,7 @@ export interface UpdateProjectLocationInput extends Partial<CreateProjectLocatio
 export interface CreateDeveloperProjectInput {
     name: string;
     description?: string;
+    developer_id?: number;
     project_location_id?: number;
 }
 

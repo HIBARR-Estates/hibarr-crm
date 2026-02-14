@@ -123,6 +123,18 @@ export default function PropertyCategoryForm({
                 (initialValues as any)._has_elevator = true;
             }
 
+            // Derive _selected_developer_id from existing developer project
+            if (initialValues.developer_project_id) {
+                const projects = (props?.developerProjects || []) as any[];
+                const project = projects.find(
+                    (p: any) => p.id === initialValues.developer_project_id,
+                );
+                if (project?.developer_id) {
+                    (initialValues as any)._selected_developer_id =
+                        project.developer_id;
+                }
+            }
+
             form.setFieldsValue(initialValues);
         }
     }, [data, visible, form]);
@@ -205,7 +217,12 @@ export default function PropertyCategoryForm({
 
     // Transform form values for API submission
     const transformValues = (values: any) => {
-        const { _has_elevator, _isDraft, ...cleanData } = values;
+        const {
+            _has_elevator,
+            _isDraft,
+            _selected_developer_id,
+            ...cleanData
+        } = values;
 
         // Merge elevator into interior_features
         let interiorFeatures = cleanData.interior_features || [];
@@ -312,6 +329,7 @@ export default function PropertyCategoryForm({
                                         form={form}
                                         primaryCategory={primaryCategory}
                                         enumValues={enumValues}
+                                        isSalesManager={isSalesManager}
                                     />
                                 </FormSection>
                             )}

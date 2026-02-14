@@ -178,6 +178,8 @@ export default function PropertyWizardForm({
                     "living_room",
                     "price",
                     "status",
+                    "within_site",
+                    "_selected_developer_id",
                     "developer_project_id",
                 ];
             case "classification":
@@ -289,7 +291,8 @@ export default function PropertyWizardForm({
         }
 
         // Mark as draft save
-        onSubmit({ ...finalValues, _isDraft: true });
+        const { _selected_developer_id, ...cleanValues } = finalValues;
+        onSubmit({ ...cleanValues, _isDraft: true });
     };
 
     // Handle final submit
@@ -303,9 +306,10 @@ export default function PropertyWizardForm({
 
         // Merge all form values
         const currentValues = form.getFieldsValue();
-        const finalValues = { ...formValues, ...currentValues };
+        const allValues = { ...formValues, ...currentValues };
+        const { _selected_developer_id: _devId, ...finalClean } = allValues;
 
-        onSubmit(finalValues);
+        onSubmit(finalClean);
     };
 
     // Handle cancel

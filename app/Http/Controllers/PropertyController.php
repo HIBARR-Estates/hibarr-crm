@@ -223,17 +223,17 @@ class PropertyController extends AccountBaseController
         $this->properties = $properties;
         
 
-        // Get developer projects for assignment
-        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'project_location_id')
-            ->with('location:id,name')
+        // Get developer projects for assignment (includes developer_id for cascading)
+        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'developer_id', 'project_location_id')
+            ->with(['location:id,name', 'developer:id,name'])
             ->where('company_id', user()->company_id)
+            ->orderBy('name')
             ->get();
             
-        // Legacy: Get users with employee role for developer selection (pinned for future)
-        $developers = \App\Models\User::whereHas('roles', function($query) {
-                $query->where('name', 'employee');
-            })
-            ->select('id', 'name', 'email')
+        // Get developers (construction companies) for cascading dropdown
+        $developers = \App\Models\Developer::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
             ->get();
         
         // Get project locations for direct assignment
@@ -503,10 +503,17 @@ class PropertyController extends AccountBaseController
             'view_tasks' => user()->permission('view_tasks'),
         ];
 
-        // Data needed by the edit property modal
-        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'project_location_id')
-            ->with('location:id,name')
+        // Data needed by the edit property modal (includes developer_id for cascading)
+        $developerProjects = \App\Models\DeveloperProject::select('id', 'name', 'developer_id', 'project_location_id')
+            ->with(['location:id,name', 'developer:id,name'])
             ->where('company_id', user()->company_id)
+            ->orderBy('name')
+            ->get();
+
+        // Get developers (construction companies) for cascading dropdown
+        $developers = \App\Models\Developer::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
             ->get();
 
         $projectLocations = \App\Models\ProjectLocation::select('id', 'name')
@@ -532,6 +539,7 @@ class PropertyController extends AccountBaseController
             'taskPermissions' => $taskPermissions,
             'enumValues' => Property::getEnumValues(),
             'developerProjects' => $developerProjects,
+            'developers' => $developers,
             'projectLocations' => $projectLocations,
         ]);
     }

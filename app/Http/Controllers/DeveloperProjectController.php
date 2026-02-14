@@ -447,8 +447,8 @@ class DeveloperProjectController extends AccountBaseController
     public function all()
     {
         $projects = DeveloperProject::where('company_id', user()->company_id)
-            ->select('id', 'name', 'project_location_id')
-            ->with('location:id,name')
+            ->select('id', 'name', 'developer_id', 'project_location_id')
+            ->with(['location:id,name', 'developer:id,name'])
             ->orderBy('name')
             ->get();
 
