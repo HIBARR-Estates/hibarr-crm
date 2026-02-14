@@ -188,7 +188,7 @@ class UpdateRequest extends CoreRequest
             'area' => 'nullable|string|max:255',
             'land_size' => 'nullable|numeric|min:0',
             'living_room' => 'nullable|string|max:255',
-            'bedrooms' => 'nullable|string|max:255',
+            'bedrooms' => 'nullable|max:255',
             'bathrooms' => 'nullable|integer|min:0',
             'floor_number' => 'nullable|integer|min:0',
             'floors_in_building' => 'nullable|integer|min:1',
