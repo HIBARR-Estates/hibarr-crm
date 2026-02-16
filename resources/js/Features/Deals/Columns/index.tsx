@@ -1,5 +1,5 @@
 import { Link } from "@inertiajs/react";
-import { Button, Dropdown, MenuProps, Tag, Avatar, Tooltip } from "antd";
+import { Button, Dropdown, MenuProps, Tooltip } from "antd";
 import { ColumnsType } from "antd/lib/table";
 import {
     MoreOutlined,
@@ -12,6 +12,7 @@ import dayjs from "dayjs";
 import PageDataSorter from "@/Components/PageDataSorter";
 import UserIndicator from "@/Components/UserIndicator";
 import AgentSelector from "@/Components/AgentSelector";
+import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
 
 interface DealColumnOptions {
     actionItems?: (item: Deal) => MenuProps["items"];
@@ -60,22 +61,7 @@ export const DEAL_TABLE_COLUMNS = (
                     return <span className="text-gray-400">--</span>;
 
                 const email = record.contact.client_email;
-                let mobile = record.contact.mobile;
-
-                // Handle mobile JSON format like in DealsDataTable
-                if (mobile && typeof mobile === "string") {
-                    const mobileStr = mobile.trim();
-                    if (mobileStr.startsWith("{")) {
-                        try {
-                            const mobileData = JSON.parse(mobileStr);
-                            if (mobileData && mobileData.phone) {
-                                mobile = mobileData.phone;
-                            }
-                        } catch (e) {
-                            // If JSON parsing fails, use the original string
-                        }
-                    }
-                }
+                const mobile = formatMobileForDisplay(record.contact.mobile);
 
                 return (
                     <div className="space-y-1">
@@ -112,6 +98,21 @@ export const DEAL_TABLE_COLUMNS = (
                             <span className="text-gray-400">--</span>
                         )}
                     </div>
+                );
+            },
+        },
+        {
+            title: "Country",
+            dataIndex: ["contact", "country"],
+            key: "country",
+            width: 120,
+            render: (_, record) => {
+                if (!record.contact) return <span className="text-gray-400">--</span>;
+                const str = formatCountryForDisplay(record.contact.country);
+                return str ? (
+                    <span className="text-gray-900 truncate max-w-full block text-sm">{str}</span>
+                ) : (
+                    <span className="text-gray-400">--</span>
                 );
             },
         },
