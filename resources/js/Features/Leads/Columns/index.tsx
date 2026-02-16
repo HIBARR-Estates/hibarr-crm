@@ -6,6 +6,7 @@ import { Lead } from "@/Types/api/leads";
 import dayjs from "dayjs";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
+import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
 
 export const LEAD_TABLE_COLUMNS = (
     actionItems?: (item: Lead) => MenuProps["items"]
@@ -52,22 +53,7 @@ export const LEAD_TABLE_COLUMNS = (
         width: 200,
         render: (_, record) => {
             const email = record.client_email;
-            let mobile = record.mobile;
-
-            // Handle mobile JSON format
-            if (mobile && typeof mobile === "string") {
-                const mobileStr = mobile.trim();
-                if (mobileStr.startsWith("{")) {
-                    try {
-                        const mobileData = JSON.parse(mobileStr);
-                        if (mobileData && mobileData.phone) {
-                            mobile = mobileData.phone;
-                        }
-                    } catch (e) {
-                        // If JSON parsing fails, use the original string
-                    }
-                }
-            }
+            const mobile = formatMobileForDisplay(record.mobile);
 
             return (
                 <div className="space-y-1">
@@ -108,6 +94,20 @@ export const LEAD_TABLE_COLUMNS = (
         },
     },
 
+    {
+        title: "Country",
+        dataIndex: "country",
+        key: "country",
+        width: 120,
+        render: (_, record) => {
+            const str = formatCountryForDisplay(record.country);
+            return str ? (
+                <span className="text-gray-900 truncate max-w-full block text-sm">{str}</span>
+            ) : (
+                <span className="text-gray-400">--</span>
+            );
+        },
+    },
     {
         title: "Source",
         dataIndex: "source",

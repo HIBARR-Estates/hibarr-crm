@@ -326,3 +326,53 @@ const resolveLocation = (record: Property): string | null => {
     if (city && area) return `${area}, ${city}`;
     return city || area || null;
 };
+
+/**
+ * Format country for display in tables/cards. Handles both string (e.g. "United States")
+ * and object from API (e.g. { id, nicename, name }) so it never renders as [object Object].
+ */
+export function formatCountryForDisplay(value: unknown): string {
+    if (value == null || value === "") return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "object" && value !== null) {
+        const o = value as Record<string, unknown>;
+        const name =
+            (o.nicename as string) ?? (o.name as string) ?? (o.nationality as string) ?? "";
+        if (typeof name === "string" && name.trim()) return name.trim();
+    }
+    return String(value);
+}
+
+/**
+ * Format mobile/phone for display. Handles string, JSON string, or object (e.g. { phone, country_code })
+ * so it never renders as [object Object] and shows a readable number like +90 533 877 3001.
+ */
+export function formatMobileForDisplay(value: unknown): string {
+    if (value == null || value === "") return "";
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (trimmed.startsWith("+") || /^\d[\d\s().-]*$/.test(trimmed)) return trimmed;
+        try {
+            const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+            if (parsed && typeof parsed === "object" && typeof parsed.phone === "string")
+                return parsed.phone.trim();
+            const fromParts = [parsed.countryCode, parsed.areaCode, parsed.phoneNumber]
+                .filter(Boolean)
+                .map((p) => String(p).replace(/\D/g, ""))
+                .join("");
+            if (fromParts) return "+" + fromParts;
+        } catch {
+            return trimmed;
+        }
+    }
+    if (typeof value === "object" && value !== null) {
+        const o = value as Record<string, unknown>;
+        if (typeof o.phone === "string" && o.phone.trim()) return o.phone.trim();
+        const fromParts = [o.countryCode, o.areaCode, o.phoneNumber]
+            .filter(Boolean)
+            .map((p) => String(p).replace(/\D/g, ""))
+            .join("");
+        if (fromParts) return "+" + fromParts;
+    }
+    return String(value);
+}
