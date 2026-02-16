@@ -2,10 +2,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * Check whether AI description generation is enabled.
- * Enabled when VITE_GEMINI_API_KEY is set in the environment.
+ * Enabled when MIX_GEMINI_API_KEY is set in the environment.
  */
 export function isAiEnabled(): boolean {
-    return !!process?.env?.VITE_GEMINI_API_KEY;
+    return !!process?.env?.MIX_GEMINI_API_KEY;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,7 +130,7 @@ Rules:
 export async function generatePropertyDescription(
     formData: Record<string, any>,
 ): Promise<string> {
-    const apiKey = process?.env?.VITE_GEMINI_API_KEY as string;
+    const apiKey = process?.env?.MIX_GEMINI_API_KEY as string;
     if (!apiKey) {
         throw new Error("Gemini API key is not configured.");
     }
