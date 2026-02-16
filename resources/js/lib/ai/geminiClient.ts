@@ -121,6 +121,49 @@ Rules:
 - Do NOT include a title/heading — return only the body description.
 - Output plain text only (no markdown, no bullet points, no HTML).`;
 
+// ---------------------------------------------------------------------------
+// User-friendly error mapping
+// ---------------------------------------------------------------------------
+
+const USER_FRIENDLY_ERRORS: Record<string, string> = {
+    "429": "AI service is temporarily busy. Please wait a moment and try again.",
+    "403": "AI service access denied. Please contact your administrator.",
+    "401": "AI service authentication failed. Please contact your administrator.",
+    "500": "AI service encountered an internal error. Please try again later.",
+    "503": "AI service is temporarily unavailable. Please try again later.",
+};
+
+const DEFAULT_USER_ERROR = "Failed to generate description. Please try again.";
+
+/**
+ * Convert a raw API / network error into a user-friendly message.
+ * Technical details are logged to the console for debugging.
+ */
+export function toUserFriendlyError(err: unknown): string {
+    // Always log the full detail for developers
+    console.error("[AI Description] Generation failed:", err);
+
+    const message = (err instanceof Error ? err.message : String(err)) ?? "";
+
+    // Match known HTTP status codes in the error string
+    for (const [code, friendly] of Object.entries(USER_FRIENDLY_ERRORS)) {
+        if (message.includes(code)) {
+            return friendly;
+        }
+    }
+
+    // Network / connectivity issues
+    if (
+        message.toLowerCase().includes("fetch") ||
+        message.toLowerCase().includes("network") ||
+        message.toLowerCase().includes("timeout")
+    ) {
+        return "Could not reach the AI service. Please check your connection and try again.";
+    }
+
+    return DEFAULT_USER_ERROR;
+}
+
 /**
  * Call Gemini to generate a property listing description.
  *
@@ -132,7 +175,7 @@ export async function generatePropertyDescription(
 ): Promise<string> {
     const apiKey = process?.env?.MIX_GEMINI_API_KEY as string;
     if (!apiKey) {
-        throw new Error("Gemini API key is not configured.");
+        throw new Error("AI description generation is not configured.");
     }
 
     const context = buildPropertyContext(formData);
@@ -154,7 +197,7 @@ export async function generatePropertyDescription(
 
     const text = result.response.text().trim();
     if (!text) {
-        throw new Error("Gemini returned an empty response. Please try again.");
+        throw new Error("AI returned an empty response. Please try again.");
     }
 
     return text;
