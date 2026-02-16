@@ -574,11 +574,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
 
-    // deals route
-
-    Route::resource('lead-contact', LeadContactController::class);
-    // Accept both POST (for file uploads) and PATCH
-    Route::match(['post', 'patch'], 'lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
+    Route::get('lead-contact', [LeadContactController::class, 'index'])->name('lead-contact.index');
+    Route::get('lead-contact/create', [LeadContactController::class, 'create'])->name('lead-contact.create');
+    Route::post('lead-contact', [LeadContactController::class, 'store'])->name('lead-contact.store');
+    Route::get('lead-contact/{lead_contact}', [LeadContactController::class, 'show'])->name('lead-contact.show');
+    Route::get('lead-contact/{lead_contact}/edit', [LeadContactController::class, 'edit'])->name('lead-contact.edit');
+    Route::put('lead-contact/{lead_contact}', [LeadContactController::class, 'update'])->name('lead-contact.update');
+    Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
