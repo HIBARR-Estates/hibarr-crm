@@ -164,6 +164,7 @@ class DeveloperProject extends BaseModel
         'company_id',
         'developer_id',
         'name',
+        'reference_code',
         'description',
         'project_location_id',
         // Construction project fields
@@ -265,6 +266,17 @@ class DeveloperProject extends BaseModel
     }
 
     /**
+     * Get all unit types belonging to this project.
+     * 
+     * Each project can have multiple unit types (e.g., 2+1 Apartment, Studio Villa)
+     * with their own specifications, features, pricing, and photos.
+     */
+    public function unitTypes(): HasMany
+    {
+        return $this->hasMany(DeveloperProjectUnitType::class);
+    }
+
+    /**
      * Check if project has an expose configuration.
      */
     public function hasExposeConfig(): bool
@@ -355,5 +367,35 @@ class DeveloperProject extends BaseModel
     public function removeAllProperties(): int
     {
         return $this->properties()->update(['developer_project_id' => null]);
+    }
+
+    /**
+     * Generate a reference code for this project.
+     * Pattern: DEVELOPERNAME-NNN
+     * e.g., AKACAN-001
+     *
+     * @return string
+     */
+    public function generateReferenceCode(): string
+    {
+        $developer = $this->developer;
+        $prefix = 'PRJ';
+
+        if ($developer) {
+            // Use first word of developer name, uppercase
+            $words = explode(' ', trim($developer->name));
+            $prefix = strtoupper($words[0]);
+        }
+
+        // Count existing projects for this developer within the company
+        $existingCount = static::where('company_id', $this->company_id)
+            ->where('developer_id', $this->developer_id)
+            ->where('id', '!=', $this->id ?? 0)
+            ->whereNotNull('reference_code')
+            ->count();
+
+        $number = str_pad($existingCount + 1, 3, '0', STR_PAD_LEFT);
+
+        return $prefix . '-' . $number;
     }
 }
