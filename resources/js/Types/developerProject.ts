@@ -119,6 +119,7 @@ export interface DeveloperProject {
     company_id: number;
     developer_id: number | null;
     name: string;
+    reference_code: string | null;
     description: string | null;
     project_location_id: number | null;
     // Construction project fields
@@ -147,6 +148,7 @@ export interface DeveloperProject {
     location?: ProjectLocation;
     expose_config?: DeveloperProjectExposeConfig;
     properties?: Property[];
+    unit_types_details?: DeveloperProjectUnitType[];
     // Computed
     properties_count?: number;
 }
@@ -182,6 +184,74 @@ export interface DeveloperProjectOption {
         id: number;
         name: string;
     };
+}
+
+// ============================================
+// Developer Project Unit Type
+// ============================================
+
+export interface DeveloperProjectUnitType {
+    id: number;
+    company_id: number;
+    developer_project_id: number;
+    reference_code: string | null;
+    // Category & Type
+    primary_category: "residential" | "commercial";
+    property_type: string | null;
+    unit_style: string[] | null;
+    view_types: string[] | null;
+    furniture_status: string | null;
+    // Pricing
+    starting_price: number | null;
+    currency: string;
+    // Specifications
+    bedrooms: number | null;
+    bathrooms: number | null;
+    floor: string | null;
+    floors_in_building: number | null;
+    total_area_sqm: number | null;
+    living_area_sqm: number | null;
+    terrace_balcony_sqm: number | null;
+    plot_size_sqm: number | null;
+    completion_date: string | null;
+    // Features
+    outside_features: string[] | null;
+    inside_features: string[] | null;
+    // Description
+    description: string | null;
+    // Legal
+    military_base_distance_km: number | null;
+    has_restrictions: boolean;
+    restriction_notes: string | null;
+    // Meta
+    order: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    // Relations
+    assets?: DeveloperProjectUnitTypeAsset[];
+    // Computed
+    display_label?: string;
+    formatted_price?: string;
+    currency_symbol?: string;
+}
+
+export interface DeveloperProjectUnitTypeAsset {
+    id: number;
+    unit_type_id: number;
+    company_id: number;
+    name: string | null;
+    asset_type: "image" | "video" | "video_url";
+    file_path: string | null;
+    external_url: string | null;
+    mime_type: string | null;
+    file_size: number | null;
+    tags: string[] | null;
+    metadata: Record<string, any> | null;
+    order: number;
+    url: string | null;
+    created_at: string;
+    updated_at: string;
 }
 
 // ============================================

@@ -1108,6 +1108,25 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::patch('/{id}/expose-config/{section}', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'updateSection'])->name('expose-config.update-section');
         Route::get('/{id}/expose-config/preview', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'previewData'])->name('expose-config.preview');
         Route::get('/{id}/expose-config/validate', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'validateConfig'])->name('expose-config.validate');
+        
+        // Unit Types CRUD
+        Route::prefix('/{projectId}/unit-types')->name('unit-types.')->group(function () {
+            Route::get('/', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'index'])->name('index');
+            Route::post('/', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'store'])->name('store');
+            Route::get('/{unitTypeId}', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'show'])->name('show');
+            Route::put('/{unitTypeId}', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'update'])->name('update');
+            Route::delete('/{unitTypeId}', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'destroy'])->name('destroy');
+            Route::post('/reorder', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'reorder'])->name('reorder');
+            
+            // Unit Type Assets
+            Route::prefix('/{unitTypeId}/assets')->name('assets.')->group(function () {
+                Route::get('/', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'index'])->name('index');
+                Route::post('/', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'store'])->name('store');
+                Route::put('/{assetId}', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'update'])->name('update');
+                Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'destroy'])->name('destroy');
+                Route::post('/bulk-delete', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'bulkDestroy'])->name('bulk_destroy');
+            });
+        });
     });
 
     // Property Asset Management (New System)

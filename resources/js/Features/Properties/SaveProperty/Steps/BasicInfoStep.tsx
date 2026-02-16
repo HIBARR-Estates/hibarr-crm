@@ -22,6 +22,7 @@ const PROPERTY_TYPES_BY_CATEGORY: Record<
     PrimaryCategory,
     { label: string; types: string[] }[]
 > = {
+    'construction_project': [],
     residential: [
         {
             label: "Housing",

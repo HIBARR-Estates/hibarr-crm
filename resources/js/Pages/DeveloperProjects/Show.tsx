@@ -36,11 +36,13 @@ import {
     FilePdfOutlined,
     AppstoreOutlined,
     BankOutlined,
+    BuildOutlined,
     CheckCircleOutlined,
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import type {
     DeveloperProject,
+    DeveloperProjectUnitType,
     ProjectLocation,
     DeveloperProjectExposeConfig,
     Developer,
@@ -49,6 +51,7 @@ import type { Property } from "../../Types";
 import { useApiMutate } from "../../lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "../../lib/api/types";
 import ExposeGenerationModal from "../../Features/DeveloperProjects/ExposeGenerationModal";
+import UnitTypesSection from "../../Features/DeveloperProjects/UnitTypesSection";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -110,10 +113,12 @@ export interface ShowProps extends PageProps {
     facilities: string[];
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
+    unitTypes: DeveloperProjectUnitType[];
 }
 
 type SectionKey =
     | "overview"
+    | "unit_types"
     | "facilities"
     | "exterior"
     | "interior"
@@ -582,6 +587,7 @@ const Show = ({
     facilities,
     imagesByTag,
     priceList,
+    unitTypes,
 }: ShowProps) => {
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
 
@@ -590,6 +596,11 @@ const Show = ({
             key: "overview",
             icon: <AppstoreOutlined />,
             label: "Overview",
+        },
+        {
+            key: "unit_types",
+            icon: <BuildOutlined />,
+            label: `Unit Types (${unitTypes?.length || 0})`,
         },
         {
             key: "facilities",
@@ -631,6 +642,13 @@ const Show = ({
                         project={project}
                         statistics={statistics}
                         propertyTypesSummary={propertyTypesSummary}
+                    />
+                );
+            case "unit_types":
+                return (
+                    <UnitTypesSection
+                        projectId={project.id}
+                        unitTypes={unitTypes ?? []}
                     />
                 );
             case "facilities":

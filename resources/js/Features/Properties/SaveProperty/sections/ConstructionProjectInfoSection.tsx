@@ -167,6 +167,20 @@ const ConstructionProjectInfoSection: React.FC<
                     )}
                 </Form.Item>
             </Col>
+
+            {/* Reference Code */}
+            <Col xs={24} md={12}>
+                <Form.Item
+                    name="reference_code"
+                    label="Reference Code"
+                    tooltip="Auto-generated if left empty (e.g. AKACAN-001)"
+                >
+                    <Input
+                        placeholder="Auto-generated if left empty"
+                        maxLength={50}
+                    />
+                </Form.Item>
+            </Col>
         </Row>
     );
 };
