@@ -81,7 +81,7 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function show(Request $request, $id)
     {
-        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets'])
+        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'unitTypes.assets'])
             ->withCount('properties')
             ->where('company_id', user()->company_id)
             ->findOrFail($id);
@@ -117,6 +117,7 @@ class DeveloperProjectController extends AccountBaseController
             'facilities' => $facilities,
             'imagesByTag' => $imagesByTag,
             'priceList' => $priceList,
+            'unitTypes' => $project->unitTypes->sortBy('order')->values(),
         ]);
     }
 
@@ -277,6 +278,7 @@ class DeveloperProjectController extends AccountBaseController
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
+            'reference_code' => 'nullable|string|max:50',
             'description' => 'nullable|string',
             'developer_id' => 'nullable|exists:developers,id',
             'project_location_id' => 'nullable|exists:project_locations,id',
@@ -339,6 +341,7 @@ class DeveloperProjectController extends AccountBaseController
             'company_id' => user()->company_id,
             'developer_id' => $request->developer_id,
             'name' => $request->name,
+            'reference_code' => $request->reference_code,
             'description' => $request->description,
             'project_location_id' => $locationId,
             // Construction project fields
@@ -376,6 +379,7 @@ class DeveloperProjectController extends AccountBaseController
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
+            'reference_code' => 'nullable|string|max:50',
             'description' => 'nullable|string',
             'developer_id' => 'nullable|exists:developers,id',
             'project_location_id' => 'nullable|exists:project_locations,id',
@@ -440,7 +444,7 @@ class DeveloperProjectController extends AccountBaseController
         }
 
         $updateFields = [
-            'name', 'description', 'developer_id', 'project_location_id',
+            'name', 'reference_code', 'description', 'developer_id', 'project_location_id',
             'google_drive_link', 'availability_link', 'starting_price',
             'primary_categories', 'title_deed_type', 'unit_types',
             'number_of_units', 'number_of_blocks', 'project_total_area_sqm',
