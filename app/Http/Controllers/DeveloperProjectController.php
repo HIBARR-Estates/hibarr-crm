@@ -280,10 +280,59 @@ class DeveloperProjectController extends AccountBaseController
             'description' => 'nullable|string',
             'developer_id' => 'nullable|exists:developers,id',
             'project_location_id' => 'nullable|exists:project_locations,id',
+            // Construction project fields
+            'google_drive_link' => 'nullable|url|max:2048',
+            'availability_link' => 'nullable|url|max:2048',
+            'starting_price' => 'nullable|numeric|min:0',
+            'primary_categories' => 'nullable|array',
+            'primary_categories.*' => 'string|in:residential,commercial',
+            'title_deed_type' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProject::TITLE_DEED_TYPES)),
+            'unit_types' => 'nullable|array',
+            'unit_types.*' => 'string|in:' . implode(',', array_keys(DeveloperProject::UNIT_TYPES)),
+            'number_of_units' => 'nullable|integer|min:0',
+            'number_of_blocks' => 'nullable|integer|min:0',
+            'project_total_area_sqm' => 'nullable|numeric|min:0',
+            'construction_status' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProject::CONSTRUCTION_STATUSES)),
+            'completion_date' => 'nullable|date',
+            'number_of_phases' => 'nullable|integer|min:0',
+            'furniture_package' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProject::FURNITURE_PACKAGES)),
+            'rental_guarantee' => 'nullable|boolean',
+            'payment_plan' => 'nullable|array',
+            'payment_plan.enabled' => 'nullable|boolean',
+            'payment_plan.downpayment_type' => 'nullable|string|in:percentage,amount',
+            'payment_plan.downpayment_value' => 'nullable|numeric|min:0',
+            'payment_plan.period_months' => 'nullable|integer|min:0',
+            'payment_plan.interest_rate' => 'nullable|numeric|min:0',
+            'facilities' => 'nullable|array',
+            'facilities.*' => 'string',
+            'distances' => 'nullable|array',
+            'distances.*' => 'nullable|numeric|min:0',
+            // Location fields passed flat (for creating/updating project location)
+            'city' => 'nullable|string|max:255',
+            'area' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:500',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'map_url' => 'nullable|url|max:2048',
         ]);
 
         if ($validator->fails()) {
             return Reply::error($validator->errors()->first());
+        }
+
+        // Handle location — create or update ProjectLocation if location fields provided
+        $locationId = $request->project_location_id;
+        if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
+            $location = \App\Models\ProjectLocation::create([
+                'company_id' => user()->company_id,
+                'city' => $request->city,
+                'area' => $request->area,
+                'address' => $request->address,
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'map_url' => $request->map_url,
+            ]);
+            $locationId = $location->id;
         }
 
         $project = DeveloperProject::create([
@@ -291,7 +340,25 @@ class DeveloperProjectController extends AccountBaseController
             'developer_id' => $request->developer_id,
             'name' => $request->name,
             'description' => $request->description,
-            'project_location_id' => $request->project_location_id,
+            'project_location_id' => $locationId,
+            // Construction project fields
+            'google_drive_link' => $request->google_drive_link,
+            'availability_link' => $request->availability_link,
+            'starting_price' => $request->starting_price,
+            'primary_categories' => $request->primary_categories,
+            'title_deed_type' => $request->title_deed_type,
+            'unit_types' => $request->unit_types,
+            'number_of_units' => $request->number_of_units,
+            'number_of_blocks' => $request->number_of_blocks,
+            'project_total_area_sqm' => $request->project_total_area_sqm,
+            'construction_status' => $request->construction_status,
+            'completion_date' => $request->completion_date,
+            'number_of_phases' => $request->number_of_phases,
+            'furniture_package' => $request->furniture_package,
+            'rental_guarantee' => $request->rental_guarantee ?? false,
+            'payment_plan' => $request->payment_plan,
+            'facilities' => $request->facilities,
+            'distances' => $request->distances,
         ]);
 
         return Reply::successWithData('Developer project created successfully', [
@@ -312,13 +379,77 @@ class DeveloperProjectController extends AccountBaseController
             'description' => 'nullable|string',
             'developer_id' => 'nullable|exists:developers,id',
             'project_location_id' => 'nullable|exists:project_locations,id',
+            // Construction project fields
+            'google_drive_link' => 'nullable|url|max:2048',
+            'availability_link' => 'nullable|url|max:2048',
+            'starting_price' => 'nullable|numeric|min:0',
+            'primary_categories' => 'nullable|array',
+            'primary_categories.*' => 'string|in:residential,commercial',
+            'title_deed_type' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProject::TITLE_DEED_TYPES)),
+            'unit_types' => 'nullable|array',
+            'unit_types.*' => 'string|in:' . implode(',', array_keys(DeveloperProject::UNIT_TYPES)),
+            'number_of_units' => 'nullable|integer|min:0',
+            'number_of_blocks' => 'nullable|integer|min:0',
+            'project_total_area_sqm' => 'nullable|numeric|min:0',
+            'construction_status' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProject::CONSTRUCTION_STATUSES)),
+            'completion_date' => 'nullable|date',
+            'number_of_phases' => 'nullable|integer|min:0',
+            'furniture_package' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProject::FURNITURE_PACKAGES)),
+            'rental_guarantee' => 'nullable|boolean',
+            'payment_plan' => 'nullable|array',
+            'payment_plan.enabled' => 'nullable|boolean',
+            'payment_plan.downpayment_type' => 'nullable|string|in:percentage,amount',
+            'payment_plan.downpayment_value' => 'nullable|numeric|min:0',
+            'payment_plan.period_months' => 'nullable|integer|min:0',
+            'payment_plan.interest_rate' => 'nullable|numeric|min:0',
+            'facilities' => 'nullable|array',
+            'facilities.*' => 'string',
+            'distances' => 'nullable|array',
+            'distances.*' => 'nullable|numeric|min:0',
+            // Location fields
+            'city' => 'nullable|string|max:255',
+            'area' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:500',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'map_url' => 'nullable|url|max:2048',
         ]);
 
         if ($validator->fails()) {
             return Reply::error($validator->errors()->first());
         }
 
-        $project->update($request->only(['name', 'description', 'developer_id', 'project_location_id']));
+        // Handle location — update existing or create new
+        if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
+            $locationData = [
+                'company_id' => user()->company_id,
+                'city' => $request->city,
+                'area' => $request->area,
+                'address' => $request->address,
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'map_url' => $request->map_url,
+            ];
+
+            if ($project->project_location_id) {
+                $project->location()->update($locationData);
+            } else {
+                $location = \App\Models\ProjectLocation::create($locationData);
+                $request->merge(['project_location_id' => $location->id]);
+            }
+        }
+
+        $updateFields = [
+            'name', 'description', 'developer_id', 'project_location_id',
+            'google_drive_link', 'availability_link', 'starting_price',
+            'primary_categories', 'title_deed_type', 'unit_types',
+            'number_of_units', 'number_of_blocks', 'project_total_area_sqm',
+            'construction_status', 'completion_date', 'number_of_phases',
+            'furniture_package', 'rental_guarantee', 'payment_plan',
+            'facilities', 'distances',
+        ];
+
+        $project->update($request->only($updateFields));
 
         return Reply::successWithData('Developer project updated successfully', [
             'project' => $project->fresh(['location', 'exposeConfig', 'developer']),
