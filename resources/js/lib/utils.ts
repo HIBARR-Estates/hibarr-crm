@@ -339,6 +339,7 @@ export function formatCountryForDisplay(value: unknown): string {
         const name =
             (o.nicename as string) ?? (o.name as string) ?? (o.nationality as string) ?? "";
         if (typeof name === "string" && name.trim()) return name.trim();
+        return "";
     }
     return String(value);
 }
@@ -374,6 +375,7 @@ export function formatMobileForDisplay(value: unknown): string {
             .map((p) => String(p).replace(/\D/g, ""))
             .join("");
         if (fromParts) return "+" + fromParts;
+        return "";
     }
     return String(value);
 }
