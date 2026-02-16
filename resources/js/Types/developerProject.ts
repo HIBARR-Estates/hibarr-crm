@@ -15,6 +15,8 @@ export interface Developer {
     name: string;
     logo_url: string | null;
     description: string | null;
+    project_list: string[] | null;
+    whatsapp_group_link: string | null;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
@@ -119,6 +121,24 @@ export interface DeveloperProject {
     name: string;
     description: string | null;
     project_location_id: number | null;
+    // Construction project fields
+    google_drive_link: string | null;
+    availability_link: string | null;
+    starting_price: number | null;
+    primary_categories: string[] | null;
+    title_deed_type: string | null;
+    unit_types: string[] | null;
+    number_of_units: number | null;
+    number_of_blocks: number | null;
+    project_total_area_sqm: number | null;
+    construction_status: string | null;
+    completion_date: string | null;
+    number_of_phases: number | null;
+    furniture_package: string | null;
+    rental_guarantee: boolean;
+    payment_plan: PaymentPlan | null;
+    facilities: string[] | null;
+    distances: ProjectDistances | null;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
@@ -129,6 +149,23 @@ export interface DeveloperProject {
     properties?: Property[];
     // Computed
     properties_count?: number;
+}
+
+export interface PaymentPlan {
+    enabled: boolean;
+    downpayment_type?: "percentage" | "amount";
+    downpayment_value?: number;
+    period_months?: number;
+    interest_rate?: number;
+}
+
+export interface ProjectDistances {
+    sea_km?: number;
+    hospital_km?: number;
+    market_km?: number;
+    school_km?: number;
+    airport_km?: number;
+    beach_km?: number;
 }
 
 // Minimal version for dropdowns

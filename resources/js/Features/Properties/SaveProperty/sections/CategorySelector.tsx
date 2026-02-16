@@ -5,6 +5,7 @@ import {
     HomeOutlined,
     ShopOutlined,
     EnvironmentOutlined,
+    BuildOutlined,
     CheckCircleFilled,
 } from "@ant-design/icons";
 import type { PrimaryCategory } from "@/Types";
@@ -53,6 +54,15 @@ const CATEGORIES: {
         bgColor: "bg-amber-50",
         borderColor: "border-amber-500",
     },
+    {
+        value: "construction_project",
+        label: "Construction Project",
+        description: "New development projects by construction companies",
+        icon: <BuildOutlined />,
+        color: "text-purple-600",
+        bgColor: "bg-purple-50",
+        borderColor: "border-purple-500",
+    },
 ];
 
 /**
@@ -96,6 +106,32 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
             if (category !== "residential") {
                 form.setFieldValue("unit_style", undefined);
             }
+            // Clear property-specific fields when switching to construction project
+            if (category === "construction_project") {
+                form.setFieldValue("property_type", undefined);
+                form.setFieldValue("sale_type", undefined);
+                form.setFieldValue("status", undefined);
+                form.setFieldValue("unit_style", undefined);
+                form.setFieldValue("bedrooms", undefined);
+                form.setFieldValue("bathrooms", undefined);
+                form.setFieldValue("living_room", undefined);
+                form.setFieldValue("floor_number", undefined);
+                form.setFieldValue("floors_in_building", undefined);
+                form.setFieldValue("building_age", undefined);
+                form.setFieldValue("price", undefined);
+                form.setFieldValue("within_site", undefined);
+            }
+            // Clear construction project fields when switching away from it
+            if (previousCategory === "construction_project") {
+                form.setFieldValue("construction_status", undefined);
+                form.setFieldValue("starting_price", undefined);
+                form.setFieldValue("facilities", undefined);
+                form.setFieldValue("payment_plan", undefined);
+                form.setFieldValue("unit_types", undefined);
+                form.setFieldValue("primary_categories", undefined);
+                form.setFieldValue("google_drive_link", undefined);
+                form.setFieldValue("availability_link", undefined);
+            }
         }
     };
 
@@ -109,7 +145,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
                     Select the category to see relevant fields
                 </Text>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {CATEGORIES.map((cat) => {
                     const isSelected = value === cat.value;
                     return (

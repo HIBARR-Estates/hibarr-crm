@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { router } from "@inertiajs/react";
 import { Typography, message, Segmented } from "antd";
 import { Property } from "@/Types";
+import { DeveloperProject } from "@/Types/developerProject";
 import PropertyForm from "@/Features/Properties/SaveProperty/PropertyForm";
 import PropertyWizardForm from "@/Features/Properties/SaveProperty/PropertyWizardForm";
 import PropertyCategoryForm from "@/Features/Properties/SaveProperty/PropertyCategoryForm";
@@ -123,8 +124,60 @@ export default function CreateProperty({
         },
     );
 
+    // Create construction project mutation
+    const createProjectMutation = useApiMutate<
+        any,
+        DeveloperProject,
+        ApiSuccessResponse<DeveloperProject>
+    >(route("developer-projects.store"), "POST", (res) => {
+        if (res?.status === "success") {
+            message.success("Construction project created!");
+            if (onSuccess) {
+                onSuccess();
+            } else if (!isPage) {
+                onClose?.();
+            } else {
+                router.visit(route("developer-projects.index"));
+            }
+        }
+    });
+
+    // Update construction project mutation
+    const updateProjectMutation = useApiMutate<
+        any,
+        DeveloperProject,
+        ApiSuccessResponse<DeveloperProject> & {
+            developer_project?: DeveloperProject;
+        }
+    >(
+        isEditing ? route("developer-projects.update", property?.id) : "",
+        "PUT",
+        (res) => {
+            if (res?.status === "success") {
+                message.success("Construction project updated!");
+                const updatedProject =
+                    res.data || (res as any).developer_project;
+                if (updatedProject) {
+                    setProperty?.(updatedProject as any);
+                }
+
+                if (onSuccess) {
+                    onSuccess();
+                } else if (!isPage) {
+                    onClose?.();
+                } else {
+                    router.visit(route("developer-projects.index"));
+                }
+            }
+        },
+    );
+
     // Combined loading state
-    const processing = createMutation.isPending || updateMutation.isPending;
+    const processing =
+        createMutation.isPending ||
+        updateMutation.isPending ||
+        createProjectMutation.isPending ||
+        updateProjectMutation.isPending;
 
     const handleSubmit = useCallback(
         (formData: any) => {
@@ -132,14 +185,53 @@ export default function CreateProperty({
             setErrors([]);
             setFormErrors({});
 
-            // Transform the values to match the API expectations
-            // Strip internal flags before sending to API
-            const { _isDraft, _saveForUpload, ...cleanData } = formData;
+            // Check if this is a construction project submission
+            const {
+                _isDraft,
+                _saveForUpload,
+                _isConstructionProject,
+                ...cleanData
+            } = formData;
 
             // Track save-for-upload intent so the success callback stays on form
             if (_saveForUpload) {
                 saveForUploadRef.current = true;
             }
+
+            const onError = (error: any) => {
+                if (error?.errors) {
+                    setFormErrors(error.errors);
+                    const errorMessages = Object.values(
+                        error.errors,
+                    ).flat() as string[];
+                    setErrors(errorMessages);
+                } else if (error?.message) {
+                    setErrors([error.message]);
+                }
+                message.error("Please check the form for errors");
+            };
+
+            // ── Construction Project path ──
+            if (_isConstructionProject) {
+                const projectData = {
+                    ...cleanData,
+                    // Ensure arrays default to []
+                    primary_categories: cleanData.primary_categories || [],
+                    unit_types: cleanData.unit_types || [],
+                    facilities: cleanData.facilities || [],
+                    distances: cleanData.distances || {},
+                    payment_plan: cleanData.payment_plan || {},
+                };
+
+                if (isEditing) {
+                    updateProjectMutation.mutate(projectData, { onError });
+                } else {
+                    createProjectMutation.mutate(projectData, { onError });
+                }
+                return;
+            }
+
+            // ── Standard Property path ──
 
             const submitData = {
                 ...cleanData,
@@ -157,38 +249,18 @@ export default function CreateProperty({
             };
 
             if (isEditing) {
-                updateMutation.mutate(submitData, {
-                    onError: (error: any) => {
-                        if (error?.errors) {
-                            setFormErrors(error.errors);
-                            const errorMessages = Object.values(
-                                error.errors,
-                            ).flat() as string[];
-                            setErrors(errorMessages);
-                        } else if (error?.message) {
-                            setErrors([error.message]);
-                        }
-                        message.error("Please check the form for errors");
-                    },
-                });
+                updateMutation.mutate(submitData, { onError });
             } else {
-                createMutation.mutate(submitData, {
-                    onError: (error: any) => {
-                        if (error?.errors) {
-                            setFormErrors(error.errors);
-                            const errorMessages = Object.values(
-                                error.errors,
-                            ).flat() as string[];
-                            setErrors(errorMessages);
-                        } else if (error?.message) {
-                            setErrors([error.message]);
-                        }
-                        message.error("Please check the form for errors");
-                    },
-                });
+                createMutation.mutate(submitData, { onError });
             }
         },
-        [isEditing, createMutation, updateMutation],
+        [
+            isEditing,
+            createMutation,
+            updateMutation,
+            createProjectMutation,
+            updateProjectMutation,
+        ],
     );
 
     const handleCancel = () => {

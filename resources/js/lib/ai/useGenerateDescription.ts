@@ -3,6 +3,7 @@ import {
     isAiEnabled,
     getMinimumFieldsPresent,
     generatePropertyDescription,
+    toUserFriendlyError,
 } from "./geminiClient";
 
 export interface UseGenerateDescriptionReturn {
@@ -54,11 +55,8 @@ export function useGenerateDescription(): UseGenerateDescriptionReturn {
             try {
                 const description = await generatePropertyDescription(formData);
                 return description;
-            } catch (err: any) {
-                const message =
-                    err?.message ||
-                    "Failed to generate description. Please try again.";
-                setError(message);
+            } catch (err: unknown) {
+                setError(toUserFriendlyError(err));
                 return null;
             } finally {
                 setIsGenerating(false);
