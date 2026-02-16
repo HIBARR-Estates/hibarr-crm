@@ -1,66 +1,33 @@
 import React, { useEffect, useMemo } from "react";
-import {
-    Form,
-    Select,
-    Input,
-    InputNumber,
-    Row,
-    Col,
-    Alert,
-    Divider,
-} from "antd";
+import { Form, Select, Input, InputNumber, Row, Col, Alert } from "antd";
 import type { FormInstance } from "antd/lib/form";
-import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
+import type { PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
 
 const { TextArea } = Input;
 
-interface LocationSectionProps {
+interface ConstructionProjectLocationSectionProps {
     form: FormInstance;
-    primaryCategory: PrimaryCategory;
     enumValues?: PropertyEnumValues;
 }
 
-interface DeveloperProject {
-    id: number;
-    name: string;
-    location?: { id: number; name: string } | null;
-    project_location_id?: number;
-}
-
-interface ProjectLocation {
-    id: number;
-    name: string;
-}
-
-const LocationSection: React.FC<LocationSectionProps> = ({
-    form,
-    primaryCategory,
-    enumValues,
-}) => {
+/**
+ * Location section for construction projects.
+ *
+ * Same as the standard LocationSection but:
+ * - Excludes Block Name and Unit Number (project-level, not unit-level)
+ * - Includes distance input fields (markets, hospitals, airports, schools, beaches)
+ */
+const ConstructionProjectLocationSection: React.FC<
+    ConstructionProjectLocationSectionProps
+> = ({ form, enumValues }) => {
     const { props } = usePage<any>();
-    const developerProjects = (props?.developerProjects ||
-        []) as DeveloperProject[];
-    const projectLocations = (props?.projectLocations ||
-        []) as ProjectLocation[];
-
-    const developerProjectId = Form.useWatch("developer_project_id", form);
-
-    // Find selected project
-    const selectedProject = useMemo(() => {
-        if (!developerProjectId) return null;
-        return (
-            developerProjects.find((p) => p.id === developerProjectId) || null
-        );
-    }, [developerProjectId, developerProjects]);
-
-    const hasProjectLocation = !!selectedProject?.location;
 
     // Watch city value for area filtering
     const selectedCity = Form.useWatch("city", form);
 
-    // City select options — derived from DB lookup values
+    // City select options
     const cityOptions = useMemo(() => {
         const cities = enumValues?.cities || [];
         return cities.map((c) => ({
@@ -86,41 +53,6 @@ const LocationSection: React.FC<LocationSectionProps> = ({
 
     return (
         <Row gutter={[16, 0]}>
-            {/* Project location info */}
-            {hasProjectLocation && (
-                <Col span={24}>
-                    <Alert
-                        message={`Location inherited from project: ${selectedProject?.location?.name}`}
-                        type="info"
-                        showIcon
-                        className="mb-3"
-                    />
-                </Col>
-            )}
-
-            {/* Project Location — show if project has no location */}
-            {developerProjectId && !hasProjectLocation && (
-                <Col xs={24} md={12}>
-                    <Form.Item
-                        name="project_location_id"
-                        label="Project Location"
-                    >
-                        <Select
-                            placeholder="Select location"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                        >
-                            {projectLocations.map((loc) => (
-                                <Select.Option key={loc.id} value={loc.id}>
-                                    {loc.name}
-                                </Select.Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
-            )}
-
             {/* City */}
             <Col xs={24} md={12}>
                 <Form.Item name="city" label="City">
@@ -130,7 +62,6 @@ const LocationSection: React.FC<LocationSectionProps> = ({
                         allowClear
                         showSearch
                         optionFilterProp="label"
-                        disabled={hasProjectLocation}
                     />
                 </Form.Item>
             </Col>
@@ -146,7 +77,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
                         allowClear
                         showSearch
                         optionFilterProp="label"
-                        disabled={hasProjectLocation || !selectedCity}
+                        disabled={!selectedCity}
                     />
                 </Form.Item>
             </Col>
@@ -160,24 +91,6 @@ const LocationSection: React.FC<LocationSectionProps> = ({
                     />
                 </Form.Item>
             </Col>
-
-            {/* Block Name — not applicable for land */}
-            {primaryCategory !== "land" && (
-                <Col xs={12} md={6}>
-                    <Form.Item name="block_name" label="Block Name">
-                        <Input placeholder="e.g. Block A" />
-                    </Form.Item>
-                </Col>
-            )}
-
-            {/* Unit Number — not applicable for land */}
-            {primaryCategory !== "land" && (
-                <Col xs={12} md={6}>
-                    <Form.Item name="unit_number" label="Unit Number">
-                        <Input placeholder="e.g. 301" />
-                    </Form.Item>
-                </Col>
-            )}
 
             {/* Latitude */}
             <Col xs={12} md={6}>
@@ -228,18 +141,26 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             </Col>
 
             {/* Map URL */}
-            <Col span={24}>
-                <Form.Item name="map" label="Map URL / Embed Link">
-                    <Input placeholder="Google Maps link or embed URL" />
+            <Col xs={24} md={12}>
+                <Form.Item name="map" label="Map URL">
+                    <Input placeholder="Google Maps link" />
                 </Form.Item>
             </Col>
 
-            {/* Distances to Amenities */}
+            {/* ======================== */}
+            {/* Distance Fields */}
+            {/* ======================== */}
             <Col span={24}>
-                <Divider orientation="left" plain>
-                    Distances to Amenities (km)
-                </Divider>
+                <div className="mt-2 mb-2 border-t pt-3">
+                    <span className="text-sm font-medium text-gray-700">
+                        Distances (km)
+                    </span>
+                    <span className="text-xs text-gray-400 ml-2">
+                        Approximate driving distance
+                    </span>
+                </div>
             </Col>
+
             {DISTANCE_FIELDS.map((field) => (
                 <Col xs={12} md={8} key={field.key}>
                     <Form.Item
@@ -247,10 +168,11 @@ const LocationSection: React.FC<LocationSectionProps> = ({
                         label={field.label}
                     >
                         <InputNumber
-                            placeholder="0.0"
-                            style={{ width: "100%" }}
                             min={0}
+                            max={500}
                             step={0.1}
+                            placeholder="km"
+                            style={{ width: "100%" }}
                             addonAfter="km"
                         />
                     </Form.Item>
@@ -260,4 +182,4 @@ const LocationSection: React.FC<LocationSectionProps> = ({
     );
 };
 
-export default LocationSection;
+export default ConstructionProjectLocationSection;

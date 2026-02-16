@@ -32,7 +32,11 @@ import { DeveloperProject } from "./developerProject";
 // ================================================================
 
 // Primary Category
-export type PrimaryCategory = "residential" | "commercial" | "land";
+export type PrimaryCategory =
+    | "residential"
+    | "commercial"
+    | "land"
+    | "construction_project";
 
 // Unit Style (Subtype) — multi-select
 export type UnitStyle =
@@ -155,6 +159,8 @@ export interface Distances {
     hospital_km?: number;
     market_km?: number;
     schools_km?: number;
+    airport_km?: number;
+    beach_km?: number;
 }
 
 export interface LandDetails {

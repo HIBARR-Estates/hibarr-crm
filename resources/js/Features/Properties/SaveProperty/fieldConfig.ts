@@ -74,6 +74,20 @@ export const CATEGORY_SECTIONS: Record<PrimaryCategory, CategorySections> = {
         ownerInfo: true,
         internalInfo: true,
     },
+    construction_project: {
+        coreDetails: false, // Replaced by construction-specific sections
+        pricing: false, // Uses starting_price in its own section
+        specifications: false,
+        location: true, // Reuses LocationSection (without block/unit)
+        classification: false,
+        features: false,
+        legalFinancial: false,
+        documents: false,
+        photos: false, // Uses project-level photos section
+        descriptionMedia: false,
+        ownerInfo: false,
+        internalInfo: false,
+    },
 };
 
 // ================================================================
@@ -147,6 +161,23 @@ export const SPECIFICATION_FIELDS: Record<
         grossArea: false,
         usableArea: false,
         plotSize: true,
+        balconyArea: false,
+        elevator: false,
+        furnitureStatus: false,
+        heatingType: false,
+        unitStyle: false,
+    },
+    construction_project: {
+        bedrooms: false,
+        bathrooms: false,
+        livingRoom: false,
+        rooms: false,
+        floorNumber: false,
+        floorsInBuilding: false,
+        buildingAge: false,
+        grossArea: false,
+        usableArea: false,
+        plotSize: false,
         balconyArea: false,
         elevator: false,
         furnitureStatus: false,

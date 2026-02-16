@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Form, Button, Alert, Space, Modal, message } from "antd";
+import { Form, Button, Alert, Space, Modal, message, Input } from "antd";
 import {
     SaveOutlined,
     CheckOutlined,
@@ -15,6 +15,9 @@ import {
     FileTextOutlined,
     UserOutlined,
     LockOutlined,
+    BuildOutlined,
+    ToolOutlined,
+    CheckSquareOutlined,
 } from "@ant-design/icons";
 import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import { AppPermission } from "@/Types/permission";
@@ -36,6 +39,12 @@ import {
     DescriptionMediaSection,
     OwnerInfoSection,
     InternalInfoSection,
+    ConstructionProjectInfoSection,
+    ConstructionProjectDetailsSection,
+    ConstructionProjectPricingSection,
+    ConstructionProjectFacilitiesSection,
+    ConstructionProjectPhotosSection,
+    ConstructionProjectLocationSection,
 } from "./sections";
 
 export interface PropertyCategoryFormProps {
@@ -141,9 +150,28 @@ export default function PropertyCategoryForm({
         form.setFieldValue("primary_category", category);
     };
 
-    // Handle save draft — only requires property_type and sale_type
+    // Convenience flag — is the selected category a construction project?
+    const isConstructionProject = primaryCategory === "construction_project";
+
+    // Handle save draft — only requires property_type and sale_type (or name for construction projects)
     const handleSave = async () => {
         const values = form.getFieldsValue(true);
+
+        if (isConstructionProject) {
+            if (!values.name || !values.developer_id) {
+                message.error(
+                    "Please fill in at least Construction Company and Project Name before saving",
+                );
+                return;
+            }
+            const submitValues = transformValues(values);
+            onSubmit({
+                ...submitValues,
+                _isDraft: true,
+                _isConstructionProject: true,
+            });
+            return;
+        }
 
         if (!values.property_type || !values.sale_type) {
             message.error(
@@ -204,13 +232,34 @@ export default function PropertyCategoryForm({
 
         const values = form.getFieldsValue(true);
         const submitValues = transformValues(values);
-        onSubmit(submitValues);
+        onSubmit({
+            ...submitValues,
+            ...(isConstructionProject ? { _isConstructionProject: true } : {}),
+        });
     };
 
     // Transform form values for API submission
     const transformValues = (values: any) => {
-        const { _isDraft, _selected_developer_id, ...cleanData } = values;
+        const {
+            _isDraft,
+            _selected_developer_id,
+            _isConstructionProject,
+            ...cleanData
+        } = values;
 
+        if (primaryCategory === "construction_project") {
+            // Construction project payload (DeveloperProject)
+            return {
+                ...cleanData,
+                primary_categories: cleanData.primary_categories || [],
+                unit_types: cleanData.unit_types || [],
+                facilities: cleanData.facilities || [],
+                distances: cleanData.distances || {},
+                payment_plan: cleanData.payment_plan || null,
+            };
+        }
+
+        // Standard property payload
         return {
             ...cleanData,
             interior_features: cleanData.interior_features || [],
@@ -295,210 +344,344 @@ export default function PropertyCategoryForm({
                     {/* Only show remaining sections once category is selected */}
                     {primaryCategory && sections && (
                         <>
-                            {/* Core Details */}
-                            {sections.coreDetails && (
-                                <FormSection
-                                    title="Core Details"
-                                    icon={<AppstoreOutlined />}
-                                    description="Property type, status, and sale type"
-                                >
-                                    <CoreDetailsSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                        enumValues={enumValues}
-                                        isSalesManager={isSalesManager}
-                                    />
-                                </FormSection>
-                            )}
-
-                            {/* Specifications — before pricing for land (need area to calculate price/m²) */}
-                            {primaryCategory === "land" &&
-                                sections.specifications && (
+                            {/* ================================================================ */}
+                            {/* Construction Project Sections — entirely different form */}
+                            {/* ================================================================ */}
+                            {isConstructionProject && (
+                                <>
+                                    {/* Project Info — company & project name */}
                                     <FormSection
-                                        title="Land Area"
-                                        icon={<AppstoreOutlined />}
-                                        description="Plot size in m² and dönüm"
+                                        title="Project Info"
+                                        icon={<BuildOutlined />}
+                                        description="Construction company and project name"
                                     >
-                                        <SpecificationsSection
+                                        <ConstructionProjectInfoSection
                                             form={form}
-                                            primaryCategory={primaryCategory}
-                                            enumValues={enumValues}
                                         />
                                     </FormSection>
-                                )}
 
-                            {/* Pricing */}
-                            {sections.pricing && (
-                                <FormSection
-                                    title="Pricing"
-                                    icon={<DollarOutlined />}
-                                    description="Price, price per m², and swap options"
-                                >
-                                    <PricingSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                    />
-                                </FormSection>
-                            )}
-
-                            {/* Specifications — after pricing for non-land */}
-                            {primaryCategory !== "land" &&
-                                sections.specifications && (
+                                    {/* Project Details — classification & specs */}
                                     <FormSection
-                                        title="Specifications"
+                                        title="Project Details"
                                         icon={<AppstoreOutlined />}
-                                        description="Rooms, areas, and building details"
+                                        description="Construction status, unit types, and specifications"
+                                    >
+                                        <ConstructionProjectDetailsSection
+                                            form={form}
+                                        />
+                                    </FormSection>
+
+                                    {/* Pricing & Payment Plan */}
+                                    <FormSection
+                                        title="Pricing & Payment"
+                                        icon={<DollarOutlined />}
+                                        description="Starting price, payment plan, and availability"
+                                    >
+                                        <ConstructionProjectPricingSection
+                                            form={form}
+                                        />
+                                    </FormSection>
+
+                                    {/* Location */}
+                                    <FormSection
+                                        title="Location"
+                                        icon={<EnvironmentOutlined />}
+                                        description="Project location and distances to amenities"
                                         defaultOpen={false}
                                     >
-                                        <SpecificationsSection
+                                        <ConstructionProjectLocationSection
                                             form={form}
-                                            primaryCategory={primaryCategory}
                                             enumValues={enumValues}
                                         />
                                     </FormSection>
-                                )}
 
-                            {/* Location */}
-                            {sections.location && (
-                                <FormSection
-                                    title="Location"
-                                    icon={<EnvironmentOutlined />}
-                                    description="City, area, address, and coordinates"
-                                    defaultOpen={false}
-                                >
-                                    <LocationSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                        enumValues={enumValues}
-                                    />
-                                </FormSection>
+                                    {/* Facilities */}
+                                    <FormSection
+                                        title="Project Facilities"
+                                        icon={<CheckSquareOutlined />}
+                                        description="Amenities and facilities available in the project"
+                                        defaultOpen={false}
+                                    >
+                                        <ConstructionProjectFacilitiesSection
+                                            form={form}
+                                        />
+                                    </FormSection>
+
+                                    {/* Photos */}
+                                    <FormSection
+                                        title="Project Photos"
+                                        icon={<PictureOutlined />}
+                                        description="Site plans and exterior photos"
+                                        defaultOpen={false}
+                                    >
+                                        <ConstructionProjectPhotosSection
+                                            form={form}
+                                            projectId={data?.id}
+                                        />
+                                    </FormSection>
+
+                                    {/* Description */}
+                                    <FormSection
+                                        title="Description"
+                                        icon={<FileTextOutlined />}
+                                        description="Project description and notes"
+                                        defaultOpen={false}
+                                    >
+                                        <Form.Item
+                                            name="description"
+                                            label="Project Description"
+                                        >
+                                            <Input.TextArea
+                                                rows={4}
+                                                placeholder="Describe the construction project..."
+                                            />
+                                        </Form.Item>
+                                    </FormSection>
+                                </>
                             )}
 
-                            {/* Classification */}
-                            {sections.classification && (
-                                <FormSection
-                                    title="Classification"
-                                    icon={<TagsOutlined />}
-                                    description="Construction status, views, and occupancy"
-                                    defaultOpen={false}
-                                >
-                                    <ClassificationSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                        enumValues={enumValues}
-                                    />
-                                </FormSection>
-                            )}
+                            {/* ================================================================ */}
+                            {/* Standard Property Sections (non-construction) */}
+                            {/* ================================================================ */}
+                            {!isConstructionProject && (
+                                <>
+                                    {/* Core Details */}
+                                    {sections.coreDetails && (
+                                        <FormSection
+                                            title="Core Details"
+                                            icon={<AppstoreOutlined />}
+                                            description="Property type, status, and sale type"
+                                        >
+                                            <CoreDetailsSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                                enumValues={enumValues}
+                                                isSalesManager={isSalesManager}
+                                            />
+                                        </FormSection>
+                                    )}
 
-                            {/* Features — hidden for land */}
-                            {sections.features && (
-                                <FormSection
-                                    title="Features"
-                                    icon={<StarOutlined />}
-                                    description="Interior, exterior, location features and add-ons"
-                                    defaultOpen={false}
-                                >
-                                    <FeaturesSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                        enumValues={enumValues}
-                                    />
-                                </FormSection>
-                            )}
+                                    {/* Specifications — before pricing for land (need area to calculate price/m²) */}
+                                    {primaryCategory === "land" &&
+                                        sections.specifications && (
+                                            <FormSection
+                                                title="Land Area"
+                                                icon={<AppstoreOutlined />}
+                                                description="Plot size in m² and dönüm"
+                                            >
+                                                <SpecificationsSection
+                                                    form={form}
+                                                    primaryCategory={
+                                                        primaryCategory
+                                                    }
+                                                    enumValues={enumValues}
+                                                />
+                                            </FormSection>
+                                        )}
 
-                            {/* Legal & Financial */}
-                            {sections.legalFinancial && (
-                                <FormSection
-                                    title="Legal & Financial"
-                                    icon={<SafetyCertificateOutlined />}
-                                    description="Title deed, rental terms, and financial details"
-                                    defaultOpen={false}
-                                >
-                                    <LegalFinancialSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                        enumValues={enumValues}
-                                    />
-                                </FormSection>
-                            )}
+                                    {/* Pricing */}
+                                    {sections.pricing && (
+                                        <FormSection
+                                            title="Pricing"
+                                            icon={<DollarOutlined />}
+                                            description="Price, price per m², and swap options"
+                                        >
+                                            <PricingSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                            />
+                                        </FormSection>
+                                    )}
 
-                            {/* Documents (land only) */}
-                            {canSeeDocuments && sections.documents && (
-                                <FormSection
-                                    title="Documents Checklist"
-                                    icon={<FolderOpenOutlined />}
-                                    description="Upload required documents for this land listing"
-                                    defaultOpen={false}
-                                >
-                                    <DocumentsSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                    />
-                                </FormSection>
-                            )}
+                                    {/* Specifications — after pricing for non-land */}
+                                    {primaryCategory !== "land" &&
+                                        sections.specifications && (
+                                            <FormSection
+                                                title="Specifications"
+                                                icon={<AppstoreOutlined />}
+                                                description="Rooms, areas, and building details"
+                                                defaultOpen={false}
+                                            >
+                                                <SpecificationsSection
+                                                    form={form}
+                                                    primaryCategory={
+                                                        primaryCategory
+                                                    }
+                                                    enumValues={enumValues}
+                                                />
+                                            </FormSection>
+                                        )}
 
-                            {/* Photos */}
-                            {sections.photos && (
-                                <FormSection
-                                    title="Photos"
-                                    icon={<PictureOutlined />}
-                                    description="Upload and tag property photos"
-                                    defaultOpen={false}
-                                >
-                                    <PhotosSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                        propertyId={data?.id}
-                                        existingAssets={(data as any)?.assets}
-                                        onSaveForUpload={handleSaveForUpload}
-                                    />
-                                </FormSection>
-                            )}
+                                    {/* Location */}
+                                    {sections.location && (
+                                        <FormSection
+                                            title="Location"
+                                            icon={<EnvironmentOutlined />}
+                                            description="City, area, address, and coordinates"
+                                            defaultOpen={false}
+                                        >
+                                            <LocationSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                                enumValues={enumValues}
+                                            />
+                                        </FormSection>
+                                    )}
 
-                            {/* Description & Media */}
-                            {sections.descriptionMedia && (
-                                <FormSection
-                                    title="Description & Media"
-                                    icon={<FileTextOutlined />}
-                                    description="Property description, video, and virtual tour links"
-                                    defaultOpen={false}
-                                >
-                                    <DescriptionMediaSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                    />
-                                </FormSection>
-                            )}
+                                    {/* Classification */}
+                                    {sections.classification && (
+                                        <FormSection
+                                            title="Classification"
+                                            icon={<TagsOutlined />}
+                                            description="Construction status, views, and occupancy"
+                                            defaultOpen={false}
+                                        >
+                                            <ClassificationSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                                enumValues={enumValues}
+                                            />
+                                        </FormSection>
+                                    )}
 
-                            {/* Owner Info */}
-                            {canSeeOwnerInfo && sections.ownerInfo && (
-                                <FormSection
-                                    title="Owner Information"
-                                    icon={<UserOutlined />}
-                                    description="Owner contact and personal details"
-                                    defaultOpen={false}
-                                >
-                                    <OwnerInfoSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                        isSalesManager={isSalesManager}
-                                    />
-                                </FormSection>
-                            )}
+                                    {/* Features — hidden for land */}
+                                    {sections.features && (
+                                        <FormSection
+                                            title="Features"
+                                            icon={<StarOutlined />}
+                                            description="Interior, exterior, location features and add-ons"
+                                            defaultOpen={false}
+                                        >
+                                            <FeaturesSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                                enumValues={enumValues}
+                                            />
+                                        </FormSection>
+                                    )}
 
-                            {/* Internal Info */}
-                            {canSeeInternalInfo && sections.internalInfo && (
-                                <FormSection
-                                    title="Internal Info"
-                                    icon={<LockOutlined />}
-                                    description="Internal pricing, commission, and private notes"
-                                    defaultOpen={false}
-                                >
-                                    <InternalInfoSection
-                                        form={form}
-                                        primaryCategory={primaryCategory}
-                                    />
-                                </FormSection>
+                                    {/* Legal & Financial */}
+                                    {sections.legalFinancial && (
+                                        <FormSection
+                                            title="Legal & Financial"
+                                            icon={<SafetyCertificateOutlined />}
+                                            description="Title deed, rental terms, and financial details"
+                                            defaultOpen={false}
+                                        >
+                                            <LegalFinancialSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                                enumValues={enumValues}
+                                            />
+                                        </FormSection>
+                                    )}
+
+                                    {/* Documents (land only) */}
+                                    {canSeeDocuments && sections.documents && (
+                                        <FormSection
+                                            title="Documents Checklist"
+                                            icon={<FolderOpenOutlined />}
+                                            description="Upload required documents for this land listing"
+                                            defaultOpen={false}
+                                        >
+                                            <DocumentsSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                            />
+                                        </FormSection>
+                                    )}
+
+                                    {/* Photos */}
+                                    {sections.photos && (
+                                        <FormSection
+                                            title="Photos"
+                                            icon={<PictureOutlined />}
+                                            description="Upload and tag property photos"
+                                            defaultOpen={false}
+                                        >
+                                            <PhotosSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                                propertyId={data?.id}
+                                                existingAssets={
+                                                    (data as any)?.assets
+                                                }
+                                                onSaveForUpload={
+                                                    handleSaveForUpload
+                                                }
+                                            />
+                                        </FormSection>
+                                    )}
+
+                                    {/* Description & Media */}
+                                    {sections.descriptionMedia && (
+                                        <FormSection
+                                            title="Description & Media"
+                                            icon={<FileTextOutlined />}
+                                            description="Property description, video, and virtual tour links"
+                                            defaultOpen={false}
+                                        >
+                                            <DescriptionMediaSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                            />
+                                        </FormSection>
+                                    )}
+
+                                    {/* Owner Info */}
+                                    {canSeeOwnerInfo && sections.ownerInfo && (
+                                        <FormSection
+                                            title="Owner Information"
+                                            icon={<UserOutlined />}
+                                            description="Owner contact and personal details"
+                                            defaultOpen={false}
+                                        >
+                                            <OwnerInfoSection
+                                                form={form}
+                                                primaryCategory={
+                                                    primaryCategory
+                                                }
+                                                isSalesManager={isSalesManager}
+                                            />
+                                        </FormSection>
+                                    )}
+
+                                    {/* Internal Info */}
+                                    {canSeeInternalInfo &&
+                                        sections.internalInfo && (
+                                            <FormSection
+                                                title="Internal Info"
+                                                icon={<LockOutlined />}
+                                                description="Internal pricing, commission, and private notes"
+                                                defaultOpen={false}
+                                            >
+                                                <InternalInfoSection
+                                                    form={form}
+                                                    primaryCategory={
+                                                        primaryCategory
+                                                    }
+                                                />
+                                            </FormSection>
+                                        )}
+                                </>
                             )}
                         </>
                     )}
@@ -528,7 +711,13 @@ export default function PropertyCategoryForm({
                             loading={loading}
                             disabled={!primaryCategory}
                         >
-                            {isEditMode ? "Update Property" : "Create Property"}
+                            {isEditMode
+                                ? isConstructionProject
+                                    ? "Update Project"
+                                    : "Update Property"
+                                : isConstructionProject
+                                  ? "Create Project"
+                                  : "Create Property"}
                         </Button>
                     </Space>
                 </div>
