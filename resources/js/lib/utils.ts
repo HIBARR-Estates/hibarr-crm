@@ -361,6 +361,7 @@ export function formatMobileForDisplay(value: unknown): string {
                 .map((p) => String(p).replace(/\D/g, ""))
                 .join("");
             if (fromParts) return "+" + fromParts;
+            return "";
         } catch {
             return trimmed;
         }

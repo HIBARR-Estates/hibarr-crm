@@ -1296,7 +1296,7 @@ export default function CustomFieldDisplay({
         let normalizedValue = value;
         if (field.type === "country" && (value !== undefined && value !== null)) {
             normalizedValue = formatCountryForDisplay(value);
-        } else if (type === "phone" && (value !== undefined && value !== null)) {
+        } else if (field.type === "phone" && (value !== undefined && value !== null)) {
             normalizedValue = formatMobileForDisplay(value);
         }
 

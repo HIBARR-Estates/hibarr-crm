@@ -103,7 +103,7 @@ export const DEAL_TABLE_COLUMNS = (
         },
         {
             title: "Country",
-            dataIndex: "country",
+            dataIndex: ["contact", "country"],
             key: "country",
             width: 120,
             render: (_, record) => {
