@@ -76,22 +76,25 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
                     />
                 </Form.Item>
                 {insufficientMessage && (
-                    <Alert
-                        message={insufficientMessage}
-                        type="info"
-                        showIcon
-                        className="mt-2"
-                        closable
-                    />
+                    <div className="mt-2">
+                        <Alert
+                            message={insufficientMessage}
+                            type="info"
+                            showIcon
+                            closable
+                        />
+                    </div>
                 )}
                 {error && (
-                    <Alert
-                        message={error}
-                        type="error"
-                        showIcon
-                        className="mt-2"
-                        closable
-                    />
+                    <div className="mt-2">
+                        <Alert
+                            message={error}
+                            type="error"
+                            showIcon
+                            className="mt-2"
+                            closable
+                        />
+                    </div>
                 )}
             </Col>
 
