@@ -28,12 +28,14 @@ interface LegalFinancialSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
     enumValues?: PropertyEnumValues;
+    lockedFields?: Set<string>;
 }
 
 const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
     form,
     primaryCategory,
     enumValues,
+    lockedFields = new Set<string>(),
 }) => {
     const { deedTypeOptions, deedStatusOptions } = useFormOptions(
         enumValues,
@@ -333,7 +335,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                 name={["legal_info", "has_restrictions"]}
                                 label="Any Restrictions"
                             >
-                                <Radio.Group>
+                                <Radio.Group disabled={lockedFields.has('legal_info.has_restrictions')}>
                                     <Radio value={true}>Yes</Radio>
                                     <Radio value={false}>No</Radio>
                                 </Radio.Group>
@@ -348,6 +350,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                     <TextArea
                                         rows={2}
                                         placeholder="Describe restrictions..."
+                                        disabled={lockedFields.has('legal_info.restriction_notes')}
                                     />
                                 </Form.Item>
                             </Col>
@@ -588,7 +591,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                 name={["legal_info", "has_restrictions"]}
                                 label="Any Restrictions"
                             >
-                                <Radio.Group>
+                                <Radio.Group disabled={lockedFields.has('legal_info.has_restrictions')}>
                                     <Radio value={true}>Yes</Radio>
                                     <Radio value={false}>No</Radio>
                                 </Radio.Group>
@@ -603,6 +606,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                     <TextArea
                                         rows={2}
                                         placeholder="Describe restrictions..."
+                                        disabled={lockedFields.has('legal_info.restriction_notes')}
                                     />
                                 </Form.Item>
                             </Col>

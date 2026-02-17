@@ -20,6 +20,7 @@ import {
     CheckSquareOutlined,
 } from "@ant-design/icons";
 import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
+import type { DeveloperProjectUnitType } from "@/Types/developerProject";
 import { AppPermission } from "@/Types/permission";
 import { usePage } from "@inertiajs/react";
 import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
@@ -106,6 +107,117 @@ export default function PropertyCategoryForm({
     const isSalesManager = isEditMode
         ? propertyPermissions.isSalesManager
         : isSalesManagerUser;
+
+    // ── Unit-type → property field mapping ──
+    // Maps DeveloperProjectUnitType fields to property form field names.
+    const UNIT_TYPE_FIELD_MAP: Record<
+        string,
+        string | [string, string]
+    > = {
+        property_type: "property_type",
+        unit_style: "unit_style",
+        bedrooms: "bedrooms",
+        bathrooms: "bathrooms",
+        floor: "floor_number",
+        floors_in_building: "floors_in_building",
+        total_area_sqm: "gross_sqm",
+        living_area_sqm: "living_area_sqm",
+        terrace_balcony_sqm: "balcony_net_sqm",
+        plot_size_sqm: "land_size",
+        furniture_status: "furniture_status",
+        view_types: "view_types",
+        completion_date: "completion_date",
+        outside_features: "exterior_features",
+        inside_features: "interior_features",
+        has_restrictions: ["legal_info", "has_restrictions"],
+        restriction_notes: ["legal_info", "restriction_notes"],
+        description: "description",
+    };
+
+    // Locked fields state — tracks which property form fields are disabled
+    // because they were auto-filled from a unit type selection.
+    const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
+
+    // Handle unit type selection from CoreDetailsSection
+    const handleUnitTypeSelect = useCallback(
+        (unitType: DeveloperProjectUnitType | null) => {
+            if (!unitType) {
+                // Clear all prefilled values and unlock
+                const fieldsToClear: Record<string, any> = {};
+                for (const [utKey, formKey] of Object.entries(
+                    UNIT_TYPE_FIELD_MAP,
+                )) {
+                    if (Array.isArray(formKey)) {
+                        // Nested field: e.g. ["legal_info", "has_restrictions"]
+                        const current = form.getFieldValue(formKey[0]) || {};
+                        fieldsToClear[formKey[0]] = {
+                            ...current,
+                            [formKey[1]]: undefined,
+                        };
+                    } else {
+                        fieldsToClear[formKey] = undefined;
+                    }
+                }
+                form.setFieldsValue(fieldsToClear);
+                setLockedFields(new Set());
+                return;
+            }
+
+            // Map unit type values → property form fields
+            const newValues: Record<string, any> = {};
+            const locked = new Set<string>();
+
+            for (const [utKey, formKey] of Object.entries(
+                UNIT_TYPE_FIELD_MAP,
+            )) {
+                const value = (unitType as any)[utKey];
+                if (value === null || value === undefined) continue;
+
+                if (Array.isArray(formKey)) {
+                    // Nested field
+                    const parentKey = formKey[0];
+                    const childKey = formKey[1];
+                    const current = form.getFieldValue(parentKey) || {};
+                    newValues[parentKey] = {
+                        ...current,
+                        ...(newValues[parentKey] || {}),
+                        [childKey]: value,
+                    };
+                    locked.add(`${parentKey}.${childKey}`);
+                } else {
+                    newValues[formKey] = value;
+                    locked.add(formKey);
+                }
+            }
+
+            form.setFieldsValue(newValues);
+            setLockedFields(locked);
+        },
+        [form],
+    );
+
+    // Hydrate lockedFields in edit mode when the form already has a unit type
+    useEffect(() => {
+        if (
+            data?.developer_project_unit_type_id &&
+            visible &&
+            lockedFields.size === 0
+        ) {
+            // Build the locked set from whichever mapped fields have a
+            // non-null value on the existing property and match the mapping.
+            const locked = new Set<string>();
+            for (const [_utKey, formKey] of Object.entries(
+                UNIT_TYPE_FIELD_MAP,
+            )) {
+                if (Array.isArray(formKey)) {
+                    locked.add(`${formKey[0]}.${formKey[1]}`);
+                } else {
+                    locked.add(formKey);
+                }
+            }
+            setLockedFields(locked);
+        }
+    }, [data, visible]);
 
     // Track category from form
     const primaryCategory = Form.useWatch("primary_category", form) as
@@ -459,6 +571,8 @@ export default function PropertyCategoryForm({
                                                 }
                                                 enumValues={enumValues}
                                                 isSalesManager={isSalesManager}
+                                                onUnitTypeSelect={handleUnitTypeSelect}
+                                                lockedFields={lockedFields}
                                             />
                                         </FormSection>
                                     )}
@@ -477,6 +591,7 @@ export default function PropertyCategoryForm({
                                                         primaryCategory
                                                     }
                                                     enumValues={enumValues}
+                                                    lockedFields={lockedFields}
                                                 />
                                             </FormSection>
                                         )}
@@ -512,6 +627,7 @@ export default function PropertyCategoryForm({
                                                         primaryCategory
                                                     }
                                                     enumValues={enumValues}
+                                                    lockedFields={lockedFields}
                                                 />
                                             </FormSection>
                                         )}
@@ -548,6 +664,7 @@ export default function PropertyCategoryForm({
                                                     primaryCategory
                                                 }
                                                 enumValues={enumValues}
+                                                lockedFields={lockedFields}
                                             />
                                         </FormSection>
                                     )}
@@ -566,6 +683,7 @@ export default function PropertyCategoryForm({
                                                     primaryCategory
                                                 }
                                                 enumValues={enumValues}
+                                                lockedFields={lockedFields}
                                             />
                                         </FormSection>
                                     )}
@@ -584,6 +702,7 @@ export default function PropertyCategoryForm({
                                                     primaryCategory
                                                 }
                                                 enumValues={enumValues}
+                                                lockedFields={lockedFields}
                                             />
                                         </FormSection>
                                     )}
@@ -642,6 +761,7 @@ export default function PropertyCategoryForm({
                                                 primaryCategory={
                                                     primaryCategory
                                                 }
+                                                lockedFields={lockedFields}
                                             />
                                         </FormSection>
                                     )}

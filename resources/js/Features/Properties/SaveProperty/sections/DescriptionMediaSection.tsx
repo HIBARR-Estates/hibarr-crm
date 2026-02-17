@@ -10,11 +10,13 @@ const { TextArea } = Input;
 interface DescriptionMediaSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
+    lockedFields?: Set<string>;
 }
 
 const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
     form,
     primaryCategory,
+    lockedFields = new Set<string>(),
 }) => {
     const { modal } = App.useApp();
     const { isEnabled, isGenerating, error, insufficientMessage, generate } =
@@ -72,7 +74,7 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
                         placeholder="Enter a detailed property description..."
                         showCount
                         maxLength={5000}
-                        disabled={isGenerating}
+                        disabled={isGenerating || lockedFields.has('description')}
                     />
                 </Form.Item>
                 {insufficientMessage && (

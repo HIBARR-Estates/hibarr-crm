@@ -9,12 +9,15 @@ import {
     Input,
     Divider,
     message,
+    Alert,
 } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
+import type { DeveloperProjectUnitType } from "@/Types/developerProject";
 import { usePage } from "@inertiajs/react";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { SPECIFICATION_FIELDS } from "../fieldConfig";
 import { useFormOptions } from "../useFormOptions";
 
@@ -25,6 +28,8 @@ interface CoreDetailsSectionProps {
     primaryCategory: PrimaryCategory;
     enumValues?: PropertyEnumValues;
     isSalesManager?: boolean;
+    onUnitTypeSelect?: (unitType: DeveloperProjectUnitType | null) => void;
+    lockedFields?: Set<string>;
 }
 
 interface DeveloperOption {
@@ -45,6 +50,8 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
     primaryCategory,
     enumValues,
     isSalesManager = false,
+    onUnitTypeSelect,
+    lockedFields = new Set<string>(),
 }) => {
     const { props } = usePage<any>();
     const [developerProjects, setDeveloperProjects] = useState<
@@ -73,6 +80,35 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
             (p) => p.developer_id === selectedDeveloperId,
         );
     }, [selectedDeveloperId, developerProjects]);
+
+    // Track selected project for unit type cascade
+    const selectedProjectId = Form.useWatch("developer_project_id", form);
+
+    // Fetch unit types for the selected project
+    const { data: unitTypesData, isLoading: unitTypesLoading } = useApiQuery<{
+        unit_types: DeveloperProjectUnitType[];
+    }>({
+        path: selectedProjectId
+            ? route("developer-projects.unit-types.index", {
+                  projectId: selectedProjectId,
+              })
+            : "",
+        options: { enabled: !!selectedProjectId },
+    });
+    const unitTypes = unitTypesData?.unit_types ?? [];
+
+    // Handle unit type selection
+    const handleUnitTypeChange = useCallback(
+        (value: number | undefined) => {
+            if (!value) {
+                onUnitTypeSelect?.(null);
+                return;
+            }
+            const selected = unitTypes.find((ut) => ut.id === value);
+            onUnitTypeSelect?.(selected ?? null);
+        },
+        [unitTypes, onUnitTypeSelect],
+    );
 
     // Inline add modal state
     const [addDeveloperOpen, setAddDeveloperOpen] = useState(false);
@@ -132,23 +168,36 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
         }
     };
 
-    // When within_site toggled off, clear project selection
+    // When within_site toggled off, clear project & unit type selection
     const handleWithinSiteChange = useCallback(
         (value: boolean | undefined) => {
             if (!value) {
                 form.setFieldValue("_selected_developer_id", undefined);
                 form.setFieldValue("developer_project_id", undefined);
+                form.setFieldValue("developer_project_unit_type_id", undefined);
+                onUnitTypeSelect?.(null);
             }
         },
-        [form],
+        [form, onUnitTypeSelect],
     );
 
-    // When developer changes, clear project selection
+    // When developer changes, clear project & unit type selection
     const handleDeveloperChange = useCallback(
         (value: number | undefined) => {
             form.setFieldValue("developer_project_id", undefined);
+            form.setFieldValue("developer_project_unit_type_id", undefined);
+            onUnitTypeSelect?.(null);
         },
-        [form],
+        [form, onUnitTypeSelect],
+    );
+
+    // When project changes, clear unit type selection
+    const handleProjectChange = useCallback(
+        (value: number | undefined) => {
+            form.setFieldValue("developer_project_unit_type_id", undefined);
+            onUnitTypeSelect?.(null);
+        },
+        [form, onUnitTypeSelect],
     );
 
     // Inline add: create a new developer (construction company)
@@ -193,6 +242,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                             placeholder="Select property type"
                             showSearch
                             optionFilterProp="children"
+                            disabled={lockedFields.has('property_type')}
                         >
                             {propertyTypeOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
@@ -253,6 +303,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                 placeholder="Select unit style(s)"
                                 allowClear
                                 onChange={handleUnitStyleChange}
+                                disabled={lockedFields.has('unit_style')}
                             >
                                 {unitStyleOptions.map((o) => (
                                     <Option key={o.value} value={o.value}>
@@ -362,6 +413,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                             allowClear
                                             showSearch
                                             optionFilterProp="children"
+                                            onChange={handleProjectChange}
                                             dropdownRender={(menu) =>
                                                 isSalesManager ? (
                                                     <>
@@ -408,6 +460,57 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                         </Select>
                                     </Form.Item>
                                 </Col>
+
+                                {/* Unit Type (4th cascade) */}
+                                {selectedProjectId && (
+                                    <Col xs={24} md={12}>
+                                        <Form.Item
+                                            name="developer_project_unit_type_id"
+                                            label="Unit Type"
+                                            tooltip="Select the unit type to auto-fill specifications. Matching fields will be locked."
+                                        >
+                                            <Select
+                                                placeholder={
+                                                    unitTypesLoading
+                                                        ? "Loading unit types…"
+                                                        : "Select unit type"
+                                                }
+                                                allowClear
+                                                showSearch
+                                                optionFilterProp="children"
+                                                loading={unitTypesLoading}
+                                                onChange={handleUnitTypeChange}
+                                                notFoundContent={
+                                                    unitTypesLoading
+                                                        ? "Loading…"
+                                                        : "No unit types for this project"
+                                                }
+                                            >
+                                                {unitTypes.map((ut) => (
+                                                    <Option
+                                                        key={ut.id}
+                                                        value={ut.id}
+                                                    >
+                                                        {ut.display_label ??
+                                                            ut.reference_code ??
+                                                            `Unit Type #${ut.id}`}
+                                                    </Option>
+                                                ))}
+                                            </Select>
+                                        </Form.Item>
+                                        {form.getFieldValue(
+                                            "developer_project_unit_type_id",
+                                        ) && (
+                                            <Alert
+                                                type="info"
+                                                showIcon
+                                                icon={<InfoCircleOutlined />}
+                                                message="Fields matching this unit type have been auto-filled and locked."
+                                                className="!mb-4 !-mt-2"
+                                            />
+                                        )}
+                                    </Col>
+                                )}
                             </>
                         )}
                     </>

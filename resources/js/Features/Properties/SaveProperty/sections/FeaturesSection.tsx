@@ -10,6 +10,7 @@ interface FeaturesSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
     enumValues?: PropertyEnumValues;
+    lockedFields?: Set<string>;
 }
 
 /**
@@ -21,6 +22,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({
     form,
     primaryCategory,
     enumValues,
+    lockedFields = new Set<string>(),
 }) => {
     const {
         interiorFeatureOptions,
@@ -37,7 +39,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({
                     Interior Features
                 </Text>
                 <Form.Item name="interior_features" noStyle>
-                    <Checkbox.Group className="w-full">
+                    <Checkbox.Group className="w-full" disabled={lockedFields.has('interior_features')}>
                         <Row gutter={[8, 4]}>
                             {interiorFeatureOptions.map((o) => (
                                 <Col xs={12} sm={8} md={6} key={o.value}>
@@ -62,7 +64,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({
                     Exterior Features
                 </Text>
                 <Form.Item name="exterior_features" noStyle>
-                    <Checkbox.Group className="w-full">
+                    <Checkbox.Group className="w-full" disabled={lockedFields.has('exterior_features')}>
                         <Row gutter={[8, 4]}>
                             {exteriorFeatureOptions.map((o) => (
                                 <Col xs={12} sm={8} md={6} key={o.value}>
