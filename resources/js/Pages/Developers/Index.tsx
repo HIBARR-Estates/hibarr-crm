@@ -97,8 +97,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
 
     return (
         <Card
-            hoverable
-            className="h-full flex flex-col"
+            className="h-full flex flex-col hover:border-gray-300 transition-border group"
             actions={[
                 <Dropdown
                     menu={{ items: menuItems }}
@@ -109,7 +108,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
                 </Dropdown>,
             ]}
         >
-            <Link href={route("developers.show", developer.id)}>
+            <Link href={route("developers.show", developer.id)} className="">
                 <div className="flex flex-col items-center text-center">
                     <Avatar
                         size={80}
@@ -209,7 +208,7 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
                     icon={<PlusOutlined />}
                     onClick={handleAdd}
                 >
-                    Add Developer
+                    Add Company
                 </Button>
                 {/* Search */}
                 <div className="mb-6 mt-4 flex justify-between">
