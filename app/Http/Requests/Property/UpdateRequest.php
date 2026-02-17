@@ -183,6 +183,7 @@ class UpdateRequest extends CoreRequest
                 },
             ],
             'developer_project_id' => 'nullable|exists:developer_projects,id',
+            'developer_project_unit_type_id' => 'nullable|exists:developer_project_unit_types,id',
             'city' => 'nullable|string|max:255',
             'map' => 'nullable|string',
             'area' => 'nullable|string|max:255',
@@ -190,7 +191,7 @@ class UpdateRequest extends CoreRequest
             'living_room' => 'nullable|string|max:255',
             'bedrooms' => 'nullable|max:255',
             'bathrooms' => 'nullable|integer|min:0',
-            'floor_number' => 'nullable|integer|min:0',
+            'floor_number' => 'nullable|integer',
             'floors_in_building' => 'nullable|integer|min:1',
             'building_age' => 'nullable|integer|min:0',
             'furniture_status' => [

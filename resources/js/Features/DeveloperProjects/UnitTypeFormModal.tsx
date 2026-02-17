@@ -265,7 +265,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
             okText={isEditing ? "Update" : "Create"}
             okButtonProps={{ loading: isLoading }}
             cancelButtonProps={{ disabled: isLoading }}
-            width={1000}
+            width={1040}
         >
             {errorMessage && (
                 <Alert

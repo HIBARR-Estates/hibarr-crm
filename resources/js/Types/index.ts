@@ -182,6 +182,7 @@ export interface Property {
     id: number;
     product_id: number;
     developer_project_id?: number | null;
+    developer_project_unit_type_id?: number | null;
     project_location_id?: number | null;
     added_by?: number | null;
     responsible_agent_id?: number | null;

@@ -10,12 +10,14 @@ interface ClassificationSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
     enumValues?: PropertyEnumValues;
+    lockedFields?: Set<string>;
 }
 
 const ClassificationSection: React.FC<ClassificationSectionProps> = ({
     form,
     primaryCategory,
     enumValues,
+    lockedFields = new Set<string>(),
 }) => {
     const { constructionStatusOptions, viewTypeOptions, occupancyTypeOptions } =
         useFormOptions(enumValues, primaryCategory);
@@ -45,6 +47,7 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
                         style={{ width: "100%" }}
                         picker="month"
                         placeholder="Select month/year"
+                        disabled={lockedFields.has('completion_date')}
                     />
                 </Form.Item>
             </Col>
@@ -60,6 +63,7 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
                         mode="multiple"
                         placeholder="Select view types"
                         allowClear
+                        disabled={lockedFields.has('view_types')}
                     >
                         {viewTypeOptions.map((o) => (
                             <Option key={o.value} value={o.value}>

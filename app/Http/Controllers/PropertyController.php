@@ -355,6 +355,7 @@ class PropertyController extends AccountBaseController
         $property->added_by = user()->id;
         $property->product_id = $product->id;
         $property->developer_project_id = $request->developer_project_id;
+        $property->developer_project_unit_type_id = $request->developer_project_unit_type_id;
         $property->property_type = $request->property_type;
         $property->sale_type = $request->sale_type;
         $property->unit_style = $request->unit_style;

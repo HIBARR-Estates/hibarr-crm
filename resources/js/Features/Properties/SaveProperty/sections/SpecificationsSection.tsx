@@ -22,12 +22,14 @@ interface SpecificationsSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
     enumValues?: PropertyEnumValues;
+    lockedFields?: Set<string>;
 }
 
 const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
     form,
     primaryCategory,
     enumValues,
+    lockedFields = new Set<string>(),
 }) => {
     const fields = SPECIFICATION_FIELDS[primaryCategory];
     const { furnitureStatusOptions, heatingTypeOptions } = useFormOptions(
@@ -90,6 +92,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                             min={0}
                             style={{ width: "100%" }}
                             addonAfter="m²"
+                            disabled={lockedFields.has('gross_sqm')}
                         />
                     </Form.Item>
                 </Col>
@@ -107,6 +110,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                             min={0}
                             style={{ width: "100%" }}
                             addonAfter="m²"
+                            disabled={lockedFields.has('living_area_sqm')}
                         />
                     </Form.Item>
                 </Col>
@@ -123,6 +127,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                                 style={{ width: "100%" }}
                                 addonAfter="m²"
                                 onChange={handleSqmChange}
+                                disabled={lockedFields.has('land_size')}
                             />
                         </Form.Item>
                     </Col>
@@ -153,7 +158,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {fields.bedrooms && !isStudio && (
                 <Col xs={12} md={6}>
                     <Form.Item name="bedrooms" label="Bedrooms">
-                        <Select placeholder="Select">
+                        <Select placeholder="Select" disabled={lockedFields.has('bedrooms')}>
                             {BEDROOM_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -168,7 +173,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {fields.bathrooms && (
                 <Col xs={12} md={6}>
                     <Form.Item name="bathrooms" label="Bathrooms">
-                        <Select placeholder="Select">
+                        <Select placeholder="Select" disabled={lockedFields.has('bathrooms')}>
                             {BATHROOM_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -210,7 +215,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {fields.floorNumber && (
                 <Col xs={12} md={6}>
                     <Form.Item name="floor_number" label="Floor">
-                        <Select placeholder="Select" allowClear>
+                        <Select placeholder="Select" allowClear disabled={lockedFields.has('floor_number')}>
                             {FLOOR_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -228,7 +233,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                         name="floors_in_building"
                         label="Floors in Building"
                     >
-                        <Select placeholder="Select" allowClear>
+                        <Select placeholder="Select" allowClear disabled={lockedFields.has('floors_in_building')}>
                             {FLOORS_IN_BUILDING_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -266,6 +271,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                             min={0}
                             style={{ width: "100%" }}
                             addonAfter="m²"
+                            disabled={lockedFields.has('balcony_net_sqm')}
                         />
                     </Form.Item>
                 </Col>
@@ -288,7 +294,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {fields.furnitureStatus && (
                 <Col xs={12} md={8}>
                     <Form.Item name="furniture_status" label="Furniture Status">
-                        <Select placeholder="Select" allowClear>
+                        <Select placeholder="Select" allowClear disabled={lockedFields.has('furniture_status')}>
                             {furnitureStatusOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
