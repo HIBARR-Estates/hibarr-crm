@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from "react";
-import { Form, Modal, Input, message, Spin } from "antd";
+import { Form, Modal, Input, message, Skeleton } from "antd";
 import {
     BuildOutlined,
     AppstoreOutlined,
@@ -230,7 +230,7 @@ const ConstructionProjectFormModal: React.FC<
         >
             {dataLoading ? (
                 <div className="flex justify-center items-center py-16">
-                    <Spin size="large" tip="Loading form data..." />
+                    <Skeleton paragraph={{ rows: 4 }} />
                 </div>
             ) : (
                 <Form form={form} layout="vertical" size="middle">

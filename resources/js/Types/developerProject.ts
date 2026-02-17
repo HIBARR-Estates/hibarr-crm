@@ -5,6 +5,33 @@
  * interface used for PDF expose generation.
  */
 
+import type { AssetTag } from "@/Types";
+
+// ============================================
+// Developer Project Asset Types
+// ============================================
+
+export interface DeveloperProjectAsset {
+    id: number;
+    developer_project_id: number;
+    company_id: number;
+    name: string;
+    asset_type: "image" | "video" | "video_url";
+    file_path?: string | null;
+    external_url?: string | null;
+    mime_type?: string | null;
+    file_size?: number | null;
+    tags?: AssetTag[];
+    metadata?: Record<string, any>;
+    order: number;
+    url?: string;
+    formatted_size?: string;
+    has_tags: boolean;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string | null;
+}
+
 // ============================================
 // Developer Types
 // ============================================
