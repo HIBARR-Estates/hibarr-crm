@@ -1102,6 +1102,13 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         // Expose Generation
         Route::post('/{id}/expose/generate', [App\Http\Controllers\DeveloperProjectController::class, 'generateExpose'])->name('expose.generate');
         
+        // Project-level Assets (images, videos)
+        Route::prefix('/{projectId}/assets')->name('assets.')->group(function () {
+            Route::get('/', [App\Http\Controllers\DeveloperProjectAssetController::class, 'index'])->name('index');
+            Route::post('/from-urls', [App\Http\Controllers\DeveloperProjectAssetController::class, 'storeFromUrls'])->name('store_from_urls');
+            Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectAssetController::class, 'destroy'])->name('destroy');
+        });
+
         // Expose Configuration
         Route::get('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'show'])->name('expose-config.show');
         Route::put('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'upsert'])->name('expose-config.upsert');
