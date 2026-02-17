@@ -109,6 +109,7 @@ class DeveloperController extends AccountBaseController
             'name' => 'required|string|max:255',
             'logo_url' => 'nullable|url|max:500',
             'description' => 'nullable|string',
+            'whatsapp_group_link' => 'nullable|url|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -120,6 +121,7 @@ class DeveloperController extends AccountBaseController
             'name' => $request->name,
             'logo_url' => $request->logo_url,
             'description' => $request->description,
+            'whatsapp_group_link' => $request->whatsapp_group_link,
         ]);
 
         return Reply::successWithData('Developer created successfully', [
@@ -139,13 +141,14 @@ class DeveloperController extends AccountBaseController
             'name' => 'sometimes|required|string|max:255',
             'logo_url' => 'nullable|url|max:500',
             'description' => 'nullable|string',
+            'whatsapp_group_link' => 'nullable|url|max:500',
         ]);
 
         if ($validator->fails()) {
             return Reply::error($validator->errors()->first());
         }
 
-        $developer->update($request->only(['name', 'logo_url', 'description']));
+        $developer->update($request->only(['name', 'logo_url', 'description', 'whatsapp_group_link']));
 
         return Reply::successWithData('Developer updated successfully', [
             'developer' => $developer->fresh(),

@@ -13,6 +13,7 @@ import {
     Typography,
     Card,
     Empty,
+    message,
 } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import type { PageProps } from "../../Components/DashboardLayout";
@@ -23,6 +24,8 @@ import {
     SettingOutlined,
     BankOutlined,
     EnvironmentOutlined,
+    WhatsAppOutlined,
+    CopyOutlined,
 } from "@ant-design/icons";
 import type {
     Developer,
@@ -222,10 +225,35 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                                     {developer.description}
                                 </Paragraph>
                             )}
-                            <div className="flex gap-4">
+                            <div className="flex flex-wrap gap-4 items-center">
                                 <Tag color="blue">
                                     {developer.projects_count || 0} Projects
                                 </Tag>
+                                {developer.whatsapp_group_link && (
+                                    <Space size="small">
+                                        <a
+                                            href={developer.whatsapp_group_link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-green-600 hover:text-green-800 flex items-center gap-1"
+                                        >
+                                            <WhatsAppOutlined /> WhatsApp Group
+                                        </a>
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            icon={<CopyOutlined />}
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(
+                                                    developer.whatsapp_group_link!,
+                                                );
+                                                message.success(
+                                                    "Link copied to clipboard",
+                                                );
+                                            }}
+                                        />
+                                    </Space>
+                                )}
                             </div>
                         </div>
                     </div>
