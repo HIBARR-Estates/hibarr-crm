@@ -184,7 +184,7 @@ const ConfigItemModal = ({
                         name="name"
                         label={
                             <span>
-                                System Key{" "}
+                                Name{" "}
                                 <Text
                                     type="secondary"
                                     className="text-xs font-normal"
