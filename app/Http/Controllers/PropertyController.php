@@ -232,7 +232,7 @@ class PropertyController extends AccountBaseController
             
         // Get developers (construction companies) for cascading dropdown
         $developers = \App\Models\Developer::where('company_id', user()->company_id)
-            ->select('id', 'name')
+            ->select('id', 'name', 'project_list', 'whatsapp_group_link')
             ->orderBy('name')
             ->get();
         
@@ -512,7 +512,7 @@ class PropertyController extends AccountBaseController
 
         // Get developers (construction companies) for cascading dropdown
         $developers = \App\Models\Developer::where('company_id', user()->company_id)
-            ->select('id', 'name')
+            ->select('id', 'name', 'project_list', 'whatsapp_group_link')
             ->orderBy('name')
             ->get();
 
