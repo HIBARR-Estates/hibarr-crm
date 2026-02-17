@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Link, router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
@@ -52,6 +52,7 @@ import { useApiMutate } from "../../lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "../../lib/api/types";
 import ExposeGenerationModal from "../../Features/DeveloperProjects/ExposeGenerationModal";
 import UnitTypesSection from "../../Features/DeveloperProjects/UnitTypesSection";
+import ConstructionProjectFormModal from "../../Features/DeveloperProjects/ConstructionProjectFormModal";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -590,6 +591,11 @@ const Show = ({
     unitTypes,
 }: ShowProps) => {
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
+    const [editModalOpen, setEditModalOpen] = useState(false);
+
+    const handleEditSuccess = useCallback(() => {
+        router.reload();
+    }, []);
 
     const menuItems: MenuProps["items"] = [
         {
@@ -749,7 +755,14 @@ const Show = ({
                             items={menuItems}
                             className="border-0"
                         />
-                        <div className="mt-4 pt-4 border-t">
+                        <div className="mt-4 pt-4 border-t space-y-2">
+                            <Button
+                                icon={<EditOutlined />}
+                                block
+                                onClick={() => setEditModalOpen(true)}
+                            >
+                                Edit Project
+                            </Button>
                             <Link
                                 href={route(
                                     "developer-projects.expose-config.show",
@@ -767,6 +780,14 @@ const Show = ({
                 {/* Main Content */}
                 <div className="flex-1 min-w-0">{renderSection()}</div>
             </div>
+
+            {/* Edit Construction Project Modal */}
+            <ConstructionProjectFormModal
+                open={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                project={project}
+                onSuccess={handleEditSuccess}
+            />
         </PageLayout>
     );
 };

@@ -33,6 +33,7 @@ import type {
     ProjectLocation,
 } from "../../Types/developerProject";
 import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
+import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -65,6 +66,9 @@ export interface ShowProps extends PageProps {
 
 const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
     const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editProject, setEditProject] = useState<DeveloperProject | null>(
+        null,
+    );
     const [searchValue, setSearchValue] = useState(filters.search || "");
 
     const handleSuccess = useCallback(() => {
@@ -150,6 +154,12 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
             width: 80,
             render: (_, record) => {
                 const menuItems: MenuProps["items"] = [
+                    {
+                        key: "edit",
+                        icon: <EditOutlined />,
+                        label: "Edit Project",
+                        onClick: () => setEditProject(record),
+                    },
                     {
                         key: "view",
                         icon: <EyeOutlined />,
@@ -307,10 +317,19 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                 </Card>
             </div>
 
-            {/* Edit Modal */}
+            {/* Edit Developer Modal */}
             <DeveloperFormModal
                 open={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
+                developer={developer}
+                onSuccess={handleSuccess}
+            />
+
+            {/* Edit Construction Project Modal */}
+            <ConstructionProjectFormModal
+                open={!!editProject}
+                onClose={() => setEditProject(null)}
+                project={editProject}
                 developer={developer}
                 onSuccess={handleSuccess}
             />

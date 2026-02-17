@@ -57,7 +57,7 @@ class DeveloperController extends AccountBaseController
     public function all()
     {
         $developers = Developer::where('company_id', user()->company_id)
-            ->select('id', 'name', 'logo_url')
+            ->select('id', 'name', 'logo_url', 'project_list', 'whatsapp_group_link')
             ->orderBy('name')
             ->get();
 
