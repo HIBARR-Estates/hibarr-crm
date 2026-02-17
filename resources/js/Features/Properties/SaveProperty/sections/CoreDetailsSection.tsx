@@ -242,7 +242,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                             placeholder="Select property type"
                             showSearch
                             optionFilterProp="children"
-                            disabled={lockedFields.has('property_type')}
+                            disabled={lockedFields.has("property_type")}
                         >
                             {propertyTypeOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
@@ -303,7 +303,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                 placeholder="Select unit style(s)"
                                 allowClear
                                 onChange={handleUnitStyleChange}
-                                disabled={lockedFields.has('unit_style')}
+                                disabled={lockedFields.has("unit_style")}
                             >
                                 {unitStyleOptions.map((o) => (
                                     <Option key={o.value} value={o.value}>
