@@ -201,7 +201,7 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                         icon={<EditOutlined />}
                         onClick={() => setEditModalOpen(true)}
                     >
-                        Edit Developer
+                        Edit Company
                     </Button>
                 </div>
 
