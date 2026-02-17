@@ -13,6 +13,7 @@ import {
     Typography,
     Card,
     Empty,
+    message,
 } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import type { PageProps } from "../../Components/DashboardLayout";
@@ -23,6 +24,8 @@ import {
     SettingOutlined,
     BankOutlined,
     EnvironmentOutlined,
+    WhatsAppOutlined,
+    CopyOutlined,
 } from "@ant-design/icons";
 import type {
     Developer,
@@ -30,6 +33,7 @@ import type {
     ProjectLocation,
 } from "../../Types/developerProject";
 import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
+import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -62,6 +66,9 @@ export interface ShowProps extends PageProps {
 
 const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
     const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editProject, setEditProject] = useState<DeveloperProject | null>(
+        null,
+    );
     const [searchValue, setSearchValue] = useState(filters.search || "");
 
     const handleSuccess = useCallback(() => {
@@ -148,6 +155,12 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
             render: (_, record) => {
                 const menuItems: MenuProps["items"] = [
                     {
+                        key: "edit",
+                        icon: <EditOutlined />,
+                        label: "Edit Project",
+                        onClick: () => setEditProject(record),
+                    },
+                    {
                         key: "view",
                         icon: <EyeOutlined />,
                         label: (
@@ -222,10 +235,35 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                                     {developer.description}
                                 </Paragraph>
                             )}
-                            <div className="flex gap-4">
+                            <div className="flex flex-wrap gap-4 items-center">
                                 <Tag color="blue">
                                     {developer.projects_count || 0} Projects
                                 </Tag>
+                                {developer.whatsapp_group_link && (
+                                    <Space size="small">
+                                        <a
+                                            href={developer.whatsapp_group_link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-green-600 hover:text-green-800 flex items-center gap-1"
+                                        >
+                                            <WhatsAppOutlined /> WhatsApp Group
+                                        </a>
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            icon={<CopyOutlined />}
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(
+                                                    developer.whatsapp_group_link!,
+                                                );
+                                                message.success(
+                                                    "Link copied to clipboard",
+                                                );
+                                            }}
+                                        />
+                                    </Space>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -279,10 +317,19 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                 </Card>
             </div>
 
-            {/* Edit Modal */}
+            {/* Edit Developer Modal */}
             <DeveloperFormModal
                 open={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
+                developer={developer}
+                onSuccess={handleSuccess}
+            />
+
+            {/* Edit Construction Project Modal */}
+            <ConstructionProjectFormModal
+                open={!!editProject}
+                onClose={() => setEditProject(null)}
+                project={editProject}
                 developer={developer}
                 onSuccess={handleSuccess}
             />

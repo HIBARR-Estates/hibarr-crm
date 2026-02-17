@@ -32,6 +32,7 @@ interface CreateDeveloperInput {
     name: string;
     logo_url?: string;
     description?: string;
+    whatsapp_group_link?: string;
 }
 
 const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
@@ -124,6 +125,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                     name: developer.name,
                     logo_url: developer.logo_url,
                     description: developer.description,
+                    whatsapp_group_link: developer.whatsapp_group_link,
                 });
                 setLogoUrl(developer.logo_url || null);
             } else {
@@ -237,6 +239,19 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                         placeholder="Enter developer description"
                         rows={4}
                     />
+                </Form.Item>
+
+                <Form.Item
+                    name="whatsapp_group_link"
+                    label="WhatsApp Group Link"
+                    rules={[
+                        {
+                            type: "url",
+                            message: "Please enter a valid URL",
+                        },
+                    ]}
+                >
+                    <Input placeholder="https://chat.whatsapp.com/..." />
                 </Form.Item>
             </Form>
         </Modal>

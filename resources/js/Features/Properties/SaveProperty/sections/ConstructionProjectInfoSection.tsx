@@ -18,12 +18,13 @@ const { Text } = Typography;
 interface Developer {
     id: number;
     name: string;
-    project_list: string[] | null;
-    whatsapp_group_link: string | null;
+    project_list?: string[] | null;
+    whatsapp_group_link?: string | null;
 }
 
 interface ConstructionProjectInfoSectionProps {
     form: FormInstance;
+    developers?: Developer[];
 }
 
 /**
@@ -33,12 +34,15 @@ interface ConstructionProjectInfoSectionProps {
  * - When a developer is selected, the project name dropdown shows its project_list.
  * - WhatsApp group link is inherited from the developer (per-company, not per-project).
  * - Google Drive link is a per-project input.
+ *
+ * Accepts an optional `developers` prop. Falls back to `usePage().props.developers` if not provided.
  */
 const ConstructionProjectInfoSection: React.FC<
     ConstructionProjectInfoSectionProps
-> = ({ form }) => {
+> = ({ form, developers: developersProp }) => {
     const { props } = usePage<any>();
-    const developers = (props?.developers || []) as Developer[];
+    const developers =
+        developersProp ?? ((props?.developers || []) as Developer[]);
 
     const selectedDeveloperId = Form.useWatch("developer_id", form);
 
