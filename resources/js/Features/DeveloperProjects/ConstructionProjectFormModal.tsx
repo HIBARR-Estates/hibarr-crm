@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback } from "react";
+import dayjs from "dayjs";
 import { Form, Modal, Input, message, Skeleton } from "antd";
 import {
     BuildOutlined,
@@ -140,7 +141,9 @@ const ConstructionProjectFormModal: React.FC<
                 number_of_blocks: project.number_of_blocks,
                 project_total_area_sqm: project.project_total_area_sqm,
                 construction_status: project.construction_status,
-                completion_date: project.completion_date,
+                completion_date: project.completion_date
+                    ? dayjs(project.completion_date)
+                    : undefined,
                 number_of_phases: project.number_of_phases,
                 furniture_package: project.furniture_package,
                 rental_guarantee: project.rental_guarantee,
@@ -167,6 +170,9 @@ const ConstructionProjectFormModal: React.FC<
 
                 const submitData = {
                     ...cleanData,
+                    completion_date: cleanData.completion_date
+                        ? cleanData.completion_date.format("YYYY-MM-DD")
+                        : null,
                     primary_categories: cleanData.primary_categories || [],
                     unit_types: cleanData.unit_types || [],
                     facilities: cleanData.facilities || [],
