@@ -335,8 +335,12 @@ const FacilitiesSection: React.FC<{ facilities: string[] }> = ({
         <Card title="Facilities">
             <div className="flex flex-wrap gap-2">
                 {facilities.map((facility, index) => (
-                    <Tag key={index} color="blue" className="text-sm py-1 px-3">
-                        {facility}
+                    <Tag
+                        key={index}
+                        color="blue"
+                        className="text-sm py-1 px-3 capitalize"
+                    >
+                        {facility.split("_").join(" ")}
                     </Tag>
                 ))}
             </div>
