@@ -329,6 +329,7 @@ class Property extends BaseModel
     protected $fillable = [
         'product_id',
         'developer_project_id',
+        'developer_project_unit_type_id',
         'project_location_id',
         'added_by',
         'responsible_agent_id',
@@ -626,6 +627,17 @@ class Property extends BaseModel
     public function developerProject(): BelongsTo
     {
         return $this->belongsTo(DeveloperProject::class);
+    }
+
+    /**
+     * Get the developer project unit type this property is based on.
+     *
+     * When set, certain property fields (specs, features, etc.) are
+     * inherited from the unit type and locked on the frontend form.
+     */
+    public function unitType(): BelongsTo
+    {
+        return $this->belongsTo(DeveloperProjectUnitType::class, 'developer_project_unit_type_id');
     }
 
     /**
