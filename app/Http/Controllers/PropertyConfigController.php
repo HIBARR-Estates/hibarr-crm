@@ -99,10 +99,9 @@ class PropertyConfigController extends AccountBaseController
 
         $validated = $request->validate([
             'name'        => [
-                'required',
+                'nullable',
                 'string',
                 'max:255',
-                Rule::unique($tableName)->where('company_id', user()->company_id),
             ],
             'label'       => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
@@ -111,9 +110,26 @@ class PropertyConfigController extends AccountBaseController
             'city_id'     => 'nullable|integer|exists:property_cities,id',
         ]);
 
+        // Auto-generate name from label if not provided
+        $name = !empty($validated['name'])
+            ? $validated['name']
+            : \Illuminate\Support\Str::snake(\Illuminate\Support\Str::lower($validated['label']));
+
+        // Validate uniqueness of the resolved name
+        $existingCount = $modelClass::where('company_id', user()->company_id)
+            ->where('name', $name)
+            ->count();
+
+        if ($existingCount > 0) {
+            return response()->json([
+                'message' => 'The name has already been taken.',
+                'errors'  => ['name' => ['The name "' . $name . '" already exists. Please use a different label.']],
+            ], 422);
+        }
+
         $fillable = [
             'company_id'  => user()->company_id,
-            'name'        => $validated['name'],
+            'name'        => $name,
             'label'       => $validated['label'],
             'description' => $validated['description'] ?? null,
         ];
@@ -155,16 +171,9 @@ class PropertyConfigController extends AccountBaseController
     public function update(Request $request, string $type, int $id)
     {
         $modelClass = $this->resolveModel($type);
-        $tableName = (new $modelClass)->getTable();
         $item = $modelClass::findOrFail($id);
 
         $validated = $request->validate([
-            'name'        => [
-                'sometimes',
-                'string',
-                'max:255',
-                Rule::unique($tableName)->where('company_id', user()->company_id)->ignore($id),
-            ],
             'label'       => 'sometimes|string|max:255',
             'description' => 'nullable|string|max:1000',
             'parent_type' => 'nullable|string|max:255',
@@ -172,8 +181,9 @@ class PropertyConfigController extends AccountBaseController
             'city_id'     => 'nullable|integer|exists:property_cities,id',
         ]);
 
-        // Filter out fields not applicable to this type
+        // Name is immutable after creation — strip it if sent
         $updateData = $validated;
+        unset($updateData['name']);
         if ($type !== 'sub-types') {
             unset($updateData['parent_type']);
         }
