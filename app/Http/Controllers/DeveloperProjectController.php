@@ -167,14 +167,9 @@ class DeveloperProjectController extends AccountBaseController
      */
     private function getAggregatedFacilities(DeveloperProject $project)
     {
-        $facilities = collect();
+        $facilities = collect($project->facilities ?? []);
 
-        // Get facilities from project's expose config if exists
-        if ($project->exposeConfig && !empty($project->exposeConfig->grouped_images['facilities'] ?? [])) {
-            // Project-level facilities from config
-        }
-
-        // Get unique facilities from properties' exterior and interior features
+        // Merge unique facilities from properties' exterior and interior features
         foreach ($project->properties as $property) {
             if (!empty($property->exterior_features)) {
                 $facilities = $facilities->merge($property->exterior_features);
