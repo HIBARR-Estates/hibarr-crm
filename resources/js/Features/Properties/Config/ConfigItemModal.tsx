@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Modal, Form, Input, Alert, Select } from "antd";
+import { Modal, Form, Input, Alert, Select, Typography } from "antd";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import type {
@@ -8,6 +8,22 @@ import type {
     ConfigTypeSlug,
     ConfigCategoryMeta,
 } from "@/Types/propertyConfig";
+
+const { Text } = Typography;
+
+/**
+ * Normalize a display label into a snake_case machine key.
+ * e.g. "Sea Front Villa" → "sea_front_villa"
+ *      "Air Condition (Split)" → "air_condition_split"
+ */
+const toSnakeCase = (label: string): string =>
+    label
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\s_]/g, "") // strip special chars
+        .replace(/\s+/g, "_") // spaces → underscores
+        .replace(/_+/g, "_") // collapse multiple underscores
+        .replace(/^_|_$/g, ""); // trim leading/trailing underscores
 
 interface ConfigItemModalProps {
     open: boolean;
@@ -64,6 +80,15 @@ const ConfigItemModal = ({
 
     const isLoading = createMutation.isPending || updateMutation.isPending;
 
+    // Watch label to auto-generate name in create mode
+    const labelValue = Form.useWatch("label", form);
+
+    useEffect(() => {
+        if (open && !isEditing && labelValue) {
+            form.setFieldValue("name", toSnakeCase(labelValue));
+        }
+    }, [labelValue, open, isEditing, form]);
+
     // Populate form when editing
     useEffect(() => {
         if (open && editingItem) {
@@ -82,12 +107,15 @@ const ConfigItemModal = ({
 
     const handleSubmit = () => {
         form.validateFields().then((values) => {
-            // Clean up empty strings
             const payload: PropertyConfigPayload = {
-                name: values.name.trim(),
                 label: values.label.trim(),
                 description: values.description?.trim() || null,
             };
+
+            // Only send name on create (server auto-generates if empty, locked on edit)
+            if (!isEditing) {
+                payload.name = values.name?.trim() || toSnakeCase(values.label);
+            }
 
             if (activeType === "sub-types" && values.parent_type) {
                 payload.parent_type = values.parent_type.trim();
@@ -138,18 +166,6 @@ const ConfigItemModal = ({
 
                 <Form form={form} layout="vertical" requiredMark="optional">
                     <Form.Item
-                        name="name"
-                        label="Name"
-                        rules={[
-                            { required: true, message: "Name is required" },
-                            { max: 255, message: "Max 255 characters" },
-                        ]}
-                        tooltip="Internal identifier — must be unique. Use snake_case or UPPER_CASE (e.g. sea_view, APARTMENT)"
-                    >
-                        <Input placeholder="e.g. sea_view" />
-                    </Form.Item>
-
-                    <Form.Item
                         name="label"
                         label="Display Label"
                         rules={[
@@ -162,6 +178,32 @@ const ConfigItemModal = ({
                         tooltip="User-facing label shown in dropdowns and forms"
                     >
                         <Input placeholder="e.g. Sea View" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="name"
+                        label={
+                            <span>
+                                System Key{" "}
+                                <Text
+                                    type="secondary"
+                                    className="text-xs font-normal"
+                                >
+                                    {isEditing
+                                        ? "(locked)"
+                                        : "(auto-generated)"}
+                                </Text>
+                            </span>
+                        }
+                        rules={[{ max: 255, message: "Max 255 characters" }]}
+                        tooltip="Internal identifier — auto-generated from the label. Cannot be changed after creation."
+                    >
+                        <Input
+                            disabled
+                            placeholder={
+                                isEditing ? "" : "Auto-generated from label..."
+                            }
+                        />
                     </Form.Item>
 
                     {activeType === "sub-types" && (

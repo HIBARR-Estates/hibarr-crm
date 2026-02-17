@@ -21,7 +21,8 @@ export interface PropertyConfigItem {
 
 /** Payload for creating / updating a config item. */
 export interface PropertyConfigPayload {
-    name: string;
+    /** Machine key — sent on create (auto-generated from label), omitted on update (immutable). */
+    name?: string;
     label: string;
     description?: string | null;
     parent_type?: string;

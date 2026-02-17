@@ -21,7 +21,6 @@ import {
     PlusOutlined,
     EditOutlined,
     DeleteOutlined,
-    ArrowLeftOutlined,
     HomeOutlined,
     ApartmentOutlined,
     TagOutlined,
