@@ -131,6 +131,20 @@ export default function CreateProperty({
         ApiSuccessResponse<DeveloperProject>
     >(route("developer-projects.store"), "POST", (res) => {
         if (res?.status === "success") {
+            // If this was a "save for upload" flow, stay on the form
+            // and transition to edit mode with the created project
+            if (saveForUploadRef.current) {
+                saveForUploadRef.current = false;
+                const createdProject = (res.data as any)?.project || res.data;
+                if (createdProject) {
+                    setProperty?.(createdProject as any);
+                }
+                message.success(
+                    "Project saved! You can now upload photos and manage unit types.",
+                );
+                return;
+            }
+
             message.success("Construction project created!");
             if (onSuccess) {
                 onSuccess();

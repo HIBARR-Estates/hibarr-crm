@@ -19,6 +19,7 @@ import {
     DeleteOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
+    SaveOutlined,
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import type { FormInstance } from "antd/lib/form";
@@ -85,6 +86,8 @@ interface ConstructionProjectPhotosSectionProps {
     form: FormInstance;
     /** DeveloperProject ID — present in edit mode, absent on create */
     projectId?: number;
+    /** Callback to trigger a "save & continue" flow so the project gets created first */
+    onSaveForUpload?: () => void;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -92,7 +95,7 @@ interface ConstructionProjectPhotosSectionProps {
 // ────────────────────────────────────────────────────────────
 const ConstructionProjectPhotosSection: React.FC<
     ConstructionProjectPhotosSectionProps
-> = ({ form, projectId }) => {
+> = ({ form, projectId, onSaveForUpload }) => {
     const { message: messageApi } = App.useApp();
 
     // Upload modal state
@@ -348,6 +351,15 @@ const ConstructionProjectPhotosSection: React.FC<
                     These photos will be visible on all individual units of this
                     project.
                 </Text>
+                {onSaveForUpload && (
+                    <Button
+                        type="primary"
+                        icon={<SaveOutlined />}
+                        onClick={onSaveForUpload}
+                    >
+                        Save & Continue
+                    </Button>
+                )}
             </div>
         );
     }
