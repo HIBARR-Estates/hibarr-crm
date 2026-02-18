@@ -19,6 +19,8 @@ import {
     SettingOutlined,
     BuildOutlined,
     HomeOutlined,
+    BlockOutlined,
+    UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -239,6 +241,12 @@ const Index = ({
         return urlParams.get("publishing_status") || "all";
     }, [filters]);
 
+    // Get current source filter from URL params or default to 'all'
+    const currentSource = useMemo(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get("source") || "all";
+    }, [filters]);
+
     // Handle publishing status change
     const handlePublishingStatusChange = (value: string) => {
         router.get(
@@ -273,6 +281,41 @@ const Index = ({
             icon: <FileTextOutlined />,
         },
     ];
+
+    // Source filter options (Properties / Unit Types / All)
+    const sourceFilterOptions = [
+        {
+            value: "all",
+            label: "All",
+            icon: <AppstoreOutlined />,
+        },
+        {
+            value: "properties",
+            label: "Properties",
+            icon: <UnorderedListOutlined />,
+        },
+        {
+            value: "unit_types",
+            label: "Unit Types",
+            icon: <BlockOutlined />,
+        },
+    ];
+
+    // Handle source filter change
+    const handleSourceChange = (value: string) => {
+        router.get(
+            route("properties.index"),
+            {
+                ...filters,
+                source: value === "all" ? undefined : value,
+                page: 1,
+            },
+            {
+                preserveState: true,
+                preserveScroll: false,
+            },
+        );
+    };
 
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "properties.index" });
@@ -395,6 +438,18 @@ const Index = ({
                                 />
                             </div>
 
+                            {/* Source Filter: All / Properties / Unit Types */}
+                            <div className="flex justify-center">
+                                <Segmented
+                                    options={sourceFilterOptions}
+                                    value={currentSource}
+                                    onChange={(value) =>
+                                        handleSourceChange(value as string)
+                                    }
+                                    size="middle"
+                                />
+                            </div>
+
                             {/* Header with Actions */}
                             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                                 <div className="flex items-center gap-3">
@@ -472,7 +527,11 @@ const Index = ({
                                 <Table
                                     columns={columns}
                                     dataSource={properties.data}
-                                    rowKey="id"
+                                    rowKey={(record) =>
+                                        record._source === "unit_type"
+                                            ? `ut_${record._unit_type_id}`
+                                            : `p_${record.id}`
+                                    }
                                     rowSelection={rowSelection}
                                     pagination={{
                                         current: properties.current_page,

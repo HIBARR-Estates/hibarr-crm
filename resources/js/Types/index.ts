@@ -265,6 +265,15 @@ export interface Property {
         area: string | null;
     };
     has_project_location: boolean;
+
+    // ── Unit Type source discriminator fields ──
+    // Present when the row originates from a DeveloperProjectUnitType
+    _source?: "property" | "unit_type";
+    _unit_type_id?: number;
+    _developer_project_id?: number;
+    _developer_project_name?: string;
+    _is_sold?: boolean;
+    _sold_property_id?: number;
 }
 
 // Project Location (simplified reference)

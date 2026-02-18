@@ -8,11 +8,14 @@ import {
 } from "@/lib/utils";
 import { Property } from "@/Types";
 import { Link } from "@inertiajs/react";
-import { Button, Dropdown, MenuProps, Tag } from "antd";
+import { Button, Dropdown, MenuProps, Tag, Tooltip } from "antd";
 import { ColumnsType } from "antd/lib/table";
-import { MoreOutlined } from "@ant-design/icons";
+import { MoreOutlined, BlockOutlined } from "@ant-design/icons";
 import PageDataSorter from "@/Components/PageDataSorter";
 import dayjs from "dayjs";
+
+/** Helper: is this row a virtual unit type (not a real property)? */
+const isUnitType = (record: Property) => record._source === "unit_type";
 
 export const PROPERTY_TABLE_COLUMNS = (
     actionItems?: (item: Property) => MenuProps["items"],
@@ -36,21 +39,36 @@ export const PROPERTY_TABLE_COLUMNS = (
                 record?.reference_code ||
                 displayTitle ||
                 `Property #${record.id}`;
+
+            const href = isUnitType(record)
+                ? route("properties.unit-type.show", record._unit_type_id!)
+                : route("properties.show", record.id);
+
             return (
-                <div>
-                    <Link
-                        href={route("properties.show", record.id)}
-                        className="hover:text-blue-800"
-                    >
-                        {title && (
-                            <div className="font-semibold text-sm text-gray-900 leading-tight">
-                                {truncateText(title, 50)}
-                            </div>
-                        )}
-                        <span className="text-xs text-gray-500 mt-0.5">
-                            {referenceCode}
-                        </span>
-                    </Link>
+                <div className="flex items-center gap-1.5">
+                    <div>
+                        <Link href={href} className="hover:text-blue-800">
+                            {title && (
+                                <div className="font-semibold text-sm text-gray-900 leading-tight">
+                                    {truncateText(title, 50)}
+                                </div>
+                            )}
+                            <span className="text-xs text-gray-500 mt-0.5">
+                                {referenceCode}
+                            </span>
+                        </Link>
+                    </div>
+                    {isUnitType(record) && (
+                        <Tooltip title="This is a developer project unit type">
+                            <Tag
+                                color="purple"
+                                icon={<BlockOutlined />}
+                                className="ml-1 text-[10px] leading-tight"
+                            >
+                                Unit Type
+                            </Tag>
+                        </Tooltip>
+                    )}
                 </div>
             );
         },
@@ -153,8 +171,23 @@ export const PROPERTY_TABLE_COLUMNS = (
         dataIndex: "status",
         key: "status",
         width: 120,
-        render: (status: string) => (
-            <Tag color={getStatusColor(status)}>{status}</Tag>
+        render: (status: string, record: Property) => (
+            <div className="flex items-center gap-1">
+                <Tag color={getStatusColor(status)}>{status}</Tag>
+                {isUnitType(record) &&
+                    record._is_sold &&
+                    record._sold_property_id && (
+                        <Link
+                            href={route(
+                                "properties.show",
+                                record._sold_property_id,
+                            )}
+                            className="text-[10px] text-blue-600 hover:underline"
+                        >
+                            View Property
+                        </Link>
+                    )}
+            </div>
         ),
     },
     {
@@ -180,14 +213,31 @@ export const PROPERTY_TABLE_COLUMNS = (
         key: "actions",
         width: 80,
         fixed: "right",
-        render: (_, record: Property) => (
-            <Dropdown
-                menu={{ items: actionItems?.(record) }}
-                trigger={["click"]}
-                placement="bottomRight"
-            >
-                <Button type="text" icon={<MoreOutlined />} />
-            </Dropdown>
-        ),
+        render: (_, record: Property) => {
+            // Unit type rows only get a "View" link — no edit/delete
+            if (isUnitType(record)) {
+                return (
+                    <Link
+                        href={route(
+                            "properties.unit-type.show",
+                            record._unit_type_id!,
+                        )}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                        View
+                    </Link>
+                );
+            }
+
+            return (
+                <Dropdown
+                    menu={{ items: actionItems?.(record) }}
+                    trigger={["click"]}
+                    placement="bottomRight"
+                >
+                    <Button type="text" icon={<MoreOutlined />} />
+                </Dropdown>
+            );
+        },
     },
 ];
