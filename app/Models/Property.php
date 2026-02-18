@@ -405,6 +405,8 @@ class Property extends BaseModel
         'hibarr_price',
         'commission_agreement_signed',
         'general_notes',
+        'associated_construction_company',
+        'associated_construction_company_project',
     ];
 
     /**

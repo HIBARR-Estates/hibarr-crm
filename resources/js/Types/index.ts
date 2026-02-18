@@ -219,6 +219,8 @@ export interface Property {
     completion_date?: string;
     is_furnished: boolean;
     within_site: boolean;
+    associated_construction_company?: string | null;
+    associated_construction_company_project?: string | null;
     view_types?: ViewType[];
     distances?: Distances;
     exterior_features?: string[];

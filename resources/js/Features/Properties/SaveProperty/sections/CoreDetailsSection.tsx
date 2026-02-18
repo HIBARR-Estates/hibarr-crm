@@ -35,6 +35,7 @@ interface CoreDetailsSectionProps {
 interface DeveloperOption {
     id: number;
     name: string;
+    project_list?: string[] | null;
 }
 
 interface DeveloperProject {
@@ -83,6 +84,25 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
 
     // Track selected project for unit type cascade
     const selectedProjectId = Form.useWatch("developer_project_id", form);
+
+    // Track associated construction company for cascading project list
+    const associatedCompanyValue = Form.useWatch(
+        "associated_construction_company",
+        form,
+    );
+
+    // Derive the developer's project_list based on selected associated construction company (developer project name)
+    const associatedProjectList = useMemo(() => {
+        if (!associatedCompanyValue) return [];
+        // Find the developer project by name
+        const project = developerProjects.find(
+            (p) => p.name === associatedCompanyValue,
+        );
+        if (!project?.developer_id) return [];
+        // Find the developer and return their project_list
+        const developer = developers.find((d) => d.id === project.developer_id);
+        return developer?.project_list ?? [];
+    }, [associatedCompanyValue, developerProjects, developers]);
 
     // Fetch unit types for the selected project
     const { data: unitTypesData, isLoading: unitTypesLoading } = useApiQuery<{
@@ -175,10 +195,29 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                 form.setFieldValue("_selected_developer_id", undefined);
                 form.setFieldValue("developer_project_id", undefined);
                 form.setFieldValue("developer_project_unit_type_id", undefined);
+                form.setFieldValue(
+                    "associated_construction_company",
+                    undefined,
+                );
+                form.setFieldValue(
+                    "associated_construction_company_project",
+                    undefined,
+                );
                 onUnitTypeSelect?.(null);
             }
         },
         [form, onUnitTypeSelect],
+    );
+
+    // When associated construction company changes, clear associated project
+    const handleAssociatedCompanyChange = useCallback(
+        (value: string | undefined) => {
+            form.setFieldValue(
+                "associated_construction_company_project",
+                undefined,
+            );
+        },
+        [form],
     );
 
     // When developer changes, clear project & unit type selection
@@ -460,6 +499,70 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                         </Select>
                                     </Form.Item>
                                 </Col>
+
+                                {/* Associated Construction Company */}
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="associated_construction_company"
+                                        label="Associated Construction Company"
+                                        tooltip="Select the construction company project associated with this property"
+                                    >
+                                        <Select
+                                            placeholder="Select construction company project"
+                                            allowClear
+                                            showSearch
+                                            optionFilterProp="children"
+                                            onChange={
+                                                handleAssociatedCompanyChange
+                                            }
+                                        >
+                                            {developerProjects.map(
+                                                (project) => (
+                                                    <Option
+                                                        key={project.id}
+                                                        value={project.name}
+                                                    >
+                                                        {project.name}
+                                                    </Option>
+                                                ),
+                                            )}
+                                        </Select>
+                                    </Form.Item>
+                                </Col>
+
+                                {/* Associated Construction Company Project */}
+                                {associatedCompanyValue &&
+                                    associatedProjectList.length > 0 && (
+                                        <Col xs={24} md={12}>
+                                            <Form.Item
+                                                name="associated_construction_company_project"
+                                                label="Associated Company Project"
+                                                tooltip="Select the specific project from the construction company's project list"
+                                            >
+                                                <Select
+                                                    placeholder="Select project"
+                                                    allowClear
+                                                    showSearch
+                                                    optionFilterProp="children"
+                                                >
+                                                    {associatedProjectList.map(
+                                                        (projectName) => (
+                                                            <Option
+                                                                key={
+                                                                    projectName
+                                                                }
+                                                                value={
+                                                                    projectName
+                                                                }
+                                                            >
+                                                                {projectName}
+                                                            </Option>
+                                                        ),
+                                                    )}
+                                                </Select>
+                                            </Form.Item>
+                                        </Col>
+                                    )}
 
                                 {/* Unit Type (4th cascade) */}
                                 {selectedProjectId && (

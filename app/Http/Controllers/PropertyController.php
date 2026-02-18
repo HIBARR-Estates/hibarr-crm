@@ -442,6 +442,10 @@ class PropertyController extends AccountBaseController
         // New fields: Notes
         $property->general_notes = $request->general_notes;
 
+        // Associated construction company fields
+        $property->associated_construction_company = $request->associated_construction_company;
+        $property->associated_construction_company_project = $request->associated_construction_company_project;
+
         // Swap fields
         $property->open_to_swap = $request->boolean('open_to_swap');
         $property->swap_notes = $request->swap_notes;
