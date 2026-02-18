@@ -387,7 +387,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                         {withinSite === true && (
                             <>
                                 {/* Construction Company (Developer) */}
-                                <Col xs={24} md={12}>
+                                {/* <Col xs={24} md={12}>
                                     <Form.Item
                                         name="_selected_developer_id"
                                         label="Construction Company"
@@ -434,10 +434,10 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                             ))}
                                         </Select>
                                     </Form.Item>
-                                </Col>
+                                </Col> */}
 
                                 {/* Project Name (DeveloperProject) */}
-                                <Col xs={24} md={12}>
+                                {/* <Col xs={24} md={12}>
                                     <Form.Item
                                         name="developer_project_id"
                                         label="Project Name"
@@ -498,7 +498,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                             ))}
                                         </Select>
                                     </Form.Item>
-                                </Col>
+                                </Col> */}
 
                                 {/* Associated Construction Company */}
                                 <Col xs={24} md={12}>
