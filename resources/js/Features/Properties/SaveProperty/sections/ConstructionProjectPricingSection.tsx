@@ -29,24 +29,16 @@ interface ConstructionProjectPricingSectionProps {
 const ConstructionProjectPricingSection: React.FC<
     ConstructionProjectPricingSectionProps
 > = ({ form }) => {
-    const paymentPlan = Form.useWatch("payment_plan", form);
-    const paymentPlanEnabled = paymentPlan?.enabled ?? false;
+    const paymentPlanEnabled =
+        Form.useWatch(["payment_plan", "enabled"], form) ?? false;
+    const downpaymentType = Form.useWatch(
+        ["payment_plan", "downpayment_type"],
+        form,
+    );
     const availabilityLink = Form.useWatch("availability_link", form);
 
     const handlePaymentPlanToggle = (enabled: boolean) => {
-        const current = form.getFieldValue("payment_plan") || {};
-        form.setFieldValue("payment_plan", {
-            ...current,
-            enabled,
-        });
-    };
-
-    const handlePaymentPlanField = (field: string, value: any) => {
-        const current = form.getFieldValue("payment_plan") || {};
-        form.setFieldValue("payment_plan", {
-            ...current,
-            [field]: value,
-        });
+        form.setFieldValue(["payment_plan", "enabled"], enabled);
     };
 
     return (
@@ -109,6 +101,9 @@ const ConstructionProjectPricingSection: React.FC<
             </Col>
 
             {/* Payment Plan Toggle */}
+            <Form.Item name={["payment_plan", "enabled"]} hidden>
+                <Input />
+            </Form.Item>
             <Col span={24}>
                 <div className="flex items-center gap-3 mb-4 mt-2">
                     <Text strong>Payment Plan</Text>
@@ -145,7 +140,7 @@ const ConstructionProjectPricingSection: React.FC<
                         <Form.Item
                             name={["payment_plan", "downpayment_value"]}
                             label={
-                                paymentPlan?.downpayment_type === "percentage"
+                                downpaymentType === "percentage"
                                     ? "Downpayment (%)"
                                     : "Downpayment Amount"
                             }
@@ -153,23 +148,18 @@ const ConstructionProjectPricingSection: React.FC<
                             <InputNumber
                                 min={0}
                                 max={
-                                    paymentPlan?.downpayment_type ===
-                                    "percentage"
+                                    downpaymentType === "percentage"
                                         ? 100
                                         : undefined
                                 }
                                 placeholder={
-                                    paymentPlan?.downpayment_type ===
-                                    "percentage"
+                                    downpaymentType === "percentage"
                                         ? "e.g. 35"
                                         : "e.g. 30000"
                                 }
                                 style={{ width: "100%" }}
                                 addonAfter={
-                                    paymentPlan?.downpayment_type ===
-                                    "percentage"
-                                        ? "%"
-                                        : "£"
+                                    downpaymentType === "percentage" ? "%" : "£"
                                 }
                             />
                         </Form.Item>
