@@ -5,7 +5,7 @@
  * API calls via useApiMutate (TanStack Query).
  */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {
     Modal,
     Form,
@@ -21,7 +21,11 @@ import {
     Col,
     Typography,
     Alert,
+    Button,
+    App,
+    message,
 } from "antd";
+import { PictureOutlined, SaveOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
@@ -42,6 +46,7 @@ import {
     OUTSIDE_FEATURE_OPTIONS,
     INSIDE_FEATURE_OPTIONS,
 } from "@/Features/DeveloperProjects/unitTypeConfig";
+import UnitTypePhotosSection from "@/Features/DeveloperProjects/UnitTypePhotosSection";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -97,6 +102,25 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 }) => {
     const [form] = Form.useForm<UnitTypeFormValues>();
     const isEditing = !!editingItem;
+    const { modal } = App.useApp();
+
+    // ── "Save & Continue" state — allows create mode to transition to edit-like state ──
+    const [localUnitType, setLocalUnitType] =
+        useState<DeveloperProjectUnitType | null>(null);
+    const saveForUploadRef = useRef(false);
+
+    // The effective unit type is the prop (edit mode) or the locally-saved one (save & continue)
+    const effectiveUnitType = editingItem ?? localUnitType;
+    const effectiveUnitTypeId = effectiveUnitType?.id;
+    const isEffectivelyEditing = !!effectiveUnitTypeId;
+
+    // Reset local state when modal closes
+    useEffect(() => {
+        if (!open) {
+            setLocalUnitType(null);
+            saveForUploadRef.current = false;
+        }
+    }, [open]);
 
     // Watch primary_category for conditional fields
     const primaryCategory = Form.useWatch("primary_category", form);
@@ -117,7 +141,18 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     >(
         route("developer-projects.unit-types.store", { projectId }),
         "POST",
-        () => {
+        (res) => {
+            // If this was a "save & continue" flow, stay on the form
+            if (saveForUploadRef.current) {
+                saveForUploadRef.current = false;
+                const created = (res?.data as any)?.unit_type || res?.data;
+                if (created?.id) {
+                    setLocalUnitType(created as DeveloperProjectUnitType);
+                }
+                message.success("Unit type saved! You can now upload photos.");
+                return;
+            }
+
             form.resetFields();
             onClose();
             onSuccess?.();
@@ -129,16 +164,16 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
         DeveloperProjectUnitType,
         ApiSuccessResponse<DeveloperProjectUnitType>
     >(
-        editingItem
+        effectiveUnitTypeId
             ? route("developer-projects.unit-types.update", {
                   projectId,
-                  unitTypeId: editingItem.id,
+                  unitTypeId: effectiveUnitTypeId,
               })
             : "",
         "PUT",
         () => {
             form.resetFields();
-            onClose();
+            handleClose();
             onSuccess?.();
         },
     );
@@ -219,34 +254,72 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
     // ---- Submit ----
 
-    const handleSubmit = () => {
-        form.validateFields().then((values) => {
-            const payload: Record<string, any> = {
-                ...values,
-                completion_date: values.completion_date
-                    ? values.completion_date.format("YYYY-MM-DD")
-                    : null,
-                unit_style:
-                    values.unit_style?.length > 0 ? values.unit_style : null,
-                view_types:
-                    values.view_types?.length > 0 ? values.view_types : null,
-                outside_features:
-                    values.outside_features?.length > 0
-                        ? values.outside_features
+    const doSubmit = useCallback(
+        (isSaveForUpload = false) => {
+            form.validateFields().then((values) => {
+                const payload: Record<string, any> = {
+                    ...values,
+                    completion_date: values.completion_date
+                        ? values.completion_date.format("YYYY-MM-DD")
                         : null,
-                inside_features:
-                    values.inside_features?.length > 0
-                        ? values.inside_features
-                        : null,
-            };
+                    unit_style:
+                        values.unit_style?.length > 0
+                            ? values.unit_style
+                            : null,
+                    view_types:
+                        values.view_types?.length > 0
+                            ? values.view_types
+                            : null,
+                    outside_features:
+                        values.outside_features?.length > 0
+                            ? values.outside_features
+                            : null,
+                    inside_features:
+                        values.inside_features?.length > 0
+                            ? values.inside_features
+                            : null,
+                };
 
-            if (isEditing) {
-                updateMutation.mutate(payload);
-            } else {
-                createMutation.mutate(payload);
-            }
+                if (isSaveForUpload) {
+                    saveForUploadRef.current = true;
+                }
+
+                if (isEffectivelyEditing) {
+                    updateMutation.mutate(payload);
+                } else {
+                    createMutation.mutate(payload);
+                }
+            });
+        },
+        [form, isEffectivelyEditing, createMutation, updateMutation],
+    );
+
+    const handleSubmit = useCallback(() => doSubmit(false), [doSubmit]);
+
+    // ── Save & Continue — save unit type first so Photos can work ──
+    const handleSaveForUpload = useCallback(() => {
+        const values = form.getFieldsValue(true);
+        if (!values.primary_category || !values.property_type) {
+            message.error(
+                "Please fill in at least Category and Property Type before saving.",
+            );
+            return;
+        }
+        modal.confirm({
+            title: "Save unit type to continue?",
+            content: "Your unit type will be saved so you can upload photos.",
+            okText: "Save & Continue",
+            cancelText: "Cancel",
+            onOk: () => doSubmit(true),
         });
-    };
+    }, [form, modal, doSubmit]);
+
+    const handleClose = useCallback(() => {
+        form.resetFields();
+        setLocalUnitType(null);
+        saveForUploadRef.current = false;
+        onClose();
+    }, [form, onClose]);
 
     // ---- Render ----
 
@@ -255,17 +328,15 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
     return (
         <Modal
-            title={isEditing ? "Edit Unit Type" : "Add Unit Type"}
+            title={isEffectivelyEditing ? "Edit Unit Type" : "Add Unit Type"}
             open={open}
             onOk={handleSubmit}
-            onCancel={() => {
-                form.resetFields();
-                onClose();
-            }}
-            okText={isEditing ? "Update" : "Create"}
+            onCancel={handleClose}
+            okText={isEffectivelyEditing ? "Update" : "Create"}
             okButtonProps={{ loading: isLoading }}
             cancelButtonProps={{ disabled: isLoading }}
             width={1040}
+            destroyOnClose
         >
             {errorMessage && (
                 <Alert
@@ -638,6 +709,24 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                         maxLength={5000}
                     />
                 </Form.Item>
+
+                {/* ================================================
+                    SECTION 6 — Photos
+                   ================================================ */}
+                <Divider orientation="left" orientationMargin={0}>
+                    <Text strong>
+                        <PictureOutlined className="mr-1" />
+                        Photos
+                    </Text>
+                </Divider>
+
+                <UnitTypePhotosSection
+                    projectId={projectId}
+                    unitTypeId={effectiveUnitTypeId}
+                    onSaveForUpload={
+                        !effectiveUnitTypeId ? handleSaveForUpload : undefined
+                    }
+                />
             </Form>
         </Modal>
     );

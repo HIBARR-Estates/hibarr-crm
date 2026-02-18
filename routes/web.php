@@ -1129,6 +1129,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::prefix('/{unitTypeId}/assets')->name('assets.')->group(function () {
                 Route::get('/', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'index'])->name('index');
                 Route::post('/', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'store'])->name('store');
+                Route::post('/from-urls', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'storeFromUrls'])->name('store_from_urls');
                 Route::put('/{assetId}', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'update'])->name('update');
                 Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'destroy'])->name('destroy');
                 Route::post('/bulk-delete', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'bulkDestroy'])->name('bulk_destroy');

@@ -169,6 +169,67 @@ class DeveloperProjectUnitTypeAssetController extends Controller
     }
 
     /**
+     * Store assets from pre-uploaded URLs (from external FileUploadService).
+     *
+     * Accepts an array of assets already uploaded to an external service
+     * and creates DeveloperProjectUnitTypeAsset records pointing to those URLs.
+     */
+    public function storeFromUrls(Request $request, $projectId, $unitTypeId)
+    {
+        $unitType = $this->findUnitType($projectId, $unitTypeId);
+
+        $validator = Validator::make($request->all(), [
+            'assets' => 'required|array|min:1',
+            'assets.*.url' => 'required|url',
+            'assets.*.name' => 'required|string|max:255',
+            'assets.*.object_path' => 'nullable|string|max:500',
+            'assets.*.asset_type' => 'required|in:image,video',
+            'assets.*.mime_type' => 'nullable|string|max:100',
+            'assets.*.file_size' => 'nullable|integer',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|in:' . implode(',', array_keys(DeveloperProjectUnitTypeAsset::AVAILABLE_TAGS)),
+        ]);
+
+        if ($validator->fails()) {
+            return Reply::error($validator->errors()->first());
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $createdAssets = [];
+            $tags = $request->input('tags', []);
+            $maxOrder = $unitType->assets()->max('order') ?? 0;
+
+            foreach ($request->input('assets') as $index => $assetData) {
+                $asset = DeveloperProjectUnitTypeAsset::create([
+                    'unit_type_id' => $unitType->id,
+                    'company_id' => user()->company_id,
+                    'asset_type' => $assetData['asset_type'],
+                    'name' => $assetData['name'],
+                    'external_url' => $assetData['url'],
+                    'file_path' => $assetData['object_path'] ?? null,
+                    'mime_type' => $assetData['mime_type'] ?? null,
+                    'file_size' => $assetData['file_size'] ?? null,
+                    'tags' => $tags,
+                    'order' => $maxOrder + $index + 1,
+                ]);
+
+                $createdAssets[] = $asset;
+            }
+
+            DB::commit();
+
+            return Reply::successWithData('Unit type assets uploaded successfully', [
+                'assets' => $createdAssets,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return Reply::error('Failed to save assets: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Find a unit type with authorization check.
      */
     private function findUnitType($projectId, $unitTypeId): DeveloperProjectUnitType
