@@ -186,7 +186,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     : null,
                 has_restrictions: editingItem.has_restrictions ?? false,
                 restriction_notes: editingItem.restriction_notes,
-                reference_code: editingItem.reference_code,
+                reference_code: editingItem?.reference_code,
             });
         } else if (open) {
             form.resetFields();
@@ -337,12 +337,12 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     </Form.Item>
                 )}
 
-                <Form.Item name="reference_code" label="Reference Code">
+                {/* <Form.Item name="reference_code" label="Reference Code">
                     <Input
                         placeholder="Auto-generated if left empty"
                         maxLength={50}
                     />
-                </Form.Item>
+                </Form.Item> */}
 
                 {/* ================================================
                     SECTION 2 — Specifications
