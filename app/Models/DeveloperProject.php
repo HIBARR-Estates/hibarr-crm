@@ -91,7 +91,7 @@ class DeveloperProject extends BaseModel
     // Title Deed Type Constants
     // ================================================================
     const TITLE_DEED_TYPES = [
-        'turkish', 'british', 'exchange', 'trnc_allocation',
+        'turkish', 'british', 'exchange', 'tahsis',
         'leasehold', 'mucahit',
     ];
 
@@ -99,8 +99,8 @@ class DeveloperProject extends BaseModel
         'turkish' => 'Turkish',
         'british' => 'British',
         'exchange' => 'Exchange (Eşdeğer)',
-        'trnc_allocation' => 'TRNC Allocation (Tahsis/TMD)',
-        'leasehold' => 'Leasehold (Vakıf/Ministry)',
+        'tahsis' => 'Tahsis',
+        'leasehold' => 'Leasehold',
         'mucahit' => 'Mücahit',
     ];
 
