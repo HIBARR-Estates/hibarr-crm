@@ -255,7 +255,28 @@ class PropertyController extends AccountBaseController
                 'primary_category', 'unit_style', 'construction_status', 
                 'publishing_status', 'project_location_id', 'view_types',
                 'occupancy_type', 'added_by', 'responsible_agent_id'
-            ])
+            ]),
+            // Lazy-loaded: only fetched when frontend requests it (Construction Projects tab)
+            'constructionProjects' => Inertia::lazy(function () use ($request) {
+                $cpQuery = \App\Models\DeveloperProject::with(['location', 'exposeConfig', 'developer'])
+                    ->withCount(['properties', 'unitTypes'])
+                    ->where('company_id', user()->company_id);
+
+                if ($request->filled('cp_search')) {
+                    $search = $request->cp_search;
+                    $cpQuery->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('description', 'like', "%{$search}%")
+                          ->orWhere('reference_code', 'like', "%{$search}%");
+                    });
+                }
+
+                if ($request->filled('cp_location_id')) {
+                    $cpQuery->where('project_location_id', $request->cp_location_id);
+                }
+
+                return $cpQuery->orderBy('created_at', 'desc')->paginate(15, ['*'], 'cp_page');
+            }),
         ]);       
     }
 

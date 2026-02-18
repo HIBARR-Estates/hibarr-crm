@@ -17,6 +17,8 @@ import {
     AppstoreOutlined,
     SafetyOutlined,
     SettingOutlined,
+    BuildOutlined,
+    HomeOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -36,7 +38,12 @@ import { createPropertyFilterConfig } from "@/configs/propertyFilterConfig";
 import { createPropertySearchConfig } from "@/configs/searchConfigs";
 import usePageSort from "@/Hooks/usePageSort";
 
-import type { DeveloperProjectOption } from "@/Types/developerProject";
+import type {
+    DeveloperProjectOption,
+    DeveloperProject,
+} from "@/Types/developerProject";
+import ConstructionProjectsTable from "@/Features/DeveloperProjects/ConstructionProjectsTable";
+import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
 
 // Legacy Project interface - kept for backwards compatibility
 interface Project {
@@ -64,6 +71,16 @@ interface PaginationData {
     to: number;
 }
 
+interface ConstructionProjectsPaginationData {
+    data: DeveloperProject[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number;
+    to: number;
+}
+
 export interface IndexProps extends PageProps {
     pageTitle: string;
     properties: PaginationData;
@@ -72,6 +89,8 @@ export interface IndexProps extends PageProps {
     developers?: Developer[];
     /** New DeveloperProject list for bulk actions */
     developerProjects?: DeveloperProjectOption[];
+    /** Lazy-loaded construction projects for the Construction Projects tab */
+    constructionProjects?: ConstructionProjectsPaginationData;
     currencies?: any[];
     default_currency_code?: string;
     default_currency_symbol?: string;
@@ -86,7 +105,14 @@ const Index = ({
     projects,
     developers,
     developerProjects,
+    constructionProjects,
 }: IndexProps) => {
+    // ── Active view tab state ──
+    const [activeView, setActiveView] = useState<
+        "properties" | "construction_projects"
+    >("properties");
+    const [cpDataLoaded, setCpDataLoaded] = useState(false);
+    const [cpLoading, setCpLoading] = useState(false);
     // Check if user is a sales manager (edit_product === 'all')
     const { props } = usePage<any>();
     const isSalesManager =
@@ -122,6 +148,52 @@ const Index = ({
         action,
         selected: property,
     } = useGenericEntityAction<Property>();
+
+    // ── Construction project modal state ──
+    const {
+        handleAction: handleCpAction,
+        handleClose: handleCpClose,
+        action: cpAction,
+        selected: selectedConstructionProject,
+    } = useGenericEntityAction<DeveloperProject>();
+
+    // ── Handle top-level tab switch ──
+    const handleViewChange = useCallback(
+        (value: string) => {
+            const view =
+                value === "Construction Projects"
+                    ? "construction_projects"
+                    : "properties";
+            setActiveView(view);
+
+            if (view === "construction_projects" && !cpDataLoaded) {
+                setCpLoading(true);
+                router.reload({
+                    only: ["constructionProjects"],
+                    onSuccess: () => {
+                        setCpDataLoaded(true);
+                        setCpLoading(false);
+                    },
+                    onError: () => {
+                        setCpLoading(false);
+                    },
+                });
+            }
+        },
+        [cpDataLoaded],
+    );
+
+    // Mark data as loaded if constructionProjects arrives via props
+    useEffect(() => {
+        if (constructionProjects && !cpDataLoaded) {
+            setCpDataLoaded(true);
+            setCpLoading(false);
+        }
+    }, [constructionProjects]);
+
+    const handleCpSuccess = useCallback(() => {
+        router.reload({ only: ["constructionProjects"] });
+    }, []);
     // Check URL for create parameter to show drawer
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -258,138 +330,198 @@ const Index = ({
         currencySymbol,
     );
 
+    // Top-level view options
+    const viewOptions = [
+        {
+            value: "Properties",
+            label: "Properties",
+            icon: <HomeOutlined />,
+        },
+        {
+            value: "Construction Projects",
+            label: "Construction Projects",
+            icon: <BuildOutlined />,
+        },
+    ];
+
     return (
         <>
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Properties" }]}
                 searchComp={
-                    <UniversalSearchBox
-                        placeholder="Search properties by title, area, description..."
-                        className="w-full"
-                    />
+                    activeView === "properties" ? (
+                        <UniversalSearchBox
+                            placeholder="Search properties by title, area, description..."
+                            className="w-full"
+                        />
+                    ) : undefined
                 }
-                filterSection={<ContextualActiveFilters />}
+                filterSection={
+                    activeView === "properties" ? (
+                        <ContextualActiveFilters />
+                    ) : undefined
+                }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Publishing Status Toggle */}
+                    {/* Top-level View Toggle: Properties / Construction Projects */}
                     <div className="flex justify-center">
                         <Segmented
-                            options={publishingStatusOptions}
-                            value={currentPublishingStatus}
-                            onChange={(value) =>
-                                handlePublishingStatusChange(value as string)
+                            options={viewOptions}
+                            value={
+                                activeView === "properties"
+                                    ? "Properties"
+                                    : "Construction Projects"
                             }
+                            onChange={handleViewChange}
                             size="large"
                         />
                     </div>
 
-                    {/* Header with Actions */}
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => handleAction("add")}
-                            >
-                                Add Property
-                            </Button>
-                            <Button
-                                type="text"
-                                icon={<ImportOutlined />}
-                                onClick={() => {
-                                    handleAction("import");
-                                }}
-                            >
-                                Import
-                            </Button>
-                            <Link href="/account/availability-requests">
-                                <Button type="text" icon={<SafetyOutlined />}>
-                                    Availability Requests
-                                </Button>
-                            </Link>
-                            {isSalesManager ? (
-                                <Link href="/account/publish-requests">
-                                    <Button
-                                        type="text"
-                                        icon={<GlobalOutlined />}
-                                    >
-                                        Publish Requests
-                                    </Button>
-                                </Link>
-                            ) : null}
-                            {isSalesManager ? (
-                                <Link href={route("property-config.page")}>
-                                    <Button
-                                        type="text"
-                                        icon={<SettingOutlined />}
-                                    >
-                                        Configuration
-                                    </Button>
-                                </Link>
-                            ) : null}
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            {/* Advanced Filters Button */}
-                            <Button
-                                icon={<FilterOutlined />}
-                                onClick={openDrawer}
-                            >
-                                Filters
-                            </Button>
-
-                            {/* Bulk Actions - Only show when items are selected */}
-                            {selectedEntities.length > 0 && (
-                                <BulkActionSelector
-                                    selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id,
-                                    )}
-                                    clearSelected={clearSelected}
+                    {/* ═══ Properties View ═══ */}
+                    {activeView === "properties" && (
+                        <>
+                            {/* Publishing Status Toggle */}
+                            <div className="flex justify-center">
+                                <Segmented
+                                    options={publishingStatusOptions}
+                                    value={currentPublishingStatus}
+                                    onChange={(value) =>
+                                        handlePublishingStatusChange(
+                                            value as string,
+                                        )
+                                    }
+                                    size="large"
                                 />
-                            )}
-                        </div>
-                    </div>
+                            </div>
 
-                    {/* Properties Table */}
-                    <div className="bg-white rounded-lg border border-gray-200">
-                        <Table
-                            columns={columns}
-                            dataSource={properties.data}
-                            rowKey="id"
-                            rowSelection={rowSelection}
-                            pagination={{
-                                current: properties.current_page,
-                                total: properties.total,
-                                pageSize: properties.per_page,
-                                showSizeChanger: false,
-                                showQuickJumper: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}-${range[1]} of ${total} properties`,
-                                onChange: (page, pageSize) => {
-                                    router.get(
-                                        route("properties.index"),
-                                        {
-                                            ...filters,
-                                            ...sortParams,
-                                            page,
-                                            per_page: pageSize,
+                            {/* Header with Actions */}
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        type="primary"
+                                        icon={<PlusOutlined />}
+                                        onClick={() => handleAction("add")}
+                                    >
+                                        Add Property
+                                    </Button>
+                                    <Button
+                                        type="text"
+                                        icon={<ImportOutlined />}
+                                        onClick={() => {
+                                            handleAction("import");
+                                        }}
+                                    >
+                                        Import
+                                    </Button>
+                                    <Link href="/account/availability-requests">
+                                        <Button
+                                            type="text"
+                                            icon={<SafetyOutlined />}
+                                        >
+                                            Availability Requests
+                                        </Button>
+                                    </Link>
+                                    {isSalesManager ? (
+                                        <Link href="/account/publish-requests">
+                                            <Button
+                                                type="text"
+                                                icon={<GlobalOutlined />}
+                                            >
+                                                Publish Requests
+                                            </Button>
+                                        </Link>
+                                    ) : null}
+                                    {isSalesManager ? (
+                                        <Link
+                                            href={route("property-config.page")}
+                                        >
+                                            <Button
+                                                type="text"
+                                                icon={<SettingOutlined />}
+                                            >
+                                                Configuration
+                                            </Button>
+                                        </Link>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    {/* Advanced Filters Button */}
+                                    <Button
+                                        icon={<FilterOutlined />}
+                                        onClick={openDrawer}
+                                    >
+                                        Filters
+                                    </Button>
+
+                                    {/* Bulk Actions - Only show when items are selected */}
+                                    {selectedEntities.length > 0 && (
+                                        <BulkActionSelector
+                                            selectedEntityIds={selectedEntities?.map(
+                                                ({ id }) => id,
+                                            )}
+                                            clearSelected={clearSelected}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Properties Table */}
+                            <div className="bg-white rounded-lg border border-gray-200">
+                                <Table
+                                    columns={columns}
+                                    dataSource={properties.data}
+                                    rowKey="id"
+                                    rowSelection={rowSelection}
+                                    pagination={{
+                                        current: properties.current_page,
+                                        total: properties.total,
+                                        pageSize: properties.per_page,
+                                        showSizeChanger: false,
+                                        showQuickJumper: false,
+                                        showTotal: (total, range) =>
+                                            `${range[0]}-${range[1]} of ${total} properties`,
+                                        onChange: (page, pageSize) => {
+                                            router.get(
+                                                route("properties.index"),
+                                                {
+                                                    ...filters,
+                                                    ...sortParams,
+                                                    page,
+                                                    per_page: pageSize,
+                                                },
+                                                {
+                                                    preserveState: true,
+                                                    preserveScroll: true,
+                                                },
+                                            );
                                         },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                        },
-                                    );
-                                },
-                            }}
-                            scroll={{ x: 1200 }}
-                            size="small"
+                                    }}
+                                    scroll={{ x: 1200 }}
+                                    size="small"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {/* ═══ Construction Projects View ═══ */}
+                    {activeView === "construction_projects" && (
+                        <ConstructionProjectsTable
+                            projects={constructionProjects ?? null}
+                            onEdit={(project) =>
+                                handleCpAction("edit", project)
+                            }
+                            onAdd={() => handleCpAction("add")}
+                            loading={cpLoading}
                         />
-                    </div>
+                    )}
 
                     {/* Advanced Filters Drawer */}
                 </div>
             </PageLayout>
+
+            {/* Property Modals */}
             <SavePropertyModal
                 open={["add", "edit"].includes(action || "")}
                 onClose={handleClose}
@@ -407,6 +539,18 @@ const Index = ({
             <ExportProperties
                 open={action === "export"}
                 onClose={() => handleClose()}
+            />
+
+            {/* Construction Project Modal */}
+            <ConstructionProjectFormModal
+                open={["add", "edit"].includes(cpAction || "")}
+                onClose={handleCpClose}
+                project={
+                    cpAction === "edit"
+                        ? selectedConstructionProject
+                        : undefined
+                }
+                onSuccess={handleCpSuccess}
             />
 
             {/* Filter Drawer */}
