@@ -23,7 +23,6 @@ import {
     Alert,
     Button,
     App,
-    message,
 } from "antd";
 import { PictureOutlined, SaveOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -102,7 +101,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 }) => {
     const [form] = Form.useForm<UnitTypeFormValues>();
     const isEditing = !!editingItem;
-    const { modal } = App.useApp();
+    const { modal, message } = App.useApp();
 
     // ── "Save & Continue" state — allows create mode to transition to edit-like state ──
     const [localUnitType, setLocalUnitType] =

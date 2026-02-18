@@ -25,6 +25,10 @@ use Illuminate\Support\Facades\Log;
 use App\Helper\Files;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
+use App\Services\UnitTypePropertyTransformer;
+use App\Models\DeveloperProjectUnitType;
+use App\Models\DeveloperProject;
+use App\Models\Deal;
 use Illuminate\Support\Facades\DB;
 
 
@@ -210,7 +214,47 @@ class PropertyController extends AccountBaseController
 
         $perPage = (int) $request->get('per_page', 15) ?: 15;
         $perPage = max(1, min(100, $perPage));
-        $properties = $query->paginate($perPage);
+
+        // ── Source filter: all | properties | unit_types ──
+        $source = $request->get('source', 'all');
+
+        if ($source === 'unit_types') {
+            // Only return unit types transformed as properties
+            $properties = $this->getUnitTypeProperties($request, $perPage);
+        } elseif ($source === 'properties') {
+            // Only return real properties (default query)
+            $properties = $query->paginate($perPage);
+        } else {
+            // Merge: real properties + unit type rows
+            $realProperties = $query->paginate($perPage);
+            
+            // Append unit types only on page 1 (or when not enough real properties to fill page)
+            if ($realProperties->currentPage() === 1) {
+                $transformer = new UnitTypePropertyTransformer();
+                $unitTypes = DeveloperProjectUnitType::with(['project.location', 'project.developer', 'assets'])
+                    ->whereHas('project', function ($q) {
+                        $q->where('company_id', user()->company_id);
+                    })
+                    ->ordered()
+                    ->get();
+                
+                $unitTypeRows = $transformer->transformMany($unitTypes)->all();
+                
+                // Merge unit type rows after real properties
+                $mergedData = array_merge($realProperties->items(), $unitTypeRows);
+                
+                // Return modified pagination with merged data
+                $properties = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $mergedData,
+                    $realProperties->total() + count($unitTypeRows),
+                    $perPage,
+                    $realProperties->currentPage(),
+                    ['path' => $request->url(), 'query' => $request->query()]
+                );
+            } else {
+                $properties = $realProperties;
+            }
+        }
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -254,7 +298,7 @@ class PropertyController extends AccountBaseController
                 'min_price', 'max_price', 'developer_project_id', 'project_location',
                 'primary_category', 'unit_style', 'construction_status', 
                 'publishing_status', 'project_location_id', 'view_types',
-                'occupancy_type', 'added_by', 'responsible_agent_id'
+                'occupancy_type', 'added_by', 'responsible_agent_id', 'source'
             ]),
             // Lazy-loaded: only fetched when frontend requests it (Construction Projects tab)
             'constructionProjects' => Inertia::lazy(function () use ($request) {
@@ -1602,5 +1646,270 @@ class PropertyController extends AccountBaseController
     public function getEnumValues()
     {
         return response()->json(Property::getEnumValues());
+    }
+
+    // ================================================================
+    // Unit Type as Property — Listing, Show, Mark as Sold
+    // ================================================================
+
+    /**
+     * Build a paginated result of unit types transformed as properties.
+     * Used when `source=unit_types`.
+     */
+    private function getUnitTypeProperties(Request $request, int $perPage)
+    {
+        $transformer = new UnitTypePropertyTransformer();
+
+        $utQuery = DeveloperProjectUnitType::with(['project.location', 'project.developer', 'assets'])
+            ->whereHas('project', function ($q) {
+                $q->where('company_id', user()->company_id);
+            });
+
+        // Apply compatible filters
+        if ($request->filled('property_type') && $request->property_type !== 'all') {
+            $utQuery->where('property_type', $request->property_type);
+        }
+        if ($request->filled('primary_category') && $request->primary_category !== 'all') {
+            $utQuery->where('primary_category', $request->primary_category);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $utQuery->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhereHas('project', function ($pq) use ($search) {
+                      $pq->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+        if ($request->filled('developer_project_id') && $request->developer_project_id !== 'all') {
+            $utQuery->where('developer_project_id', $request->developer_project_id);
+        }
+        if ($request->filled('min_price')) {
+            $utQuery->where('starting_price', '>=', $request->min_price);
+        }
+        if ($request->filled('max_price')) {
+            $utQuery->where('starting_price', '<=', $request->max_price);
+        }
+
+        $utQuery->ordered();
+
+        $paginated = $utQuery->paginate($perPage);
+        $transformedItems = $transformer->transformMany(collect($paginated->items()));
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $transformedItems->all(),
+            $paginated->total(),
+            $perPage,
+            $paginated->currentPage(),
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+    }
+
+    /**
+     * Show a unit type as a property (read-only view page).
+     */
+    public function showUnitType($unitTypeId)
+    {
+        $unitType = DeveloperProjectUnitType::with([
+            'assets' => function ($q) {
+                $q->orderBy('order')->orderBy('created_at', 'desc');
+            },
+            'project.location',
+            'project.developer',
+            'project.assets' => function ($q) {
+                $q->orderBy('order')->orderBy('created_at', 'desc');
+            },
+        ])->whereHas('project', function ($q) {
+            $q->where('company_id', user()->company_id);
+        })->findOrFail($unitTypeId);
+
+        $project = $unitType->project;
+
+        // Check if any property was already created from this unit type
+        $soldProperty = Property::where('developer_project_unit_type_id', $unitType->id)->first();
+
+        // Merge assets: unit type assets + project assets (distinguished by source)
+        $mergedAssets = collect();
+
+        // Unit type assets first
+        foreach ($unitType->assets ?? [] as $asset) {
+            $mergedAssets->push([
+                'id' => $asset->id,
+                'url' => $asset->url ?? $asset->file_path,
+                'name' => $asset->name,
+                'asset_type' => $asset->asset_type ?? 'image',
+                'tags' => $asset->tags ?? [],
+                'source' => 'unit_type',
+                'order' => $asset->order ?? 0,
+            ]);
+        }
+
+        // Project assets next
+        foreach ($project->assets ?? [] as $asset) {
+            $mergedAssets->push([
+                'id' => 'project_' . $asset->id,
+                'url' => $asset->url ?? $asset->file_path,
+                'name' => $asset->name,
+                'asset_type' => $asset->asset_type ?? 'image',
+                'tags' => array_merge($asset->tags ?? [], ['Project']),
+                'source' => 'project',
+                'order' => $asset->order ?? 0,
+            ]);
+        }
+
+        // Get deals for the "Mark as Sold" modal
+        $deals = Deal::where('company_id', user()->company_id)
+            ->select('id', 'name', 'lead_id')
+            ->with('contact:id,client_name,client_email')
+            ->orderBy('name')
+            ->limit(200)
+            ->get()
+            ->map(function ($deal) {
+                return [
+                    'id' => $deal->id,
+                    'name' => $deal->name,
+                    'contact_name' => $deal->contact?->client_name ?? '',
+                ];
+            });
+
+        $employees = User::allEmployees();
+
+        return Inertia::render('Properties/UnitTypeShow', [
+            'pageTitle' => $unitType->display_label . ' — ' . ($project->name ?? 'Unit Type'),
+            'unitType' => $unitType,
+            'developerProject' => $project->load(['location', 'developer']),
+            'mergedAssets' => $mergedAssets->values(),
+            'isSold' => $soldProperty !== null,
+            'soldPropertyId' => $soldProperty?->id,
+            'deals' => $deals,
+            'employees' => $employees,
+        ]);
+    }
+
+    /**
+     * Mark a unit type as sold — creates a real Property + Product from the unit type data.
+     */
+    public function markUnitTypeAsSold(Request $request, $unitTypeId)
+    {
+        $unitType = DeveloperProjectUnitType::with(['project.location', 'project.developer'])
+            ->whereHas('project', function ($q) {
+                $q->where('company_id', user()->company_id);
+            })
+            ->findOrFail($unitTypeId);
+
+        $request->validate([
+            'deal_id' => 'nullable|integer|exists:leads,id',
+            'responsible_agent_id' => 'nullable|integer|exists:users,id',
+        ]);
+
+        $project = $unitType->project;
+        $location = $project?->location;
+
+        // Build a descriptive name
+        $productName = ($project?->name ?? '') . ' — ' . ($unitType->display_label ?? 'Unit Type');
+        $productPrice = $unitType->starting_price ? (float) $unitType->starting_price : 0;
+
+        DB::beginTransaction();
+        try {
+            // 1. Create Product
+            $product = Product::create([
+                'name' => $productName,
+                'price' => $productPrice,
+                'description' => $unitType->description ?? '',
+                'allow_purchase' => 0,
+                'company_id' => user()->company_id,
+                'added_by' => user()->id,
+                'unit_id' => 1,
+            ]);
+
+            // 2. Create Property
+            $property = new Property();
+            $property->company_id = user()->company_id;
+            $property->added_by = user()->id;
+            $property->product_id = $product->id;
+            $property->developer_project_id = $unitType->developer_project_id;
+            $property->developer_project_unit_type_id = $unitType->id;
+            $property->project_location_id = $project?->project_location_id;
+
+            // Type info from unit type
+            $property->primary_category = $unitType->primary_category;
+            $property->property_type = $unitType->property_type;
+            $property->unit_style = $unitType->unit_style;
+            $property->sale_type = 'sale';
+            $property->construction_status = $project?->construction_status;
+            $property->furniture_status = $unitType->furniture_status;
+            $property->view_types = $unitType->view_types;
+
+            // Price
+            $property->price = json_encode([
+                'amount' => $productPrice,
+                'currency' => $unitType->currency ?? 'GBP',
+            ]);
+
+            // Location from project
+            $property->city = $location?->address['city'] ?? $location?->name ?? '';
+            $property->area = $location?->address['state'] ?? '';
+
+            // Specs
+            $property->bedrooms = $unitType->bedrooms;
+            $property->bathrooms = $unitType->bathrooms;
+            $property->floor_number = is_numeric($unitType->floor) ? (int) $unitType->floor : null;
+            $property->floor = $unitType->floor;
+            $property->floors_in_building = $unitType->floors_in_building;
+            $property->total_area_sqm = $unitType->total_area_sqm;
+            $property->living_area_sqm = $unitType->living_area_sqm;
+            $property->terrace_area_sqm = $unitType->terrace_balcony_sqm;
+            $property->plot_size_sqm = $unitType->plot_size_sqm;
+            $property->completion_date = $unitType->completion_date;
+
+            // Features
+            $property->exterior_features = $unitType->outside_features ?? [];
+            $property->interior_features = $unitType->inside_features ?? [];
+
+            // Content
+            $property->title = $productName;
+            $property->description = $unitType->description;
+
+            // Legal
+            $property->has_restrictions = $unitType->has_restrictions;
+            $property->restriction_notes = $unitType->restriction_notes;
+
+            // Status
+            $property->status = Property::STATUS_SOLD ?? 'Sold';
+            $property->is_published = true;
+            $property->within_site = true;
+
+            // Agent
+            if ($request->filled('responsible_agent_id')) {
+                $property->responsible_agent_id = $request->responsible_agent_id;
+            }
+
+            $property->save();
+
+            // 3. Link to Deal if provided
+            if ($request->filled('deal_id')) {
+                DB::table('lead_products')->insert([
+                    'deal_id' => $request->deal_id,
+                    'product_id' => $product->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            return Reply::successWithData('Unit type marked as sold. Property created successfully.', [
+                'property_id' => $property->id,
+                'redirectUrl' => route('properties.show', $property->id),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Mark unit type as sold failed', [
+                'unit_type_id' => $unitTypeId,
+                'error' => $e->getMessage(),
+            ]);
+            return Reply::error('Failed to mark unit type as sold: ' . $e->getMessage());
+        }
     }
 }

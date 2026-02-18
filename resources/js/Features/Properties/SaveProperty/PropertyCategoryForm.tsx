@@ -6,7 +6,6 @@ import {
     Alert,
     Space,
     Modal,
-    message,
     Input,
     App,
     Divider,
@@ -91,7 +90,7 @@ export default function PropertyCategoryForm({
     const [form] = Form.useForm();
     const contentRef = useRef<HTMLDivElement>(null);
     const saveForUploadRef = useRef(false);
-    const { modal } = App.useApp();
+    const { modal, message } = App.useApp();
     const {
         isEnabled: aiEnabled,
         isGenerating,
