@@ -222,27 +222,27 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                 </Tag>
             ),
         },
-        {
-            title: "Expose",
-            dataIndex: "expose_config",
-            key: "expose_config",
-            align: "center",
-            width: 100,
-            render: (config: any, record) =>
-                config ? (
-                    <Tag color="purple">Configured</Tag>
-                ) : (
-                    <Link
-                        href={route(
-                            "developer-projects.expose-config.show",
-                            record.id,
-                        )}
-                        className="text-purple-600 hover:text-purple-800 text-xs"
-                    >
-                        Setup
-                    </Link>
-                ),
-        },
+        // {
+        //     title: "Expose",
+        //     dataIndex: "expose_config",
+        //     key: "expose_config",
+        //     align: "center",
+        //     width: 100,
+        //     render: (config: any, record) =>
+        //         config ? (
+        //             <Tag color="purple">Configured</Tag>
+        //         ) : (
+        //             <Link
+        //                 href={route(
+        //                     "developer-projects.expose-config.show",
+        //                     record.id,
+        //                 )}
+        //                 className="text-purple-600 hover:text-purple-800 text-xs"
+        //             >
+        //                 Setup
+        //             </Link>
+        //         ),
+        // },
         {
             title: "Actions",
             key: "actions",
