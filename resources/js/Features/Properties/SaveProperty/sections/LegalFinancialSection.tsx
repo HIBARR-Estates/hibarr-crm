@@ -195,224 +195,6 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         </Col>
                     </Row>
 
-                    {/* ---------- Legal Details ---------- */}
-                    <Divider className="!my-3" />
-                    <Text strong className="text-sm block mb-3">
-                        Legal Details
-                    </Text>
-
-                    {/* Payment Plan */}
-                    <Row gutter={[16, 0]} align="middle">
-                        <Col xs={24} md={8}>
-                            <Form.Item
-                                name={["legal_info", "has_payment_plan"]}
-                                label="Payment Plan"
-                                valuePropName="checked"
-                            >
-                                <Switch
-                                    checkedChildren="Yes"
-                                    unCheckedChildren="No"
-                                />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
-                    {hasPaymentPlan && (
-                        <Row gutter={[16, 0]}>
-                            <Col xs={24} md={8}>
-                                <Form.Item label="Downpayment">
-                                    <Input.Group compact>
-                                        <Form.Item
-                                            name={[
-                                                "legal_info",
-                                                "downpayment_value",
-                                            ]}
-                                            noStyle
-                                        >
-                                            <InputNumber
-                                                min={0}
-                                                placeholder="0"
-                                                style={{
-                                                    width: "calc(100% - 80px)",
-                                                }}
-                                                formatter={
-                                                    downpaymentIsPercentage
-                                                        ? undefined
-                                                        : (value) =>
-                                                              `${value}`.replace(
-                                                                  /\B(?=(\d{3})+(?!\d))/g,
-                                                                  ",",
-                                                              )
-                                                }
-                                                parser={
-                                                    downpaymentIsPercentage
-                                                        ? undefined
-                                                        : (((
-                                                              value:
-                                                                  | string
-                                                                  | undefined,
-                                                          ) =>
-                                                              Number(
-                                                                  value?.replace(
-                                                                      /,/g,
-                                                                      "",
-                                                                  ) || 0,
-                                                              )) as any)
-                                                }
-                                                max={
-                                                    downpaymentIsPercentage
-                                                        ? 100
-                                                        : undefined
-                                                }
-                                            />
-                                        </Form.Item>
-                                        <Form.Item
-                                            name={[
-                                                "legal_info",
-                                                "downpayment_is_percentage",
-                                            ]}
-                                            noStyle
-                                            valuePropName="checked"
-                                        >
-                                            <Switch
-                                                checkedChildren="%"
-                                                unCheckedChildren="Amt"
-                                                style={{ marginLeft: 8 }}
-                                            />
-                                        </Form.Item>
-                                    </Input.Group>
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} md={8}>
-                                <Form.Item
-                                    name={[
-                                        "legal_info",
-                                        "payment_period_months",
-                                    ]}
-                                    label="Period"
-                                >
-                                    <InputNumber
-                                        min={1}
-                                        placeholder="0"
-                                        style={{ width: "100%" }}
-                                        addonAfter="months"
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} md={8}>
-                                <Form.Item
-                                    name={["legal_info", "interest_rate"]}
-                                    label="Interest"
-                                >
-                                    <InputNumber
-                                        min={0}
-                                        max={100}
-                                        placeholder="0"
-                                        style={{ width: "100%" }}
-                                        addonAfter="%"
-                                    />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                    )}
-
-                    {/* Military distance */}
-                    <Row gutter={[16, 0]}>
-                        <Col xs={24} md={12}>
-                            <Form.Item
-                                name={["legal_info", "military_distance"]}
-                                label="Distance to Military Base"
-                            >
-                                <Input placeholder="e.g. 2 km" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
-                    {/* Restrictions */}
-                    <Row gutter={[16, 0]}>
-                        <Col xs={24} md={8}>
-                            <Form.Item
-                                name={["legal_info", "has_restrictions"]}
-                                label="Any Restrictions"
-                            >
-                                <Radio.Group disabled={lockedFields.has('legal_info.has_restrictions')}>
-                                    <Radio value={true}>Yes</Radio>
-                                    <Radio value={false}>No</Radio>
-                                </Radio.Group>
-                            </Form.Item>
-                        </Col>
-                        {hasRestrictions && (
-                            <Col xs={24} md={16}>
-                                <Form.Item
-                                    name={["legal_info", "restriction_notes"]}
-                                    label="Restriction Details"
-                                >
-                                    <TextArea
-                                        rows={2}
-                                        placeholder="Describe restrictions..."
-                                        disabled={lockedFields.has('legal_info.restriction_notes')}
-                                    />
-                                </Form.Item>
-                            </Col>
-                        )}
-                    </Row>
-
-                    {/* Payment plan additional notes */}
-                    <Row gutter={[16, 0]}>
-                        <Col span={24}>
-                            <Form.Item
-                                name={["legal_info", "payment_plan_notes"]}
-                                label="Payment Plan Additional Notes"
-                            >
-                                <TextArea
-                                    rows={2}
-                                    placeholder="Additional notes about payment plan..."
-                                />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                </>
-            )}
-
-            {/* ============================== */}
-            {/* LAND: new layout */}
-            {/* ============================== */}
-            {isLand && (
-                <>
-                    {/* ---------- Finance ---------- */}
-                    <Divider className="!my-3" />
-                    <Text strong className="text-sm block mb-3">
-                        Finance
-                    </Text>
-                    <Row gutter={[16, 0]}>
-                        <Col xs={24} md={8}>
-                            <Form.Item
-                                name={["legal_info", "development_rate"]}
-                                label="Development Rate"
-                            >
-                                <InputNumber
-                                    min={0}
-                                    max={100}
-                                    placeholder="0"
-                                    style={{ width: "100%" }}
-                                    addonAfter="%"
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={8}>
-                            <Form.Item
-                                name={["legal_info", "max_floor_permission"]}
-                                label="Max Floor Permission"
-                            >
-                                <InputNumber
-                                    min={0}
-                                    placeholder="0"
-                                    style={{ width: "100%" }}
-                                />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
                     {/* VAT & Tax */}
                     <Text type="secondary" className="text-xs block mb-2 mt-1">
                         VAT & Tax
@@ -591,7 +373,11 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                 name={["legal_info", "has_restrictions"]}
                                 label="Any Restrictions"
                             >
-                                <Radio.Group disabled={lockedFields.has('legal_info.has_restrictions')}>
+                                <Radio.Group
+                                    disabled={lockedFields.has(
+                                        "legal_info.has_restrictions",
+                                    )}
+                                >
                                     <Radio value={true}>Yes</Radio>
                                     <Radio value={false}>No</Radio>
                                 </Radio.Group>
@@ -606,7 +392,233 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                     <TextArea
                                         rows={2}
                                         placeholder="Describe restrictions..."
-                                        disabled={lockedFields.has('legal_info.restriction_notes')}
+                                        disabled={lockedFields.has(
+                                            "legal_info.restriction_notes",
+                                        )}
+                                    />
+                                </Form.Item>
+                            </Col>
+                        )}
+                    </Row>
+
+                    {/* Payment plan additional notes */}
+                    <Row gutter={[16, 0]}>
+                        <Col span={24}>
+                            <Form.Item
+                                name={["legal_info", "payment_plan_notes"]}
+                                label="Payment Plan Additional Notes"
+                            >
+                                <TextArea
+                                    rows={2}
+                                    placeholder="Additional notes about payment plan..."
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </>
+            )}
+
+            {/* ============================== */}
+            {/* LAND: new layout */}
+            {/* ============================== */}
+            {isLand && (
+                <>
+                    {/* ---------- Finance ---------- */}
+                    <Divider className="!my-3" />
+                    <Text strong className="text-sm block mb-3">
+                        Finance
+                    </Text>
+                    <Row gutter={[16, 0]}>
+                        <Col xs={24} md={8}>
+                            <Form.Item
+                                name={["legal_info", "development_rate"]}
+                                label="Development Rate"
+                            >
+                                <InputNumber
+                                    min={0}
+                                    max={100}
+                                    placeholder="0"
+                                    style={{ width: "100%" }}
+                                    addonAfter="%"
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={8}>
+                            <Form.Item
+                                name={["legal_info", "max_floor_permission"]}
+                                label="Max Floor Permission"
+                            >
+                                <InputNumber
+                                    min={0}
+                                    placeholder="0"
+                                    style={{ width: "100%" }}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    {/* ---------- Legal Details ---------- */}
+                    <Divider className="!my-3" />
+                    <Text strong className="text-sm block mb-3">
+                        Legal Details
+                    </Text>
+
+                    {/* Payment Plan */}
+                    <Row gutter={[16, 0]} align="middle">
+                        <Col xs={24} md={8}>
+                            <Form.Item
+                                name={["legal_info", "has_payment_plan"]}
+                                label="Payment Plan"
+                                valuePropName="checked"
+                            >
+                                <Switch
+                                    checkedChildren="Yes"
+                                    unCheckedChildren="No"
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    {hasPaymentPlan && (
+                        <Row gutter={[16, 0]}>
+                            <Col xs={24} md={8}>
+                                <Form.Item label="Downpayment">
+                                    <Input.Group compact>
+                                        <Form.Item
+                                            name={[
+                                                "legal_info",
+                                                "downpayment_value",
+                                            ]}
+                                            noStyle
+                                        >
+                                            <InputNumber
+                                                min={0}
+                                                placeholder="0"
+                                                style={{
+                                                    width: "calc(100% - 80px)",
+                                                }}
+                                                formatter={
+                                                    downpaymentIsPercentage
+                                                        ? undefined
+                                                        : (value) =>
+                                                              `${value}`.replace(
+                                                                  /\B(?=(\d{3})+(?!\d))/g,
+                                                                  ",",
+                                                              )
+                                                }
+                                                parser={
+                                                    downpaymentIsPercentage
+                                                        ? undefined
+                                                        : (((
+                                                              value:
+                                                                  | string
+                                                                  | undefined,
+                                                          ) =>
+                                                              Number(
+                                                                  value?.replace(
+                                                                      /,/g,
+                                                                      "",
+                                                                  ) || 0,
+                                                              )) as any)
+                                                }
+                                                max={
+                                                    downpaymentIsPercentage
+                                                        ? 100
+                                                        : undefined
+                                                }
+                                            />
+                                        </Form.Item>
+                                        <Form.Item
+                                            name={[
+                                                "legal_info",
+                                                "downpayment_is_percentage",
+                                            ]}
+                                            noStyle
+                                            valuePropName="checked"
+                                        >
+                                            <Switch
+                                                checkedChildren="%"
+                                                unCheckedChildren="Amt"
+                                                style={{ marginLeft: 8 }}
+                                            />
+                                        </Form.Item>
+                                    </Input.Group>
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={8}>
+                                <Form.Item
+                                    name={[
+                                        "legal_info",
+                                        "payment_period_months",
+                                    ]}
+                                    label="Period"
+                                >
+                                    <InputNumber
+                                        min={1}
+                                        placeholder="0"
+                                        style={{ width: "100%" }}
+                                        addonAfter="months"
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={8}>
+                                <Form.Item
+                                    name={["legal_info", "interest_rate"]}
+                                    label="Interest"
+                                >
+                                    <InputNumber
+                                        min={0}
+                                        max={100}
+                                        placeholder="0"
+                                        style={{ width: "100%" }}
+                                        addonAfter="%"
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    )}
+
+                    {/* Military distance */}
+                    <Row gutter={[16, 0]}>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name={["legal_info", "military_distance"]}
+                                label="Distance to Military Base"
+                            >
+                                <Input placeholder="e.g. 2 km" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    {/* Restrictions */}
+                    <Row gutter={[16, 0]}>
+                        <Col xs={24} md={8}>
+                            <Form.Item
+                                name={["legal_info", "has_restrictions"]}
+                                label="Any Restrictions"
+                            >
+                                <Radio.Group
+                                    disabled={lockedFields.has(
+                                        "legal_info.has_restrictions",
+                                    )}
+                                >
+                                    <Radio value={true}>Yes</Radio>
+                                    <Radio value={false}>No</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+                        </Col>
+                        {hasRestrictions && (
+                            <Col xs={24} md={16}>
+                                <Form.Item
+                                    name={["legal_info", "restriction_notes"]}
+                                    label="Restriction Details"
+                                >
+                                    <TextArea
+                                        rows={2}
+                                        placeholder="Describe restrictions..."
+                                        disabled={lockedFields.has(
+                                            "legal_info.restriction_notes",
+                                        )}
                                     />
                                 </Form.Item>
                             </Col>
