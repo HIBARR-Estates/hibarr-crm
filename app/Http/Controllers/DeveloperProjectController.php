@@ -317,6 +317,18 @@ class DeveloperProjectController extends AccountBaseController
             return Reply::error($validator->errors()->first());
         }
 
+        // Unique combination: developer_id + name (within the same company)
+        if ($request->filled('developer_id') && $request->filled('name')) {
+            $duplicate = DeveloperProject::where('company_id', user()->company_id)
+                ->where('developer_id', $request->developer_id)
+                ->where('name', $request->name)
+                ->exists();
+
+            if ($duplicate) {
+                return Reply::error('A project with this name already exists for the selected developer.');
+            }
+        }
+
         // Handle location — create or update ProjectLocation if location fields provided
         $locationId = $request->project_location_id;
         if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
@@ -416,6 +428,22 @@ class DeveloperProjectController extends AccountBaseController
 
         if ($validator->fails()) {
             return Reply::error($validator->errors()->first());
+        }
+
+        // Unique combination: developer_id + name (within the same company, excluding self)
+        $developerId = $request->has('developer_id') ? $request->developer_id : $project->developer_id;
+        $name = $request->has('name') ? $request->name : $project->name;
+
+        if ($developerId && $name) {
+            $duplicate = DeveloperProject::where('company_id', user()->company_id)
+                ->where('developer_id', $developerId)
+                ->where('name', $name)
+                ->where('id', '!=', $project->id)
+                ->exists();
+
+            if ($duplicate) {
+                return Reply::error('A project with this name already exists for the selected developer.');
+            }
         }
 
         // Handle location — update existing or create new

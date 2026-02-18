@@ -49,8 +49,8 @@ export const TITLE_DEED_TYPE_OPTIONS = [
     { value: "turkish", label: "Turkish" },
     { value: "british", label: "British" },
     { value: "exchange", label: "Exchange (Eşdeğer)" },
-    { value: "trnc_allocation", label: "TRNC Allocation (Tahsis/TMD)" },
-    { value: "leasehold", label: "Leasehold (Vakıf/Ministry)" },
+    { value: "tahsis", label: "Tahsis" },
+    { value: "leasehold", label: "Leasehold" },
     { value: "mucahit", label: "Mücahit" },
 ] as const;
 

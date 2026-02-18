@@ -29,8 +29,6 @@ import {
     EyeOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
-import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import type { ApiSuccessResponse } from "@/lib/api/types";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
 import UnitTypeFormModal from "./UnitTypeFormModal";
 import {
@@ -52,6 +50,12 @@ const { Text, Paragraph } = Typography;
 interface UnitTypesSectionProps {
     projectId: number;
     unitTypes: DeveloperProjectUnitType[];
+    /**
+     * Optional callback for refreshing data after mutations.
+     * When provided, uses this instead of router.reload (for API-driven contexts like modals).
+     * When omitted, falls back to router.reload({ only: ["project"] }) for Inertia pages.
+     */
+    onRefresh?: () => void;
 }
 
 // ============================================
@@ -90,33 +94,40 @@ const categoryColor = (cat: string) =>
 const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     projectId,
     unitTypes,
+    onRefresh,
 }) => {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingItem, setEditingItem] =
         useState<DeveloperProjectUnitType | null>(null);
-
-    // Delete mutation
-    const deleteMutation = useApiMutate<
-        undefined,
-        void,
-        ApiSuccessResponse<void>
-    >("", "DELETE", () => {
-        router.reload({ only: ["project"] });
-    });
 
     const handleDelete = (unitType: DeveloperProjectUnitType) => {
         const url = route("developer-projects.unit-types.destroy", {
             projectId,
             unitTypeId: unitType.id,
         });
-        // We need to call with the right URL. useApiMutate uses a fixed path,
-        // so we instantiate per-action via fetch or use router:
-        router.delete(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                // Inertia will reload props automatically
-            },
-        });
+
+        if (onRefresh) {
+            // API-driven context (e.g. inside a modal on Properties/Index)
+            // Use fetch + callback instead of Inertia router
+            fetch(url, {
+                method: "DELETE",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-TOKEN":
+                        document
+                            .querySelector('meta[name="csrf-token"]')
+                            ?.getAttribute("content") ?? "",
+                    Accept: "application/json",
+                },
+            }).then(() => {
+                onRefresh();
+            });
+        } else {
+            // Inertia page context (e.g. DeveloperProjects/Show)
+            router.delete(url, {
+                preserveScroll: true,
+            });
+        }
     };
 
     const handleEdit = (unitType: DeveloperProjectUnitType) => {
@@ -135,7 +146,11 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     };
 
     const handleSuccess = () => {
-        router.reload({ only: ["project"] });
+        if (onRefresh) {
+            onRefresh();
+        } else {
+            router.reload({ only: ["project"] });
+        }
     };
 
     // ---- Table columns ----

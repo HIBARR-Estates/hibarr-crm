@@ -173,7 +173,7 @@ const ConstructionProjectInfoSection: React.FC<
             </Col>
 
             {/* Reference Code */}
-            <Col xs={24} md={12}>
+            {/* <Col xs={24} md={12}>
                 <Form.Item
                     name="reference_code"
                     label="Reference Code"
@@ -184,7 +184,7 @@ const ConstructionProjectInfoSection: React.FC<
                         maxLength={50}
                     />
                 </Form.Item>
-            </Col>
+            </Col> */}
         </Row>
     );
 };

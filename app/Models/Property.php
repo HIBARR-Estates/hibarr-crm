@@ -1360,7 +1360,8 @@ class Property extends BaseModel
 
             if ($areas->isNotEmpty()) {
                 return $areas->groupBy('city_name')->map(function ($group) {
-                    return $group->map(fn($a) => ['name' => $a->name, 'label' => $a->label])->values()->toArray();
+                    return $group->sortBy('label', SORT_STRING | SORT_FLAG_CASE)
+                        ->map(fn($a) => ['name' => $a->name, 'label' => $a->label])->values()->toArray();
                 })->toArray();
             }
         } catch (\Throwable) {
@@ -1380,7 +1381,8 @@ class Property extends BaseModel
             $types = PropertyType::select('name', 'label', 'category')->get();
             if ($types->isNotEmpty()) {
                 return $types->groupBy('category')->map(function ($group) {
-                    return $group->map(fn($t) => ['name' => $t->name, 'label' => $t->label])->values()->toArray();
+                    return $group->sortBy('label', SORT_STRING | SORT_FLAG_CASE)
+                        ->map(fn($t) => ['name' => $t->name, 'label' => $t->label])->values()->toArray();
                 })->toArray();
             }
         } catch (\Throwable) {
@@ -1434,7 +1436,7 @@ class Property extends BaseModel
     private static function getLookupValues(string $modelClass, array $fallback): array
     {
         try {
-            $values = $modelClass::select('name', 'label')->get()->toArray();
+            $values = $modelClass::select('name', 'label')->orderBy('label')->get()->toArray();
             if (!empty($values)) {
                 return $values;
             }
@@ -1442,8 +1444,10 @@ class Property extends BaseModel
             // fall through
         }
 
-        // Return fallback as [{name, label}] format
-        return array_map(fn($name) => ['name' => $name, 'label' => $name], $fallback);
+        // Return fallback as [{name, label}] format, sorted alphabetically
+        $items = array_map(fn($name) => ['name' => $name, 'label' => $name], $fallback);
+        usort($items, fn($a, $b) => strcasecmp($a['label'], $b['label']));
+        return $items;
     }
 
     /**

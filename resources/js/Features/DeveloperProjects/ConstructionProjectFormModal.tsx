@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from "react";
 import dayjs from "dayjs";
-import { Form, Modal, Input, message, Skeleton } from "antd";
+import { Form, Modal, Input, message, Skeleton, Divider } from "antd";
 import {
     BuildOutlined,
     AppstoreOutlined,
@@ -9,12 +9,18 @@ import {
     CheckSquareOutlined,
     PictureOutlined,
     FileTextOutlined,
+    BlockOutlined,
 } from "@ant-design/icons";
-import type { DeveloperProject, Developer } from "@/Types/developerProject";
+import type {
+    DeveloperProject,
+    Developer,
+    DeveloperProjectUnitType,
+} from "@/Types/developerProject";
 import type { PropertyEnumValues } from "@/Types";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Reuse the existing construction-project section components
 import FormSection from "@/Features/Properties/SaveProperty/sections/FormSection";
@@ -24,6 +30,7 @@ import ConstructionProjectPricingSection from "@/Features/Properties/SavePropert
 import ConstructionProjectLocationSection from "@/Features/Properties/SaveProperty/sections/ConstructionProjectLocationSection";
 import ConstructionProjectFacilitiesSection from "@/Features/Properties/SaveProperty/sections/ConstructionProjectFacilitiesSection";
 import ConstructionProjectPhotosSection from "@/Features/Properties/SaveProperty/sections/ConstructionProjectPhotosSection";
+import UnitTypesSection from "./UnitTypesSection";
 
 // ============================================
 // Types
@@ -62,6 +69,23 @@ const ConstructionProjectFormModal: React.FC<
 > = ({ open, onClose, project, developer, onSuccess }) => {
     const [form] = Form.useForm();
     const isEditing = !!project?.id;
+    const queryClient = useQueryClient();
+
+    // ── Fetch unit types for the project (edit mode only) ──
+    const unitTypesQueryPath =
+        isEditing && project?.id
+            ? route("developer-projects.unit-types.index", {
+                  projectId: project.id,
+              })
+            : "";
+    const { data: unitTypesData, refetch: refetchUnitTypes } = useApiQuery<{
+        status: string;
+        unit_types: DeveloperProjectUnitType[];
+    }>({
+        path: unitTypesQueryPath,
+        options: { enabled: open && isEditing && !!project?.id },
+    });
+    const unitTypes = unitTypesData?.unit_types ?? [];
 
     // ── Fetch developers list (for InfoSection dropdown) ──
     const { data: developersData, isLoading: developersLoading } =
@@ -324,6 +348,27 @@ const ConstructionProjectFormModal: React.FC<
                                 />
                             </Form.Item>
                         </FormSection>
+
+                        {/* Unit Types — only shown when editing an existing project */}
+                        {isEditing && project?.id && (
+                            <>
+                                <Divider />
+                                <FormSection
+                                    title="Unit Types"
+                                    icon={<BlockOutlined />}
+                                    description="Manage unit types and their specifications"
+                                    defaultOpen={true}
+                                >
+                                    <UnitTypesSection
+                                        projectId={project.id}
+                                        unitTypes={unitTypes}
+                                        onRefresh={() => {
+                                            refetchUnitTypes();
+                                        }}
+                                    />
+                                </FormSection>
+                            </>
+                        )}
                     </div>
                 </Form>
             )}
