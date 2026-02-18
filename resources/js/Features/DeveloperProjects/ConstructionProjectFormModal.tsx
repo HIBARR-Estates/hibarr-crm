@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from "react";
 import dayjs from "dayjs";
-import { Form, Modal, Input, message, Skeleton, Divider } from "antd";
+import { Form, Modal, Input, message, Skeleton, Divider, Button, Alert, App } from "antd";
 import {
     BuildOutlined,
     AppstoreOutlined,
@@ -10,6 +10,7 @@ import {
     PictureOutlined,
     FileTextOutlined,
     BlockOutlined,
+    ThunderboltOutlined,
 } from "@ant-design/icons";
 import type {
     DeveloperProject,
@@ -21,6 +22,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { useQueryClient } from "@tanstack/react-query";
+import { useGenerateDescription } from "@/lib/ai";
 
 // Reuse the existing construction-project section components
 import FormSection from "@/Features/Properties/SaveProperty/sections/FormSection";
@@ -70,6 +72,9 @@ const ConstructionProjectFormModal: React.FC<
     const [form] = Form.useForm();
     const isEditing = !!project?.id;
     const queryClient = useQueryClient();
+    const { modal } = App.useApp();
+    const { isEnabled: aiEnabled, isGenerating, error: aiError, insufficientMessage, generate } =
+        useGenerateDescription();
 
     // ── Fetch unit types for the project (edit mode only) ──
     const unitTypesQueryPath =
@@ -338,15 +343,74 @@ const ConstructionProjectFormModal: React.FC<
                             description="Project description and notes"
                             defaultOpen={false}
                         >
-                            <Form.Item
-                                name="description"
-                                label="Project Description"
-                            >
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="ant-form-item-label">
+                                    <span>Project Description</span>
+                                </label>
+                                {aiEnabled && (
+                                    <Button
+                                        size="small"
+                                        icon={<ThunderboltOutlined />}
+                                        onClick={async () => {
+                                            const formData = form.getFieldsValue(true);
+                                            const existing = formData.description;
+
+                                            const doGenerate = async () => {
+                                                const desc = await generate(formData);
+                                                if (desc) {
+                                                    form.setFieldValue("description", desc);
+                                                }
+                                            };
+
+                                            if (existing?.trim()) {
+                                                modal.confirm({
+                                                    title: "Replace existing description?",
+                                                    content:
+                                                        "This will replace your current description with an AI-generated one.",
+                                                    okText: "Replace",
+                                                    cancelText: "Cancel",
+                                                    onOk: doGenerate,
+                                                });
+                                            } else {
+                                                await doGenerate();
+                                            }
+                                        }}
+                                        loading={isGenerating}
+                                        type="default"
+                                    >
+                                        {isGenerating ? "Generating…" : "Generate with AI"}
+                                    </Button>
+                                )}
+                            </div>
+                            <Form.Item name="description" noStyle>
                                 <Input.TextArea
                                     rows={4}
                                     placeholder="Describe the construction project..."
+                                    showCount
+                                    maxLength={5000}
+                                    disabled={isGenerating}
                                 />
                             </Form.Item>
+                            {insufficientMessage && (
+                                <div className="mt-2">
+                                    <Alert
+                                        message={insufficientMessage}
+                                        type="info"
+                                        showIcon
+                                        closable
+                                    />
+                                </div>
+                            )}
+                            {aiError && (
+                                <div className="mt-2">
+                                    <Alert
+                                        message={aiError}
+                                        type="error"
+                                        showIcon
+                                        closable
+                                    />
+                                </div>
+                            )}
                         </FormSection>
 
                         {/* Unit Types — only shown when editing an existing project */}
