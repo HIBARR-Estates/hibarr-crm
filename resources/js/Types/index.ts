@@ -254,6 +254,7 @@ export interface Property {
     projectLocation?: ProjectLocation;
     addedBy?: User;
     responsibleAgent?: User;
+    developer_project?: { id: number; name: string } | null;
     // Computed attributes from backend
     reference_code: string;
     display_title: string;
