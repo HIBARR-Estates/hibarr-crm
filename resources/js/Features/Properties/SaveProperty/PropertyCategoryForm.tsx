@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Form, Button, Alert, Space, Modal, message, Input } from "antd";
+import { Form, Button, Alert, Space, Modal, message, Input, App } from "antd";
 import {
     SaveOutlined,
     CheckOutlined,
@@ -18,11 +18,13 @@ import {
     BuildOutlined,
     ToolOutlined,
     CheckSquareOutlined,
+    ThunderboltOutlined,
 } from "@ant-design/icons";
 import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
 import { AppPermission } from "@/Types/permission";
 import { usePage } from "@inertiajs/react";
+import { useGenerateDescription } from "@/lib/ai";
 import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
 import { CATEGORY_SECTIONS } from "./fieldConfig";
 import {
@@ -74,6 +76,14 @@ export default function PropertyCategoryForm({
     const [form] = Form.useForm();
     const contentRef = useRef<HTMLDivElement>(null);
     const saveForUploadRef = useRef(false);
+    const { modal } = App.useApp();
+    const {
+        isEnabled: aiEnabled,
+        isGenerating,
+        error: aiError,
+        insufficientMessage,
+        generate,
+    } = useGenerateDescription();
 
     const { props } = usePage<any>();
     const enumValues = props.enumValues as PropertyEnumValues | undefined;
@@ -110,10 +120,7 @@ export default function PropertyCategoryForm({
 
     // ── Unit-type → property field mapping ──
     // Maps DeveloperProjectUnitType fields to property form field names.
-    const UNIT_TYPE_FIELD_MAP: Record<
-        string,
-        string | [string, string]
-    > = {
+    const UNIT_TYPE_FIELD_MAP: Record<string, string | [string, string]> = {
         property_type: "property_type",
         unit_style: "unit_style",
         bedrooms: "bedrooms",
@@ -539,15 +546,92 @@ export default function PropertyCategoryForm({
                                         description="Project description and notes"
                                         defaultOpen={false}
                                     >
-                                        <Form.Item
-                                            name="description"
-                                            label="Project Description"
-                                        >
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="ant-form-item-label">
+                                                <span>Project Description</span>
+                                            </label>
+                                            {aiEnabled && (
+                                                <Button
+                                                    size="small"
+                                                    icon={
+                                                        <ThunderboltOutlined />
+                                                    }
+                                                    onClick={async () => {
+                                                        const formData =
+                                                            form.getFieldsValue(
+                                                                true,
+                                                            );
+                                                        const existing =
+                                                            formData.description;
+
+                                                        const doGenerate =
+                                                            async () => {
+                                                                const desc =
+                                                                    await generate(
+                                                                        formData,
+                                                                    );
+                                                                if (desc) {
+                                                                    form.setFieldValue(
+                                                                        "description",
+                                                                        desc,
+                                                                    );
+                                                                }
+                                                            };
+
+                                                        if (existing?.trim()) {
+                                                            modal.confirm({
+                                                                title: "Replace existing description?",
+                                                                content:
+                                                                    "This will replace your current description with an AI-generated one.",
+                                                                okText: "Replace",
+                                                                cancelText:
+                                                                    "Cancel",
+                                                                onOk: doGenerate,
+                                                            });
+                                                        } else {
+                                                            await doGenerate();
+                                                        }
+                                                    }}
+                                                    loading={isGenerating}
+                                                    type="default"
+                                                >
+                                                    {isGenerating
+                                                        ? "Generating\u2026"
+                                                        : "Generate with AI"}
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <Form.Item name="description" noStyle>
                                             <Input.TextArea
                                                 rows={4}
                                                 placeholder="Describe the construction project..."
+                                                showCount
+                                                maxLength={5000}
+                                                disabled={isGenerating}
                                             />
                                         </Form.Item>
+                                        {insufficientMessage && (
+                                            <div className="mt-2">
+                                                <Alert
+                                                    message={
+                                                        insufficientMessage
+                                                    }
+                                                    type="info"
+                                                    showIcon
+                                                    closable
+                                                />
+                                            </div>
+                                        )}
+                                        {aiError && (
+                                            <div className="mt-2">
+                                                <Alert
+                                                    message={aiError}
+                                                    type="error"
+                                                    showIcon
+                                                    closable
+                                                />
+                                            </div>
+                                        )}
                                     </FormSection>
                                 </>
                             )}
@@ -571,7 +655,9 @@ export default function PropertyCategoryForm({
                                                 }
                                                 enumValues={enumValues}
                                                 isSalesManager={isSalesManager}
-                                                onUnitTypeSelect={handleUnitTypeSelect}
+                                                onUnitTypeSelect={
+                                                    handleUnitTypeSelect
+                                                }
                                                 lockedFields={lockedFields}
                                             />
                                         </FormSection>
