@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import dayjs from "dayjs";
-import { Form, Button, Alert, Space, Modal, message, Input, App } from "antd";
+import {
+    Form,
+    Button,
+    Alert,
+    Space,
+    Modal,
+    message,
+    Input,
+    App,
+    Divider,
+    Typography,
+} from "antd";
 import {
     SaveOutlined,
     CheckOutlined,
@@ -20,6 +31,7 @@ import {
     ToolOutlined,
     CheckSquareOutlined,
     ThunderboltOutlined,
+    BlockOutlined,
 } from "@ant-design/icons";
 import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
@@ -50,6 +62,8 @@ import {
     ConstructionProjectPhotosSection,
     ConstructionProjectLocationSection,
 } from "./sections";
+import UnitTypesSection from "@/Features/DeveloperProjects/UnitTypesSection";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
 
 export interface PropertyCategoryFormProps {
     data?: Partial<Property>;
@@ -118,6 +132,49 @@ export default function PropertyCategoryForm({
     const isSalesManager = isEditMode
         ? propertyPermissions.isSalesManager
         : isSalesManagerUser;
+
+    // ── Fetch unit types for construction project (edit mode) ──
+    const constructionProjectId = data?.id;
+    const unitTypesQueryPath = constructionProjectId
+        ? route("developer-projects.unit-types.index", {
+              projectId: constructionProjectId,
+          })
+        : "";
+    const { data: unitTypesData, refetch: refetchUnitTypes } = useApiQuery<{
+        status: string;
+        unit_types: DeveloperProjectUnitType[];
+    }>({
+        path: unitTypesQueryPath,
+        options: { enabled: visible === true && !!constructionProjectId },
+    });
+    const cpUnitTypes = unitTypesData?.unit_types ?? [];
+
+    // ── "Save & Continue" for construction projects ──
+    const handleConstructionProjectSaveForUpload = useCallback(() => {
+        const values = form.getFieldsValue(true);
+        if (!values.name || !values.developer_id) {
+            message.error(
+                "Please fill in at least Construction Company and Project Name before saving.",
+            );
+            return;
+        }
+        modal.confirm({
+            title: "Save project to continue?",
+            content:
+                "Your project will be saved so you can upload photos and manage unit types.",
+            okText: "Save & Continue",
+            cancelText: "Cancel",
+            onOk: () => {
+                const submitValues = transformValues(values);
+                onSubmit({
+                    ...submitValues,
+                    _isDraft: true,
+                    _isConstructionProject: true,
+                    _saveForUpload: true,
+                });
+            },
+        });
+    }, [form, modal, onSubmit]);
 
     // ── Unit-type → property field mapping ──
     // Maps DeveloperProjectUnitType fields to property form field names.
@@ -546,6 +603,11 @@ export default function PropertyCategoryForm({
                                         <ConstructionProjectPhotosSection
                                             form={form}
                                             projectId={data?.id}
+                                            onSaveForUpload={
+                                                !data?.id
+                                                    ? handleConstructionProjectSaveForUpload
+                                                    : undefined
+                                            }
                                         />
                                     </FormSection>
 
@@ -640,6 +702,58 @@ export default function PropertyCategoryForm({
                                                     showIcon
                                                     closable
                                                 />
+                                            </div>
+                                        )}
+                                    </FormSection>
+
+                                    {/* Unit Types */}
+                                    <Divider />
+                                    <FormSection
+                                        title="Unit Types"
+                                        icon={<BlockOutlined />}
+                                        description="Manage unit types and their specifications"
+                                        defaultOpen={true}
+                                    >
+                                        {data?.id ? (
+                                            <UnitTypesSection
+                                                projectId={data.id}
+                                                unitTypes={cpUnitTypes}
+                                                onRefresh={() => {
+                                                    refetchUnitTypes();
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="text-center py-8">
+                                                <BlockOutlined
+                                                    style={{
+                                                        fontSize: 48,
+                                                        color: "#d9d9d9",
+                                                    }}
+                                                    className="mb-4"
+                                                />
+                                                <Typography.Title
+                                                    level={5}
+                                                    type="secondary"
+                                                >
+                                                    Save the project to manage
+                                                    unit types
+                                                </Typography.Title>
+                                                <Typography.Text
+                                                    type="secondary"
+                                                    className="block mb-4"
+                                                >
+                                                    Unit types can be added once
+                                                    the project has been saved.
+                                                </Typography.Text>
+                                                <Button
+                                                    type="primary"
+                                                    icon={<SaveOutlined />}
+                                                    onClick={
+                                                        handleConstructionProjectSaveForUpload
+                                                    }
+                                                >
+                                                    Save & Continue
+                                                </Button>
                                             </div>
                                         )}
                                     </FormSection>

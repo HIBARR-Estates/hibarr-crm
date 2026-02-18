@@ -1,3 +1,11 @@
+/**
+ * UnitTypePhotosSection — upload & manage photos for a unit type.
+ *
+ * Mirrors ConstructionProjectPhotosSection but targets unit-type-level assets.
+ * When no unitTypeId is available (create mode), shows a placeholder with
+ * an optional "Save & Continue" button.
+ */
+
 import React, { useState, useMemo, useCallback } from "react";
 import {
     Button,
@@ -22,53 +30,41 @@ import {
     SaveOutlined,
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
-import type { FormInstance } from "antd/lib/form";
-import type { AssetTag } from "@/Types";
-import type { DeveloperProjectAsset } from "@/Types/developerProject";
+import type { DeveloperProjectUnitTypeAsset } from "@/Types/developerProject";
 import type { IUploadResponseItem } from "@/Types/uploads";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
-import { ApiSuccessResponse } from "@/lib/api/types";
+import type { ApiSuccessResponse } from "@/lib/api/types";
 
 const { Text, Title } = Typography;
 
 // ────────────────────────────────────────────────────────────
-// Tag definitions (same as PropertyAsset / PhotosSection)
+// Tag definitions (same as DeveloperProjectUnitTypeAsset::AVAILABLE_TAGS)
 // ────────────────────────────────────────────────────────────
-const ASSET_TAGS: Record<AssetTag, string> = {
-    hero: "Hero Image",
-    facilities: "Facilities",
-    features: "Features",
-    area: "Area / Location",
-    exterior: "Exterior",
+const ASSET_TAGS: Record<string, string> = {
+    cover: "Cover Photo",
     interior: "Interior",
+    exterior: "Exterior",
     "floor-plan": "Floor Plan",
-    "site-plan": "Site Plan",
-    footer: "Footer",
     gallery: "Gallery",
 };
 
 const TAG_OPTIONS = Object.entries(ASSET_TAGS).map(([value, label]) => ({
-    value: value as AssetTag,
+    value,
     label,
 }));
 
-const TAG_COLORS: Record<AssetTag, string> = {
-    hero: "gold",
-    facilities: "blue",
-    features: "green",
-    area: "cyan",
-    exterior: "orange",
+const TAG_COLORS: Record<string, string> = {
+    cover: "gold",
     interior: "purple",
+    exterior: "orange",
     "floor-plan": "magenta",
-    "site-plan": "volcano",
-    footer: "geekblue",
     gallery: "lime",
 };
 
 // ────────────────────────────────────────────────────────────
-// Upload status tracking (mirrors ManageAssets / PhotosSection)
+// Upload status tracking
 // ────────────────────────────────────────────────────────────
 interface FileUploadStatus {
     fileId: string;
@@ -82,26 +78,29 @@ interface FileUploadStatus {
 // ────────────────────────────────────────────────────────────
 // Props
 // ────────────────────────────────────────────────────────────
-interface ConstructionProjectPhotosSectionProps {
-    form: FormInstance;
-    /** DeveloperProject ID — present in edit mode, absent on create */
-    projectId?: number;
-    /** Callback to trigger a "save & continue" flow so the project gets created first */
+interface UnitTypePhotosSectionProps {
+    /** Parent project ID — always required for storage paths */
+    projectId: number;
+    /** Unit type ID — present in edit mode, absent on create */
+    unitTypeId?: number;
+    /** Callback to trigger a "save & continue" flow so the unit type gets created first */
     onSaveForUpload?: () => void;
 }
 
 // ────────────────────────────────────────────────────────────
 // Component
 // ────────────────────────────────────────────────────────────
-const ConstructionProjectPhotosSection: React.FC<
-    ConstructionProjectPhotosSectionProps
-> = ({ form, projectId, onSaveForUpload }) => {
+const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
+    projectId,
+    unitTypeId,
+    onSaveForUpload,
+}) => {
     const { message: messageApi } = App.useApp();
 
     // Upload modal state
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
-    const [selectedTags, setSelectedTags] = useState<AssetTag[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadStatuses, setUploadStatuses] = useState<FileUploadStatus[]>(
         [],
@@ -115,24 +114,27 @@ const ConstructionProjectPhotosSection: React.FC<
         data: assetsResponse,
         isLoading: isLoadingAssets,
         refetch: refetchAssets,
-    } = useApiQuery<{ data: { assets: DeveloperProjectAsset[] } }>({
-        path: projectId
-            ? route("developer-projects.assets.index", projectId)
-            : "",
-        params: { asset_type: "image" },
-        options: { enabled: !!projectId },
+    } = useApiQuery<{ assets: DeveloperProjectUnitTypeAsset[] }>({
+        path:
+            unitTypeId && projectId
+                ? route("developer-projects.unit-types.assets.index", {
+                      projectId,
+                      unitTypeId,
+                  })
+                : "",
+        options: { enabled: !!unitTypeId && !!projectId },
     });
 
-    const imageAssets = useMemo(
-        () => assetsResponse?.data?.assets ?? [],
-        [assetsResponse],
-    );
+    const imageAssets = useMemo(() => {
+        const assets = assetsResponse?.assets ?? [];
+        return assets.filter((a) => a.asset_type === "image");
+    }, [assetsResponse]);
 
-    // Upload service — configured per project
+    // Upload service — configured per unit type
     const uploadService = useMemo(() => {
-        if (!projectId) return null;
+        if (!unitTypeId || !projectId) return null;
         return getFileUploadService({
-            defaultTargetFolder: `developer-projects/${projectId}/assets`,
+            defaultTargetFolder: `developer-projects/${projectId}/unit-types/${unitTypeId}/assets`,
             allowedTypes: [
                 "image/jpeg",
                 "image/png",
@@ -141,9 +143,9 @@ const ConstructionProjectPhotosSection: React.FC<
             ],
             maxFileSize: 50 * 1024 * 1024, // 50 MB
         });
-    }, [projectId]);
+    }, [projectId, unitTypeId]);
 
-    // Mutation: save uploaded file URLs to backend as DeveloperProjectAssets
+    // Mutation: save uploaded file URLs to backend
     interface SaveAssetsPayload {
         assets: Array<{
             url: string;
@@ -159,11 +161,17 @@ const ConstructionProjectPhotosSection: React.FC<
     const { mutate: saveAssetsToBackend, isPending: isSavingToBackend } =
         useApiMutate<
             SaveAssetsPayload,
-            { assets: DeveloperProjectAsset[] },
-            ApiSuccessResponse<{ assets: DeveloperProjectAsset[] }>
+            { assets: DeveloperProjectUnitTypeAsset[] },
+            ApiSuccessResponse<{ assets: DeveloperProjectUnitTypeAsset[] }>
         >(
-            projectId
-                ? route("developer-projects.assets.store_from_urls", projectId)
+            unitTypeId && projectId
+                ? route(
+                      "developer-projects.unit-types.assets.store_from_urls",
+                      {
+                          projectId,
+                          unitTypeId,
+                      },
+                  )
                 : "",
             "POST",
             () => {
@@ -177,7 +185,7 @@ const ConstructionProjectPhotosSection: React.FC<
 
     // ─── Upload flow ───
     const handleUpload = useCallback(async () => {
-        if (!uploadService || !projectId) return;
+        if (!uploadService || !unitTypeId || !projectId) return;
 
         const files: File[] = [];
         for (const f of uploadFileList) {
@@ -219,7 +227,7 @@ const ConstructionProjectPhotosSection: React.FC<
 
                     const result = await uploadService.uploadSingle(
                         file,
-                        `developer-projects/${projectId}/assets`,
+                        `developer-projects/${projectId}/unit-types/${unitTypeId}/assets`,
                         (_fId, progressPercent) => {
                             setUploadStatuses((prev) =>
                                 prev.map((s) =>
@@ -288,6 +296,7 @@ const ConstructionProjectPhotosSection: React.FC<
     }, [
         uploadService,
         projectId,
+        unitTypeId,
         uploadFileList,
         selectedTags,
         saveAssetsToBackend,
@@ -296,8 +305,8 @@ const ConstructionProjectPhotosSection: React.FC<
 
     // ─── Delete handler ───
     const handleDeleteAsset = useCallback(
-        (asset: DeveloperProjectAsset) => {
-            if (!projectId) return;
+        (asset: DeveloperProjectUnitTypeAsset) => {
+            if (!projectId || !unitTypeId) return;
 
             deleteModal.confirm({
                 title: "Delete Photo",
@@ -305,10 +314,14 @@ const ConstructionProjectPhotosSection: React.FC<
                 okText: "Delete",
                 okType: "danger",
                 onOk: () => {
-                    const url = route("developer-projects.assets.destroy", [
-                        projectId,
-                        asset.id,
-                    ]);
+                    const url = route(
+                        "developer-projects.unit-types.assets.destroy",
+                        {
+                            projectId,
+                            unitTypeId,
+                            assetId: asset.id,
+                        },
+                    );
 
                     fetch(url, {
                         method: "DELETE",
@@ -332,11 +345,11 @@ const ConstructionProjectPhotosSection: React.FC<
                 },
             });
         },
-        [projectId, deleteModal, messageApi, refetchAssets],
+        [projectId, unitTypeId, deleteModal, messageApi, refetchAssets],
     );
 
-    // ─── Create mode: project not saved yet ───
-    if (!projectId) {
+    // ─── Create mode: unit type not saved yet ───
+    if (!unitTypeId) {
         return (
             <div className="text-center py-8">
                 <CameraOutlined
@@ -344,12 +357,10 @@ const ConstructionProjectPhotosSection: React.FC<
                     className="mb-4"
                 />
                 <Title level={5} type="secondary">
-                    Save the project to upload photos
+                    Save the unit type to upload photos
                 </Title>
                 <Text type="secondary" className="block mb-4">
-                    Photos can be uploaded once the project has been saved.
-                    These photos will be visible on all individual units of this
-                    project.
+                    Photos can be uploaded once the unit type has been saved.
                 </Text>
                 {onSaveForUpload && (
                     <Button
@@ -405,7 +416,7 @@ const ConstructionProjectPhotosSection: React.FC<
                         >
                             <Image
                                 src={asset.url || asset.external_url || ""}
-                                alt={asset.name}
+                                alt={asset.name || "Unit type photo"}
                                 width="100%"
                                 height={120}
                                 style={{ objectFit: "cover" }}
@@ -468,7 +479,7 @@ const ConstructionProjectPhotosSection: React.FC<
 
             {/* Upload Modal */}
             <Modal
-                title="Upload Photos"
+                title="Upload Unit Type Photos"
                 open={isUploadModalOpen}
                 onCancel={() => {
                     if (!isUploading) {
@@ -578,4 +589,4 @@ const ConstructionProjectPhotosSection: React.FC<
     );
 };
 
-export default ConstructionProjectPhotosSection;
+export default UnitTypePhotosSection;

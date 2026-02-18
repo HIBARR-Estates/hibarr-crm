@@ -1,6 +1,17 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState, useRef } from "react";
 import dayjs from "dayjs";
-import { Form, Modal, Input, message, Skeleton, Divider, Button, Alert, App } from "antd";
+import {
+    Form,
+    Modal,
+    Input,
+    message,
+    Skeleton,
+    Divider,
+    Button,
+    Alert,
+    App,
+    Typography,
+} from "antd";
 import {
     BuildOutlined,
     AppstoreOutlined,
@@ -11,6 +22,7 @@ import {
     FileTextOutlined,
     BlockOutlined,
     ThunderboltOutlined,
+    SaveOutlined,
 } from "@ant-design/icons";
 import type {
     DeveloperProject,
@@ -73,22 +85,45 @@ const ConstructionProjectFormModal: React.FC<
     const isEditing = !!project?.id;
     const queryClient = useQueryClient();
     const { modal } = App.useApp();
-    const { isEnabled: aiEnabled, isGenerating, error: aiError, insufficientMessage, generate } =
-        useGenerateDescription();
+    const {
+        isEnabled: aiEnabled,
+        isGenerating,
+        error: aiError,
+        insufficientMessage,
+        generate,
+    } = useGenerateDescription();
 
-    // ── Fetch unit types for the project (edit mode only) ──
-    const unitTypesQueryPath =
-        isEditing && project?.id
-            ? route("developer-projects.unit-types.index", {
-                  projectId: project.id,
-              })
-            : "";
+    // ── "Save & Continue" state — allows create mode to transition to edit-like state ──
+    const [localProject, setLocalProject] = useState<DeveloperProject | null>(
+        null,
+    );
+    const saveForUploadRef = useRef(false);
+
+    // The effective project is the prop (edit mode) or the locally-saved project (save & continue)
+    const effectiveProject = project ?? localProject;
+    const effectiveProjectId = effectiveProject?.id;
+    const isEffectivelyEditing = !!effectiveProjectId;
+
+    // Reset local state when modal closes
+    useEffect(() => {
+        if (!open) {
+            setLocalProject(null);
+            saveForUploadRef.current = false;
+        }
+    }, [open]);
+
+    // ── Fetch unit types for the project (when we have a project ID) ──
+    const unitTypesQueryPath = effectiveProjectId
+        ? route("developer-projects.unit-types.index", {
+              projectId: effectiveProjectId,
+          })
+        : "";
     const { data: unitTypesData, refetch: refetchUnitTypes } = useApiQuery<{
         status: string;
         unit_types: DeveloperProjectUnitType[];
     }>({
         path: unitTypesQueryPath,
-        options: { enabled: open && isEditing && !!project?.id },
+        options: { enabled: open && !!effectiveProjectId },
     });
     const unitTypes = unitTypesData?.unit_types ?? [];
 
@@ -114,6 +149,19 @@ const ConstructionProjectFormModal: React.FC<
         ApiSuccessResponse<DeveloperProject>
     >(route("developer-projects.store"), "POST", (res) => {
         if (res?.status === "success") {
+            // If this was a "save & continue" flow, stay on the form
+            if (saveForUploadRef.current) {
+                saveForUploadRef.current = false;
+                const createdProject = (res.data as any)?.project || res.data;
+                if (createdProject?.id) {
+                    setLocalProject(createdProject);
+                }
+                message.success(
+                    "Project saved! You can now upload photos and manage unit types.",
+                );
+                return;
+            }
+
             message.success("Construction project created!");
             handleClose();
             onSuccess?.();
@@ -125,7 +173,9 @@ const ConstructionProjectFormModal: React.FC<
         DeveloperProject,
         ApiSuccessResponse<DeveloperProject>
     >(
-        isEditing ? route("developer-projects.update", project!.id) : "",
+        effectiveProjectId
+            ? route("developer-projects.update", effectiveProjectId)
+            : "",
         "PUT",
         (res) => {
             if (res?.status === "success") {
@@ -192,57 +242,87 @@ const ConstructionProjectFormModal: React.FC<
     }, [open, project, developer, form]);
 
     // ── Transform & submit ──
-    const handleSubmit = useCallback(() => {
-        form.validateFields()
-            .then((values) => {
-                const { _selected_developer_id, ...cleanData } = values;
+    const doSubmit = useCallback(
+        (isSaveForUpload = false) => {
+            form.validateFields()
+                .then((values) => {
+                    const { _selected_developer_id, ...cleanData } = values;
 
-                const submitData = {
-                    ...cleanData,
-                    completion_date: cleanData.completion_date
-                        ? cleanData.completion_date.format("YYYY-MM-DD")
-                        : null,
-                    primary_categories: cleanData.primary_categories || [],
-                    unit_types: cleanData.unit_types || [],
-                    facilities: cleanData.facilities || [],
-                    distances: cleanData.distances || {},
-                    payment_plan: cleanData.payment_plan || {},
-                };
+                    const submitData = {
+                        ...cleanData,
+                        completion_date: cleanData.completion_date
+                            ? cleanData.completion_date.format("YYYY-MM-DD")
+                            : null,
+                        primary_categories: cleanData.primary_categories || [],
+                        unit_types: cleanData.unit_types || [],
+                        facilities: cleanData.facilities || [],
+                        distances: cleanData.distances || {},
+                        payment_plan: cleanData.payment_plan || {},
+                    };
 
-                const onError = (error: any) => {
-                    if (error?.errors) {
-                        const errorMessages = Object.values(
-                            error.errors,
-                        ).flat() as string[];
-                        message.error(
-                            errorMessages[0] ||
-                                "Please check the form for errors",
-                        );
-                    } else if (error?.message) {
-                        message.error(error.message);
+                    const onError = (error: any) => {
+                        if (error?.errors) {
+                            const errorMessages = Object.values(
+                                error.errors,
+                            ).flat() as string[];
+                            message.error(
+                                errorMessages[0] ||
+                                    "Please check the form for errors",
+                            );
+                        } else if (error?.message) {
+                            message.error(error.message);
+                        }
+                    };
+
+                    if (isSaveForUpload) {
+                        saveForUploadRef.current = true;
                     }
-                };
 
-                if (isEditing) {
-                    updateMutation.mutate(submitData, { onError });
-                } else {
-                    createMutation.mutate(submitData, { onError });
-                }
-            })
-            .catch((errorInfo) => {
-                const errCount = errorInfo?.errorFields?.length || 0;
-                message.warning(
-                    `Please fix ${errCount} error${errCount !== 1 ? "s" : ""} before submitting`,
-                );
-                form.scrollToField(errorInfo?.errorFields?.[0]?.name, {
-                    behavior: "smooth",
-                    block: "center",
+                    if (isEffectivelyEditing) {
+                        updateMutation.mutate(submitData, { onError });
+                    } else {
+                        createMutation.mutate(submitData, { onError });
+                    }
+                })
+                .catch((errorInfo) => {
+                    const errCount = errorInfo?.errorFields?.length || 0;
+                    message.warning(
+                        `Please fix ${errCount} error${errCount !== 1 ? "s" : ""} before submitting`,
+                    );
+                    form.scrollToField(errorInfo?.errorFields?.[0]?.name, {
+                        behavior: "smooth",
+                        block: "center",
+                    });
                 });
-            });
-    }, [form, isEditing, createMutation, updateMutation]);
+        },
+        [form, isEffectivelyEditing, createMutation, updateMutation],
+    );
+
+    const handleSubmit = useCallback(() => doSubmit(false), [doSubmit]);
+
+    // ── Save & Continue — save project first so Photos / Unit Types can work ──
+    const handleSaveForUpload = useCallback(() => {
+        const values = form.getFieldsValue(true);
+        if (!values.name || !values.developer_id) {
+            message.error(
+                "Please fill in at least Construction Company and Project Name before saving.",
+            );
+            return;
+        }
+        modal.confirm({
+            title: "Save project to continue?",
+            content:
+                "Your project will be saved so you can upload photos and manage unit types.",
+            okText: "Save & Continue",
+            cancelText: "Cancel",
+            onOk: () => doSubmit(true),
+        });
+    }, [form, modal, doSubmit]);
 
     const handleClose = useCallback(() => {
         form.resetFields();
+        setLocalProject(null);
+        saveForUploadRef.current = false;
         onClose();
     }, [form, onClose]);
 
@@ -251,14 +331,14 @@ const ConstructionProjectFormModal: React.FC<
     return (
         <Modal
             title={
-                isEditing
+                isEffectivelyEditing
                     ? "Edit Construction Project"
                     : "Create Construction Project"
             }
             open={open}
             onCancel={handleClose}
             onOk={handleSubmit}
-            okText={isEditing ? "Update Project" : "Create Project"}
+            okText={isEffectivelyEditing ? "Update Project" : "Create Project"}
             confirmLoading={processing}
             width={1000}
             destroyOnClose
@@ -332,7 +412,12 @@ const ConstructionProjectFormModal: React.FC<
                         >
                             <ConstructionProjectPhotosSection
                                 form={form}
-                                projectId={project?.id}
+                                projectId={effectiveProjectId}
+                                onSaveForUpload={
+                                    !effectiveProjectId
+                                        ? handleSaveForUpload
+                                        : undefined
+                                }
                             />
                         </FormSection>
 
@@ -352,13 +437,19 @@ const ConstructionProjectFormModal: React.FC<
                                         size="small"
                                         icon={<ThunderboltOutlined />}
                                         onClick={async () => {
-                                            const formData = form.getFieldsValue(true);
-                                            const existing = formData.description;
+                                            const formData =
+                                                form.getFieldsValue(true);
+                                            const existing =
+                                                formData.description;
 
                                             const doGenerate = async () => {
-                                                const desc = await generate(formData);
+                                                const desc =
+                                                    await generate(formData);
                                                 if (desc) {
-                                                    form.setFieldValue("description", desc);
+                                                    form.setFieldValue(
+                                                        "description",
+                                                        desc,
+                                                    );
                                                 }
                                             };
 
@@ -378,7 +469,9 @@ const ConstructionProjectFormModal: React.FC<
                                         loading={isGenerating}
                                         type="default"
                                     >
-                                        {isGenerating ? "Generating…" : "Generate with AI"}
+                                        {isGenerating
+                                            ? "Generating…"
+                                            : "Generate with AI"}
                                     </Button>
                                 )}
                             </div>
@@ -413,26 +506,54 @@ const ConstructionProjectFormModal: React.FC<
                             )}
                         </FormSection>
 
-                        {/* Unit Types — only shown when editing an existing project */}
-                        {isEditing && project?.id && (
-                            <>
-                                <Divider />
-                                <FormSection
-                                    title="Unit Types"
-                                    icon={<BlockOutlined />}
-                                    description="Manage unit types and their specifications"
-                                    defaultOpen={true}
-                                >
-                                    <UnitTypesSection
-                                        projectId={project.id}
-                                        unitTypes={unitTypes}
-                                        onRefresh={() => {
-                                            refetchUnitTypes();
+                        {/* Unit Types — always visible, shows placeholder in create mode */}
+                        <Divider />
+                        <FormSection
+                            title="Unit Types"
+                            icon={<BlockOutlined />}
+                            description="Manage unit types and their specifications"
+                            defaultOpen={true}
+                        >
+                            {effectiveProjectId ? (
+                                <UnitTypesSection
+                                    projectId={effectiveProjectId}
+                                    unitTypes={unitTypes}
+                                    onRefresh={() => {
+                                        refetchUnitTypes();
+                                    }}
+                                />
+                            ) : (
+                                <div className="text-center py-8">
+                                    <BlockOutlined
+                                        style={{
+                                            fontSize: 48,
+                                            color: "#d9d9d9",
                                         }}
+                                        className="mb-4"
                                     />
-                                </FormSection>
-                            </>
-                        )}
+                                    <Typography.Title
+                                        level={5}
+                                        type="secondary"
+                                    >
+                                        Save the project to manage unit types
+                                    </Typography.Title>
+                                    <Typography.Text
+                                        type="secondary"
+                                        className="block mb-4"
+                                    >
+                                        Unit types can be added once the project
+                                        has been saved.
+                                    </Typography.Text>
+                                    <Button
+                                        type="primary"
+                                        icon={<SaveOutlined />}
+                                        onClick={handleSaveForUpload}
+                                    >
+                                        Save & Continue
+                                    </Button>
+                                </div>
+                            )}
+                        </FormSection>
                     </div>
                 </Form>
             )}

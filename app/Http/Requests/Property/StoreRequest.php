@@ -258,6 +258,10 @@ class StoreRequest extends CoreRequest
             // New fields: Notes
             'general_notes' => 'nullable|string',
 
+            // Associated construction company fields
+            'associated_construction_company' => 'nullable|string|max:255',
+            'associated_construction_company_project' => 'nullable|string|max:255',
+
             // Distances (stored in distances JSON column)
             'distances' => 'nullable|array',
             'distances.military_base' => 'nullable|string|max:255',
