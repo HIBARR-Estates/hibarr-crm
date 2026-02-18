@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import dayjs from "dayjs";
 import { Form, Button, Alert, Space, Modal, message, Input, App } from "antd";
 import {
     SaveOutlined,
@@ -241,7 +242,7 @@ export default function PropertyCategoryForm({
     // Initialize form with existing property data
     useEffect(() => {
         if (data && visible) {
-            const initialValues = { ...data };
+            const initialValues: Record<string, any> = { ...data };
 
             // Derive _selected_developer_id from existing developer project
             if (initialValues.developer_project_id) {
@@ -250,9 +251,18 @@ export default function PropertyCategoryForm({
                     (p: any) => p.id === initialValues.developer_project_id,
                 );
                 if (project?.developer_id) {
-                    (initialValues as any)._selected_developer_id =
-                        project.developer_id;
+                    initialValues._selected_developer_id = project.developer_id;
                 }
+            }
+
+            // Convert date strings to dayjs objects for DatePicker fields
+            if (
+                initialValues.completion_date &&
+                typeof initialValues.completion_date === "string"
+            ) {
+                initialValues.completion_date = dayjs(
+                    initialValues.completion_date,
+                );
             }
 
             form.setFieldsValue(initialValues);
