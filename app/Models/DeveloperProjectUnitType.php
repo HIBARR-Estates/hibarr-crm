@@ -276,12 +276,20 @@ class DeveloperProjectUnitType extends BaseModel
             $project->update(['reference_code' => $projectRef]);
         }
 
-        // Count existing unit types for this project
-        $existingCount = static::where('developer_project_id', $this->developer_project_id)
+        // Find the highest existing UT number for this project
+        $maxNumber = static::where('developer_project_id', $this->developer_project_id)
             ->where('id', '!=', $this->id ?? 0)
-            ->count();
+            ->whereNotNull('reference_code')
+            ->where('reference_code', 'like', $projectRef . '-UT%')
+            ->pluck('reference_code')
+            ->map(function ($code) use ($projectRef) {
+                // Extract numeric part after "-UT" (e.g., "AKACAN-001-UT03" → 3)
+                $suffix = str_replace($projectRef . '-UT', '', $code);
+                return is_numeric($suffix) ? (int) $suffix : 0;
+            })
+            ->max();
 
-        $unitNumber = str_pad($existingCount + 1, 2, '0', STR_PAD_LEFT);
+        $unitNumber = str_pad(($maxNumber ?? 0) + 1, 2, '0', STR_PAD_LEFT);
 
         return $projectRef . '-UT' . $unitNumber;
     }
