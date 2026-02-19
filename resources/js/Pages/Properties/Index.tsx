@@ -19,8 +19,6 @@ import {
     SettingOutlined,
     BuildOutlined,
     HomeOutlined,
-    BlockOutlined,
-    UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -109,10 +107,23 @@ const Index = ({
     developerProjects,
     constructionProjects,
 }: IndexProps) => {
-    // ── Active view tab state ──
-    const [activeView, setActiveView] = useState<
-        "properties" | "construction_projects"
-    >("properties");
+    // ── Active tab state ──
+    type ActiveTab =
+        | "all"
+        | "properties"
+        | "my_drafts"
+        | "construction_projects";
+
+    // Derive initial tab from URL params
+    const getInitialTab = (): ActiveTab => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pubStatus = urlParams.get("publishing_status");
+        if (pubStatus === "draft") return "my_drafts";
+        if (pubStatus === "published") return "properties";
+        return "all";
+    };
+
+    const [activeTab, setActiveTab] = useState<ActiveTab>(getInitialTab);
     const [cpDataLoaded, setCpDataLoaded] = useState(false);
     const [cpLoading, setCpLoading] = useState(false);
     // Check if user is a sales manager (edit_product === 'all')
@@ -159,28 +170,45 @@ const Index = ({
         selected: selectedConstructionProject,
     } = useGenericEntityAction<DeveloperProject>();
 
-    // ── Handle top-level tab switch ──
-    const handleViewChange = useCallback(
+    // ── Handle unified tab switch ──
+    const handleTabChange = useCallback(
         (value: string) => {
-            const view =
-                value === "Construction Projects"
-                    ? "construction_projects"
-                    : "properties";
-            setActiveView(view);
+            const tab = value as ActiveTab;
 
-            if (view === "construction_projects" && !cpDataLoaded) {
-                setCpLoading(true);
-                router.reload({
-                    only: ["constructionProjects"],
-                    onSuccess: () => {
-                        setCpDataLoaded(true);
-                        setCpLoading(false);
-                    },
-                    onError: () => {
-                        setCpLoading(false);
-                    },
-                });
+            if (tab === "construction_projects") {
+                setActiveTab("construction_projects");
+                if (!cpDataLoaded) {
+                    setCpLoading(true);
+                    router.reload({
+                        only: ["constructionProjects"],
+                        onSuccess: () => {
+                            setCpDataLoaded(true);
+                            setCpLoading(false);
+                        },
+                        onError: () => {
+                            setCpLoading(false);
+                        },
+                    });
+                }
+                return;
             }
+
+            setActiveTab(tab);
+
+            // Map tab to backend filter params
+            const params: Record<string, any> = { page: 1 };
+            if (tab === "properties") {
+                params.publishing_status = "published";
+            } else if (tab === "my_drafts") {
+                params.publishing_status = "draft";
+                params.source = "properties"; // drafts are real properties only
+            }
+            // "all" → no filter params
+
+            router.get(route("properties.index"), params, {
+                preserveState: true,
+                preserveScroll: false,
+            });
         },
         [cpDataLoaded],
     );
@@ -235,55 +263,8 @@ const Index = ({
     // Extract commonly used values
     const { openDrawer, filters } = filter;
 
-    // Get current publishing status from URL params or default to 'all'
-    const currentPublishingStatus = useMemo(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get("publishing_status") || "all";
-    }, [filters]);
-
-    // Get current source filter from URL params or default to 'all'
-    const currentSource = useMemo(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get("source") || "all";
-    }, [filters]);
-
-    // Handle publishing status change
-    const handlePublishingStatusChange = (value: string) => {
-        router.get(
-            route("properties.index"),
-            {
-                ...filters,
-                publishing_status: value === "all" ? undefined : value,
-                page: 1, // Reset to first page on status change
-            },
-            {
-                preserveState: true,
-                preserveScroll: false,
-            },
-        );
-    };
-
-    // Publishing status options for the segmented control
-    const publishingStatusOptions = [
-        {
-            value: "all",
-            label: "All",
-            icon: <AppstoreOutlined />,
-        },
-        {
-            value: "published",
-            label: "Published",
-            icon: <GlobalOutlined />,
-        },
-        {
-            value: "draft",
-            label: "My Drafts",
-            icon: <FileTextOutlined />,
-        },
-    ];
-
-    // Source filter options (Properties / Unit Types / All)
-    const sourceFilterOptions = [
+    // Unified tab options
+    const tabOptions = [
         {
             value: "all",
             label: "All",
@@ -292,30 +273,19 @@ const Index = ({
         {
             value: "properties",
             label: "Properties",
-            icon: <UnorderedListOutlined />,
+            icon: <HomeOutlined />,
         },
         {
-            value: "unit_types",
-            label: "Unit Types",
-            icon: <BlockOutlined />,
+            value: "my_drafts",
+            label: "My Drafts",
+            icon: <FileTextOutlined />,
+        },
+        {
+            value: "construction_projects",
+            label: "Construction Projects",
+            icon: <BuildOutlined />,
         },
     ];
-
-    // Handle source filter change
-    const handleSourceChange = (value: string) => {
-        router.get(
-            route("properties.index"),
-            {
-                ...filters,
-                source: value === "all" ? undefined : value,
-                page: 1,
-            },
-            {
-                preserveState: true,
-                preserveScroll: false,
-            },
-        );
-    };
 
     // Sort handlers
     const { sortParams } = usePageSort({ routeName: "properties.index" });
@@ -373,19 +343,8 @@ const Index = ({
         currencySymbol,
     );
 
-    // Top-level view options
-    const viewOptions = [
-        {
-            value: "Properties",
-            label: "Properties",
-            icon: <HomeOutlined />,
-        },
-        {
-            value: "Construction Projects",
-            label: "Construction Projects",
-            icon: <BuildOutlined />,
-        },
-    ];
+    // Whether we're showing the properties table or construction projects
+    const showPropertiesTable = activeTab !== "construction_projects";
 
     return (
         <>
@@ -393,7 +352,7 @@ const Index = ({
                 title={pageTitle}
                 breadcrumbs={[{ name: "Properties" }]}
                 searchComp={
-                    activeView === "properties" ? (
+                    showPropertiesTable ? (
                         <UniversalSearchBox
                             placeholder="Search properties by title, area, description..."
                             className="w-full"
@@ -401,55 +360,25 @@ const Index = ({
                     ) : undefined
                 }
                 filterSection={
-                    activeView === "properties" ? (
+                    showPropertiesTable ? (
                         <ContextualActiveFilters />
                     ) : undefined
                 }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Top-level View Toggle: Properties / Construction Projects */}
+                    {/* Unified Tab Navigation */}
                     <div className="flex justify-center">
                         <Segmented
-                            options={viewOptions}
-                            value={
-                                activeView === "properties"
-                                    ? "Properties"
-                                    : "Construction Projects"
-                            }
-                            onChange={handleViewChange}
+                            options={tabOptions}
+                            value={activeTab}
+                            onChange={handleTabChange}
                             size="large"
                         />
                     </div>
 
-                    {/* ═══ Properties View ═══ */}
-                    {activeView === "properties" && (
+                    {/* ═══ Properties / Unit Types Table ═══ */}
+                    {showPropertiesTable && (
                         <>
-                            {/* Publishing Status Toggle */}
-                            <div className="flex justify-center">
-                                <Segmented
-                                    options={publishingStatusOptions}
-                                    value={currentPublishingStatus}
-                                    onChange={(value) =>
-                                        handlePublishingStatusChange(
-                                            value as string,
-                                        )
-                                    }
-                                    size="large"
-                                />
-                            </div>
-
-                            {/* Source Filter: All / Properties / Unit Types */}
-                            <div className="flex justify-center">
-                                <Segmented
-                                    options={sourceFilterOptions}
-                                    value={currentSource}
-                                    onChange={(value) =>
-                                        handleSourceChange(value as string)
-                                    }
-                                    size="middle"
-                                />
-                            </div>
-
                             {/* Header with Actions */}
                             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                                 <div className="flex items-center gap-3">
@@ -565,7 +494,7 @@ const Index = ({
                     )}
 
                     {/* ═══ Construction Projects View ═══ */}
-                    {activeView === "construction_projects" && (
+                    {activeTab === "construction_projects" && (
                         <ConstructionProjectsTable
                             projects={constructionProjects ?? null}
                             onEdit={(project) =>

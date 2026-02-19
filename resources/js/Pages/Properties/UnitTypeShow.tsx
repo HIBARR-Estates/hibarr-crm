@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 
 import DashboardLayout from "@/Components/DashboardLayout";
@@ -34,8 +33,8 @@ interface UnitTypeShowProps {
     unitType: DeveloperProjectUnitType;
     developerProject: DeveloperProject;
     mergedAssets: MergedAsset[];
-    isSold: boolean;
-    soldPropertyId: number | null;
+    soldCount: number;
+    soldPropertyIds: number[];
     deals: DealOption[];
     employees: { id: number; name: string }[];
 }
@@ -45,15 +44,15 @@ const UnitTypeShow = ({
     unitType,
     developerProject,
     mergedAssets,
-    isSold,
-    soldPropertyId,
+    soldCount,
+    soldPropertyIds,
     deals,
     employees,
 }: UnitTypeShowProps) => {
     const [showMarkAsSoldModal, setShowMarkAsSoldModal] = useState(false);
-    const [currentIsSold, setCurrentIsSold] = useState(isSold);
-    const [currentSoldPropertyId, setCurrentSoldPropertyId] =
-        useState(soldPropertyId);
+    const [currentSoldCount, setCurrentSoldCount] = useState(soldCount);
+    const [currentSoldPropertyIds, setCurrentSoldPropertyIds] =
+        useState<number[]>(soldPropertyIds);
 
     const breadcrumbs = [
         { name: "Properties", url: route("properties.index") },
@@ -77,15 +76,9 @@ const UnitTypeShow = ({
     };
 
     const handleMarkAsSoldSuccess = (propertyId: number) => {
-        setCurrentIsSold(true);
-        setCurrentSoldPropertyId(propertyId);
+        setCurrentSoldCount((prev) => prev + 1);
+        setCurrentSoldPropertyIds((prev) => [propertyId, ...prev]);
         setShowMarkAsSoldModal(false);
-    };
-
-    const handleViewSoldProperty = () => {
-        if (currentSoldPropertyId) {
-            router.visit(route("properties.show", currentSoldPropertyId));
-        }
     };
 
     return (
@@ -96,11 +89,10 @@ const UnitTypeShow = ({
                         unitType={unitType}
                         developerProject={developerProject}
                         mergedAssets={mergedAssets}
-                        isSold={currentIsSold}
-                        soldPropertyId={currentSoldPropertyId}
+                        soldCount={currentSoldCount}
+                        soldPropertyIds={currentSoldPropertyIds}
                         onCheckAvailability={handleCheckAvailability}
                         onMarkAsSold={handleMarkAsSold}
-                        onViewSoldProperty={handleViewSoldProperty}
                     />
                 </div>
             </PageLayout>

@@ -47,11 +47,10 @@ interface UnitTypePropertyViewProps {
     unitType: DeveloperProjectUnitType;
     developerProject: DeveloperProject;
     mergedAssets: MergedAsset[];
-    isSold: boolean;
-    soldPropertyId: number | null;
+    soldCount: number;
+    soldPropertyIds: number[];
     onCheckAvailability: () => void;
     onMarkAsSold: () => void;
-    onViewSoldProperty: () => void;
 }
 
 // ─── Gallery Section ───
@@ -207,11 +206,10 @@ export default function UnitTypePropertyView({
     unitType,
     developerProject,
     mergedAssets,
-    isSold,
-    soldPropertyId,
+    soldCount,
+    soldPropertyIds,
     onCheckAvailability,
     onMarkAsSold,
-    onViewSoldProperty,
 }: UnitTypePropertyViewProps) {
     const location = developerProject.location;
 
@@ -221,11 +219,10 @@ export default function UnitTypePropertyView({
             <UnitTypePropertyHeader
                 unitType={unitType}
                 developerProject={developerProject}
-                isSold={isSold}
-                soldPropertyId={soldPropertyId}
+                soldCount={soldCount}
+                soldPropertyIds={soldPropertyIds}
                 onCheckAvailability={onCheckAvailability}
                 onMarkAsSold={onMarkAsSold}
-                onViewSoldProperty={onViewSoldProperty}
             />
 
             {/* Photo Gallery */}

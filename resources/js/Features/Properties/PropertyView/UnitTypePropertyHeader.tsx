@@ -21,21 +21,19 @@ const { Title, Text } = Typography;
 interface UnitTypePropertyHeaderProps {
     unitType: DeveloperProjectUnitType;
     developerProject: DeveloperProject;
-    isSold: boolean;
-    soldPropertyId: number | null;
+    soldCount: number;
+    soldPropertyIds: number[];
     onCheckAvailability: () => void;
     onMarkAsSold: () => void;
-    onViewSoldProperty: () => void;
 }
 
 export default function UnitTypePropertyHeader({
     unitType,
     developerProject,
-    isSold,
-    soldPropertyId,
+    soldCount,
+    soldPropertyIds,
     onCheckAvailability,
     onMarkAsSold,
-    onViewSoldProperty,
 }: UnitTypePropertyHeaderProps) {
     const [copied, setCopied] = React.useState(false);
 
@@ -92,9 +90,11 @@ export default function UnitTypePropertyHeader({
                 )}
 
                 {/* Status */}
-                <Tag color={isSold ? "red" : "green"}>
-                    {isSold ? "Sold" : "Available"}
-                </Tag>
+                {soldCount > 0 ? (
+                    <Tag color="blue">{soldCount} Sold</Tag>
+                ) : (
+                    <Tag color="green">Available</Tag>
+                )}
             </div>
 
             {/* Title */}
@@ -142,26 +142,30 @@ export default function UnitTypePropertyHeader({
                     </Button>
                 )}
 
-                {/* Mark as Sold (only if not already sold) */}
-                {!isSold && (
-                    <Button
-                        type="default"
-                        icon={<ShoppingCartOutlined />}
-                        onClick={onMarkAsSold}
-                        className="border-orange-400 text-orange-600 hover:border-orange-500 hover:text-orange-700"
-                    >
-                        Mark as Sold
-                    </Button>
-                )}
+                {/* Mark as Sold — always available since unit types support recurring sales */}
+                <Button
+                    type="default"
+                    icon={<ShoppingCartOutlined />}
+                    onClick={onMarkAsSold}
+                    className="border-orange-400 text-orange-600 hover:border-orange-500 hover:text-orange-700"
+                >
+                    Mark as Sold
+                </Button>
 
-                {/* View Sold Property (if already sold) */}
-                {isSold && soldPropertyId && (
-                    <Link href={route("properties.show", soldPropertyId)}>
-                        <Button type="default" icon={<EyeOutlined />}>
-                            View Sold Property
+                {/* View Sold Properties */}
+                {soldPropertyIds.map((propId, idx) => (
+                    <Link key={propId} href={route("properties.show", propId)}>
+                        <Button
+                            type="default"
+                            icon={<EyeOutlined />}
+                            size="small"
+                        >
+                            {soldPropertyIds.length === 1
+                                ? "View Sold Property"
+                                : `Sold Property #${idx + 1}`}
                         </Button>
                     </Link>
-                )}
+                ))}
             </div>
         </div>
     );

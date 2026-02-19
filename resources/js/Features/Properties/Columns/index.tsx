@@ -174,19 +174,27 @@ export const PROPERTY_TABLE_COLUMNS = (
         render: (status: string, record: Property) => (
             <div className="flex items-center gap-1">
                 <Tag color={getStatusColor(status)}>{status}</Tag>
-                {isUnitType(record) &&
-                    record._is_sold &&
-                    record._sold_property_id && (
+                {isUnitType(record) && (record._sold_count ?? 0) > 0 && (
+                    <Tooltip
+                        title={
+                            (record._sold_count ?? 0) > 1
+                                ? `Sold ${record._sold_count} times`
+                                : "View sold property"
+                        }
+                    >
                         <Link
                             href={route(
                                 "properties.show",
-                                record._sold_property_id,
+                                record._sold_property_ids![0],
                             )}
                             className="text-[10px] text-blue-600 hover:underline"
                         >
-                            View Property
+                            {(record._sold_count ?? 0) === 1
+                                ? "View Property"
+                                : `${record._sold_count} Sold`}
                         </Link>
-                    )}
+                    </Tooltip>
+                )}
             </div>
         ),
     },
