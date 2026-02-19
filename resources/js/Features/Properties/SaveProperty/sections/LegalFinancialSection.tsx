@@ -29,13 +29,23 @@ interface LegalFinancialSectionProps {
     primaryCategory: PrimaryCategory;
     enumValues?: PropertyEnumValues;
     lockedFields?: Set<string>;
+    /** Active currency code from the form-level currency picker */
+    selectedCurrency?: string;
 }
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: "$",
+    EUR: "€",
+    GBP: "£",
+    TRY: "₺",
+};
 
 const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
     form,
     primaryCategory,
     enumValues,
     lockedFields = new Set<string>(),
+    selectedCurrency = "GBP",
 }) => {
     const { deedTypeOptions, deedStatusOptions } = useFormOptions(
         enumValues,
@@ -157,30 +167,34 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         Financial Details
                     </Text>
                     <Row gutter={[16, 0]}>
-                        <Col xs={24} md={8}>
-                            <Form.Item
-                                name={["legal_info", "deposit_amount"]}
-                                label="Deposit Amount"
-                            >
-                                <InputNumber
-                                    min={0}
-                                    placeholder="0"
-                                    style={{ width: "100%" }}
-                                    formatter={(value) =>
-                                        `${value}`.replace(
-                                            /\B(?=(\d{3})+(?!\d))/g,
-                                            ",",
-                                        )
-                                    }
-                                    parser={
-                                        ((value: string | undefined) =>
-                                            Number(
-                                                value?.replace(/,/g, "") || 0,
-                                            )) as any
-                                    }
-                                />
-                            </Form.Item>
-                        </Col>
+                        {/* Deposit — only for rentals, not for sale */}
+                        {isRental && (
+                            <Col xs={24} md={8}>
+                                <Form.Item
+                                    name={["legal_info", "deposit_amount"]}
+                                    label="Deposit Amount"
+                                >
+                                    <InputNumber
+                                        min={0}
+                                        placeholder="0"
+                                        style={{ width: "100%" }}
+                                        formatter={(value) =>
+                                            `${value}`.replace(
+                                                /\B(?=(\d{3})+(?!\d))/g,
+                                                ",",
+                                            )
+                                        }
+                                        parser={
+                                            ((value: string | undefined) =>
+                                                Number(
+                                                    value?.replace(/,/g, "") ||
+                                                        0,
+                                                )) as any
+                                        }
+                                    />
+                                </Form.Item>
+                            </Col>
+                        )}
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["legal_info", "mortgage_eligible"]}
@@ -314,7 +328,11 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                         >
                                             <Switch
                                                 checkedChildren="%"
-                                                unCheckedChildren="Amt"
+                                                unCheckedChildren={
+                                                    CURRENCY_SYMBOLS[
+                                                        selectedCurrency
+                                                    ] || selectedCurrency
+                                                }
                                                 style={{ marginLeft: 8 }}
                                             />
                                         </Form.Item>
@@ -538,7 +556,11 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                         >
                                             <Switch
                                                 checkedChildren="%"
-                                                unCheckedChildren="Amt"
+                                                unCheckedChildren={
+                                                    CURRENCY_SYMBOLS[
+                                                        selectedCurrency
+                                                    ] || selectedCurrency
+                                                }
                                                 style={{ marginLeft: 8 }}
                                             />
                                         </Form.Item>
