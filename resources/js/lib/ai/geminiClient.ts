@@ -61,10 +61,14 @@ export function getMinimumFieldsPresent(
             (formData.price != null &&
                 formData.price !== "" &&
                 formData.price !== 0) ||
-            !!formData.city;
+            (formData.starting_price != null &&
+                formData.starting_price !== "" &&
+                formData.starting_price !== 0) ||
+            !!formData.city ||
+            !!formData.bedrooms;
 
         if (!hasContext) {
-            missing.push("at least one of Sale Type, Price, or City");
+            missing.push("at least one of Sale Type, Price, City, or Bedrooms");
         }
     }
 
@@ -115,6 +119,16 @@ const FIELD_LABELS: Record<string, string> = {
     facilities: "Facilities",
     primary_categories: "Property Types Available",
     title_deed_type: "Title Deed Type",
+    // Unit type fields (may overlap with standard property fields)
+    total_area_sqm: "Total Area (m²)",
+    terrace_balcony_sqm: "Terrace / Balcony Area (m²)",
+    plot_size_sqm: "Plot Size (m²)",
+    floor: "Floor",
+    outside_features: "Outside Features",
+    inside_features: "Inside Features",
+    military_base_distance_km: "Distance to Military Base (km)",
+    currency: "Currency",
+    reference_code: "Reference Code",
 };
 
 /**

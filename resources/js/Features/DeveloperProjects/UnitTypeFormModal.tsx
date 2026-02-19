@@ -24,7 +24,11 @@ import {
     Button,
     App,
 } from "antd";
-import { PictureOutlined, SaveOutlined } from "@ant-design/icons";
+import {
+    PictureOutlined,
+    SaveOutlined,
+    ThunderboltOutlined,
+} from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
@@ -46,6 +50,7 @@ import {
     INSIDE_FEATURE_OPTIONS,
 } from "@/Features/DeveloperProjects/unitTypeConfig";
 import UnitTypePhotosSection from "@/Features/DeveloperProjects/UnitTypePhotosSection";
+import { useGenerateDescription } from "@/lib/ai";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -102,6 +107,13 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     const [form] = Form.useForm<UnitTypeFormValues>();
     const isEditing = !!editingItem;
     const { modal, message } = App.useApp();
+    const {
+        isEnabled: aiEnabled,
+        isGenerating,
+        error: aiError,
+        insufficientMessage,
+        generate,
+    } = useGenerateDescription();
 
     // ── "Save & Continue" state — allows create mode to transition to edit-like state ──
     const [localUnitType, setLocalUnitType] =
@@ -700,14 +712,76 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Text strong>Description</Text>
                 </Divider>
 
-                <Form.Item name="description">
+                <div className="flex items-center justify-between mb-1">
+                    <label className="ant-form-item-label">
+                        <span>Unit Type Description</span>
+                    </label>
+                    {aiEnabled && (
+                        <Button
+                            size="small"
+                            icon={<ThunderboltOutlined />}
+                            onClick={async () => {
+                                const formData = form.getFieldsValue(true);
+                                const existing = formData.description;
+
+                                const doGenerate = async () => {
+                                    const desc = await generate(formData);
+                                    if (desc) {
+                                        form.setFieldValue("description", desc);
+                                    }
+                                };
+
+                                if (existing?.trim()) {
+                                    modal.confirm({
+                                        title: "Replace existing description?",
+                                        content:
+                                            "This will replace your current description with an AI-generated one.",
+                                        okText: "Replace",
+                                        cancelText: "Cancel",
+                                        onOk: doGenerate,
+                                    });
+                                } else {
+                                    await doGenerate();
+                                }
+                            }}
+                            loading={isGenerating}
+                            type="default"
+                        >
+                            {isGenerating
+                                ? "Generating\u2026"
+                                : "Generate with AI"}
+                        </Button>
+                    )}
+                </div>
+                <Form.Item name="description" noStyle>
                     <TextArea
                         rows={4}
                         placeholder="Detailed description of this unit type..."
                         showCount
                         maxLength={5000}
+                        disabled={isGenerating}
                     />
                 </Form.Item>
+                {insufficientMessage && (
+                    <div className="mt-2">
+                        <Alert
+                            message={insufficientMessage}
+                            type="info"
+                            showIcon
+                            closable
+                        />
+                    </div>
+                )}
+                {aiError && (
+                    <div className="mt-2">
+                        <Alert
+                            message={aiError}
+                            type="error"
+                            showIcon
+                            closable
+                        />
+                    </div>
+                )}
 
                 {/* ================================================
                     SECTION 6 — Photos
