@@ -10,6 +10,7 @@ import {
     App,
     Divider,
     Typography,
+    Select,
 } from "antd";
 import {
     SaveOutlined,
@@ -337,6 +338,23 @@ export default function PropertyCategoryForm({
 
     // Convenience flag — is the selected category a construction project?
     const isConstructionProject = primaryCategory === "construction_project";
+
+    // ─── Single currency picker state ───
+    const CURRENCY_OPTIONS = [
+        { value: "GBP", label: "£ GBP" },
+        { value: "TRY", label: "₺ TRY" },
+        { value: "USD", label: "$ USD" },
+        { value: "EUR", label: "€ EUR" },
+    ];
+    const [selectedCurrency, setSelectedCurrency] = useState<string>(
+        (props as any).default_currency_code || "GBP",
+    );
+    // Auto-set GBP when switching to land category
+    useEffect(() => {
+        if (primaryCategory === "land") {
+            setSelectedCurrency("GBP");
+        }
+    }, [primaryCategory]);
 
     // Handle save draft — only requires property_type and sale_type (or name for construction projects)
     const handleSave = async () => {
@@ -812,10 +830,31 @@ export default function PropertyCategoryForm({
                                             icon={<DollarOutlined />}
                                             description="Price, price per m², and swap options"
                                         >
+                                            {/* Currency selector — applies to all price fields */}
+                                            <div className="mb-4">
+                                                <Typography.Text
+                                                    type="secondary"
+                                                    className="text-xs block mb-1"
+                                                >
+                                                    Default currency for all
+                                                    price fields
+                                                </Typography.Text>
+                                                <Select
+                                                    value={selectedCurrency}
+                                                    onChange={
+                                                        setSelectedCurrency
+                                                    }
+                                                    options={CURRENCY_OPTIONS}
+                                                    style={{ width: 160 }}
+                                                />
+                                            </div>
                                             <PricingSection
                                                 form={form}
                                                 primaryCategory={
                                                     primaryCategory
+                                                }
+                                                selectedCurrency={
+                                                    selectedCurrency
                                                 }
                                             />
                                         </FormSection>
@@ -912,6 +951,9 @@ export default function PropertyCategoryForm({
                                                 }
                                                 enumValues={enumValues}
                                                 lockedFields={lockedFields}
+                                                selectedCurrency={
+                                                    selectedCurrency
+                                                }
                                             />
                                         </FormSection>
                                     )}
@@ -1006,6 +1048,9 @@ export default function PropertyCategoryForm({
                                                     form={form}
                                                     primaryCategory={
                                                         primaryCategory
+                                                    }
+                                                    selectedCurrency={
+                                                        selectedCurrency
                                                     }
                                                 />
                                             </FormSection>
