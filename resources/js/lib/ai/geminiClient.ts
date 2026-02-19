@@ -52,23 +52,49 @@ export function getMinimumFieldsPresent(
             );
         }
     } else {
+        // Detect unit-type form context: has total_area_sqm but no sale_type key
+        const isUnitType =
+            "total_area_sqm" in formData && !("sale_type" in formData);
+
         if (!formData.property_type) {
             missing.push("Property Type");
         }
 
-        const hasContext =
-            !!formData.sale_type ||
-            (formData.price != null &&
-                formData.price !== "" &&
-                formData.price !== 0) ||
-            (formData.starting_price != null &&
-                formData.starting_price !== "" &&
-                formData.starting_price !== 0) ||
-            !!formData.city ||
-            !!formData.bedrooms;
+        if (isUnitType) {
+            // Unit types don't have sale_type or city — accept any specification
+            const hasContext =
+                (formData.starting_price != null &&
+                    formData.starting_price !== "" &&
+                    formData.starting_price !== 0) ||
+                formData.bedrooms != null ||
+                (formData.total_area_sqm != null &&
+                    formData.total_area_sqm !== "" &&
+                    formData.total_area_sqm !== 0) ||
+                (formData.unit_style && formData.unit_style.length > 0) ||
+                !!formData.floor;
 
-        if (!hasContext) {
-            missing.push("at least one of Sale Type, Price, City, or Bedrooms");
+            if (!hasContext) {
+                missing.push(
+                    "at least one of Starting Price, Bedrooms, Total Area, Unit Style, or Floor",
+                );
+            }
+        } else {
+            const hasContext =
+                !!formData.sale_type ||
+                (formData.price != null &&
+                    formData.price !== "" &&
+                    formData.price !== 0) ||
+                (formData.starting_price != null &&
+                    formData.starting_price !== "" &&
+                    formData.starting_price !== 0) ||
+                !!formData.city ||
+                !!formData.bedrooms;
+
+            if (!hasContext) {
+                missing.push(
+                    "at least one of Sale Type, Price, City, or Bedrooms",
+                );
+            }
         }
     }
 
