@@ -1,5 +1,6 @@
 import React from "react";
-import { Form, Checkbox, Row, Col, Typography } from "antd";
+import { Form, Checkbox, Row, Col, Typography, Button, Tooltip } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory } from "@/Types";
 import FileUploader from "@/Components/FileUploader/FileUploader";
@@ -36,8 +37,8 @@ const DOCUMENT_TYPES: DocumentType[] = [
 /**
  * Documents checklist section for land properties.
  * Each document has a checkbox; when checked, a file uploader is shown.
- * The uploaded file URL is stored in documents_checklist.<key>.
- * Having a URL stored is equivalent to "checked/completed".
+ * Supports multiple file uploads per document type.
+ * The uploaded file URLs are stored as an array in documents_checklist.<key>.
  */
 const DocumentsSection: React.FC<DocumentsSectionProps> = ({
     form,
@@ -47,17 +48,30 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
         key: string,
         response: IUploadResponseItem | IUploadResponseItem[],
     ) => {
-        const item = Array.isArray(response) ? response[0] : response;
-        if (item?.downloadUrl) {
-            form.setFieldValue(["documents_checklist", key], item.downloadUrl);
-        }
+        const items = Array.isArray(response) ? response : [response];
+        const newUrls = items.map((item) => item?.downloadUrl).filter(Boolean);
+
+        if (newUrls.length === 0) return;
+
+        // Append to existing URLs
+        const existing = form.getFieldValue(["documents_checklist", key]);
+        const currentUrls: string[] = Array.isArray(existing)
+            ? existing
+            : existing
+              ? [existing]
+              : [];
+
+        form.setFieldValue(
+            ["documents_checklist", key],
+            [...currentUrls, ...newUrls],
+        );
     };
 
     return (
         <div>
             <Text type="secondary" className="text-sm block mb-4">
                 Upload required documents for this land listing. Check each item
-                and attach the corresponding file.
+                and attach the corresponding file(s).
             </Text>
 
             {DOCUMENT_TYPES.map(({ key, label }) => (
@@ -73,7 +87,19 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
     );
 };
 
-/** Individual document row: checkbox + conditional file uploader */
+/** Extract a short display name from a URL */
+function getFileName(url: string): string {
+    try {
+        const pathname = new URL(url).pathname;
+        const name = pathname.split("/").pop() || url;
+        // Truncate if too long
+        return name.length > 35 ? name.slice(0, 32) + "…" : name;
+    } catch {
+        return url.length > 35 ? url.slice(0, 32) + "…" : url;
+    }
+}
+
+/** Individual document row: checkbox + conditional file uploader + file list */
 const DocumentRow: React.FC<{
     docKey: string;
     label: string;
@@ -82,13 +108,27 @@ const DocumentRow: React.FC<{
         response: IUploadResponseItem | IUploadResponseItem[],
     ) => void;
 }> = ({ docKey, label, form, onUploadSuccess }) => {
-    // Watch the hidden URL field to know if a file has been uploaded
-    const urlValue = Form.useWatch(["documents_checklist", docKey], form);
+    // Watch the stored URLs (may be string or string[])
+    const rawValue = Form.useWatch(["documents_checklist", docKey], form);
+    const urls: string[] = Array.isArray(rawValue)
+        ? rawValue
+        : rawValue
+          ? [rawValue]
+          : [];
+
     // Watch the checkbox state
     const checked = Form.useWatch(
         ["documents_checklist", `${docKey}_checked`],
         form,
     );
+
+    const handleRemoveFile = (index: number) => {
+        const updated = urls.filter((_, i) => i !== index);
+        form.setFieldValue(
+            ["documents_checklist", docKey],
+            updated.length > 0 ? updated : undefined,
+        );
+    };
 
     return (
         <div className="border border-gray-200 rounded-md p-3 mb-3">
@@ -103,9 +143,10 @@ const DocumentRow: React.FC<{
                             <span className="font-medium">{label}</span>
                         </Checkbox>
                     </Form.Item>
-                    {urlValue && (
+                    {urls.length > 0 && (
                         <Text type="success" className="text-xs ml-2">
-                            ✓ Uploaded
+                            ✓ {urls.length} file{urls.length !== 1 ? "s" : ""}{" "}
+                            uploaded
                         </Text>
                     )}
                 </Col>
@@ -113,7 +154,7 @@ const DocumentRow: React.FC<{
                 <Col xs={24} md={14}>
                     {checked && (
                         <>
-                            {/* Hidden field to store the URL */}
+                            {/* Hidden field to store the URL array */}
                             <Form.Item
                                 name={["documents_checklist", docKey]}
                                 hidden
@@ -121,10 +162,44 @@ const DocumentRow: React.FC<{
                                 <input type="hidden" />
                             </Form.Item>
 
+                            {/* Existing file list */}
+                            {urls.length > 0 && (
+                                <div className="mb-2 space-y-1">
+                                    {urls.map((url, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-2 bg-gray-50 rounded px-2 py-1 text-xs"
+                                        >
+                                            <a
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline truncate flex-1"
+                                            >
+                                                {getFileName(url)}
+                                            </a>
+                                            <Tooltip title="Remove file">
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    danger
+                                                    icon={<DeleteOutlined />}
+                                                    onClick={() =>
+                                                        handleRemoveFile(index)
+                                                    }
+                                                    className="!px-1"
+                                                />
+                                            </Tooltip>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             <FileUploader
                                 targetFolder="property-documents"
                                 accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                maxFiles={1}
+                                multiple
+                                maxFiles={10}
                                 onSuccess={onUploadSuccess}
                             />
                         </>

@@ -5,7 +5,6 @@ import {
     Button,
     Alert,
     Space,
-    Modal,
     Input,
     App,
     Divider,
@@ -398,7 +397,7 @@ export default function PropertyCategoryForm({
             return;
         }
 
-        Modal.confirm({
+        modal.confirm({
             title: "Save property to upload photos?",
             content:
                 "Your current form data will be saved as a draft so you can start uploading photos.",

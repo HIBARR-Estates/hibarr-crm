@@ -22,27 +22,54 @@ interface FieldCheck {
 /**
  * Determine whether the form has enough data for a meaningful description.
  *
- * Minimum requirement: property_type AND at least ONE of
- * sale_type / price / city.
+ * - Standard properties: property_type AND at least ONE of sale_type / price / city.
+ * - Construction projects: name (project name) AND at least ONE of
+ *   developer name, city, starting_price, or construction_status.
  */
 export function getMinimumFieldsPresent(
     formData: Record<string, any>,
 ): FieldCheck {
     const missing: string[] = [];
+    const isConstructionProject =
+        formData.primary_category === "construction_project";
 
-    if (!formData.property_type) {
-        missing.push("Property Type");
-    }
+    if (isConstructionProject) {
+        // Construction projects use "name" instead of "property_type"
+        if (!formData.name) {
+            missing.push("Project Name");
+        }
 
-    const hasContext =
-        !!formData.sale_type ||
-        (formData.price != null &&
-            formData.price !== "" &&
-            formData.price !== 0) ||
-        !!formData.city;
+        const hasContext =
+            !!formData.city ||
+            (formData.starting_price != null &&
+                formData.starting_price !== "" &&
+                formData.starting_price !== 0) ||
+            !!formData.construction_status;
 
-    if (!hasContext) {
-        missing.push("at least one of Sale Type, Price, or City");
+        if (!hasContext) {
+            missing.push(
+                "at least one of City, Starting Price, or Construction Status",
+            );
+        }
+    } else {
+        if (!formData.property_type) {
+            missing.push("Property Type");
+        }
+
+        const hasContext =
+            !!formData.sale_type ||
+            (formData.price != null &&
+                formData.price !== "" &&
+                formData.price !== 0) ||
+            (formData.starting_price != null &&
+                formData.starting_price !== "" &&
+                formData.starting_price !== 0) ||
+            !!formData.city ||
+            !!formData.bedrooms;
+
+        if (!hasContext) {
+            missing.push("at least one of Sale Type, Price, City, or Bedrooms");
+        }
     }
 
     return { sufficient: missing.length === 0, missing };
@@ -54,6 +81,7 @@ export function getMinimumFieldsPresent(
 
 /** Map form keys to human-readable labels for the prompt. */
 const FIELD_LABELS: Record<string, string> = {
+    // Standard property fields
     property_type: "Property Type",
     primary_category: "Category",
     unit_style: "Unit Style",
@@ -79,6 +107,28 @@ const FIELD_LABELS: Record<string, string> = {
     heating_type: "Heating Type",
     balcony_net_sqm: "Balcony / Terrace Area (m²)",
     within_site: "Within a Residence / Project",
+    // Construction project fields
+    name: "Project Name",
+    starting_price: "Starting Price",
+    number_of_units: "Number of Units",
+    number_of_blocks: "Number of Blocks",
+    project_total_area_sqm: "Total Project Area (m²)",
+    number_of_phases: "Number of Phases",
+    furniture_package: "Furniture Package",
+    rental_guarantee: "Rental Guarantee",
+    facilities: "Facilities",
+    primary_categories: "Property Types Available",
+    title_deed_type: "Title Deed Type",
+    // Unit type fields (may overlap with standard property fields)
+    total_area_sqm: "Total Area (m²)",
+    terrace_balcony_sqm: "Terrace / Balcony Area (m²)",
+    plot_size_sqm: "Plot Size (m²)",
+    floor: "Floor",
+    outside_features: "Outside Features",
+    inside_features: "Inside Features",
+    military_base_distance_km: "Distance to Military Base (km)",
+    currency: "Currency",
+    reference_code: "Reference Code",
 };
 
 /**
@@ -117,6 +167,7 @@ Rules:
 - Tone: professional, warm, and inviting — suitable for an international buyer audience.
 - Highlight key selling points based on the provided details.
 - Mention location and lifestyle benefits when the city/area is known.
+- If this is a construction project, focus on the development as a whole — mention the developer, project scale, available unit types, facilities, payment plans, and completion timeline where available.
 - Do NOT invent features that are not listed — only embellish what is provided.
 - Do NOT include a title/heading — return only the body description.
 - Output plain text only (no markdown, no bullet points, no HTML).`;
