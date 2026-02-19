@@ -277,7 +277,9 @@ class DeveloperProjectUnitType extends BaseModel
         }
 
         // Find the highest existing UT number for this project
-        $maxNumber = static::where('developer_project_id', $this->developer_project_id)
+        // Use withTrashed() because the DB unique constraint includes soft-deleted rows.
+        $maxNumber = static::withTrashed()
+            ->where('developer_project_id', $this->developer_project_id)
             ->where('id', '!=', $this->id ?? 0)
             ->whereNotNull('reference_code')
             ->where('reference_code', 'like', $projectRef . '-UT%')
