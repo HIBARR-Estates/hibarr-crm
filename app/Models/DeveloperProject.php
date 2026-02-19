@@ -387,14 +387,23 @@ class DeveloperProject extends BaseModel
             $prefix = strtoupper($words[0]);
         }
 
-        // Count existing projects for this developer within the company
-        $existingCount = static::where('company_id', $this->company_id)
+        // Find the highest existing number for this prefix within the company
+        $maxCode = static::where('company_id', $this->company_id)
             ->where('developer_id', $this->developer_id)
             ->where('id', '!=', $this->id ?? 0)
             ->whereNotNull('reference_code')
-            ->count();
+            ->where('reference_code', 'like', $prefix . '-%')
+            ->pluck('reference_code')
+            ->map(function ($code) use ($prefix) {
+                // Extract numeric part after prefix (e.g., "AKACAN-002" → 2)
+                $suffix = str_replace($prefix . '-', '', $code);
+                // Only take the first numeric segment (ignore -UTxx suffixes)
+                $parts = explode('-', $suffix);
+                return is_numeric($parts[0]) ? (int) $parts[0] : 0;
+            })
+            ->max();
 
-        $number = str_pad($existingCount + 1, 3, '0', STR_PAD_LEFT);
+        $number = str_pad(($maxCode ?? 0) + 1, 3, '0', STR_PAD_LEFT);
 
         return $prefix . '-' . $number;
     }
