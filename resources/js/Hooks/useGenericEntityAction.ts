@@ -2,10 +2,10 @@ import { TGenericEntityAction } from "@/Types/common";
 import { useState } from "react";
 
 export const useGenericEntityAction = <T>(
-    defaultAction?: TGenericEntityAction
+    defaultAction?: TGenericEntityAction,
 ) => {
     const [action, setAction] = useState<TGenericEntityAction | undefined>(
-        defaultAction
+        defaultAction,
     );
     const [selected, setSelected] = useState<T>();
 
@@ -22,6 +22,7 @@ export const useGenericEntityAction = <T>(
     return {
         action,
         selected,
+        setSelected,
         handleAction,
         handleClose,
     };

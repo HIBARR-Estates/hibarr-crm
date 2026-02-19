@@ -160,6 +160,7 @@ const Index = ({
         handleClose,
         action,
         selected: property,
+        setSelected: setProperty,
     } = useGenericEntityAction<Property>();
 
     // ── Construction project modal state ──
@@ -514,6 +515,7 @@ const Index = ({
                 open={["add", "edit"].includes(action || "")}
                 onClose={handleClose}
                 property={property}
+                setProperty={setProperty}
             />
             <DeleteProperty
                 open={action === "delete"}
