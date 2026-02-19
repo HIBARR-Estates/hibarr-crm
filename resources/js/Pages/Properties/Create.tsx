@@ -46,6 +46,7 @@ export default function CreateProperty({
     isPage = false,
     useWizard,
 }: CreatePropertyProps) {
+    const [projectId, setProjectId] = useState<number | undefined>(undefined);
     // Default: use category form for all (new default), keep wizard and tabs as alternatives
     const isEditing = !!property?.id;
     const defaultFormMode = "category";
@@ -238,9 +239,20 @@ export default function CreateProperty({
                 };
 
                 if (isEditing) {
-                    updateProjectMutation.mutate(projectData, { onError });
+                    updateProjectMutation.mutate(projectData, {
+                        onError,
+                        onSuccess: (res) => {
+                            setProjectId?.(res.data?.id);
+                        },
+                    });
                 } else {
-                    createProjectMutation.mutate(projectData, { onError });
+                    createProjectMutation.mutate(projectData, {
+                        onError,
+
+                        onSuccess: (res) => {
+                            setProjectId?.(res.data?.id);
+                        },
+                    });
                 }
                 return;
             }
@@ -328,7 +340,7 @@ export default function CreateProperty({
         formMode === "category" ? (
             <PropertyCategoryForm
                 setProperty={setProperty}
-                data={property}
+                data={projectId ? { id: projectId } : property}
                 onSubmit={handleSubmit}
                 onCancel={handleCancel}
                 loading={processing}

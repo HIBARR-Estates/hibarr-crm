@@ -372,7 +372,7 @@ class DeveloperProjectController extends AccountBaseController
         ]);
 
         return Reply::successWithData('Developer project created successfully', [
-            'project' => $project->load(['location', 'developer']),
+            'data' => $project->load(['location', 'developer']),
         ]);
     }
 
@@ -479,7 +479,7 @@ class DeveloperProjectController extends AccountBaseController
         $project->update($request->only($updateFields));
 
         return Reply::successWithData('Developer project updated successfully', [
-            'project' => $project->fresh(['location', 'exposeConfig', 'developer']),
+            'data' => $project->fresh(['location', 'exposeConfig', 'developer']),
         ]);
     }
 
