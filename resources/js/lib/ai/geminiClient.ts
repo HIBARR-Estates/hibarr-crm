@@ -158,6 +158,16 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 /**
+ * Keys to exclude from the AI prompt context to prevent the model
+ * from mentioning project names or developer/company names.
+ */
+const EXCLUDED_PROMPT_KEYS = new Set([
+    "name", // construction project name
+    "developer_id", // developer ID
+    "developer_name", // developer / construction company name
+]);
+
+/**
  * Build a context string from the form data.
  * Only includes fields that have non-empty values.
  */
@@ -165,6 +175,7 @@ function buildPropertyContext(formData: Record<string, any>): string {
     const lines: string[] = [];
 
     for (const [key, label] of Object.entries(FIELD_LABELS)) {
+        if (EXCLUDED_PROMPT_KEYS.has(key)) continue;
         const value = formData[key];
         if (value == null || value === "" || value === false) continue;
 
@@ -193,7 +204,8 @@ Rules:
 - Tone: professional, warm, and inviting — suitable for an international buyer audience.
 - Highlight key selling points based on the provided details.
 - Mention location and lifestyle benefits when the city/area is known.
-- If this is a construction project, focus on the development as a whole — mention the developer, project scale, available unit types, facilities, payment plans, and completion timeline where available.
+- If this is a construction project, focus on the development as a whole — mention the project scale, available unit types, facilities, payment plans, and completion timeline where available.
+- Do NOT mention the project name or the construction company / developer name anywhere in the description.
 - Do NOT invent features that are not listed — only embellish what is provided.
 - Do NOT include a title/heading — return only the body description.
 - Output plain text only (no markdown, no bullet points, no HTML).`;
