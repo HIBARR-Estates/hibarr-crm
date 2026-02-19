@@ -390,7 +390,9 @@ class DeveloperProject extends BaseModel
         // Find the highest existing number for this prefix within the company.
         // Note: unique constraint is (company_id, reference_code), so we must
         // check ALL projects in the company with this prefix, not just same developer.
-        $maxCode = static::where('company_id', $this->company_id)
+        // Use withTrashed() because the DB unique constraint includes soft-deleted rows.
+        $maxCode = static::withTrashed()
+            ->where('company_id', $this->company_id)
             ->where('id', '!=', $this->id ?? 0)
             ->whereNotNull('reference_code')
             ->where('reference_code', 'like', $prefix . '-%')
