@@ -437,8 +437,11 @@ const ConstructionProjectFormModal: React.FC<
                                         size="small"
                                         icon={<ThunderboltOutlined />}
                                         onClick={async () => {
-                                            const formData =
-                                                form.getFieldsValue(true);
+                                            const formData = {
+                                                ...form.getFieldsValue(true),
+                                                primary_category:
+                                                    "construction_project",
+                                            };
                                             const existing =
                                                 formData.description;
 
