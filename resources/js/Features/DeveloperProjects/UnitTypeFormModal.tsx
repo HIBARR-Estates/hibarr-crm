@@ -721,7 +721,15 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                             size="small"
                             icon={<ThunderboltOutlined />}
                             onClick={async () => {
-                                const formData = form.getFieldsValue(true);
+                                const formData = {
+                                    ...form.getFieldsValue(true),
+                                    // Ensure total_area_sqm key is present for unit type detection
+                                    total_area_sqm:
+                                        form.getFieldValue("total_area_sqm") ??
+                                        null,
+                                };
+                                // Remove sale_type if present — unit type forms don't have it
+                                delete (formData as any).sale_type;
                                 const existing = formData.description;
 
                                 const doGenerate = async () => {
