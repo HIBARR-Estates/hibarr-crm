@@ -515,13 +515,13 @@ class PropertyController extends AccountBaseController
 
 
         if (request()->expectsJson()) {
-            return Reply::successWithData(__('messages.propertySaved'), ['property' => $property, 'redirectUrl' => route('properties.index')]);
+            return Reply::successWithData(__('messages.propertySaved'), ['data' => $property, 'redirectUrl' => route('properties.index')]);
         }
 
         return back()->with([
             'success' => true,
             'message' => __('messages.propertySaved'),
-            'property' => $property,
+            'data' => $property,
             'redirectUrl' => route('properties.index')
         ]);
     }
@@ -731,13 +731,13 @@ class PropertyController extends AccountBaseController
         }
 
         if (request()->expectsJson()) {
-            return Reply::successWithData(__('messages.recordUpdated'), ['property' => $property->fresh()]);
+            return Reply::successWithData(__('messages.recordUpdated'), ['data' => $property->fresh()]);
         }
 
         return back()->with([
             'success' => true,
             'message' => __('messages.recordUpdated'),
-            'property' => $property,
+            'data' => $property,
             'redirectUrl' => route('properties.index')
         ]);
     }

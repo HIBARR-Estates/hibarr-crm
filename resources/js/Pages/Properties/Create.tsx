@@ -263,9 +263,19 @@ export default function CreateProperty({
             };
 
             if (isEditing) {
-                updateMutation.mutate(submitData, { onError });
+                updateMutation.mutate(submitData, {
+                    onError,
+                    onSuccess: (res) => {
+                        setProperty?.(res.data);
+                    },
+                });
             } else {
-                createMutation.mutate(submitData, { onError });
+                createMutation.mutate(submitData, {
+                    onError,
+                    onSuccess: (res) => {
+                        setProperty?.(res.data);
+                    },
+                });
             }
         },
         [
