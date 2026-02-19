@@ -1726,8 +1726,11 @@ class PropertyController extends AccountBaseController
 
         $project = $unitType->project;
 
-        // Check if any property was already created from this unit type
-        $soldProperty = Property::where('developer_project_unit_type_id', $unitType->id)->first();
+        // Fetch all properties created from this unit type (supports recurring sales)
+        $soldProperties = Property::where('developer_project_unit_type_id', $unitType->id)
+            ->select('id', 'status', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         // Merge assets: unit type assets + project assets (distinguished by source)
         $mergedAssets = collect();
@@ -1780,8 +1783,8 @@ class PropertyController extends AccountBaseController
             'unitType' => $unitType,
             'developerProject' => $project->load(['location', 'developer']),
             'mergedAssets' => $mergedAssets->values(),
-            'isSold' => $soldProperty !== null,
-            'soldPropertyId' => $soldProperty?->id,
+            'soldCount' => $soldProperties->count(),
+            'soldPropertyIds' => $soldProperties->pluck('id')->values()->all(),
             'deals' => $deals,
             'employees' => $employees,
         ]);
