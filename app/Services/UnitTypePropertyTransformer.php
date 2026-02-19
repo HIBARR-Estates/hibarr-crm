@@ -45,9 +45,8 @@ class UnitTypePropertyTransformer
         $location = $project?->location;
         $developer = $project?->developer;
 
-        // Check if any property exists that was created from this unit type
-        $soldProperty = $soldProperties?->first();
-        $isSold = $soldProperty !== null;
+        // Count how many properties have been created from this unit type
+        $soldCount = $soldProperties ? $soldProperties->count() : 0;
 
         // Build a display title from the unit type label
         $displayTitle = $ut->display_label ?: 'Unit Type';
@@ -78,8 +77,8 @@ class UnitTypePropertyTransformer
             'price' => $price,
             'currency' => $ut->currency ?? 'GBP',
 
-            // Status
-            'status' => $isSold ? 'Sold' : 'Available',
+            // Status — unit types are always available (they're templates that can be sold many times)
+            'status' => 'Available',
             'is_published' => true,
             'published_at' => $ut->created_at,
 
@@ -134,8 +133,8 @@ class UnitTypePropertyTransformer
             '_unit_type_id' => $ut->id,
             '_developer_project_id' => $ut->developer_project_id,
             '_developer_project_name' => $project?->name,
-            '_is_sold' => $isSold,
-            '_sold_property_id' => $soldProperty?->id,
+            '_sold_count' => $soldCount,
+            '_sold_property_ids' => $soldProperties ? $soldProperties->pluck('id')->values()->all() : [],
 
             // Timestamps
             'created_at' => $ut->created_at?->toISOString(),

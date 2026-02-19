@@ -272,8 +272,8 @@ export interface Property {
     _unit_type_id?: number;
     _developer_project_id?: number;
     _developer_project_name?: string;
-    _is_sold?: boolean;
-    _sold_property_id?: number;
+    _sold_count?: number;
+    _sold_property_ids?: number[];
 }
 
 // Project Location (simplified reference)
