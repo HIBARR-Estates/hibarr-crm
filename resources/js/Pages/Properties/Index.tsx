@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
@@ -114,8 +114,8 @@ const Index = ({
         | "my_drafts"
         | "construction_projects";
 
-    // Derive initial tab from URL params
-    const getInitialTab = (): ActiveTab => {
+    // Derive tab from URL params — kept in sync after every Inertia navigation
+    const deriveTabFromUrl = (): ActiveTab => {
         const urlParams = new URLSearchParams(window.location.search);
         const pubStatus = urlParams.get("publishing_status");
         if (pubStatus === "draft") return "my_drafts";
@@ -123,7 +123,23 @@ const Index = ({
         return "all";
     };
 
-    const [activeTab, setActiveTab] = useState<ActiveTab>(getInitialTab);
+    const [activeTab, setActiveTab] = useState<ActiveTab>(deriveTabFromUrl);
+    // Track whether the user is on the construction projects tab (client-only, not URL-driven)
+    const cpTabRef = useRef(false);
+
+    // Re-sync activeTab from URL after every Inertia navigation.
+    // This covers both preserveState=true and full remount scenarios.
+    // We skip sync when on the construction_projects tab since that is
+    // purely client-side and does not change URL params.
+    useEffect(() => {
+        const removeListener = router.on("navigate", () => {
+            if (!cpTabRef.current) {
+                setActiveTab(deriveTabFromUrl());
+            }
+        });
+        return removeListener;
+    }, []);
+
     const [cpDataLoaded, setCpDataLoaded] = useState(false);
     const [cpLoading, setCpLoading] = useState(false);
     // Check if user is a sales manager (edit_product === 'all')
@@ -177,6 +193,7 @@ const Index = ({
             const tab = value as ActiveTab;
 
             if (tab === "construction_projects") {
+                cpTabRef.current = true;
                 setActiveTab("construction_projects");
                 if (!cpDataLoaded) {
                     setCpLoading(true);
@@ -194,7 +211,9 @@ const Index = ({
                 return;
             }
 
-            setActiveTab(tab);
+            // Leaving CP tab — allow URL-based sync again
+            cpTabRef.current = false;
+            setActiveTab(tab); // Optimistic update — navigate listener will confirm
 
             // Map tab to backend filter params
             const params: Record<string, any> = { page: 1 };
