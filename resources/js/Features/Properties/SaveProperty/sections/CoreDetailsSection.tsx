@@ -91,18 +91,15 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
         form,
     );
 
-    // Derive the developer's project_list based on selected associated construction company (developer project name)
+    // Derive the developer's project_list based on selected associated construction company (developer name)
     const associatedProjectList = useMemo(() => {
         if (!associatedCompanyValue) return [];
-        // Find the developer project by name
-        const project = developerProjects.find(
-            (p) => p.name === associatedCompanyValue,
+        // Find the developer directly by name
+        const developer = developers.find(
+            (d) => d.name === associatedCompanyValue,
         );
-        if (!project?.developer_id) return [];
-        // Find the developer and return their project_list
-        const developer = developers.find((d) => d.id === project.developer_id);
         return developer?.project_list ?? [];
-    }, [associatedCompanyValue, developerProjects, developers]);
+    }, [associatedCompanyValue, developers]);
 
     // Fetch unit types for the selected project
     const { data: unitTypesData, isLoading: unitTypesLoading } = useApiQuery<{
@@ -505,10 +502,10 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                     <Form.Item
                                         name="associated_construction_company"
                                         label="Associated Construction Company"
-                                        tooltip="Select the construction company project associated with this property"
+                                        tooltip="Select the construction company associated with this property"
                                     >
                                         <Select
-                                            placeholder="Select construction company project"
+                                            placeholder="Select construction company"
                                             allowClear
                                             showSearch
                                             optionFilterProp="children"
@@ -516,16 +513,14 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                                 handleAssociatedCompanyChange
                                             }
                                         >
-                                            {developerProjects.map(
-                                                (project) => (
-                                                    <Option
-                                                        key={project.id}
-                                                        value={project.name}
-                                                    >
-                                                        {project.name}
-                                                    </Option>
-                                                ),
-                                            )}
+                                            {developers.map((dev) => (
+                                                <Option
+                                                    key={dev.id}
+                                                    value={dev.name}
+                                                >
+                                                    {dev.name}
+                                                </Option>
+                                            ))}
                                         </Select>
                                     </Form.Item>
                                 </Col>

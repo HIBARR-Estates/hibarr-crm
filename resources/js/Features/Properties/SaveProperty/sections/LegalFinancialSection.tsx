@@ -103,6 +103,45 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
             </Row>
 
             {/* ============================== */}
+            {/* VAT & Tax — all categories */}
+            {/* ============================== */}
+            <Divider className="!my-3" />
+            <Text type="secondary" className="text-xs block mb-2 mt-1">
+                VAT & Tax
+            </Text>
+            <Row gutter={[16, 0]}>
+                <Col xs={24} md={12}>
+                    <Form.Item
+                        name={["legal_info", "vat_paid"]}
+                        label="VAT Status"
+                    >
+                        <Radio.Group>
+                            <Radio value={true}>VAT Paid (5%)</Radio>
+                            <Radio value={false}>VAT Not Paid</Radio>
+                        </Radio.Group>
+                    </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                    <Form.Item
+                        name={["legal_info", "trafo_paid"]}
+                        valuePropName="checked"
+                        label=" "
+                    >
+                        <Checkbox>Trafo Fee Paid</Checkbox>
+                    </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                    <Form.Item
+                        name={["legal_info", "stopaj_paid"]}
+                        valuePropName="checked"
+                        label=" "
+                    >
+                        <Checkbox>Stopaj (Withholding Tax) Paid</Checkbox>
+                    </Form.Item>
+                </Col>
+            </Row>
+
+            {/* ============================== */}
             {/* NON-LAND: residential / commercial */}
             {/* ============================== */}
             {!isLand && (
@@ -205,44 +244,6 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                     checkedChildren="Yes"
                                     unCheckedChildren="No"
                                 />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
-                    {/* VAT & Tax */}
-                    <Text type="secondary" className="text-xs block mb-2 mt-1">
-                        VAT & Tax
-                    </Text>
-                    <Row gutter={[16, 0]}>
-                        <Col xs={24} md={12}>
-                            <Form.Item
-                                name={["legal_info", "vat_paid"]}
-                                label="VAT Status"
-                            >
-                                <Radio.Group>
-                                    <Radio value={true}>VAT Paid (5%)</Radio>
-                                    <Radio value={false}>VAT Not Paid</Radio>
-                                </Radio.Group>
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={6}>
-                            <Form.Item
-                                name={["legal_info", "trafo_paid"]}
-                                valuePropName="checked"
-                                label=" "
-                            >
-                                <Checkbox>Trafo Fee Paid</Checkbox>
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={6}>
-                            <Form.Item
-                                name={["legal_info", "stopaj_paid"]}
-                                valuePropName="checked"
-                                label=" "
-                            >
-                                <Checkbox>
-                                    Stopaj (Withholding Tax) Paid
-                                </Checkbox>
                             </Form.Item>
                         </Col>
                     </Row>
