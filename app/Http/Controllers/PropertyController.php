@@ -1347,33 +1347,50 @@ class PropertyController extends AccountBaseController
         // Upload the file and get filename
         $fileName = Files::uploadLocalOrS3($file, Files::IMPORT_FOLDER);
 
-        // Create default column mapping (database_field => excel_column_index)
-        $defaultColumns = [
-            0 => 'title',
-            1 => 'property_type',
-            2 => 'sale_type',
-            3 => 'price',
-            4 => 'city',
-            5 => 'area',
-            6 => 'description',
-            7 => 'status',
-            8 => 'bedrooms',
-            9 => 'bathrooms',
-            10 => 'land_size',
-            11 => 'building_age',
-            12 => 'floor_number',
-            13 => 'floors_in_building'
-        ];
+        // ── Build column mapping ──
+        // When a heading row is present, auto-detect columns from CSV headers.
+        // Otherwise fall back to a default positional mapping.
+        $columns = $request->columns;
+
+        if (!$columns) {
+            $hasHeading = $request->heading == 1;
+
+            if ($hasHeading) {
+                // Read heading row and match against known field IDs
+                $columns = $this->buildColumnsFromHeading($fileName);
+            }
+
+            // Fall back to the legacy positional mapping when no heading or no matches
+            if (empty($columns)) {
+                $columns = [
+                    0 => 'title',
+                    1 => 'property_type',
+                    2 => 'sale_type',
+                    3 => 'price',
+                    4 => 'city',
+                    5 => 'area',
+                    6 => 'description',
+                    7 => 'status',
+                    8 => 'bedrooms',
+                    9 => 'bathrooms',
+                    10 => 'land_size',
+                    11 => 'building_age',
+                    12 => 'floor_number',
+                    13 => 'floors_in_building',
+                    14 => 'block_name',
+                    15 => 'unit_number',
+                ];
+            }
+        }
         
         // Prepare request for importJobProcess
         $request->merge([
             'file' => $fileName,
             'has_heading' => $request->heading == 1,
-            'columns' => $request->columns ?? $defaultColumns
+            'columns' => $columns,
         ]);
         
         $this->addPropertyPermission = user()->permission('add_property');
-        // abort_403(!in_array($this->addPropertyPermission, ['all', 'added']));
 
         try {
             $batch = $this->importJobProcess($request, PropertyImport::class, ImportPropertyJob::class);
@@ -1395,12 +1412,58 @@ class PropertyController extends AccountBaseController
     }
 
     /**
+     * Read the first row of a CSV/Excel file and build a column index → field ID
+     * mapping by matching headers against PropertyImport::fieldIds().
+     *
+     * Headers are normalised: lowered, trimmed, spaces/hyphens replaced with underscores,
+     * parenthetical suffixes stripped (e.g. "Living Area (sqm)" → "living_area_sqm").
+     *
+     * @return array<int, string>  e.g. [0 => 'title', 1 => 'property_type', ...]
+     */
+    private function buildColumnsFromHeading(string $fileName): array
+    {
+        try {
+            $importInstance = new PropertyImport();
+            $this->excel->import($importInstance, public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $fileName));
+            $data = $importInstance->getProcessedData();
+
+            if (empty($data) || empty($data[0])) {
+                return [];
+            }
+
+            $headerRow = $data[0];
+            $knownFields = PropertyImport::fieldIds();
+            $columns = [];
+
+            foreach ($headerRow as $index => $rawHeader) {
+                if (!is_string($rawHeader) || trim($rawHeader) === '') {
+                    continue;
+                }
+
+                // Normalise: lowercase, trim, strip parenthetical units, replace whitespace/hyphens with underscores
+                $normalised = strtolower(trim($rawHeader));
+                $normalised = preg_replace('/\s*\(.*?\)\s*/', '_', $normalised); // "(sqm)" → "_"
+                $normalised = preg_replace('/[\s\-]+/', '_', $normalised);        // spaces/hyphens → _
+                $normalised = trim($normalised, '_');                             // trailing _
+
+                if (in_array($normalised, $knownFields, true)) {
+                    $columns[$index] = $normalised;
+                }
+            }
+
+            return $columns;
+        } catch (\Exception $e) {
+            Log::warning('Could not auto-detect CSV headers: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Get sample import template for download
      */
     public function downloadSampleImport()
     {
-        $filename = 'property-sample-import.xlsx';
-        // $filename = 'property-sample-import.csv';
+        $filename = 'property-sample-import.csv';
         $filePath = public_path('sample-import/' . $filename);
         
         if (file_exists($filePath)) {
