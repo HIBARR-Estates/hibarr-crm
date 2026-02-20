@@ -225,35 +225,10 @@ class PropertyController extends AccountBaseController
             // Only return real properties (default query)
             $properties = $query->paginate($perPage);
         } else {
-            // Merge: real properties + unit type rows
-            $realProperties = $query->paginate($perPage);
-            
-            // Append unit types only on page 1 (or when not enough real properties to fill page)
-            if ($realProperties->currentPage() === 1) {
-                $transformer = new UnitTypePropertyTransformer();
-                $unitTypes = DeveloperProjectUnitType::with(['project.location', 'project.developer', 'assets'])
-                    ->whereHas('project', function ($q) {
-                        $q->where('company_id', user()->company_id);
-                    })
-                    ->ordered()
-                    ->get();
-                
-                $unitTypeRows = $transformer->transformMany($unitTypes)->all();
-                
-                // Merge unit type rows after real properties
-                $mergedData = array_merge($realProperties->items(), $unitTypeRows);
-                
-                // Return modified pagination with merged data
-                $properties = new \Illuminate\Pagination\LengthAwarePaginator(
-                    $mergedData,
-                    $realProperties->total() + count($unitTypeRows),
-                    $perPage,
-                    $realProperties->currentPage(),
-                    ['path' => $request->url(), 'query' => $request->query()]
-                );
-            } else {
-                $properties = $realProperties;
-            }
+            // ── Two-query merge + PHP sort/slice ──
+            // Both sources are filtered independently, then merged, sorted, and
+            // sliced in PHP so that pagination totals reflect the combined set.
+            $properties = $this->getMergedPropertiesAndUnitTypes($query, $request, $perPage);
         }
 
         // Get products for property assignment in create drawer
@@ -288,6 +263,7 @@ class PropertyController extends AccountBaseController
         return Inertia::render('Properties/Index', [
             'pageTitle' => 'Properties',
             'properties' => $this->properties,
+
             'products' => $products,
             'developerProjects' => $developerProjects,
             'projectLocations' => $projectLocations,
@@ -1729,6 +1705,199 @@ class PropertyController extends AccountBaseController
      * Build a paginated result of unit types transformed as properties.
      * Used when `source=unit_types`.
      */
+    /**
+     * Build a filtered unit type query that mirrors the property filters.
+     */
+    private function buildUnitTypeQuery(Request $request)
+    {
+        $utQuery = DeveloperProjectUnitType::with(['project.location', 'project.developer', 'assets'])
+            ->whereHas('project', function ($q) {
+                $q->where('company_id', user()->company_id);
+            });
+
+        // ── Compatible filters ──
+        if ($request->filled('property_type') && $request->property_type !== 'all') {
+            $utQuery->where('property_type', $request->property_type);
+        }
+        if ($request->filled('primary_category') && $request->primary_category !== 'all') {
+            $utQuery->where('primary_category', $request->primary_category);
+        }
+        if ($request->filled('unit_style') && $request->unit_style !== 'all') {
+            $utQuery->whereJsonContains('unit_style', $request->unit_style);
+        }
+        if ($request->filled('view_types')) {
+            $viewTypes = is_array($request->view_types) ? $request->view_types : [$request->view_types];
+            foreach ($viewTypes as $viewType) {
+                $utQuery->whereJsonContains('view_types', $viewType);
+            }
+        }
+        if ($request->filled('developer_project_id') && $request->developer_project_id !== 'all') {
+            $utQuery->where('developer_project_id', $request->developer_project_id);
+        }
+        if ($request->filled('city')) {
+            $citySearch = $request->city;
+            $utQuery->whereHas('project.location', function ($locQuery) use ($citySearch) {
+                $locQuery->where('name', 'like', '%' . $citySearch . '%');
+            });
+        }
+        if ($request->filled('project_location_id') && $request->project_location_id !== 'all') {
+            $utQuery->whereHas('project', function ($pq) use ($request) {
+                $pq->where('project_location_id', $request->project_location_id);
+            });
+        }
+        if ($request->filled('min_price')) {
+            $utQuery->where('starting_price', '>=', $request->min_price);
+        }
+        if ($request->filled('max_price')) {
+            $utQuery->where('starting_price', '<=', $request->max_price);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $utQuery->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhereHas('project', function ($pq) use ($search) {
+                      $pq->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Filters that don't apply to unit types — skip silently:
+        // publishing_status, occupancy_type, added_by, responsible_agent_id,
+        // sale_type, status, construction_status, project_location
+
+        return $utQuery;
+    }
+
+    /**
+     * Merge properties + unit types into a single paginated result.
+     *
+     * Both queries are filtered independently. Results are fetched, merged,
+     * sorted in PHP by the requested sort key, sliced for the current page,
+     * and wrapped in a LengthAwarePaginator with combined totals.
+     */
+    private function getMergedPropertiesAndUnitTypes($propertyQuery, Request $request, int $perPage)
+    {
+        $transformer = new UnitTypePropertyTransformer();
+        $utQuery = $this->buildUnitTypeQuery($request);
+
+        // Get filtered counts for accurate pagination totals
+        $propertyCount = (clone $propertyQuery)->count();
+        $utCount = (clone $utQuery)->count();
+        $totalCount = $propertyCount + $utCount;
+
+        // Determine current page
+        $page = max(1, (int) $request->get('page', 1));
+        $offset = ($page - 1) * $perPage;
+
+        // ── Sort configuration ──
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'desc';
+        }
+
+        // Map sort field to the key used in transformed arrays
+        $sortKeyMap = [
+            'price' => 'price',
+            'created_at' => 'created_at',
+            'title' => 'title',
+        ];
+        $mergedSortKey = $sortKeyMap[$sortBy] ?? 'created_at';
+
+        // Size guard: if combined count is very large, fall back to
+        // sequential offset (properties first, then unit types).
+        if ($totalCount > 500) {
+            return $this->getSequentialPagination($propertyQuery, $utQuery, $transformer, $page, $perPage, $totalCount, $propertyCount, $mergedSortKey, $sortDirection, $request);
+        }
+
+        // ── Fetch all filtered results from both sources ──
+        // Apply sort to DB queries so each source is pre-sorted
+        // Use reorder() to clear any previously-applied orderBy from the shared $propertyQuery
+        $propertySortCol = ['price' => 'price', 'created_at' => 'created_at', 'title' => 'title'][$sortBy] ?? 'created_at';
+        $propertyRows = (clone $propertyQuery)->reorder()->orderBy($propertySortCol, $sortDirection)->get();
+
+        $utSortCol = ['price' => 'starting_price', 'created_at' => 'created_at', 'title' => 'reference_code'][$sortBy] ?? 'created_at';
+        $unitTypeRows = $utQuery->orderBy($utSortCol, $sortDirection)->get();
+
+        // Transform unit types to property-compatible arrays
+        $transformedUTs = $transformer->transformMany($unitTypeRows);
+
+        // Convert properties to arrays for uniform handling
+        $propertyArrays = $propertyRows->map(fn ($p) => $p->toArray());
+
+        // ── Merge + sort in PHP ──
+        $merged = $propertyArrays->concat($transformedUTs)->values();
+
+        $merged = $merged->sortBy(function ($item) use ($mergedSortKey) {
+            $val = $item[$mergedSortKey] ?? null;
+            // Normalize for comparison: strings lowercase, nulls last
+            if (is_string($val) && !is_numeric($val)) {
+                return mb_strtolower($val);
+            }
+            return $val ?? 0;
+        }, SORT_REGULAR, $sortDirection === 'desc');
+
+        // ── Slice for current page ──
+        $pageItems = $merged->slice($offset, $perPage)->values()->all();
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $pageItems,
+            $totalCount,
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+    }
+
+    /**
+     * Fallback for large datasets: paginate properties first, then unit types
+     * using sequential offset (no cross-source sorting).
+     */
+    private function getSequentialPagination($propertyQuery, $utQuery, UnitTypePropertyTransformer $transformer, int $page, int $perPage, int $totalCount, int $propertyCount, string $sortKey, string $sortDirection, Request $request)
+    {
+        $offset = ($page - 1) * $perPage;
+        $items = collect();
+
+        if ($offset < $propertyCount) {
+            // This page starts within properties
+            $propertySortCol = ['price' => 'price', 'created_at' => 'created_at', 'title' => 'title'][$sortKey] ?? 'created_at';
+            $props = (clone $propertyQuery)->reorder()->orderBy($propertySortCol, $sortDirection)
+                ->skip($offset)
+                ->take($perPage)
+                ->get()
+                ->map(fn ($p) => $p->toArray());
+            $items = $items->concat($props);
+
+            // If properties didn't fill the page, fill with unit types
+            $remaining = $perPage - $items->count();
+            if ($remaining > 0) {
+                $utSortCol = ['price' => 'starting_price', 'created_at' => 'created_at', 'title' => 'reference_code'][$sortKey] ?? 'created_at';
+                $uts = $utQuery->orderBy($utSortCol, $sortDirection)
+                    ->take($remaining)
+                    ->get();
+                $items = $items->concat($transformer->transformMany($uts));
+            }
+        } else {
+            // Offset is past all properties — only unit types
+            $utOffset = $offset - $propertyCount;
+            $utSortCol = ['price' => 'starting_price', 'created_at' => 'created_at', 'title' => 'reference_code'][$sortKey] ?? 'created_at';
+            $uts = $utQuery->orderBy($utSortCol, $sortDirection)
+                ->skip($utOffset)
+                ->take($perPage)
+                ->get();
+            $items = $items->concat($transformer->transformMany($uts));
+        }
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $items->values()->all(),
+            $totalCount,
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+    }
+
     private function getUnitTypeProperties(Request $request, int $perPage)
     {
         $transformer = new UnitTypePropertyTransformer();
