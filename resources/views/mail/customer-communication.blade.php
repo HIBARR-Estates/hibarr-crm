@@ -166,7 +166,7 @@
                                                             </table>
                                                         </td>
                                                         <td width="0.5" valign="middle" style="width: 0.5px; vertical-align: middle; padding: 0 0.5px; {{ (isset($senderImageUrl) && $senderImageUrl !== '') ? '' : 'padding:0.0px 0.1px;' }}">
-                                                            <div style="width: 100%; min-width: 1px; height: {{ (isset($senderImageUrl) && $senderImageUrl !== '') ? '130px' : '95px' }}; max-height: 80%; background-color: {{ $themeColor ?? '#0056b3' }}; margin: 0 auto;"></div>
+                                                            <div style="width: 100%; min-width: 1px; height: {{ (isset($senderImageUrl) && $senderImageUrl !== '') ? '130px' : '95px' }}; background-color: {{ $themeColor ?? '#0056b3' }}; margin: 0 auto;"></div>
                                                         </td>
                                                         <td width="80" valign="middle" style="width: 80px; vertical-align: middle; padding-left: 10px">
                                                             
