@@ -151,7 +151,8 @@ export function usePropertyPermissions(
         const isSalesManager = isAdmin;
 
         // Can view owner info if: admin, creator, or responsible agent
-        const canViewOwnerInfo = isAdmin || isCreator || isResponsibleAgent;
+        // const canViewOwnerInfo = isAdmin || isCreator || isResponsibleAgent;
+        const canViewOwnerInfo = isAdmin;
 
         // Can view documents section if: admin, creator, or responsible agent
         const canViewDocuments = isAdmin || isCreator || isResponsibleAgent;
