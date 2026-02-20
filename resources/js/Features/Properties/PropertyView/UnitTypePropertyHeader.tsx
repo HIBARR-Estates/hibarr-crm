@@ -15,6 +15,8 @@ import type {
     DeveloperProject,
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
+import { generatePropertySubtitle } from "@/lib/utils";
+import { Property } from "@/Types";
 
 const { Title, Text } = Typography;
 
@@ -54,6 +56,18 @@ export default function UnitTypePropertyHeader({
     ]
         .filter(Boolean)
         .join(", ");
+
+    // Generate subtitle using the same util as the property table
+    const subtitle = generatePropertySubtitle({
+        bedrooms: unitType.bedrooms,
+        unit_style: unitType.unit_style,
+        property_type: unitType.property_type,
+        view_types: unitType.view_types,
+        furniture_status: unitType.furniture_status,
+        primary_category: unitType.primary_category,
+        city: location?.address?.city ?? location?.name,
+        area: location?.address?.state,
+    } as Property);
 
     // Format price
     const currencySymbol = unitType.currency_symbol || "£";
@@ -99,7 +113,9 @@ export default function UnitTypePropertyHeader({
 
             {/* Title */}
             <Title level={3} className="!mb-1">
-                {unitType.display_label || "Unit Type"}
+                <span className="capitalize">
+                    {subtitle || unitType.display_label || "Unit Type"}
+                </span>
             </Title>
 
             {/* Project name */}

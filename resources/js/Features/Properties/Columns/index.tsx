@@ -45,7 +45,7 @@ export const PROPERTY_TABLE_COLUMNS = (
                 : route("properties.show", record.id);
 
             return (
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-col items-start gap-1.5">
                     <div>
                         <Link href={href} className="hover:text-blue-800">
                             {title && (
@@ -146,8 +146,8 @@ export const PROPERTY_TABLE_COLUMNS = (
         width: 150,
         render: (_, record: Property) => {
             // Use effective_location which derives from project location or falls back to direct values
-            const city = record.effective_location?.city ?? record.city;
-            const area = record.effective_location?.area ?? record.area;
+            const city = record.city ?? record.effective_location?.city ?? "";
+            const area = record?.area ?? record.effective_location?.area ?? "";
             return (
                 <div>
                     <div className="font-medium">{city}</div>
