@@ -150,14 +150,14 @@ export function usePropertyPermissions(
         // Sales manager is effectively the same as admin (edit_product === 'all')
         const isSalesManager = isAdmin;
 
-        // Can view owner info if: admin or creator only
-        const canViewOwnerInfo = isAdmin || isCreator;
+        // Can view owner info if: admin, creator, or responsible agent
+        const canViewOwnerInfo = isAdmin || isCreator || isResponsibleAgent;
 
-        // Can view documents section if: admin or creator
-        const canViewDocuments = isAdmin || isCreator;
+        // Can view documents section if: admin, creator, or responsible agent
+        const canViewDocuments = isAdmin || isCreator || isResponsibleAgent;
 
-        // Can view internal info if: admin or creator
-        const canViewInternalInfo = isAdmin || isCreator;
+        // Can view internal info if: admin, creator, or responsible agent
+        const canViewInternalInfo = isAdmin || isCreator || isResponsibleAgent;
 
         // Can view publishing permissions (101evler / hangiev) if: admin or creator
         const canViewPublishingPermissions = isAdmin || isCreator;
@@ -277,9 +277,9 @@ export function getPropertyPermissions(
     const canPublish = isAdmin;
     const canRequestPublish = !isAdmin && (isCreator || isResponsibleAgent);
     const isSalesManager = isAdmin;
-    const canViewOwnerInfo = isAdmin || isCreator;
-    const canViewDocuments = isAdmin || isCreator;
-    const canViewInternalInfo = isAdmin || isCreator;
+    const canViewOwnerInfo = isAdmin || isCreator || isResponsibleAgent;
+    const canViewDocuments = isAdmin || isCreator || isResponsibleAgent;
+    const canViewInternalInfo = isAdmin || isCreator || isResponsibleAgent;
     const canViewPublishingPermissions = isAdmin || isCreator;
     const canRequestAccess =
         !isCreator && !isResponsibleAgent && property.is_published !== false;
