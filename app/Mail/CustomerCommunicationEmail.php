@@ -135,11 +135,18 @@ class CustomerCommunicationEmail extends Mailable
         // Get website URL
         $websiteUrl = $this->company?->website ?? url('/');
 
-        // Sender photo (absolute URL for email)
+        // Sender photo (absolute URL for email); omit if default gravatar placeholder
         $senderImageUrl = $this->sender->maskedImageUrl ?? $this->sender->image_url ?? '';
+        if ($senderImageUrl !== '' && str_contains(strtolower($senderImageUrl), 'gravatar.png')) {
+            $senderImageUrl = '';
+        }
 
-        // Company address for signature (optional)
-        $companyAddress = $this->company?->address ?? '';
+        // Company address for signature: use default CompanyAddress (actual address) when set, else company.address
+        $companyAddress = '';
+        if ($this->company) {
+            $defaultAddr = $this->company->defaultAddress;
+            $companyAddress = $defaultAddr?->address ?? $this->company->address ?? '';
+        }
         
         // Sanitize email content to prevent XSS attacks
         // Allow only safe HTML tags commonly used in email formatting
