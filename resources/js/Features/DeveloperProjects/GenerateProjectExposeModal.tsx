@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-    Modal,
-    Button,
-    Alert,
-    Skeleton,
-    Collapse,
-    Input,
-} from "antd";
+import { Modal, Button, Alert, Skeleton, Collapse, Input } from "antd";
 import {
     FilePdfOutlined,
     WarningOutlined,
@@ -39,9 +32,12 @@ interface ValidationData {
     warnings: Warning[];
 }
 
-const GenerateProjectExposeModal: React.FC<
-    GenerateProjectExposeModalProps
-> = ({ open, onClose, projectId, projectName }) => {
+const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
+    open,
+    onClose,
+    projectId,
+    projectName,
+}) => {
     const [warnings, setWarnings] = useState<Warning[]>([]);
     const [clientName, setClientName] = useState<string>("");
     const [clientEmail, setClientEmail] = useState<string>("");

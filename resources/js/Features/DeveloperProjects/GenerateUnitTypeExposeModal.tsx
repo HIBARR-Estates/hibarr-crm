@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-    Modal,
-    Button,
-    Alert,
-    Skeleton,
-    Collapse,
-    Input,
-} from "antd";
+import { Modal, Button, Alert, Skeleton, Collapse, Input } from "antd";
 import {
     FilePdfOutlined,
     WarningOutlined,
@@ -58,15 +51,22 @@ const GenerateUnitTypeExposeModal: React.FC<
     >(`${baseUrl}/expose/validate`, "POST");
 
     const { mutate: generateExpose, isPending: isGenerating } =
-        useFileDownloadMutate<ExposePayload>(`${baseUrl}/expose/generate`, "POST", {
-            filename: `${projectName}-${unitType.display_label ?? unitType.property_type ?? "unit"}-expose.pdf`,
-            onSuccess: () => {
-                onClose();
+        useFileDownloadMutate<ExposePayload>(
+            `${baseUrl}/expose/generate`,
+            "POST",
+            {
+                filename: `${projectName}-${unitType.display_label ?? unitType.property_type ?? "unit"}-expose.pdf`,
+                onSuccess: () => {
+                    onClose();
+                },
+                onError: (error) => {
+                    console.error(
+                        "Failed to generate unit type expose:",
+                        error,
+                    );
+                },
             },
-            onError: (error) => {
-                console.error("Failed to generate unit type expose:", error);
-            },
-        });
+        );
 
     useEffect(() => {
         if (open) {
