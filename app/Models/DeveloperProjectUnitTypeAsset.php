@@ -25,17 +25,29 @@ class DeveloperProjectUnitTypeAsset extends BaseModel
 
     // Available tags for organizing assets
     const TAG_COVER = 'cover';
+    const TAG_HERO = 'hero';
     const TAG_INTERIOR = 'interior';
     const TAG_EXTERIOR = 'exterior';
     const TAG_FLOOR_PLAN = 'floor-plan';
     const TAG_GALLERY = 'gallery';
+    const TAG_FACILITIES = 'facilities';
+    const TAG_FEATURES = 'features';
+    const TAG_AREA = 'area';
+    const TAG_SITE_PLAN = 'site-plan';
+    const TAG_FOOTER = 'footer';
 
     const AVAILABLE_TAGS = [
         self::TAG_COVER => 'Cover Photo',
+        self::TAG_HERO => 'Hero',
         self::TAG_INTERIOR => 'Interior',
         self::TAG_EXTERIOR => 'Exterior',
         self::TAG_FLOOR_PLAN => 'Floor Plan',
         self::TAG_GALLERY => 'Gallery',
+        self::TAG_FACILITIES => 'Facilities',
+        self::TAG_FEATURES => 'Features',
+        self::TAG_AREA => 'Area / Location',
+        self::TAG_SITE_PLAN => 'Site Plan',
+        self::TAG_FOOTER => 'Footer',
     ];
 
     protected $fillable = [

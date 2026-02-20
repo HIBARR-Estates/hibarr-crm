@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DeveloperProject;
+use App\Models\DeveloperProjectUnitType;
 use App\Models\Property;
 use App\Models\Lead;
 use App\Helper\Reply;
@@ -618,8 +619,8 @@ class DeveloperProjectController extends AccountBaseController
     /**
      * Generate expose PDF for a developer project.
      * 
-     * Accepts selected property IDs and lead information (either existing lead_id
-     * or lead_data for creating a new lead).
+     * @deprecated Use generateProjectExpose() or generateUnitTypeExpose() instead.
+     *             This method is kept for backward compatibility but will be removed.
      *
      * @param Request $request
      * @param int $id Project ID
@@ -703,5 +704,100 @@ class DeveloperProjectController extends AccountBaseController
 
         // Generate and return the PDF
         return $this->exposeService->generate($config);
+    }
+
+    /**
+     * Generate a project-level expose PDF (brochure).
+     *
+     * Generates a PDF showcasing the entire project: overview, facilities,
+     * unit type summaries, distances, and contact info.
+     */
+    public function generateProjectExpose(Request $request, $id)
+    {
+        $project = DeveloperProject::with(['developer', 'location', 'assets', 'unitTypes.assets'])
+            ->where('company_id', user()->company_id)
+            ->findOrFail($id);
+
+        $clientData = [];
+        if ($request->filled('client_name')) {
+            $clientData['client_name'] = $request->input('client_name');
+        }
+        if ($request->filled('client_email')) {
+            $clientData['client_email'] = $request->input('client_email');
+        }
+
+        $config = ExposeConfiguration::fromDeveloperProject($project, 'project-expose-template', $clientData);
+
+        return $this->exposeService->generate($config);
+    }
+
+    /**
+     * Validate project expose and return warnings.
+     */
+    public function validateProjectExpose(Request $request, $id)
+    {
+        $project = DeveloperProject::with(['developer', 'location', 'assets', 'unitTypes.assets'])
+            ->where('company_id', user()->company_id)
+            ->findOrFail($id);
+
+        $config = ExposeConfiguration::fromDeveloperProject($project, 'project-expose-template');
+
+        $warnings = $this->exposeService->checkWarnings($config);
+
+        return Reply::successWithData('Validation complete', [
+            'warnings' => $warnings,
+        ]);
+    }
+
+    /**
+     * Generate a unit type expose PDF.
+     *
+     * Creates an expose for a specific unit type within a project,
+     * masquerading it as a property expose using the property template.
+     * Missing data (city, distances, hero images) falls back from project/location.
+     */
+    public function generateUnitTypeExpose(Request $request, $projectId, $unitTypeId)
+    {
+        // Verify project belongs to company
+        DeveloperProject::where('company_id', user()->company_id)
+            ->findOrFail($projectId);
+
+        $unitType = DeveloperProjectUnitType::with(['project.developer', 'project.location', 'project.assets', 'assets'])
+            ->where('developer_project_id', $projectId)
+            ->findOrFail($unitTypeId);
+
+        $clientData = [];
+        if ($request->filled('client_name')) {
+            $clientData['client_name'] = $request->input('client_name');
+        }
+        if ($request->filled('client_email')) {
+            $clientData['client_email'] = $request->input('client_email');
+        }
+
+        $config = ExposeConfiguration::fromUnitType($unitType, 'expose-template', $clientData);
+
+        return $this->exposeService->generate($config);
+    }
+
+    /**
+     * Validate unit type expose and return warnings.
+     */
+    public function validateUnitTypeExpose(Request $request, $projectId, $unitTypeId)
+    {
+        // Verify project belongs to company
+        DeveloperProject::where('company_id', user()->company_id)
+            ->findOrFail($projectId);
+
+        $unitType = DeveloperProjectUnitType::with(['project.developer', 'project.location', 'project.assets', 'assets'])
+            ->where('developer_project_id', $projectId)
+            ->findOrFail($unitTypeId);
+
+        $config = ExposeConfiguration::fromUnitType($unitType, 'expose-template');
+
+        $warnings = $this->exposeService->checkWarnings($config);
+
+        return Reply::successWithData('Validation complete', [
+            'warnings' => $warnings,
+        ]);
     }
 }

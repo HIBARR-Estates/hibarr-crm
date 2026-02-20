@@ -45,10 +45,19 @@ class ContentValidator
             'required' => [
                 'title' => 'Project title is required',
                 'developer' => 'Developer name is required',
+                'city' => 'Project city/area is required',
             ],
             'recommended' => [
+                'description' => 'Project description is recommended',
                 'completion_date' => 'Completion date is recommended',
-                'units' => 'Unit information is recommended',
+                'construction_status' => 'Construction status is recommended',
+                'starting_price' => 'Starting price is recommended',
+                'unit_types' => 'Unit type summaries enhance the brochure',
+            ],
+            'optimal' => [
+                'facilities' => 'Facility information enhances the brochure',
+                'distances' => 'Distance information enhances the infrastructure page',
+                'payment_plan' => 'Payment plan details improve buyer engagement',
             ],
         ]
     ];
@@ -111,8 +120,8 @@ class ContentValidator
         $overflowWarnings = $this->checkTextOverflow($config);
         $warnings = array_merge($warnings, $overflowWarnings);
 
-        // Check image counts for property exposes
-        if ($config->entityType === 'property') {
+        // Check image counts for property and project exposes
+        if (in_array($config->entityType, ['property', 'developer_project'])) {
             $imageWarnings = $this->checkImageCounts($config);
             $warnings = array_merge($warnings, $imageWarnings);
         }
