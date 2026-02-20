@@ -35,11 +35,13 @@ export default function CoreDetailsCard({ property }: CoreDetailsCardProps) {
                 )}
                 {property.unit_style && property.unit_style.length > 0 && (
                     <Descriptions.Item label="Unit Style">
-                        {property.unit_style.map((style) => (
-                            <Tag key={style} className="capitalize">
-                                {style.replace(/_/g, " ")}
-                            </Tag>
-                        ))}
+                        <div className="flex flex-wrap gap-1">
+                            {property.unit_style.map((style) => (
+                                <Tag key={style} className="capitalize">
+                                    {style.replace(/_/g, " ")}
+                                </Tag>
+                            ))}
+                        </div>
                     </Descriptions.Item>
                 )}
             </Descriptions>
