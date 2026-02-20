@@ -265,14 +265,21 @@ export default function UnitTypePropertyView({
                                 {unitType.unit_style &&
                                     unitType.unit_style.length > 0 && (
                                         <Descriptions.Item label="Unit Style">
-                                            {unitType.unit_style.map((s) => (
-                                                <Tag
-                                                    key={s}
-                                                    className="capitalize"
-                                                >
-                                                    {s.replace(/_/g, " ")}
-                                                </Tag>
-                                            ))}
+                                            <div className="flex flex-wrap gap-1">
+                                                {unitType.unit_style.map(
+                                                    (s) => (
+                                                        <Tag
+                                                            key={s}
+                                                            className="capitalize"
+                                                        >
+                                                            {s.replace(
+                                                                /_/g,
+                                                                " ",
+                                                            )}
+                                                        </Tag>
+                                                    ),
+                                                )}
+                                            </div>
                                         </Descriptions.Item>
                                     )}
                                 {unitType.furniture_status && (
@@ -288,15 +295,22 @@ export default function UnitTypePropertyView({
                                 {unitType.view_types &&
                                     unitType.view_types.length > 0 && (
                                         <Descriptions.Item label="View Types">
-                                            {unitType.view_types.map((v) => (
-                                                <Tag
-                                                    key={v}
-                                                    color="cyan"
-                                                    className="capitalize"
-                                                >
-                                                    {v.replace(/_/g, " ")}
-                                                </Tag>
-                                            ))}
+                                            <div className="flex flex-wrap gap-1">
+                                                {unitType.view_types.map(
+                                                    (v) => (
+                                                        <Tag
+                                                            key={v}
+                                                            color="cyan"
+                                                            className="capitalize"
+                                                        >
+                                                            {v.replace(
+                                                                /_/g,
+                                                                " ",
+                                                            )}
+                                                        </Tag>
+                                                    ),
+                                                )}
+                                            </div>
                                         </Descriptions.Item>
                                     )}
                                 {unitType.completion_date && (

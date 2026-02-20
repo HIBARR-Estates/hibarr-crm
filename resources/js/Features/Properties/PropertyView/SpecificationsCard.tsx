@@ -165,10 +165,13 @@ export default function SpecificationsCard({
                             <div className="text-gray-400 text-lg mb-1">
                                 {stat.icon}
                             </div>
-                            <div className="text-base font-semibold text-gray-800">
+                            <div className="text-base font-semibold text-gray-800 capitalize">
                                 {stat.value}
                             </div>
-                            <Text type="secondary" className="text-xs">
+                            <Text
+                                type="secondary"
+                                className="text-xs capitalize"
+                            >
                                 {stat.label}
                             </Text>
                         </div>

@@ -20,8 +20,8 @@ export default function CoreDetailsCard({ property }: CoreDetailsCardProps) {
             size="small"
         >
             <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small">
-                <Descriptions.Item label="Property Type">
-                    {property.property_type}
+                <Descriptions.Item label="Property Type" className="capitalize">
+                    {property.property_type.split("_").join(" ")}
                 </Descriptions.Item>
                 <Descriptions.Item label="Sale Type">
                     {property.sale_type}
@@ -35,11 +35,13 @@ export default function CoreDetailsCard({ property }: CoreDetailsCardProps) {
                 )}
                 {property.unit_style && property.unit_style.length > 0 && (
                     <Descriptions.Item label="Unit Style">
-                        {property.unit_style.map((style) => (
-                            <Tag key={style} className="capitalize">
-                                {style.replace(/_/g, " ")}
-                            </Tag>
-                        ))}
+                        <div className="flex flex-wrap gap-1">
+                            {property.unit_style.map((style) => (
+                                <Tag key={style} className="capitalize">
+                                    {style.replace(/_/g, " ")}
+                                </Tag>
+                            ))}
+                        </div>
                     </Descriptions.Item>
                 )}
             </Descriptions>

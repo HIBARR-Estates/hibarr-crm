@@ -55,7 +55,7 @@ export default function PropertyGallery({
     const getTag = (index: number) => {
         const asset = imageAssets[index];
         if (asset?.tags && asset.tags.length > 0) {
-            return asset.tags[0];
+            return asset.tags[0]?.split("_").join(" ")?.split("-").join(" ");
         }
         return null;
     };
@@ -86,7 +86,7 @@ export default function PropertyGallery({
                             }}
                         />
                         {getTag(0) && (
-                            <span className="absolute top-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                            <span className="absolute top-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded capitalize">
                                 {getTag(0)}
                             </span>
                         )}
@@ -109,7 +109,7 @@ export default function PropertyGallery({
                                 }}
                             />
                             {getTag(i + 1) && (
-                                <span className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                                <span className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded capitalize">
                                     {getTag(i + 1)}
                                 </span>
                             )}
