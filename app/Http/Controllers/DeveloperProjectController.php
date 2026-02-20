@@ -65,7 +65,7 @@ class DeveloperProjectController extends AccountBaseController
         // For Inertia page render
         // if (!$request->ajax() && !$request->wantsJson()) {
             return Inertia::render('DeveloperProjects/Index', [
-                'pageTitle' => 'Developer Projects',
+                'pageTitle' => 'Construction Projects',
                 'projects' => $projects,
                 'filters' => $request->only(['search', 'location_id']),
             ]);
@@ -372,7 +372,7 @@ class DeveloperProjectController extends AccountBaseController
             'distances' => $request->distances,
         ]);
 
-        return Reply::successWithData('Developer project created successfully', [
+        return Reply::successWithData('Construction project created successfully', [
             'data' => $project->load(['location', 'developer']),
         ]);
     }
@@ -479,7 +479,7 @@ class DeveloperProjectController extends AccountBaseController
 
         $project->update($request->only($updateFields));
 
-        return Reply::successWithData('Developer project updated successfully', [
+        return Reply::successWithData('Construction project updated successfully', [
             'data' => $project->fresh(['location', 'exposeConfig', 'developer']),
         ]);
     }
@@ -500,7 +500,7 @@ class DeveloperProjectController extends AccountBaseController
 
         $project->delete();
 
-        return Reply::success('Developer project deleted successfully');
+        return Reply::success('Construction project deleted successfully');
     }
 
     /**
@@ -611,7 +611,7 @@ class DeveloperProjectController extends AccountBaseController
             ->orderBy('name')
             ->get();
 
-        return Reply::successWithData('Developer projects fetched', [
+        return Reply::successWithData('Construction projects fetched', [
             'projects' => $projects,
         ]);
     }

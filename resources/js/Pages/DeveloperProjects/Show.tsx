@@ -827,7 +827,7 @@ const Show = ({
                     project.developer
                         ? { name: "Developers", url: route("developers.index") }
                         : {
-                              name: "Developer Projects",
+                              name: "Construction Projects",
                               url: route("developer-projects.index"),
                           },
                     project.developer

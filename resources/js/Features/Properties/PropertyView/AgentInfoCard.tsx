@@ -44,7 +44,17 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                         </div>
                     </div>
                 ) : (
-                    <Empty description="No agent information available" />
+                    <div className="flex items-center gap-3">
+                        <Avatar icon={<UserOutlined />} size="small" />
+                        <div className="flex-1 min-w-0">
+                            <Text className="text-sm block truncate">
+                                {`No agent created this property`}
+                            </Text>
+                            <Text type="secondary" className="text-xs">
+                                Added by
+                            </Text>
+                        </div>
+                    </div>
                 )}
 
                 {/* Responsible agent */}
@@ -68,7 +78,17 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                         </div>
                     </>
                 ) : (
-                    <Empty description="No responsible agent information available" />
+                    <div className="flex items-center gap-3">
+                        <Avatar icon={<UserOutlined />} size="small" />
+                        <div className="flex-1 min-w-0">
+                            <Text className="text-sm block truncate">
+                                {`No agent assigned`}
+                            </Text>
+                            <Text type="secondary" className="text-xs">
+                                Responsible Agent
+                            </Text>
+                        </div>
+                    </div>
                 )}
 
                 <Divider className="my-2" />
