@@ -556,6 +556,15 @@ class PropertyController extends AccountBaseController
         $canEdit = $this->property->added_by === user()->id || $this->property->responsible_agent_id === user()->id;
         $this->pageTitle = $this->property->title;
 
+        // Only allow admin (edit_product=all), creator, or responsible agent to see owner_info
+        $isAdmin = in_array(user()->permission('edit_product'), ['all', 4]);
+        $isCreator = $this->property->added_by === user()->id;
+        $isResponsibleAgent = $this->property->responsible_agent_id === user()->id;
+
+        if (!$isAdmin && !$isCreator && !$isResponsibleAgent) {
+            $this->property->makeHidden('owner_info');
+        }
+
         $tasks = $this->property->tasks()
             ->with(['users', 'category', 'boardColumn', 'labels'])
             ->orderBy('id', 'desc')
