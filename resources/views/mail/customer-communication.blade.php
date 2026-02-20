@@ -12,7 +12,7 @@
                 <table width="600" border="0" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 600px; background-color: #ffffff;">
                     <!-- Logo Section (same as base layout) -->
                     <tr>
-                        <td align="center" bgcolor="#f8f8f8" style="padding: 20px 0; border-top: 5px solid {{ $themeColor ?? '#0056b3' }};">
+                        <td align="center" bgcolor="#ffffff" style="padding: 20px 0; border-top: 5px solid {{ $themeColor ?? '#0056b3' }};">
                             <a href="{{ $websiteUrl ?? '#' }}" target="_blank" style="text-decoration: none;">
                                 <!-- Light Mode Logo -->
                                 <img src="{{ config('email.logo.light', 'https://res.cloudinary.com/hibarr/image/upload/v1747030452/hibarr-logo-blue_be6oer.png') }}"
@@ -81,7 +81,7 @@
                                                             </table>
                                                         </td>
                                                         @endif
-                                                        <td valign="middle" style="vertical-align: middle; padding-right: 10px; {{ (isset($senderImageUrl) && $senderImageUrl !== '') ? '' : 'max-width: 60px; width: 60px; padding-right: 20px;' }}">
+                                                        <td valign="middle" style="vertical-align: middle; padding-right: 10px; min-width: 190px; max-width: 230px; width: 230px; {{ (isset($senderImageUrl) && $senderImageUrl !== '') ? '' : 'max-width: 190px; width: 190px;' }}">
                                                             <table cellpadding="0" cellspacing="0" border="0" width="100%">
                                                                 <tbody>
                                                                     <tr>
@@ -166,7 +166,7 @@
                                                             </table>
                                                         </td>
                                                         <td width="0.5" valign="middle" style="width: 0.5px; vertical-align: middle; padding: 0 0.5px; {{ (isset($senderImageUrl) && $senderImageUrl !== '') ? '' : 'padding:0.0px 0.1px;' }}">
-                                                            <div style="width: 100%; height: {{ (isset($senderImageUrl) && $senderImageUrl !== '') ? '130px' : '95px' }}; max-height: 100%; background-color: {{ $themeColor ?? '#0056b3' }}; margin: 0 auto;"></div>
+                                                            <div style="width: 100%; min-width: 1px; height: {{ (isset($senderImageUrl) && $senderImageUrl !== '') ? '130px' : '95px' }}; max-height: 80%; background-color: {{ $themeColor ?? '#0056b3' }}; margin: 0 auto;"></div>
                                                         </td>
                                                         <td width="80" valign="middle" style="width: 80px; vertical-align: middle; padding-left: 10px">
                                                             
