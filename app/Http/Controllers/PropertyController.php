@@ -528,7 +528,7 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $this->property = Property::with(['product', 'developerProject.location', 'assets' => function($query) {
+        $this->property = Property::with(['product', 'developerProject.location', 'addedBy', 'responsibleAgent', 'assets' => function($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
 
@@ -540,7 +540,7 @@ class PropertyController extends AccountBaseController
      */
     public function showBySlug(string $slug)
     {
-        $property = Property::with(['product', 'developerProject.location', 'assets' => function ($query) {
+        $property = Property::with(['product', 'developerProject.location', 'addedBy', 'responsibleAgent', 'assets' => function ($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->where('slug', $slug)->firstOrFail();
 
