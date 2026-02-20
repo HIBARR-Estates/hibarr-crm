@@ -2,6 +2,8 @@
 
 namespace App\Services\PdfExpose\Configuration;
 
+use App\Models\DeveloperProject;
+use App\Models\DeveloperProjectUnitType;
 use Illuminate\Contracts\Support\Arrayable;
 
 class ExposeConfiguration implements Arrayable
@@ -144,21 +146,429 @@ class ExposeConfiguration implements Arrayable
         );
     }
 
-    public static function fromDeveloperProject($project, string $layout): self
+    public static function fromDeveloperProject(DeveloperProject $project, string $layout = 'project-expose-template', array $clientData = []): self
     {
+        $project->loadMissing(['developer', 'location', 'assets', 'unitTypes.assets']);
+
+        $agent = auth()->user();
+        $company = company();
+        $location = $project->location;
+
+        // Group project assets by tags, with the same tag list as property
+        $availableTags = ['hero', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery', 'site-plan'];
+        $assetsByTag = [];
+
+        foreach ($availableTags as $tag) {
+            $assetsByTag[$tag] = $project->assets()
+                ->where('asset_type', 'image')
+                ->whereJsonContains('tags', $tag)
+                ->orderBy('order')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(fn($asset) => $asset->url)
+                ->filter()
+                ->values()
+                ->toArray();
+        }
+
+        // Build unit type summaries for the project brochure
+        $unitTypeSummaries = [];
+        foreach ($project->unitTypes->sortBy('order') as $unitType) {
+            $coverUrl = $unitType->assets
+                ->filter(fn($a) => $a->asset_type === 'image' && (
+                    in_array('cover', $a->tags ?? []) || in_array('hero', $a->tags ?? [])
+                ))
+                ->sortBy('order')
+                ->first()?->url;
+
+            $unitTypeSummaries[] = [
+                'id' => $unitType->id,
+                'reference_code' => $unitType->reference_code,
+                'display_label' => $unitType->display_label,
+                'property_type' => $unitType->property_type,
+                'primary_category' => $unitType->primary_category,
+                'bedrooms' => $unitType->bedrooms,
+                'bathrooms' => $unitType->bathrooms,
+                'living_area_sqm' => $unitType->living_area_sqm,
+                'total_area_sqm' => $unitType->total_area_sqm,
+                'starting_price' => $unitType->starting_price,
+                'formatted_price' => $unitType->formatted_price,
+                'currency_symbol' => $unitType->currency_symbol,
+                'furniture_status' => $unitType->furniture_status,
+                'unit_style' => is_array($unitType->unit_style) ? implode(' / ', array_map('ucfirst', $unitType->unit_style)) : ($unitType->unit_style ?? null),
+                'view_types' => $unitType->view_types ?? [],
+                'completion_date' => $unitType->completion_date?->format('Y') ?? $project->completion_date?->format('Y'),
+                'cover_image' => $coverUrl,
+                'description' => $unitType->description,
+            ];
+        }
+
+        // Build distances from project distances field
+        $distances = $project->distances ?? [];
+
+        // Enrich with location infrastructure/airports if available
+        if ($location) {
+            $expandedInfra = $location->getExpandedInfrastructure();
+            foreach ($expandedInfra as $infra) {
+                $distances[] = [
+                    'name' => $infra['name'],
+                    'time' => $infra['travelTimeInMin'],
+                    'type' => 'infrastructure',
+                ];
+            }
+            $expandedAirports = $location->getExpandedAirports();
+            foreach ($expandedAirports as $airport) {
+                $distances[] = [
+                    'name' => $airport['name'] . ($airport['code'] ? ' (' . $airport['code'] . ')' : ''),
+                    'time' => $airport['travelTimeInMin'],
+                    'type' => 'airport',
+                ];
+            }
+        }
+
+        // Resolve location details
+        $city = $location?->state ?? $location?->name ?? null;
+        $area = $location?->name ?? null;
+
+        // Get facility labels
+        $facilityLabels = [];
+        foreach ($project->facilities ?? [] as $facilityKey) {
+            $facilityLabels[] = DeveloperProject::FACILITY_LABELS[$facilityKey] ?? ucfirst(str_replace('_', ' ', $facilityKey));
+        }
+
         return new self(
-            entityType: 'developer_project',
+            entityType: 'property',
             entityId: $project->id,
             layout: $layout,
-            sections: ['header', 'overview', 'units', 'amenities', 'location', 'contact'],
+            sections: ['header', 'overview', 'unit_types', 'facilities', 'distances', 'contact'],
             data: [
+                // Project info
                 'title' => $project->name,
-                'developer' => $project->developer_name,
-                'completion_date' => $project->completion_date,
-                'units' => $project->units,
-                // ... more project-specific data
+                'reference_code' => $project->reference_code,
+                'price' => $project->starting_price ? number_format($project->starting_price, 0) . ' £' : null,
+                'raw_price' => $project->starting_price,
+
+                // Location
+                'city' => $city,
+                'area' => $area,
+                'address' => $location?->full_address ?? null,
+
+                // Project specs
+                'property_type' => is_array($project->unit_types) ? implode(', ', $project->unit_types) : null,
+                'primary_category' => is_array($project->primary_categories) ? implode(', ', $project->primary_categories) : null,
+                'construction_status' => $project->construction_status ? (DeveloperProject::CONSTRUCTION_STATUS_LABELS[$project->construction_status] ?? ucfirst(str_replace('_', ' ', $project->construction_status))) : null,
+                'completion_date' => $project->completion_date?->format('Y'),
+                'furniture_status' => $project->furniture_package ? (DeveloperProject::FURNITURE_PACKAGE_LABELS[$project->furniture_package] ?? ucfirst(str_replace('_', ' ', $project->furniture_package))) : null,
+                'title_deed_type' => $project->title_deed_type ? (DeveloperProject::TITLE_DEED_TYPE_LABELS[$project->title_deed_type] ?? $project->title_deed_type) : null,
+                'number_of_units' => $project->number_of_units,
+                'number_of_blocks' => $project->number_of_blocks,
+                'number_of_phases' => $project->number_of_phases,
+                'project_total_area_sqm' => $project->project_total_area_sqm,
+                'rental_guarantee' => $project->rental_guarantee,
+                'payment_plan' => $project->payment_plan,
+
+                // Content
+                'description' => $project->description,
+                'developer_name' => $project->developer?->name,
+                'developer_logo' => $project->developer?->logo_url,
+
+                // Facilities
+                'facilities' => $project->facilities ?? [],
+                'facility_labels' => $facilityLabels,
+                'exterior_features' => $facilityLabels, // For template compatibility (facilities gallery uses exterior_features)
+
+                // Unit type summaries
+                'unit_types' => $unitTypeSummaries,
+
+                // Distances
+                'distances' => $distances,
+
+                // Assets grouped by tags
+                'assets' => $assetsByTag,
+
+                // Agent info
+                'agent' => [
+                    'name' => $agent->name ?? 'N/A',
+                    'email' => $agent->email ?? 'N/A',
+                    'phone' => $agent->mobile ?? 'N/A',
+                    'image' => $agent->image_url ?? null,
+                    'position' => $agent->designation ?? null,
+                ],
+
+                // Company branding
+                'company' => [
+                    'name' => $company?->company_name ?? config('app.name'),
+                    'logo' => $company?->logo_url ?? public_path('img/logo.png'),
+                    'address' => $company?->address ?? null,
+                    'phone' => $company?->company_phone ?? null,
+                    'email' => $company?->company_email ?? null,
+                    'website' => $company?->website ?? null,
+                ],
+
+                // Client personalization
+                'client' => [
+                    'name' => $clientData['client_name'] ?? null,
+                    'email' => $clientData['client_email'] ?? null,
+                ],
+
+                // Sale type for template compatibility
+                'sale_type' => 'For Sale',
             ],
-            options: []
+            options: [
+                'include_qr_code' => true,
+                'watermark' => false,
+            ]
+        );
+    }
+
+    /**
+     * Create configuration for a unit type expose.
+     *
+     * Masquerades as a property expose so it reuses the property expose template.
+     * Missing data (city, distances, construction_status, some asset tags) is
+     * inherited from the parent DeveloperProject + ProjectLocation.
+     */
+    public static function fromUnitType(DeveloperProjectUnitType $unitType, string $layout = 'expose-template', array $clientData = []): self
+    {
+        $unitType->loadMissing(['project.developer', 'project.location', 'project.assets', 'assets']);
+
+        $project = $unitType->project;
+        $location = $project?->location;
+        $agent = auth()->user();
+        $company = company();
+
+        // Resolve asset URLs by tag with fallback chain:
+        // 1. Unit type assets for that tag
+        // 2. Project assets for that tag
+        // 3. Unit type "cover" tag → used as "hero" fallback
+        $availableTags = ['hero', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
+        $assetsByTag = [];
+
+        foreach ($availableTags as $tag) {
+            // First: check unit type assets
+            $unitAssets = $unitType->assets()
+                ->where('asset_type', 'image')
+                ->whereJsonContains('tags', $tag)
+                ->orderBy('order')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(fn($asset) => $asset->url)
+                ->filter()
+                ->values()
+                ->toArray();
+
+            if (!empty($unitAssets)) {
+                $assetsByTag[$tag] = $unitAssets;
+                continue;
+            }
+
+            // Fallback: check project assets for the tag
+            if ($project) {
+                $projectAssets = $project->assets()
+                    ->where('asset_type', 'image')
+                    ->whereJsonContains('tags', $tag)
+                    ->orderBy('order')
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->map(fn($asset) => $asset->url)
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                $assetsByTag[$tag] = $projectAssets;
+            } else {
+                $assetsByTag[$tag] = [];
+            }
+        }
+
+        // Special: if hero is still empty, fall back to cover tag from unit type
+        if (empty($assetsByTag['hero'])) {
+            $coverAssets = $unitType->assets()
+                ->where('asset_type', 'image')
+                ->whereJsonContains('tags', 'cover')
+                ->orderBy('order')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(fn($asset) => $asset->url)
+                ->filter()
+                ->values()
+                ->toArray();
+
+            if (!empty($coverAssets)) {
+                $assetsByTag['hero'] = $coverAssets;
+            }
+        }
+
+        // Resolve location-derived fields from ProjectLocation
+        $city = $location?->state ?? $location?->name ?? null;
+        $area = $location?->name ?? null;
+
+        // Build distances from project + location infrastructure/airports
+        $distances = $project?->distances ?? [];
+        if ($location) {
+            $expandedInfra = $location->getExpandedInfrastructure();
+            foreach ($expandedInfra as $infra) {
+                $distances[] = [
+                    'name' => $infra['name'],
+                    'time' => $infra['travelTimeInMin'],
+                    'type' => 'infrastructure',
+                ];
+            }
+            $expandedAirports = $location->getExpandedAirports();
+            foreach ($expandedAirports as $airport) {
+                $distances[] = [
+                    'name' => $airport['name'] . ($airport['code'] ? ' (' . $airport['code'] . ')' : ''),
+                    'time' => $airport['travelTimeInMin'],
+                    'type' => 'airport',
+                ];
+            }
+        }
+
+        // Map unit type property_type to human label
+        $propertyTypeLabel = $unitType->property_type;
+        $allPropertyTypes = array_merge(
+            DeveloperProjectUnitType::RESIDENTIAL_PROPERTY_TYPES,
+            DeveloperProjectUnitType::COMMERCIAL_PROPERTY_TYPES
+        );
+        if (isset($allPropertyTypes[$unitType->property_type])) {
+            $propertyTypeLabel = $allPropertyTypes[$unitType->property_type];
+        }
+
+        // Map furniture status to label
+        $furnitureLabel = $unitType->furniture_status;
+        if (isset(DeveloperProjectUnitType::FURNITURE_STATUSES[$unitType->furniture_status])) {
+            $furnitureLabel = DeveloperProjectUnitType::FURNITURE_STATUSES[$unitType->furniture_status];
+        }
+
+        // Map construction status from project
+        $constructionStatus = $project?->construction_status;
+        $constructionStatusLabel = $constructionStatus;
+        if ($constructionStatus && isset(DeveloperProject::CONSTRUCTION_STATUS_LABELS[$constructionStatus])) {
+            $constructionStatusLabel = DeveloperProject::CONSTRUCTION_STATUS_LABELS[$constructionStatus];
+        }
+
+        // Map outside features → exterior_features with labels
+        $outsideFeatureLabels = [];
+        foreach ($unitType->outside_features ?? [] as $key) {
+            $outsideFeatureLabels[] = DeveloperProjectUnitType::OUTSIDE_FEATURES[$key] ?? ucfirst(str_replace('_', ' ', $key));
+        }
+
+        // Map inside features → interior_features with labels
+        $insideFeatureLabels = [];
+        foreach ($unitType->inside_features ?? [] as $key) {
+            $insideFeatureLabels[] = DeveloperProjectUnitType::INSIDE_FEATURES[$key] ?? ucfirst(str_replace('_', ' ', $key));
+        }
+
+        // Map view types to labels
+        $viewTypeLabels = [];
+        foreach ($unitType->view_types ?? [] as $key) {
+            $viewTypeLabels[] = DeveloperProjectUnitType::VIEW_TYPES[$key] ?? ucfirst(str_replace('_', ' ', $key));
+        }
+
+        // Format price with currency symbol
+        $formattedPrice = null;
+        if ($unitType->starting_price) {
+            $formattedPrice = $unitType->currency_symbol . number_format((float) $unitType->starting_price, 0);
+        }
+
+        return new self(
+            entityType: 'property', // Masquerade as property to reuse template path
+            entityId: $unitType->id,
+            layout: $layout,
+            sections: ['header', 'images', 'details', 'description', 'location', 'contact'],
+            data: [
+                // Basic info — mapped from unit type + project
+                'title' => $unitType->display_label . ($project ? ' — ' . $project->name : ''),
+                'reference_code' => $unitType->reference_code,
+                'price' => $formattedPrice,
+                'raw_price' => $unitType->starting_price,
+
+                // Location — inherited from project location
+                'city' => $city,
+                'area' => $area,
+                'address' => $location?->full_address ?? $city,
+                'latitude' => null,
+                'longitude' => null,
+
+                // Size & rooms
+                'living_area_sqm' => $unitType->living_area_sqm,
+                'gross_sqm' => $unitType->total_area_sqm,
+                'land_size' => $unitType->plot_size_sqm,
+                'terrace_area_sqm' => $unitType->terrace_balcony_sqm,
+                'bedrooms' => $unitType->bedrooms,
+                'bathrooms' => $unitType->bathrooms,
+                'rooms' => null, // Not available on unit types
+                'living_room' => null, // Not available on unit types
+                'floor_number' => $unitType->floor,
+                'floors_in_building' => $unitType->floors_in_building,
+                'balcony_count' => null, // Not available — template handles null
+                'balcony_net_sqm' => $unitType->terrace_balcony_sqm,
+
+                // Property classification
+                'property_type' => $propertyTypeLabel,
+                'primary_category' => $unitType->primary_category,
+                'unit_style' => is_array($unitType->unit_style) ? implode(' / ', array_map('ucfirst', $unitType->unit_style)) : ($unitType->unit_style ?? null),
+                'sale_type' => 'For Sale', // Default for unit types
+                'status' => null,
+                'block_name' => null, // Not on unit types
+                'unit_number' => null, // Not on unit types
+
+                // Building info
+                'building_age' => null, // Not applicable to new construction
+                'completion_date' => $unitType->completion_date?->format('Y') ?? $project?->completion_date?->format('Y'),
+                'construction_status' => $constructionStatusLabel,
+                'furniture_status' => $furnitureLabel,
+                'heating_type' => null,
+                'title_deed_type' => $project?->title_deed_type ? (DeveloperProject::TITLE_DEED_TYPE_LABELS[$project->title_deed_type] ?? $project->title_deed_type) : null,
+
+                // Content
+                'description' => $unitType->description ?? $project?->description,
+                'created_at' => now()->format('M d, Y'),
+
+                // Features
+                'features' => array_merge($outsideFeatureLabels, $insideFeatureLabels),
+                'exterior_features' => $outsideFeatureLabels,
+                'interior_features' => $insideFeatureLabels,
+                'location_features' => [],
+                'outside_features' => $unitType->outside_features ?? [],
+                'inside_features' => $unitType->inside_features ?? [],
+                'view_types' => $viewTypeLabels,
+
+                // Distances (from project + location)
+                'distances' => $distances,
+
+                // Assets grouped by tags
+                'assets' => $assetsByTag,
+
+                // Agent info
+                'agent' => [
+                    'name' => $agent->name ?? 'N/A',
+                    'email' => $agent->email ?? 'N/A',
+                    'phone' => $agent->mobile ?? 'N/A',
+                    'image' => $agent->image_url ?? null,
+                    'position' => $agent->designation ?? null,
+                ],
+
+                // Company branding
+                'company' => [
+                    'name' => $company?->company_name ?? config('app.name'),
+                    'logo' => $company?->logo_url ?? public_path('img/logo.png'),
+                    'address' => $company?->address ?? null,
+                    'phone' => $company?->company_phone ?? null,
+                    'email' => $company?->company_email ?? null,
+                    'website' => $company?->website ?? null,
+                ],
+
+                // Client personalization
+                'client' => [
+                    'name' => $clientData['client_name'] ?? null,
+                    'email' => $clientData['client_email'] ?? null,
+                ],
+            ],
+            options: [
+                'include_qr_code' => true,
+                'watermark' => false,
+            ]
         );
     }
 

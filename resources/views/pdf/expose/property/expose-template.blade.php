@@ -878,7 +878,7 @@ p {
                     <h1>{{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? '+' . ($data['living_room'] ?? '1') : '' }} {{ strtoupper($data['property_type'] ?? 'UNIT') }}</h1>
 
                     <p>
-                        {{ $data['description'] ? Str::limit(strip_tags($data['description']), 300) : 'Modern property with smart layout and natural light.' }}
+                        {{ !empty($data['description']) ? Str::limit(strip_tags($data['description']), 300) : 'Modern property with smart layout and natural light.' }}
                     </p>
                 </div>
             </div>
@@ -1137,7 +1137,7 @@ p {
         <div class="split-bottom">
             <div class="container">
                 <p>
-                    {{ $data['description'] ? Str::limit(strip_tags($data['description']), 280) : 'Discover luxury living at its finest...' }}
+                    {{ !empty($data['description']) ? Str::limit(strip_tags($data['description']), 280) : 'Discover luxury living at its finest...' }}
                 </p>
             </div>
         </div>
