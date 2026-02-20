@@ -239,6 +239,8 @@ export const generatePropertySubtitle = (record: Property): string | null => {
     const hasCategory = !!category;
     const hasConstructionStatus = !!constructionStatus;
 
+    let value: string | null = null;
+
     // 1. The Elevated Living
     if (
         hasBeds &&
@@ -247,7 +249,7 @@ export const generatePropertySubtitle = (record: Property): string | null => {
         hasViewType &&
         hasFurniture
     ) {
-        return `${beds} Bedroom ${unitStyle} ${propertyType} with ${viewType} and ${furniture} interiors`;
+        value = `${beds} Bedroom ${unitStyle} ${propertyType} with ${viewType} and ${furniture} interiors`;
     }
 
     // 2. The Vista Narrative
@@ -255,26 +257,26 @@ export const generatePropertySubtitle = (record: Property): string | null => {
         const furniturePart = hasFurniture
             ? ` featuring ${furniture} finishes and`
             : " with";
-        return `${viewType} ${unitStyle} ${propertyType}${furniturePart} ${beds} Bedrooms`;
+        value = `${viewType} ${unitStyle} ${propertyType}${furniturePart} ${beds} Bedrooms`;
     }
 
     // 3. The Architectural Hook
     if (hasUnitStyle && hasPropertyType && hasLocation && hasBeds) {
         const furniturePart = hasFurniture ? ` and ${furniture} interiors` : "";
-        return `${unitStyle} ${propertyType} in ${location} with ${beds} Bedrooms${furniturePart}`;
+        value = `${unitStyle} ${propertyType} in ${location} with ${beds} Bedrooms${furniturePart}`;
     }
 
     // 4. The Setting Focus
     if (hasPropertyType && hasViewType && hasLocation) {
         const bedsPart = hasBeds ? ` with ${beds} Bedrooms` : "";
-        return `${propertyType} set within ${viewType} surroundings in ${location}${bedsPart}`;
+        value = `${propertyType} set within ${viewType} surroundings in ${location}${bedsPart}`;
     }
 
     // 5. The Distinction
     if (hasCategory && hasPropertyType && hasBeds) {
         const furniturePart = hasFurniture ? `${furniture} ` : "";
         const viewPart = hasViewType ? ` capturing ${viewType}` : "";
-        return `${furniturePart}${beds} Bedroom ${category} ${propertyType}${viewPart}`;
+        value = `${furniturePart}${beds} Bedroom ${category} ${propertyType}${viewPart}`;
     }
 
     // 6. The Foundation (catch-all)
@@ -283,10 +285,10 @@ export const generatePropertySubtitle = (record: Property): string | null => {
             ? `${constructionStatus} `
             : "";
         const locationPart = hasLocation ? ` in ${location}` : "";
-        return `${statusPart}${propertyType}${locationPart}`;
+        value = `${statusPart}${propertyType}${locationPart}`;
     }
 
-    return null;
+    return value?.split("_").join(" ").trim() || null;
 };
 
 /** Format an enum value like "studio" or "part_furnished" into "Studio" or "Part Furnished" */
@@ -337,7 +339,10 @@ export function formatCountryForDisplay(value: unknown): string {
     if (typeof value === "object" && value !== null) {
         const o = value as Record<string, unknown>;
         const name =
-            (o.nicename as string) ?? (o.name as string) ?? (o.nationality as string) ?? "";
+            (o.nicename as string) ??
+            (o.name as string) ??
+            (o.nationality as string) ??
+            "";
         if (typeof name === "string" && name.trim()) return name.trim();
         return "";
     }
@@ -352,12 +357,21 @@ export function formatMobileForDisplay(value: unknown): string {
     if (value == null || value === "") return "";
     if (typeof value === "string") {
         const trimmed = value.trim();
-        if (trimmed.startsWith("+") || /^\d[\d\s().-]*$/.test(trimmed)) return trimmed;
+        if (trimmed.startsWith("+") || /^\d[\d\s().-]*$/.test(trimmed))
+            return trimmed;
         try {
             const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-            if (parsed && typeof parsed === "object" && typeof parsed.phone === "string")
+            if (
+                parsed &&
+                typeof parsed === "object" &&
+                typeof parsed.phone === "string"
+            )
                 return parsed.phone.trim();
-            const fromParts = [parsed.countryCode, parsed.areaCode, parsed.phoneNumber]
+            const fromParts = [
+                parsed.countryCode,
+                parsed.areaCode,
+                parsed.phoneNumber,
+            ]
                 .filter(Boolean)
                 .map((p) => String(p).replace(/\D/g, ""))
                 .join("");
@@ -369,7 +383,8 @@ export function formatMobileForDisplay(value: unknown): string {
     }
     if (typeof value === "object" && value !== null) {
         const o = value as Record<string, unknown>;
-        if (typeof o.phone === "string" && o.phone.trim()) return o.phone.trim();
+        if (typeof o.phone === "string" && o.phone.trim())
+            return o.phone.trim();
         const fromParts = [o.countryCode, o.areaCode, o.phoneNumber]
             .filter(Boolean)
             .map((p) => String(p).replace(/\D/g, ""))

@@ -20,8 +20,8 @@ export default function CoreDetailsCard({ property }: CoreDetailsCardProps) {
             size="small"
         >
             <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small">
-                <Descriptions.Item label="Property Type">
-                    {property.property_type}
+                <Descriptions.Item label="Property Type" className="capitalize">
+                    {property.property_type.split("_").join(" ")}
                 </Descriptions.Item>
                 <Descriptions.Item label="Sale Type">
                     {property.sale_type}

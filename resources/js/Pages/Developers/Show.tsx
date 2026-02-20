@@ -271,7 +271,7 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
 
                 {/* Projects Table */}
                 <Card
-                    title="Developer Projects"
+                    title="Construction Projects"
                     extra={
                         <Input.Search
                             placeholder="Search projects..."
@@ -290,7 +290,7 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                         >
                             <Link href={route("developer-projects.index")}>
                                 <Button type="primary">
-                                    Go to Developer Projects
+                                    Go to Construction Projects
                                 </Button>
                             </Link>
                         </Empty>
