@@ -5,6 +5,33 @@
  * interface used for PDF expose generation.
  */
 
+import type { AssetTag } from "@/Types";
+
+// ============================================
+// Developer Project Asset Types
+// ============================================
+
+export interface DeveloperProjectAsset {
+    id: number;
+    developer_project_id: number;
+    company_id: number;
+    name: string;
+    asset_type: "image" | "video" | "video_url";
+    file_path?: string | null;
+    external_url?: string | null;
+    mime_type?: string | null;
+    file_size?: number | null;
+    tags?: AssetTag[];
+    metadata?: Record<string, any>;
+    order: number;
+    url?: string;
+    formatted_size?: string;
+    has_tags: boolean;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string | null;
+}
+
 // ============================================
 // Developer Types
 // ============================================
@@ -15,6 +42,8 @@ export interface Developer {
     name: string;
     logo_url: string | null;
     description: string | null;
+    project_list: string[] | null;
+    whatsapp_group_link: string | null;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
@@ -117,8 +146,27 @@ export interface DeveloperProject {
     company_id: number;
     developer_id: number | null;
     name: string;
+    reference_code: string | null;
     description: string | null;
     project_location_id: number | null;
+    // Construction project fields
+    google_drive_link: string | null;
+    availability_link: string | null;
+    starting_price: number | null;
+    primary_categories: string[] | null;
+    title_deed_type: string | null;
+    unit_types: string[] | null;
+    number_of_units: number | null;
+    number_of_blocks: number | null;
+    project_total_area_sqm: number | null;
+    construction_status: string | null;
+    completion_date: string | null;
+    number_of_phases: number | null;
+    furniture_package: string | null;
+    rental_guarantee: boolean;
+    payment_plan: PaymentPlan | null;
+    facilities: string[] | null;
+    distances: ProjectDistances | null;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
@@ -127,8 +175,26 @@ export interface DeveloperProject {
     location?: ProjectLocation;
     expose_config?: DeveloperProjectExposeConfig;
     properties?: Property[];
+    unit_types_details?: DeveloperProjectUnitType[];
     // Computed
     properties_count?: number;
+}
+
+export interface PaymentPlan {
+    enabled: boolean;
+    downpayment_type?: "percentage" | "amount";
+    downpayment_value?: number;
+    period_months?: number;
+    interest_rate?: number;
+}
+
+export interface ProjectDistances {
+    sea_km?: number;
+    hospital_km?: number;
+    market_km?: number;
+    school_km?: number;
+    airport_km?: number;
+    beach_km?: number;
 }
 
 // Minimal version for dropdowns
@@ -145,6 +211,74 @@ export interface DeveloperProjectOption {
         id: number;
         name: string;
     };
+}
+
+// ============================================
+// Developer Project Unit Type
+// ============================================
+
+export interface DeveloperProjectUnitType {
+    id: number;
+    company_id: number;
+    developer_project_id: number;
+    reference_code: string | null;
+    // Category & Type
+    primary_category: "residential" | "commercial";
+    property_type: string | null;
+    unit_style: string[] | null;
+    view_types: string[] | null;
+    furniture_status: string | null;
+    // Pricing
+    starting_price: number | null;
+    currency: string;
+    // Specifications
+    bedrooms: number | null;
+    bathrooms: number | null;
+    floor: string | null;
+    floors_in_building: number | null;
+    total_area_sqm: number | null;
+    living_area_sqm: number | null;
+    terrace_balcony_sqm: number | null;
+    plot_size_sqm: number | null;
+    completion_date: string | null;
+    // Features
+    outside_features: string[] | null;
+    inside_features: string[] | null;
+    // Description
+    description: string | null;
+    // Legal
+    military_base_distance_km: number | null;
+    has_restrictions: boolean;
+    restriction_notes: string | null;
+    // Meta
+    order: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    // Relations
+    assets?: DeveloperProjectUnitTypeAsset[];
+    // Computed
+    display_label?: string;
+    formatted_price?: string;
+    currency_symbol?: string;
+}
+
+export interface DeveloperProjectUnitTypeAsset {
+    id: number;
+    unit_type_id: number;
+    company_id: number;
+    name: string | null;
+    asset_type: "image" | "video" | "video_url";
+    file_path: string | null;
+    external_url: string | null;
+    mime_type: string | null;
+    file_size: number | null;
+    tags: string[] | null;
+    metadata: Record<string, any> | null;
+    order: number;
+    url: string | null;
+    created_at: string;
+    updated_at: string;
 }
 
 // ============================================
@@ -319,6 +453,7 @@ export interface UpdateProjectLocationInput extends Partial<CreateProjectLocatio
 export interface CreateDeveloperProjectInput {
     name: string;
     description?: string;
+    developer_id?: number;
     project_location_id?: number;
 }
 

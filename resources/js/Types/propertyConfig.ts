@@ -11,16 +11,23 @@ export interface PropertyConfigItem {
     description: string | null;
     /** Only present for sub-types */
     parent_type?: string;
+    /** Only present for areas */
+    city_id?: number;
+    /** Only present for property-types — the primary category this type belongs to */
+    category?: string;
     created_at: string;
     updated_at: string;
 }
 
 /** Payload for creating / updating a config item. */
 export interface PropertyConfigPayload {
-    name: string;
+    /** Machine key — sent on create (auto-generated from label), omitted on update (immutable). */
+    name?: string;
     label: string;
     description?: string | null;
     parent_type?: string;
+    city_id?: number;
+    category?: string;
 }
 
 /** Summary returned by GET /property-config/types */
@@ -65,6 +72,7 @@ export type ConfigTypeSlug =
     | "furniture-statuses"
     | "heating-types"
     | "cities"
+    | "areas"
     | "sale-types"
     | "statuses"
     | "location-features"
@@ -143,8 +151,14 @@ export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
     },
     cities: {
         label: "Cities",
-        description: "TRNC cities (Kyrenia, Famagusta, Nicosia, etc.)",
+        description: "TRNC cities (Kyrenia, Gazimağusa, Nicosia, etc.)",
         icon: "EnvironmentOutlined",
+    },
+    areas: {
+        label: "Areas",
+        description:
+            "Districts/areas within each city (Alsancak, Çatalköy, etc.)",
+        icon: "CompassOutlined",
     },
     "sale-types": {
         label: "Sale Types",
@@ -185,6 +199,7 @@ export const CONFIG_TYPE_ORDER: ConfigTypeSlug[] = [
     "furniture-statuses",
     "heating-types",
     "cities",
+    "areas",
     "sale-types",
     "statuses",
     "location-features",

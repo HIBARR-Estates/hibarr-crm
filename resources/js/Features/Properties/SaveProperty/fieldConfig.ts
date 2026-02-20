@@ -24,6 +24,8 @@ export interface CategorySections {
     classification: boolean;
     features: boolean;
     legalFinancial: boolean;
+    documents: boolean;
+    photos: boolean;
     descriptionMedia: boolean;
     ownerInfo: boolean;
     internalInfo: boolean;
@@ -38,6 +40,8 @@ export const CATEGORY_SECTIONS: Record<PrimaryCategory, CategorySections> = {
         classification: true,
         features: true,
         legalFinancial: true,
+        documents: true,
+        photos: true,
         descriptionMedia: true,
         ownerInfo: true,
         internalInfo: true,
@@ -50,6 +54,8 @@ export const CATEGORY_SECTIONS: Record<PrimaryCategory, CategorySections> = {
         classification: true,
         features: true,
         legalFinancial: true,
+        documents: true,
+        photos: true,
         descriptionMedia: true,
         ownerInfo: true,
         internalInfo: true,
@@ -59,12 +65,28 @@ export const CATEGORY_SECTIONS: Record<PrimaryCategory, CategorySections> = {
         pricing: true,
         specifications: true, // limited: only plot size, no rooms
         location: true,
-        classification: true,
+        classification: false, // No classification for land
         features: false, // No interior/exterior for land
         legalFinancial: true,
+        documents: true, // Land-only documents checklist
+        photos: true,
         descriptionMedia: true,
         ownerInfo: true,
         internalInfo: true,
+    },
+    construction_project: {
+        coreDetails: false, // Replaced by construction-specific sections
+        pricing: false, // Uses starting_price in its own section
+        specifications: false,
+        location: true, // Reuses LocationSection (without block/unit)
+        classification: false,
+        features: false,
+        legalFinancial: false,
+        documents: false,
+        photos: false, // Uses project-level photos section
+        descriptionMedia: false,
+        ownerInfo: false,
+        internalInfo: false,
     },
 };
 
@@ -98,7 +120,7 @@ export const SPECIFICATION_FIELDS: Record<
         bedrooms: true,
         bathrooms: true,
         livingRoom: true,
-        rooms: true,
+        rooms: false,
         floorNumber: true,
         floorsInBuilding: true,
         buildingAge: true,
@@ -106,7 +128,7 @@ export const SPECIFICATION_FIELDS: Record<
         usableArea: true,
         plotSize: false,
         balconyArea: true,
-        elevator: true,
+        elevator: false,
         furnitureStatus: true,
         heatingType: true,
         unitStyle: true,
@@ -123,7 +145,7 @@ export const SPECIFICATION_FIELDS: Record<
         usableArea: true,
         plotSize: false,
         balconyArea: true,
-        elevator: true,
+        elevator: false,
         furnitureStatus: false,
         heatingType: false,
         unitStyle: false,
@@ -139,6 +161,23 @@ export const SPECIFICATION_FIELDS: Record<
         grossArea: false,
         usableArea: false,
         plotSize: true,
+        balconyArea: false,
+        elevator: false,
+        furnitureStatus: false,
+        heatingType: false,
+        unitStyle: false,
+    },
+    construction_project: {
+        bedrooms: false,
+        bathrooms: false,
+        livingRoom: false,
+        rooms: false,
+        floorNumber: false,
+        floorsInBuilding: false,
+        buildingAge: false,
+        grossArea: false,
+        usableArea: false,
+        plotSize: false,
         balconyArea: false,
         elevator: false,
         furnitureStatus: false,

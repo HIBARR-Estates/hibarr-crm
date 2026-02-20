@@ -5,8 +5,6 @@ import {
     Button,
     message,
     Spin,
-    Space,
-    List,
     Tooltip,
 } from "antd";
 import {
@@ -18,6 +16,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { formatCountryForDisplay, formatMobileForDisplay } from "@/lib/utils";
 import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import EditableRepeatableField from "@/Components/EditableRepeatableField";
@@ -992,6 +991,11 @@ export default function CustomFieldDisplay({
             case "password":
                 return <span className="text-gray-500">••••••••</span>;
 
+            case "country": {
+                const str = formatCountryForDisplay(value);
+                return str ? <span>{str}</span> : <span className="text-gray-500">--</span>;
+            }
+
             case "currency": {
                 let currencyData: {
                     amount: string | number | null;
@@ -1131,6 +1135,7 @@ export default function CustomFieldDisplay({
             | "boolean"
             | "textarea"
             | "country"
+            | "phone"
             | "email"
             | "currency" = "text";
         let options: { label: string; value: string | number }[] = [];
@@ -1150,6 +1155,9 @@ export default function CustomFieldDisplay({
                 break;
             case "country":
                 type = "country";
+                break;
+            case "phone":
+                type = "phone";
                 break;
             case "currency":
                 type = "currency";
@@ -1284,9 +1292,17 @@ export default function CustomFieldDisplay({
         // When editable is false, we still render EditableField but in hover-to-edit mode
         const effectiveAlwaysEditing = alwaysEditing || editable;
 
+        // Normalize value for editable components so country/phone never render as [object Object]
+        let normalizedValue = value;
+        if (field.type === "country" && (value !== undefined && value !== null)) {
+            normalizedValue = formatCountryForDisplay(value);
+        } else if (field.type === "phone" && (value !== undefined && value !== null)) {
+            normalizedValue = formatMobileForDisplay(value);
+        }
+
         return (
             <EditableField
-                value={value}
+                value={normalizedValue}
                 fieldName={fieldKey}
                 fieldType={type}
                 onSave={(val) => onUpdate!(fieldKey, val)}

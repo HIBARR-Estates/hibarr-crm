@@ -3,7 +3,6 @@ import {
     Form,
     Input,
     Select,
-    AutoComplete,
     Row,
     Col,
     Card,
@@ -73,6 +72,32 @@ export default function LocationStep({
         );
     }, [selectedProject]);
 
+    // Watch city for area filtering
+    const selectedCity = Form.useWatch("city", form);
+
+    // City select options
+    const cityOptions = useMemo(() => {
+        return cities.map((city) => ({
+            value: city.name,
+            label: city.label,
+        }));
+    }, [cities]);
+
+    // Area options filtered by selected city
+    const areaOptions = useMemo(() => {
+        if (!selectedCity || !enumValues?.areas_by_city) return [];
+        const areas = enumValues.areas_by_city[selectedCity] || [];
+        return areas.map((a) => ({
+            value: a.name,
+            label: a.label,
+        }));
+    }, [selectedCity, enumValues?.areas_by_city]);
+
+    // Clear area when city changes
+    useEffect(() => {
+        form.setFieldValue("area", undefined);
+    }, [selectedCity]);
+
     return (
         <Card size="small" className="border-0 shadow-none">
             <Text type="secondary" className="block mb-4">
@@ -132,25 +157,18 @@ export default function LocationStep({
                                 : undefined
                         }
                     >
-                        <AutoComplete
+                        <Select
                             placeholder={
                                 projectHasLocation
                                     ? "From project location"
-                                    : "Select or enter city"
+                                    : "Select city"
                             }
+                            options={cityOptions}
                             allowClear
+                            showSearch
+                            optionFilterProp="label"
                             disabled={projectHasLocation}
                             className={projectHasLocation ? "bg-gray-50" : ""}
-                            options={cities.map((city) => ({
-                                value: city.name,
-                                label: city.label,
-                            }))}
-                            filterOption={(inputValue, option) =>
-                                option?.label
-                                    ?.toString()
-                                    .toLowerCase()
-                                    .includes(inputValue.toLowerCase()) ?? false
-                            }
                         />
                     </Form.Item>
                 </Col>
@@ -165,13 +183,19 @@ export default function LocationStep({
                                 : undefined
                         }
                     >
-                        <Input
+                        <Select
                             placeholder={
                                 projectHasLocation
                                     ? "From project location"
-                                    : "Enter area or district name"
+                                    : selectedCity
+                                      ? "Select area"
+                                      : "Select a city first"
                             }
-                            disabled={projectHasLocation}
+                            options={areaOptions}
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                            disabled={projectHasLocation || !selectedCity}
                             className={projectHasLocation ? "bg-gray-50" : ""}
                         />
                     </Form.Item>

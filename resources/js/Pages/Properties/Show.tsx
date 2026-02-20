@@ -15,7 +15,7 @@ import { generatePropertySubtitle } from "@/lib/utils";
 interface ShowProps {
     pageTitle: string;
     property: Property;
-    canEdit?: boolean;
+    hasPendingPublishRequest?: boolean;
     tasks: Task[];
     taskCategories: any[];
     taskLabels: any[];
@@ -27,7 +27,7 @@ interface ShowProps {
 const Show = ({
     pageTitle,
     property,
-    canEdit = false,
+    hasPendingPublishRequest = false,
     tasks,
     taskCategories,
     taskLabels,
@@ -96,10 +96,10 @@ const Show = ({
                 <div className="max-w-7xl mx-auto">
                     <PropertyView
                         property={currentProperty}
+                        hasPendingPublishRequest={hasPendingPublishRequest}
                         onEdit={handleEdit}
                         onShare={handleShare}
                         onGenerateExpose={() => setShowExposeModal(true)}
-                        canEdit={canEdit}
                         tasks={tasks}
                         taskCategories={taskCategories}
                         taskLabels={taskLabels}

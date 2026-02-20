@@ -54,6 +54,7 @@ class PropertyLookupSeeder extends Seeder
         $this->seedStatuses($companyId);
         $this->seedLocationFeatures($companyId);
         $this->seedAddOns($companyId);
+        $this->seedAreas($companyId);
 
         // Assign categories to property types
         $this->assignPropertyTypeCategories($companyId);
@@ -67,6 +68,7 @@ class PropertyLookupSeeder extends Seeder
         $types = [
             'Villa',
             'Twin Villa',
+            'Semi-Detached Villa',
             'Apartment',
             'Family Home',
             'Townhouse',
@@ -77,6 +79,7 @@ class PropertyLookupSeeder extends Seeder
             'Block of apartments',
             'Complete Building',
             'Abandoned Building',
+            'Ruin',
             'Residence',
             'Half Construction',
             'Time Share',
@@ -104,10 +107,9 @@ class PropertyLookupSeeder extends Seeder
     private function seedPropertySubTypes(int $companyId): void
     {
         $subTypes = [
-            'standard',
             'penthouse',
             'loft',
-            'garden',
+            'garden_apartment',
             'duplex',
             'triplex',
             'studio',
@@ -380,12 +382,12 @@ class PropertyLookupSeeder extends Seeder
     private function seedCities(int $companyId): void
     {
         $items = [
-            ['name' => 'nicosia',   'label' => 'Nicosia (Lefkoşa)'],
-            ['name' => 'kyrenia',   'label' => 'Kyrenia (Girne)'],
-            ['name' => 'famagusta', 'label' => 'Famagusta (Gazimağusa)'],
-            ['name' => 'guzelyurt', 'label' => 'Güzelyurt (Morphou)'],
-            ['name' => 'iskele',    'label' => 'İskele (Trikomo)'],
-            ['name' => 'lefke',     'label' => 'Lefke (Lefka)'],
+            ['name' => 'nicosia',    'label' => 'Nicosia'],
+            ['name' => 'kyrenia',    'label' => 'Kyrenia'],
+            ['name' => 'gazimagusa', 'label' => 'Gazimağusa'],
+            ['name' => 'guzelyurt',  'label' => 'Güzelyurt'],
+            ['name' => 'iskele',     'label' => 'İskele'],
+            ['name' => 'lefke',      'label' => 'Lefke'],
         ];
 
         $this->insertLookupWithLabels('property_cities', $companyId, $items);
@@ -467,10 +469,8 @@ class PropertyLookupSeeder extends Seeder
     {
         $categoryMap = [
             'residential' => [
-                'Villa', 'Twin Villa', 'Apartment', 'Family Home', 'Townhouse',
-                'Loft', 'Penthouse', 'Bungalow', 'Block of apartments',
-                'Complete Building', 'Abandoned Building', 'Residence',
-                'Half Construction', 'Time Share',
+                'Apartment', 'Villa', 'Semi-Detached Villa', 'Bungalow',
+                'Townhouse', 'Complete Building', 'Ruin',
             ],
             'commercial' => [
                 'Shop', 'Hotel', 'Workplace', 'Warehouse', 'Workplace for sale',
@@ -493,6 +493,99 @@ class PropertyLookupSeeder extends Seeder
     }
 
     // -----------------------------------------------------------------
+    // 19. Areas (linked to cities)
+    // -----------------------------------------------------------------
+    private function seedAreas(int $companyId): void
+    {
+        $cityAreas = [
+            'nicosia' => [
+                'Akıncılar', 'Alayköy', 'Akdoğan', 'Balıkesir', 'Bostancı',
+                'Cihangir', 'Dağyolu', 'Değirmenlik', 'Demirhan', 'Dikmen',
+                'Düzova', 'Ercan', 'Göçmenköy', 'Gönyeli', 'Gürpınar',
+                'Hamitköy', 'Haspolat', 'İnönü', 'Kanlıköy', 'Kaymaklı',
+                'Kızılbaş', 'Köşklüçiftlik', 'Kumsal', 'Küçük Kaymaklı',
+                'Lefkoşa Merkez', 'Marmara', 'Metehan', 'Minareliköy',
+                'Meriç', 'Ortaköy', 'Taşkınköy', 'Yenikent', 'Yenişehir',
+                'Serdarli', 'Şirinevler', 'Gönendere', 'Dilekkaya',
+                'Pile', 'Beyköy', 'Aşağı Dikmen', 'Kanlıdere',
+                'Kuruova', 'Yığıtler',
+            ],
+            'kyrenia' => [
+                'Ağırdağ', 'Alagadi', 'Alsancak', 'Bahçeli', 'Bellapais',
+                'Beylerbeyi', 'Boğaz', 'Bosphorus', 'Çatalköy', 'Değirmenlik',
+                'Dikmen', 'Doğanköy', 'Edremit', 'Esentepe', 'Girne Merkez',
+                'Göçeri', 'Ilgaz', 'Kalavaç', 'Karaağaç', 'Karaman',
+                'Karaoğlanoğlu', 'Karşıyaka', 'Kayalar', 'Kaplıca', 'Kozan',
+                'Lapta', 'Malatya', 'Necat British', 'Olivet Valley',
+                'Ozanköy', 'Sadrazamköy', 'Selvili Tepe', 'Şirinevler',
+                'Tatlısu', 'Tepecik', 'Tirmen', 'Zeytinlik',
+                'Çamlıköy', 'Geçitköy', 'Tepebaşı', 'Akdeniz',
+                'Arapköy', 'Beşparmak', 'Çatalköy Sahil', 'Dağyolu',
+                'Hanımevi', 'Karsak', 'Kömürcü',
+            ],
+            'gazimagusa' => [
+                'Akdoğan', 'Alasya', 'Aslanköy', 'Aşağı Maraş',
+                'Baykal', 'Boğaz', 'Çanakkale', 'Derinya', 'Dumlupınar',
+                'Famagusta Walled City', 'Gazimağusa Merkez', 'Geçitkale',
+                'Gülseren', 'İnönü', 'İskele Yolu', 'Karakol',
+                'Kuzucuk', 'Lapta', 'Long Beach', 'Maraş',
+                'Mağusa Çarşı', 'Mesarya', 'Mormenekşe', 'Mutluyaka',
+                'Piyale Paşa', 'Salamis', 'Sakarya', 'Sınırüstü',
+                'Tatlısu', 'Tuzla', 'Yeni Boğaziçi', 'Yeni İskele',
+                'Çayönü', 'Akova', 'Alaniçi', 'Atlılar', 'Beyarmudu',
+                'Ergazi', 'Gaziler', 'Güvercinlik', 'İncirli',
+                'Kalecik', 'Köprülü', 'Kurudere', 'Mallıdağ',
+                'Paşaköy', 'Serdarlı', 'Türkmenköy', 'Yıldırım',
+            ],
+            'guzelyurt' => [
+                'Akçay', 'Aydınköy', 'Bostancı', 'Gaziveren',
+                'Güzelyurt Merkez', 'Kalkanlı', 'Serhatköy', 'Yayla',
+                'Zümrütköy', 'Gemikonağı',
+            ],
+            'lefke' => [
+                'Bağlıköy', 'Çamlıköy', 'Doğancı', 'Gemikonağı',
+                'Lefke Merkez', 'Yedidalga', 'Yeşilırmak', 'Yeşilyurt',
+                'Cengizköy', 'Gaziveren',
+            ],
+            'iskele' => [
+                'Ağıllar', 'Balalan', 'Bafra', 'Bahçeler',
+                'Boğaz', 'Boltaşlı', 'Büyükkonuk', 'Çayırova',
+                'Derinya', 'Dipkarpaz', 'Ergazi', 'Galatya',
+                'Gelincik', 'İskele Merkez', 'Kaleburnu', 'Kalecik',
+                'Kaplıca', 'Karadeniz', 'Kilitkaya', 'Kocatepe',
+                'Kumyalı', 'Kuruova', 'Long Beach', 'Maraş',
+                'Mehmetçik', 'Mersinlik', 'Nergisli', 'Ozanköy',
+                'Pakraba', 'Pınarbaşı', 'Salamis', 'Sipahi',
+                'Tatlisu', 'Tuzluca', 'Türkmenköy', 'Yedikonuk',
+                'Yenierenköy', 'Yeşilköy', 'Yıldızköy', 'Zeybekköy',
+                'Boltaşli', 'Derince', 'Kuzucuk', 'Sınırüstü',
+                'Ziyamet',
+            ],
+        ];
+
+        foreach ($cityAreas as $cityName => $areas) {
+            // Look up the city id for this company
+            $cityId = DB::table('property_cities')
+                ->where('company_id', $companyId)
+                ->where('name', $cityName)
+                ->value('id');
+
+            if (!$cityId) {
+                continue;
+            }
+
+            $items = array_map(function (string $label) {
+                return [
+                    'name'  => Str::slug($label, '_'),
+                    'label' => $label,
+                ];
+            }, $areas);
+
+            $this->insertLookupWithCityId('property_areas', $companyId, $cityId, $items);
+        }
+    }
+
+    // -----------------------------------------------------------------
     // Helper: insert lookup rows with explicit name+label pairs
     // -----------------------------------------------------------------
     private function insertLookupWithLabels(string $table, int $companyId, array $items): void
@@ -505,6 +598,25 @@ class PropertyLookupSeeder extends Seeder
                     'description' => null,
                     'created_at' => now(),
                     'updated_at' => now(),
+                ]
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Helper: insert lookup rows with city_id (for areas)
+    // -----------------------------------------------------------------
+    private function insertLookupWithCityId(string $table, int $companyId, int $cityId, array $items): void
+    {
+        foreach ($items as $item) {
+            DB::table($table)->updateOrInsert(
+                ['company_id' => $companyId, 'name' => $item['name']],
+                [
+                    'city_id'     => $cityId,
+                    'label'       => $item['label'],
+                    'description' => null,
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
                 ]
             );
         }

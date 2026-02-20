@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Link, router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
@@ -36,11 +36,13 @@ import {
     FilePdfOutlined,
     AppstoreOutlined,
     BankOutlined,
+    BuildOutlined,
     CheckCircleOutlined,
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import type {
     DeveloperProject,
+    DeveloperProjectUnitType,
     ProjectLocation,
     DeveloperProjectExposeConfig,
     Developer,
@@ -49,6 +51,8 @@ import type { Property } from "../../Types";
 import { useApiMutate } from "../../lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "../../lib/api/types";
 import ExposeGenerationModal from "../../Features/DeveloperProjects/ExposeGenerationModal";
+import UnitTypesSection from "../../Features/DeveloperProjects/UnitTypesSection";
+import ConstructionProjectFormModal from "../../Features/DeveloperProjects/ConstructionProjectFormModal";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -110,10 +114,12 @@ export interface ShowProps extends PageProps {
     facilities: string[];
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
+    unitTypes: DeveloperProjectUnitType[];
 }
 
 type SectionKey =
     | "overview"
+    | "unit_types"
     | "facilities"
     | "exterior"
     | "interior"
@@ -329,8 +335,12 @@ const FacilitiesSection: React.FC<{ facilities: string[] }> = ({
         <Card title="Facilities">
             <div className="flex flex-wrap gap-2">
                 {facilities.map((facility, index) => (
-                    <Tag key={index} color="blue" className="text-sm py-1 px-3">
-                        {facility}
+                    <Tag
+                        key={index}
+                        color="blue"
+                        className="text-sm py-1 px-3 capitalize"
+                    >
+                        {facility.split("_").join(" ")}
                     </Tag>
                 ))}
             </div>
@@ -582,14 +592,25 @@ const Show = ({
     facilities,
     imagesByTag,
     priceList,
+    unitTypes,
 }: ShowProps) => {
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
+    const [editModalOpen, setEditModalOpen] = useState(false);
+
+    const handleEditSuccess = useCallback(() => {
+        router.reload();
+    }, []);
 
     const menuItems: MenuProps["items"] = [
         {
             key: "overview",
             icon: <AppstoreOutlined />,
             label: "Overview",
+        },
+        {
+            key: "unit_types",
+            icon: <BuildOutlined />,
+            label: `Unit Types (${unitTypes?.length || 0})`,
         },
         {
             key: "facilities",
@@ -631,6 +652,13 @@ const Show = ({
                         project={project}
                         statistics={statistics}
                         propertyTypesSummary={propertyTypesSummary}
+                    />
+                );
+            case "unit_types":
+                return (
+                    <UnitTypesSection
+                        projectId={project.id}
+                        unitTypes={unitTypes ?? []}
                     />
                 );
             case "facilities":
@@ -731,7 +759,14 @@ const Show = ({
                             items={menuItems}
                             className="border-0"
                         />
-                        <div className="mt-4 pt-4 border-t">
+                        <div className="mt-4 pt-4 border-t space-y-2">
+                            <Button
+                                icon={<EditOutlined />}
+                                block
+                                onClick={() => setEditModalOpen(true)}
+                            >
+                                Edit Project
+                            </Button>
                             <Link
                                 href={route(
                                     "developer-projects.expose-config.show",
@@ -749,6 +784,14 @@ const Show = ({
                 {/* Main Content */}
                 <div className="flex-1 min-w-0">{renderSection()}</div>
             </div>
+
+            {/* Edit Construction Project Modal */}
+            <ConstructionProjectFormModal
+                open={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                project={project}
+                onSuccess={handleEditSuccess}
+            />
         </PageLayout>
     );
 };

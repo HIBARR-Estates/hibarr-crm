@@ -19,17 +19,190 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * - Has an ExposeConfig for PDF generation (1:1)
  * - Contains multiple Properties (1:Many)
  * - Contains multiple DeveloperProjectAssets (1:Many)
+ * - Stores construction project details (facilities, payment plans, distances, etc.)
  */
 class DeveloperProject extends BaseModel
 {
     use HasFactory, HasCompany, SoftDeletes;
 
+    // ================================================================
+    // Construction Status Constants (project-level)
+    // ================================================================
+    const CONSTRUCTION_STATUS_PRE_CONSTRUCTION = 'pre_construction';
+    const CONSTRUCTION_STATUS_ACTIVE = 'active_construction';
+    const CONSTRUCTION_STATUS_POST = 'post_construction';
+    const CONSTRUCTION_STATUS_COMPLETE = 'complete';
+
+    const CONSTRUCTION_STATUSES = [
+        self::CONSTRUCTION_STATUS_PRE_CONSTRUCTION,
+        self::CONSTRUCTION_STATUS_ACTIVE,
+        self::CONSTRUCTION_STATUS_POST,
+        self::CONSTRUCTION_STATUS_COMPLETE,
+    ];
+
+    const CONSTRUCTION_STATUS_LABELS = [
+        self::CONSTRUCTION_STATUS_PRE_CONSTRUCTION => 'Pre-construction Phase',
+        self::CONSTRUCTION_STATUS_ACTIVE => 'Active Construction',
+        self::CONSTRUCTION_STATUS_POST => 'Post Construction',
+        self::CONSTRUCTION_STATUS_COMPLETE => 'Complete',
+    ];
+
+    // ================================================================
+    // Furniture Package Constants
+    // ================================================================
+    const FURNITURE_UNFURNISHED = 'unfurnished';
+    const FURNITURE_PART_FURNISHED = 'part_furnished';
+    const FURNITURE_WHITE_GOODS = 'white_goods_only';
+    const FURNITURE_FULLY_FURNISHED = 'fully_furnished';
+
+    const FURNITURE_PACKAGES = [
+        self::FURNITURE_UNFURNISHED,
+        self::FURNITURE_PART_FURNISHED,
+        self::FURNITURE_WHITE_GOODS,
+        self::FURNITURE_FULLY_FURNISHED,
+    ];
+
+    const FURNITURE_PACKAGE_LABELS = [
+        self::FURNITURE_UNFURNISHED => 'Unfurnished',
+        self::FURNITURE_PART_FURNISHED => 'Part Furnished',
+        self::FURNITURE_WHITE_GOODS => 'White Goods Only',
+        self::FURNITURE_FULLY_FURNISHED => 'Fully Furnished',
+    ];
+
+    // ================================================================
+    // Unit Type Constants
+    // ================================================================
+    const UNIT_TYPES = [
+        'apartment', 'villa', 'semi_detached_villa', 'bungalow',
+        'townhouse', 'shop', 'office',
+    ];
+
+    const UNIT_TYPE_LABELS = [
+        'apartment' => 'Apartment',
+        'villa' => 'Villa',
+        'semi_detached_villa' => 'Semi-Detached Villa',
+        'bungalow' => 'Bungalow',
+        'townhouse' => 'Townhouse',
+        'shop' => 'Shop',
+        'office' => 'Office',
+    ];
+
+    // ================================================================
+    // Title Deed Type Constants
+    // ================================================================
+    const TITLE_DEED_TYPES = [
+        'turkish', 'british', 'exchange', 'tahsis',
+        'leasehold', 'mucahit',
+    ];
+
+    const TITLE_DEED_TYPE_LABELS = [
+        'turkish' => 'Turkish',
+        'british' => 'British',
+        'exchange' => 'Exchange (Eşdeğer)',
+        'tahsis' => 'Tahsis',
+        'leasehold' => 'Leasehold',
+        'mucahit' => 'Mücahit',
+    ];
+
+    // ================================================================
+    // Facility Constants
+    // ================================================================
+    const FACILITIES = [
+        'gym', 'hamam', 'sauna', 'massage_spa', 'indoor_pool',
+        'outdoor_pool', 'heated_indoor_pool', 'kids_playground',
+        'aquapark', 'mini_zoo', 'clinics', 'restaurant',
+        'beauty_center', 'walking_paths', 'cycling_routes',
+        'hiking_routes', 'dentist', 'healing_yoga', 'tennis_court',
+        'basketball_court', 'reception', 'security_24_7', 'beach',
+        'beach_cinema', 'cinema', 'casino', 'jacuzzi',
+        'gated_community', 'football_court', 'volleyball_court',
+        'supermarket', 'cafe', 'bar', 'car_park',
+        'cleaning_service', 'central_generator', 'on_site_management',
+    ];
+
+    const FACILITY_LABELS = [
+        'gym' => 'Gym',
+        'hamam' => 'Hamam',
+        'sauna' => 'Sauna',
+        'massage_spa' => 'Massage and Spa',
+        'indoor_pool' => 'Indoor Pool',
+        'outdoor_pool' => 'Outdoor Pool',
+        'heated_indoor_pool' => 'Heated Indoor Pool',
+        'kids_playground' => 'Kids Playground',
+        'aquapark' => 'Aquapark',
+        'mini_zoo' => 'Mini Zoo',
+        'clinics' => 'Clinics',
+        'restaurant' => 'Restaurant',
+        'beauty_center' => 'Beauty Center',
+        'walking_paths' => 'Walking Paths',
+        'cycling_routes' => 'Cycling Routes',
+        'hiking_routes' => 'Hiking Routes',
+        'dentist' => 'Dentist',
+        'healing_yoga' => 'Healing/Yoga',
+        'tennis_court' => 'Tennis Court',
+        'basketball_court' => 'Basketball Court',
+        'reception' => 'Reception',
+        'security_24_7' => '24/7 Security',
+        'beach' => 'Beach',
+        'beach_cinema' => 'Beach Cinema',
+        'cinema' => 'Cinema',
+        'casino' => 'Casino',
+        'jacuzzi' => 'Jacuzzi',
+        'gated_community' => 'Gated Community',
+        'football_court' => 'Football Court',
+        'volleyball_court' => 'Volleyball Court',
+        'supermarket' => 'Supermarket',
+        'cafe' => 'Cafe',
+        'bar' => 'Bar',
+        'car_park' => 'Car Park',
+        'cleaning_service' => 'Cleaning Service',
+        'central_generator' => 'Central Generator',
+        'on_site_management' => 'On-site Management',
+    ];
+
     protected $fillable = [
         'company_id',
         'developer_id',
         'name',
+        'reference_code',
         'description',
         'project_location_id',
+        // Construction project fields
+        'google_drive_link',
+        'availability_link',
+        'starting_price',
+        'primary_categories',
+        'title_deed_type',
+        'unit_types',
+        'number_of_units',
+        'number_of_blocks',
+        'project_total_area_sqm',
+        'construction_status',
+        'completion_date',
+        'number_of_phases',
+        'furniture_package',
+        'rental_guarantee',
+        'payment_plan',
+        'facilities',
+        'distances',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     */
+    protected $casts = [
+        'starting_price' => 'decimal:2',
+        'project_total_area_sqm' => 'decimal:2',
+        'number_of_units' => 'integer',
+        'number_of_blocks' => 'integer',
+        'number_of_phases' => 'integer',
+        'rental_guarantee' => 'boolean',
+        'completion_date' => 'date',
+        'primary_categories' => 'array',
+        'unit_types' => 'array',
+        'payment_plan' => 'array',
+        'facilities' => 'array',
+        'distances' => 'array',
     ];
 
     /**
@@ -90,6 +263,17 @@ class DeveloperProject extends BaseModel
     public function assets(): HasMany
     {
         return $this->hasMany(DeveloperProjectAsset::class);
+    }
+
+    /**
+     * Get all unit types belonging to this project.
+     * 
+     * Each project can have multiple unit types (e.g., 2+1 Apartment, Studio Villa)
+     * with their own specifications, features, pricing, and photos.
+     */
+    public function unitTypes(): HasMany
+    {
+        return $this->hasMany(DeveloperProjectUnitType::class);
     }
 
     /**
@@ -183,5 +367,47 @@ class DeveloperProject extends BaseModel
     public function removeAllProperties(): int
     {
         return $this->properties()->update(['developer_project_id' => null]);
+    }
+
+    /**
+     * Generate a reference code for this project.
+     * Pattern: DEVELOPERNAME-NNN
+     * e.g., AKACAN-001
+     *
+     * @return string
+     */
+    public function generateReferenceCode(): string
+    {
+        $developer = $this->developer;
+        $prefix = 'PRJ';
+
+        if ($developer) {
+            // Use first word of developer name, uppercase
+            $words = explode(' ', trim($developer->name));
+            $prefix = strtoupper($words[0]);
+        }
+
+        // Find the highest existing number for this prefix within the company.
+        // Note: unique constraint is (company_id, reference_code), so we must
+        // check ALL projects in the company with this prefix, not just same developer.
+        // Use withTrashed() because the DB unique constraint includes soft-deleted rows.
+        $maxCode = static::withTrashed()
+            ->where('company_id', $this->company_id)
+            ->where('id', '!=', $this->id ?? 0)
+            ->whereNotNull('reference_code')
+            ->where('reference_code', 'like', $prefix . '-%')
+            ->pluck('reference_code')
+            ->map(function ($code) use ($prefix) {
+                // Extract numeric part after prefix (e.g., "AKACAN-002" → 2)
+                $suffix = str_replace($prefix . '-', '', $code);
+                // Only take the first numeric segment (ignore -UTxx suffixes)
+                $parts = explode('-', $suffix);
+                return is_numeric($parts[0]) ? (int) $parts[0] : 0;
+            })
+            ->max();
+
+        $number = str_pad(($maxCode ?? 0) + 1, 3, '0', STR_PAD_LEFT);
+
+        return $prefix . '-' . $number;
     }
 }

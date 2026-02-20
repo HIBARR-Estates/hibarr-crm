@@ -20,11 +20,13 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 interface PricingSectionProps {
     form: FormInstance;
     primaryCategory: PrimaryCategory;
+    selectedCurrency?: string;
 }
 
 const PricingSection: React.FC<PricingSectionProps> = ({
     form,
     primaryCategory,
+    selectedCurrency,
 }) => {
     const openToSwap = Form.useWatch("open_to_swap", form);
     const isLand = primaryCategory === "land";
@@ -43,7 +45,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
                     <CurrencyInput
                         noFormItem
                         placeholder="Enter price"
-                        defaultCurrency={isLand ? "GBP" : undefined}
+                        defaultCurrency={selectedCurrency}
                     />
                 </Form.Item>
             </Col>

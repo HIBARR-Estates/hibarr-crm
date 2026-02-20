@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { Link, router } from "@inertiajs/react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Link, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import { Table, Button, Segmented } from "antd";
@@ -17,6 +17,8 @@ import {
     AppstoreOutlined,
     SafetyOutlined,
     SettingOutlined,
+    BuildOutlined,
+    HomeOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -36,7 +38,12 @@ import { createPropertyFilterConfig } from "@/configs/propertyFilterConfig";
 import { createPropertySearchConfig } from "@/configs/searchConfigs";
 import usePageSort from "@/Hooks/usePageSort";
 
-import type { DeveloperProjectOption } from "@/Types/developerProject";
+import type {
+    DeveloperProjectOption,
+    DeveloperProject,
+} from "@/Types/developerProject";
+import ConstructionProjectsTable from "@/Features/DeveloperProjects/ConstructionProjectsTable";
+import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
 
 // Legacy Project interface - kept for backwards compatibility
 interface Project {
@@ -64,6 +71,16 @@ interface PaginationData {
     to: number;
 }
 
+interface ConstructionProjectsPaginationData {
+    data: DeveloperProject[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number;
+    to: number;
+}
+
 export interface IndexProps extends PageProps {
     pageTitle: string;
     properties: PaginationData;
@@ -72,6 +89,8 @@ export interface IndexProps extends PageProps {
     developers?: Developer[];
     /** New DeveloperProject list for bulk actions */
     developerProjects?: DeveloperProjectOption[];
+    /** Lazy-loaded construction projects for the Construction Projects tab */
+    constructionProjects?: ConstructionProjectsPaginationData;
     currencies?: any[];
     default_currency_code?: string;
     default_currency_symbol?: string;
@@ -86,7 +105,49 @@ const Index = ({
     projects,
     developers,
     developerProjects,
+    constructionProjects,
 }: IndexProps) => {
+    // ── Active tab state ──
+    type ActiveTab =
+        | "all"
+        | "properties"
+        | "my_drafts"
+        | "construction_projects";
+
+    // Derive tab from URL params — kept in sync after every Inertia navigation
+    const deriveTabFromUrl = (): ActiveTab => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pubStatus = urlParams.get("publishing_status");
+        if (pubStatus === "draft") return "my_drafts";
+        if (pubStatus === "published") return "properties";
+        return "all";
+    };
+
+    const [activeTab, setActiveTab] = useState<ActiveTab>(deriveTabFromUrl);
+    // Track whether the user is on the construction projects tab (client-only, not URL-driven)
+    const cpTabRef = useRef(false);
+
+    // Re-sync activeTab from URL after every Inertia navigation.
+    // This covers both preserveState=true and full remount scenarios.
+    // We skip sync when on the construction_projects tab since that is
+    // purely client-side and does not change URL params.
+    useEffect(() => {
+        const removeListener = router.on("navigate", () => {
+            if (!cpTabRef.current) {
+                setActiveTab(deriveTabFromUrl());
+            }
+        });
+        return removeListener;
+    }, []);
+
+    const [cpDataLoaded, setCpDataLoaded] = useState(false);
+    const [cpLoading, setCpLoading] = useState(false);
+    // Check if user is a sales manager (edit_product === 'all')
+    const { props } = usePage<any>();
+    const isSalesManager =
+        props.auth?.permissions?.edit_product === "all" ||
+        props.auth?.permissions?.edit_product === 4;
+
     // Debug: Log properties payload to see what price data looks like
     useEffect(() => {
         console.log("🔍 Properties payload:", properties);
@@ -115,7 +176,74 @@ const Index = ({
         handleClose,
         action,
         selected: property,
+        setSelected: setProperty,
     } = useGenericEntityAction<Property>();
+
+    // ── Construction project modal state ──
+    const {
+        handleAction: handleCpAction,
+        handleClose: handleCpClose,
+        action: cpAction,
+        selected: selectedConstructionProject,
+    } = useGenericEntityAction<DeveloperProject>();
+
+    // ── Handle unified tab switch ──
+    const handleTabChange = useCallback(
+        (value: string) => {
+            const tab = value as ActiveTab;
+
+            if (tab === "construction_projects") {
+                cpTabRef.current = true;
+                setActiveTab("construction_projects");
+                if (!cpDataLoaded) {
+                    setCpLoading(true);
+                    router.reload({
+                        only: ["constructionProjects"],
+                        onSuccess: () => {
+                            setCpDataLoaded(true);
+                            setCpLoading(false);
+                        },
+                        onError: () => {
+                            setCpLoading(false);
+                        },
+                    });
+                }
+                return;
+            }
+
+            // Leaving CP tab — allow URL-based sync again
+            cpTabRef.current = false;
+            setActiveTab(tab); // Optimistic update — navigate listener will confirm
+
+            // Map tab to backend filter params
+            const params: Record<string, any> = { page: 1 };
+            if (tab === "properties") {
+                params.publishing_status = "published";
+            } else if (tab === "my_drafts") {
+                params.publishing_status = "draft";
+                params.source = "properties"; // drafts are real properties only
+            }
+            // "all" → no filter params
+
+            router.get(route("properties.index"), params, {
+                preserveState: true,
+                preserveScroll: false,
+            });
+        },
+        [cpDataLoaded],
+    );
+
+    // Mark data as loaded if constructionProjects arrives via props
+    useEffect(() => {
+        if (constructionProjects && !cpDataLoaded) {
+            setCpDataLoaded(true);
+            setCpLoading(false);
+        }
+    }, [constructionProjects]);
+
+    const handleCpSuccess = useCallback(() => {
+        router.reload({ only: ["constructionProjects"] });
+    }, []);
     // Check URL for create parameter to show drawer
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -155,44 +283,27 @@ const Index = ({
     // Extract commonly used values
     const { openDrawer, filters } = filter;
 
-    // Get current publishing status from URL params or default to 'all'
-    const currentPublishingStatus = useMemo(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get("publishing_status") || "all";
-    }, [filters]);
-
-    // Handle publishing status change
-    const handlePublishingStatusChange = (value: string) => {
-        router.get(
-            route("properties.index"),
-            {
-                ...filters,
-                publishing_status: value === "all" ? undefined : value,
-                page: 1, // Reset to first page on status change
-            },
-            {
-                preserveState: true,
-                preserveScroll: false,
-            },
-        );
-    };
-
-    // Publishing status options for the segmented control
-    const publishingStatusOptions = [
+    // Unified tab options
+    const tabOptions = [
         {
             value: "all",
             label: "All",
             icon: <AppstoreOutlined />,
         },
         {
-            value: "published",
-            label: "Published",
-            icon: <GlobalOutlined />,
+            value: "properties",
+            label: "Properties",
+            icon: <HomeOutlined />,
         },
         {
-            value: "draft",
+            value: "my_drafts",
             label: "My Drafts",
             icon: <FileTextOutlined />,
+        },
+        {
+            value: "construction_projects",
+            label: "Construction Projects",
+            icon: <BuildOutlined />,
         },
     ];
 
@@ -252,127 +363,178 @@ const Index = ({
         currencySymbol,
     );
 
+    // Whether we're showing the properties table or construction projects
+    const showPropertiesTable = activeTab !== "construction_projects";
+
     return (
         <>
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: "Properties" }]}
                 searchComp={
-                    <UniversalSearchBox
-                        placeholder="Search properties by title, area, description..."
-                        className="w-full"
-                    />
+                    showPropertiesTable ? (
+                        <UniversalSearchBox
+                            placeholder="Search properties by title, area, description..."
+                            className="w-full"
+                        />
+                    ) : undefined
                 }
-                filterSection={<ContextualActiveFilters />}
+                filterSection={
+                    showPropertiesTable ? (
+                        <ContextualActiveFilters />
+                    ) : undefined
+                }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Publishing Status Toggle */}
+                    {/* Unified Tab Navigation */}
                     <div className="flex justify-center">
                         <Segmented
-                            options={publishingStatusOptions}
-                            value={currentPublishingStatus}
-                            onChange={(value) =>
-                                handlePublishingStatusChange(value as string)
-                            }
+                            options={tabOptions}
+                            value={activeTab}
+                            onChange={handleTabChange}
                             size="large"
                         />
                     </div>
 
-                    {/* Header with Actions */}
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => handleAction("add")}
-                            >
-                                Add Property
-                            </Button>
-                            <Button
-                                type="text"
-                                icon={<ImportOutlined />}
-                                onClick={() => {
-                                    handleAction("import");
-                                }}
-                            >
-                                Import
-                            </Button>
-                            <Link href="/account/availability-requests">
-                                <Button type="text" icon={<SafetyOutlined />}>
-                                    Availability Requests
-                                </Button>
-                            </Link>
-                            <Link href={route("property-config.page")}>
-                                <Button type="text" icon={<SettingOutlined />}>
-                                    Configuration
-                                </Button>
-                            </Link>
-                        </div>
+                    {/* ═══ Properties / Unit Types Table ═══ */}
+                    {showPropertiesTable && (
+                        <>
+                            {/* Header with Actions */}
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        type="primary"
+                                        icon={<PlusOutlined />}
+                                        onClick={() => handleAction("add")}
+                                    >
+                                        Add Property
+                                    </Button>
+                                    <Button
+                                        type="text"
+                                        icon={<ImportOutlined />}
+                                        onClick={() => {
+                                            handleAction("import");
+                                        }}
+                                    >
+                                        Import
+                                    </Button>
+                                    <Link href="/account/availability-requests">
+                                        <Button
+                                            type="text"
+                                            icon={<SafetyOutlined />}
+                                        >
+                                            Availability Requests
+                                        </Button>
+                                    </Link>
+                                    {isSalesManager ? (
+                                        <Link href="/account/publish-requests">
+                                            <Button
+                                                type="text"
+                                                icon={<GlobalOutlined />}
+                                            >
+                                                Publish Requests
+                                            </Button>
+                                        </Link>
+                                    ) : null}
+                                    {isSalesManager ? (
+                                        <Link
+                                            href={route("property-config.page")}
+                                        >
+                                            <Button
+                                                type="text"
+                                                icon={<SettingOutlined />}
+                                            >
+                                                Configuration
+                                            </Button>
+                                        </Link>
+                                    ) : null}
+                                </div>
 
-                        <div className="flex items-center gap-3">
-                            {/* Advanced Filters Button */}
-                            <Button
-                                icon={<FilterOutlined />}
-                                onClick={openDrawer}
-                            >
-                                Filters
-                            </Button>
+                                <div className="flex items-center gap-3">
+                                    {/* Advanced Filters Button */}
+                                    <Button
+                                        icon={<FilterOutlined />}
+                                        onClick={openDrawer}
+                                    >
+                                        Filters
+                                    </Button>
 
-                            {/* Bulk Actions - Only show when items are selected */}
-                            {selectedEntities.length > 0 && (
-                                <BulkActionSelector
-                                    selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id,
+                                    {/* Bulk Actions - Only show when items are selected */}
+                                    {selectedEntities.length > 0 && (
+                                        <BulkActionSelector
+                                            selectedEntityIds={selectedEntities?.map(
+                                                ({ id }) => id,
+                                            )}
+                                            clearSelected={clearSelected}
+                                        />
                                     )}
-                                    clearSelected={clearSelected}
-                                />
-                            )}
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
-                    {/* Properties Table */}
-                    <div className="bg-white rounded-lg border border-gray-200">
-                        <Table
-                            columns={columns}
-                            dataSource={properties.data}
-                            rowKey="id"
-                            rowSelection={rowSelection}
-                            pagination={{
-                                current: properties.current_page,
-                                total: properties.total,
-                                pageSize: properties.per_page,
-                                showSizeChanger: false,
-                                showQuickJumper: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}-${range[1]} of ${total} properties`,
-                                onChange: (page, pageSize) => {
-                                    router.get(
-                                        route("properties.index"),
-                                        {
-                                            ...filters,
-                                            ...sortParams,
-                                            page,
-                                            per_page: pageSize,
+                            {/* Properties Table */}
+                            <div className="bg-white rounded-lg border border-gray-200">
+                                <Table
+                                    columns={columns}
+                                    dataSource={properties.data}
+                                    rowKey={(record) =>
+                                        record._source === "unit_type"
+                                            ? `ut_${record._unit_type_id}`
+                                            : `p_${record.id}`
+                                    }
+                                    rowSelection={rowSelection}
+                                    pagination={{
+                                        current: properties.current_page,
+                                        total: properties.total,
+                                        pageSize: properties.per_page,
+                                        showSizeChanger: false,
+                                        showQuickJumper: false,
+                                        showTotal: (total, range) =>
+                                            `${range[0]}-${range[1]} of ${total} properties`,
+                                        onChange: (page, pageSize) => {
+                                            router.get(
+                                                route("properties.index"),
+                                                {
+                                                    ...filters,
+                                                    ...sortParams,
+                                                    page,
+                                                    per_page: pageSize,
+                                                },
+                                                {
+                                                    preserveState: true,
+                                                    preserveScroll: true,
+                                                },
+                                            );
                                         },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                        },
-                                    );
-                                },
-                            }}
-                            scroll={{ x: 1200 }}
-                            size="small"
+                                    }}
+                                    scroll={{ x: 1200 }}
+                                    size="small"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {/* ═══ Construction Projects View ═══ */}
+                    {activeTab === "construction_projects" && (
+                        <ConstructionProjectsTable
+                            projects={constructionProjects ?? null}
+                            onEdit={(project) =>
+                                handleCpAction("edit", project)
+                            }
+                            onAdd={() => handleCpAction("add")}
+                            loading={cpLoading}
                         />
-                    </div>
+                    )}
 
                     {/* Advanced Filters Drawer */}
                 </div>
             </PageLayout>
+
+            {/* Property Modals */}
             <SavePropertyModal
                 open={["add", "edit"].includes(action || "")}
                 onClose={handleClose}
                 property={property}
+                setProperty={setProperty}
             />
             <DeleteProperty
                 open={action === "delete"}
@@ -386,6 +548,18 @@ const Index = ({
             <ExportProperties
                 open={action === "export"}
                 onClose={() => handleClose()}
+            />
+
+            {/* Construction Project Modal */}
+            <ConstructionProjectFormModal
+                open={["add", "edit"].includes(cpAction || "")}
+                onClose={handleCpClose}
+                project={
+                    cpAction === "edit"
+                        ? selectedConstructionProject
+                        : undefined
+                }
+                onSuccess={handleCpSuccess}
             />
 
             {/* Filter Drawer */}

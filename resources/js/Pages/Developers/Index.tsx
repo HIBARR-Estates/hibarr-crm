@@ -5,11 +5,8 @@ import PageLayout from "../../Components/PageLayout";
 import {
     Card,
     Button,
-    Modal,
-    Form,
     Input,
     Empty,
-    Spin,
     Row,
     Col,
     Avatar,
@@ -30,9 +27,9 @@ import {
 import type { Developer } from "../../Types/developerProject";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
+import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
 
 const { Text, Title, Paragraph } = Typography;
-const { TextArea } = Input;
 
 // ============================================
 // Types
@@ -56,135 +53,9 @@ export interface IndexProps extends PageProps {
     };
 }
 
-interface CreateDeveloperInput {
-    name: string;
-    logo_url?: string;
-    description?: string;
-}
-
 // ============================================
 // Components
 // ============================================
-
-interface DeveloperFormModalProps {
-    open: boolean;
-    onClose: () => void;
-    developer?: Developer | null;
-    onSuccess: () => void;
-}
-
-const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
-    open,
-    onClose,
-    developer,
-    onSuccess,
-}) => {
-    const [form] = Form.useForm();
-    const isEditing = !!developer;
-
-    // Create mutation
-    const createMutation = useApiMutate<
-        CreateDeveloperInput,
-        Developer,
-        ApiSuccessResponse<Developer>
-    >(route("developers.store"), "POST", () => {
-        form.resetFields();
-        onClose();
-        onSuccess();
-    });
-
-    // Update mutation
-    const updateMutation = useApiMutate<
-        CreateDeveloperInput,
-        Developer,
-        ApiSuccessResponse<Developer>
-    >(developer ? route("developers.update", developer.id) : "", "PUT", () => {
-        form.resetFields();
-        onClose();
-        onSuccess();
-    });
-
-    const isLoading = createMutation.isPending || updateMutation.isPending;
-
-    const handleSubmit = () => {
-        form.validateFields().then((values) => {
-            if (isEditing && developer) {
-                updateMutation.mutate(values);
-            } else {
-                createMutation.mutate(values);
-            }
-        });
-    };
-
-    // Reset form when modal opens/closes or developer changes
-    useEffect(() => {
-        if (open) {
-            if (developer) {
-                form.setFieldsValue({
-                    name: developer.name,
-                    logo_url: developer.logo_url,
-                    description: developer.description,
-                });
-            } else {
-                form.resetFields();
-            }
-        }
-    }, [open, developer, form]);
-
-    return (
-        <Modal
-            title={isEditing ? "Edit Developer" : "Create Developer"}
-            open={open}
-            onCancel={() => !isLoading && onClose()}
-            footer={[
-                <Button key="cancel" onClick={onClose} disabled={isLoading}>
-                    Cancel
-                </Button>,
-                <Button
-                    key="submit"
-                    type="primary"
-                    onClick={handleSubmit}
-                    loading={isLoading}
-                >
-                    {isEditing ? "Update" : "Create"}
-                </Button>,
-            ]}
-            destroyOnClose
-        >
-            <Form form={form} layout="vertical" className="mt-4">
-                <Form.Item
-                    name="name"
-                    label="Developer Name"
-                    rules={[
-                        {
-                            required: true,
-                            message: "Please enter the developer name",
-                        },
-                    ]}
-                >
-                    <Input placeholder="Enter developer name" />
-                </Form.Item>
-
-                <Form.Item
-                    name="logo_url"
-                    label="Logo URL"
-                    rules={[
-                        { type: "url", message: "Please enter a valid URL" },
-                    ]}
-                >
-                    <Input placeholder="https://example.com/logo.png" />
-                </Form.Item>
-
-                <Form.Item name="description" label="Description">
-                    <TextArea
-                        placeholder="Enter developer description"
-                        rows={4}
-                    />
-                </Form.Item>
-            </Form>
-        </Modal>
-    );
-};
 
 // Developer Card Component
 interface DeveloperCardProps {
@@ -226,8 +97,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
 
     return (
         <Card
-            hoverable
-            className="h-full flex flex-col"
+            className="h-full flex flex-col hover:border-gray-300 transition-border group"
             actions={[
                 <Dropdown
                     menu={{ items: menuItems }}
@@ -238,7 +108,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
                 </Dropdown>,
             ]}
         >
-            <Link href={route("developers.show", developer.id)}>
+            <Link href={route("developers.show", developer.id)} className="">
                 <div className="flex flex-col items-center text-center">
                     <Avatar
                         size={80}
@@ -338,10 +208,10 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
                     icon={<PlusOutlined />}
                     onClick={handleAdd}
                 >
-                    Add Developer
+                    Add Company
                 </Button>
                 {/* Search */}
-                <div className="mb-6 flex justify-between">
+                <div className="mb-6 mt-4 flex justify-between">
                     <Input.Search
                         placeholder="Search developers..."
                         allowClear

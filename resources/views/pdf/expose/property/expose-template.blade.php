@@ -871,7 +871,7 @@ p {
                     <div class="expose-title">
                         <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
                         <div class="text blue">
-                            <h1 class="fw-500">{{ strtoupper($data['unit_style'] ?? 'PROPERTY') }}</h1>
+                            <h1 class="fw-500">{{ strtoupper(is_array($data['unit_style'] ?? null) ? implode(' / ', $data['unit_style']) : ($data['unit_style'] ?? 'PROPERTY')) }}</h1>
                         </div>
                     </div>
 
@@ -929,7 +929,7 @@ p {
             />
 
             <div class="text">
-                <h1>{{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }} {{ strtoupper($data['unit_style'] ?? 'UNIT') }} <span class="more">{{ !empty($data['block_name']) ? '(' . strtoupper($data['block_name']) . ')' : '' }}</span></h1>
+                <h1>{{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }} {{ strtoupper(is_array($data['unit_style'] ?? null) ? implode(' / ', $data['unit_style']) : ($data['unit_style'] ?? 'UNIT')) }} <span class="more">{{ !empty($data['block_name']) ? '(' . strtoupper($data['block_name']) . ')' : '' }}</span></h1>
             </div>
             </div>
 

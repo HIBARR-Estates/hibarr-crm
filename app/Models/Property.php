@@ -73,6 +73,7 @@ class Property extends BaseModel
     // Property Types
     const PROPERTY_TYPE_VILLA = 'Villa';
     const PROPERTY_TYPE_TWIN_VILLA = 'Twin Villa';
+    const PROPERTY_TYPE_SEMI_DETACHED_VILLA = 'Semi-Detached Villa';
     const PROPERTY_TYPE_APARTMENT = 'Apartment';
     const PROPERTY_TYPE_FAMILY_HOME = 'Family Home';
     const PROPERTY_TYPE_TOWNHOUSE = 'Townhouse';
@@ -83,6 +84,7 @@ class Property extends BaseModel
     const PROPERTY_TYPE_BLOCK_APARTMENTS = 'Block of apartments';
     const PROPERTY_TYPE_COMPLETE_BUILDING = 'Complete Building';
     const PROPERTY_TYPE_ABANDONED_BUILDING = 'Abandoned Building';
+    const PROPERTY_TYPE_RUIN = 'Ruin';
     const PROPERTY_TYPE_RESIDENCE = 'Residence';
     const PROPERTY_TYPE_HALF_CONSTRUCTION = 'Half Construction';
     const PROPERTY_TYPE_TIME_SHARE = 'Time Share';
@@ -107,10 +109,12 @@ class Property extends BaseModel
         self::PROPERTY_TYPE_APARTMENT => 'APT',
         self::PROPERTY_TYPE_VILLA => 'VIL',
         self::PROPERTY_TYPE_TWIN_VILLA => 'SMV',
+        self::PROPERTY_TYPE_SEMI_DETACHED_VILLA => 'SMV',
         self::PROPERTY_TYPE_BUNGALOW => 'BNG',
         self::PROPERTY_TYPE_TOWNHOUSE => 'TWN',
         self::PROPERTY_TYPE_COMPLETE_BUILDING => 'BLD',
         self::PROPERTY_TYPE_ABANDONED_BUILDING => 'RUN',
+        self::PROPERTY_TYPE_RUIN => 'RUN',
         self::PROPERTY_TYPE_RESIDENTIALLY_ZONED_LAND => 'LND',
         self::PROPERTY_TYPE_FIELD => 'LND',
         self::PROPERTY_TYPE_RESIDENTIAL_COMMERCIAL_LAND => 'LND',
@@ -137,29 +141,26 @@ class Property extends BaseModel
     // ================================================================
     // Reference Code Mapping - Unit Style/Subtype Codes
     // ================================================================
-    const UNIT_STYLE_STANDARD = 'standard';
     const UNIT_STYLE_PENTHOUSE = 'penthouse';
     const UNIT_STYLE_LOFT = 'loft';
-    const UNIT_STYLE_GARDEN = 'garden';
+    const UNIT_STYLE_GARDEN_APARTMENT = 'garden_apartment';
     const UNIT_STYLE_DUPLEX = 'duplex';
     const UNIT_STYLE_TRIPLEX = 'triplex';
     const UNIT_STYLE_STUDIO = 'studio';
 
     const SUBTYPE_CODES = [
-        self::UNIT_STYLE_STANDARD => 'STD',
         self::UNIT_STYLE_PENTHOUSE => 'PEN',
         self::UNIT_STYLE_LOFT => 'LFT',
-        self::UNIT_STYLE_GARDEN => 'GRD',
+        self::UNIT_STYLE_GARDEN_APARTMENT => 'GRD',
         self::UNIT_STYLE_DUPLEX => 'DPL',
         self::UNIT_STYLE_TRIPLEX => 'TPL',
         self::UNIT_STYLE_STUDIO => 'STU',
     ];
 
     const UNIT_STYLES = [
-        self::UNIT_STYLE_STANDARD,
         self::UNIT_STYLE_PENTHOUSE,
         self::UNIT_STYLE_LOFT,
-        self::UNIT_STYLE_GARDEN,
+        self::UNIT_STYLE_GARDEN_APARTMENT,
         self::UNIT_STYLE_DUPLEX,
         self::UNIT_STYLE_TRIPLEX,
         self::UNIT_STYLE_STUDIO,
@@ -328,6 +329,7 @@ class Property extends BaseModel
     protected $fillable = [
         'product_id',
         'developer_project_id',
+        'developer_project_unit_type_id',
         'project_location_id',
         'added_by',
         'responsible_agent_id',
@@ -403,6 +405,8 @@ class Property extends BaseModel
         'hibarr_price',
         'commission_agreement_signed',
         'general_notes',
+        'associated_construction_company',
+        'associated_construction_company_project',
     ];
 
     /**
@@ -474,6 +478,7 @@ class Property extends BaseModel
         'price_to_owner' => 'decimal:2',
         'hibarr_price' => 'decimal:2',
         'commission_agreement_signed' => 'boolean',
+        'unit_style' => 'array',
     ];
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
@@ -627,6 +632,17 @@ class Property extends BaseModel
     }
 
     /**
+     * Get the developer project unit type this property is based on.
+     *
+     * When set, certain property fields (specs, features, etc.) are
+     * inherited from the unit type and locked on the frontend form.
+     */
+    public function unitType(): BelongsTo
+    {
+        return $this->belongsTo(DeveloperProjectUnitType::class, 'developer_project_unit_type_id');
+    }
+
+    /**
      * Get the direct project location for this property.
      * 
      * This takes priority over the developer project's location.
@@ -768,11 +784,23 @@ class Property extends BaseModel
         // Get type code
         $typeCode = self::TYPE_CODES[$this->property_type] ?? 'OTH';
         
-        // Get subtype code
-        $subtypeCode = self::SUBTYPE_CODES[$this->unit_style ?? self::UNIT_STYLE_STANDARD] ?? 'STD';
+        // Get subtype code(s) — unit_style is now an array (multi-select)
+        $styles = $this->unit_style ?? [];
+        if (!is_array($styles)) {
+            $styles = $styles ? [$styles] : [];
+        }
+        
+        // Build concatenated subtype codes (e.g. PEN-DPL), fallback to STD
+        if (empty($styles)) {
+            $subtypeCode = 'STD';
+        } else {
+            $codes = array_map(fn($s) => self::SUBTYPE_CODES[$s] ?? null, $styles);
+            $codes = array_filter($codes); // remove nulls
+            $subtypeCode = empty($codes) ? 'STD' : implode('-', $codes);
+        }
         
         // Get room code: bedrooms + living room (1), or 'S' for studio
-        if ($this->unit_style === self::UNIT_STYLE_STUDIO) {
+        if (is_array($styles) && in_array(self::UNIT_STYLE_STUDIO, $styles)) {
             $roomCode = 'S';
         } else {
             $bedrooms = (int) ($this->bedrooms ?? 0);
@@ -1101,23 +1129,22 @@ class Property extends BaseModel
         return [
             self::CATEGORY_HOUSING => [
                 self::SALE_TYPE_FOR_SALE => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_TWIN_VILLA, self::PROPERTY_TYPE_APARTMENT,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_LOFT,
-                    self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW, self::PROPERTY_TYPE_COMMERCIAL_PROPERTY,
-                    self::PROPERTY_TYPE_BLOCK_APARTMENTS, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 self::SALE_TYPE_FOR_RENT => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_TWIN_VILLA,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW,
-                    self::PROPERTY_TYPE_TIME_SHARE, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 self::SALE_TYPE_DAILY_RENTAL => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_TWIN_VILLA,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW,
-                    self::PROPERTY_TYPE_TIME_SHARE, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 'allowableFields' => [
                     'propertyType' => true, 'price' => true, 'minRentalPeriod' => true,
@@ -1314,10 +1341,36 @@ class Property extends BaseModel
             'heating_types'         => self::getLookupValues(PropertyHeatingType::class, []),
             'location_features'     => self::getLookupValues(PropertyLocationFeature::class, []),
             'add_ons'               => self::getLookupValues(PropertyAddOn::class, []),
+            'areas'                 => self::getLookupValues(PropertyArea::class, []),
             'type_codes'            => self::TYPE_CODES,
             'subtype_codes'         => self::SUBTYPE_CODES,
             'property_types_by_category' => self::getPropertyTypesByCategory(),
+            'areas_by_city'         => self::getAreasByCity(),
         ];
+    }
+
+    /**
+     * Get areas grouped by their parent city name.
+     * Returns e.g. { nicosia: [{name, label}], kyrenia: [...], ... }
+     */
+    private static function getAreasByCity(): array
+    {
+        try {
+            $areas = PropertyArea::select('property_areas.name', 'property_areas.label', 'property_cities.name as city_name')
+                ->join('property_cities', 'property_areas.city_id', '=', 'property_cities.id')
+                ->get();
+
+            if ($areas->isNotEmpty()) {
+                return $areas->groupBy('city_name')->map(function ($group) {
+                    return $group->sortBy('label', SORT_STRING | SORT_FLAG_CASE)
+                        ->map(fn($a) => ['name' => $a->name, 'label' => $a->label])->values()->toArray();
+                })->toArray();
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        return [];
     }
 
     /**
@@ -1330,7 +1383,8 @@ class Property extends BaseModel
             $types = PropertyType::select('name', 'label', 'category')->get();
             if ($types->isNotEmpty()) {
                 return $types->groupBy('category')->map(function ($group) {
-                    return $group->map(fn($t) => ['name' => $t->name, 'label' => $t->label])->values()->toArray();
+                    return $group->sortBy('label', SORT_STRING | SORT_FLAG_CASE)
+                        ->map(fn($t) => ['name' => $t->name, 'label' => $t->label])->values()->toArray();
                 })->toArray();
             }
         } catch (\Throwable) {
@@ -1340,10 +1394,8 @@ class Property extends BaseModel
         // Fallback: derive from constants
         return [
             'residential' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
-                'Villa', 'Twin Villa', 'Apartment', 'Family Home', 'Townhouse',
-                'Loft', 'Penthouse', 'Bungalow', 'Block of apartments',
-                'Complete Building', 'Abandoned Building', 'Residence',
-                'Half Construction', 'Time Share',
+                'Apartment', 'Villa', 'Semi-Detached Villa', 'Bungalow',
+                'Townhouse', 'Complete Building', 'Ruin',
             ]),
             'commercial' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
                 'Shop', 'Hotel', 'Workplace', 'Warehouse', 'Workplace for sale',
@@ -1386,7 +1438,7 @@ class Property extends BaseModel
     private static function getLookupValues(string $modelClass, array $fallback): array
     {
         try {
-            $values = $modelClass::select('name', 'label')->get()->toArray();
+            $values = $modelClass::select('name', 'label')->orderBy('label')->get()->toArray();
             if (!empty($values)) {
                 return $values;
             }
@@ -1394,8 +1446,10 @@ class Property extends BaseModel
             // fall through
         }
 
-        // Return fallback as [{name, label}] format
-        return array_map(fn($name) => ['name' => $name, 'label' => $name], $fallback);
+        // Return fallback as [{name, label}] format, sorted alphabetically
+        $items = array_map(fn($name) => ['name' => $name, 'label' => $name], $fallback);
+        usort($items, fn($a, $b) => strcasecmp($a['label'], $b['label']));
+        return $items;
     }
 
     /**
@@ -1443,7 +1497,7 @@ class Property extends BaseModel
      */
     public function scopeByUnitStyle($query, string $style)
     {
-        return $query->where('unit_style', $style);
+        return $query->whereJsonContains('unit_style', $style);
     }
 
     /**
