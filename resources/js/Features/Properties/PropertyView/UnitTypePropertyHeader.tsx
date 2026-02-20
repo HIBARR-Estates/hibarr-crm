@@ -16,7 +16,6 @@ import type {
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
 import { generatePropertySubtitle } from "@/lib/utils";
-import { Property } from "@/Types";
 
 const { Title, Text } = Typography;
 
@@ -57,17 +56,13 @@ export default function UnitTypePropertyHeader({
         .filter(Boolean)
         .join(", ");
 
-    // Generate subtitle using the same util as the property table
+    // Generate subtitle using the same util as the property table.
+    // Unit types satisfy SubtitleableRecord directly — just supply city/area from the project location.
     const subtitle = generatePropertySubtitle({
-        bedrooms: unitType.bedrooms,
-        unit_style: unitType.unit_style,
-        property_type: unitType.property_type,
-        view_types: unitType.view_types,
-        furniture_status: unitType.furniture_status,
-        primary_category: unitType.primary_category,
-        city: location?.address?.city ?? location?.name,
-        area: location?.address?.state,
-    } as Property);
+        ...unitType,
+        city: location?.address?.city ?? location?.name ?? null,
+        area: location?.address?.state ?? null,
+    });
 
     // Format price
     const currencySymbol = unitType.currency_symbol || "£";

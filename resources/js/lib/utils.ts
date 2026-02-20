@@ -207,7 +207,28 @@ export const filterProperties = (
 };
 
 /**
+ * Minimal shape accepted by generatePropertySubtitle.
+ * Both Property and DeveloperProjectUnitType satisfy this.
+ */
+export interface SubtitleableRecord {
+    bedrooms?: number | null;
+    unit_style?: string[] | null;
+    property_type?: string | null;
+    view_types?: string[] | null;
+    furniture_status?: string | null;
+    primary_category?: string | null;
+    construction_status?: string | null;
+    city?: string | null;
+    area?: string | null;
+    effective_location?: { city?: string | null; area?: string | null } | null;
+}
+
+/**
  * Generate a human-readable property subtitle using a fallthrough narrative strategy.
+ *
+ * Accepts any record that satisfies SubtitleableRecord — this includes
+ * Property, DeveloperProjectUnitType (with city/area provided), or the
+ * transformed unit-type shape from UnitTypePropertyTransformer.
  *
  * Sequence:
  *  1. The Elevated Living   – Beds + Unit Style + Property Type + View Type + Furniture
@@ -217,7 +238,9 @@ export const filterProperties = (
  *  5. The Distinction       – Primary Category + Property Type + Beds
  *  6. The Foundation        – Property Type + Location (catch-all)
  */
-export const generatePropertySubtitle = (record: Property): string | null => {
+export const generatePropertySubtitle = (
+    record: SubtitleableRecord,
+): string | null => {
     const beds = record.bedrooms;
     const unitStyle =
         Array.isArray(record.unit_style) && record.unit_style.length > 0
@@ -322,7 +345,7 @@ const formatFurniture = (status?: string | null): string | null => {
 };
 
 /** Resolve the best available location string from effective_location or direct fields */
-const resolveLocation = (record: Property): string | null => {
+const resolveLocation = (record: SubtitleableRecord): string | null => {
     const city = record.effective_location?.city ?? record.city;
     const area = record.effective_location?.area ?? record.area;
     if (city && area) return `${area}, ${city}`;

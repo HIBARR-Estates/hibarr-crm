@@ -49,7 +49,7 @@ export const PROPERTY_TABLE_COLUMNS = (
                     <div>
                         <Link href={href} className="hover:text-blue-800">
                             {title && (
-                                <div className="font-semibold text-sm text-gray-900 leading-tight">
+                                <div className="font-semibold text-sm text-gray-900 leading-tight capitalize">
                                     {truncateText(title, 50)}
                                 </div>
                             )}
