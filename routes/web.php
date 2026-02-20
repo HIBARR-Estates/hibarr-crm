@@ -1100,7 +1100,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('/{id}/available-properties', [App\Http\Controllers\DeveloperProjectController::class, 'availableProperties'])->name('available-properties');
         
         // Expose Generation
-        Route::post('/{id}/expose/generate', [App\Http\Controllers\DeveloperProjectController::class, 'generateExpose'])->name('expose.generate');
+        Route::post('/{id}/expose/generate', [App\Http\Controllers\DeveloperProjectController::class, 'generateProjectExpose'])->name('expose.generate');
+        Route::post('/{id}/expose/validate', [App\Http\Controllers\DeveloperProjectController::class, 'validateProjectExpose'])->name('expose.validate');
         
         // Project-level Assets (images, videos)
         Route::prefix('/{projectId}/assets')->name('assets.')->group(function () {
@@ -1109,7 +1110,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectAssetController::class, 'destroy'])->name('destroy');
         });
 
-        // Expose Configuration
+        // Expose Configuration (DEPRECATED - use project/unit-type expose endpoints above instead)
+        // These routes are kept for backward compatibility but will be removed in a future release.
         Route::get('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'show'])->name('expose-config.show');
         Route::put('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'upsert'])->name('expose-config.upsert');
         Route::patch('/{id}/expose-config/{section}', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'updateSection'])->name('expose-config.update-section');
@@ -1124,6 +1126,10 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::put('/{unitTypeId}', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'update'])->name('update');
             Route::delete('/{unitTypeId}', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'destroy'])->name('destroy');
             Route::post('/reorder', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'reorder'])->name('reorder');
+            
+            // Unit Type Expose Generation
+            Route::post('/{unitTypeId}/expose/generate', [App\Http\Controllers\DeveloperProjectController::class, 'generateUnitTypeExpose'])->name('expose.generate');
+            Route::post('/{unitTypeId}/expose/validate', [App\Http\Controllers\DeveloperProjectController::class, 'validateUnitTypeExpose'])->name('expose.validate');
             
             // Unit Type Assets
             Route::prefix('/{unitTypeId}/assets')->name('assets.')->group(function () {
