@@ -212,8 +212,14 @@ export const INSIDE_FEATURE_OPTIONS = [
 
 export const UNIT_TYPE_ASSET_TAGS = [
     { value: "cover", label: "Cover Photo" },
+    { value: "hero", label: "Hero" },
     { value: "interior", label: "Interior" },
     { value: "exterior", label: "Exterior" },
     { value: "floor-plan", label: "Floor Plan" },
     { value: "gallery", label: "Gallery" },
+    { value: "facilities", label: "Facilities" },
+    { value: "features", label: "Features" },
+    { value: "area", label: "Area / Location" },
+    { value: "site-plan", label: "Site Plan" },
+    { value: "footer", label: "Footer" },
 ] as const;
