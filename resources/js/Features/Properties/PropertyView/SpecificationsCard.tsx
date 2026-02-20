@@ -132,7 +132,7 @@ export default function SpecificationsCard({
     if (fields.furnitureStatus && property.furniture_status) {
         stats.push({
             label: "Furnishing",
-            value: property.furniture_status,
+            value: property?.furniture_status?.split("_").join(" "),
             icon: <HomeOutlined />,
         });
     }

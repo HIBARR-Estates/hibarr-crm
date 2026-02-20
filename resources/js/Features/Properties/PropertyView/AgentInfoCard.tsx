@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Avatar, Typography, Space, Divider } from "antd";
+import { Card, Avatar, Typography, Space, Divider, Empty } from "antd";
 import {
     UserOutlined,
     TeamOutlined,
@@ -27,7 +27,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
         >
             <div className="space-y-3">
                 {/* Added by */}
-                {property.addedBy && (
+                {property.addedBy ? (
                     <div className="flex items-center gap-3">
                         <Avatar
                             src={property.addedBy.image_url}
@@ -43,10 +43,12 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                             </Text>
                         </div>
                     </div>
+                ) : (
+                    <Empty description="No agent information available" />
                 )}
 
                 {/* Responsible agent */}
-                {property.responsibleAgent && (
+                {property.responsibleAgent ? (
                     <>
                         {property.addedBy && <Divider className="my-2" />}
                         <div className="flex items-center gap-3">
@@ -65,6 +67,8 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                             </div>
                         </div>
                     </>
+                ) : (
+                    <Empty description="No responsible agent information available" />
                 )}
 
                 <Divider className="my-2" />
