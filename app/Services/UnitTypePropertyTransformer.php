@@ -73,7 +73,7 @@ class UnitTypePropertyTransformer
             'primary_category' => $ut->primary_category ?? 'residential',
             'unit_style' => $ut->unit_style,
             'construction_status' => $project?->construction_status,
-            'sale_type' => 'sale',
+            'sale_type' => 'For Sale',
             'price' => $price,
             'currency' => $ut->currency ?? 'GBP',
 
