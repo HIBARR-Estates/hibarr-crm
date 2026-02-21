@@ -5,6 +5,7 @@ import {
     CheckCircleOutlined,
     DollarOutlined,
     EnvironmentOutlined,
+    FilePdfOutlined,
     LinkOutlined,
     ShoppingCartOutlined,
     EyeOutlined,
@@ -26,6 +27,7 @@ interface UnitTypePropertyHeaderProps {
     soldPropertyIds: number[];
     onCheckAvailability: () => void;
     onMarkAsSold: () => void;
+    onGenerateExpose?: () => void;
 }
 
 export default function UnitTypePropertyHeader({
@@ -35,6 +37,7 @@ export default function UnitTypePropertyHeader({
     soldPropertyIds,
     onCheckAvailability,
     onMarkAsSold,
+    onGenerateExpose,
 }: UnitTypePropertyHeaderProps) {
     const [copied, setCopied] = React.useState(false);
 
@@ -150,6 +153,16 @@ export default function UnitTypePropertyHeader({
                         onClick={onCheckAvailability}
                     >
                         Check Availability
+                    </Button>
+                )}
+
+                {/* Generate Expose */}
+                {onGenerateExpose && (
+                    <Button
+                        icon={<FilePdfOutlined />}
+                        onClick={onGenerateExpose}
+                    >
+                        Generate Expose
                     </Button>
                 )}
 
