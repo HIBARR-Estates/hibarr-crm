@@ -58,18 +58,18 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                 )}
 
                 {/* Responsible agent */}
-                {property.responsibleAgent ? (
+                {property.responsible_agent ? (
                     <>
-                        {property.addedBy && <Divider className="my-2" />}
+                        {property.added_by && <Divider className="my-2" />}
                         <div className="flex items-center gap-3">
                             <Avatar
-                                src={property.responsibleAgent.image_url}
+                                src={property.responsible_agent.image_url}
                                 icon={<TeamOutlined />}
                                 size="small"
                             />
                             <div className="flex-1 min-w-0">
                                 <Text className="text-sm block truncate">
-                                    {property.responsibleAgent.name}
+                                    {property.responsible_agent.name}
                                 </Text>
                                 <Text type="secondary" className="text-xs">
                                     Responsible Agent

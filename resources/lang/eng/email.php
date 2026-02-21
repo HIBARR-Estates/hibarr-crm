@@ -1,6 +1,16 @@
 <?php
 
 return array(
+    'newLead' => array(
+        'subject' => 'New lead received.',
+        'action' => 'View Lead',
+        'text' => 'A new lead has been added to your pipeline. We\'ve compiled the details below so you can stay on top of your workflow.',
+    ),
+    'dealStageUpdate'=> array(
+        'subject' => 'Deal stage updated.',
+        'action' => 'View Deal',
+        'text' => 'There has been an update regarding a deal in your pipeline. We\'ve outlined the latest changes below to help you stay coordinated with your team.',
+     ),
     'newEvent' => array(
         'subject' => 'New Event Created',
         'text' => 'We are excited to announce a new event that has been created and we would like to invite you to join us. To make it easier for you to save the date, we have attached an ICS file to this email that you can download and add to your calendar.',
