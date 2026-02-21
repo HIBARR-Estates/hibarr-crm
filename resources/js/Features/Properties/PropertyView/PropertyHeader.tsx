@@ -282,7 +282,11 @@ function PropertyHeader({
                         <Space>
                             <EnvironmentOutlined />
                             <Text>
-                                {property.area}, {property.city}
+                                {property?.area ? `${property.area}, ` : ""}
+                                {property?.city || ""}
+                                {!property?.area &&
+                                    !property?.city &&
+                                    "Location not specified"}
                             </Text>
                         </Space>
                     </div>
