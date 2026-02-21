@@ -2128,6 +2128,8 @@ class PropertyController extends AccountBaseController
             // Agent
             if ($request->filled('responsible_agent_id')) {
                 $property->responsible_agent_id = $request->responsible_agent_id;
+            } else {
+                $property->responsible_agent_id = user()->id;
             }
 
             $property->save();
