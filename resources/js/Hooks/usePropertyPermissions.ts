@@ -100,7 +100,9 @@ export function usePropertyPermissions(
         if (isAdmin) roles.push("admin");
 
         // Check if user is the creator
-        const isCreator = (property as any).added_by === userId;
+        const isCreator =
+            (property as any).added_by === userId ||
+            (property as any).added_by?.id === userId;
         if (isCreator) roles.push("creator");
 
         // Check if user is the responsible agent

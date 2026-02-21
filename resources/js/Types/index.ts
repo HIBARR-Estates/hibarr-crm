@@ -255,6 +255,7 @@ export interface Property {
     developerProject?: DeveloperProject;
     projectLocation?: ProjectLocation;
     addedBy?: User;
+    responsible_agent?: User;
     responsibleAgent?: User;
     developer_project?: { id: number; name: string } | null;
     // Computed attributes from backend
