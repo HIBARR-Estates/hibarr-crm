@@ -614,6 +614,39 @@ class Property extends BaseModel
         'display_title',
     ];
 
+    /**
+     * Customize array serialization so that:
+     * 1. The `added_by` FK is always the integer ID (Eloquent's default
+     *    serialization overwrites it with the eager-loaded User object
+     *    because the relationship method name "addedBy" snake-cases to "added_by").
+     * 2. Eager-loaded relationships are also available under their camelCase
+     *    keys (`addedBy`, `responsibleAgent`, `projectLocation`) which the
+     *    React/TypeScript frontend expects.
+     */
+    public function toArray(): array
+    {
+        $array = parent::toArray();
+
+        // Restore `added_by` to the raw integer FK (overwritten by the relationship)
+        $array['added_by'] = $this->getAttributeValue('added_by');
+
+        // Add camelCase aliases for eager-loaded relationships
+        if ($this->relationLoaded('addedBy')) {
+            $array['addedBy'] = $this->addedBy?->toArray();
+        }
+        if ($this->relationLoaded('responsibleAgent')) {
+            $array['responsibleAgent'] = $this->responsibleAgent?->toArray();
+        }
+        if ($this->relationLoaded('projectLocation')) {
+            $array['projectLocation'] = $this->projectLocation?->toArray();
+        }
+        if ($this->relationLoaded('developerProject')) {
+            $array['developerProject'] = $this->developerProject?->toArray();
+        }
+
+        return $array;
+    }
+
     // Relationships
     public function product(): BelongsTo
     {

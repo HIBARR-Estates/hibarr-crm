@@ -393,6 +393,7 @@ class ImportPropertyJob implements ShouldQueue
             $property->company_id   = $this->company?->id;
             $property->product_id   = $product->id;
             $property->added_by     = $this->userId;
+            $property->responsible_agent_id = $this->userId;
 
             // Core fields
             $property->title         = $this->getColumnValue('title');
