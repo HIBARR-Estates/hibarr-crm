@@ -137,20 +137,27 @@ class TemplateRenderer
         }
 
         try {
-            $context = stream_context_create([
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                ],
-                'http' => [
-                    'timeout' => 15,
-                    'user_agent' => 'Mozilla/5.0 HibarrCRM/1.0',
-                ],
-            ]);
+            // If the URL points to our own app, read the file directly from
+            // disk instead of making an HTTP request. This avoids DNS/loopback
+            // issues in local dev (e.g. .test domains) and is faster everywhere.
+            $contents = self::tryReadLocal($url);
 
-            $contents = @file_get_contents($url, false, $context);
+            if ($contents === null) {
+                $context = stream_context_create([
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                    ],
+                    'http' => [
+                        'timeout' => 15,
+                        'user_agent' => 'Mozilla/5.0 HibarrCRM/1.0',
+                    ],
+                ]);
 
-            if ($contents === false) {
+                $contents = @file_get_contents($url, false, $context);
+            }
+
+            if ($contents === false || $contents === null) {
                 Log::warning("Expose PDF: failed to fetch image for base64 embedding: {$url}");
                 return $url;
             }
@@ -182,5 +189,34 @@ class TemplateRenderer
             Log::warning("Expose PDF: exception converting image to base64: {$url} — " . $e->getMessage());
             return $url;
         }
+    }
+
+    /**
+     * If the URL points to this application (matches APP_URL), resolve
+     * it to a local file path under public/ and read directly from disk.
+     *
+     * Returns the file contents on success, or null if the URL is external
+     * or the file doesn't exist locally.
+     */
+    private static function tryReadLocal(string $url): ?string
+    {
+        $appUrl = rtrim(config('app.url'), '/');
+
+        // Check if the URL starts with our APP_URL
+        if (!str_starts_with($url, $appUrl)) {
+            return null;
+        }
+
+        // Strip the APP_URL prefix to get the path relative to public/
+        $relativePath = ltrim(substr($url, strlen($appUrl)), '/');
+
+        $localPath = public_path($relativePath);
+
+        if (file_exists($localPath) && is_file($localPath)) {
+            $contents = @file_get_contents($localPath);
+            return $contents !== false ? $contents : null;
+        }
+
+        return null;
     }
 }
