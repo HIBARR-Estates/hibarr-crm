@@ -51,6 +51,7 @@ interface UnitTypePropertyViewProps {
     soldPropertyIds: number[];
     onCheckAvailability: () => void;
     onMarkAsSold: () => void;
+    onGenerateExpose?: () => void;
 }
 
 // ─── Gallery Section ───
@@ -210,6 +211,7 @@ export default function UnitTypePropertyView({
     soldPropertyIds,
     onCheckAvailability,
     onMarkAsSold,
+    onGenerateExpose,
 }: UnitTypePropertyViewProps) {
     const location = developerProject.location;
 
@@ -223,6 +225,7 @@ export default function UnitTypePropertyView({
                 soldPropertyIds={soldPropertyIds}
                 onCheckAvailability={onCheckAvailability}
                 onMarkAsSold={onMarkAsSold}
+                onGenerateExpose={onGenerateExpose}
             />
 
             {/* Photo Gallery */}

@@ -3,8 +3,8 @@ import { message } from "antd";
 
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-// import UnitTypePropertyView from "@/Features/Properties/PropertyView/UnitTypePropertyView";
 import MarkAsSoldModal from "@/Features/Properties/MarkAsSoldModal";
+import GenerateUnitTypeExposeModal from "@/Features/DeveloperProjects/GenerateUnitTypeExposeModal";
 
 import type {
     DeveloperProject,
@@ -50,6 +50,7 @@ const UnitTypeShow = ({
     employees,
 }: UnitTypeShowProps) => {
     const [showMarkAsSoldModal, setShowMarkAsSoldModal] = useState(false);
+    const [showExposeModal, setShowExposeModal] = useState(false);
     const [currentSoldCount, setCurrentSoldCount] = useState(soldCount);
     const [currentSoldPropertyIds, setCurrentSoldPropertyIds] =
         useState<number[]>(soldPropertyIds);
@@ -93,6 +94,7 @@ const UnitTypeShow = ({
                         soldPropertyIds={currentSoldPropertyIds}
                         onCheckAvailability={handleCheckAvailability}
                         onMarkAsSold={handleMarkAsSold}
+                        onGenerateExpose={() => setShowExposeModal(true)}
                     />
                 </div>
             </PageLayout>
@@ -110,6 +112,14 @@ const UnitTypeShow = ({
                 deals={deals}
                 employees={employees}
                 onSuccess={handleMarkAsSoldSuccess}
+            />
+
+            <GenerateUnitTypeExposeModal
+                open={showExposeModal}
+                onClose={() => setShowExposeModal(false)}
+                projectId={developerProject.id}
+                projectName={developerProject.name}
+                unitType={unitType}
             />
         </>
     );
