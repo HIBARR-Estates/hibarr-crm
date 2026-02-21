@@ -7,6 +7,7 @@ import {
 } from "@ant-design/icons";
 import { Property, PropertyAsset } from "@/Types";
 import { router } from "@inertiajs/react";
+import { capitalizeFirstLetter } from "@/lib/utils";
 
 const { Text } = Typography;
 
@@ -55,7 +56,9 @@ export default function PropertyGallery({
     const getTag = (index: number) => {
         const asset = imageAssets[index];
         if (asset?.tags && asset.tags.length > 0) {
-            return asset.tags[0]?.split("_").join(" ")?.split("-").join(" ");
+            return capitalizeFirstLetter(
+                asset.tags[0]?.split("_").join(" ")?.split("-").join(" "),
+            );
         }
         return null;
     };

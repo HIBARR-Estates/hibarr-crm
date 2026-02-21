@@ -25,16 +25,17 @@ class TemplateRenderer
     /**
      * Render HTML from Blade template.
      *
-     * All remote image URLs (property assets, branding, company logo) are converted
-     * to base64 data URIs before rendering. This makes the HTML self-contained so
-     * Puppeteer can generate the PDF without any network/DNS/SSL dependencies.
+     * Branding assets and local app images (company logo, agent photo) are
+     * converted to base64 data URIs. Property/unit-type asset URLs are left
+     * as remote URLs for Puppeteer to fetch directly — this avoids loading
+     * all images into PHP memory and eliminates OOM errors.
      */
     public function render(ExposeConfiguration $config): string
     {
         $templatePath = $this->getTemplatePath($config);
 
-        // Embed all remote images as base64 data URIs
-        $data = $this->embedImages($config->data);
+        // Embed only local/branding images as base64; leave asset URLs for Puppeteer
+        $data = $this->prepareImages($config->data);
 
         return View::make($templatePath, [
             'config' => $config,
@@ -71,33 +72,29 @@ class TemplateRenderer
     }
 
     /**
-     * Embed all remote images in the data array as base64 data URIs.
+     * Prepare images for the template.
      *
-     * Converts:
-     * 1. Property asset URLs (hero, exterior, interior, floor-plan, etc.)
-     * 2. Company logo
-     * 3. Agent image
-     * 4. Branding images (hardcoded minio URLs → cached base64)
+     * Strategy:
+     * - Property/unit-type asset URLs (Minio): LEFT AS-IS for Puppeteer to fetch.
+     *   These are large photos and base64-encoding them causes PHP OOM errors.
+     * - Company logo & agent photo: base64 ONLY if local app URL (avoids .test/.local loopback).
+     *   If external (e.g. Minio), left as-is for Puppeteer.
+     * - Branding images: always base64, cached 24h (small static files, ~50KB each).
      */
-    private function embedImages(array $data): array
+    private function prepareImages(array $data): array
     {
-        // 1. Convert property asset URLs to base64
-        if (isset($data['assets']) && is_array($data['assets'])) {
-            foreach ($data['assets'] as $tag => $urls) {
-                if (is_array($urls)) {
-                    $data['assets'][$tag] = array_map(fn ($url) => self::urlToBase64($url), $urls);
-                }
-            }
-        }
+        // 1. Property/unit-type asset URLs — DO NOT base64 encode.
+        //    Leave them as remote URLs. Puppeteer/Chrome fetches them directly.
+        //    This is the key change that eliminates OOM errors.
 
-        // 2. Convert company logo
+        // 2. Convert company logo only if it's a local app URL
         if (!empty($data['company']['logo'])) {
-            $data['company']['logo'] = self::urlToBase64($data['company']['logo']);
+            $data['company']['logo'] = self::localUrlToBase64($data['company']['logo']);
         }
 
-        // 3. Convert agent image
+        // 3. Convert agent image only if it's a local app URL
         if (!empty($data['agent']['image'])) {
-            $data['agent']['image'] = self::urlToBase64($data['agent']['image']);
+            $data['agent']['image'] = self::localUrlToBase64($data['agent']['image']);
         }
 
         // 4. Add branding images as base64 (cached for 24 hours)
@@ -124,63 +121,126 @@ class TemplateRenderer
     }
 
     /**
+     * Convert a URL to base64 ONLY if it points to the local app (APP_URL).
+     * External URLs are returned unchanged — Puppeteer will fetch them directly.
+     *
+     * This handles the case where company logos / agent photos are served
+     * from the app itself (e.g. /user-uploads/...) and the app uses a
+     * .test domain or localhost that Puppeteer can't resolve.
+     */
+    public static function localUrlToBase64(string $url): string
+    {
+        if (str_starts_with($url, 'data:') || !str_starts_with($url, 'http')) {
+            return $url;
+        }
+
+        // Only convert if it's a local app URL
+        $contents = self::tryReadLocal($url);
+
+        if ($contents !== null) {
+            return self::contentsToDataUri($contents, $url);
+        }
+
+        // External URL (Minio, CDN, etc.) — return as-is for Puppeteer
+        return $url;
+    }
+
+    /**
      * Fetch a remote URL and return it as a base64 data URI.
+     * Used ONLY for branding assets (small, cached, ~50KB each).
      *
      * Falls back to the original URL on failure so the template
      * still renders (Puppeteer may or may not load it).
      */
     public static function urlToBase64(string $url): string
     {
-        // Skip if already a data URI or a local/relative path
         if (str_starts_with($url, 'data:') || !str_starts_with($url, 'http')) {
             return $url;
         }
 
         try {
-            $context = stream_context_create([
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                ],
-                'http' => [
-                    'timeout' => 15,
-                    'user_agent' => 'Mozilla/5.0 HibarrCRM/1.0',
-                ],
-            ]);
+            // Try local file first
+            $contents = self::tryReadLocal($url);
 
-            $contents = @file_get_contents($url, false, $context);
+            if ($contents === null) {
+                $context = stream_context_create([
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                    ],
+                    'http' => [
+                        'timeout' => 15,
+                        'user_agent' => 'Mozilla/5.0 HibarrCRM/1.0',
+                    ],
+                ]);
 
-            if ($contents === false) {
-                Log::warning("Expose PDF: failed to fetch image for base64 embedding: {$url}");
+                $contents = @file_get_contents($url, false, $context);
+            }
+
+            if ($contents === false || $contents === null) {
+                Log::warning("Expose PDF: failed to fetch branding image: {$url}");
                 return $url;
             }
 
-            // Detect MIME type from file content
-            $finfo = new \finfo(FILEINFO_MIME_TYPE);
-            $mime = $finfo->buffer($contents);
-
-            // Handle SVG files (finfo may misidentify them as text/xml or text/html)
-            if (str_ends_with($url, '.svg') || str_contains($contents, '<svg')) {
-                $mime = 'image/svg+xml';
-            }
-
-            // Fix Minio's incorrect Content-Type (returns binary/octet-stream for images)
-            if (in_array($mime, ['application/octet-stream', 'binary/octet-stream', 'text/plain'])) {
-                $ext = strtolower(pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
-                $mime = match ($ext) {
-                    'png' => 'image/png',
-                    'jpg', 'jpeg' => 'image/jpeg',
-                    'gif' => 'image/gif',
-                    'svg' => 'image/svg+xml',
-                    'webp' => 'image/webp',
-                    default => 'image/png',
-                };
-            }
-
-            return 'data:' . $mime . ';base64,' . base64_encode($contents);
+            return self::contentsToDataUri($contents, $url);
         } catch (\Exception $e) {
-            Log::warning("Expose PDF: exception converting image to base64: {$url} — " . $e->getMessage());
+            Log::warning("Expose PDF: exception converting branding image to base64: {$url} — " . $e->getMessage());
             return $url;
         }
+    }
+
+    /**
+     * Convert raw file contents to a data URI string.
+     */
+    private static function contentsToDataUri(string $contents, string $originalUrl): string
+    {
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->buffer($contents);
+
+        // Handle SVG files (finfo may misidentify them as text/xml or text/html)
+        if (str_ends_with($originalUrl, '.svg') || str_contains($contents, '<svg')) {
+            $mime = 'image/svg+xml';
+        }
+
+        // Fix incorrect MIME detection (Minio returns binary/octet-stream for images)
+        if (in_array($mime, ['application/octet-stream', 'binary/octet-stream', 'text/plain'])) {
+            $ext = strtolower(pathinfo(parse_url($originalUrl, PHP_URL_PATH), PATHINFO_EXTENSION));
+            $mime = match ($ext) {
+                'png' => 'image/png',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'svg' => 'image/svg+xml',
+                'webp' => 'image/webp',
+                default => 'image/png',
+            };
+        }
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    }
+
+    /**
+     * If the URL points to this application (matches APP_URL), resolve
+     * it to a local file path under public/ and read directly from disk.
+     *
+     * Returns the file contents on success, or null if the URL is external
+     * or the file doesn't exist locally.
+     */
+    private static function tryReadLocal(string $url): ?string
+    {
+        $appUrl = rtrim(config('app.url'), '/');
+
+        if (!str_starts_with($url, $appUrl)) {
+            return null;
+        }
+
+        $relativePath = ltrim(substr($url, strlen($appUrl)), '/');
+        $localPath = public_path($relativePath);
+
+        if (file_exists($localPath) && is_file($localPath)) {
+            $contents = @file_get_contents($localPath);
+            return $contents !== false ? $contents : null;
+        }
+
+        return null;
     }
 }
