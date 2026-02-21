@@ -47,6 +47,11 @@ export const getStatusColor = (status: string): string => {
     return colors[status] || "default";
 };
 
+export const capitalizeFirstLetter = (text: string | null = ""): string => {
+    if (!text) return "";
+    return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
 export const getPropertyTypeColor = (type: string): string => {
     const colors: Record<string, string> = {
         Villa: "purple",
