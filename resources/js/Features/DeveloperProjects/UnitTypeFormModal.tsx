@@ -90,6 +90,8 @@ interface UnitTypeFormModalProps {
     onClose: () => void;
     projectId: number;
     editingItem?: DeveloperProjectUnitType | null;
+    /** When true, the modal pre-fills from editingItem but creates a new record (duplicate flow). */
+    isDuplicating?: boolean;
     onSuccess?: () => void;
 }
 
@@ -102,10 +104,11 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     onClose,
     projectId,
     editingItem,
+    isDuplicating = false,
     onSuccess,
 }) => {
     const [form] = Form.useForm<UnitTypeFormValues>();
-    const isEditing = !!editingItem;
+    const isEditing = !!editingItem && !isDuplicating;
     const { modal, message } = App.useApp();
     const {
         isEnabled: aiEnabled,
@@ -121,7 +124,10 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     const saveForUploadRef = useRef(false);
 
     // The effective unit type is the prop (edit mode) or the locally-saved one (save & continue)
-    const effectiveUnitType = editingItem ?? localUnitType;
+    // In duplicate mode, don't use editingItem as the effective unit type — it's a new record
+    const effectiveUnitType = isDuplicating
+        ? localUnitType
+        : (editingItem ?? localUnitType);
     const effectiveUnitTypeId = effectiveUnitType?.id;
     const isEffectivelyEditing = !!effectiveUnitTypeId;
 
@@ -232,7 +238,10 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     : null,
                 has_restrictions: editingItem.has_restrictions ?? false,
                 restriction_notes: editingItem.restriction_notes,
-                reference_code: editingItem?.reference_code,
+                // Clear reference_code when duplicating — server will auto-generate
+                reference_code: isDuplicating
+                    ? null
+                    : editingItem?.reference_code,
             });
         } else if (open) {
             form.resetFields();
@@ -246,7 +255,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 inside_features: [],
             });
         }
-    }, [open, editingItem, form]);
+    }, [open, editingItem, isDuplicating, form]);
 
     // ---- Reset property_type when category changes ----
 
@@ -337,18 +346,37 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     const errorMessage =
         createMutation.error?.message || updateMutation.error?.message;
 
+    // Derive modal title
+    const modalTitle = isDuplicating
+        ? "Duplicate Unit Type"
+        : isEffectivelyEditing
+          ? "Edit Unit Type"
+          : "Add Unit Type";
+
+    // OK button always says "Create" for new/duplicate, "Update" for edit
+    const okLabel =
+        isEffectivelyEditing && !isDuplicating ? "Update" : "Create";
+
     return (
         <Modal
-            title={isEffectivelyEditing ? "Edit Unit Type" : "Add Unit Type"}
+            title={modalTitle}
             open={open}
             onOk={handleSubmit}
             onCancel={handleClose}
-            okText={isEffectivelyEditing ? "Update" : "Create"}
+            okText={okLabel}
             okButtonProps={{ loading: isLoading }}
             cancelButtonProps={{ disabled: isLoading }}
             width={1040}
             destroyOnClose
         >
+            {isDuplicating && !localUnitType && (
+                <Alert
+                    message={`Creating a copy of ${editingItem?.reference_code ? `"${editingItem.reference_code}"` : "this unit type"}. Photos are not copied.`}
+                    type="info"
+                    showIcon
+                    className="mb-4"
+                />
+            )}
             {errorMessage && (
                 <Alert
                     message={errorMessage}
