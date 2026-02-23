@@ -1448,7 +1448,8 @@ class PropertyController extends AccountBaseController
      */
     public function downloadSampleImport()
     {
-        $filename = 'property-sample-import.csv';
+        // $filename = 'property-sample-import.csv';
+        $filename = 'property-sample-import.xlsx';
         $filePath = public_path('sample-import/' . $filename);
         
         if (file_exists($filePath)) {
