@@ -10,9 +10,15 @@ import { isLoading as getLoadingStatus } from "@/lib/utils";
 
 interface Props extends IModalProps {
     lead?: Lead;
+    successCallback?: () => void;
 }
 
-const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
+const DeleteLead: React.FC<Props> = ({
+    lead,
+    onClose,
+    open,
+    successCallback,
+}) => {
     const { mutate: deleteLead, status } = useApiMutate<
         unknown,
         unknown,
@@ -28,7 +34,11 @@ const DeleteLead: React.FC<Props> = ({ lead, onClose, open }) => {
         deleteLead(undefined, {
             onSuccess: () => {
                 onClose();
-                router.reload();
+                if (successCallback) {
+                    successCallback();
+                } else {
+                    router.reload();
+                }
             },
         });
     };
