@@ -444,7 +444,7 @@ class LeadContactController extends AccountBaseController
             ];
             $leadContact->mobile = json_encode($phoneData);
         } else {
-            $leadContact->mobile = $request->mobile;
+            $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
         }
 
         if ($request->has('create_deal') && $request->create_deal == 'on') {
@@ -612,7 +612,7 @@ class LeadContactController extends AccountBaseController
             ];
             $leadContact->mobile = json_encode($phoneData);
         } else {
-            $leadContact->mobile = $request->mobile;
+            $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
         }
         $leadContact->save();
 
@@ -719,7 +719,7 @@ class LeadContactController extends AccountBaseController
                     ];
                     $leadContact->mobile = json_encode($phoneData);
                 } else {
-                    $leadContact->mobile = $request->mobile;
+                    $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
                 }
             }
             
