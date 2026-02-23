@@ -1,6 +1,7 @@
 <?php
 
 return array(
+    'importStarted'=> 'Import started. You will be notified once it is completed.',
     'availabilityRequestSent' => 'Availability request sent successfully.',
     'availabilityRequestApproved' => 'Availability request approved successfully.',
     'leadAgentNotFound' => 'No lead agent found for the selected category.',
