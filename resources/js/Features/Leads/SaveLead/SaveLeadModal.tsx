@@ -17,7 +17,7 @@ interface SaveLeadModalProps extends Omit<IModalProps, "onClose"> {
 
 const constructCustomFieldsData = (
     customFields: any[] = [],
-    custom_fields_data: Record<string, any> = {}
+    custom_fields_data: Record<string, any> = {},
 ) => {
     const data: Record<string, any> = {};
     customFields?.forEach((field) => {
@@ -43,6 +43,29 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     const isEditing = !!lead;
     const submitText = isEditing ? "Update Contact" : "Create Contact";
 
+    // Parse mobile from DB (could be JSON string, object, or plain string)
+    const parseMobile = (mobile: any) => {
+        if (!mobile) return "";
+        if (typeof mobile === "object") return mobile; // already an object (antd-phone-input format)
+        if (typeof mobile === "string") {
+            try {
+                const parsed = JSON.parse(mobile);
+                if (typeof parsed === "object" && parsed !== null) {
+                    // antd-phone-input format: {countryCode, areaCode, phoneNumber, isoCode}
+                    if ("countryCode" in parsed && "phoneNumber" in parsed) {
+                        return parsed;
+                    }
+                    // Legacy format: {phone, country_code, country_identifier}
+                    // Return empty - let user re-enter
+                    return "";
+                }
+            } catch {
+                // Not JSON, treat as plain phone string
+            }
+        }
+        return mobile;
+    };
+
     // Initialize form data
     const getInitialData = (): CreateLeadFormData => ({
         salutation:
@@ -52,7 +75,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             "",
         client_name: lead?.client_name || "",
         client_email: lead?.client_email || "",
-        mobile: lead?.mobile || "",
+        mobile: parseMobile(lead?.mobile),
         company_name: lead?.company_name || "",
         website: lead?.website || "",
         address: lead?.address || "",
