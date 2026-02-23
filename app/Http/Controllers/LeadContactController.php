@@ -960,13 +960,20 @@ class LeadContactController extends AccountBaseController
         $access = PermissionService::checkAccess(user(), 'delete_lead', $leadContact, $leadRules);
         
         if (!$access['canAccess']) {
-             if ($request->ajax() || $request->header('X-Inertia')) {
+             if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
         }
 
-        Lead::destroy($id);
+        try {
+            DB::transaction(function () use ($leadContact) {
+                $leadContact->delete();
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Failed to delete lead contact: ' . $e->getMessage());
+            return Reply::error(__('messages.deleteFailed') ?: 'Failed to delete contact. Please try again.');
+        }
 
         return Reply::success(__('messages.deleteSuccess'));
     }
