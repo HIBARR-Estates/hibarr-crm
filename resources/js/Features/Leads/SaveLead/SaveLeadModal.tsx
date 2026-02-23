@@ -17,7 +17,7 @@ interface SaveLeadModalProps extends Omit<IModalProps, "onClose"> {
 
 const constructCustomFieldsData = (
     customFields: any[] = [],
-    custom_fields_data: Record<string, any> = {}
+    custom_fields_data: Record<string, any> = {},
 ) => {
     const data: Record<string, any> = {};
     customFields?.forEach((field) => {
