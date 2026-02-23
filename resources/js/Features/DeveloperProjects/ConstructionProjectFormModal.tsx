@@ -204,7 +204,7 @@ const ConstructionProjectFormModal: React.FC<
                           (project.location as any).longitude ?? undefined,
                   }
                 : {};
-
+            console.log(project, "_____||");
             form.setFieldsValue({
                 developer_id: project.developer_id,
                 name: project.name,

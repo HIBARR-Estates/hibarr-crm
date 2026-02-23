@@ -188,6 +188,13 @@ class DeveloperProject extends BaseModel
     ];
 
     /**
+     * Hidden from serialization to avoid collision with the `unit_types` column.
+     * The `unitTypes()` HasMany relationship serializes as "unit_types" in JSON,
+     * which overwrites the column value. Pass this relationship explicitly when needed.
+     */
+    protected $hidden = ['unitTypes'];
+
+    /**
      * The attributes that should be cast.
      */
     protected $casts = [

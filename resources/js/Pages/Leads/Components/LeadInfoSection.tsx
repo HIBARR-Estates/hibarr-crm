@@ -972,8 +972,10 @@ export default function LeadInfoSection({
             <DeleteLead
                 open={action === "delete"}
                 onClose={() => {
-                    router.visit(route("lead-contact.index"));
                     handleClose();
+                }}
+                successCallback={() => {
+                    router.visit(route("lead-contact.index"));
                 }}
                 lead={currentLead || lead}
             />

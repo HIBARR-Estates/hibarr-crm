@@ -149,15 +149,36 @@ class Lead extends BaseModel
             return '--';
         }
 
-        // Clean the phone number (remove all non-numeric characters)
+        // Try to decode JSON (mobile may be stored as JSON from antd-phone-input or legacy format)
+        $decoded = json_decode($this->mobile, true);
+
+        if (is_array($decoded)) {
+            // antd-phone-input format: {countryCode, areaCode, phoneNumber, isoCode}
+            if (isset($decoded['countryCode']) && isset($decoded['phoneNumber'])) {
+                $parts = array_filter([
+                    $decoded['countryCode'],
+                    $decoded['areaCode'] ?? '',
+                    $decoded['phoneNumber'],
+                ]);
+                return '+' . implode('', $parts);
+            }
+
+            // Legacy format: {phone, country_code, country_identifier}
+            if (isset($decoded['phone'])) {
+                $cleanPhone = preg_replace('/[^0-9]/', '', $decoded['phone']);
+                return !empty($cleanPhone) ? '+' . $cleanPhone : '--';
+            }
+
+            return '--';
+        }
+
+        // Plain string phone number
         $cleanPhone = preg_replace('/[^0-9]/', '', $this->mobile);
-        
-        // If the phone number is empty after cleaning, return --
+
         if (empty($cleanPhone)) {
             return '--';
         }
 
-        // Add + prefix to match mobile phone format
         return '+' . $cleanPhone;
     }
 
