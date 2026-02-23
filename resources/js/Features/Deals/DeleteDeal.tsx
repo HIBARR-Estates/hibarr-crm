@@ -10,9 +10,15 @@ import { isLoading as getLoadingStatus } from "@/lib/utils";
 
 interface Props extends IModalProps {
     deal?: Deal;
+    handleSuccessCallback?: () => void;
 }
 
-const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
+const DeleteDeal: React.FC<Props> = ({
+    deal,
+    onClose,
+    open,
+    handleSuccessCallback,
+}) => {
     const { mutate: deleteDeal, status } = useApiMutate<
         unknown,
         unknown,
@@ -28,7 +34,11 @@ const DeleteDeal: React.FC<Props> = ({ deal, onClose, open }) => {
         deleteDeal(undefined, {
             onSuccess: () => {
                 onClose();
-                router.reload();
+                if (handleSuccessCallback) {
+                    handleSuccessCallback();
+                } else {
+                    router.reload();
+                }
             },
         });
     };

@@ -1017,8 +1017,10 @@ export default function DealInfoSection({
             <DeleteDeal
                 open={action === "delete"}
                 onClose={() => {
-                    router.visit(route("deals.index"));
                     handleClose();
+                }}
+                handleSuccessCallback={() => {
+                    router.visit(route("deals.index"));
                 }}
                 deal={currentDeal}
             />

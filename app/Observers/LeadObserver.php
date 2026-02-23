@@ -72,7 +72,14 @@ class LeadObserver
 
     public function deleted(Lead $leadContact)
     {
-        UniversalSearch::where('searchable_id', $leadContact->id)->where('module_type', 'lead')->delete();
+        try {
+            UniversalSearch::where('searchable_id', $leadContact->id)
+                ->where('module_type', 'lead')
+                ->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Log the error but don't let it block the deletion
+            \Log::warning('Failed to clean up universal_search for lead ID ' . $leadContact->id . ': ' . $e->getMessage());
+        }
     }
 
 }
