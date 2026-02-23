@@ -470,7 +470,7 @@ const Index = ({
                                                         e._source !==
                                                         "unit_type",
                                                 )
-                                                .map(({ id }) => id)}
+                                                .map(({ id }) => +id)}
                                             clearSelected={clearSelected}
                                         />
                                     )}
@@ -485,7 +485,7 @@ const Index = ({
                                     rowKey={(record) =>
                                         record._source === "unit_type"
                                             ? `ut_${record._unit_type_id}`
-                                            : `p_${record.id}`
+                                            : record.id
                                     }
                                     rowSelection={{
                                         ...rowSelection,
