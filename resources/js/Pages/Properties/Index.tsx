@@ -460,11 +460,17 @@ const Index = ({
                                     </Button>
 
                                     {/* Bulk Actions - Only show when items are selected */}
-                                    {selectedEntities.length > 0 && (
+                                    {selectedEntities.filter(
+                                        (e) => e._source !== "unit_type",
+                                    ).length > 0 && (
                                         <BulkActionSelector
-                                            selectedEntityIds={selectedEntities?.map(
-                                                ({ id }) => id,
-                                            )}
+                                            selectedEntityIds={selectedEntities
+                                                .filter(
+                                                    (e) =>
+                                                        e._source !==
+                                                        "unit_type",
+                                                )
+                                                .map(({ id }) => id)}
                                             clearSelected={clearSelected}
                                         />
                                     )}
@@ -481,7 +487,19 @@ const Index = ({
                                             ? `ut_${record._unit_type_id}`
                                             : `p_${record.id}`
                                     }
-                                    rowSelection={rowSelection}
+                                    rowSelection={{
+                                        ...rowSelection,
+                                        getCheckboxProps: (
+                                            record: Property,
+                                        ) => ({
+                                            disabled:
+                                                record._source === "unit_type",
+                                            title:
+                                                record._source === "unit_type"
+                                                    ? "Unit types cannot be selected for bulk actions"
+                                                    : undefined,
+                                        }),
+                                    }}
                                     pagination={{
                                         current: properties.current_page,
                                         total: properties.total,
