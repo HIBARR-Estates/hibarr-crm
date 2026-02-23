@@ -9,7 +9,7 @@ import PageDataSorter from "@/Components/PageDataSorter";
 import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
 
 export const LEAD_TABLE_COLUMNS = (
-    actionItems?: (item: Lead) => MenuProps["items"]
+    actionItems?: (item: Lead) => MenuProps["items"],
 ): ColumnsType<Lead> => [
     {
         title: (
@@ -25,7 +25,7 @@ export const LEAD_TABLE_COLUMNS = (
         key: "name",
         width: 250,
         render: (_, record) => (
-            <div className="space-y-1">
+            <div className="flex flex-col gap-y-1">
                 <div>
                     <Tooltip title={record.client_name}>
                         <Link
@@ -56,7 +56,7 @@ export const LEAD_TABLE_COLUMNS = (
             const mobile = formatMobileForDisplay(record.mobile);
 
             return (
-                <div className="space-y-1">
+                <div className="flex flex-col gap-y-1">
                     {email && (
                         <div className="flex items-center space-x-2">
                             <MailOutlined className="text-gray-400 text-xs" />
@@ -77,7 +77,7 @@ export const LEAD_TABLE_COLUMNS = (
                                 <a
                                     href={`tel:${mobile.replace(
                                         /[^\d+]/g,
-                                        ""
+                                        "",
                                     )}`}
                                     className="text-gray-900 hover:text-blue-600 hover:underline transition-colors duration-200 truncate max-w-full block text-sm"
                                 >
@@ -102,7 +102,9 @@ export const LEAD_TABLE_COLUMNS = (
         render: (_, record) => {
             const str = formatCountryForDisplay(record.country);
             return str ? (
-                <span className="text-gray-900 truncate max-w-full block text-sm">{str}</span>
+                <span className="text-gray-900 truncate max-w-full block text-sm">
+                    {str}
+                </span>
             ) : (
                 <span className="text-gray-400">--</span>
             );
