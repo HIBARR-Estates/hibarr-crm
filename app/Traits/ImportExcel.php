@@ -86,9 +86,24 @@ trait ImportExcel
         $importClassName = (new ReflectionClass($importClass))->getShortName();
         Log::info('Importing to queue: ' . $importClassName);
 
-        // clear previous import
-        Artisan::call('queue:clear database --queue=' . $importClassName);
-        Artisan::call('queue:flush');
+        // Clear previous import — wrapped in try-catch because the DELETE
+        // can hit a lock-wait timeout when a queue worker is still processing
+        // jobs from a previous import.
+        try {
+            Artisan::call('queue:clear', [
+                'connection' => 'database',
+                '--queue' => $importClassName,
+                '--force' => true,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning("Could not clear queue [{$importClassName}]: " . $e->getMessage());
+        }
+
+        try {
+            Artisan::call('queue:flush');
+        } catch (\Exception $e) {
+            Log::warning('Could not flush failed jobs: ' . $e->getMessage());
+        }
         // Get index of an array not null value with key
         $columns = array_filter($request->columns, function ($value) {
             return $value !== null;
