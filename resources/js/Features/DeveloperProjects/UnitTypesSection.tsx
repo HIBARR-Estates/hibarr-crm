@@ -27,6 +27,7 @@ import {
     EditOutlined,
     DeleteOutlined,
     EyeOutlined,
+    CopyOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
@@ -99,6 +100,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     const [modalOpen, setModalOpen] = useState(false);
     const [editingItem, setEditingItem] =
         useState<DeveloperProjectUnitType | null>(null);
+    const [isDuplicating, setIsDuplicating] = useState(false);
 
     const handleDelete = (unitType: DeveloperProjectUnitType) => {
         const url = route("developer-projects.unit-types.destroy", {
@@ -132,17 +134,26 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
 
     const handleEdit = (unitType: DeveloperProjectUnitType) => {
         setEditingItem(unitType);
+        setIsDuplicating(false);
+        setModalOpen(true);
+    };
+
+    const handleDuplicate = (unitType: DeveloperProjectUnitType) => {
+        setEditingItem(unitType);
+        setIsDuplicating(true);
         setModalOpen(true);
     };
 
     const handleAdd = () => {
         setEditingItem(null);
+        setIsDuplicating(false);
         setModalOpen(true);
     };
 
     const handleModalClose = () => {
         setModalOpen(false);
         setEditingItem(null);
+        setIsDuplicating(false);
     };
 
     const handleSuccess = () => {
@@ -227,7 +238,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
         {
             title: "Actions",
             key: "actions",
-            width: 100,
+            width: 130,
             align: "center",
             render: (_, record) => (
                 <Space size="small">
@@ -236,6 +247,13 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                         size="small"
                         icon={<EditOutlined />}
                         onClick={() => handleEdit(record)}
+                    />
+                    <Button
+                        type="text"
+                        size="small"
+                        icon={<CopyOutlined />}
+                        onClick={() => handleDuplicate(record)}
+                        title="Duplicate"
                     />
                     <Popconfirm
                         title="Delete this unit type?"
@@ -490,6 +508,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                 onClose={handleModalClose}
                 projectId={projectId}
                 editingItem={editingItem}
+                isDuplicating={isDuplicating}
                 onSuccess={handleSuccess}
             />
         </div>
