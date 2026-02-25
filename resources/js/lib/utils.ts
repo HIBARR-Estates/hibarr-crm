@@ -243,6 +243,7 @@ export interface SubtitleableRecord {
  *  5. The Distinction       – Primary Category + Property Type + Beds
  *  6. The Foundation        – Property Type + Location (catch-all)
  */
+
 export const generatePropertySubtitle = (
     record: SubtitleableRecord,
 ): string | null => {
@@ -267,9 +268,10 @@ export const generatePropertySubtitle = (
     const hasCategory = !!category;
     const hasConstructionStatus = !!constructionStatus;
 
-    let value: string | null = null;
+    const clean = (v: string) => v.split("_").join(" ").trim();
 
     // 1. The Elevated Living
+    // Required: Beds + Unit Style + Property Type + View Type + Furniture
     if (
         hasBeds &&
         hasUnitStyle &&
@@ -277,46 +279,85 @@ export const generatePropertySubtitle = (
         hasViewType &&
         hasFurniture
     ) {
-        value = `${beds} Bedroom ${unitStyle} ${propertyType} with ${viewType} and ${furniture} interiors`;
+        return clean(
+            `${beds} Bedroom ${unitStyle} ${propertyType} with ${viewType} and ${furniture} interiors`,
+        );
     }
 
     // 2. The Vista Narrative
-    if (hasViewType && hasUnitStyle && hasPropertyType && hasBeds) {
-        const furniturePart = hasFurniture
-            ? ` featuring ${furniture} finishes and`
-            : " with";
-        value = `${viewType} ${unitStyle} ${propertyType}${furniturePart} ${beds} Bedrooms`;
+    // Required: View Type + Unit Style + Property Type + Furniture + Beds
+    if (
+        hasViewType &&
+        hasUnitStyle &&
+        hasPropertyType &&
+        hasFurniture &&
+        hasBeds
+    ) {
+        return clean(
+            `${viewType} ${unitStyle} ${propertyType} featuring ${furniture} finishes and ${beds} Bedrooms`,
+        );
     }
 
     // 3. The Architectural Hook
+    // Required: Unit Style + Property Type + Location + Beds
+    // Furniture optional in display but included when present
     if (hasUnitStyle && hasPropertyType && hasLocation && hasBeds) {
         const furniturePart = hasFurniture ? ` and ${furniture} interiors` : "";
-        value = `${unitStyle} ${propertyType} in ${location} with ${beds} Bedrooms${furniturePart}`;
+        return clean(
+            `${unitStyle} ${propertyType} in ${location} with ${beds} Bedrooms${furniturePart}`,
+        );
     }
 
     // 4. The Setting Focus
-    if (hasPropertyType && hasViewType && hasLocation) {
-        const bedsPart = hasBeds ? ` with ${beds} Bedrooms` : "";
-        value = `${propertyType} set within ${viewType} surroundings in ${location}${bedsPart}`;
+    // Required: Property Type + View Type + Location + Beds
+    if (hasPropertyType && hasViewType && hasLocation && hasBeds) {
+        return clean(
+            `${propertyType} set within ${viewType} surroundings in ${location} with ${beds} Bedrooms`,
+        );
     }
 
-    // 5. The Distinction
-    if (hasCategory && hasPropertyType && hasBeds) {
-        const furniturePart = hasFurniture ? `${furniture} ` : "";
-        const viewPart = hasViewType ? ` capturing ${viewType}` : "";
-        value = `${furniturePart}${beds} Bedroom ${category} ${propertyType}${viewPart}`;
+    // 5. The Location Anchor
+    // Required: Location + Unit Style + Property Type + Beds + View Type
+    if (
+        hasLocation &&
+        hasUnitStyle &&
+        hasPropertyType &&
+        hasBeds &&
+        hasViewType
+    ) {
+        return clean(
+            `${location} ${unitStyle} ${propertyType} with ${beds} Bedrooms and ${viewType}`,
+        );
     }
 
-    // 6. The Foundation (catch-all)
-    if (hasPropertyType) {
-        const statusPart = hasConstructionStatus
-            ? `${constructionStatus} `
-            : "";
+    // 6. The Distinction
+    // Required: Furniture + Beds + Primary Category + Property Type + View Type
+    if (
+        hasFurniture &&
+        hasBeds &&
+        hasCategory &&
+        hasPropertyType &&
+        hasViewType
+    ) {
+        return clean(
+            `${furniture} ${beds} Bedroom ${category} ${propertyType} capturing ${viewType}`,
+        );
+    }
+
+    // 7. The Foundation (catch-all)
+    // Required: Property Type (or Construction Status) + Location
+    if (hasPropertyType || hasConstructionStatus) {
+        const typePart =
+            hasConstructionStatus && hasPropertyType
+                ? `${constructionStatus} ${propertyType}`
+                : hasConstructionStatus
+                  ? `${constructionStatus}`
+                  : `${propertyType}`;
         const locationPart = hasLocation ? ` in ${location}` : "";
-        value = `${statusPart}${propertyType}${locationPart}`;
+        return clean(`${typePart}${locationPart}`);
     }
 
-    return value?.split("_").join(" ").trim() || null;
+    return null;
 };
 
 /** Format an enum value like "studio" or "part_furnished" into "Studio" or "Part Furnished" */

@@ -363,11 +363,11 @@ function PropertyHeader({
                             </Button>
                         </Tooltip>
                     )}
-                    {onShare && (
+                    {/* {onShare && (
                         <Button icon={<ShareAltOutlined />} onClick={onShare}>
                             Share
                         </Button>
-                    )}
+                    )} */}
                     {onGenerateExpose && (
                         <Button
                             icon={<FilePdfOutlined />}

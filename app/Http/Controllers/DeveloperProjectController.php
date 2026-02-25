@@ -335,7 +335,9 @@ class DeveloperProjectController extends AccountBaseController
         if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
             $location = \App\Models\ProjectLocation::create([
                 'company_id' => user()->company_id,
-                'city' => $request->city,
+                // name is city, area
+                'name' => $request->city . ($request->area ? " - {$request->area}" : ''),
+                'city' => $request->city, 
                 'area' => $request->area,
                 'address' => $request->address,
                 'latitude' => $request->latitude,

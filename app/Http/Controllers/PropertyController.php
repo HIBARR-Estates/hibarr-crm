@@ -205,11 +205,11 @@ class PropertyController extends AccountBaseController
                 $query->orderBy($sortMapping[$sortBy], $sortDirection);
             } else {
                 // Default fallback
-                $query->orderBy('created_at', 'desc');
+                $query->orderBy('created_at', 'asc');
             }
         } else {
             // Default sorting when no sort is specified
-            $query->orderBy('created_at', 'desc');
+            $query->orderBy('created_at', 'asc');
         }
 
         $perPage = (int) $request->get('per_page', 15) ?: 15;

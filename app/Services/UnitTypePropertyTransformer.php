@@ -83,8 +83,8 @@ class UnitTypePropertyTransformer
             'published_at' => $ut->created_at,
 
             // Location (from developer project location)
-            'city' => $location?->address['city'] ?? $location?->name ?? '',
-            'area' => $location?->address['state'] ?? '',
+            'city' => $location?->city ?? $location?->address['city'] ?? $location?->name ?? '',
+            'area' => $location?->area ?? $location?->address['state'] ?? '',
 
             // Specs
             'bedrooms' => $ut->bedrooms,
@@ -117,8 +117,8 @@ class UnitTypePropertyTransformer
             'reference_code' => $ut->reference_code ?? '',
             'display_title' => $title,
             'effective_location' => [
-                'city' => $location?->address['city'] ?? $location?->name ?? null,
-                'area' => $location?->address['state'] ?? null,
+                'city' => $location?->city ?? $location?->address['city'] ?? $location?->name ?? null,
+                'area' => $location?->area ?? $location?->address['state'] ?? null,
             ],
             'has_project_location' => $project?->project_location_id !== null,
 

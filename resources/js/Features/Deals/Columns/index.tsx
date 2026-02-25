@@ -107,10 +107,13 @@ export const DEAL_TABLE_COLUMNS = (
             key: "country",
             width: 120,
             render: (_, record) => {
-                if (!record.contact) return <span className="text-gray-400">--</span>;
+                if (!record.contact)
+                    return <span className="text-gray-400">--</span>;
                 const str = formatCountryForDisplay(record.contact.country);
                 return str ? (
-                    <span className="text-gray-900 truncate max-w-full block text-sm">{str}</span>
+                    <span className="text-gray-900 truncate max-w-full block text-sm">
+                        {str}
+                    </span>
                 ) : (
                     <span className="text-gray-400">--</span>
                 );
@@ -147,7 +150,7 @@ export const DEAL_TABLE_COLUMNS = (
                 }
 
                 return (
-                    <div className="space-y-1">
+                    <div className="space-y-1 capitalize">
                         {hasContact ? (
                             <>
                                 <div className="flex items-center space-x-2">
@@ -157,7 +160,7 @@ export const DEAL_TABLE_COLUMNS = (
                                                 "lead-contact.show",
                                                 record.contact.id,
                                             )}
-                                            className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline truncate max-w-full"
+                                            className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline truncate max-w-full capitalize"
                                         >
                                             {displayName}
                                         </Link>
@@ -167,7 +170,7 @@ export const DEAL_TABLE_COLUMNS = (
                                     <Tooltip
                                         title={record.contact.company_name}
                                     >
-                                        <div className="text-xs text-gray-500 truncate max-w-full">
+                                        <div className="text-xs text-gray-500 truncate max-w-full capitalize">
                                             {record.contact.company_name}
                                         </div>
                                     </Tooltip>

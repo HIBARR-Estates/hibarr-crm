@@ -53,8 +53,8 @@ export default function UnitTypePropertyHeader({
 
     const location = developerProject.location;
     const cityArea = [
-        location?.address?.city ?? location?.name,
-        location?.address?.state,
+        location?.city ?? location?.address?.city ?? location?.name,
+        location?.area ?? location?.address?.city ?? location?.address?.state,
     ]
         .filter(Boolean)
         .join(", ");
@@ -63,8 +63,14 @@ export default function UnitTypePropertyHeader({
     // Unit types satisfy SubtitleableRecord directly — just supply city/area from the project location.
     const subtitle = generatePropertySubtitle({
         ...unitType,
-        city: location?.address?.city ?? location?.name ?? null,
-        area: location?.address?.state ?? null,
+        construction_status: developerProject.construction_status,
+        city:
+            location?.city ?? location?.address?.city ?? location?.name ?? null,
+        area:
+            location?.area ??
+            location?.address?.city ??
+            location?.address?.state ??
+            null,
     });
 
     // Format price
