@@ -112,6 +112,10 @@ export interface Airport {
 export interface ProjectLocation {
     id: number;
     company_id: number;
+    //
+    city?: string;
+    area?: string;
+    //
     name: string;
     description: string | null;
     address: LocationAddress | null;

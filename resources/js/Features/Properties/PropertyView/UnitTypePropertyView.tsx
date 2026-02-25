@@ -29,6 +29,8 @@ import type {
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
 import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
+import { capitalizeFirstLetter } from "@/lib/utils";
+import dayjs from "dayjs";
 // import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
 
 const { Text, Paragraph } = Typography;
@@ -73,7 +75,7 @@ function UnitTypeGallery({ assets }: { assets: MergedAsset[] }) {
     const getTag = (index: number) => {
         const asset = imageAssets[index];
         if (asset?.tags && asset.tags.length > 0) {
-            return asset.tags[0];
+            return capitalizeFirstLetter(asset.tags[0]);
         }
         return null;
     };
@@ -318,7 +320,9 @@ export default function UnitTypePropertyView({
                                     )}
                                 {unitType.completion_date && (
                                     <Descriptions.Item label="Completion Date">
-                                        {unitType.completion_date}
+                                        {dayjs(unitType.completion_date).format(
+                                            "DD-MM-YYYY",
+                                        )}
                                     </Descriptions.Item>
                                 )}
                                 {unitType.military_base_distance_km != null && (
@@ -552,7 +556,9 @@ export default function UnitTypePropertyView({
                                 )}
                                 {developerProject.completion_date && (
                                     <Descriptions.Item label="Project Completion">
-                                        {developerProject.completion_date}
+                                        {dayjs(
+                                            developerProject.completion_date,
+                                        ).format("DD-MM-YYYY")}
                                     </Descriptions.Item>
                                 )}
                                 {developerProject.title_deed_type && (
