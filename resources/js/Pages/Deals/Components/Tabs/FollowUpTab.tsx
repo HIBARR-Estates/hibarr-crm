@@ -118,6 +118,32 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
         );
     };
 
+    const renderSummaryLink = (record: DealFollowup) => {
+        // Office, phone, and physical meetings don't have meeting summaries
+            const nonVideoMeetingLocations = ['office', 'phone', 'physical'];
+            if (nonVideoMeetingLocations.includes(record.location) || !record.meeting_link) {
+                return <span className="text-gray-500">--</span>;
+            }else{
+                if (record.meeting_summary) {
+                    return (
+                        <Button
+                            type="link"
+                            size="small"
+                            className="text-green-600 hover:text-green-800 p-0 h-auto whitespace-nowrap"
+                            onClick={() => handleAction("view", record)}
+                        >
+                            View Summary
+                        </Button>
+                    );
+                }
+                return (
+                    <Tag color="orange" className="text-xs whitespace-nowrap">
+                        Pending
+                    </Tag>
+                );
+            }
+    }
+
     const columns: ColumnsType<DealFollowup> = [
         {
             title: "Meeting Date",
@@ -160,7 +186,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             dataIndex: "meeting_link",
             key: "meeting_link",
             width: 150,
-            render: (_, record) => renderMeetingLink(record),
+            render: (_, record) => record?.meeting_summary ? renderSummaryLink(record) : renderMeetingLink(record),
         },
         {
             title: "Status",
@@ -179,31 +205,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             title: "Summary Status",
             key: "summary_status",
             width: 140,
-           render: (_, record) => {
-            // Office, phone, and physical meetings don't have meeting summaries
-            const nonVideoMeetingLocations = ['office', 'phone', 'physical'];
-            if (nonVideoMeetingLocations.includes(record.location) || !record.meeting_link) {
-                return <span className="text-gray-500">--</span>;
-            }else{
-                if (record.meeting_summary) {
-                    return (
-                        <Button
-                            type="link"
-                            size="small"
-                            className="text-green-600 hover:text-green-800 p-0 h-auto whitespace-nowrap"
-                            onClick={() => handleAction("view", record)}
-                        >
-                            View Summary
-                        </Button>
-                    );
-                }
-                return (
-                    <Tag color="orange" className="text-xs whitespace-nowrap">
-                        Pending
-                    </Tag>
-                );
-            }
-        }
+           render: (_, record) => renderSummaryLink(record),
         },
 
         {
