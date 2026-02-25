@@ -146,8 +146,9 @@ export const PROPERTY_TABLE_COLUMNS = (
         width: 150,
         render: (_, record: Property) => {
             // Use effective_location which derives from project location or falls back to direct values
-            const city = record.city ?? record.effective_location?.city ?? "";
-            const area = record?.area ?? record.effective_location?.area ?? "";
+            const city = record.city ?? record.effective_location?.city ?? "--";
+            const area =
+                record?.area ?? record.effective_location?.area ?? "--";
             return (
                 <div>
                     <div className="font-medium">{city}</div>
@@ -160,11 +161,14 @@ export const PROPERTY_TABLE_COLUMNS = (
         title: "Visibility",
         key: "publish_status",
         width: 120,
-        render: (_, record: Property) => (
-            <Tag color={record.is_published ? "green" : "orange"}>
-                {record.is_published ? "Published" : "Draft"}
-            </Tag>
-        ),
+        render: (_, record: Property) =>
+            isUnitType(record) ? (
+                <span>--</span>
+            ) : (
+                <Tag color={record.is_published ? "green" : "orange"}>
+                    {record.is_published ? "Published" : "Draft"}
+                </Tag>
+            ),
     },
     {
         title: "Status",
