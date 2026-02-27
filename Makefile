@@ -67,6 +67,8 @@ PROTO_DIR := proto
 PROTO_OUT := app/Grpc/Generated
 PROTOC := protoc
 
+.PHONY: proto proto-clean rr-install rr-serve rr-serve-prod rr-stop rr-workers
+
 # Generate PHP classes from .proto files
 proto:
 	@echo "Generating PHP classes from Protocol Buffer definitions..."
@@ -190,6 +192,8 @@ deploy-production:
 build-artifact:
 	@if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
 	php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
+	$(MAKE) proto
+	php composer.phar dump-autoload --optimize
 	npm install
 	php artisan ziggy:generate
 	npm run production
