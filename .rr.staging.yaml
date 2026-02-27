@@ -19,6 +19,7 @@ server:
 grpc:
   listen: "tcp://0.0.0.0:9001"
   proto:
+    - "proto/common.proto"
     - "proto/deal.proto"
     - "proto/lead.proto"
     - "proto/property.proto"
