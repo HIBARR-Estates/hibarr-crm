@@ -1,0 +1,44 @@
+version: "3"
+
+# RoadRunner Server Configuration for HiBarr CRM gRPC Services — STAGING
+#
+# Differences from development (.rr.yaml):
+#   - gRPC + status bind to 127.0.0.1 (nginx terminates TLS and proxies)
+#   - Production-grade logging (warn level, JSON encoding)
+#   - Worker pool tuned for staging server resources
+#
+# Managed via systemd: sudo systemctl start|stop|restart roadrunner-grpc
+
+server:
+  command: "php worker.php"
+  relay: pipes
+
+# gRPC Plugin Configuration
+# Bound to loopback — nginx reverse-proxies from port 443 with TLS.
+grpc:
+  listen: "tcp://127.0.0.1:9001"
+  proto:
+    - "proto/deal.proto"
+    - "proto/lead.proto"
+    - "proto/property.proto"
+    - "proto/task.proto"
+  pool:
+    num_workers: 4
+    max_jobs: 500
+    allocate_timeout: 60s
+    destroy_timeout: 60s
+
+# Health Check / Status Plugin — loopback only
+status:
+  address: "127.0.0.1:2114"
+
+# Logging Configuration — production-grade
+logs:
+  mode: production
+  level: warn
+  encoding: json
+  output: stderr
+
+# RPC for internal communication (worker resets, metrics, etc.)
+rpc:
+  listen: "tcp://127.0.0.1:6001"
