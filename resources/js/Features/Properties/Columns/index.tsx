@@ -150,9 +150,9 @@ export const PROPERTY_TABLE_COLUMNS = (
             const area =
                 record?.area ?? record.effective_location?.area ?? "--";
             return (
-                <div>
-                    <div className="font-medium">{city}</div>
-                    <div className="text-xs text-gray-500">{area}</div>
+                <div className="capitalize">
+                    <p className="font-medium">{city}</p>
+                    <p className="text-xs text-gray-500">{area}</p>
                 </div>
             );
         },
