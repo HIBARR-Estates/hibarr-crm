@@ -104,9 +104,17 @@ pipeline {
                             if systemctl list-units --type=service | grep -q roadrunner-grpc; then
                                 sudo systemctl restart roadrunner-grpc || true
                                 echo 'RoadRunner gRPC service restarted'
+                                
+                                # Wait for workers to allocate, then verify health
+                                sleep 5
+                                if curl -sf http://127.0.0.1:2114/health > /dev/null 2>&1; then
+                                    echo 'gRPC health check: PASSED'
+                                else
+                                    echo 'WARNING: gRPC health check failed. Check: journalctl -u roadrunner-grpc -n 50'
+                                fi
                             else
-                                echo 'WARNING: roadrunner-grpc service not found. Please create systemd service.'
-                                echo 'See: /etc/systemd/system/roadrunner-grpc.service'
+                                echo 'WARNING: roadrunner-grpc service not found.'
+                                echo 'Run once: sudo bash ${LIVE_LINK}/scripts/setup-grpc-staging.sh YOUR_GRPC_DOMAIN'
                             fi
 
                             echo 'Deployment Successful!'

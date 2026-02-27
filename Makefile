@@ -112,6 +112,11 @@ rr-workers:
 # RoadRunner Linux Commands (Production)
 # ------------------------------------
 
+# Start RoadRunner server (staging) - Linux
+# Uses .rr.staging.yaml which binds to 127.0.0.1 (nginx fronts with TLS)
+rr-serve-staging:
+	./rr serve -c .rr.staging.yaml
+
 # Start RoadRunner server (development) - Linux
 rr-serve-linux:
 	./rr serve -c .rr.yaml
@@ -198,3 +203,33 @@ finalize-deploy:
 	php artisan cache:clear
 	php artisan config:clear
 	php artisan route:clear
+
+# ------------------------------------
+# gRPC Server Setup (one-time on staging/prod)
+# ------------------------------------
+
+# Install the systemd service unit for RoadRunner gRPC
+setup-grpc-service:
+	@echo "Installing RoadRunner gRPC systemd service..."
+	sudo cp scripts/roadrunner-grpc.service /etc/systemd/system/roadrunner-grpc.service
+	sudo systemctl daemon-reload
+	sudo systemctl enable roadrunner-grpc
+	@echo "Service installed. Start with: sudo systemctl start roadrunner-grpc"
+
+# Install the nginx gRPC reverse proxy config
+# Usage: make setup-grpc-nginx DOMAIN=grpc.staging.example.com
+setup-grpc-nginx:
+	@if [ -z "$(DOMAIN)" ]; then echo "ERROR: DOMAIN required. Usage: make setup-grpc-nginx DOMAIN=grpc.staging.example.com"; exit 1; fi
+	@echo "Installing nginx gRPC proxy config for $(DOMAIN)..."
+	sed 's/grpc\.staging\.YOURDOMAIN\.com/$(DOMAIN)/g' scripts/nginx-grpc-staging.conf \
+		| sudo tee /etc/nginx/sites-available/grpc-staging > /dev/null
+	sudo ln -sf /etc/nginx/sites-available/grpc-staging /etc/nginx/sites-enabled/
+	sudo nginx -t
+	sudo systemctl reload nginx
+	@echo "Nginx configured. Run: sudo certbot --nginx -d $(DOMAIN)"
+
+# Health check — verifies gRPC server is responding
+grpc-health:
+	@curl -sf http://127.0.0.1:2114/health > /dev/null 2>&1 \
+		&& echo "gRPC health: OK" \
+		|| (echo "gRPC health: FAILED" && exit 1)
