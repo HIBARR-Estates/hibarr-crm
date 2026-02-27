@@ -9,6 +9,7 @@
 use Spiral\RoadRunner\Worker;
 use Spiral\RoadRunner\GRPC\Server;
 use Spiral\RoadRunner\GRPC\Invoker;
+use App\Grpc\Interceptors\AuthenticatingInvoker;
 use App\Grpc\Interfaces\DealServiceInterface;
 use App\Grpc\Interfaces\LeadServiceInterface;
 use App\Grpc\Interfaces\PropertyServiceInterface;
@@ -27,7 +28,13 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 $worker = Worker::create();
 
-$server = new Server(new Invoker(), [
+// Wrap the default Invoker with the authenticating decorator.
+// Every gRPC call is validated (x-api-token + x-company-id) before
+// reaching the service handler. The validated company_id is injected
+// into the context as 'authenticated_company_id'.
+$invoker = new AuthenticatingInvoker(new Invoker());
+
+$server = new Server($invoker, [
     'debug' => config('app.debug', false),
 ]);
 
