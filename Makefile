@@ -76,7 +76,6 @@ proto:
 	$(PROTOC) \
 		--proto_path=$(PROTO_DIR) \
 		--php_out=$(PROTO_OUT) \
-		--experimental_allow_proto3_optional \
 		$(PROTO_DIR)/common.proto $(PROTO_DIR)/deal.proto $(PROTO_DIR)/lead.proto $(PROTO_DIR)/property.proto $(PROTO_DIR)/task.proto
 	@if [ -d "$(PROTO_OUT)/App/Grpc/Generated" ]; then \
 		cp -r $(PROTO_OUT)/App/Grpc/Generated/* $(PROTO_OUT)/ && \
