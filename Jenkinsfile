@@ -59,9 +59,8 @@ pipeline {
                             # Run Build via Makefile
                             make build-artifact
                             
-                            echo 'Step 1b: gRPC Setup...'                            # Generate PHP classes from Protocol Buffer definitions
-                            make proto
-                            
+                            echo 'Step 1b: gRPC binary setup...'
+                            # Proto classes already generated in build-artifact (make proto + autoload refresh)
                             # Install RoadRunner binary for Linux
                             make rr-install
                             chmod +x ./rr
