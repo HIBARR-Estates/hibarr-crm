@@ -194,6 +194,7 @@ finalize-deploy:
 	$(MAKE) ensure-storage
 	php artisan migrate --force
 	php artisan queue:restart
+	php artisan translations:clear
 	# Clear old junk but do NOT cache yet (Jenkins does that after the symlink switch)
 	php artisan cache:clear
 	php artisan config:clear

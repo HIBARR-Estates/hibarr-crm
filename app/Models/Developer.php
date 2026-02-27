@@ -24,6 +24,8 @@ class Developer extends BaseModel
         'name',
         'logo_url',
         'description',
+        'project_list',
+        'whatsapp_group_link',
     ];
 
     /**
@@ -33,6 +35,7 @@ class Developer extends BaseModel
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'project_list' => 'array',
     ];
 
     /**

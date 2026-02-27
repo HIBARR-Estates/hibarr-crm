@@ -110,7 +110,13 @@ class PropertyDuplicateService
         $projectLocationId = $data['project_location_id'] ?? null;
         $propertyType = $this->normalizeIdentifier($data['property_type'] ?? '');
         $primaryCategory = $this->normalizeIdentifier($data['primary_category'] ?? '');
-        $unitStyle = $this->normalizeIdentifier($data['unit_style'] ?? '');
+        $unitStyleArr = $data['unit_style'] ?? [];
+        if (is_string($unitStyleArr)) {
+            $decoded = json_decode($unitStyleArr, true);
+            $unitStyleArr = is_array($decoded) ? $decoded : ($unitStyleArr ? [$unitStyleArr] : []);
+        }
+        sort($unitStyleArr);
+        $unitStyle = $this->normalizeIdentifier(implode(',', $unitStyleArr));
         $blockName = $this->normalizeIdentifier($data['block_name'] ?? '');
         $unitNumber = $this->normalizeIdentifier($data['unit_number'] ?? '');
 
@@ -161,7 +167,16 @@ class PropertyDuplicateService
         $projectLocationId = $data['project_location_id'] ?? null;
         $propertyType = $this->normalizeIdentifier($data['property_type'] ?? '');
         $primaryCategory = $this->normalizeIdentifier($data['primary_category'] ?? '');
-        $unitStyle = $this->normalizeIdentifier($data['unit_style'] ?? '');
+        $unitStyleArr = $data['unit_style'] ?? [];
+        if (is_string($unitStyleArr)) {
+            $decoded = json_decode($unitStyleArr, true);
+            $unitStyleArr = is_array($decoded) ? $decoded : ($unitStyleArr ? [$unitStyleArr] : []);
+        }
+        if (!is_array($unitStyleArr)) {
+            $unitStyleArr = $unitStyleArr ? [$unitStyleArr] : [];
+        }
+        sort($unitStyleArr);
+        $unitStyle = $this->normalizeIdentifier(implode(',', $unitStyleArr));
         $blockName = $this->normalizeIdentifier($data['block_name'] ?? '');
         $unitNumber = $this->normalizeIdentifier($data['unit_number'] ?? '');
 
@@ -206,7 +221,13 @@ class PropertyDuplicateService
         return $candidates->filter(function (Property $candidate) use ($propertyType, $primaryCategory, $unitStyle, $blockName, $unitNumber) {
             $candidateType = $this->normalizeIdentifier($candidate->property_type);
             $candidateCategory = $this->normalizeIdentifier($candidate->primary_category);
-            $candidateStyle = $this->normalizeIdentifier($candidate->unit_style);
+            // Normalize candidate unit_style array
+            $candidateStyleArr = $candidate->unit_style ?? [];
+            if (!is_array($candidateStyleArr)) {
+                $candidateStyleArr = $candidateStyleArr ? [$candidateStyleArr] : [];
+            }
+            sort($candidateStyleArr);
+            $candidateStyle = $this->normalizeIdentifier(implode(',', $candidateStyleArr));
             $candidateBlock = $this->normalizeIdentifier($candidate->block_name);
             $candidateUnit = $this->normalizeIdentifier($candidate->unit_number);
 

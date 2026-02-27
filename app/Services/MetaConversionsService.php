@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Deal;
+
 use GuzzleHttp\Client;
+use App\Models\Deal;
+use App\Models\LeadMarketing;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -141,9 +143,13 @@ class MetaConversionsService
     protected function buildPayload(string $eventName, float $value, Deal $deal): array
     {
         $contact = $deal->contact;
+        $leadMarketing = $contact->leadMarketing;
         
         // Prepare user data with hashed PII
         $userData = [];
+
+        //Add External ID 
+        $userData['external_id'] =  $contact->id;
 
         // Hash email if available
         if ($contact && !empty($contact->client_email)) {
@@ -158,6 +164,57 @@ class MetaConversionsService
                 $userData['ph'] = hash('sha256', $phone);
             }
         }
+        //Add Gender if available
+        if ($contact && !empty($contact->gender)) {
+            $userData['gender'] =  $contact->gender;
+        }
+
+        //Add Date of Birth if available
+        if ($contact && !empty($contact->date_of_birth)) {
+            $userData['db'] =  hash('sha256', $contact->date_of_birth);
+        }
+        //Add Country if available (Meta expects 2-letter ISO, hashed)
+        if ($contact && !empty($contact->country_iso)) {
+            $userData['country'] = hash('sha256', strtolower($contact->country_iso));
+        }
+        //Add Zip Code if available
+        if ($contact && !empty($contact->postal_code)) {
+            $userData['zp'] =  hash('sha256', $contact->postal_code);
+        }
+        //Add city if available
+        if ($contact && !empty($contact->city)) {
+            $userData['ct'] =  hash('sha256', $contact->city);
+        }
+        //Add state if available
+        if ($contact && !empty($contact->state)) {
+            $userData['st'] =  hash('sha256', $contact->state);
+        }
+
+        // Add Facebook browser ID if available
+        if ($leadMarketing && !empty($leadMarketing->facebook_browser_id)) {
+            $userData['fbp'] =  $leadMarketing->facebook_browser_id;
+        }
+
+        // Add Facebook ClickID if available
+        if ($leadMarketing && !empty($leadMarketing->facebook_click_id)) {
+            $userData['fbc'] =  $leadMarketing->facebook_click_id;
+        }
+
+        // Add Facebook LeadID if available
+        if ($leadMarketing && !empty($leadMarketing->facebook_lead_id)) {
+            $userData['lead_id'] =  $leadMarketing->facebook_lead_id;
+        }
+
+        // Add user agent if available
+        if ($leadMarketing && !empty($leadMarketing->user_agent)) {
+            $userData['client_user_agent'] =  $leadMarketing->user_agent;
+        }
+
+        // Add IP address if available
+        if ($leadMarketing && !empty($leadMarketing->ip_address)) {
+            $userData['client_ip_address'] =  $leadMarketing->ip_address;
+        }
+
 
         // Add client name if available (hashed)
         if ($contact && !empty($contact->client_name)) {

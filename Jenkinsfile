@@ -109,6 +109,10 @@ pipeline {
                                 echo 'See: /etc/systemd/system/roadrunner-grpc.service'
                             fi
 
+                            echo 'Step 7: Cleanup old deployments...'
+                            cd /home/$TARGET_USER/deployments
+                            ls -dt ${ENV_NAME}_build_* | tail -n +6 | xargs rm -rf || true
+
                             echo 'Deployment Successful!'
                         "
                     '''

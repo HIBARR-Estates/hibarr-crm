@@ -32,14 +32,17 @@ import { DeveloperProject } from "./developerProject";
 // ================================================================
 
 // Primary Category
-export type PrimaryCategory = "residential" | "commercial" | "land";
+export type PrimaryCategory =
+    | "residential"
+    | "commercial"
+    | "land"
+    | "construction_project";
 
-// Unit Style (Subtype)
+// Unit Style (Subtype) — multi-select
 export type UnitStyle =
-    | "standard"
     | "penthouse"
     | "loft"
-    | "garden"
+    | "garden_apartment"
     | "duplex"
     | "triplex"
     | "studio";
@@ -108,6 +111,10 @@ export interface OwnerInfo {
     email?: string;
     key_holder_name?: string;
     key_holder_phone?: string;
+    /** Land-only fields */
+    agent_responsible?: string;
+    allow_101evler_publish?: boolean;
+    allow_hangiev_publish?: boolean;
 }
 
 export interface LegalInfo {
@@ -119,6 +126,15 @@ export interface LegalInfo {
     vat_amount?: number;
     trafo_paid?: boolean;
     stopaj_paid?: boolean;
+    /** Land-only fields */
+    development_rate?: number;
+    max_floor_permission?: number;
+    has_payment_plan?: boolean;
+    downpayment_value?: number;
+    downpayment_is_percentage?: boolean;
+    payment_period_months?: number;
+    interest_rate?: number;
+    payment_plan_notes?: string;
 }
 
 export interface FinancialInfo {
@@ -130,11 +146,12 @@ export interface FinancialInfo {
 }
 
 export interface DocumentsChecklist {
-    search_document?: boolean;
-    sales_agreement?: boolean;
-    title_deed_copy?: boolean;
-    owner_passport?: boolean;
-    site_plan?: boolean;
+    onboarding_contract_url?: string;
+    search_document_url?: string;
+    sales_agreement_url?: string;
+    title_deed_copy_url?: string;
+    owner_passport_url?: string;
+    site_plan_url?: string;
 }
 
 export interface Distances {
@@ -142,6 +159,8 @@ export interface Distances {
     hospital_km?: number;
     market_km?: number;
     schools_km?: number;
+    airport_km?: number;
+    beach_km?: number;
 }
 
 export interface LandDetails {
@@ -163,12 +182,13 @@ export interface Property {
     id: number;
     product_id: number;
     developer_project_id?: number | null;
+    developer_project_unit_type_id?: number | null;
     project_location_id?: number | null;
     added_by?: number | null;
     responsible_agent_id?: number | null;
     property_type: PropertyType;
     primary_category?: PrimaryCategory;
-    unit_style?: UnitStyle;
+    unit_style?: UnitStyle[];
     construction_status?: ConstructionStatus;
     sale_type: "sale" | "rent";
     price: number;
@@ -199,6 +219,8 @@ export interface Property {
     completion_date?: string;
     is_furnished: boolean;
     within_site: boolean;
+    associated_construction_company?: string | null;
+    associated_construction_company_project?: string | null;
     view_types?: ViewType[];
     distances?: Distances;
     exterior_features?: string[];
@@ -212,6 +234,7 @@ export interface Property {
     tour_360_url?: string;
     map?: any;
     land_size?: number;
+    land_size_donum?: number;
     living_area_sqm?: number;
     terrace_area_sqm?: number;
     living_room?: number;
@@ -232,7 +255,9 @@ export interface Property {
     developerProject?: DeveloperProject;
     projectLocation?: ProjectLocation;
     addedBy?: User;
+    responsible_agent?: User;
     responsibleAgent?: User;
+    developer_project?: { id: number; name: string } | null;
     // Computed attributes from backend
     reference_code: string;
     display_title: string;
@@ -241,6 +266,15 @@ export interface Property {
         area: string | null;
     };
     has_project_location: boolean;
+
+    // ── Unit Type source discriminator fields ──
+    // Present when the row originates from a DeveloperProjectUnitType
+    _source?: "property" | "unit_type";
+    _unit_type_id?: number;
+    _developer_project_id?: number;
+    _developer_project_name?: string;
+    _sold_count?: number;
+    _sold_property_ids?: number[];
 }
 
 // Project Location (simplified reference)
@@ -268,6 +302,7 @@ export interface User {
 export type PropertyType =
     | "Villa"
     | "Twin Villa"
+    | "Semi-Detached Villa"
     | "Apartment"
     | "Family Home"
     | "Townhouse"
@@ -278,6 +313,7 @@ export type PropertyType =
     | "Block of apartments"
     | "Complete Building"
     | "Abandoned Building"
+    | "Ruin"
     | "Residence"
     | "Half Construction"
     | "Time Share"
@@ -326,23 +362,37 @@ export type FurnitureStatus =
 // Property Enum Values Interface (from backend)
 // ================================================================
 
+/** A single lookup value from the database */
+export interface LookupValue {
+    name: string;
+    label: string;
+}
+
 export interface PropertyEnumValues {
-    primary_categories: PrimaryCategory[];
-    unit_styles: UnitStyle[];
-    construction_statuses: ConstructionStatus[];
-    view_types: ViewType[];
-    occupancy_types: OccupancyType[];
-    cities: City[];
-    deed_types: DeedType[];
-    deed_statuses: DeedStatus[];
-    land_types: LandType[];
-    outside_features: string[];
-    inside_features: string[];
-    furniture_statuses: string[];
-    sale_types: string[];
-    statuses: string[];
+    primary_categories: LookupValue[];
+    unit_styles: LookupValue[];
+    construction_statuses: LookupValue[];
+    view_types: LookupValue[];
+    occupancy_types: LookupValue[];
+    cities: LookupValue[];
+    areas: LookupValue[];
+    deed_types: LookupValue[];
+    deed_statuses: LookupValue[];
+    land_types: LookupValue[];
+    outside_features: LookupValue[];
+    inside_features: LookupValue[];
+    property_types: LookupValue[];
+    floor_types: LookupValue[];
+    furniture_statuses: LookupValue[];
+    sale_types: LookupValue[];
+    statuses: LookupValue[];
+    heating_types: LookupValue[];
+    location_features: LookupValue[];
+    add_ons: LookupValue[];
     type_codes: Record<string, string>;
     subtype_codes: Record<string, string>;
+    property_types_by_category: Record<string, LookupValue[]>;
+    areas_by_city: Record<string, LookupValue[]>;
 }
 
 // Product Interface
@@ -707,4 +757,36 @@ export interface ShowCriterion {
     reference_value: string;
     negate: boolean;
     reference_field?: CustomField; // Populated from backend
+}
+
+// ================================================================
+// Property Availability Request
+// ================================================================
+
+export interface PropertyAvailabilityRequest {
+    id: number;
+    property_id: number;
+    requesting_agent_id: number;
+    responsible_agent_id?: number;
+    status: "pending" | "approved" | "denied" | "escalated" | "expired";
+    message: string | null;
+    response_message: string | null;
+    responded_at: string | null;
+    escalated_at: string | null;
+    expires_at: string | null;
+    created_at: string;
+    updated_at: string;
+    property?: Pick<
+        Property,
+        | "id"
+        | "title"
+        | "reference_code"
+        | "city"
+        | "area"
+        | "status"
+        | "property_type"
+        | "sale_type"
+    >;
+    requesting_agent?: User;
+    responsible_agent?: User;
 }

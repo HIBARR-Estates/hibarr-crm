@@ -22,10 +22,18 @@ class PdfGenerator
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
             ->format('a4')
             ->orientation($orientation)
-            ->withBrowsershot(function ($browsershot) { // Configure Puppeteer options
+            ->withBrowsershot(function ($browsershot) {
                 $browsershot->noSandbox();
                 $browsershot->disableSetuidSandbox();
-                $browsershot->setOption('args', ['--disable-dev-shm-usage']);
+                $browsershot->setOption('args', [
+                    '--disable-dev-shm-usage',
+                    '--ignore-certificate-errors',
+                    '--allow-running-insecure-content',
+                ]);
+                // Wait for all remote images (including CSS background-image) to load
+                $browsershot->waitUntilNetworkIdle();
+                $browsershot->setDelay(1500);
+                $browsershot->timeout(60);
             })
             ->margins(10, 10, 10, 10);
 
@@ -76,7 +84,15 @@ class PdfGenerator
             ->withBrowsershot(function ($browsershot) {
                 $browsershot->noSandbox();
                 $browsershot->disableSetuidSandbox();
-                $browsershot->setOption('args', ['--disable-dev-shm-usage']);
+                $browsershot->setOption('args', [
+                    '--disable-dev-shm-usage',
+                    '--ignore-certificate-errors',
+                    '--allow-running-insecure-content',
+                ]);
+                // Wait for all remote images (including CSS background-image) to load
+                $browsershot->waitUntilNetworkIdle();
+                $browsershot->setDelay(1500);
+                $browsershot->timeout(60);
             })
             ->margins(10, 10, 10, 10)
             ->name($filename)

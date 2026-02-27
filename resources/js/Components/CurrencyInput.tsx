@@ -23,6 +23,7 @@ interface Props {
     optional?: boolean;
     disabled?: boolean;
     noFormItem?: boolean; // When true, don't wrap with Form.Item (for use in CustomFieldRenderer)
+    defaultCurrency?: string; // Override the page-level default currency code (e.g. "GBP")
 }
 
 interface CurrencyData {
@@ -42,13 +43,18 @@ const CurrencyInput: React.FC<Props> = ({
     optional = false,
     disabled = false,
     noFormItem = false,
+    defaultCurrency,
 }) => {
     const { props } = usePage<any>();
     const { currencies = [], default_currency_code } = props;
-    const effectiveDefaultCurrencyCode = default_currency_code || "TRY";
+    const effectiveDefaultCurrencyCode =
+        defaultCurrency || default_currency_code || "TRY";
 
     // Use useMemo to stabilize the default currency code
-    const stableDefaultCurrency = useMemo(() => effectiveDefaultCurrencyCode, [effectiveDefaultCurrencyCode]);
+    const stableDefaultCurrency = useMemo(
+        () => effectiveDefaultCurrencyCode,
+        [effectiveDefaultCurrencyCode],
+    );
 
     // Parse value prop directly in render (no useEffect to avoid loops)
     const parsedValue = useMemo((): CurrencyData => {
@@ -60,7 +66,11 @@ const CurrencyInput: React.FC<Props> = ({
             return { amount: value, currency: stableDefaultCurrency };
         }
 
-        if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
+        if (
+            typeof value === "string" &&
+            !isNaN(Number(value)) &&
+            value.trim() !== ""
+        ) {
             const numValue = Number(value);
             if (!isNaN(numValue)) {
                 return { amount: numValue, currency: stableDefaultCurrency };
@@ -78,7 +88,10 @@ const CurrencyInput: React.FC<Props> = ({
                     parsedData = parsed;
                 }
             } else if (typeof value === "object" && value !== null) {
-                if ((value as any).amount !== undefined || (value as any).currency !== undefined) {
+                if (
+                    (value as any).amount !== undefined ||
+                    (value as any).currency !== undefined
+                ) {
                     parsedData = value as CurrencyData;
                 }
             }
@@ -86,11 +99,18 @@ const CurrencyInput: React.FC<Props> = ({
             // ignore
         }
 
-        if (parsedData && (parsedData.amount !== undefined || parsedData.currency !== undefined)) {
+        if (
+            parsedData &&
+            (parsedData.amount !== undefined ||
+                parsedData.currency !== undefined)
+        ) {
             const rawAmount = (parsedData as any).amount;
             // Normalize amount: keep number, coerce numeric string to number, empty string/undefined -> null
             let amount: string | number | null = rawAmount ?? null;
-            if (amount === "" || (typeof amount === "string" && amount.trim() === "")) {
+            if (
+                amount === "" ||
+                (typeof amount === "string" && amount.trim() === "")
+            ) {
                 amount = null;
             } else if (typeof amount === "string" && !isNaN(Number(amount))) {
                 amount = Number(amount);
@@ -110,10 +130,12 @@ const CurrencyInput: React.FC<Props> = ({
     }, [value, stableDefaultCurrency]);
 
     // Internal state only for uncontrolled mode or when value is undefined
-    const [internalCurrencyData, setInternalCurrencyData] = useState<CurrencyData>(parsedValue);
+    const [internalCurrencyData, setInternalCurrencyData] =
+        useState<CurrencyData>(parsedValue);
 
     // Use parsed value if provided, otherwise use internal state
-    const currencyData = value !== undefined ? parsedValue : internalCurrencyData;
+    const currencyData =
+        value !== undefined ? parsedValue : internalCurrencyData;
 
     // Fallback symbols when company currencies are empty or code not found
     const defaultSymbols: Record<string, string> = {
@@ -127,11 +149,14 @@ const CurrencyInput: React.FC<Props> = ({
     const getCurrencySymbol = (currencyCode: string): string => {
         if (currencies.length > 0) {
             const currency = currencies.find(
-                (c: CurrencyType) => 
-                    c.currency_code === currencyCode || 
-                    c.currency_name?.toUpperCase() === currencyCode.toUpperCase()
+                (c: CurrencyType) =>
+                    c.currency_code === currencyCode ||
+                    c.currency_name?.toUpperCase() ===
+                        currencyCode.toUpperCase(),
             );
-            return currency?.currency_symbol || defaultSymbols[currencyCode] || "";
+            return (
+                currency?.currency_symbol || defaultSymbols[currencyCode] || ""
+            );
         }
         return defaultSymbols[currencyCode] || "";
     };
@@ -140,7 +165,10 @@ const CurrencyInput: React.FC<Props> = ({
     const getAvailableCurrencies = (): string[] => {
         if (currencies.length > 0) {
             return currencies
-                .map((c: CurrencyType) => c.currency_code || c.currency_name?.toUpperCase())
+                .map(
+                    (c: CurrencyType) =>
+                        c.currency_code || c.currency_name?.toUpperCase(),
+                )
                 .filter((code: string | undefined): code is string => !!code);
         }
         const fallback = default_currency_code || "TRY";
@@ -150,17 +178,17 @@ const CurrencyInput: React.FC<Props> = ({
     // Update internal state when parsed value changes (only for uncontrolled mode)
     // Use ref to track previous value to prevent unnecessary updates
     const previousParsedValueRef = useRef<string | null>(null);
-    
+
     useEffect(() => {
         if (value === undefined) {
             // Create a stable key for comparison
             const parsedKey = JSON.stringify(parsedValue);
-            
+
             // Skip if value hasn't actually changed
             if (previousParsedValueRef.current === parsedKey) {
                 return;
             }
-            
+
             previousParsedValueRef.current = parsedKey;
             setInternalCurrencyData(parsedValue);
         } else {
@@ -173,7 +201,7 @@ const CurrencyInput: React.FC<Props> = ({
         try {
             // Normalize the amount value
             let normalizedAmount: string | number | null = amount;
-            
+
             // If it's a string, ensure it's valid
             if (typeof amount === "string") {
                 // Remove commas and check if it's a valid number
@@ -187,14 +215,14 @@ const CurrencyInput: React.FC<Props> = ({
                     return;
                 }
             }
-            
+
             const newData = { ...currencyData, amount: normalizedAmount };
-            
+
             // Update internal state only if uncontrolled
             if (value === undefined) {
                 setInternalCurrencyData(newData);
             }
-            
+
             if (onChange) {
                 // Always emit currency object so callers can persist currency-only changes
                 onChange({
@@ -212,12 +240,12 @@ const CurrencyInput: React.FC<Props> = ({
 
     const handleCurrencyChange = (currency: string) => {
         const newData = { ...currencyData, currency };
-        
+
         // Update internal state only if uncontrolled
         if (value === undefined) {
             setInternalCurrencyData(newData);
         }
-        
+
         if (onChange) {
             // Always emit currency object so currency can be changed while amount is empty
             onChange({
@@ -236,26 +264,26 @@ const CurrencyInput: React.FC<Props> = ({
     // Format number with commas - only allow numeric input
     const formatter = (val: string | number | undefined | null): string => {
         if (val === undefined || val === null || val === "") return "";
-        
+
         try {
             const valStr = String(val);
             // Remove all non-numeric characters except decimal point
             let numericString = valStr.replace(/[^\d.]/g, "");
             if (!numericString) return "";
-            
+
             // Split into integer and decimal parts
             const parts = numericString.split(".");
             let intPart = parts[0] || "";
             let decPart = parts[1] || "";
-            
+
             // Limit to 2 decimal places
             if (decPart.length > 2) {
                 decPart = decPart.substring(0, 2);
             }
-            
+
             // Add commas to integer part
             const withCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-            
+
             return decPart ? `${withCommas}.${decPart}` : withCommas;
         } catch (error) {
             console.error("Formatter error:", error);
@@ -266,17 +294,17 @@ const CurrencyInput: React.FC<Props> = ({
     // Parse number by removing commas and non-numeric characters
     const parser = (val: string | undefined): string => {
         if (!val) return "";
-        
+
         try {
             // Remove commas and any non-numeric characters except decimal point
             let cleaned = val.replace(/,/g, "").replace(/[^\d.]/g, "");
-            
+
             // Ensure only one decimal point
             const parts = cleaned.split(".");
             if (parts.length > 2) {
                 cleaned = parts[0] + "." + parts.slice(1).join("");
             }
-            
+
             return cleaned;
         } catch (error) {
             console.error("Parser error:", error);
@@ -289,26 +317,34 @@ const CurrencyInput: React.FC<Props> = ({
         const char = e.key;
         // Allow: digits (0-9), decimal point (.), backspace, delete, tab, escape, enter, arrow keys
         const allowedKeys = [
-            "Backspace", "Delete", "Tab", "Escape", "Enter",
-            "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
-            "Home", "End"
+            "Backspace",
+            "Delete",
+            "Tab",
+            "Escape",
+            "Enter",
+            "ArrowLeft",
+            "ArrowRight",
+            "ArrowUp",
+            "ArrowDown",
+            "Home",
+            "End",
         ];
-        
+
         // Allow control keys (Ctrl, Alt, Meta)
         if (e.ctrlKey || e.altKey || e.metaKey) {
             return;
         }
-        
+
         // Allow allowed keys
         if (allowedKeys.includes(char)) {
             return;
         }
-        
+
         // Allow digits
         if (/^\d$/.test(char)) {
             return;
         }
-        
+
         // Allow single decimal point only if one doesn't already exist
         if (char === ".") {
             const currentValue = String(currencyData.amount || "");
@@ -318,7 +354,7 @@ const CurrencyInput: React.FC<Props> = ({
             }
             return;
         }
-        
+
         // Prevent all other characters
         e.preventDefault();
     };
@@ -334,7 +370,9 @@ const CurrencyInput: React.FC<Props> = ({
 
     // InputNumber with stringMode expects string; normalize so amount always displays when present
     const inputValue =
-        currencyData.amount !== null && currencyData.amount !== undefined && currencyData.amount !== ""
+        currencyData.amount !== null &&
+        currencyData.amount !== undefined &&
+        currencyData.amount !== ""
             ? typeof currencyData.amount === "string"
                 ? currencyData.amount
                 : String(currencyData.amount)

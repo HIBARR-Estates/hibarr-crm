@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Helper\Reply;
 use App\Http\Controllers\Controller;
+use App\Models\Deal;
 use App\Models\Lead;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,7 @@ class LeadApiController extends Controller
     /**
      * Get paginated list of leads with first_name, last_name and email.
      * Requires X-COMPANY-ID header. Supports page and per_page via query or JSON body.
+     * Optional filter: lead_pipeline_id (or deal_pipeline_id) — returns only leads that have a deal in that pipeline.
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -35,8 +37,22 @@ class LeadApiController extends Controller
                 config('api.maxLimit', 1000)
             );
 
-            $leadsQuery = Lead::where('leads.company_id', $companyId)
-                ->orderBy('leads.created_at', 'desc');
+            // Optional filters (from query string or JSON body)
+            // lead_pipeline_id lives on the deals table; filter leads that have a deal in that pipeline
+            $leadPipelineId = $request->query('lead_pipeline_id') ?? $body['lead_pipeline_id']
+                ?? $request->query('deal_pipeline_id') ?? $body['deal_pipeline_id'] ?? null;
+
+            $leadsQuery = Lead::where('leads.company_id', $companyId);
+
+            if ($leadPipelineId !== null && $leadPipelineId !== '') {
+                $leadIdsInPipeline = Deal::where('deals.company_id', $companyId)
+                    ->where('deals.lead_pipeline_id', (int) $leadPipelineId)
+                    ->whereNotNull('deals.lead_id')
+                    ->select('deals.lead_id');
+                $leadsQuery->whereIn('leads.id', $leadIdsInPipeline);
+            }
+
+            $leadsQuery->orderBy('leads.created_at', 'desc');
 
             $leads = $leadsQuery->paginate($perPage, ['id', 'client_name', 'client_email'], 'page', $page);
 

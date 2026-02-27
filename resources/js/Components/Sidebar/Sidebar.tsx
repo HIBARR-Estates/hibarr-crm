@@ -167,14 +167,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             key: "properties",
             label: t("app.menu.properties"),
             icon: <HouseDoorIcon />,
-            href: "/account/properties",
+            href: "/account/properties?page=1&per_page=15&sort_by=&sort_direction=asc",
         },
-        // {
-        //     key: "developers",
-        //     label: "Developers",
-        //     icon: <BankOutlined />,
-        //     href: "/account/developers",
-        // },
+        {
+            key: "developers",
+            label: "Construction Companies",
+            icon: <BankOutlined />,
+            href: "/account/developers",
+        },
     ];
 
     // User dropdown menu items

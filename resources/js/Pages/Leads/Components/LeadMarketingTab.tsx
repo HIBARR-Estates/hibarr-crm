@@ -103,6 +103,20 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                         <Descriptions.Item label="Facebook Lead ID">
                             {marketing.facebook_lead_id || "--"}
                         </Descriptions.Item>
+                        <Descriptions.Item label="Facebook Browser ID">
+                            {marketing.facebook_browser_id || "--"}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="IP Address">
+                            {marketing.ip_address || "--"}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="User Agent" span={2}>
+                            <span
+                                title={marketing.user_agent || undefined}
+                                className="break-all text-xs"
+                            >
+                                {marketing.user_agent || "--"}
+                            </span>
+                        </Descriptions.Item>
                     </Descriptions>
                 </Card>
 

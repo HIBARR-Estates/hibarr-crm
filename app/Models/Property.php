@@ -73,6 +73,7 @@ class Property extends BaseModel
     // Property Types
     const PROPERTY_TYPE_VILLA = 'Villa';
     const PROPERTY_TYPE_TWIN_VILLA = 'Twin Villa';
+    const PROPERTY_TYPE_SEMI_DETACHED_VILLA = 'Semi-Detached Villa';
     const PROPERTY_TYPE_APARTMENT = 'Apartment';
     const PROPERTY_TYPE_FAMILY_HOME = 'Family Home';
     const PROPERTY_TYPE_TOWNHOUSE = 'Townhouse';
@@ -83,6 +84,7 @@ class Property extends BaseModel
     const PROPERTY_TYPE_BLOCK_APARTMENTS = 'Block of apartments';
     const PROPERTY_TYPE_COMPLETE_BUILDING = 'Complete Building';
     const PROPERTY_TYPE_ABANDONED_BUILDING = 'Abandoned Building';
+    const PROPERTY_TYPE_RUIN = 'Ruin';
     const PROPERTY_TYPE_RESIDENCE = 'Residence';
     const PROPERTY_TYPE_HALF_CONSTRUCTION = 'Half Construction';
     const PROPERTY_TYPE_TIME_SHARE = 'Time Share';
@@ -107,10 +109,12 @@ class Property extends BaseModel
         self::PROPERTY_TYPE_APARTMENT => 'APT',
         self::PROPERTY_TYPE_VILLA => 'VIL',
         self::PROPERTY_TYPE_TWIN_VILLA => 'SMV',
+        self::PROPERTY_TYPE_SEMI_DETACHED_VILLA => 'SMV',
         self::PROPERTY_TYPE_BUNGALOW => 'BNG',
         self::PROPERTY_TYPE_TOWNHOUSE => 'TWN',
         self::PROPERTY_TYPE_COMPLETE_BUILDING => 'BLD',
         self::PROPERTY_TYPE_ABANDONED_BUILDING => 'RUN',
+        self::PROPERTY_TYPE_RUIN => 'RUN',
         self::PROPERTY_TYPE_RESIDENTIALLY_ZONED_LAND => 'LND',
         self::PROPERTY_TYPE_FIELD => 'LND',
         self::PROPERTY_TYPE_RESIDENTIAL_COMMERCIAL_LAND => 'LND',
@@ -137,29 +141,26 @@ class Property extends BaseModel
     // ================================================================
     // Reference Code Mapping - Unit Style/Subtype Codes
     // ================================================================
-    const UNIT_STYLE_STANDARD = 'standard';
     const UNIT_STYLE_PENTHOUSE = 'penthouse';
     const UNIT_STYLE_LOFT = 'loft';
-    const UNIT_STYLE_GARDEN = 'garden';
+    const UNIT_STYLE_GARDEN_APARTMENT = 'garden_apartment';
     const UNIT_STYLE_DUPLEX = 'duplex';
     const UNIT_STYLE_TRIPLEX = 'triplex';
     const UNIT_STYLE_STUDIO = 'studio';
 
     const SUBTYPE_CODES = [
-        self::UNIT_STYLE_STANDARD => 'STD',
         self::UNIT_STYLE_PENTHOUSE => 'PEN',
         self::UNIT_STYLE_LOFT => 'LFT',
-        self::UNIT_STYLE_GARDEN => 'GRD',
+        self::UNIT_STYLE_GARDEN_APARTMENT => 'GRD',
         self::UNIT_STYLE_DUPLEX => 'DPL',
         self::UNIT_STYLE_TRIPLEX => 'TPL',
         self::UNIT_STYLE_STUDIO => 'STU',
     ];
 
     const UNIT_STYLES = [
-        self::UNIT_STYLE_STANDARD,
         self::UNIT_STYLE_PENTHOUSE,
         self::UNIT_STYLE_LOFT,
-        self::UNIT_STYLE_GARDEN,
+        self::UNIT_STYLE_GARDEN_APARTMENT,
         self::UNIT_STYLE_DUPLEX,
         self::UNIT_STYLE_TRIPLEX,
         self::UNIT_STYLE_STUDIO,
@@ -328,6 +329,7 @@ class Property extends BaseModel
     protected $fillable = [
         'product_id',
         'developer_project_id',
+        'developer_project_unit_type_id',
         'project_location_id',
         'added_by',
         'responsible_agent_id',
@@ -349,16 +351,25 @@ class Property extends BaseModel
         'area',
         'distances',
         'land_size',
+        'land_size_donum',
         'living_area_sqm',
+        'gross_sqm',
         'terrace_area_sqm',
         'living_room',
         'bedrooms',
         'bathrooms',
+        'rooms',
         'floor_number',
         'floors_in_building',
+        'balcony_count',
+        'balcony_net_sqm',
         'building_age',
         'completion_date',
         'furniture_status',
+        'heating_type',
+        'address',
+        'latitude',
+        'longitude',
         'current_occupancy',
         'open_to_swap',
         'swap_notes',
@@ -384,6 +395,18 @@ class Property extends BaseModel
         'allow_101evler',
         'allow_hangiev',
         'land_details',
+        'total_area_sqm',
+        'plot_size_sqm',
+        'floor',
+        'has_restrictions',
+        'restriction_notes',
+        'deed_status',
+        'price_to_owner',
+        'hibarr_price',
+        'commission_agreement_signed',
+        'general_notes',
+        'associated_construction_company',
+        'associated_construction_company_project',
     ];
 
     /**
@@ -394,16 +417,40 @@ class Property extends BaseModel
      */
     protected $hidden = ["pivot"];
 
+    /**
+     * Distances JSON structure (stored in the `distances` column):
+     * {
+     *   "military_base": "string|null",  // text description
+     *   "sea": number|null,              // decimal km
+     *   "hospital": number|null,         // decimal km
+     *   "market": number|null,           // decimal km
+     *   "schools": number|null           // decimal km
+     * }
+     *
+     * Tax info is stored inside `legal_info` JSON:
+     * { "tax_info": { "vat_paid": bool, "vat_not_paid": bool, "trafo_fee_paid": bool, "stopaj_paid": bool } }
+     *
+     * Document uploads are stored inside `documents_checklist` JSON:
+     * { "search_document_url": "url", "sales_agreement_url": "url", "title_deed_copy_url": "url",
+     *   "owner_passport_copy_url": "url", "site_plan_layout_url": "url" }
+     */
     protected $casts = [
         'price' => PriceCast::class,
         'land_size' => 'decimal:2',
+        'land_size_donum' => 'decimal:4',
         'living_area_sqm' => 'decimal:2',
         'terrace_area_sqm' => 'decimal:2',
         'minimal_rental_period' => 'integer',
         'building_age' => 'integer',
         'bathrooms' => 'integer',
+        'rooms' => 'integer',
         'floor_number' => 'integer',
         'floors_in_building' => 'integer',
+        'balcony_count' => 'integer',
+        'gross_sqm' => 'decimal:2',
+        'balcony_net_sqm' => 'decimal:2',
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
         'within_site' => 'boolean',
         'is_published' => 'boolean',
         'published_at' => 'datetime',
@@ -425,6 +472,13 @@ class Property extends BaseModel
         'financial_info' => 'array',
         'documents_checklist' => 'array',
         'land_details' => 'array',
+        'total_area_sqm' => 'decimal:2',
+        'plot_size_sqm' => 'decimal:2',
+        'has_restrictions' => 'boolean',
+        'price_to_owner' => 'decimal:2',
+        'hibarr_price' => 'decimal:2',
+        'commission_agreement_signed' => 'boolean',
+        'unit_style' => 'array',
     ];
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
@@ -560,6 +614,39 @@ class Property extends BaseModel
         'display_title',
     ];
 
+    /**
+     * Customize array serialization so that:
+     * 1. The `added_by` FK is always the integer ID (Eloquent's default
+     *    serialization overwrites it with the eager-loaded User object
+     *    because the relationship method name "addedBy" snake-cases to "added_by").
+     * 2. Eager-loaded relationships are also available under their camelCase
+     *    keys (`addedBy`, `responsibleAgent`, `projectLocation`) which the
+     *    React/TypeScript frontend expects.
+     */
+    public function toArray(): array
+    {
+        $array = parent::toArray();
+
+        // Restore `added_by` to the raw integer FK (overwritten by the relationship)
+        $array['added_by'] = $this->getAttributeValue('added_by');
+
+        // Add camelCase aliases for eager-loaded relationships
+        if ($this->relationLoaded('addedBy')) {
+            $array['addedBy'] = $this->addedBy?->toArray();
+        }
+        if ($this->relationLoaded('responsibleAgent')) {
+            $array['responsibleAgent'] = $this->responsibleAgent?->toArray();
+        }
+        if ($this->relationLoaded('projectLocation')) {
+            $array['projectLocation'] = $this->projectLocation?->toArray();
+        }
+        if ($this->relationLoaded('developerProject')) {
+            $array['developerProject'] = $this->developerProject?->toArray();
+        }
+
+        return $array;
+    }
+
     // Relationships
     public function product(): BelongsTo
     {
@@ -575,6 +662,17 @@ class Property extends BaseModel
     public function developerProject(): BelongsTo
     {
         return $this->belongsTo(DeveloperProject::class);
+    }
+
+    /**
+     * Get the developer project unit type this property is based on.
+     *
+     * When set, certain property fields (specs, features, etc.) are
+     * inherited from the unit type and locked on the frontend form.
+     */
+    public function unitType(): BelongsTo
+    {
+        return $this->belongsTo(DeveloperProjectUnitType::class, 'developer_project_unit_type_id');
     }
 
     /**
@@ -602,6 +700,14 @@ class Property extends BaseModel
     public function responsibleAgent(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_agent_id');
+    }
+
+    /**
+     * Get availability requests for this property.
+     */
+    public function availabilityRequests(): HasMany
+    {
+        return $this->hasMany(PropertyAvailabilityRequest::class);
     }
 
     /**
@@ -711,11 +817,23 @@ class Property extends BaseModel
         // Get type code
         $typeCode = self::TYPE_CODES[$this->property_type] ?? 'OTH';
         
-        // Get subtype code
-        $subtypeCode = self::SUBTYPE_CODES[$this->unit_style ?? self::UNIT_STYLE_STANDARD] ?? 'STD';
+        // Get subtype code(s) — unit_style is now an array (multi-select)
+        $styles = $this->unit_style ?? [];
+        if (!is_array($styles)) {
+            $styles = $styles ? [$styles] : [];
+        }
+        
+        // Build concatenated subtype codes (e.g. PEN-DPL), fallback to STD
+        if (empty($styles)) {
+            $subtypeCode = 'STD';
+        } else {
+            $codes = array_map(fn($s) => self::SUBTYPE_CODES[$s] ?? null, $styles);
+            $codes = array_filter($codes); // remove nulls
+            $subtypeCode = empty($codes) ? 'STD' : implode('-', $codes);
+        }
         
         // Get room code: bedrooms + living room (1), or 'S' for studio
-        if ($this->unit_style === self::UNIT_STYLE_STUDIO) {
+        if (is_array($styles) && in_array(self::UNIT_STYLE_STUDIO, $styles)) {
             $roomCode = 'S';
         } else {
             $bedrooms = (int) ($this->bedrooms ?? 0);
@@ -1044,23 +1162,22 @@ class Property extends BaseModel
         return [
             self::CATEGORY_HOUSING => [
                 self::SALE_TYPE_FOR_SALE => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_TWIN_VILLA, self::PROPERTY_TYPE_APARTMENT,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_LOFT,
-                    self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW, self::PROPERTY_TYPE_COMMERCIAL_PROPERTY,
-                    self::PROPERTY_TYPE_BLOCK_APARTMENTS, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 self::SALE_TYPE_FOR_RENT => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_TWIN_VILLA,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW,
-                    self::PROPERTY_TYPE_TIME_SHARE, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 self::SALE_TYPE_DAILY_RENTAL => [
-                    self::PROPERTY_TYPE_VILLA, self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_TWIN_VILLA,
-                    self::PROPERTY_TYPE_FAMILY_HOME, self::PROPERTY_TYPE_PENTHOUSE, self::PROPERTY_TYPE_BUNGALOW,
-                    self::PROPERTY_TYPE_TIME_SHARE, self::PROPERTY_TYPE_COMPLETE_BUILDING, 
-                    self::PROPERTY_TYPE_ABANDONED_BUILDING, self::PROPERTY_TYPE_RESIDENCE, self::PROPERTY_TYPE_HALF_CONSTRUCTION
+                    self::PROPERTY_TYPE_APARTMENT, self::PROPERTY_TYPE_VILLA,
+                    self::PROPERTY_TYPE_SEMI_DETACHED_VILLA, self::PROPERTY_TYPE_BUNGALOW,
+                    self::PROPERTY_TYPE_TOWNHOUSE, self::PROPERTY_TYPE_COMPLETE_BUILDING,
+                    self::PROPERTY_TYPE_RUIN,
                 ],
                 'allowableFields' => [
                     'propertyType' => true, 'price' => true, 'minRentalPeriod' => true,
@@ -1185,7 +1302,7 @@ class Property extends BaseModel
     {
         // If property is sold, only allow certain fields to be updated
         if ($this->isSold()) {
-            $allowedWhenSold = ['description', 'video_url', 'tour_360_url'];
+            $allowedWhenSold = ['description', 'video_url', 'tour_360_url', 'general_notes'];
             return in_array($field, $allowedWhenSold);
         }
 
@@ -1210,43 +1327,162 @@ class Property extends BaseModel
     /**
      * Get all enum values for the frontend.
      * This provides a single source of truth for all dropdown options.
+     *
+     * Values are sourced from lookup tables when available, falling
+     * All dropdown/enum values are sourced from their respective lookup tables
+     * (single source of truth). Falls back to legacy constants only if the
+     * lookup table is empty or doesn't exist yet.
+     *
+     * Every key returns [{name, label}] pairs for consistent frontend rendering,
+     * except type_codes / subtype_codes which are code-mapping records.
      */
     public static function getEnumValues(): array
     {
         return [
-            'primary_categories' => self::PRIMARY_CATEGORIES,
-            'unit_styles' => self::UNIT_STYLES,
-            'construction_statuses' => self::CONSTRUCTION_STATUSES,
-            'view_types' => self::VIEW_TYPES,
-            'occupancy_types' => self::OCCUPANCY_TYPES,
-            'cities' => self::CITIES,
-            'deed_types' => self::DEED_TYPES,
-            'deed_statuses' => self::DEED_STATUSES,
-            'land_types' => self::LAND_TYPES,
-            'outside_features' => self::OUTSIDE_FEATURES,
-            'inside_features' => self::INSIDE_FEATURES,
-            'furniture_statuses' => [
+            'primary_categories'    => self::getLookupValues(PropertyPrimaryCategory::class, self::PRIMARY_CATEGORIES),
+            'unit_styles'           => self::getLookupValues(PropertySubType::class, self::UNIT_STYLES),
+            'construction_statuses' => self::getLookupValues(PropertyConstructionStatus::class, self::CONSTRUCTION_STATUSES),
+            'view_types'            => self::getLookupValues(PropertyViewType::class, self::VIEW_TYPES),
+            'occupancy_types'       => self::getLookupValues(PropertyOccupancyType::class, self::OCCUPANCY_TYPES),
+            'cities'                => self::getLookupValues(PropertyCity::class, self::CITIES),
+            'deed_types'            => self::getLookupValues(PropertyTitleDeedType::class, self::DEED_TYPES),
+            'deed_statuses'         => self::getLookupValues(PropertyDeedStatus::class, self::DEED_STATUSES),
+            'land_types'            => self::getLookupValues(PropertyPrimaryCategory::class, self::LAND_TYPES), // kept for backward compat
+            'outside_features'      => self::getLookupValues(PropertyExteriorFeature::class, self::OUTSIDE_FEATURES),
+            'inside_features'       => self::getLookupValues(PropertyInteriorFeature::class, self::INSIDE_FEATURES),
+            'property_types'        => self::getLookupValues(PropertyType::class, self::getAllPropertyTypes()),
+            'floor_types'           => self::getLookupValues(PropertyFloorType::class, []),
+            'furniture_statuses'    => self::getLookupValues(PropertyFurnitureStatus::class, [
                 self::FURNITURE_UNFURNISHED,
                 self::FURNITURE_FULLY_FURNISHED,
                 self::FURNITURE_PART_FURNISHED,
                 self::FURNITURE_WHITE_GOODS_ONLY,
-            ],
-            'sale_types' => [
+            ]),
+            'sale_types'            => self::getLookupValues(PropertySaleType::class, [
                 self::SALE_TYPE_FOR_SALE,
                 self::SALE_TYPE_FOR_RENT,
                 self::SALE_TYPE_DAILY_RENTAL,
-            ],
-            'statuses' => [
+            ]),
+            'statuses'              => self::getLookupValues(PropertyStatus::class, [
                 self::STATUS_AVAILABLE,
                 self::STATUS_RESERVED,
                 self::STATUS_UNDER_OFFER,
                 self::STATUS_SOLD,
                 self::STATUS_RENTED,
                 self::STATUS_WITHDRAWN,
-            ],
-            'type_codes' => self::TYPE_CODES,
-            'subtype_codes' => self::SUBTYPE_CODES,
+            ]),
+            'heating_types'         => self::getLookupValues(PropertyHeatingType::class, []),
+            'location_features'     => self::getLookupValues(PropertyLocationFeature::class, []),
+            'add_ons'               => self::getLookupValues(PropertyAddOn::class, []),
+            'areas'                 => self::getLookupValues(PropertyArea::class, []),
+            'type_codes'            => self::TYPE_CODES,
+            'subtype_codes'         => self::SUBTYPE_CODES,
+            'property_types_by_category' => self::getPropertyTypesByCategory(),
+            'areas_by_city'         => self::getAreasByCity(),
         ];
+    }
+
+    /**
+     * Get areas grouped by their parent city name.
+     * Returns e.g. { nicosia: [{name, label}], kyrenia: [...], ... }
+     */
+    private static function getAreasByCity(): array
+    {
+        try {
+            $areas = PropertyArea::select('property_areas.name', 'property_areas.label', 'property_cities.name as city_name')
+                ->join('property_cities', 'property_areas.city_id', '=', 'property_cities.id')
+                ->get();
+
+            if ($areas->isNotEmpty()) {
+                return $areas->groupBy('city_name')->map(function ($group) {
+                    return $group->sortBy('label', SORT_STRING | SORT_FLAG_CASE)
+                        ->map(fn($a) => ['name' => $a->name, 'label' => $a->label])->values()->toArray();
+                })->toArray();
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        return [];
+    }
+
+    /**
+     * Get property types grouped by their category column.
+     * Returns e.g. { residential: [{name, label}], commercial: [...], land: [...] }
+     */
+    private static function getPropertyTypesByCategory(): array
+    {
+        try {
+            $types = PropertyType::select('name', 'label', 'category')->get();
+            if ($types->isNotEmpty()) {
+                return $types->groupBy('category')->map(function ($group) {
+                    return $group->sortBy('label', SORT_STRING | SORT_FLAG_CASE)
+                        ->map(fn($t) => ['name' => $t->name, 'label' => $t->label])->values()->toArray();
+                })->toArray();
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        // Fallback: derive from constants
+        return [
+            'residential' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Apartment', 'Villa', 'Semi-Detached Villa', 'Bungalow',
+                'Townhouse', 'Complete Building', 'Ruin',
+            ]),
+            'commercial' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Shop', 'Hotel', 'Workplace', 'Warehouse', 'Workplace for sale',
+                'Office', 'Commercial Property',
+            ]),
+            'land' => array_map(fn($n) => ['name' => $n, 'label' => $n], [
+                'Residentially Zoned Land', 'Field',
+                'Residentially and Commercially Zoned Land',
+                'Commercially Zoned Land', 'Industrially Zoned land',
+                'Tourism Zoned Land', 'Olive Grove',
+            ]),
+        ];
+    }
+
+    /**
+     * Get lookup names from a lookup table model, falling back to constants.
+     *
+     * @param class-string $modelClass  The lookup model class
+     * @param array        $fallback    Fallback constant values
+     * @return array<string>            List of name values
+     */
+    private static function getLookupNames(string $modelClass, array $fallback): array
+    {
+        try {
+            $values = $modelClass::pluck('name')->toArray();
+            return !empty($values) ? $values : $fallback;
+        } catch (\Throwable) {
+            return $fallback;
+        }
+    }
+
+    /**
+     * Get lookup values (name + label pairs) from a lookup table model.
+     * Returns [{name, label}] for richer dropdown rendering on the frontend.
+     *
+     * @param class-string $modelClass  The lookup model class
+     * @param array        $fallback    Fallback constant values (plain names)
+     * @return array
+     */
+    private static function getLookupValues(string $modelClass, array $fallback): array
+    {
+        try {
+            $values = $modelClass::select('name', 'label')->orderBy('label')->get()->toArray();
+            if (!empty($values)) {
+                return $values;
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        // Return fallback as [{name, label}] format, sorted alphabetically
+        $items = array_map(fn($name) => ['name' => $name, 'label' => $name], $fallback);
+        usort($items, fn($a, $b) => strcasecmp($a['label'], $b['label']));
+        return $items;
     }
 
     /**
@@ -1294,7 +1530,7 @@ class Property extends BaseModel
      */
     public function scopeByUnitStyle($query, string $style)
     {
-        return $query->where('unit_style', $style);
+        return $query->whereJsonContains('unit_style', $style);
     }
 
     /**

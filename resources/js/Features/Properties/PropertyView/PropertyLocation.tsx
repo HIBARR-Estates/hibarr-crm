@@ -34,7 +34,11 @@ export default function PropertyLocation({ property }: PropertyLocationProps) {
                 <div className="flex items-center gap-2 mb-2">
                     <EnvironmentOutlined className="text-blue-600" />
                     <Text strong>
-                        {area}, {city}
+                        {property?.area ? `${property.area}, ` : ""}
+                        {property?.city || ""}
+                        {!property?.area &&
+                            !property?.city &&
+                            "Location not specified"}
                     </Text>
                 </div>
 

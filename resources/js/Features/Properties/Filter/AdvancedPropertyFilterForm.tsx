@@ -64,17 +64,13 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
     const propertyTypes = [
         // Housing Types
-        "Villa",
-        "Twin Villa",
         "Apartment",
-        "Family Home",
-        "Townhouse",
-        "Loft",
-        "Penthouse",
+        "Villa",
+        "Semi-Detached Villa",
         "Bungalow",
-        "Duplex",
-        "Studio",
-        "Maisonette",
+        "Townhouse",
+        "Complete Building",
+        "Ruin",
         // Land Types
         "Residential Land",
         "Commercial Land",
@@ -224,8 +220,8 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                             }
                         >
                             {propertyEnums?.cities?.map((c) => (
-                                <Select.Option key={c} value={c}>
-                                    {c}
+                                <Select.Option key={c.name} value={c.name}>
+                                    {c.label}
                                 </Select.Option>
                             ))}
                         </Select>
@@ -260,8 +256,8 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                             allowClear
                         >
                             {propertyEnums?.primary_categories?.map((cat) => (
-                                <Select.Option key={cat} value={cat}>
-                                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                                <Select.Option key={cat.name} value={cat.name}>
+                                    {cat.label}
                                 </Select.Option>
                             ))}
                         </Select>
@@ -284,15 +280,11 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                             allowClear
                         >
                             {propertyEnums?.unit_styles?.map((style) => (
-                                <Select.Option key={style} value={style}>
-                                    {style
-                                        .split("_")
-                                        .map(
-                                            (w) =>
-                                                w.charAt(0).toUpperCase() +
-                                                w.slice(1),
-                                        )
-                                        .join(" ")}
+                                <Select.Option
+                                    key={style.name}
+                                    value={style.name}
+                                >
+                                    {style.label}
                                 </Select.Option>
                             ))}
                         </Select>
@@ -319,15 +311,11 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                         >
                             {propertyEnums?.construction_statuses?.map(
                                 (status) => (
-                                    <Select.Option key={status} value={status}>
-                                        {status
-                                            .split("_")
-                                            .map(
-                                                (w) =>
-                                                    w.charAt(0).toUpperCase() +
-                                                    w.slice(1),
-                                            )
-                                            .join(" ")}
+                                    <Select.Option
+                                        key={status.name}
+                                        value={status.name}
+                                    >
+                                        {status.label}
                                     </Select.Option>
                                 ),
                             )}
@@ -353,15 +341,11 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                             maxTagCount={2}
                         >
                             {propertyEnums?.view_types?.map((view) => (
-                                <Select.Option key={view} value={view}>
-                                    {view
-                                        .split("_")
-                                        .map(
-                                            (w) =>
-                                                w.charAt(0).toUpperCase() +
-                                                w.slice(1),
-                                        )
-                                        .join(" ")}
+                                <Select.Option
+                                    key={view.name}
+                                    value={view.name}
+                                >
+                                    {view.label}
                                 </Select.Option>
                             ))}
                         </Select>

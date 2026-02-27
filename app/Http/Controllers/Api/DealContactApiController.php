@@ -253,7 +253,7 @@ class DealContactApiController extends Controller
                     if ($request->has('lead_owner_id') && !empty($request->lead_owner_id)) {
                         $contact->lead_owner = $request->lead_owner_id;
                     }
-                    
+                    $this->applyAddressAndDobToLead($contact, $request);
                     $contact->saveQuietly();
                     $contactId = $contact->id;
                 } else {
@@ -284,6 +284,9 @@ class DealContactApiController extends Controller
                             $existingContact->lead_owner = $request->lead_owner_id;
                             $updated = true;
                         }
+                    }
+                    if ($this->applyAddressAndDobToLead($existingContact, $request)) {
+                        $updated = true;
                     }
                     if ($updated) {
                         $existingContact->saveQuietly();
@@ -346,6 +349,9 @@ class DealContactApiController extends Controller
                     $existingContact->source_id = $sourceId;
                     $updated = true;
                 }
+                if ($this->applyAddressAndDobToLead($existingContact, $request)) {
+                    $updated = true;
+                }
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
@@ -377,6 +383,9 @@ class DealContactApiController extends Controller
                     $existingContact->source_id = $sourceId;
                     $updated = true;
                 }
+                if ($this->applyAddressAndDobToLead($existingContact, $request)) {
+                    $updated = true;
+                }
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
@@ -397,12 +406,50 @@ class DealContactApiController extends Controller
         if ($sourceId) {
             $contact->source_id = $sourceId;
         }
-        
+        $this->applyAddressAndDobToLead($contact, $request);
         $contact->saveQuietly();
 
         return $contact->id;
     }
 
+    /**
+     * Apply address fields and date_of_birth from request to a lead.
+     * Returns true if any attribute was changed.
+     *
+     * @param \App\Models\Lead $lead
+     * @param Request $request
+     * @return bool
+     */
+    private function applyAddressAndDobToLead(Lead $lead, Request $request): bool
+    {
+        $updated = false;
+        $fields = [
+            'address' => 'address',
+            'city' => 'city',
+            'state' => 'state',
+            'country' => 'country',
+            'postal_code' => 'postal_code',
+        ];
+        foreach ($fields as $requestKey => $attribute) {
+            if ($request->has($requestKey)) {
+                $value = $request->input($requestKey);
+                if ((string) $lead->getAttribute($attribute) !== (string) $value) {
+                    $lead->setAttribute($attribute, $value);
+                    $updated = true;
+                }
+            }
+        }
+        if ($request->has('date_of_birth')) {
+            $value = $request->input('date_of_birth');
+            $parsed = $value ? \Carbon\Carbon::parse($value)->startOfDay() : null;
+            $current = $lead->date_of_birth?->startOfDay();
+            if ($parsed?->format('Y-m-d') !== $current?->format('Y-m-d')) {
+                $lead->date_of_birth = $parsed;
+                $updated = true;
+            }
+        }
+        return $updated;
+    }
 
     /**
      * Save UTM information and marketing data to the contact's marketing record.
@@ -433,10 +480,13 @@ class DealContactApiController extends Controller
             ];
         }
 
-        // Get Facebook and traffic source fields from root level only
+        // Get Facebook and lead source tracking fields from root level only
         $rootLevelFields = [
             'facebook_click_id' => $request->input('facebook_click_id') ?? $request->input('facebookClickId'),
             'facebook_lead_id' => $request->input('facebook_lead_id') ?? $request->input('facebookLeadId'),
+            'facebook_browser_id' => $request->input('facebook_browser_id') ?? $request->input('facebookBrowserId'),
+            'user_agent' => $request->input('user_agent'),
+            'ip_address' => $request->input('ip_address'),
         ];
 
         // Merge root level fields into marketing payload

@@ -10,11 +10,12 @@ import PropertyView from "@/Features/Properties/PropertyView/PropertyView";
 import { Task } from "@/Types/api/tasks";
 import GenerateExposeModal from "@/Features/Properties/GenerateExposeModal";
 import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyModal";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 interface ShowProps {
     pageTitle: string;
     property: Property;
-    canEdit?: boolean;
+    hasPendingPublishRequest?: boolean;
     tasks: Task[];
     taskCategories: any[];
     taskLabels: any[];
@@ -26,7 +27,7 @@ interface ShowProps {
 const Show = ({
     pageTitle,
     property,
-    canEdit = false,
+    hasPendingPublishRequest = false,
     tasks,
     taskCategories,
     taskLabels,
@@ -41,7 +42,10 @@ const Show = ({
             url: route("properties.index"),
         },
         {
-            name: property.title,
+            name:
+                generatePropertySubtitle(property) ||
+                property.reference_code ||
+                `Property #${property.id}`,
         },
     ];
 
@@ -92,10 +96,10 @@ const Show = ({
                 <div className="max-w-7xl mx-auto">
                     <PropertyView
                         property={currentProperty}
+                        hasPendingPublishRequest={hasPendingPublishRequest}
                         onEdit={handleEdit}
                         onShare={handleShare}
                         onGenerateExpose={() => setShowExposeModal(true)}
-                        canEdit={canEdit}
                         tasks={tasks}
                         taskCategories={taskCategories}
                         taskLabels={taskLabels}

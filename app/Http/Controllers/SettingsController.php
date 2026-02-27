@@ -8,6 +8,7 @@ use App\Traits\CurrencyExchange;
 use App\Models\User;
 use App\Models\DealAutomation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class SettingsController extends AccountBaseController
 {
@@ -91,6 +92,9 @@ class SettingsController extends AccountBaseController
             $user->rtl = in_array($locale, ['ar', 'fa', 'he']) ? 1 : 0;
             $user->save();
         }
+
+        // Clear cached translations so the next request loads fresh data
+        Cache::forget("translations_{$locale}");
 
         // Update session locale
         session(['locale' => $locale]);

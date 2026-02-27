@@ -64,11 +64,11 @@ function FeatureList({ features, title, icon }: FeatureListProps) {
             <Row gutter={[12, 12]}>
                 {features.map((feature, index) => (
                     <Col key={index} xs={12} sm={8} lg={6}>
-                        <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md border">
-                            <span className="text-gray-600 text-sm">
+                        <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md border min-w-0">
+                            <span className="text-gray-600 text-sm shrink-0">
                                 {featureIcons[feature] || <HomeOutlined />}
                             </span>
-                            <Text className="text-sm">{feature}</Text>
+                            <Text className="text-sm truncate">{feature}</Text>
                         </div>
                     </Col>
                 ))}
