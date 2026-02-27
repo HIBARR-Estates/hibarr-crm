@@ -1,0 +1,37 @@
+version: "3"
+
+# RoadRunner Server Configuration for HiBarr CRM gRPC Services
+# Run with: rr.exe serve -c .rr.yaml
+
+server:
+  command: "php worker.php"
+  relay: pipes
+
+# gRPC Plugin Configuration
+grpc:
+  listen: "tcp://0.0.0.0:9001"
+  proto:
+    - "proto/deal.proto"
+    - "proto/lead.proto"
+    - "proto/property.proto"
+    - "proto/task.proto"
+  pool:
+    num_workers: 4
+    max_jobs: 500
+    allocate_timeout: 60s
+    destroy_timeout: 60s
+
+# Health Check / Status Plugin
+status:
+  address: "0.0.0.0:2114"
+
+# Logging Configuration
+logs:
+  mode: development
+  level: debug
+  encoding: console
+  output: stdout
+
+# RPC for internal communication
+rpc:
+  listen: "tcp://127.0.0.1:6001"

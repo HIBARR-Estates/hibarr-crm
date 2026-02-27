@@ -1,0 +1,192 @@
+syntax = "proto3";
+
+package hibarr.crm.lead;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Lead";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Lead/Contact entity - flat structure with ID references only
+message Lead {
+  int64 id = 1;
+  string client_name = 2;
+  string client_email = 3;
+  string company_name = 4;
+  
+  // Personal info
+  string salutation = 5; // Mr, Mrs, Ms, etc.
+  string gender = 6; // male, female
+  string contact_type = 7; // contact type enum
+  
+  // Contact details
+  string mobile = 8;
+  string cell = 9;
+  string office = 10;
+  string website = 11;
+  
+  // Address
+  string address = 12;
+  string city = 13;
+  string state = 14;
+  string country = 15;
+  string postal_code = 16;
+  
+  // Foreign key references (flat)
+  int64 source_id = 17; // LeadSource ID
+  int64 status_id = 18; // LeadStatus ID
+  int64 category_id = 19; // LeadCategory ID
+  int64 agent_id = 20; // LeadAgent ID
+  int64 currency_id = 21; // Currency ID
+  int64 company_id = 22; // Company/Tenant ID
+  int64 lead_owner = 23; // User ID who owns the lead
+  int64 added_by = 24; // User who created
+  int64 last_updated_by = 25; // User who last updated
+  
+  // Value and priority
+  double total_value = 26;
+  int32 column_priority = 27;
+  string next_follow_up = 28; // ISO8601 datetime
+  
+  // Metadata
+  string created_at = 29;
+  string updated_at = 30;
+}
+
+// Request to create a new lead
+message CreateLeadRequest {
+  string client_name = 1;
+  optional string client_email = 2;
+  optional string company_name = 3;
+  optional string salutation = 4;
+  optional string gender = 5;
+  optional string contact_type = 6;
+  optional string mobile = 7;
+  optional string cell = 8;
+  optional string office = 9;
+  optional string website = 10;
+  optional string address = 11;
+  optional string city = 12;
+  optional string state = 13;
+  optional string country = 14;
+  optional string postal_code = 15;
+  optional int64 source_id = 16;
+  optional int64 status_id = 17;
+  optional int64 category_id = 18;
+  optional int64 agent_id = 19;
+  optional int64 currency_id = 20;
+  optional int64 lead_owner = 21;
+  optional double total_value = 22;
+  optional string next_follow_up = 23;
+  
+  // Custom fields as JSON
+  optional string custom_fields_json = 24;
+}
+
+// Request to update an existing lead
+message UpdateLeadRequest {
+  int64 id = 1;
+  optional string client_name = 2;
+  optional string client_email = 3;
+  optional string company_name = 4;
+  optional string salutation = 5;
+  optional string gender = 6;
+  optional string contact_type = 7;
+  optional string mobile = 8;
+  optional string cell = 9;
+  optional string office = 10;
+  optional string website = 11;
+  optional string address = 12;
+  optional string city = 13;
+  optional string state = 14;
+  optional string country = 15;
+  optional string postal_code = 16;
+  optional int64 source_id = 17;
+  optional int64 status_id = 18;
+  optional int64 category_id = 19;
+  optional int64 agent_id = 20;
+  optional int64 currency_id = 21;
+  optional int64 lead_owner = 22;
+  optional double total_value = 23;
+  optional string next_follow_up = 24;
+  optional string custom_fields_json = 25;
+}
+
+// Request to get a single lead
+message GetLeadRequest {
+  int64 id = 1;
+}
+
+// Request to delete a lead
+message DeleteLeadRequest {
+  int64 id = 1;
+}
+
+// Request to list leads with pagination and filters
+message ListLeadsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+  
+  // Filters
+  optional int64 source_id = 2;
+  optional int64 status_id = 3;
+  optional int64 category_id = 4;
+  optional int64 agent_id = 5;
+  optional int64 lead_owner = 6;
+  optional string search = 7;       // Search in name, email, company
+  optional string contact_type = 8;
+  optional string city = 9;
+  optional string country = 10;
+  optional string created_from = 11;
+  optional string created_to = 12;
+}
+
+// Response containing a single lead
+message LeadResponse {
+  Lead lead = 1;
+}
+
+// Response containing a list of leads
+message ListLeadsResponse {
+  repeated Lead leads = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk lead export
+message StreamLeadsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+  
+  // Optional filters
+  optional int64 source_id = 2;
+  optional int64 status_id = 3;
+  optional int64 category_id = 4;
+  optional string contact_type = 5;
+  optional string created_from = 6;
+  optional string created_to = 7;
+}
+
+// Streamed batch of leads
+message LeadBatch {
+  repeated Lead leads = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Lead Service definition
+service LeadService {
+  // Create a new lead
+  rpc Create(CreateLeadRequest) returns (LeadResponse);
+  
+  // Get a single lead by ID
+  rpc Get(GetLeadRequest) returns (LeadResponse);
+  
+  // Update an existing lead
+  rpc Update(UpdateLeadRequest) returns (LeadResponse);
+  
+  // Delete a lead
+  rpc Delete(DeleteLeadRequest) returns (hibarr.crm.common.Empty);
+  
+  // List leads with pagination
+  rpc List(ListLeadsRequest) returns (ListLeadsResponse);
+  
+  // Stream leads for bulk export (server streaming)
+  rpc StreamLeads(StreamLeadsRequest) returns (stream LeadBatch);
+}
