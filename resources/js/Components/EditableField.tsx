@@ -25,7 +25,7 @@ import FormDataSelector from "./FormDataSelector";
 import { FormDataType } from "@/Hooks/useFormData";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "./CurrencyInput";
-import { parsePropertyPrice, formatCurrencyWithSymbol } from "@/lib/utils";
+import { parsePropertyPrice, formatCurrencyWithSymbol, formatCountryForDisplay, formatMobileForDisplay } from "@/lib/utils";
 
 const { Text } = Typography;
 
@@ -88,6 +88,13 @@ export default function EditableField({
 
     const maxFileSizeMB = props?.company?.allowed_file_size || 10;
     const maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
+    // Normalize country/phone so they never render as [object Object] in view or edit mode
+    const normalizedValue =
+        fieldType === "country" && (value !== undefined && value !== null)
+            ? formatCountryForDisplay(value)
+            : fieldType === "phone" && (value !== undefined && value !== null)
+              ? formatMobileForDisplay(value)
+              : value;
     const [editing, setEditing] = useState(alwaysEditing);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -210,9 +217,9 @@ export default function EditableField({
     // Update inputValue when value prop changes (e.g., after save or when deal data updates)
     // Also handles initial value setup and value transformations for edit mode
     useEffect(() => {
-        if (fieldType === "date" && value) {
+        if (fieldType === "date" && normalizedValue) {
             try {
-                const date = new Date(value.toString());
+                const date = new Date(String(normalizedValue));
                 if (!isNaN(date.getTime())) {
                     setInputValue(date.toISOString().split("T")[0]);
                 } else {
@@ -221,12 +228,12 @@ export default function EditableField({
             } catch {
                 setInputValue("");
             }
-        } else if (fieldType === "multiselect" || Array.isArray(value)) {
-            setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else if (fieldType === "multiselect" || Array.isArray(normalizedValue)) {
+            setInputValue(Array.isArray(normalizedValue) ? normalizedValue : normalizedValue ? [normalizedValue] : []);
         } else {
-            setInputValue(value ?? "");
+            setInputValue(normalizedValue ?? "");
         }
-    }, [value, fieldType]);
+    }, [normalizedValue, fieldType]);
 
     const isLocked = loading || saving;
 
@@ -236,9 +243,9 @@ export default function EditableField({
         if (!canStartEditing) return;
         isManuallySettingValue.current = true;
         setEditing(true);
-        if (fieldType === "date" && value) {
+        if (fieldType === "date" && normalizedValue) {
             try {
-                const date = new Date(value.toString());
+                const date = new Date(String(normalizedValue));
                 if (!isNaN(date.getTime())) {
                     setInputValue(date.toISOString().split("T")[0]);
                 } else {
@@ -247,12 +254,12 @@ export default function EditableField({
             } catch {
                 setInputValue("");
             }
-        } else if (fieldType === "multiselect" || Array.isArray(value)) {
-            setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        } else if (fieldType === "multiselect" || Array.isArray(normalizedValue)) {
+            setInputValue(Array.isArray(normalizedValue) ? normalizedValue : normalizedValue ? [normalizedValue] : []);
         } else if (fieldType === "currency") {
-            setInputValue(normalizeCurrencyValue(value));
+            setInputValue(normalizeCurrencyValue(normalizedValue));
         } else {
-            setInputValue(value ?? "");
+            setInputValue(normalizedValue ?? "");
         }
     };
 
@@ -263,14 +270,14 @@ export default function EditableField({
             blurTimeoutRef.current = null;
         }
 
-        // Compare values properly for arrays and files
-        const isArrayValue = Array.isArray(value) || Array.isArray(inputValue);
+        // Compare values properly for arrays and files (use normalizedValue for country/phone)
+        const isArrayValue = Array.isArray(normalizedValue) || Array.isArray(inputValue);
         const isFileValue = inputValue instanceof File;
         const valuesEqual = isFileValue
             ? false
             : isArrayValue
-              ? JSON.stringify(inputValue) === JSON.stringify(value)
-              : inputValue === value;
+              ? JSON.stringify(inputValue) === JSON.stringify(normalizedValue)
+              : inputValue === normalizedValue;
 
         if (valuesEqual) {
             // In always editing mode, don't exit edit mode even if values are same
@@ -329,12 +336,12 @@ export default function EditableField({
         if (!alwaysEditing) {
             setEditing(false);
         }
-        if (fieldType === "multiselect" || Array.isArray(value)) {
-            setInputValue(Array.isArray(value) ? value : value ? [value] : []);
+        if (fieldType === "multiselect" || Array.isArray(normalizedValue)) {
+            setInputValue(Array.isArray(normalizedValue) ? normalizedValue : normalizedValue ? [normalizedValue] : []);
         } else if (fieldType === "currency") {
-            setInputValue(normalizeCurrencyValue(value));
+            setInputValue(normalizeCurrencyValue(normalizedValue));
         } else {
-            setInputValue(value ?? "");
+            setInputValue(normalizedValue ?? "");
         }
     };
 
@@ -468,7 +475,7 @@ export default function EditableField({
         if (disabled) {
             return <span className="text-gray-500">--</span>;
         }
-        return value?.toString() || "--";
+        return normalizedValue?.toString() || "--";
     };
 
     // For file fields, always render the permanent UI (like CustomFieldDisplay)
@@ -489,8 +496,8 @@ export default function EditableField({
                     return formatCurrencyWithSymbol(parsed.amount, symbol);
                 })()
               : formatValue
-                ? formatValue(value)
-                : (value?.toString() ?? "--");
+                ? formatValue(normalizedValue)
+                : (normalizedValue?.toString() ?? "--");
 
     if (editing) {
         return (

@@ -9,6 +9,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * DeveloperProjectExposeConfig Model
  * 
+ * @deprecated This model is deprecated. Expose generation now uses
+ *             ExposeConfiguration::fromDeveloperProject() and
+ *             ExposeConfiguration::fromUnitType() which pull data directly
+ *             from DeveloperProject, DeveloperProjectUnitType, and their
+ *             assets — eliminating the need for a separate config store.
+ *             This model is retained for backward compatibility but will be
+ *             removed in a future release.
+ * 
  * Stores all configuration data needed to generate an expose PDF for a project.
  * Has a 1:1 relationship with DeveloperProject.
  * 

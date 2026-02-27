@@ -4,15 +4,18 @@ import StepOne from "./StepOne";
 import CustomFieldStep from "./CustomFieldStep";
 import ModernSteps from "./ModernSteps";
 import { router, usePage } from "@inertiajs/react";
-import { useApiQuery } from "@/lib/api/client";
+import { useApiQuery, useApiMutate } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
 import { Deal } from "@/Types/api/deals";
+import { Lead } from "@/Types/api/leads";
+import { ApiResponse } from "@/lib/api/types";
 
 interface Props {
     open: boolean;
     onClose: () => void;
     deal?: Deal | null; // Optional deal for edit mode
     pipelineId?: number; // Pipeline ID for new deals
+    lead?: Lead | null; // Pre-set lead (skips StepOne when creating)
 }
 
 const DealInformationGatheringForm: React.FC<Props> = ({
@@ -20,12 +23,16 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     onClose,
     deal: editDeal,
     pipelineId: propsPipelineId,
+    lead: presetLead,
 }) => {
     const [current, setCurrent] = useState(0);
     const [deal, setDeal] = useState<any>(null);
     const [lead, setLead] = useState<any>(null);
+    const [autoInitializing, setAutoInitializing] = useState(false);
 
     const isEditMode = !!editDeal;
+    // When a lead is pre-set and we're creating (not editing), skip StepOne entirely
+    const isPresetLead = !!presetLead && !editDeal;
 
     // Get the pipeline ID from URL params if not provided via props
     const { props } = usePage<any>();
@@ -49,6 +56,15 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     const dynamicSteps = stepsData?.steps || [];
     const loadingSteps = isLoading({ status });
 
+    // Mutation for auto-initializing a deal when lead is pre-set
+    const { mutate: autoInitMutate } = useApiMutate<any, any, ApiResponse<any>>(
+        route("deals.gathering.init"),
+        "POST",
+    );
+
+    // Step offset: when lead is pre-set, there's no "Lead Information" step
+    const stepOffset = isPresetLead ? 0 : 1;
+
     // Ref for auto-scrolling content container
     const contentRef = useRef<HTMLDivElement>(null);
 
@@ -66,8 +82,46 @@ const DealInformationGatheringForm: React.FC<Props> = ({
             setCurrent(0);
             setDeal(null);
             setLead(null);
+            setAutoInitializing(false);
         }
     }, [open, editDeal]);
+
+    // Auto-init deal when lead is pre-set (skip StepOne)
+    React.useEffect(() => {
+        if (
+            open &&
+            isPresetLead &&
+            !deal &&
+            !autoInitializing &&
+            !loadingSteps
+        ) {
+            setAutoInitializing(true);
+            const leadType = presetLead.company_name ? "agent" : "client";
+            const payload: any = {
+                lead_type: leadType,
+                lead_id: presetLead.id,
+            };
+            if (pipelineId) {
+                payload.pipeline_id = pipelineId;
+            }
+            autoInitMutate(payload, {
+                onSuccess: (response: any) => {
+                    if (response.status === "success") {
+                        setDeal(response.deal);
+                        setLead(response.lead);
+                        setCurrent(0); // First step is now the first custom field step
+                    }
+                    setAutoInitializing(false);
+                },
+                onError: () => {
+                    setAutoInitializing(false);
+                    message.error(
+                        "Failed to initialize deal. Please try again.",
+                    );
+                },
+            });
+        }
+    }, [open, isPresetLead, deal, autoInitializing, loadingSteps]);
 
     // Auto-scroll to top when step changes
     useEffect(() => {
@@ -84,7 +138,8 @@ const DealInformationGatheringForm: React.FC<Props> = ({
 
     const handleNext = () => {
         const nextStep = current + 1;
-        if (nextStep > dynamicSteps.length) {
+        const totalSteps = dynamicSteps.length + stepOffset;
+        if (nextStep >= totalSteps) {
             // Finish
             message.success("Deal information gathered successfully!");
             onClose();
@@ -100,25 +155,34 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     };
 
     // Construct Steps items
-    // Step 0: Lead & Deal (Init)
-    // Step 1..N: Dynamic Steps
-    const items = [
-        {
-            title: "Lead Information",
-        },
-        ...dynamicSteps.map((step) => ({ title: step.title })),
-    ];
+    // When lead is pre-set, skip "Lead Information" step entirely
+    // Otherwise: Step 0 = Lead & Deal (Init), Step 1..N = Dynamic Steps
+    const items = isPresetLead
+        ? dynamicSteps.map((step) => ({ title: step.title }))
+        : [
+              {
+                  title: "Lead Information",
+              },
+              ...dynamicSteps.map((step) => ({ title: step.title })),
+          ];
 
     // Calculate which steps should be disabled
-    // All steps after step 0 are disabled until a deal is created
-    // Once a deal is created, step 0 (Lead Information) is disabled to prevent going back
-    const disabledSteps = deal ? [0] : items.slice(1).map((_, i) => i + 1);
+    // When lead is pre-set: no steps need disabling based on lead selection
+    // Otherwise: all steps after step 0 are disabled until a deal is created;
+    //   once created, step 0 (Lead Information) is disabled
+    const disabledSteps = isPresetLead
+        ? deal
+            ? []
+            : items.map((_, i) => i) // all disabled until auto-init completes
+        : deal
+          ? [0]
+          : items.slice(1).map((_, i) => i + 1);
 
     // Handle step navigation via click
     const handleStepClick = (stepIndex: number) => {
         // Don't allow navigation to steps beyond current + 1 (can't skip ahead)
-        // Don't allow going back to step 0 once a deal is created
-        if (deal && stepIndex === 0) {
+        // Don't allow going back to step 0 once a deal is created (only relevant when not pre-set)
+        if (!isPresetLead && deal && stepIndex === 0) {
             return; // Prevent going back to step 0 after deal creation
         }
         if (stepIndex <= current || stepIndex === current + 1) {
@@ -129,7 +193,15 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     const renderContent = () => {
         let content = null;
 
-        if (current === 0) {
+        // Show loading state during auto-initialization
+        if (autoInitializing) {
+            content = (
+                <div className="py-12">
+                    <Skeleton active paragraph={{ rows: 6 }} />
+                </div>
+            );
+        } else if (!isPresetLead && current === 0) {
+            // StepOne: only shown when lead is NOT pre-set
             content = (
                 <StepOne
                     onNext={handleStepOneNext}
@@ -139,8 +211,8 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                 />
             );
         } else {
-            // Adjust index for dynamic steps (current - 1)
-            const stepIndex = current - 1;
+            // Adjust index for dynamic steps using stepOffset
+            const stepIndex = current - stepOffset;
 
             if (stepIndex >= 0 && stepIndex < dynamicSteps.length) {
                 content = (
@@ -152,8 +224,11 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                         isLast={stepIndex === dynamicSteps.length - 1}
                     />
                 );
-            } else if (dynamicSteps.length === 0 && current === 1) {
-                // Fallback for no steps
+            } else if (
+                dynamicSteps.length === 0 &&
+                (current === stepOffset || (isPresetLead && deal))
+            ) {
+                // Fallback for no custom field steps
                 content = (
                     <div className="text-center p-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                         <div className="text-5xl mb-4">🎉</div>
@@ -187,7 +262,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                 <span className="text-xl font-semibold">
                     {isEditMode
                         ? `Edit: ${deal?.name ?? editDeal?.name}`
-                        : deal?.name ?? "New Deal"}
+                        : (deal?.name ?? "New Deal")}
                 </span>
             }
             open={open}
@@ -198,7 +273,11 @@ const DealInformationGatheringForm: React.FC<Props> = ({
             maskClosable={false}
             className="top-8"
         >
-            <Skeleton loading={loadingSteps} active paragraph={{ rows: 10 }}>
+            <Skeleton
+                loading={loadingSteps || autoInitializing}
+                active
+                paragraph={{ rows: 10 }}
+            >
                 <div>
                     <ModernSteps
                         current={current}

@@ -86,9 +86,34 @@ trait ImportExcel
         $importClassName = (new ReflectionClass($importClass))->getShortName();
         Log::info('Importing to queue: ' . $importClassName);
 
-        // clear previous import
-        Artisan::call('queue:clear database --queue=' . $importClassName);
-        Artisan::call('queue:flush');
+        // Signal all running queue workers to stop after their current job
+        // so they release row-level locks on the jobs / failed_jobs tables.
+        try {
+            Artisan::call('queue:restart');
+            // Give workers a moment to finish their current job and exit
+            sleep(3);
+        } catch (\Exception $e) {
+            Log::warning('Could not restart queue workers: ' . $e->getMessage());
+        }
+
+        // Clear previous import — wrapped in try-catch because the DELETE
+        // can hit a lock-wait timeout when a queue worker is still processing
+        // jobs from a previous import.
+        try {
+            Artisan::call('queue:clear', [
+                'connection' => 'database',
+                '--queue' => $importClassName,
+                '--force' => true,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning("Could not clear queue [{$importClassName}]: " . $e->getMessage());
+        }
+
+        try {
+            Artisan::call('queue:flush');
+        } catch (\Exception $e) {
+            Log::warning('Could not flush failed jobs: ' . $e->getMessage());
+        }
         // Get index of an array not null value with key
         $columns = array_filter($request->columns, function ($value) {
             return $value !== null;
@@ -166,8 +191,26 @@ trait ImportExcel
             
             Log::info('Jobs created for chunk', ['chunk' => $chunkIndex, 'job_count' => count($jobs), 'memory' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
             
-            $batch = Bus::batch($jobs)->onConnection('database')->onQueue($importClassName)->name($importClassName . '_chunk_' . $chunkIndex)->dispatch();
-            $allBatches[] = $batch;
+            $batch = Bus::batch($jobs)->onConnection('database')->onQueue($importClassName)->name($importClassName . '_chunk_' . $chunkIndex);
+
+            // Retry batch dispatch up to 3 times — the INSERT INTO jobs can
+            // deadlock when a queue worker still holds row-level locks.
+            $dispatched = null;
+            $maxAttempts = 3;
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                try {
+                    $dispatched = $batch->dispatch();
+                    break;
+                } catch (\Exception $e) {
+                    if ($attempt >= $maxAttempts) {
+                        Log::error('Import failed: ' . $e->getMessage());
+                        throw $e;
+                    }
+                    Log::warning("Batch dispatch attempt {$attempt} failed, retrying in 5s…", ['error' => $e->getMessage()]);
+                    sleep(5);
+                }
+            }
+            $allBatches[] = $dispatched;
             
             Log::info('Batch dispatched', ['chunk' => $chunkIndex, 'memory' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
             

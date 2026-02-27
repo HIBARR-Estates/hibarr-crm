@@ -94,6 +94,7 @@ class HandleInertiaRequests extends Middleware
             // Internationalization props
             'locale' => fn () => $this->getCurrentLocale(),
             'translations' => fn () => $this->getTranslations(),
+            'fallbackTranslations' => fn () => $this->getFallbackTranslations(),
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => $this->getAvailableLocales(),
         ]);
@@ -290,27 +291,73 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Get translations for frontend (cached per locale)
+     * Get translations for frontend (cached per locale with TTL)
      */
     private function getTranslations(): array
     {
         $locale = $this->getCurrentLocale();
 
-        return Cache::rememberForever("translations_{$locale}", function () use ($locale) {
+        return Cache::remember("translations_{$locale}", 3600, function () use ($locale) {
+            $files = ['app', 'modules', 'messages', 'permissions', 'placeholders'];
+
+            // Always load English as the base translations
+            $englishPath = lang_path('eng');
+            $baseTranslations = [];
+
+            foreach ($files as $file) {
+                $filePath = $englishPath . '/' . $file . '.php';
+                if (file_exists($filePath)) {
+                    $baseTranslations[$file] = require $filePath;
+                }
+            }
+
+            // If locale is English, return English translations directly
+            if ($locale === 'en') {
+                return $this->flattenTranslations($baseTranslations);
+            }
+
+            // For non-English locales, overlay locale-specific translations on top of English
             $folder = $this->localeToFolder[$locale] ?? 'eng';
             $path = lang_path($folder);
 
-            // Fallback to English if locale folder doesn't exist
-            if (!is_dir($path)) {
-                $path = lang_path('eng');
+            if (is_dir($path)) {
+                foreach ($files as $file) {
+                    $filePath = $path . '/' . $file . '.php';
+                    if (file_exists($filePath)) {
+                        $localeData = require $filePath;
+                        // Deep merge: locale translations override English, missing keys keep English values
+                        $baseTranslations[$file] = array_replace_recursive(
+                            $baseTranslations[$file] ?? [],
+                            $localeData
+                        );
+                    }
+                }
             }
 
-            // Load specific translation files needed for frontend (key UI strings)
+            return $this->flattenTranslations($baseTranslations);
+        });
+    }
+
+    /**
+     * Get English fallback translations for i18next client-side fallback
+     * Only sent when locale is non-English so i18next fallbackLng works
+     */
+    private function getFallbackTranslations(): ?array
+    {
+        $locale = $this->getCurrentLocale();
+
+        // No need for fallback when already English
+        if ($locale === 'en') {
+            return null;
+        }
+
+        return Cache::remember('translations_en', 3600, function () {
+            $englishPath = lang_path('eng');
             $files = ['app', 'modules', 'messages', 'permissions', 'placeholders'];
             $translations = [];
 
             foreach ($files as $file) {
-                $filePath = $path . '/' . $file . '.php';
+                $filePath = $englishPath . '/' . $file . '.php';
                 if (file_exists($filePath)) {
                     $translations[$file] = require $filePath;
                 }

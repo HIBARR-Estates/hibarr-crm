@@ -25,14 +25,24 @@ export interface PropertyPermissions {
     canDelete: boolean;
     /** Whether the user can view the property */
     canView: boolean;
-    /** Whether the user can publish/unpublish the property */
+    /** Whether the user can directly publish/unpublish the property (SM/admin only) */
     canPublish: boolean;
+    /** Whether the user can request publishing (non-SM creator/responsible agent) */
+    canRequestPublish: boolean;
     /** Whether the user can view owner information */
     canViewOwnerInfo: boolean;
     /** Whether the user can request access to the property */
     canRequestAccess: boolean;
     /** Whether the user has any role on the property */
     hasAnyRole: boolean;
+    /** Whether the user is a sales manager (edit_product === 'all') */
+    isSalesManager: boolean;
+    /** Whether the user can view the documents section */
+    canViewDocuments: boolean;
+    /** Whether the user can view internal info section */
+    canViewInternalInfo: boolean;
+    /** Whether the user can view publishing permissions (101evler / hangiev) */
+    canViewPublishingPermissions: boolean;
 }
 
 /**
@@ -65,9 +75,14 @@ export function usePropertyPermissions(
             canDelete: false,
             canView: false,
             canPublish: false,
+            canRequestPublish: false,
             canViewOwnerInfo: false,
             canRequestAccess: false,
             hasAnyRole: false,
+            isSalesManager: false,
+            canViewDocuments: false,
+            canViewInternalInfo: false,
+            canViewPublishingPermissions: false,
         };
 
         if (!property || !currentUser?.id) {
@@ -85,7 +100,9 @@ export function usePropertyPermissions(
         if (isAdmin) roles.push("admin");
 
         // Check if user is the creator
-        const isCreator = (property as any).added_by === userId;
+        const isCreator =
+            (property as any).added_by === userId ||
+            (property as any).added_by?.id === userId;
         if (isCreator) roles.push("creator");
 
         // Check if user is the responsible agent
@@ -120,17 +137,32 @@ export function usePropertyPermissions(
             isResponsibleAgent ||
             (property.is_published !== false && canViewPublished);
 
-        // Can edit if: admin, creator, or responsible agent
-        const canEdit = isAdmin || isCreator || isResponsibleAgent;
+        // Can edit if: creator or responsible agent only
+        const canEdit = isCreator || isResponsibleAgent;
 
-        // Can delete if: admin, creator, or responsible agent
-        const canDelete = isAdmin || isCreator || isResponsibleAgent;
+        // Can delete if: creator or responsible agent only
+        const canDelete = isCreator || isResponsibleAgent;
 
-        // Can publish if: admin or creator only
-        const canPublish = isAdmin || isCreator;
+        // Can publish directly if: admin/sales-manager only
+        const canPublish = isAdmin;
+
+        // Can request publish if: creator or responsible agent (but NOT admin/SM)
+        const canRequestPublish = !isAdmin && (isCreator || isResponsibleAgent);
+
+        // Sales manager is effectively the same as admin (edit_product === 'all')
+        const isSalesManager = isAdmin;
 
         // Can view owner info if: admin, creator, or responsible agent
         const canViewOwnerInfo = isAdmin || isCreator || isResponsibleAgent;
+
+        // Can view documents section if: admin, creator, or responsible agent
+        const canViewDocuments = isAdmin || isCreator || isResponsibleAgent;
+
+        // Can view internal info if: admin, creator, or responsible agent
+        const canViewInternalInfo = isAdmin || isCreator || isResponsibleAgent;
+
+        // Can view publishing permissions (101evler / hangiev) if: admin or creator
+        const canViewPublishingPermissions = isAdmin || isCreator;
 
         // Can request access if: not creator, not responsible agent, and property is published
         const canRequestAccess =
@@ -147,9 +179,14 @@ export function usePropertyPermissions(
             canDelete,
             canView,
             canPublish,
+            canRequestPublish,
             canViewOwnerInfo,
             canRequestAccess,
             hasAnyRole,
+            isSalesManager,
+            canViewDocuments,
+            canViewInternalInfo,
+            canViewPublishingPermissions,
         };
     }, [
         property,
@@ -184,9 +221,14 @@ export function getPropertyPermissions(
         canDelete: false,
         canView: false,
         canPublish: false,
+        canRequestPublish: false,
         canViewOwnerInfo: false,
         canRequestAccess: false,
         hasAnyRole: false,
+        isSalesManager: false,
+        canViewDocuments: false,
+        canViewInternalInfo: false,
+        canViewPublishingPermissions: false,
     };
 
     if (!property || !userId) {
@@ -232,10 +274,15 @@ export function getPropertyPermissions(
         isCreator ||
         isResponsibleAgent ||
         (property.is_published !== false && canViewPublished);
-    const canEdit = isAdmin || isCreator || isResponsibleAgent;
-    const canDelete = isAdmin || isCreator || isResponsibleAgent;
-    const canPublish = isAdmin || isCreator;
+    const canEdit = isCreator || isResponsibleAgent;
+    const canDelete = isCreator || isResponsibleAgent;
+    const canPublish = isAdmin;
+    const canRequestPublish = !isAdmin && (isCreator || isResponsibleAgent);
+    const isSalesManager = isAdmin;
     const canViewOwnerInfo = isAdmin || isCreator || isResponsibleAgent;
+    const canViewDocuments = isAdmin || isCreator || isResponsibleAgent;
+    const canViewInternalInfo = isAdmin || isCreator || isResponsibleAgent;
+    const canViewPublishingPermissions = isAdmin || isCreator;
     const canRequestAccess =
         !isCreator && !isResponsibleAgent && property.is_published !== false;
 
@@ -248,9 +295,14 @@ export function getPropertyPermissions(
         canDelete,
         canView,
         canPublish,
+        canRequestPublish,
         canViewOwnerInfo,
         canRequestAccess,
         hasAnyRole,
+        isSalesManager,
+        canViewDocuments,
+        canViewInternalInfo,
+        canViewPublishingPermissions,
     };
 }
 

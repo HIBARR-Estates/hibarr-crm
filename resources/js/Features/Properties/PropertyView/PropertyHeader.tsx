@@ -1,19 +1,28 @@
 import React, { useState } from "react";
-import { Typography, Tag, Space, Button, Tooltip, message } from "antd";
+import {
+    Typography,
+    Tag,
+    Space,
+    Button,
+    Tooltip,
+    message,
+    Modal,
+    Input,
+} from "antd";
 import { router } from "@inertiajs/react";
 import {
     EditOutlined,
     ShareAltOutlined,
     EnvironmentOutlined,
-    HomeOutlined,
     DollarOutlined,
     FilePdfOutlined,
-    FolderOpenOutlined,
     CheckCircleOutlined,
-    ClockCircleOutlined,
     CopyOutlined,
     GlobalOutlined,
     EyeInvisibleOutlined,
+    SafetyOutlined,
+    SendOutlined,
+    ClockCircleOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import {
@@ -22,7 +31,7 @@ import {
     formatCurrencyWithSymbol,
 } from "@/lib/utils";
 import { usePage } from "@inertiajs/react";
-import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
+import { PropertyPermissions } from "@/Hooks/usePropertyPermissions";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
@@ -31,18 +40,20 @@ const { Title, Text } = Typography;
 
 interface PropertyHeaderProps {
     property: Property;
+    permissions: PropertyPermissions;
+    hasPendingPublishRequest?: boolean;
     onEdit?: () => void;
     onShare?: () => void;
     onGenerateExpose?: () => void;
-    canEdit?: boolean;
 }
 
 function PropertyHeader({
     property,
+    permissions,
+    hasPendingPublishRequest = false,
     onEdit,
     onShare,
     onGenerateExpose,
-    canEdit = false,
 }: PropertyHeaderProps) {
     const { props } = usePage<any>();
     const {
@@ -51,13 +62,18 @@ function PropertyHeader({
         currencies = [],
     } = props || {};
 
-    const permissions = usePropertyPermissions(property);
+    // Copied state for reference code
+    const [copied, setCopied] = useState(false);
 
     // Confirmation modal state
     const [confirmModal, setConfirmModal] = useState<{
         open: boolean;
         action: "publish" | "unpublish" | null;
     }>({ open: false, action: null });
+
+    // Availability request modal state
+    const [availabilityModal, setAvailabilityModal] = useState(false);
+    const [availabilityMessage, setAvailabilityMessage] = useState("");
 
     const { amount, currency } = parsePropertyPrice(
         (property as any).price,
@@ -93,14 +109,57 @@ function PropertyHeader({
             router.reload({ only: ["property"] });
         });
 
-    const handleManageAssets = () => {
-        router.visit(route("properties.assets.index", property.id));
-    };
+    // Check Availability mutation
+    const { mutate: requestAvailability, isPending: isRequestingAvailability } =
+        useApiMutate<
+            { property_id: number; message?: string },
+            any,
+            ApiSuccessResponse<any>
+        >(route("availability-requests.store"), "POST", () => {
+            setAvailabilityModal(false);
+            setAvailabilityMessage("");
+        });
 
-    const handleCopyReferenceCode = () => {
-        if (property.reference_code) {
-            navigator.clipboard.writeText(property.reference_code);
-            message.success("Reference code copied to clipboard!");
+    // Publish request modal state
+    const [publishRequestModal, setPublishRequestModal] = useState(false);
+    const [publishRequestMessage, setPublishRequestMessage] = useState("");
+
+    // Request Publishing mutation
+    const {
+        mutate: submitPublishRequest,
+        isPending: isSubmittingPublishRequest,
+    } = useApiMutate<
+        { property_id: number; message?: string },
+        any,
+        ApiSuccessResponse<any>
+    >(route("publish-requests.store"), "POST", () => {
+        setPublishRequestModal(false);
+        setPublishRequestMessage("");
+        router.reload({ only: ["property", "hasPendingPublishRequest"] });
+    });
+
+    const handleCopyReferenceCode = async () => {
+        if (!property.reference_code) return;
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(property.reference_code);
+            } else {
+                // Fallback for non-HTTPS environments
+                const textarea = document.createElement("textarea");
+                textarea.value = property.reference_code;
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textarea);
+            }
+            setCopied(true);
+            message.success("Reference code copied!");
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            message.error("Failed to copy");
         }
     };
 
@@ -126,6 +185,28 @@ function PropertyHeader({
         }
     };
 
+    const handleCheckAvailability = () => {
+        setAvailabilityModal(true);
+    };
+
+    const handleRequestPublish = () => {
+        setPublishRequestModal(true);
+    };
+
+    const handleSubmitPublishRequest = () => {
+        submitPublishRequest({
+            property_id: property.id,
+            message: publishRequestMessage || undefined,
+        });
+    };
+
+    const handleSubmitAvailabilityRequest = () => {
+        requestAvailability({
+            property_id: property.id,
+            message: availabilityMessage || undefined,
+        });
+    };
+
     return (
         <div className="mb-4">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -133,13 +214,23 @@ function PropertyHeader({
                     {/* Reference Code Badge */}
                     {property.reference_code && (
                         <div className="flex items-center gap-2 mb-2">
-                            <Tooltip title="Click to copy reference code">
+                            <Tooltip
+                                title={
+                                    copied
+                                        ? "Copied!"
+                                        : "Click to copy reference code"
+                                }
+                            >
                                 <Tag
-                                    color="geekblue"
-                                    className="text-xs cursor-pointer hover:opacity-80"
+                                    color={copied ? "green" : "geekblue"}
+                                    className="text-xs cursor-pointer hover:opacity-80 transition-all"
                                     onClick={handleCopyReferenceCode}
                                 >
-                                    <CopyOutlined className="mr-1" />
+                                    {copied ? (
+                                        <CheckCircleOutlined className="mr-1" />
+                                    ) : (
+                                        <CopyOutlined className="mr-1" />
+                                    )}
                                     {property.reference_code}
                                 </Tag>
                             </Tooltip>
@@ -191,20 +282,13 @@ function PropertyHeader({
                         <Space>
                             <EnvironmentOutlined />
                             <Text>
-                                {property.area}, {property.city}
+                                {property?.area ? `${property.area}, ` : ""}
+                                {property?.city || ""}
+                                {!property?.area &&
+                                    !property?.city &&
+                                    "Location not specified"}
                             </Text>
                         </Space>
-                        <Space>
-                            <HomeOutlined />
-                            <Text>{property.property_type}</Text>
-                        </Space>
-                        <Space>
-                            <DollarOutlined />
-                            <Text>{property.sale_type}</Text>
-                        </Space>
-                        {property.primary_category && (
-                            <Tag color="blue">{property.primary_category}</Tag>
-                        )}
                     </div>
 
                     <div className="flex items-center gap-2 mb-4">
@@ -220,7 +304,7 @@ function PropertyHeader({
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                    {/* Publish/Unpublish Button */}
+                    {/* Publish/Unpublish Button (SM/Admin only) */}
                     {permissions.canPublish &&
                         (property.is_published ? (
                             <Button
@@ -243,12 +327,47 @@ function PropertyHeader({
                                 Publish
                             </Button>
                         ))}
-                    <Button
-                        icon={<FolderOpenOutlined />}
-                        onClick={handleManageAssets}
-                    >
-                        Manage Assets
-                    </Button>
+                    {/* Request Publishing Button (non-SM agents) */}
+                    {permissions.canRequestPublish &&
+                        !property.is_published &&
+                        (hasPendingPublishRequest ? (
+                            <Tooltip title="A publish request is pending review by a Sales Manager">
+                                <Tag
+                                    icon={<ClockCircleOutlined />}
+                                    color="orange"
+                                    className="text-sm px-3 py-1 m-0"
+                                >
+                                    Pending Review
+                                </Tag>
+                            </Tooltip>
+                        ) : (
+                            <Button
+                                type="primary"
+                                ghost
+                                icon={<SendOutlined />}
+                                onClick={handleRequestPublish}
+                                loading={isSubmittingPublishRequest}
+                            >
+                                Request Publishing
+                            </Button>
+                        ))}
+                    {/* Check Availability Button */}
+                    {permissions.canRequestAccess && !permissions.isAdmin && (
+                        <Tooltip title="Request availability check before presenting to customer">
+                            <Button
+                                icon={<SafetyOutlined />}
+                                onClick={handleCheckAvailability}
+                                loading={isRequestingAvailability}
+                            >
+                                Check Availability
+                            </Button>
+                        </Tooltip>
+                    )}
+                    {/* {onShare && (
+                        <Button icon={<ShareAltOutlined />} onClick={onShare}>
+                            Share
+                        </Button>
+                    )} */}
                     {onGenerateExpose && (
                         <Button
                             icon={<FilePdfOutlined />}
@@ -300,6 +419,89 @@ function PropertyHeader({
                 confirmType="primary"
                 confirmDanger={confirmModal.action === "unpublish"}
             />
+
+            {/* Check Availability Modal */}
+            <Modal
+                title="Check Property Availability"
+                open={availabilityModal}
+                onOk={handleSubmitAvailabilityRequest}
+                onCancel={() => {
+                    if (!isRequestingAvailability) {
+                        setAvailabilityModal(false);
+                        setAvailabilityMessage("");
+                    }
+                }}
+                confirmLoading={isRequestingAvailability}
+                okText="Send Request"
+                cancelText="Cancel"
+            >
+                <div className="py-2">
+                    <p className="mb-3 text-gray-600">
+                        Before presenting this property to your customer, you
+                        must request an availability check from the responsible
+                        agent. They will be notified and have 8 business hours
+                        to respond.
+                    </p>
+                    <p className="mb-2 font-medium">
+                        Property: {property.display_title || property.title}
+                    </p>
+                    {property.reference_code && (
+                        <p className="mb-3 text-gray-500 text-sm">
+                            Reference: {property.reference_code}
+                        </p>
+                    )}
+                    <Input.TextArea
+                        placeholder="Optional message to the responsible agent (e.g., customer details, urgency)"
+                        value={availabilityMessage}
+                        onChange={(e) => setAvailabilityMessage(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        showCount
+                    />
+                </div>
+            </Modal>
+
+            {/* Request Publishing Modal */}
+            <Modal
+                title="Request Property Publishing"
+                open={publishRequestModal}
+                onOk={handleSubmitPublishRequest}
+                onCancel={() => {
+                    if (!isSubmittingPublishRequest) {
+                        setPublishRequestModal(false);
+                        setPublishRequestMessage("");
+                    }
+                }}
+                confirmLoading={isSubmittingPublishRequest}
+                okText="Submit Request"
+                cancelText="Cancel"
+            >
+                <div className="py-2">
+                    <p className="mb-3 text-gray-600">
+                        Your property will be reviewed by a Sales Manager before
+                        being published. You will be notified when your request
+                        is approved or rejected.
+                    </p>
+                    <p className="mb-2 font-medium">
+                        Property: {property.display_title || property.title}
+                    </p>
+                    {property.reference_code && (
+                        <p className="mb-3 text-gray-500 text-sm">
+                            Reference: {property.reference_code}
+                        </p>
+                    )}
+                    <Input.TextArea
+                        placeholder="Optional message to the Sales Manager (e.g., why this property should be published)"
+                        value={publishRequestMessage}
+                        onChange={(e) =>
+                            setPublishRequestMessage(e.target.value)
+                        }
+                        rows={3}
+                        maxLength={1000}
+                        showCount
+                    />
+                </div>
+            </Modal>
         </div>
     );
 }

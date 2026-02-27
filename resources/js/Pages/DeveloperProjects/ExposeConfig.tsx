@@ -735,7 +735,7 @@ const ExposeConfig = ({
             title={pageTitle}
             breadcrumbs={[
                 {
-                    name: "Developer Projects",
+                    name: "Construction Projects",
                     url: route("developer-projects.index"),
                 },
                 {

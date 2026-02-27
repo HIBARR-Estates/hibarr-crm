@@ -117,6 +117,10 @@ pipeline {
                                 echo 'Run once: sudo bash ${LIVE_LINK}/scripts/setup-grpc-staging.sh YOUR_GRPC_DOMAIN'
                             fi
 
+                            echo 'Step 7: Cleanup old deployments...'
+                            cd /home/$TARGET_USER/deployments
+                            ls -dt ${ENV_NAME}_build_* | tail -n +6 | xargs rm -rf || true
+
                             echo 'Deployment Successful!'
                         "
                     '''

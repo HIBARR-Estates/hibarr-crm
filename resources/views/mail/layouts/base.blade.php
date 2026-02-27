@@ -50,7 +50,7 @@
             <td align="center">
                 
                 <!-- Main Email Card -->
-                <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-card" style="max-width:600px; width:100%; background:#ffffff; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow:hidden;">
+                <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" class="email-card" style="max-width:600px; width:100%; background:#ffffff; border-radius:8px; overflow:hidden;">
                     
                     <!-- Logo Section -->
                     <tr>

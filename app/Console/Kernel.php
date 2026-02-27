@@ -33,6 +33,7 @@ use App\Console\Commands\AssignShiftRotation;
 use App\Console\Commands\AssignEmployeeShiftRotation;
 use App\Console\Commands\RecalculateLeavesQuotas;
 use App\Console\Commands\AutoClockOut;
+use App\Console\Commands\EscalateOverdueAvailabilityRequests;
 use DateTimeZone;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -79,6 +80,7 @@ class Kernel extends ConsoleKernel
         AssignShiftRotation::class,
         AssignEmployeeShiftRotation::class,
         RecalculateLeavesQuotas::class,
+        EscalateOverdueAvailabilityRequests::class,
     ];
 
     /**
@@ -144,6 +146,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('create-database-backup')->hourly();
         $schedule->command('delete-database-backup')->hourly();
         $schedule->command('add-missing-permissions')->everyThirtyMinutes();
+        $schedule->command('escalate-availability-requests')->everyThirtyMinutes();
 
         $schedule->command('send-monthly-attendance-report')->monthly();
         $schedule->command('app:create-employee-leave-quota-history')->monthly();

@@ -12,6 +12,12 @@ use Inertia\Inertia;
 /**
  * DeveloperProjectExposeConfigController
  * 
+ * @deprecated This controller is deprecated. Expose generation now uses
+ *             DeveloperProjectController::generateProjectExpose() and
+ *             DeveloperProjectController::generateUnitTypeExpose() which
+ *             pull data directly from models and assets. The separate config
+ *             store is no longer needed for new exposes.
+ * 
  * Handles expose configuration management for developer projects.
  * The expose config contains all data needed to generate PDF exposes,
  * including logos, images, content blocks, and financial data.

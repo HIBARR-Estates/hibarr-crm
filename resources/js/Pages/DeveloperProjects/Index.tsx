@@ -412,7 +412,7 @@ const Index = ({ pageTitle, projects, filters }: IndexProps) => {
         <>
             <PageLayout
                 title={pageTitle}
-                breadcrumbs={[{ name: "Developer Projects" }]}
+                breadcrumbs={[{ name: "Construction Projects" }]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     {/* Header */}

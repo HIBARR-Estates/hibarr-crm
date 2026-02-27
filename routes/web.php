@@ -136,6 +136,10 @@ use App\Http\Controllers\TimelogWeeklyApprovalController;
 use App\Http\Controllers\WeeklyTimesheetController;
 use App\Http\Controllers\MeetingTypeController;
 
+// Signed URL route for availability request email responses (no auth required)
+Route::get('availability-requests/{id}/respond/{action}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'respondFromEmail'])
+    ->name('availability-requests.respond-email')
+    ->middleware('signed');
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('image/upload', [ImageController::class, 'store'])->name('image.store');
@@ -570,11 +574,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
 
-    // deals route
-
-    Route::resource('lead-contact', LeadContactController::class);
-    // Accept both POST (for file uploads) and PATCH
-    Route::match(['post', 'patch'], 'lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
+    Route::get('lead-contact', [LeadContactController::class, 'index'])->name('lead-contact.index');
+    Route::get('lead-contact/create', [LeadContactController::class, 'create'])->name('lead-contact.create');
+    Route::post('lead-contact', [LeadContactController::class, 'store'])->name('lead-contact.store');
+    Route::get('lead-contact/{lead_contact}', [LeadContactController::class, 'show'])->name('lead-contact.show');
+    Route::get('lead-contact/{lead_contact}/edit', [LeadContactController::class, 'edit'])->name('lead-contact.edit');
+    Route::put('lead-contact/{lead_contact}', [LeadContactController::class, 'update'])->name('lead-contact.update');
+    Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
@@ -1003,6 +1011,24 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::post('properties/{id}/unpublish', [App\Http\Controllers\PropertyController::class, 'unpublish'])->name('properties.unpublish');
     Route::post('properties/{id}/request-access', [App\Http\Controllers\PropertyController::class, 'requestAccess'])->name('properties.request_access');
     
+    // Property Availability Requests
+    Route::prefix('availability-requests')->name('availability-requests.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'store'])->name('store');
+        Route::get('/property/{propertyId}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'forProperty'])->name('for-property');
+        Route::get('/{id}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
+        Route::post('/{id}/approve', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'approve'])->name('approve');
+        Route::post('/{id}/deny', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'deny'])->name('deny');
+    });
+    
+    // Property Publish Requests
+    Route::prefix('publish-requests')->name('publish-requests.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyPublishRequestController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PropertyPublishRequestController::class, 'store'])->name('store');
+        Route::post('/{id}/approve', [App\Http\Controllers\PropertyPublishRequestController::class, 'approve'])->name('approve');
+        Route::post('/{id}/reject', [App\Http\Controllers\PropertyPublishRequestController::class, 'reject'])->name('reject');
+    });
+    
     // Property Asset Management Routes
     Route::post('properties/{property}/photos', [App\Http\Controllers\PropertyController::class, 'updatePhotos'])->name('properties.update_photos');
     Route::post('properties/{property}/photos/add', [App\Http\Controllers\PropertyController::class, 'addSinglePhoto'])->name('properties.add_single_photo');
@@ -1020,6 +1046,18 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     // =====================================================
     // Developer Projects & Project Locations
     // =====================================================
+
+    // Property Config / Lookup Tables Management
+    Route::prefix('property-config')->name('property-config.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyConfigController::class, 'page'])->name('page');
+        Route::get('/types', [App\Http\Controllers\PropertyConfigController::class, 'types'])->name('types');
+        Route::post('/property-types/bulk-category', [App\Http\Controllers\PropertyConfigController::class, 'bulkUpdateCategory'])->name('bulk-category');
+        Route::get('/{type}', [App\Http\Controllers\PropertyConfigController::class, 'index'])->name('index');
+        Route::post('/{type}', [App\Http\Controllers\PropertyConfigController::class, 'store'])->name('store');
+        Route::get('/{type}/{id}', [App\Http\Controllers\PropertyConfigController::class, 'show'])->name('show');
+        Route::put('/{type}/{id}', [App\Http\Controllers\PropertyConfigController::class, 'update'])->name('update');
+        Route::delete('/{type}/{id}', [App\Http\Controllers\PropertyConfigController::class, 'destroy'])->name('destroy');
+    });
     
     // Project Locations - must be defined before developer-projects since projects reference locations
     Route::prefix('project-locations')->name('project-locations.')->group(function () {
@@ -1062,14 +1100,47 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('/{id}/available-properties', [App\Http\Controllers\DeveloperProjectController::class, 'availableProperties'])->name('available-properties');
         
         // Expose Generation
-        Route::post('/{id}/expose/generate', [App\Http\Controllers\DeveloperProjectController::class, 'generateExpose'])->name('expose.generate');
+        Route::post('/{id}/expose/generate', [App\Http\Controllers\DeveloperProjectController::class, 'generateProjectExpose'])->name('expose.generate');
+        Route::post('/{id}/expose/validate', [App\Http\Controllers\DeveloperProjectController::class, 'validateProjectExpose'])->name('expose.validate');
         
-        // Expose Configuration
+        // Project-level Assets (images, videos)
+        Route::prefix('/{projectId}/assets')->name('assets.')->group(function () {
+            Route::get('/', [App\Http\Controllers\DeveloperProjectAssetController::class, 'index'])->name('index');
+            Route::post('/from-urls', [App\Http\Controllers\DeveloperProjectAssetController::class, 'storeFromUrls'])->name('store_from_urls');
+            Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectAssetController::class, 'destroy'])->name('destroy');
+        });
+
+        // Expose Configuration (DEPRECATED - use project/unit-type expose endpoints above instead)
+        // These routes are kept for backward compatibility but will be removed in a future release.
         Route::get('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'show'])->name('expose-config.show');
         Route::put('/{id}/expose-config', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'upsert'])->name('expose-config.upsert');
         Route::patch('/{id}/expose-config/{section}', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'updateSection'])->name('expose-config.update-section');
         Route::get('/{id}/expose-config/preview', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'previewData'])->name('expose-config.preview');
         Route::get('/{id}/expose-config/validate', [App\Http\Controllers\DeveloperProjectExposeConfigController::class, 'validateConfig'])->name('expose-config.validate');
+        
+        // Unit Types CRUD
+        Route::prefix('/{projectId}/unit-types')->name('unit-types.')->group(function () {
+            Route::get('/', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'index'])->name('index');
+            Route::post('/', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'store'])->name('store');
+            Route::get('/{unitTypeId}', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'show'])->name('show');
+            Route::put('/{unitTypeId}', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'update'])->name('update');
+            Route::delete('/{unitTypeId}', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'destroy'])->name('destroy');
+            Route::post('/reorder', [App\Http\Controllers\DeveloperProjectUnitTypeController::class, 'reorder'])->name('reorder');
+            
+            // Unit Type Expose Generation
+            Route::post('/{unitTypeId}/expose/generate', [App\Http\Controllers\DeveloperProjectController::class, 'generateUnitTypeExpose'])->name('expose.generate');
+            Route::post('/{unitTypeId}/expose/validate', [App\Http\Controllers\DeveloperProjectController::class, 'validateUnitTypeExpose'])->name('expose.validate');
+            
+            // Unit Type Assets
+            Route::prefix('/{unitTypeId}/assets')->name('assets.')->group(function () {
+                Route::get('/', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'index'])->name('index');
+                Route::post('/', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'store'])->name('store');
+                Route::post('/from-urls', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'storeFromUrls'])->name('store_from_urls');
+                Route::put('/{assetId}', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'update'])->name('update');
+                Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'destroy'])->name('destroy');
+                Route::post('/bulk-delete', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'bulkDestroy'])->name('bulk_destroy');
+            });
+        });
     });
 
     // Property Asset Management (New System)
@@ -1086,6 +1157,10 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::post('/bulk-tags', [App\Http\Controllers\PropertyAssetController::class, 'bulkUpdateTags'])->name('bulk_tags');
         Route::post('/bulk-delete', [App\Http\Controllers\PropertyAssetController::class, 'bulkDestroy'])->name('bulk_destroy');
     });
+
+    // Unit Type as Property — show & mark-as-sold (before resource route to avoid {property} catch)
+    Route::get('properties/unit-type/{unitTypeId}', [App\Http\Controllers\PropertyController::class, 'showUnitType'])->name('properties.unit-type.show');
+    Route::post('properties/unit-type/{unitTypeId}/mark-as-sold', [App\Http\Controllers\PropertyController::class, 'markUnitTypeAsSold'])->name('properties.unit-type.mark-as-sold');
 
     Route::resource('properties', App\Http\Controllers\PropertyController::class);    Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     // Meta Conversion Triggers

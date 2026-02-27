@@ -321,6 +321,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                 open={action === "add" || action === "edit"}
                 onClose={handleClose}
                 deal={action === "edit" ? deal : null}
+                lead={lead}
             />
 
             {/* Delete Deal Modal */}

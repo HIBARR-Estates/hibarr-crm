@@ -1,46 +1,41 @@
-import { useState, useCallback, useEffect } from "react";
-import { Link, router, usePage } from "@inertiajs/react";
+import { useState, useCallback } from "react";
+import { Link, router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import {
     Table,
     Button,
-    Modal,
-    Form,
     Input,
     Tag,
     Space,
     Dropdown,
-    Popconfirm,
     Avatar,
     Typography,
     Card,
-    Descriptions,
     Empty,
+    message,
 } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import type { PageProps } from "../../Components/DashboardLayout";
 import {
-    PlusOutlined,
     EditOutlined,
-    DeleteOutlined,
     EyeOutlined,
     MoreOutlined,
-    ArrowLeftOutlined,
     SettingOutlined,
     BankOutlined,
     EnvironmentOutlined,
+    WhatsAppOutlined,
+    CopyOutlined,
 } from "@ant-design/icons";
 import type {
     Developer,
     DeveloperProject,
     ProjectLocation,
 } from "../../Types/developerProject";
-import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { ApiSuccessResponse } from "@/lib/api/types";
+import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
+import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
 
 const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
 
 // ============================================
 // Types
@@ -66,114 +61,14 @@ export interface ShowProps extends PageProps {
 }
 
 // ============================================
-// Components
-// ============================================
-
-interface DeveloperEditModalProps {
-    open: boolean;
-    onClose: () => void;
-    developer: Developer;
-    onSuccess: () => void;
-}
-
-const DeveloperEditModal: React.FC<DeveloperEditModalProps> = ({
-    open,
-    onClose,
-    developer,
-    onSuccess,
-}) => {
-    const [form] = Form.useForm();
-
-    const updateMutation = useApiMutate<
-        { name: string; logo_url?: string; description?: string },
-        Developer,
-        ApiSuccessResponse<Developer>
-    >(route("developers.update", developer.id), "PUT", () => {
-        onClose();
-        onSuccess();
-    });
-
-    const handleSubmit = () => {
-        form.validateFields().then((values) => {
-            updateMutation.mutate(values);
-        });
-    };
-
-    useEffect(() => {
-        if (open) {
-            form.setFieldsValue({
-                name: developer.name,
-                logo_url: developer.logo_url,
-                description: developer.description,
-            });
-        }
-    }, [open, developer, form]);
-
-    return (
-        <Modal
-            title="Edit Developer"
-            open={open}
-            onCancel={() => !updateMutation.isPending && onClose()}
-            footer={[
-                <Button
-                    key="cancel"
-                    onClick={onClose}
-                    disabled={updateMutation.isPending}
-                >
-                    Cancel
-                </Button>,
-                <Button
-                    key="submit"
-                    type="primary"
-                    onClick={handleSubmit}
-                    loading={updateMutation.isPending}
-                >
-                    Update
-                </Button>,
-            ]}
-            destroyOnClose
-        >
-            <Form form={form} layout="vertical" className="mt-4">
-                <Form.Item
-                    name="name"
-                    label="Developer Name"
-                    rules={[
-                        {
-                            required: true,
-                            message: "Please enter the developer name",
-                        },
-                    ]}
-                >
-                    <Input placeholder="Enter developer name" />
-                </Form.Item>
-
-                <Form.Item
-                    name="logo_url"
-                    label="Logo URL"
-                    rules={[
-                        { type: "url", message: "Please enter a valid URL" },
-                    ]}
-                >
-                    <Input placeholder="https://example.com/logo.png" />
-                </Form.Item>
-
-                <Form.Item name="description" label="Description">
-                    <TextArea
-                        placeholder="Enter developer description"
-                        rows={4}
-                    />
-                </Form.Item>
-            </Form>
-        </Modal>
-    );
-};
-
-// ============================================
 // Main Component
 // ============================================
 
 const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
     const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editProject, setEditProject] = useState<DeveloperProject | null>(
+        null,
+    );
     const [searchValue, setSearchValue] = useState(filters.search || "");
 
     const handleSuccess = useCallback(() => {
@@ -260,6 +155,12 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
             render: (_, record) => {
                 const menuItems: MenuProps["items"] = [
                     {
+                        key: "edit",
+                        icon: <EditOutlined />,
+                        label: "Edit Project",
+                        onClick: () => setEditProject(record),
+                    },
+                    {
                         key: "view",
                         icon: <EyeOutlined />,
                         label: (
@@ -313,7 +214,7 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                         icon={<EditOutlined />}
                         onClick={() => setEditModalOpen(true)}
                     >
-                        Edit Developer
+                        Edit Company
                     </Button>
                 </div>
 
@@ -334,10 +235,35 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                                     {developer.description}
                                 </Paragraph>
                             )}
-                            <div className="flex gap-4">
+                            <div className="flex flex-wrap gap-4 items-center">
                                 <Tag color="blue">
                                     {developer.projects_count || 0} Projects
                                 </Tag>
+                                {developer.whatsapp_group_link && (
+                                    <Space size="small">
+                                        <a
+                                            href={developer.whatsapp_group_link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-green-600 hover:text-green-800 flex items-center gap-1"
+                                        >
+                                            <WhatsAppOutlined /> WhatsApp Group
+                                        </a>
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            icon={<CopyOutlined />}
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(
+                                                    developer.whatsapp_group_link!,
+                                                );
+                                                message.success(
+                                                    "Link copied to clipboard",
+                                                );
+                                            }}
+                                        />
+                                    </Space>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -345,7 +271,7 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
 
                 {/* Projects Table */}
                 <Card
-                    title="Developer Projects"
+                    title="Construction Projects"
                     extra={
                         <Input.Search
                             placeholder="Search projects..."
@@ -364,7 +290,7 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                         >
                             <Link href={route("developer-projects.index")}>
                                 <Button type="primary">
-                                    Go to Developer Projects
+                                    Go to Construction Projects
                                 </Button>
                             </Link>
                         </Empty>
@@ -391,10 +317,19 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                 </Card>
             </div>
 
-            {/* Edit Modal */}
-            <DeveloperEditModal
+            {/* Edit Developer Modal */}
+            <DeveloperFormModal
                 open={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
+                developer={developer}
+                onSuccess={handleSuccess}
+            />
+
+            {/* Edit Construction Project Modal */}
+            <ConstructionProjectFormModal
+                open={!!editProject}
+                onClose={() => setEditProject(null)}
+                project={editProject}
                 developer={developer}
                 onSuccess={handleSuccess}
             />

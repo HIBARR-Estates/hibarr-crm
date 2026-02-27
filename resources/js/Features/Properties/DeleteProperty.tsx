@@ -8,9 +8,15 @@ import { DeleteOutlined } from "@ant-design/icons";
 
 interface Props extends IModalProps {
     property?: Property;
+    handleSuccessCallback?: () => void;
 }
 
-const DeleteProperty: React.FC<Props> = ({ property, onClose, open }) => {
+const DeleteProperty: React.FC<Props> = ({
+    property,
+    onClose,
+    open,
+    handleSuccessCallback,
+}) => {
     const [deleteLoading, setDeleteLoading] = useState(false);
 
     // Handle single property deletion
@@ -23,7 +29,11 @@ const DeleteProperty: React.FC<Props> = ({ property, onClose, open }) => {
                 message.success("Property deleted successfully");
                 onClose();
                 setDeleteLoading(false);
-                router.reload();
+                if (handleSuccessCallback) {
+                    handleSuccessCallback();
+                } else {
+                    router.reload();
+                }
             },
             onError: () => {
                 message.error("Failed to delete property");
