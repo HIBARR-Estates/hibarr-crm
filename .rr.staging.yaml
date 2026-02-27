@@ -14,9 +14,10 @@ server:
   relay: pipes
 
 # gRPC Plugin Configuration
-# Bound to loopback — nginx reverse-proxies from port 443 with TLS.
+# Phase 1 (IP testing): Bound to 0.0.0.0 so clients can connect directly via IP:9001.
+# Phase 2 (domain+TLS): Change to 127.0.0.1 once nginx is proxying with TLS.
 grpc:
-  listen: "tcp://127.0.0.1:9001"
+  listen: "tcp://0.0.0.0:9001"
   proto:
     - "proto/deal.proto"
     - "proto/lead.proto"
@@ -28,9 +29,11 @@ grpc:
     allocate_timeout: 60s
     destroy_timeout: 60s
 
-# Health Check / Status Plugin — loopback only
+# Health Check / Status Plugin
+# Phase 1: 0.0.0.0 for remote health checks during testing.
+# Phase 2: Change to 127.0.0.1 once nginx is in front.
 status:
-  address: "127.0.0.1:2114"
+  address: "0.0.0.0:2114"
 
 # Logging Configuration — production-grade
 logs:
