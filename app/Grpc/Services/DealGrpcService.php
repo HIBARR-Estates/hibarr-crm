@@ -276,12 +276,14 @@ class DealGrpcService implements DealServiceInterface
 
     private function getCompanyId(ContextInterface $ctx): int
     {
-        // RoadRunner stores gRPC metadata as top-level context values (not under a 'metadata' key).
-        // Each value is an array of strings.
-        $values = $ctx->getValue('x-company-id');
-        $companyId = is_array($values) ? ($values[0] ?? null) : $values;
+        // Read the validated company ID injected by AuthenticatingInvoker.
+        // This is set after token validation — never reads raw metadata directly.
+        $companyId = $ctx->getValue('authenticated_company_id');
         if (!$companyId) {
-            throw new GRPCException('Company context not found. Send x-company-id in gRPC metadata.', StatusCode::UNAUTHENTICATED);
+            throw new GRPCException(
+                'Authentication required. Provide x-api-token and x-company-id in gRPC metadata.',
+                StatusCode::UNAUTHENTICATED,
+            );
         }
         return (int) $companyId;
     }
