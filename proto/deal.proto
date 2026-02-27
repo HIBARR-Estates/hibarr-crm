@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package hibarr.crm.deal;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Deal";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Deal entity - flat structure with ID references only
+message Deal {
+  int64 id = 1;
+  string name = 2;
+  
+  // Foreign key references (flat - no nested objects)
+  int64 contact_id = 3; // Lead/Contact ID
+  int64 agent_id = 4; // LeadAgent ID
+  int64 pipeline_id = 5; // LeadPipeline ID
+  int64 pipeline_stage_id = 6; // PipelineStage ID
+  int64 source_id = 7; // LeadSource ID
+  int64 category_id = 8; // LeadCategory ID
+  int64 currency_id = 9; // Currency ID
+  int64 company_id = 10; // Company/Tenant ID
+  int64 client_id = 11; // Client User ID
+  int64 added_by = 12; // User who created
+  int64 last_updated_by = 13; // User who last updated
+  
+  // Value fields
+  double total_value = 14;
+  string close_date = 15; // ISO8601 date
+  string next_follow_up_date = 16;
+  int32 column_priority = 17;
+  
+  // External integration
+  string bitrix_id = 18;
+  
+  // Metadata
+  string created_at = 19;
+  string updated_at = 20;
+  
+  // Related IDs (many-to-many relationships as ID arrays)
+  repeated int64 watcher_ids = 21;
+  repeated int64 participant_ids = 22;
+  repeated int64 package_ids = 23;
+  repeated int64 product_ids = 24;
+}
+
+// Request to create a new deal
+message CreateDealRequest {
+  string name = 1;
+  int64 contact_id = 2;
+  int64 agent_id = 3;
+  int64 pipeline_id = 4;
+  int64 pipeline_stage_id = 5;
+  int64 source_id = 6;
+  int64 category_id = 7;
+  int64 currency_id = 8;
+  double total_value = 9;
+  string close_date = 10;
+  repeated int64 watcher_ids = 11;
+  repeated int64 participant_ids = 12;
+  repeated int64 package_ids = 13;
+  repeated int64 product_ids = 14;
+  
+  // Optional: custom fields as JSON string
+  string custom_fields_json = 15;
+}
+
+// Request to update an existing deal
+message UpdateDealRequest {
+  int64 id = 1;
+  optional string name = 2;
+  optional int64 contact_id = 3;
+  optional int64 agent_id = 4;
+  optional int64 pipeline_id = 5;
+  optional int64 pipeline_stage_id = 6;
+  optional int64 source_id = 7;
+  optional int64 category_id = 8;
+  optional int64 currency_id = 9;
+  optional double total_value = 10;
+  optional string close_date = 11;
+  repeated int64 watcher_ids = 12;
+  repeated int64 participant_ids = 13;
+  repeated int64 package_ids = 14;
+  repeated int64 product_ids = 15;
+  optional string custom_fields_json = 16;
+}
+
+// Request to get a single deal
+message GetDealRequest {
+  int64 id = 1;
+}
+
+// Request to delete a deal
+message DeleteDealRequest {
+  int64 id = 1;
+}
+
+// Request to list deals with pagination and filters
+message ListDealsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+  
+  // Filters
+  optional int64 contact_id = 2;
+  optional int64 agent_id = 3;
+  optional int64 pipeline_id = 4;
+  optional int64 pipeline_stage_id = 5;
+  optional int64 source_id = 6;
+  optional int64 category_id = 7;
+  optional string search = 8;       // Search in name
+  optional string created_from = 9; // ISO8601 date
+  optional string created_to = 10;
+}
+
+// Response containing a single deal
+message DealResponse {
+  Deal deal = 1;
+}
+
+// Response containing a list of deals
+message ListDealsResponse {
+  repeated Deal deals = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk deal export
+message StreamDealsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+  
+  // Optional filters (same as ListDealsRequest)
+  optional int64 pipeline_id = 2;
+  optional int64 pipeline_stage_id = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Streamed batch of deals
+message DealBatch {
+  repeated Deal deals = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Deal Service definition
+service DealService {
+  // Create a new deal
+  rpc Create(CreateDealRequest) returns (DealResponse);
+  
+  // Get a single deal by ID
+  rpc Get(GetDealRequest) returns (DealResponse);
+  
+  // Update an existing deal
+  rpc Update(UpdateDealRequest) returns (DealResponse);
+  
+  // Delete a deal
+  rpc Delete(DeleteDealRequest) returns (hibarr.crm.common.Empty);
+  
+  // List deals with pagination
+  rpc List(ListDealsRequest) returns (ListDealsResponse);
+  
+  // Stream deals for bulk export (server streaming)
+  rpc StreamDeals(StreamDealsRequest) returns (stream DealBatch);
+}
