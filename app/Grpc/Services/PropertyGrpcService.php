@@ -339,7 +339,7 @@ class PropertyGrpcService implements PropertyServiceInterface
         $msg->setReferenceCode($property->reference_code ?? '');
         $msg->setPropertyType($property->property_type ?? '');
         $msg->setPrimaryCategory($property->primary_category ?? '');
-        $msg->setUnitStyle($property->unit_style ?? '');
+        $msg->setUnitStyle(is_array($property->unit_style) ? json_encode($property->unit_style) : ($property->unit_style ?? ''));
         $msg->setConstructionStatus($property->construction_status ?? '');
         $msg->setSaleType($property->sale_type ?? '');
         $msg->setStatus($property->status ?? '');

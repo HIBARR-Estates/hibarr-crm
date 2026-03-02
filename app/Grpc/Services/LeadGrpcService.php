@@ -293,9 +293,9 @@ class LeadGrpcService implements LeadServiceInterface
         $msg->setClientName($lead->client_name ?? '');
         $msg->setClientEmail($lead->client_email ?? '');
         $msg->setCompanyName($lead->company_name ?? '');
-        $msg->setSalutation($lead->salutation ?? '');
-        $msg->setGender($lead->gender ?? '');
-        $msg->setContactType($lead->contact_type ?? '');
+        $msg->setSalutation($lead->salutation?->value ?? '');
+        $msg->setGender($lead->gender?->value ?? '');
+        $msg->setContactType(is_object($lead->contact_type) ? $lead->contact_type->value : ($lead->contact_type ?? ''));
         $msg->setMobile($lead->mobile ?? '');
         $msg->setCell($lead->cell ?? '');
         $msg->setOffice($lead->office ?? '');
