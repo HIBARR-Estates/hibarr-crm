@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package hibarr.crm.deal_follow_up;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\DealFollowUp";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// DealFollowUp entity (table: lead_follow_up)
+message DealFollowUp {
+  int64 id = 1;
+  int64 deal_id = 2;
+  int64 added_by = 3;
+  int64 last_updated_by = 4;
+  int64 summary_id = 5;
+  int64 meeting_type_id = 6;
+  string remark = 7;
+  string next_follow_up_date = 8;
+  string event_id = 9;
+  string meeting_id = 10;
+  string send_reminder = 11;
+  string remind_time = 12;
+  string remind_type = 13;
+  string reminders = 14; // JSON stored as string
+  string status = 15;
+  string location = 16;
+  string meeting_link = 17;
+  string participants = 18; // JSON stored as string
+  string created_at = 19;
+  string updated_at = 20;
+}
+
+// Request to list deal follow-ups with pagination and filters
+message ListDealFollowUpsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 deal_id = 2;
+  optional int64 meeting_type_id = 3;
+  optional string status = 4;
+  optional string search = 5;       // Search in remark
+  optional string created_from = 6;
+  optional string created_to = 7;
+}
+
+// Response containing a list of deal follow-ups
+message ListDealFollowUpsResponse {
+  repeated DealFollowUp result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk deal follow-up export
+message StreamDealFollowUpsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 deal_id = 2;
+  optional int64 meeting_type_id = 3;
+  optional string status = 4;
+  optional string search = 5;
+  optional string created_from = 6;
+  optional string created_to = 7;
+}
+
+// Streamed batch of deal follow-ups
+message DealFollowUpBatch {
+  repeated DealFollowUp result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// DealFollowUp Service definition
+service DealFollowUpService {
+  // List deal follow-ups with pagination
+  rpc List(ListDealFollowUpsRequest) returns (ListDealFollowUpsResponse);
+
+  // Stream deal follow-ups for bulk export
+  rpc Stream(StreamDealFollowUpsRequest) returns (stream DealFollowUpBatch);
+}

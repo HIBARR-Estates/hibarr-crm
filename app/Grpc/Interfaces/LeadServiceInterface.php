@@ -11,6 +11,8 @@ use App\Grpc\Generated\Lead\DeleteLeadRequest;
 use App\Grpc\Generated\Lead\ListLeadsRequest;
 use App\Grpc\Generated\Lead\ListLeadsResponse;
 use App\Grpc\Generated\Lead\LeadResponse;
+use App\Grpc\Generated\Lead\StreamLeadsRequest;
+use App\Grpc\Generated\Lead\LeadBatch;
 use App\Grpc\Generated\Common\PBEmpty;
 
 interface LeadServiceInterface extends ServiceInterface
@@ -26,4 +28,6 @@ interface LeadServiceInterface extends ServiceInterface
     public function Delete(ContextInterface $ctx, DeleteLeadRequest $in): PBEmpty;
 
     public function List(ContextInterface $ctx, ListLeadsRequest $in): ListLeadsResponse;
+
+    public function Stream(ContextInterface $ctx, StreamLeadsRequest $in): LeadBatch;
 }

@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package hibarr.crm.developer_project;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\DeveloperProject";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// DeveloperProject entity (table: developer_projects)
+message DeveloperProject {
+  int64 id = 1;
+  int64 company_id = 2;
+  int64 developer_id = 3;
+  int64 project_location_id = 4;
+  string name = 5;
+  string reference_code = 6;
+  string description = 7;
+  string google_drive_link = 8;
+  string availability_link = 9;
+  string starting_price = 10; // decimal as string
+  string primary_categories = 11; // JSON array
+  string title_deed_type = 12;
+  string unit_types = 13; // JSON array
+  int32 number_of_units = 14;
+  int32 number_of_blocks = 15;
+  string project_total_area_sqm = 16; // decimal as string
+  string construction_status = 17;
+  string completion_date = 18;
+  int32 number_of_phases = 19;
+  string furniture_package = 20;
+  bool rental_guarantee = 21;
+  string payment_plan = 22; // JSON object
+  string facilities = 23; // JSON array
+  string distances = 24; // JSON object
+  string created_at = 25;
+  string updated_at = 26;
+  string deleted_at = 27;
+}
+
+// Request to list developer projects with pagination and filters
+message ListDeveloperProjectsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 developer_id = 2;
+  optional string construction_status = 3;
+  optional string search = 4;           // Search in name, reference_code
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Response containing a list of developer projects
+message ListDeveloperProjectsResponse {
+  repeated DeveloperProject result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk developer project export
+message StreamDeveloperProjectsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 developer_id = 2;
+  optional string construction_status = 3;
+  optional string search = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of developer projects
+message DeveloperProjectBatch {
+  repeated DeveloperProject result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// DeveloperProject Service definition
+service DeveloperProjectService {
+  // List developer projects with pagination
+  rpc List(ListDeveloperProjectsRequest) returns (ListDeveloperProjectsResponse);
+
+  // Stream developer projects for bulk export
+  rpc Stream(StreamDeveloperProjectsRequest) returns (stream DeveloperProjectBatch);
+}

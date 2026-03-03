@@ -76,7 +76,7 @@ proto:
 	$(PROTOC) \
 		--proto_path=$(PROTO_DIR) \
 		--php_out=$(PROTO_OUT) \
-		$(PROTO_DIR)/common.proto $(PROTO_DIR)/deal.proto $(PROTO_DIR)/lead.proto $(PROTO_DIR)/property.proto $(PROTO_DIR)/task.proto
+		$(PROTO_DIR)/common.proto $(PROTO_DIR)/communication_activity.proto $(PROTO_DIR)/communication_activity_file.proto $(PROTO_DIR)/country.proto $(PROTO_DIR)/currency.proto $(PROTO_DIR)/deal.proto $(PROTO_DIR)/deal_file.proto $(PROTO_DIR)/deal_follow_up.proto $(PROTO_DIR)/deal_history.proto $(PROTO_DIR)/deal_note.proto $(PROTO_DIR)/deal_participant.proto $(PROTO_DIR)/deal_watcher.proto $(PROTO_DIR)/developer.proto $(PROTO_DIR)/developer_project.proto $(PROTO_DIR)/developer_project_asset.proto $(PROTO_DIR)/developer_project_unit_type.proto $(PROTO_DIR)/developer_project_unit_type_asset.proto $(PROTO_DIR)/hibarr_deal_fields.proto $(PROTO_DIR)/lead.proto $(PROTO_DIR)/lead_agent.proto $(PROTO_DIR)/lead_category.proto $(PROTO_DIR)/lead_marketing.proto $(PROTO_DIR)/lead_pipeline.proto $(PROTO_DIR)/lead_pipeline_stage.proto $(PROTO_DIR)/lead_source.proto $(PROTO_DIR)/lead_status.proto $(PROTO_DIR)/meeting_summary.proto $(PROTO_DIR)/meeting_type.proto $(PROTO_DIR)/package.proto $(PROTO_DIR)/pipeline_stage.proto $(PROTO_DIR)/property.proto $(PROTO_DIR)/property_asset.proto $(PROTO_DIR)/task.proto $(PROTO_DIR)/task_category.proto $(PROTO_DIR)/task_history.proto $(PROTO_DIR)/task_user.proto $(PROTO_DIR)/taskable.proto $(PROTO_DIR)/taskboard_column.proto
 	@if [ -d "$(PROTO_OUT)/App/Grpc/Generated" ]; then \
 		cp -r $(PROTO_OUT)/App/Grpc/Generated/* $(PROTO_OUT)/ && \
 		rm -rf $(PROTO_OUT)/App; \
@@ -86,7 +86,7 @@ proto:
 # Clean generated proto files and regenerate
 proto-clean:
 	@echo "Cleaning generated files..."
-	rm -rf $(PROTO_OUT)/Common $(PROTO_OUT)/Deal $(PROTO_OUT)/Lead $(PROTO_OUT)/Property $(PROTO_OUT)/Task $(PROTO_OUT)/GPBMetadata
+	rm -rf $(PROTO_OUT)/Common $(PROTO_OUT)/CommunicationActivity $(PROTO_OUT)/CommunicationActivityFile $(PROTO_OUT)/Country $(PROTO_OUT)/Currency $(PROTO_OUT)/Deal $(PROTO_OUT)/DealFile $(PROTO_OUT)/DealFollowUp $(PROTO_OUT)/DealHistory $(PROTO_OUT)/DealNote $(PROTO_OUT)/DealParticipant $(PROTO_OUT)/DealWatcher $(PROTO_OUT)/Developer $(PROTO_OUT)/DeveloperProject $(PROTO_OUT)/DeveloperProjectAsset $(PROTO_OUT)/DeveloperProjectUnitType $(PROTO_OUT)/DeveloperProjectUnitTypeAsset $(PROTO_OUT)/HibarrDealFields $(PROTO_OUT)/Lead $(PROTO_OUT)/LeadAgent $(PROTO_OUT)/LeadCategory $(PROTO_OUT)/LeadMarketing $(PROTO_OUT)/LeadPipeline $(PROTO_OUT)/LeadPipelineStage $(PROTO_OUT)/LeadSource $(PROTO_OUT)/LeadStatus $(PROTO_OUT)/MeetingSummary $(PROTO_OUT)/MeetingType $(PROTO_OUT)/Package $(PROTO_OUT)/PipelineStage $(PROTO_OUT)/Property $(PROTO_OUT)/PropertyAsset $(PROTO_OUT)/Task $(PROTO_OUT)/Taskable $(PROTO_OUT)/TaskboardColumn $(PROTO_OUT)/TaskCategory $(PROTO_OUT)/TaskHistory $(PROTO_OUT)/TaskUser $(PROTO_OUT)/GPBMetadata
 	$(MAKE) proto
 
 # Install RoadRunner binary

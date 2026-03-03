@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package hibarr.crm.taskable;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Taskable";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Taskable entity - polymorphic pivot linking tasks to various models
+message Taskable {
+  int64 id = 1;
+  int64 task_id = 2;
+  int64 taskable_id = 3;
+  string taskable_type = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+// Request to list taskables with pagination and filters
+message ListTaskablesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 task_id = 2;
+  optional int64 taskable_id = 3;
+  optional string taskable_type = 4;
+}
+
+// Response containing a list of taskables
+message ListTaskablesResponse {
+  repeated Taskable result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk taskable export
+message StreamTaskablesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 task_id = 2;
+  optional int64 taskable_id = 3;
+  optional string taskable_type = 4;
+}
+
+// Streamed batch of taskables
+message TaskableBatch {
+  repeated Taskable result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Taskable Service definition
+service TaskableService {
+  // List taskables with pagination
+  rpc List(ListTaskablesRequest) returns (ListTaskablesResponse);
+
+  // Stream taskables for bulk export
+  rpc Stream(StreamTaskablesRequest) returns (stream TaskableBatch);
+}

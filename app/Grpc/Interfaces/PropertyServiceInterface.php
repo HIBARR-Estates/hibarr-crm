@@ -11,6 +11,8 @@ use App\Grpc\Generated\Property\DeletePropertyRequest;
 use App\Grpc\Generated\Property\ListPropertiesRequest;
 use App\Grpc\Generated\Property\ListPropertiesResponse;
 use App\Grpc\Generated\Property\PropertyResponse;
+use App\Grpc\Generated\Property\StreamPropertiesRequest;
+use App\Grpc\Generated\Property\PropertyBatch;
 use App\Grpc\Generated\Common\PBEmpty;
 
 interface PropertyServiceInterface extends ServiceInterface
@@ -26,4 +28,6 @@ interface PropertyServiceInterface extends ServiceInterface
     public function Delete(ContextInterface $ctx, DeletePropertyRequest $in): PBEmpty;
 
     public function List(ContextInterface $ctx, ListPropertiesRequest $in): ListPropertiesResponse;
+
+    public function Stream(ContextInterface $ctx, StreamPropertiesRequest $in): PropertyBatch;
 }

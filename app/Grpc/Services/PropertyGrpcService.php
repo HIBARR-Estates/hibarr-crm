@@ -9,10 +9,13 @@ use App\Grpc\Generated\Property\UpdatePropertyRequest;
 use App\Grpc\Generated\Property\DeletePropertyRequest;
 use App\Grpc\Generated\Property\ListPropertiesRequest;
 use App\Grpc\Generated\Property\ListPropertiesResponse;
+use App\Grpc\Generated\Property\StreamPropertiesRequest;
+use App\Grpc\Generated\Property\PropertyBatch;
 use App\Grpc\Generated\Property\PropertyResponse;
 use App\Grpc\Generated\Property\Property as PropertyMessage;
 use App\Grpc\Generated\Common\PBEmpty;
 use App\Grpc\Generated\Common\PaginationMeta;
+use App\Grpc\Generated\Common\StreamProgress;
 use App\Models\Property;
 use App\Services\PropertyService;
 use Illuminate\Validation\ValidationException;
@@ -301,7 +304,7 @@ class PropertyGrpcService implements PropertyServiceInterface
 
             $response = new ListPropertiesResponse();
             foreach ($paginator->items() as $property) {
-                $response->getProperties()[] = $this->buildMessage($property);
+                $response->getResult()[] = $this->buildMessage($property);
             }
 
             $meta = new PaginationMeta();
@@ -313,6 +316,79 @@ class PropertyGrpcService implements PropertyServiceInterface
             $response->setPagination($meta);
 
             return $response;
+        } catch (GRPCException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw $this->mapException($e);
+        }
+    }
+
+    // ── Stream (bulk dump) ─────────────────────────────────
+
+    public function Stream(ContextInterface $ctx, StreamPropertiesRequest $in): PropertyBatch
+    {
+        try {
+            $companyId = $this->getCompanyId($ctx);
+
+            $streamParams = $in->getStreamParams();
+            $sinceId = $streamParams ? $streamParams->getSinceId() : 0;
+            $sinceUpdated = $streamParams ? $streamParams->getSinceUpdated() : '';
+            $ids = $streamParams ? iterator_to_array($streamParams->getIds()) : [];
+
+            $query = Property::where('company_id', $companyId);
+
+            // Incremental filters
+            if ($sinceId > 0) {
+                $query->where('id', '>', $sinceId);
+            }
+            if (!empty($sinceUpdated)) {
+                $query->where('updated_at', '>', $sinceUpdated);
+            }
+            if (!empty($ids)) {
+                $query->whereIn('id', $ids);
+            }
+
+            // Domain-specific filters
+            if ($in->hasPropertyType()) {
+                $query->where('property_type', $in->getPropertyType());
+            }
+            if ($in->hasPrimaryCategory()) {
+                $query->where('primary_category', $in->getPrimaryCategory());
+            }
+            if ($in->hasSaleType()) {
+                $query->where('sale_type', $in->getSaleType());
+            }
+            if ($in->hasStatus()) {
+                $query->where('status', $in->getStatus());
+            }
+            if ($in->hasCity()) {
+                $query->where('city', $in->getCity());
+            }
+            if ($in->hasIsPublished()) {
+                $query->where('is_published', $in->getIsPublished());
+            }
+            if ($in->hasCreatedFrom()) {
+                $query->where('created_at', '>=', $in->getCreatedFrom());
+            }
+            if ($in->hasCreatedTo()) {
+                $query->where('created_at', '<=', $in->getCreatedTo());
+            }
+
+            $total = $query->count();
+            $records = $query->orderBy('id', 'asc')->get();
+
+            $batch = new PropertyBatch();
+            foreach ($records as $property) {
+                $batch->getResult()[] = $this->buildMessage($property);
+            }
+
+            $progress = new StreamProgress();
+            $progress->setProcessed($records->count());
+            $progress->setTotal($total);
+            $progress->setIsComplete(true);
+            $batch->setProgress($progress);
+
+            return $batch;
         } catch (GRPCException $e) {
             throw $e;
         } catch (\Throwable $e) {

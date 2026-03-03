@@ -222,7 +222,7 @@ message PropertyResponse {
 
 // Response containing a list of properties
 message ListPropertiesResponse {
-  repeated Property properties = 1;
+  repeated Property result = 1;
   hibarr.crm.common.PaginationMeta pagination = 2;
 }
 
@@ -243,7 +243,7 @@ message StreamPropertiesRequest {
 
 // Streamed batch of properties
 message PropertyBatch {
-  repeated Property properties = 1;
+  repeated Property result = 1;
   hibarr.crm.common.StreamProgress progress = 2;
 }
 
@@ -265,5 +265,5 @@ service PropertyService {
   rpc List(ListPropertiesRequest) returns (ListPropertiesResponse);
   
   // Stream properties for bulk export (server streaming)
-  rpc StreamProperties(StreamPropertiesRequest) returns (stream PropertyBatch);
+  rpc Stream(StreamPropertiesRequest) returns (stream PropertyBatch);
 }

@@ -119,7 +119,7 @@ message DealResponse {
 
 // Response containing a list of deals
 message ListDealsResponse {
-  repeated Deal deals = 1;
+  repeated Deal result = 1;
   hibarr.crm.common.PaginationMeta pagination = 2;
 }
 
@@ -136,7 +136,7 @@ message StreamDealsRequest {
 
 // Streamed batch of deals
 message DealBatch {
-  repeated Deal deals = 1;
+  repeated Deal result = 1;
   hibarr.crm.common.StreamProgress progress = 2;
 }
 
@@ -158,5 +158,5 @@ service DealService {
   rpc List(ListDealsRequest) returns (ListDealsResponse);
   
   // Stream deals for bulk export (server streaming)
-  rpc StreamDeals(StreamDealsRequest) returns (stream DealBatch);
+  rpc Stream(StreamDealsRequest) returns (stream DealBatch);
 }

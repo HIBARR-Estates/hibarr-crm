@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package hibarr.crm.pipeline_stage;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\PipelineStage";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// PipelineStage entity
+message PipelineStage {
+  int64 id = 1;
+  int64 company_id = 2;
+  int64 lead_pipeline_id = 3;
+  string name = 4;
+  string slug = 5;
+  int32 priority = 6;
+  bool default = 7;
+  string label_color = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+// Request to list pipeline stages with pagination and filters
+message ListPipelineStagesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 lead_pipeline_id = 2;
+  optional string search = 3;       // Search in name, slug
+  optional bool default = 4;
+}
+
+// Response containing a list of pipeline stages
+message ListPipelineStagesResponse {
+  repeated PipelineStage result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk pipeline stage export
+message StreamPipelineStagesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 lead_pipeline_id = 2;
+  optional string search = 3;
+  optional bool default = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of pipeline stages
+message PipelineStageBatch {
+  repeated PipelineStage result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// PipelineStage Service definition
+service PipelineStageService {
+  // List pipeline stages with pagination
+  rpc List(ListPipelineStagesRequest) returns (ListPipelineStagesResponse);
+
+  // Stream pipeline stages for bulk export
+  rpc Stream(StreamPipelineStagesRequest) returns (stream PipelineStageBatch);
+}
