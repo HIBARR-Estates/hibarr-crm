@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package hibarr.crm.developer_project_unit_type;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\DeveloperProjectUnitType";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// DeveloperProjectUnitType entity (table: developer_project_unit_types)
+message DeveloperProjectUnitType {
+  int64 id = 1;
+  int64 company_id = 2;
+  int64 developer_project_id = 3;
+  string reference_code = 4;
+  string primary_category = 5;
+  string property_type = 6;
+  string unit_style = 7; // JSON array
+  string view_types = 8; // JSON array
+  string furniture_status = 9;
+  string starting_price = 10; // decimal as string
+  string currency = 11;
+  int32 bedrooms = 12;
+  int32 bathrooms = 13;
+  string floor = 14;
+  int32 floors_in_building = 15;
+  string total_area_sqm = 16; // decimal as string
+  string living_area_sqm = 17; // decimal as string
+  string terrace_balcony_sqm = 18; // decimal as string
+  string plot_size_sqm = 19; // decimal as string
+  string completion_date = 20;
+  string outside_features = 21; // JSON array
+  string inside_features = 22; // JSON array
+  string description = 23;
+  string military_base_distance_km = 24; // decimal as string
+  bool has_restrictions = 25;
+  string restriction_notes = 26;
+  int32 order = 27;
+  string created_at = 28;
+  string updated_at = 29;
+  string deleted_at = 30;
+}
+
+// Request to list developer project unit types with pagination and filters
+message ListDeveloperProjectUnitTypesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 developer_project_id = 2;
+  optional string primary_category = 3;
+  optional string property_type = 4;
+  optional string search = 5;           // Search in reference_code, description
+  optional string created_from = 6;
+  optional string created_to = 7;
+}
+
+// Response containing a list of developer project unit types
+message ListDeveloperProjectUnitTypesResponse {
+  repeated DeveloperProjectUnitType result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk developer project unit type export
+message StreamDeveloperProjectUnitTypesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 developer_project_id = 2;
+  optional string primary_category = 3;
+  optional string property_type = 4;
+  optional string search = 5;
+  optional string created_from = 6;
+  optional string created_to = 7;
+}
+
+// Streamed batch of developer project unit types
+message DeveloperProjectUnitTypeBatch {
+  repeated DeveloperProjectUnitType result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// DeveloperProjectUnitType Service definition
+service DeveloperProjectUnitTypeService {
+  // List developer project unit types with pagination
+  rpc List(ListDeveloperProjectUnitTypesRequest) returns (ListDeveloperProjectUnitTypesResponse);
+
+  // Stream developer project unit types for bulk export
+  rpc Stream(StreamDeveloperProjectUnitTypesRequest) returns (stream DeveloperProjectUnitTypeBatch);
+}

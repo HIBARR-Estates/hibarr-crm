@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package hibarr.crm.deal_file;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\DealFile";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// DealFile entity
+message DealFile {
+  int64 id = 1;
+  int64 deal_id = 2;
+  int64 user_id = 3;
+  int64 added_by = 4;
+  int64 last_updated_by = 5;
+  string filename = 6;
+  string hashname = 7;
+  string size = 8;
+  string description = 9;
+  string google_url = 10;
+  string dropbox_link = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+// Request to list deal files with pagination and filters
+message ListDealFilesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 deal_id = 2;
+  optional int64 user_id = 3;
+  optional string search = 4;       // Search in filename
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Response containing a list of deal files
+message ListDealFilesResponse {
+  repeated DealFile result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk deal file export
+message StreamDealFilesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 deal_id = 2;
+  optional int64 user_id = 3;
+  optional string search = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of deal files
+message DealFileBatch {
+  repeated DealFile result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// DealFile Service definition
+service DealFileService {
+  // List deal files with pagination
+  rpc List(ListDealFilesRequest) returns (ListDealFilesResponse);
+
+  // Stream deal files for bulk export
+  rpc Stream(StreamDealFilesRequest) returns (stream DealFileBatch);
+}

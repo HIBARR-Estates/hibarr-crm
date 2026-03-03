@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package hibarr.crm.package;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Package";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Package entity
+message Package {
+  int64 id = 1;
+  int64 company_id = 2;
+  string name = 3;
+  double value = 4;
+  string description = 5;
+  string customer_type_name = 6;
+  string customer_type_description = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  string deleted_at = 10;
+}
+
+// Request to list packages with pagination and filters
+message ListPackagesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;       // Search in name, description
+  optional bool include_trashed = 3; // Include soft-deleted packages
+}
+
+// Response containing a list of packages
+message ListPackagesResponse {
+  repeated Package result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk package export
+message StreamPackagesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+  optional bool include_trashed = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Streamed batch of packages
+message PackageBatch {
+  repeated Package result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Package Service definition
+service PackageService {
+  // List packages with pagination
+  rpc List(ListPackagesRequest) returns (ListPackagesResponse);
+
+  // Stream packages for bulk export
+  rpc Stream(StreamPackagesRequest) returns (stream PackageBatch);
+}

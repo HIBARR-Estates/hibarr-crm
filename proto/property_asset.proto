@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package hibarr.crm.property_asset;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\PropertyAsset";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// PropertyAsset entity (table: property_assets)
+message PropertyAsset {
+  int64 id = 1;
+  int64 property_id = 2;
+  int64 company_id = 3;
+  string name = 4;
+  string asset_type = 5;
+  string file_path = 6;
+  string external_url = 7;
+  string mime_type = 8;
+  int64 file_size = 9;
+  string tags = 10; // JSON array
+  string metadata = 11; // JSON object
+  int32 order = 12;
+  string created_at = 13;
+  string updated_at = 14;
+  string deleted_at = 15;
+}
+
+// Request to list property assets with pagination and filters
+message ListPropertyAssetsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 property_id = 2;
+  optional string asset_type = 3;
+  optional string search = 4;        // Search in name
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Response containing a list of property assets
+message ListPropertyAssetsResponse {
+  repeated PropertyAsset result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk property asset export
+message StreamPropertyAssetsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 property_id = 2;
+  optional string asset_type = 3;
+  optional string search = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of property assets
+message PropertyAssetBatch {
+  repeated PropertyAsset result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// PropertyAsset Service definition
+service PropertyAssetService {
+  // List property assets with pagination
+  rpc List(ListPropertyAssetsRequest) returns (ListPropertyAssetsResponse);
+
+  // Stream property assets for bulk export
+  rpc Stream(StreamPropertyAssetsRequest) returns (stream PropertyAssetBatch);
+}

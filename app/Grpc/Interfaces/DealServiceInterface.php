@@ -11,6 +11,8 @@ use App\Grpc\Generated\Deal\DeleteDealRequest;
 use App\Grpc\Generated\Deal\ListDealsRequest;
 use App\Grpc\Generated\Deal\ListDealsResponse;
 use App\Grpc\Generated\Deal\DealResponse;
+use App\Grpc\Generated\Deal\StreamDealsRequest;
+use App\Grpc\Generated\Deal\DealBatch;
 use App\Grpc\Generated\Common\PBEmpty;
 
 interface DealServiceInterface extends ServiceInterface
@@ -26,4 +28,6 @@ interface DealServiceInterface extends ServiceInterface
     public function Delete(ContextInterface $ctx, DeleteDealRequest $in): PBEmpty;
 
     public function List(ContextInterface $ctx, ListDealsRequest $in): ListDealsResponse;
+
+    public function Stream(ContextInterface $ctx, StreamDealsRequest $in): DealBatch;
 }

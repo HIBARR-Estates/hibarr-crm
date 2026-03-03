@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package hibarr.crm.hibarr_deal_fields;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\HibarrDealFields";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// HibarrDealFields entity (table: hibarr_deal_custom_fields)
+message HibarrDealFields {
+  int64 id = 1;
+  int64 deal_id = 2;
+  string interested_in = 3;
+  string motivation = 4;
+  string purchase_timeline = 5;
+  string budget_range = 6;
+  string message = 7;
+  bool strategy_meeting_booked = 8;
+  bool downpayment_paid = 9;
+  string inspection_trip_date = 10;
+  string deposit_confirmation = 11;
+  string reservation_agreement = 12;
+  string sales_contract = 13;
+  string created_at = 14;
+  string updated_at = 15;
+}
+
+// Request to list hibarr deal fields with pagination and filters
+message ListHibarrDealFieldsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 deal_id = 2;
+  optional string search = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Response containing a list of hibarr deal fields
+message ListHibarrDealFieldsResponse {
+  repeated HibarrDealFields result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk hibarr deal fields export
+message StreamHibarrDealFieldsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 deal_id = 2;
+  optional string search = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Streamed batch of hibarr deal fields
+message HibarrDealFieldsBatch {
+  repeated HibarrDealFields result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// HibarrDealFields Service definition
+service HibarrDealFieldsService {
+  // List hibarr deal fields with pagination
+  rpc List(ListHibarrDealFieldsRequest) returns (ListHibarrDealFieldsResponse);
+
+  // Stream hibarr deal fields for bulk export
+  rpc Stream(StreamHibarrDealFieldsRequest) returns (stream HibarrDealFieldsBatch);
+}

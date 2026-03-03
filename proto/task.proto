@@ -182,7 +182,7 @@ message TaskResponse {
 
 // Response containing a list of tasks
 message ListTasksResponse {
-  repeated Task tasks = 1;
+  repeated Task result = 1;
   hibarr.crm.common.PaginationMeta pagination = 2;
 }
 
@@ -204,7 +204,7 @@ message StreamTasksRequest {
 
 // Streamed batch of tasks
 message TaskBatch {
-  repeated Task tasks = 1;
+  repeated Task result = 1;
   hibarr.crm.common.StreamProgress progress = 2;
 }
 
@@ -229,5 +229,5 @@ service TaskService {
   rpc List(ListTasksRequest) returns (ListTasksResponse);
   
   // Stream tasks for bulk export (server streaming)
-  rpc StreamTasks(StreamTasksRequest) returns (stream TaskBatch);
+  rpc Stream(StreamTasksRequest) returns (stream TaskBatch);
 }

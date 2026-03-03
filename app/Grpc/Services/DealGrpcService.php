@@ -9,10 +9,13 @@ use App\Grpc\Generated\Deal\UpdateDealRequest;
 use App\Grpc\Generated\Deal\DeleteDealRequest;
 use App\Grpc\Generated\Deal\ListDealsRequest;
 use App\Grpc\Generated\Deal\ListDealsResponse;
+use App\Grpc\Generated\Deal\StreamDealsRequest;
+use App\Grpc\Generated\Deal\DealBatch;
 use App\Grpc\Generated\Deal\DealResponse;
 use App\Grpc\Generated\Deal\Deal as DealMessage;
 use App\Grpc\Generated\Common\PBEmpty;
 use App\Grpc\Generated\Common\PaginationMeta;
+use App\Grpc\Generated\Common\StreamProgress;
 use App\Models\Deal;
 use App\Services\DealCreationService;
 use Illuminate\Support\Facades\DB;
@@ -206,7 +209,7 @@ class DealGrpcService implements DealServiceInterface
 
             $response = new ListDealsResponse();
             foreach ($paginator->items() as $deal) {
-                $response->getDeals()[] = $this->buildMessage($deal);
+                $response->getResult()[] = $this->buildMessage($deal);
             }
 
             $meta = new PaginationMeta();
@@ -218,6 +221,68 @@ class DealGrpcService implements DealServiceInterface
             $response->setPagination($meta);
 
             return $response;
+        } catch (GRPCException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw $this->mapException($e);
+        }
+    }
+
+    // ── Stream (bulk dump) ─────────────────────────────────
+
+    public function Stream(ContextInterface $ctx, StreamDealsRequest $in): DealBatch
+    {
+        try {
+            $companyId = $this->getCompanyId($ctx);
+
+            $streamParams = $in->getStreamParams();
+            $sinceId = $streamParams ? $streamParams->getSinceId() : 0;
+            $sinceUpdated = $streamParams ? $streamParams->getSinceUpdated() : '';
+            $ids = $streamParams ? iterator_to_array($streamParams->getIds()) : [];
+
+            $query = Deal::where('company_id', $companyId)
+                ->with(['dealWatchers', 'dealParticipants', 'packages', 'products']);
+
+            // Incremental filters
+            if ($sinceId > 0) {
+                $query->where('id', '>', $sinceId);
+            }
+            if (!empty($sinceUpdated)) {
+                $query->where('updated_at', '>', $sinceUpdated);
+            }
+            if (!empty($ids)) {
+                $query->whereIn('id', $ids);
+            }
+
+            // Domain-specific filters
+            if ($in->hasPipelineId()) {
+                $query->where('lead_pipeline_id', $in->getPipelineId());
+            }
+            if ($in->hasPipelineStageId()) {
+                $query->where('pipeline_stage_id', $in->getPipelineStageId());
+            }
+            if ($in->hasCreatedFrom()) {
+                $query->where('created_at', '>=', $in->getCreatedFrom());
+            }
+            if ($in->hasCreatedTo()) {
+                $query->where('created_at', '<=', $in->getCreatedTo());
+            }
+
+            $total = $query->count();
+            $records = $query->orderBy('id', 'asc')->get();
+
+            $batch = new DealBatch();
+            foreach ($records as $deal) {
+                $batch->getResult()[] = $this->buildMessage($deal);
+            }
+
+            $progress = new StreamProgress();
+            $progress->setProcessed($records->count());
+            $progress->setTotal($total);
+            $progress->setIsComplete(true);
+            $batch->setProgress($progress);
+
+            return $batch;
         } catch (GRPCException $e) {
             throw $e;
         } catch (\Throwable $e) {

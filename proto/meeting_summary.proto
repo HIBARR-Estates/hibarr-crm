@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package hibarr.crm.meeting_summary;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\MeetingSummary";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// MeetingSummary entity
+message MeetingSummary {
+  int64 id = 1;
+  int64 meeting_type_id = 2;
+  int64 deal_id = 3;
+  string summary_object = 4; // JSON stored as string
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+// Request to list meeting summaries with pagination and filters
+message ListMeetingSummariesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 deal_id = 2;
+  optional int64 meeting_type_id = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Response containing a list of meeting summaries
+message ListMeetingSummariesResponse {
+  repeated MeetingSummary result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk meeting summary export
+message StreamMeetingSummariesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 deal_id = 2;
+  optional int64 meeting_type_id = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Streamed batch of meeting summaries
+message MeetingSummaryBatch {
+  repeated MeetingSummary result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// MeetingSummary Service definition
+service MeetingSummaryService {
+  // List meeting summaries with pagination
+  rpc List(ListMeetingSummariesRequest) returns (ListMeetingSummariesResponse);
+
+  // Stream meeting summaries for bulk export
+  rpc Stream(StreamMeetingSummariesRequest) returns (stream MeetingSummaryBatch);
+}

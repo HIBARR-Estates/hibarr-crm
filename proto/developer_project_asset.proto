@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package hibarr.crm.developer_project_asset;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\DeveloperProjectAsset";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// DeveloperProjectAsset entity (table: developer_project_assets)
+message DeveloperProjectAsset {
+  int64 id = 1;
+  int64 developer_project_id = 2;
+  int64 company_id = 3;
+  string name = 4;
+  string asset_type = 5;
+  string file_path = 6;
+  string external_url = 7;
+  string mime_type = 8;
+  int64 file_size = 9;
+  string tags = 10; // JSON array
+  string metadata = 11; // JSON object
+  int32 order = 12;
+  string created_at = 13;
+  string updated_at = 14;
+  string deleted_at = 15;
+}
+
+// Request to list developer project assets with pagination and filters
+message ListDeveloperProjectAssetsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 developer_project_id = 2;
+  optional string asset_type = 3;
+  optional string search = 4;        // Search in name
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Response containing a list of developer project assets
+message ListDeveloperProjectAssetsResponse {
+  repeated DeveloperProjectAsset result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk developer project asset export
+message StreamDeveloperProjectAssetsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 developer_project_id = 2;
+  optional string asset_type = 3;
+  optional string search = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of developer project assets
+message DeveloperProjectAssetBatch {
+  repeated DeveloperProjectAsset result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// DeveloperProjectAsset Service definition
+service DeveloperProjectAssetService {
+  // List developer project assets with pagination
+  rpc List(ListDeveloperProjectAssetsRequest) returns (ListDeveloperProjectAssetsResponse);
+
+  // Stream developer project assets for bulk export
+  rpc Stream(StreamDeveloperProjectAssetsRequest) returns (stream DeveloperProjectAssetBatch);
+}
