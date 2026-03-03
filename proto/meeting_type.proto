@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package hibarr.crm.meeting_type;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\MeetingType";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// MeetingType entity
+message MeetingType {
+  int64 id = 1;
+  int64 company_id = 2;
+  string name = 3;
+  string description = 4;
+  string color = 5;
+  bool is_active = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// Request to list meeting types with pagination and filters
+message ListMeetingTypesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;       // Search in name
+  optional bool is_active = 3;
+}
+
+// Response containing a list of meeting types
+message ListMeetingTypesResponse {
+  repeated MeetingType result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk meeting type export
+message StreamMeetingTypesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+  optional bool is_active = 3;
+}
+
+// Streamed batch of meeting types
+message MeetingTypeBatch {
+  repeated MeetingType result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// MeetingType Service definition
+service MeetingTypeService {
+  // List meeting types with pagination
+  rpc List(ListMeetingTypesRequest) returns (ListMeetingTypesResponse);
+
+  // Stream meeting types for bulk export
+  rpc Stream(StreamMeetingTypesRequest) returns (stream MeetingTypeBatch);
+}

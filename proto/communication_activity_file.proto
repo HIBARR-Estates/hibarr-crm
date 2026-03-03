@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package hibarr.crm.communication_activity_file;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\CommunicationActivityFile";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// CommunicationActivityFile entity
+message CommunicationActivityFile {
+  int64 id = 1;
+  int64 activity_id = 2;
+  string file_url = 3;
+  string file_type = 4;
+  int32 file_size = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+// Request to list communication activity files with pagination and filters
+message ListCommunicationActivityFilesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 activity_id = 2;
+  optional string file_type = 3;
+  optional string search = 4;       // Search in file_url
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Response containing a list of communication activity files
+message ListCommunicationActivityFilesResponse {
+  repeated CommunicationActivityFile result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk communication activity file export
+message StreamCommunicationActivityFilesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 activity_id = 2;
+  optional string file_type = 3;
+  optional string search = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of communication activity files
+message CommunicationActivityFileBatch {
+  repeated CommunicationActivityFile result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// CommunicationActivityFile Service definition
+service CommunicationActivityFileService {
+  // List communication activity files with pagination
+  rpc List(ListCommunicationActivityFilesRequest) returns (ListCommunicationActivityFilesResponse);
+
+  // Stream communication activity files for bulk export
+  rpc Stream(StreamCommunicationActivityFilesRequest) returns (stream CommunicationActivityFileBatch);
+}

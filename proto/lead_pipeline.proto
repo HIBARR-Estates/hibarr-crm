@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package hibarr.crm.lead_pipeline;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\LeadPipeline";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// LeadPipeline entity
+message LeadPipeline {
+  int64 id = 1;
+  int64 company_id = 2;
+  string name = 3;
+  string slug = 4;
+  int32 priority = 5;
+  string label_color = 6;
+  bool default = 7;
+  int64 added_by = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+// Request to list lead pipelines with pagination and filters
+message ListLeadPipelinesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;       // Search in name, slug
+  optional bool default = 3;
+}
+
+// Response containing a list of lead pipelines
+message ListLeadPipelinesResponse {
+  repeated LeadPipeline result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk lead pipeline export
+message StreamLeadPipelinesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+  optional bool default = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Streamed batch of lead pipelines
+message LeadPipelineBatch {
+  repeated LeadPipeline result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// LeadPipeline Service definition
+service LeadPipelineService {
+  // List lead pipelines with pagination
+  rpc List(ListLeadPipelinesRequest) returns (ListLeadPipelinesResponse);
+
+  // Stream lead pipelines for bulk export
+  rpc Stream(StreamLeadPipelinesRequest) returns (stream LeadPipelineBatch);
+}

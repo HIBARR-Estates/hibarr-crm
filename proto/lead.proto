@@ -147,7 +147,7 @@ message LeadResponse {
 
 // Response containing a list of leads
 message ListLeadsResponse {
-  repeated Lead leads = 1;
+  repeated Lead result = 1;
   hibarr.crm.common.PaginationMeta pagination = 2;
 }
 
@@ -166,7 +166,7 @@ message StreamLeadsRequest {
 
 // Streamed batch of leads
 message LeadBatch {
-  repeated Lead leads = 1;
+  repeated Lead result = 1;
   hibarr.crm.common.StreamProgress progress = 2;
 }
 
@@ -188,5 +188,5 @@ service LeadService {
   rpc List(ListLeadsRequest) returns (ListLeadsResponse);
   
   // Stream leads for bulk export (server streaming)
-  rpc StreamLeads(StreamLeadsRequest) returns (stream LeadBatch);
+  rpc Stream(StreamLeadsRequest) returns (stream LeadBatch);
 }

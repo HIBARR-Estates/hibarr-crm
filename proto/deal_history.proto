@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package hibarr.crm.deal_history;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\DealHistory";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// DealHistory entity
+message DealHistory {
+  int64 id = 1;
+  int64 deal_id = 2;
+  int64 created_by = 3;
+  int64 deal_stage_to_id = 4;
+  string event_type = 5;
+  int64 deal_stage_from_id = 6;
+  int64 file_id = 7;
+  int64 task_id = 8;
+  int64 follow_up_id = 9;
+  int64 note_id = 10;
+  int64 proposal_id = 11;
+  int64 agent_id = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+
+// Request to list deal histories with pagination and filters
+message ListDealHistoriesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 deal_id = 2;
+  optional string event_type = 3;
+  optional int64 created_by = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Response containing a list of deal histories
+message ListDealHistoriesResponse {
+  repeated DealHistory result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk deal history export
+message StreamDealHistoriesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 deal_id = 2;
+  optional string event_type = 3;
+  optional int64 created_by = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of deal histories
+message DealHistoryBatch {
+  repeated DealHistory result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// DealHistory Service definition
+service DealHistoryService {
+  // List deal histories with pagination
+  rpc List(ListDealHistoriesRequest) returns (ListDealHistoriesResponse);
+
+  // Stream deal histories for bulk export
+  rpc Stream(StreamDealHistoriesRequest) returns (stream DealHistoryBatch);
+}

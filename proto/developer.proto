@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package hibarr.crm.developer;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Developer";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Developer entity (table: developers)
+message Developer {
+  int64 id = 1;
+  int64 company_id = 2;
+  string name = 3;
+  string logo_url = 4;
+  string description = 5;
+  string project_list = 6; // JSON array
+  string whatsapp_group_link = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  string deleted_at = 10;
+}
+
+// Request to list developers with pagination and filters
+message ListDevelopersRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;         // Search in name
+  optional string created_from = 3;
+  optional string created_to = 4;
+}
+
+// Response containing a list of developers
+message ListDevelopersResponse {
+  repeated Developer result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk developer export
+message StreamDevelopersRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+  optional string created_from = 3;
+  optional string created_to = 4;
+}
+
+// Streamed batch of developers
+message DeveloperBatch {
+  repeated Developer result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Developer Service definition
+service DeveloperService {
+  // List developers with pagination
+  rpc List(ListDevelopersRequest) returns (ListDevelopersResponse);
+
+  // Stream developers for bulk export
+  rpc Stream(StreamDevelopersRequest) returns (stream DeveloperBatch);
+}

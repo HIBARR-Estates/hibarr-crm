@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package hibarr.crm.taskboard_column;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\TaskboardColumn";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// TaskboardColumn entity
+message TaskboardColumn {
+  int64 id = 1;
+  int64 company_id = 2;
+  string column_name = 3;
+  string slug = 4;
+  string label_color = 5;
+  int32 priority = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// Request to list taskboard columns with pagination and filters
+message ListTaskboardColumnsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;       // Search in column_name
+}
+
+// Response containing a list of taskboard columns
+message ListTaskboardColumnsResponse {
+  repeated TaskboardColumn result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk taskboard column export
+message StreamTaskboardColumnsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+}
+
+// Streamed batch of taskboard columns
+message TaskboardColumnBatch {
+  repeated TaskboardColumn result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// TaskboardColumn Service definition
+service TaskboardColumnService {
+  // List taskboard columns with pagination
+  rpc List(ListTaskboardColumnsRequest) returns (ListTaskboardColumnsResponse);
+
+  // Stream taskboard columns for bulk export
+  rpc Stream(StreamTaskboardColumnsRequest) returns (stream TaskboardColumnBatch);
+}

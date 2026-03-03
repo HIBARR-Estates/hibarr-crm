@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package hibarr.crm.communication_activity;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\CommunicationActivity";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// CommunicationActivity entity
+message CommunicationActivity {
+  int64 id = 1;
+  int64 company_id = 2;
+  int64 deal_id = 3;
+  int64 lead_id = 4;
+  int64 parent_activity_id = 5;
+  string channel_type = 6;
+  string resolution_status = 7;
+  int32 resolution_attempts = 8;
+  string message_content = 9;
+  string sender_info = 10; // JSON stored as string
+  string timestamp = 11;
+  string metadata = 12; // JSON stored as string
+  string email = 13;
+  string phone_number = 14;
+  string instagram_username = 15;
+  string telegram_username = 16;
+  string whatsapp_username = 17;
+  string first_name = 18;
+  string last_name = 19;
+  string message_type = 20;
+  string subject = 21;
+  string last_resolution_attempt_at = 22;
+  string chat_id = 23;
+  string created_at = 24;
+  string updated_at = 25;
+}
+
+// Request to list communication activities with pagination and filters
+message ListCommunicationActivitiesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 deal_id = 2;
+  optional int64 lead_id = 3;
+  optional string channel_type = 4;
+  optional string message_type = 5;
+  optional string resolution_status = 6;
+  optional string search = 7;       // Search in message_content, subject
+  optional string created_from = 8;
+  optional string created_to = 9;
+}
+
+// Response containing a list of communication activities
+message ListCommunicationActivitiesResponse {
+  repeated CommunicationActivity result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk communication activity export
+message StreamCommunicationActivitiesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 deal_id = 2;
+  optional int64 lead_id = 3;
+  optional string channel_type = 4;
+  optional string message_type = 5;
+  optional string resolution_status = 6;
+  optional string search = 7;
+  optional string created_from = 8;
+  optional string created_to = 9;
+}
+
+// Streamed batch of communication activities
+message CommunicationActivityBatch {
+  repeated CommunicationActivity result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// CommunicationActivity Service definition
+service CommunicationActivityService {
+  // List communication activities with pagination
+  rpc List(ListCommunicationActivitiesRequest) returns (ListCommunicationActivitiesResponse);
+
+  // Stream communication activities for bulk export
+  rpc Stream(StreamCommunicationActivitiesRequest) returns (stream CommunicationActivityBatch);
+}
