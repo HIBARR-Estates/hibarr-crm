@@ -12,6 +12,8 @@ use App\Grpc\Generated\Task\ChangeTaskStatusRequest;
 use App\Grpc\Generated\Task\ListTasksRequest;
 use App\Grpc\Generated\Task\ListTasksResponse;
 use App\Grpc\Generated\Task\TaskResponse;
+use App\Grpc\Generated\Task\StreamTasksRequest;
+use App\Grpc\Generated\Task\TaskBatch;
 use App\Grpc\Generated\Common\PBEmpty;
 
 interface TaskServiceInterface extends ServiceInterface
@@ -29,4 +31,6 @@ interface TaskServiceInterface extends ServiceInterface
     public function ChangeStatus(ContextInterface $ctx, ChangeTaskStatusRequest $in): TaskResponse;
 
     public function List(ContextInterface $ctx, ListTasksRequest $in): ListTasksResponse;
+
+    public function Stream(ContextInterface $ctx, StreamTasksRequest $in): TaskBatch;
 }

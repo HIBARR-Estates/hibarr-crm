@@ -10,10 +10,13 @@ use App\Grpc\Generated\Task\DeleteTaskRequest;
 use App\Grpc\Generated\Task\ChangeTaskStatusRequest;
 use App\Grpc\Generated\Task\ListTasksRequest;
 use App\Grpc\Generated\Task\ListTasksResponse;
+use App\Grpc\Generated\Task\StreamTasksRequest;
+use App\Grpc\Generated\Task\TaskBatch;
 use App\Grpc\Generated\Task\TaskResponse;
 use App\Grpc\Generated\Task\Task as TaskMessage;
 use App\Grpc\Generated\Common\PBEmpty;
 use App\Grpc\Generated\Common\PaginationMeta;
+use App\Grpc\Generated\Common\StreamProgress;
 use App\Models\Task;
 use App\Services\TaskService;
 use Illuminate\Validation\ValidationException;
@@ -300,7 +303,7 @@ class TaskGrpcService implements TaskServiceInterface
 
             $response = new ListTasksResponse();
             foreach ($paginator->items() as $task) {
-                $response->getTasks()[] = $this->buildMessage($task);
+                $response->getResult()[] = $this->buildMessage($task);
             }
 
             $meta = new PaginationMeta();
@@ -312,6 +315,85 @@ class TaskGrpcService implements TaskServiceInterface
             $response->setPagination($meta);
 
             return $response;
+        } catch (GRPCException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw $this->mapException($e);
+        }
+    }
+
+    // ── Stream (bulk dump) ─────────────────────────────────
+
+    public function Stream(ContextInterface $ctx, StreamTasksRequest $in): TaskBatch
+    {
+        try {
+            $companyId = $this->getCompanyId($ctx);
+
+            $streamParams = $in->getStreamParams();
+            $sinceId = $streamParams ? $streamParams->getSinceId() : 0;
+            $sinceUpdated = $streamParams ? $streamParams->getSinceUpdated() : '';
+            $ids = $streamParams ? iterator_to_array($streamParams->getIds()) : [];
+
+            $query = Task::where('company_id', $companyId)
+                ->with(['users', 'labels', 'deals', 'leads', 'properties']);
+
+            // Include soft-deleted if requested
+            if ($in->hasWithTrashed() && $in->getWithTrashed()) {
+                $query->withTrashed();
+            }
+
+            // Incremental filters
+            if ($sinceId > 0) {
+                $query->where('id', '>', $sinceId);
+            }
+            if (!empty($sinceUpdated)) {
+                $query->where('updated_at', '>', $sinceUpdated);
+            }
+            if (!empty($ids)) {
+                $query->whereIn('id', $ids);
+            }
+
+            // Domain-specific filters
+            if ($in->hasProjectId()) {
+                $query->where('project_id', $in->getProjectId());
+            }
+            if ($in->hasPriority()) {
+                $query->where('priority', $in->getPriority());
+            }
+            if ($in->hasStatus()) {
+                $query->where('status', $in->getStatus());
+            }
+            if ($in->hasDealId()) {
+                $query->whereHas('deals', fn ($q) => $q->where('deals.id', $in->getDealId()));
+            }
+            if ($in->hasLeadId()) {
+                $query->whereHas('leads', fn ($q) => $q->where('leads.id', $in->getLeadId()));
+            }
+            if ($in->hasPropertyId()) {
+                $query->whereHas('properties', fn ($q) => $q->where('properties.id', $in->getPropertyId()));
+            }
+            if ($in->hasCreatedFrom()) {
+                $query->where('created_at', '>=', $in->getCreatedFrom());
+            }
+            if ($in->hasCreatedTo()) {
+                $query->where('created_at', '<=', $in->getCreatedTo());
+            }
+
+            $total = $query->count();
+            $records = $query->orderBy('id', 'asc')->get();
+
+            $batch = new TaskBatch();
+            foreach ($records as $task) {
+                $batch->getResult()[] = $this->buildMessage($task);
+            }
+
+            $progress = new StreamProgress();
+            $progress->setProcessed($records->count());
+            $progress->setTotal($total);
+            $progress->setIsComplete(true);
+            $batch->setProgress($progress);
+
+            return $batch;
         } catch (GRPCException $e) {
             throw $e;
         } catch (\Throwable $e) {

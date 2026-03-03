@@ -9,10 +9,13 @@ use App\Grpc\Generated\Lead\UpdateLeadRequest;
 use App\Grpc\Generated\Lead\DeleteLeadRequest;
 use App\Grpc\Generated\Lead\ListLeadsRequest;
 use App\Grpc\Generated\Lead\ListLeadsResponse;
+use App\Grpc\Generated\Lead\StreamLeadsRequest;
+use App\Grpc\Generated\Lead\LeadBatch;
 use App\Grpc\Generated\Lead\LeadResponse;
 use App\Grpc\Generated\Lead\Lead as LeadMessage;
 use App\Grpc\Generated\Common\PBEmpty;
 use App\Grpc\Generated\Common\PaginationMeta;
+use App\Grpc\Generated\Common\StreamProgress;
 use App\Models\Lead;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -258,7 +261,7 @@ class LeadGrpcService implements LeadServiceInterface
 
             $response = new ListLeadsResponse();
             foreach ($paginator->items() as $lead) {
-                $response->getLeads()[] = $this->buildMessage($lead);
+                $response->getResult()[] = $this->buildMessage($lead);
             }
 
             $meta = new PaginationMeta();
@@ -270,6 +273,73 @@ class LeadGrpcService implements LeadServiceInterface
             $response->setPagination($meta);
 
             return $response;
+        } catch (GRPCException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw $this->mapException($e);
+        }
+    }
+
+    // ── Stream (bulk dump) ─────────────────────────────────
+
+    public function Stream(ContextInterface $ctx, StreamLeadsRequest $in): LeadBatch
+    {
+        try {
+            $companyId = $this->getCompanyId($ctx);
+
+            $streamParams = $in->getStreamParams();
+            $sinceId = $streamParams ? $streamParams->getSinceId() : 0;
+            $sinceUpdated = $streamParams ? $streamParams->getSinceUpdated() : '';
+            $ids = $streamParams ? iterator_to_array($streamParams->getIds()) : [];
+
+            $query = Lead::where('company_id', $companyId);
+
+            // Incremental filters
+            if ($sinceId > 0) {
+                $query->where('id', '>', $sinceId);
+            }
+            if (!empty($sinceUpdated)) {
+                $query->where('updated_at', '>', $sinceUpdated);
+            }
+            if (!empty($ids)) {
+                $query->whereIn('id', $ids);
+            }
+
+            // Domain-specific filters
+            if ($in->hasSourceId()) {
+                $query->where('source_id', $in->getSourceId());
+            }
+            if ($in->hasStatusId()) {
+                $query->where('status_id', $in->getStatusId());
+            }
+            if ($in->hasCategoryId()) {
+                $query->where('category_id', $in->getCategoryId());
+            }
+            if ($in->hasContactType()) {
+                $query->where('contact_type', $in->getContactType());
+            }
+            if ($in->hasCreatedFrom()) {
+                $query->where('created_at', '>=', $in->getCreatedFrom());
+            }
+            if ($in->hasCreatedTo()) {
+                $query->where('created_at', '<=', $in->getCreatedTo());
+            }
+
+            $total = $query->count();
+            $records = $query->orderBy('id', 'asc')->get();
+
+            $batch = new LeadBatch();
+            foreach ($records as $lead) {
+                $batch->getResult()[] = $this->buildMessage($lead);
+            }
+
+            $progress = new StreamProgress();
+            $progress->setProcessed($records->count());
+            $progress->setTotal($total);
+            $progress->setIsComplete(true);
+            $batch->setProgress($progress);
+
+            return $batch;
         } catch (GRPCException $e) {
             throw $e;
         } catch (\Throwable $e) {
