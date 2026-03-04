@@ -618,6 +618,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('/compatibility/{property}', [PropertyRecommendationController::class, 'getCompatibility'])->name('compatibility');
     });
     Route::get('property-recommendations/health', [PropertyRecommendationController::class, 'healthCheck'])->name('property-recommendations.health');
+
+    // Meetings (user's meetings across all deals)
+    Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
     
 // Meeting Summary Routes
 Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');

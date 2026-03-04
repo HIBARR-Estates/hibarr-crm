@@ -266,6 +266,7 @@ return array(
         'replyTemplates' => 'Reply Templates',
         'offlinePaymentMethod' => 'Offline Payment Method',
         'lead' => 'Leads',
+        'meetings' => 'Meetings',
         'finance' => 'Finance',
         'payroll' => 'Payroll',
         'employeeList' => 'Employee List',
