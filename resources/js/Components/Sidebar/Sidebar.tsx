@@ -18,6 +18,7 @@ import {
     PersonIcon,
     BriefcaseIcon,
     HouseDoorIcon,
+    CalendarIcon,
     // GearIcon,
     CheckSquareIcon,
 } from "../icons";
@@ -156,6 +157,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                               }`,
                           },
                       ],
+        },
+        {
+            key: "meetings",
+            label: t("app.menu.meetings"),
+            icon: <CalendarIcon />,
+            href: "/account/meetings",
         },
         {
             key: "tasks",
