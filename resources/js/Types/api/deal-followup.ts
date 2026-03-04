@@ -1,8 +1,9 @@
 import { User } from "..";
+import { Deal } from "./deals";
 
 export interface Reminder {
     time: number;
-    type: 'minute' | 'hour' | 'day';
+    type: "minute" | "hour" | "day";
     is_default?: boolean;
 }
 
@@ -34,4 +35,21 @@ export interface DealFollowup {
     reminders?: Reminder[];
     participants?: number[]; // Array of user IDs
     meeting_summary?: MeetingSummary;
+    deal?: Deal; // Loaded via eager-loading on Meetings page
+}
+
+/** Paginated response shape for meetings (Laravel paginator) */
+export interface PaginatedFollowupResponse {
+    current_page: number;
+    data: DealFollowup[];
+    first_page_url: string;
+    from: number;
+    last_page: number;
+    last_page_url: string;
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number;
+    total: number;
 }
