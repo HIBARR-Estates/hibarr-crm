@@ -167,7 +167,7 @@ const FileCard: React.FC<Props> = ({
     const isImage = (filename: string) => {
         const extension = filename.split(".").pop()?.toLowerCase();
         return ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp"].includes(
-            extension || ""
+            extension || "",
         );
     };
 
@@ -182,8 +182,13 @@ const FileCard: React.FC<Props> = ({
     };
 
     const handleDownload = () => {
-        // Use the download route directly
-        // const downloadUrl = `/account/deal-files/download/${file.id}`;
+        // External files: use the external URL directly
+        if (file.external_url) {
+            window.open(file.external_url, "_blank");
+            return;
+        }
+
+        // Legacy files: use the download route
         const downloadUrl = route("deal-files.download", file.id);
         const link = document.createElement("a");
         link.href = downloadUrl;

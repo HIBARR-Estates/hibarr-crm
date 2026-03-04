@@ -152,7 +152,7 @@ trait CustomFieldsTrait
                 }
             }
             
-            // Handle file uploads - supports single file or array of files
+            // Handle file uploads - supports single file, array of files, or external URLs
             if ($fieldType == 'file') {
                 // Get existing files from database
                 $existingEntry = DB::table('custom_fields_data')
@@ -172,23 +172,37 @@ trait CustomFieldsTrait
                         $existingFiles = array_filter(array_map('trim', explode(',', $existingEntry->value)));
                     }
                 }
+
+                /** @var \App\Services\FileStorageService $fileStorageService */
+                $fileStorageService = app(\App\Services\FileStorageService::class);
                 
                 // Handle clearing all files
                 if (empty($value) || $value === '') {
                     // Delete all existing files
                     foreach ($existingFiles as $oldFile) {
-                        Files::deleteFile($oldFile, 'custom_fields');
+                        $this->deleteCustomFieldFile($oldFile, $fileStorageService);
                     }
                     $value = '';
                 }
-                // Handle array of UploadedFile objects (new files to add)
+                // Handle array of UploadedFile objects or URL strings (new files to add)
                 elseif (is_array($value)) {
                     $newFiles = [];
                     foreach ($value as $file) {
                         if ($file instanceof \Illuminate\Http\UploadedFile) {
-                            $newFiles[] = Files::uploadLocalOrS3($file, 'custom_fields');
+                            // Upload via external FileStorageService
+                            try {
+                                $result = $fileStorageService->upload($file, 'custom_fields');
+                                $newFiles[] = $result['downloadUrl'];
+                            } catch (\Exception $e) {
+                                \Log::error('Custom field file upload failed', [
+                                    'error' => $e->getMessage(),
+                                    'field_id' => $id,
+                                ]);
+                                // Fallback to local upload if external fails
+                                $newFiles[] = Files::uploadLocalOrS3($file, 'custom_fields');
+                            }
                         } elseif (is_string($file) && !empty($file)) {
-                            // Already a filename string (for removal operations)
+                            // Already a filename string or URL (for removal operations or pre-uploaded)
                             $newFiles[] = $file;
                         }
                     }
@@ -204,20 +218,41 @@ trait CustomFieldsTrait
                 elseif ($value instanceof \Illuminate\Http\UploadedFile) {
                     // Delete old files when replacing with single file
                     foreach ($existingFiles as $oldFile) {
-                        Files::deleteFile($oldFile, 'custom_fields');
+                        $this->deleteCustomFieldFile($oldFile, $fileStorageService);
                     }
-                    $value = Files::uploadLocalOrS3($value, 'custom_fields');
+                    // Upload via external FileStorageService
+                    try {
+                        $result = $fileStorageService->upload($value, 'custom_fields');
+                        $value = $result['downloadUrl'];
+                    } catch (\Exception $e) {
+                        \Log::error('Custom field file upload failed', [
+                            'error' => $e->getMessage(),
+                            'field_id' => $id,
+                        ]);
+                        // Fallback to local upload if external fails
+                        $value = Files::uploadLocalOrS3($value, 'custom_fields');
+                    }
+                }
+                // Handle URL string from frontend (already uploaded externally)
+                elseif (is_string($value) && \App\Services\FileStorageService::isExternalUrl($value)) {
+                    // Value is already an external URL, store as-is
+                    // Delete old files that are being replaced
+                    foreach ($existingFiles as $oldFile) {
+                        if ($oldFile !== $value) {
+                            $this->deleteCustomFieldFile($oldFile, $fileStorageService);
+                        }
+                    }
                 }
                 // Handle JSON string (for partial removal of files)
                 elseif (is_string($value) && !empty($value)) {
                     $decoded = json_decode($value, true);
                     if (is_array($decoded)) {
-                        // This is a JSON array of filenames to keep
+                        // This is a JSON array of filenames/URLs to keep
                         // Delete files that are no longer in the list
                         $filesToKeep = $decoded;
                         foreach ($existingFiles as $oldFile) {
                             if (!in_array($oldFile, $filesToKeep)) {
-                                Files::deleteFile($oldFile, 'custom_fields');
+                                $this->deleteCustomFieldFile($oldFile, $fileStorageService);
                             }
                         }
                         // Store as JSON if multiple, single string if one
@@ -268,9 +303,8 @@ trait CustomFieldsTrait
                 ->first();
 
             if ($entry) {
-                if ($fieldType == 'file' && (!is_null($entry->value) && $entry->value != $value)) {
-                    Files::deleteFile($entry->value, 'custom_fields');
-                }
+                // Note: file deletion is handled above in the file type block.
+                // No need to delete here — the value is already resolved.
 
                 // Update entry - ensure value is a string
                 $stringValue = is_array($value) ? implode(', ', $value) : (string)($value ?? '');
@@ -313,6 +347,38 @@ trait CustomFieldsTrait
         $this->attributes['custom_fields_data'] = $this->custom_fields_data;
 
         return $this;
+    }
+
+    /**
+     * Delete a custom field file, handling both external URLs and legacy local files.
+     *
+     * @param string $fileRef  The file reference (could be an external URL or a local filename)
+     * @param \App\Services\FileStorageService $fileStorageService
+     */
+    protected function deleteCustomFieldFile(string $fileRef, \App\Services\FileStorageService $fileStorageService): void
+    {
+        if (empty($fileRef)) {
+            return;
+        }
+
+        if (\App\Services\FileStorageService::isExternalUrl($fileRef)) {
+            // External file: try to extract object path and delete from external storage
+            $objectPath = \App\Services\FileStorageService::extractObjectPathFromUrl($fileRef);
+            if ($objectPath) {
+                try {
+                    $fileStorageService->delete($objectPath);
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to delete external custom field file', [
+                        'url' => $fileRef,
+                        'objectPath' => $objectPath,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        } else {
+            // Legacy local file
+            Files::deleteFile($fileRef, 'custom_fields');
+        }
     }
 
 }

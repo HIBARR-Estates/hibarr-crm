@@ -52,15 +52,46 @@ class DealFile extends BaseModel
     protected $hidden = ["pivot"];
 
 
-    protected $fillable = [];
+    protected $fillable = [
+        'deal_id',
+        'user_id',
+        'filename',
+        'hashname',
+        'size',
+        'description',
+        'external_url',
+        'object_path',
+        'added_by',
+        'last_updated_by',
+    ];
 
     protected $guarded = ['id'];
 
     protected $appends = ['file_url', 'icon'];
 
+    /**
+     * Get the file URL.
+     *
+     * Dual-support: if the file was uploaded to external storage (external_url is set),
+     * return the external URL directly. Otherwise, fall back to the legacy local/S3 path.
+     */
     public function getFileUrlAttribute()
     {
+        // New external storage: return the CDN URL directly
+        if (!empty($this->external_url)) {
+            return $this->external_url;
+        }
+
+        // Legacy local/S3 storage
         return asset_url_local_s3(DealFile::FILE_PATH . '/' . $this->deal_id . '/' . $this->hashname);
+    }
+
+    /**
+     * Check if this file is stored in external storage.
+     */
+    public function isExternallyStored(): bool
+    {
+        return !empty($this->external_url);
     }
 
     public function lead(): BelongsTo

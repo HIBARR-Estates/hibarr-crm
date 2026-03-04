@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Models\Deal;
 use App\Models\DealFile;
+use App\Services\FileStorageService;
 use App\Traits\IconTrait;
 use Illuminate\Http\Request;
 use App\Helper\Files;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class LeadFileController extends AccountBaseController
 {
@@ -90,6 +92,54 @@ class LeadFileController extends AccountBaseController
     }
 
     /**
+     * Store file references from external storage (2-step upload).
+     *
+     * The frontend uploads files directly to the external storage API,
+     * then calls this endpoint with the upload results to create DealFile records.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storeFromExternal(Request $request)
+    {
+        $addPermission = user()->permission('add_lead_files');
+        abort_403(!in_array($addPermission, ['all', 'added']));
+
+        $request->validate([
+            'deal_id' => 'required|integer|exists:deals,id',
+            'files' => 'required|array|min:1',
+            'files.*.downloadUrl' => 'required|url',
+            'files.*.objectPath' => 'required|string',
+            'files.*.originalName' => 'required|string',
+            'files.*.size' => 'nullable|integer',
+        ]);
+
+        $deal = Deal::findOrFail($request->deal_id);
+        $createdFiles = [];
+
+        foreach ($request->files_data ?? $request->files as $fileData) {
+            $file = new DealFile();
+            $file->deal_id = $deal->id;
+            $file->user_id = $this->user->id;
+            $file->filename = $fileData['originalName'];
+            $file->hashname = ''; // Not used for external files
+            $file->size = $fileData['size'] ?? 0;
+            $file->external_url = $fileData['downloadUrl'];
+            $file->object_path = $fileData['objectPath'];
+            $file->added_by = $this->user->id;
+            $file->save();
+
+            $createdFiles[] = $file;
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.fileUploaded'),
+            'data' => $createdFiles,
+        ]);
+    }
+
+    /**
      * @param Request $request
      * @param int $id
      * @return array|void
@@ -100,6 +150,21 @@ class LeadFileController extends AccountBaseController
         $deletePermission = user()->permission('delete_lead_files');
         $file = DealFile::findOrFail($id);
         abort_403(!($deletePermission == 'all' || ($deletePermission == 'added' && $file->added_by == user()->id)));
+
+        // If the file is stored externally, also delete from external storage
+        if ($file->isExternallyStored() && !empty($file->object_path)) {
+            try {
+                $fileStorageService = app(FileStorageService::class);
+                $fileStorageService->delete($file->object_path);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete file from external storage', [
+                    'file_id' => $file->id,
+                    'object_path' => $file->object_path,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continue with database deletion even if external deletion fails
+            }
+        }
 
         DealFile::destroy($id);
 
@@ -117,6 +182,12 @@ class LeadFileController extends AccountBaseController
         $file = DealFile::findOrFail($id);
         abort_403(!($viewPermission == 'all' || ($viewPermission == 'added' && $file->added_by == user()->id)));
 
+        // External files: redirect to the external URL
+        if ($file->isExternallyStored()) {
+            return redirect()->away($file->external_url);
+        }
+
+        // Legacy files: serve from local/S3 storage
         return download_local_s3($file, DealFile::FILE_PATH . '/' . $file->deal_id . '/' . $file->hashname);
     }
 

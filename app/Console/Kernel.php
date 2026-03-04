@@ -34,6 +34,7 @@ use App\Console\Commands\AssignEmployeeShiftRotation;
 use App\Console\Commands\RecalculateLeavesQuotas;
 use App\Console\Commands\AutoClockOut;
 use App\Console\Commands\EscalateOverdueAvailabilityRequests;
+use App\Console\Commands\MigrateFilesToExternalStorage;
 use DateTimeZone;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -81,6 +82,7 @@ class Kernel extends ConsoleKernel
         AssignEmployeeShiftRotation::class,
         RecalculateLeavesQuotas::class,
         EscalateOverdueAvailabilityRequests::class,
+        MigrateFilesToExternalStorage::class,
     ];
 
     /**
