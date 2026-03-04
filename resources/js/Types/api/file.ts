@@ -8,6 +8,8 @@ export interface DealFile {
     description?: string;
     google_url?: string;
     dropbox_link?: string;
+    external_url?: string;
+    object_path?: string;
     created_at: string;
     updated_at: string;
     added_by?: number;

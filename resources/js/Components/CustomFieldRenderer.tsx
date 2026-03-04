@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from "react";
 import {
     Form,
     Input,
@@ -8,13 +8,19 @@ import {
     Radio,
     Row,
     Col,
-} from 'antd';
-import PhoneInput from 'antd-phone-input';
-import { CustomField } from '@/Types';
-import { useCustomFieldVisibility } from '@/Hooks/useCustomFieldVisibility';
-import { usePage } from '@inertiajs/react';
-import CurrencyInput from '@/Components/CurrencyInput';
-import RepeatableFieldRenderer from '@/Components/RepeatableFieldRenderer';
+    Upload,
+    Button,
+    message,
+    Progress,
+} from "antd";
+import { UploadOutlined } from "@ant-design/icons";
+import PhoneInput from "antd-phone-input";
+import { CustomField } from "@/Types";
+import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
+import { usePage } from "@inertiajs/react";
+import CurrencyInput from "@/Components/CurrencyInput";
+import RepeatableFieldRenderer from "@/Components/RepeatableFieldRenderer";
+import { getFileUploadService } from "@/Services/FileUploadService";
 
 interface Props {
     fields: CustomField[];
@@ -22,14 +28,14 @@ interface Props {
     namePrefix?: string;
 }
 
-const CustomFieldRenderer: React.FC<Props> = ({ 
-    fields, 
-    form, 
-    namePrefix = 'custom_fields_data' 
+const CustomFieldRenderer: React.FC<Props> = ({
+    fields,
+    form,
+    namePrefix = "custom_fields_data",
 }) => {
     const { props } = usePage<any>();
     const { countries = [] } = props;
-    
+
     // Get visibility map
     const { visibilityMap, isFieldVisible } = useCustomFieldVisibility({
         fields,
@@ -52,8 +58,13 @@ const CustomFieldRenderer: React.FC<Props> = ({
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
             rules={
-                field.required === 'yes' && isFieldVisible(field.id)
-                    ? [{ required: true, message: `${field.label} is required` }]
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
                     : []
             }
         >
@@ -67,8 +78,13 @@ const CustomFieldRenderer: React.FC<Props> = ({
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
             rules={
-                field.required === 'yes' && isFieldVisible(field.id)
-                    ? [{ required: true, message: `${field.label} is required` }]
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
                     : []
             }
         >
@@ -82,22 +98,25 @@ const CustomFieldRenderer: React.FC<Props> = ({
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
             rules={
-                field.required === 'yes' && isFieldVisible(field.id)
-                    ? [{ required: true, message: `${field.label} is required` }]
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
                     : []
             }
         >
-            <Input.TextArea 
-                placeholder={`Enter ${field.label}`}
-                rows={3}
-            />
+            <Input.TextArea placeholder={`Enter ${field.label}`} rows={3} />
         </Form.Item>
     );
 
     const renderSelectField = (field: CustomField) => {
-        const values = typeof field.values === 'string' 
-            ? JSON.parse(field.values) 
-            : field.values || [];
+        const values =
+            typeof field.values === "string"
+                ? JSON.parse(field.values)
+                : field.values || [];
 
         return (
             <Form.Item
@@ -105,8 +124,13 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
                 rules={
-                    field.required === 'yes' && isFieldVisible(field.id)
-                        ? [{ required: true, message: `${field.label} is required` }]
+                    field.required === "yes" && isFieldVisible(field.id)
+                        ? [
+                              {
+                                  required: true,
+                                  message: `${field.label} is required`,
+                              },
+                          ]
                         : []
                 }
             >
@@ -123,9 +147,10 @@ const CustomFieldRenderer: React.FC<Props> = ({
     };
 
     const renderRadioField = (field: CustomField) => {
-        const values = typeof field.values === 'string' 
-            ? JSON.parse(field.values) 
-            : field.values || [];
+        const values =
+            typeof field.values === "string"
+                ? JSON.parse(field.values)
+                : field.values || [];
 
         return (
             <Form.Item
@@ -133,8 +158,13 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
                 rules={
-                    field.required === 'yes' && isFieldVisible(field.id)
-                        ? [{ required: true, message: `${field.label} is required` }]
+                    field.required === "yes" && isFieldVisible(field.id)
+                        ? [
+                              {
+                                  required: true,
+                                  message: `${field.label} is required`,
+                              },
+                          ]
                         : []
                 }
             >
@@ -150,9 +180,10 @@ const CustomFieldRenderer: React.FC<Props> = ({
     };
 
     const renderCheckboxField = (field: CustomField) => {
-        const values = typeof field.values === 'string' 
-            ? JSON.parse(field.values) 
-            : field.values || [];
+        const values =
+            typeof field.values === "string"
+                ? JSON.parse(field.values)
+                : field.values || [];
 
         return (
             <Form.Item
@@ -160,8 +191,13 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
                 rules={
-                    field.required === 'yes' && isFieldVisible(field.id)
-                        ? [{ required: true, message: `${field.label} is required` }]
+                    field.required === "yes" && isFieldVisible(field.id)
+                        ? [
+                              {
+                                  required: true,
+                                  message: `${field.label} is required`,
+                              },
+                          ]
                         : []
                 }
             >
@@ -182,14 +218,19 @@ const CustomFieldRenderer: React.FC<Props> = ({
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
             rules={
-                field.required === 'yes' && isFieldVisible(field.id)
-                    ? [{ required: true, message: `${field.label} is required` }]
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
                     : []
             }
         >
-            <DatePicker 
+            <DatePicker
                 placeholder={`Select ${field.label}`}
-                style={{ width: '100%' }}
+                style={{ width: "100%" }}
             />
         </Form.Item>
     );
@@ -200,8 +241,13 @@ const CustomFieldRenderer: React.FC<Props> = ({
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
             rules={
-                field.required === 'yes' && isFieldVisible(field.id)
-                    ? [{ required: true, message: `${field.label} is required` }]
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
                     : []
             }
         >
@@ -212,10 +258,12 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 filterOption={(input, option) => {
                     const searchText = input.toLowerCase();
                     const countryValue = option?.value as string;
-                    const country = countries?.find((c: any) => c.nicename === countryValue);
-                    
+                    const country = countries?.find(
+                        (c: any) => c.nicename === countryValue,
+                    );
+
                     if (!country) return false;
-                    
+
                     // Search by nicename, name, iso, iso3, or nationality
                     return (
                         country.nicename?.toLowerCase().includes(searchText) ||
@@ -228,15 +276,21 @@ const CustomFieldRenderer: React.FC<Props> = ({
             >
                 {countries && countries.length > 0 ? (
                     countries.map((country: any) => (
-                        <Select.Option key={country.iso || country.id} value={country.nicename}>
+                        <Select.Option
+                            key={country.iso || country.id}
+                            value={country.nicename}
+                        >
                             <span className="flex items-center gap-2">
-                                <span className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`} />
+                                <span
+                                    className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`}
+                                />
                                 {country.nicename}
-                                {country.nationality && country.nationality !== 'unknown' && (
-                                    <span className="text-gray-500 text-xs">
-                                        ({country.nationality})
-                                    </span>
-                                )}
+                                {country.nationality &&
+                                    country.nationality !== "unknown" && (
+                                        <span className="text-gray-500 text-xs">
+                                            ({country.nationality})
+                                        </span>
+                                    )}
                             </span>
                         </Select.Option>
                     ))
@@ -255,8 +309,13 @@ const CustomFieldRenderer: React.FC<Props> = ({
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
             rules={
-                field.required === 'yes' && isFieldVisible(field.id)
-                    ? [{ required: true, message: `${field.label} is required` }]
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
                     : []
             }
         >
@@ -268,6 +327,96 @@ const CustomFieldRenderer: React.FC<Props> = ({
         </Form.Item>
     );
 
+    // File upload field using external FileUploadService
+    const FileUploadField: React.FC<{ field: CustomField }> = ({ field }) => {
+        const [uploading, setUploading] = useState(false);
+        const [uploadProgress, setUploadProgress] = useState(0);
+
+        const handleBeforeUpload = async (file: File) => {
+            setUploading(true);
+            setUploadProgress(0);
+            try {
+                const service = getFileUploadService();
+                const result = await service.uploadSingle(
+                    file,
+                    "custom_fields",
+                    (_fileId, progress) => setUploadProgress(progress),
+                );
+                // Set the form field value to the download URL
+                form.setFieldValue(
+                    [namePrefix, `field_${field.id}`],
+                    result.downloadUrl,
+                );
+                message.success("File uploaded successfully");
+            } catch (error) {
+                console.error("File upload failed:", error);
+                message.error("Failed to upload file");
+            } finally {
+                setUploading(false);
+                setUploadProgress(0);
+            }
+            return false; // Prevent default upload
+        };
+
+        const currentValue = form.getFieldValue([
+            namePrefix,
+            `field_${field.id}`,
+        ]);
+
+        return (
+            <Form.Item
+                key={field.id}
+                name={[namePrefix, `field_${field.id}`]}
+                label={field.label}
+                rules={
+                    field.required === "yes" && isFieldVisible(field.id)
+                        ? [
+                              {
+                                  required: true,
+                                  message: `${field.label} is required`,
+                              },
+                          ]
+                        : []
+                }
+            >
+                <div>
+                    {uploading && uploadProgress > 0 ? (
+                        <Progress
+                            percent={uploadProgress}
+                            size="small"
+                            status="active"
+                        />
+                    ) : (
+                        <Upload
+                            beforeUpload={handleBeforeUpload}
+                            showUploadList={false}
+                            accept="*/*"
+                            maxCount={1}
+                        >
+                            <Button
+                                icon={<UploadOutlined />}
+                                loading={uploading}
+                            >
+                                {currentValue ? "Replace File" : "Upload File"}
+                            </Button>
+                        </Upload>
+                    )}
+                    {currentValue && !uploading && (
+                        <div className="mt-1 text-sm text-gray-500 truncate max-w-[250px]">
+                            {typeof currentValue === "string" &&
+                            currentValue.startsWith("http")
+                                ? decodeURIComponent(
+                                      currentValue.split("/").pop() ||
+                                          "Uploaded file",
+                                  )
+                                : currentValue}
+                        </div>
+                    )}
+                </div>
+            </Form.Item>
+        );
+    };
+
     const renderField = (field: CustomField) => {
         // Check visibility
         if (!isFieldVisible(field.id)) {
@@ -275,25 +424,25 @@ const CustomFieldRenderer: React.FC<Props> = ({
         }
 
         switch (field.type) {
-            case 'text':
+            case "text":
                 return renderTextField(field);
-            case 'number':
+            case "number":
                 return renderNumberField(field);
-            case 'textarea':
+            case "textarea":
                 return renderTextAreaField(field);
-            case 'select':
+            case "select":
                 return renderSelectField(field);
-            case 'radio':
+            case "radio":
                 return renderRadioField(field);
-            case 'checkbox':
+            case "checkbox":
                 return renderCheckboxField(field);
-            case 'date':
+            case "date":
                 return renderDateField(field);
-            case 'country':
+            case "country":
                 return renderCountryField(field);
-            case 'currency':
+            case "currency":
                 return renderCurrencyField(field);
-            case 'repeatable':
+            case "repeatable":
                 return (
                     <RepeatableFieldRenderer
                         key={field.id}
@@ -304,6 +453,8 @@ const CustomFieldRenderer: React.FC<Props> = ({
                         isFieldVisible={isFieldVisible}
                     />
                 );
+            case "file":
+                return <FileUploadField key={field.id} field={field} />;
             default:
                 return renderTextField(field);
         }
@@ -311,12 +462,20 @@ const CustomFieldRenderer: React.FC<Props> = ({
 
     return (
         <Row gutter={[16, 16]}>
-            {sortedFields.map(field => {
+            {sortedFields.map((field) => {
                 const fieldElement = renderField(field);
                 if (!fieldElement) return null;
 
                 return (
-                    <Col key={field.id} span={field.type === 'textarea' || field.type === 'repeatable' ? 24 : 12}>
+                    <Col
+                        key={field.id}
+                        span={
+                            field.type === "textarea" ||
+                            field.type === "repeatable"
+                                ? 24
+                                : 12
+                        }
+                    >
                         {fieldElement}
                     </Col>
                 );
