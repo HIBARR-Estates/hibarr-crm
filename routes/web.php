@@ -505,6 +505,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // Lead Files
     Route::get('deal-files/download/{id}', [LeadFileController::class, 'download'])->name('deal-files.download');
     Route::get('deal-files/layout', [LeadFileController::class, 'layout'])->name('deal-files.layout');
+    Route::post('deal-files/store-external', [LeadFileController::class, 'storeFromExternal'])->name('deal-files.store-external');
     Route::resource('deal-files', LeadFileController::class);
 
     // Follow up

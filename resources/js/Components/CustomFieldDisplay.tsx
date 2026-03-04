@@ -6,6 +6,7 @@ import {
     message,
     Spin,
     Tooltip,
+    Progress,
 } from "antd";
 import {
     UploadOutlined,
@@ -23,6 +24,7 @@ import EditableRepeatableField from "@/Components/EditableRepeatableField";
 import React, { useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
+import { getFileUploadService } from "@/Services/FileUploadService";
 
 const DEFAULT_CURRENCY_CODE = "USD";
 
@@ -46,19 +48,30 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
         const pipeMatch = /^([A-Z]{2,3})\|(.+)$/.exec(trimmed);
         if (pipeMatch) {
             const amount = parseFloat(pipeMatch[2].replace(/,/g, ""));
-            return Number.isFinite(amount) ? { amount, currency: pipeMatch[1] } : null;
+            return Number.isFinite(amount)
+                ? { amount, currency: pipeMatch[1] }
+                : null;
         }
         const num = parseFloat(trimmed.replace(/,/g, ""));
-        if (Number.isFinite(num)) return { amount: num, currency: DEFAULT_CURRENCY_CODE };
+        if (Number.isFinite(num))
+            return { amount: num, currency: DEFAULT_CURRENCY_CODE };
         try {
             const parsed = JSON.parse(trimmed) as unknown;
-            if (typeof parsed === "number") return { amount: parsed, currency: DEFAULT_CURRENCY_CODE };
+            if (typeof parsed === "number")
+                return { amount: parsed, currency: DEFAULT_CURRENCY_CODE };
             if (parsed && typeof parsed === "object" && "amount" in parsed) {
                 const amount =
                     typeof (parsed as { amount: unknown }).amount === "number"
                         ? (parsed as { amount: number }).amount
-                        : parseFloat(String((parsed as { amount: unknown }).amount ?? 0).replace(/,/g, ""));
-                const currency = String((parsed as { currency?: string }).currency || DEFAULT_CURRENCY_CODE);
+                        : parseFloat(
+                              String(
+                                  (parsed as { amount: unknown }).amount ?? 0,
+                              ).replace(/,/g, ""),
+                          );
+                const currency = String(
+                    (parsed as { currency?: string }).currency ||
+                        DEFAULT_CURRENCY_CODE,
+                );
                 return Number.isFinite(amount) ? { amount, currency } : null;
             }
         } catch {
@@ -68,7 +81,9 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
     if (value && typeof value === "object" && "amount" in value) {
         const obj = value as { amount?: unknown; currency?: string };
         const amount =
-            typeof obj.amount === "number" ? obj.amount : parseFloat(String(obj.amount ?? 0).replace(/,/g, ""));
+            typeof obj.amount === "number"
+                ? obj.amount
+                : parseFloat(String(obj.amount ?? 0).replace(/,/g, ""));
         const currency = obj.currency || DEFAULT_CURRENCY_CODE;
         return Number.isFinite(amount) ? { amount, currency } : null;
     }
@@ -77,36 +92,54 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
 
 /** Normalize repeatable field value to an array of item objects. */
 function parseRepeatableItems(value: unknown): Record<string, unknown>[] {
-    if (Array.isArray(value)) return value.filter((o) => o && typeof o === "object") as Record<string, unknown>[];
+    if (Array.isArray(value))
+        return value.filter((o) => o && typeof o === "object") as Record<
+            string,
+            unknown
+        >[];
     if (typeof value === "string" && value.trim()) {
         try {
             const parsed = JSON.parse(value) as unknown;
-            if (Array.isArray(parsed)) return parsed.filter((o) => o && typeof o === "object") as Record<string, unknown>[];
-            if (parsed && typeof parsed === "object") return [parsed as Record<string, unknown>];
+            if (Array.isArray(parsed))
+                return parsed.filter(
+                    (o) => o && typeof o === "object",
+                ) as Record<string, unknown>[];
+            if (parsed && typeof parsed === "object")
+                return [parsed as Record<string, unknown>];
         } catch {
             // ignore
         }
     }
-    if (value && typeof value === "object" && !Array.isArray(value)) return [value as Record<string, unknown>];
+    if (value && typeof value === "object" && !Array.isArray(value))
+        return [value as Record<string, unknown>];
     return [];
 }
 
 /** Build key -> type map from repeatable schema (field.values). */
 function getRepeatableSchemaMap(
-    values: string | Array<{ key: string; type: string; label: string }> | Record<string, string> | undefined,
+    values:
+        | string
+        | Array<{ key: string; type: string; label: string }>
+        | Record<string, string>
+        | undefined,
 ): Record<string, string> {
-    const schemaArr: Array<{ key: string; type: string; label: string }> = Array.isArray(values)
-        ? values
-        : typeof values === "string" && values.trim()
-          ? (() => {
-                try {
-                    const p = JSON.parse(values) as Array<{ key: string; type: string; label: string }>;
-                    return Array.isArray(p) ? p : [];
-                } catch {
-                    return [];
-                }
-            })()
-          : [];
+    const schemaArr: Array<{ key: string; type: string; label: string }> =
+        Array.isArray(values)
+            ? values
+            : typeof values === "string" && values.trim()
+              ? (() => {
+                    try {
+                        const p = JSON.parse(values) as Array<{
+                            key: string;
+                            type: string;
+                            label: string;
+                        }>;
+                        return Array.isArray(p) ? p : [];
+                    } catch {
+                        return [];
+                    }
+                })()
+              : [];
     const map: Record<string, string> = {};
     schemaArr.forEach((s) => {
         if (s?.key) map[s.key] = s.type || "text";
@@ -145,14 +178,46 @@ const parseFileValue = (value: string | null): string[] => {
     return [value];
 };
 
-// Get display name from filename (extract original name if possible, otherwise show truncated hash)
-const getDisplayName = (filename: string): string => {
+// Get display name from filename or URL
+const getDisplayName = (fileValue: string): string => {
+    // If it's an external URL, extract the filename from the URL path
+    if (fileValue.startsWith("http")) {
+        try {
+            const url = new URL(fileValue);
+            const pathParts = url.pathname.split("/").filter(Boolean);
+            const lastPart = pathParts[pathParts.length - 1] || "File";
+            // Decode URL-encoded filename
+            return decodeURIComponent(lastPart);
+        } catch {
+            return "File";
+        }
+    }
     // If filename is a hash with extension (like abc123def.pdf), just show truncated
-    if (/^[a-f0-9]{20,}\.[a-z0-9]+$/i.test(filename)) {
-        const ext = filename.split(".").pop();
+    if (/^[a-f0-9]{20,}\.[a-z0-9]+$/i.test(fileValue)) {
+        const ext = fileValue.split(".").pop();
         return `File.${ext}`;
     }
-    return filename;
+    return fileValue;
+};
+
+// Check if a file value is an external URL
+const isExternalUrl = (value: string): boolean =>
+    value.startsWith("http://") || value.startsWith("https://");
+
+// Extract objectPath from an external URL for deletion
+// e.g. https://minio.hibarr.org/backend-uploads/custom_fields/abc.pdf → custom_fields/abc.pdf
+const extractObjectPath = (url: string): string | null => {
+    try {
+        const parsed = new URL(url);
+        // Remove leading slash and first path segment (bucket name)
+        const parts = parsed.pathname.split("/").filter(Boolean);
+        if (parts.length >= 2) {
+            return parts.slice(1).join("/");
+        }
+        return parts.join("/") || null;
+    } catch {
+        return null;
+    }
 };
 
 // Editable File Field Component - supports multiple files
@@ -177,33 +242,58 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     multiple = true, // Default to supporting multiple files
 }) => {
     const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     // Parse existing files
     const existingFiles = parseFileValue(value);
 
-    // Handle file upload - for multiple files, fileList contains all selected files
+    // Handle file upload via external FileUploadService
     const handleBeforeUpload = async (file: File, fileList: File[]) => {
         // Only process when we receive the last file in the batch
-        // fileList contains all files, but beforeUpload is called per file
         const isLastFile = file === fileList[fileList.length - 1];
-
         if (!isLastFile) {
-            return false; // Skip processing until the last file
+            return false;
         }
 
         setUploading(true);
+        setUploadProgress(0);
         try {
-            // Send all selected files
-            await onSave(fieldKey, fileList);
+            const service = getFileUploadService();
+            let uploadedUrls: string[] = [];
+
+            if (fileList.length === 1) {
+                const result = await service.uploadSingle(
+                    fileList[0],
+                    "custom_fields",
+                    (_fileId, progress) => setUploadProgress(progress),
+                );
+                uploadedUrls = [result.downloadUrl];
+            } else {
+                const results = await service.uploadMultiple(
+                    fileList,
+                    "custom_fields",
+                    (_fileId, progress) => setUploadProgress(progress),
+                );
+                uploadedUrls = results.map((r) => r.downloadUrl);
+            }
+
+            // Combine with existing files if adding to existing list
+            const allFiles = [...existingFiles, ...uploadedUrls];
+            const saveValue =
+                allFiles.length === 1 ? allFiles[0] : JSON.stringify(allFiles);
+
+            await onSave(fieldKey, saveValue);
             message.success(
                 fileList.length > 1
                     ? `${fileList.length} files uploaded successfully`
                     : "File uploaded successfully",
             );
         } catch (error) {
+            console.error("File upload failed:", error);
             message.error("Failed to upload file(s)");
         } finally {
             setUploading(false);
+            setUploadProgress(0);
         }
 
         return false; // Prevent default upload behavior
@@ -212,16 +302,33 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     const handleRemove = async (fileToRemove?: string) => {
         setUploading(true);
         try {
+            // Try to delete from external storage if it's an external URL
+            if (fileToRemove && isExternalUrl(fileToRemove)) {
+                const objectPath = extractObjectPath(fileToRemove);
+                if (objectPath) {
+                    try {
+                        const service = getFileUploadService();
+                        await service.deleteSingle(objectPath);
+                    } catch (deleteErr) {
+                        console.warn(
+                            "Failed to delete from external storage, continuing with removal:",
+                            deleteErr,
+                        );
+                    }
+                }
+            }
+
             if (multiple && fileToRemove && existingFiles.length > 1) {
                 // Remove specific file from the list
                 const remainingFiles = existingFiles.filter(
                     (f) => f !== fileToRemove,
                 );
-                // Send the remaining files as JSON string to update
                 await onSave(
                     fieldKey,
                     remainingFiles.length > 0
-                        ? JSON.stringify(remainingFiles)
+                        ? remainingFiles.length === 1
+                            ? remainingFiles[0]
+                            : JSON.stringify(remainingFiles)
                         : "",
                 );
             } else {
@@ -238,6 +345,18 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
 
     const isLoading = loading || uploading;
 
+    if (uploading && uploadProgress > 0) {
+        return (
+            <div className="w-full">
+                <Progress
+                    percent={uploadProgress}
+                    size="small"
+                    status="active"
+                />
+            </div>
+        );
+    }
+
     if (isLoading) {
         return <Spin size="small" />;
     }
@@ -246,16 +365,18 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     if (existingFiles.length > 0) {
         return (
             <div className="space-y-1">
-                {existingFiles.map((filename, index) => {
-                    const fileUrl = `/user-uploads/custom_fields/${filename}`;
-                    const displayName = getDisplayName(filename);
+                {existingFiles.map((fileValue, index) => {
+                    const fileUrl = isExternalUrl(fileValue)
+                        ? fileValue
+                        : `/user-uploads/custom_fields/${fileValue}`;
+                    const displayName = getDisplayName(fileValue);
 
                     return (
                         <div
-                            key={filename}
+                            key={`${fileValue}-${index}`}
                             className="flex items-center gap-2 py-1"
                         >
-                            <Tooltip title={filename}>
+                            <Tooltip title={displayName}>
                                 <a
                                     href={fileUrl}
                                     className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm truncate max-w-[150px]"
@@ -282,7 +403,7 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
                                     size="small"
                                     danger
                                     icon={<DeleteOutlined />}
-                                    onClick={() => handleRemove(filename)}
+                                    onClick={() => handleRemove(fileValue)}
                                     className="flex-shrink-0"
                                     title="Remove file"
                                 />
@@ -336,7 +457,10 @@ interface Field {
     id: string | number;
     label: string;
     type: string;
-    values?: Record<string, string> | string | Array<{ key: string; type: string; label: string }>; // options or repeatable schema
+    values?:
+        | Record<string, string>
+        | string
+        | Array<{ key: string; type: string; label: string }>; // options or repeatable schema
     custom_field_category_id?: string | number;
     show_rule_set?: any; // Visibility rules
     /** For type=repeatable: the field whose value (N) dictates how many blocks to render */
@@ -345,7 +469,14 @@ interface Field {
     display_config?: {
         useDefaultDisplay?: boolean;
         fieldKey?: string;
-        aggregateBy?: "first" | "last" | "concat" | "sum" | "sum_currency" | "count" | "list";
+        aggregateBy?:
+            | "first"
+            | "last"
+            | "concat"
+            | "sum"
+            | "sum_currency"
+            | "count"
+            | "list";
         separator?: string;
         format?: string;
     } | null;
@@ -390,7 +521,11 @@ export default function CustomFieldDisplay({
         currencies?.[0]?.currency_code ??
         "USD";
 
-    const defaultSymbols: Record<string, string> = { USD: "$", EUR: "€", GBP: "£" };
+    const defaultSymbols: Record<string, string> = {
+        USD: "$",
+        EUR: "€",
+        GBP: "£",
+    };
     const formatCurrencyAsNode = (
         amount: number,
         currencyCode: string,
@@ -401,12 +536,17 @@ export default function CustomFieldDisplay({
             const c = currencies.find(
                 (x: any) =>
                     x.currency_code === code ||
-                    (x.currency_name && String(x.currency_name).toUpperCase() === code.toUpperCase()),
+                    (x.currency_name &&
+                        String(x.currency_name).toUpperCase() ===
+                            code.toUpperCase()),
             );
             symbol = c?.currency_symbol ?? symbol;
         }
         const formatted = Number.isFinite(amount)
-            ? amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            ? amount.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+              })
             : "0.00";
         return (
             <span className="font-medium">
@@ -504,7 +644,7 @@ export default function CustomFieldDisplay({
                 .map((obj: Record<string, any>) =>
                     obj && typeof obj === "object"
                         ? Object.values(obj).filter(Boolean).join(", ")
-                        : ""
+                        : "",
                 )
                 .filter(Boolean)
                 .join("; ");
@@ -850,16 +990,27 @@ export default function CustomFieldDisplay({
                     if (v == null || v === "") return "";
                     if (typeof v === "boolean") return v ? "Yes" : "No";
                     if (Array.isArray(v)) {
-                        const files = (v as { name?: string }[]).filter((x) => x?.name);
-                        return files.length ? files.map((f) => f.name).join(", ") : "";
+                        const files = (v as { name?: string }[]).filter(
+                            (x) => x?.name,
+                        );
+                        return files.length
+                            ? files.map((f) => f.name).join(", ")
+                            : "";
                     }
                     return String(v);
                 };
-                const formatPartWithSchema = (k: string, v: unknown): React.ReactNode => {
+                const formatPartWithSchema = (
+                    k: string,
+                    v: unknown,
+                ): React.ReactNode => {
                     if (v == null || v === "") return null;
                     if (schemaMap[k] === "currency") {
                         const parsed = parseCurrencyValue(v);
-                        if (parsed) return formatCurrencyAsNode(parsed.amount, parsed.currency);
+                        if (parsed)
+                            return formatCurrencyAsNode(
+                                parsed.amount,
+                                parsed.currency,
+                            );
                     }
                     return formatPart(v);
                 };
@@ -884,16 +1035,31 @@ export default function CustomFieldDisplay({
                         case "last":
                             displayValue =
                                 schemaMap[key] === "currency"
-                                    ? formatPartWithSchema(key, rawValues[rawValues.length - 1])
-                                    : formatPart(rawValues[rawValues.length - 1]);
+                                    ? formatPartWithSchema(
+                                          key,
+                                          rawValues[rawValues.length - 1],
+                                      )
+                                    : formatPart(
+                                          rawValues[rawValues.length - 1],
+                                      );
                             break;
                         case "concat":
                         case "list":
-                            displayValue = rawValues.map((v) => formatPart(v)).join(sep);
+                            displayValue = rawValues
+                                .map((v) => formatPart(v))
+                                .join(sep);
                             break;
                         case "sum": {
                             const nums = rawValues.map((v) => {
-                                const n = typeof v === "number" ? v : Number(String(v).replace(/[^0-9.-]/g, ""));
+                                const n =
+                                    typeof v === "number"
+                                        ? v
+                                        : Number(
+                                              String(v).replace(
+                                                  /[^0-9.-]/g,
+                                                  "",
+                                              ),
+                                          );
                                 return Number.isFinite(n) ? n : 0;
                             });
                             displayValue = nums.reduce((a, b) => a + b, 0);
@@ -904,11 +1070,21 @@ export default function CustomFieldDisplay({
                                 .map((v) => parseCurrencyValue(v))
                                 .filter((p): p is ParsedCurrency => p != null);
                             if (parsed.length === 0) {
-                                displayValue = formatCurrencyAsNode(0, appDefaultCurrency);
+                                displayValue = formatCurrencyAsNode(
+                                    0,
+                                    appDefaultCurrency,
+                                );
                             } else {
-                                const total = parsed.reduce((sum, p) => sum + p.amount, 0);
-                                const currency = parsed[0].currency || appDefaultCurrency;
-                                displayValue = formatCurrencyAsNode(total, currency);
+                                const total = parsed.reduce(
+                                    (sum, p) => sum + p.amount,
+                                    0,
+                                );
+                                const currency =
+                                    parsed[0].currency || appDefaultCurrency;
+                                displayValue = formatCurrencyAsNode(
+                                    total,
+                                    currency,
+                                );
                             }
                             break;
                         }
@@ -916,7 +1092,9 @@ export default function CustomFieldDisplay({
                             displayValue = rawValues.length;
                             break;
                         default:
-                            displayValue = rawValues.map((v) => formatPart(v)).join(sep);
+                            displayValue = rawValues
+                                .map((v) => formatPart(v))
+                                .join(sep);
                     }
                     if (displayValue == null) {
                         return <span className="text-gray-500">--</span>;
@@ -929,7 +1107,9 @@ export default function CustomFieldDisplay({
                                 {parts.map((text, i) => (
                                     <React.Fragment key={i}>
                                         {text}
-                                        {i < parts.length - 1 ? displayValue : null}
+                                        {i < parts.length - 1
+                                            ? displayValue
+                                            : null}
                                     </React.Fragment>
                                 ))}
                             </span>
@@ -944,8 +1124,13 @@ export default function CustomFieldDisplay({
                     <div className="space-y-2">
                         {items.map((obj, index) => {
                             const parts = Object.entries(obj)
-                                .map(([k, v]) => ({ k, node: formatPartWithSchema(k, v) }))
-                                .filter(({ node }) => node != null && node !== "");
+                                .map(([k, v]) => ({
+                                    k,
+                                    node: formatPartWithSchema(k, v),
+                                }))
+                                .filter(
+                                    ({ node }) => node != null && node !== "",
+                                );
                             if (parts.length === 0) return null;
                             return (
                                 <div key={index} className="text-sm">
@@ -953,7 +1138,10 @@ export default function CustomFieldDisplay({
                                     {parts.map(({ k, node }, i) => (
                                         <span key={k}>
                                             {i > 0 && ", "}
-                                            <span className="text-gray-500 capitalize">{k}:</span> {node}
+                                            <span className="text-gray-500 capitalize">
+                                                {k}:
+                                            </span>{" "}
+                                            {node}
                                         </span>
                                     ))}
                                 </div>
@@ -993,7 +1181,11 @@ export default function CustomFieldDisplay({
 
             case "country": {
                 const str = formatCountryForDisplay(value);
-                return str ? <span>{str}</span> : <span className="text-gray-500">--</span>;
+                return str ? (
+                    <span>{str}</span>
+                ) : (
+                    <span className="text-gray-500">--</span>
+                );
             }
 
             case "currency": {
@@ -1175,7 +1367,15 @@ export default function CustomFieldDisplay({
                     // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
                     if (Array.isArray(valuesObj)) {
                         options = valuesObj.map(
-                            (v: string | { key: string; type: string; label: string }) =>
+                            (
+                                v:
+                                    | string
+                                    | {
+                                          key: string;
+                                          type: string;
+                                          label: string;
+                                      },
+                            ) =>
                                 typeof v === "string"
                                     ? { label: v, value: v }
                                     : { label: v.label, value: v.key },
@@ -1261,16 +1461,24 @@ export default function CustomFieldDisplay({
 
         // Repeatable: editable via modal with RepeatableFieldRenderer
         if (field.type === "repeatable") {
-            const repeatableValues: string | RepeatableItemSchema[] | null | undefined =
+            const repeatableValues:
+                | string
+                | RepeatableItemSchema[]
+                | null
+                | undefined =
                 field.values === undefined || field.values === null
                     ? null
-                    : Array.isArray(field.values) || typeof field.values === "string"
+                    : Array.isArray(field.values) ||
+                        typeof field.values === "string"
                       ? (field.values as string | RepeatableItemSchema[])
                       : null;
             return (
                 <EditableRepeatableField
                     field={{
-                        id: typeof field.id === "string" ? parseInt(field.id, 10) : field.id,
+                        id:
+                            typeof field.id === "string"
+                                ? parseInt(field.id, 10)
+                                : field.id,
                         label: field.label,
                         linked_field_id: field.linked_field_id ?? null,
                         values: repeatableValues,
@@ -1294,9 +1502,13 @@ export default function CustomFieldDisplay({
 
         // Normalize value for editable components so country/phone never render as [object Object]
         let normalizedValue = value;
-        if (field.type === "country" && (value !== undefined && value !== null)) {
+        if (field.type === "country" && value !== undefined && value !== null) {
             normalizedValue = formatCountryForDisplay(value);
-        } else if (field.type === "phone" && (value !== undefined && value !== null)) {
+        } else if (
+            field.type === "phone" &&
+            value !== undefined &&
+            value !== null
+        ) {
             normalizedValue = formatMobileForDisplay(value);
         }
 

@@ -1,11 +1,13 @@
 import { Deal } from "@/Types/api/deals";
 import { IModalProps } from "@/Types/common";
-import { useFormDataMutate } from "@/lib/api/client/useFormDataMutate";
-import { Modal, Upload, Button } from "antd";
+import { useApiMutate } from "@/lib/api/client";
+import { Modal, Upload, Button, Progress, message } from "antd";
 import { InboxOutlined, UploadOutlined } from "@ant-design/icons";
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { UploadProps, UploadFile } from "antd";
 import { ApiResponse } from "@/lib/api/types";
+import { getFileUploadService } from "@/Services/FileUploadService";
+import { IUploadResponseItem } from "@/Types/uploads";
 
 const { Dragger } = Upload;
 
@@ -14,8 +16,14 @@ interface Props extends IModalProps {
     onFileUploaded?: () => void;
 }
 
-interface FileUploadResponse {
+interface StoreExternalPayload {
+    deal_id: number;
+    files: IUploadResponseItem[];
+}
+
+interface StoreExternalResponse {
     message: string;
+    data: any[];
 }
 
 const FileUpload: React.FC<Props> = ({
@@ -25,13 +33,19 @@ const FileUpload: React.FC<Props> = ({
     onFileUploaded,
 }) => {
     const [fileList, setFileList] = useState<UploadFile[]>([]);
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const uploadServiceRef = useRef(getFileUploadService());
 
-    const uploadMutation = useFormDataMutate<
-        FileUploadResponse,
-        ApiResponse<FileUploadResponse>
-    >(route("deal-files.store"), "POST", (response) => {
+    // Mutation to save file references to the backend after external upload
+    const saveMutation = useApiMutate<
+        StoreExternalPayload,
+        StoreExternalResponse,
+        ApiResponse<StoreExternalResponse>
+    >(route("deal-files.store-external"), "POST", (response) => {
         if (response?.status === "success") {
             setFileList([]);
+            setUploadProgress(0);
             onClose();
             if (onFileUploaded) {
                 onFileUploaded();
@@ -49,32 +63,91 @@ const FileUpload: React.FC<Props> = ({
             return false; // Prevent auto upload
         },
         onRemove: (file) => {
+            if (uploading) return; // Don't allow removal during upload
             setFileList((prev) => prev.filter((item) => item.uid !== file.uid));
         },
         showUploadList: {
-            showRemoveIcon: true,
+            showRemoveIcon: !uploading,
             removeIcon: "Remove",
         },
     };
 
-    const handleUpload = async () => {
-        if (fileList.length === 0) {
-            return;
+    const handleUpload = useCallback(async () => {
+        if (fileList.length === 0) return;
+
+        setUploading(true);
+        setUploadProgress(0);
+
+        try {
+            // Extract raw File objects from the UploadFile list
+            const rawFiles: File[] = fileList
+                .map((f) => f.originFileObj || (f as any))
+                .filter((f): f is File => f instanceof File);
+
+            if (rawFiles.length === 0) {
+                message.error("No valid files to upload");
+                setUploading(false);
+                return;
+            }
+
+            // Step 1: Upload files to external storage API
+            const uploadService = uploadServiceRef.current;
+            let completedCount = 0;
+
+            const results: IUploadResponseItem[] = [];
+            for (const file of rawFiles) {
+                const result = await uploadService.uploadSingle(
+                    file,
+                    "deal-files",
+                    (_fileId, progress) => {
+                        // Calculate aggregate progress
+                        const fileProgress = progress / rawFiles.length;
+                        const baseProgress =
+                            (completedCount / rawFiles.length) * 100;
+                        setUploadProgress(
+                            Math.round(baseProgress + fileProgress),
+                        );
+                    },
+                );
+                results.push(result);
+                completedCount++;
+                setUploadProgress(
+                    Math.round((completedCount / rawFiles.length) * 100),
+                );
+            }
+
+            // Step 2: Save file references to the backend
+            saveMutation.mutate({
+                deal_id: deal.id,
+                files: results.map((r) => ({
+                    downloadUrl: r.downloadUrl,
+                    objectPath: r.objectPath,
+                    originalName: r.originalName,
+                    size: 0, // Size not returned by external API — fine for now
+                })),
+            } as any);
+        } catch (error: any) {
+            console.error("File upload failed:", error);
+            message.error(
+                error?.message || "Failed to upload files. Please try again.",
+            );
+        } finally {
+            setUploading(false);
         }
-
-        const formData = new FormData();
-        fileList.forEach((file) => {
-            formData.append("file[]", file as any);
-        });
-        formData.append("lead_id", deal.id.toString());
-
-        uploadMutation.mutate(formData);
-    };
+    }, [fileList, deal.id, saveMutation]);
 
     const handleCancel = () => {
+        if (uploading) {
+            // Cancel any in-progress uploads
+            uploadServiceRef.current.cancelAll();
+            setUploading(false);
+        }
         setFileList([]);
+        setUploadProgress(0);
         onClose();
     };
+
+    const isLoading = uploading || saveMutation.isPending;
 
     return (
         <Modal
@@ -85,7 +158,7 @@ const FileUpload: React.FC<Props> = ({
                 <Button
                     key="cancel"
                     onClick={handleCancel}
-                    disabled={uploadMutation.isPending}
+                    disabled={isLoading}
                 >
                     Cancel
                 </Button>,
@@ -93,11 +166,11 @@ const FileUpload: React.FC<Props> = ({
                     key="upload"
                     type="primary"
                     icon={<UploadOutlined />}
-                    loading={uploadMutation.isPending}
+                    loading={isLoading}
                     onClick={handleUpload}
-                    disabled={fileList.length === 0}
+                    disabled={fileList.length === 0 || isLoading}
                 >
-                    {uploadMutation.isPending ? "Uploading..." : "Upload Files"}
+                    {isLoading ? "Uploading..." : "Upload Files"}
                 </Button>,
             ]}
             destroyOnClose
@@ -120,7 +193,25 @@ const FileUpload: React.FC<Props> = ({
                 </Dragger>
             </div>
 
-            {fileList.length > 0 && (
+            {/* Upload Progress */}
+            {uploading && (
+                <div className="mb-4">
+                    <Progress
+                        percent={uploadProgress}
+                        status="active"
+                        strokeColor={{
+                            "0%": "#108ee9",
+                            "100%": "#87d068",
+                        }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                        Uploading {fileList.length} file
+                        {fileList.length > 1 ? "s" : ""} to storage...
+                    </p>
+                </div>
+            )}
+
+            {fileList.length > 0 && !uploading && (
                 <div className="mt-4">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">
                         Selected Files ({fileList.length})
