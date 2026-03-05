@@ -198,7 +198,10 @@ const ConstructionProjectFormModal: React.FC<
                 ? {
                       city: (project.location as any).city ?? undefined,
                       area: (project.location as any).area ?? undefined,
-                      address: (project.location as any).address ?? undefined,
+                      address:
+                          (project.location as any)?.address?.street ??
+                          (project.location as any)?.address ??
+                          undefined,
                       latitude: (project.location as any).latitude ?? undefined,
                       longitude:
                           (project.location as any).longitude ?? undefined,
