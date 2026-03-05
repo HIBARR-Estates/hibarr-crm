@@ -198,6 +198,7 @@ const ConstructionProjectFormModal: React.FC<
                 ? {
                       city: (project.location as any).city ?? undefined,
                       area: (project.location as any).area ?? undefined,
+                      map_url: (project.location as any).map_url ?? undefined,
                       address:
                           (project.location as any)?.address?.street ??
                           (project.location as any)?.address ??
