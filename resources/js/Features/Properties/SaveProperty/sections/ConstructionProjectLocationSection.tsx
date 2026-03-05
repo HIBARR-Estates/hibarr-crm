@@ -142,7 +142,7 @@ const ConstructionProjectLocationSection: React.FC<
 
             {/* Map URL */}
             <Col xs={24} md={12}>
-                <Form.Item name="map" label="Map URL">
+                <Form.Item name="map_url" label="Map URL">
                     <Input placeholder="Google Maps link" />
                 </Form.Item>
             </Col>
