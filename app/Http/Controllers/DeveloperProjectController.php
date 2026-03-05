@@ -333,13 +333,21 @@ class DeveloperProjectController extends AccountBaseController
         // Handle location — create or update ProjectLocation if location fields provided
         $locationId = $request->project_location_id;
         if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
+            // The address column is JSON ({street?, state?, country?, postalCode?}).
+            // If a plain string is provided, wrap it in the expected structure.
+            $address = $request->address;
+
+            if (is_string($address)) {
+                $address = ['street' => $address];
+            }
+
             $location = \App\Models\ProjectLocation::create([
                 'company_id' => user()->company_id,
                 // name is city, area
                 'name' => $request->city . ($request->area ? " - {$request->area}" : ''),
                 'city' => $request->city, 
                 'area' => $request->area,
-                'address' => $request->address,
+                'address' => $address,
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
                 'map_url' => $request->map_url,
@@ -451,11 +459,19 @@ class DeveloperProjectController extends AccountBaseController
 
         // Handle location — update existing or create new
         if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
+            // The address column is JSON ({street?, state?, country?, postalCode?}).
+            // If a plain string is provided, wrap it in the expected structure.
+            $address = $request->address;
+
+            if (is_string($address)) {
+                $address = ['street' => $address];
+            }
+
             $locationData = [
                 'company_id' => user()->company_id,
                 'city' => $request->city,
                 'area' => $request->area,
-                'address' => $request->address,
+                'address' => $address,
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
                 'map_url' => $request->map_url,
