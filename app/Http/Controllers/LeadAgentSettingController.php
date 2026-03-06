@@ -50,17 +50,33 @@ class LeadAgentSettingController extends AccountBaseController
         $this->addPermission = user()->permission('add_lead_agent');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
-        $categoryIds = $request->category_id;
-
-        foreach ($categoryIds as $categoryId) {
-            $agentCategory = new LeadAgent();
-            $agentCategory->company_id = company()->id;
-            $agentCategory->user_id = $request->agent_id;
-            $agentCategory->lead_category_id = $categoryId;
-            $agentCategory->added_by = user()->id;
-            $agentCategory->status = 'enabled';
-            $agentCategory->save();
+        $categoryIds = $request->input('category_id', []);
+        if (! is_array($categoryIds)) {
+            $categoryIds = $categoryIds ? [ $categoryIds ] : [];
         }
+        $categoryIds = array_values(array_filter($categoryIds));
+
+        if (empty($categoryIds)) {
+            // Create lead agent without a category
+            LeadAgent::create([
+                'company_id' => company()->id,
+                'user_id' => $request->agent_id,
+                'lead_category_id' => null,
+                'added_by' => user()->id,
+                'status' => 'enabled',
+            ]);
+        } else {
+            foreach ($categoryIds as $categoryId) {
+                $agentCategory = new LeadAgent();
+                $agentCategory->company_id = company()->id;
+                $agentCategory->user_id = $request->agent_id;
+                $agentCategory->lead_category_id = $categoryId;
+                $agentCategory->added_by = user()->id;
+                $agentCategory->status = 'enabled';
+                $agentCategory->save();
+            }
+        }
+
         if($request->deal_category_id)
         {
             $data = LeadAgent::with('user')->where('lead_category_id', $request->deal_category_id)->get();
@@ -99,15 +115,37 @@ class LeadAgentSettingController extends AccountBaseController
 
     public function updateCategory($id, UpdateLeadAgent $request)
     {
+        // $id is the user_id (from User model in the agent table)
         LeadAgent::where('user_id', $id)->delete();
 
-        foreach($request->categoryId as $categoryId) {
-            LeadAgent::firstOrCreate([
+        $categoryIds = $request->input('categoryId', []);
+        if (! is_array($categoryIds)) {
+            $categoryIds = $categoryIds ? [ $categoryIds ] : [];
+        }
+        $categoryIds = array_values(array_filter($categoryIds));
+
+        if (empty($categoryIds)) {
+            // Keep the user as a lead agent but without a category (one row with lead_category_id = null)
+            LeadAgent::create([
                 'user_id' => $id,
-                'lead_category_id' => $categoryId,
+                'lead_category_id' => null,
+                'company_id' => company()->id,
+                'added_by' => $request->user()->id,
                 'last_updated_by' => user()->id,
-                'company_id' => company()->id
+                'status' => 'enabled',
             ]);
+        } else {
+            foreach ($categoryIds as $categoryId) {
+                LeadAgent::firstOrCreate([
+                    'user_id' => $id,
+                    'lead_category_id' => $categoryId,
+                    'last_updated_by' => user()->id,
+                    'company_id' => company()->id
+                ], [
+                    'added_by' => $request->user()->id,
+                    'status' => 'enabled',
+                ]);
+            }
         }
 
         return Reply::success(__('messages.updateSuccess'));
@@ -123,21 +161,16 @@ class LeadAgentSettingController extends AccountBaseController
     public function agentCategories()
     {
         $leadAgentCategory = LeadAgent::where('user_id', request()->agent_id)->pluck('lead_category_id')->toArray();
+        // Filter out nulls: agents with no category have lead_category_id = null; whereNotIn('id', [null]) returns no rows in SQL
+        $leadAgentCategory = array_values(array_filter($leadAgentCategory, fn ($id) => $id !== null));
 
-        if(!empty($leadAgentCategory))
-        {
-
+        if (!empty($leadAgentCategory)) {
             $leadCategory = LeadCategory::whereNotIn('id', $leadAgentCategory)->get();
-
-            return Reply::dataOnly(['data' => $leadCategory]);
-
-        }
-        else
-        {
+        } else {
             $leadCategory = LeadCategory::all();
-
-            return Reply::dataOnly(['data' => $leadCategory]);
         }
+
+        return Reply::dataOnly(['data' => $leadCategory]);
     }
 
 }

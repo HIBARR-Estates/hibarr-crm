@@ -493,6 +493,10 @@ $addLeadCategoryPermission = user()->permission('add_lead_category');
             e.preventDefault();
             var agentId = $(this).data('agent-id');
             var categoryId = $(this).val();
+            // Ensure we send an array; bootstrap-select can return null when all deselected
+            if (categoryId == null || !Array.isArray(categoryId)) {
+                categoryId = [];
+            }
             var token = '{{ csrf_token() }}';
             var url = "{{ route('lead_agents.update_category', ':id') }}";
             url = url.replace(':id', agentId);
