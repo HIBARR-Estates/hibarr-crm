@@ -20,7 +20,7 @@
                 <div class="col-lg-6">
                     <div class="my-3">
                         <x-forms.select fieldId="lead_category" :fieldLabel="__('modules.deal.dealCategory')"
-                            fieldName="category_id[]" search="true" multiple="true" fieldRequired="true">
+                            fieldName="category_id[]" search="true" multiple="true" :fieldRequired="false">
                             @foreach ($leadCategories as $leadCategory)
                                 <option value="{{$leadCategory->id}}">{{$leadCategory->category_name}}</option>
                             @endforeach
