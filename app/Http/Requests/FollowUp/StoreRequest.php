@@ -40,7 +40,7 @@ class StoreRequest extends CoreRequest
             'reminders.*.type' => 'required_with:reminders|in:minute,hour,day',
             'participants' => 'nullable|array',
             'participants.*' => 'required_with:participants|integer|exists:users,id',
-            'duration' => 'nullable|integer|min:1|max:480',
+            'duration' => 'nullable|integer|min:1|max:600',
         ];
 
         // Timezone must be a valid IANA identifier if provided
