@@ -7,6 +7,10 @@ use App\Http\Requests\Settings\UpdateOrganisationSettings;
 use App\Traits\CurrencyExchange;
 use App\Models\User;
 use App\Models\DealAutomation;
+use App\Models\CrmEventCategory;
+use App\Models\CrmEventType;
+use App\Models\CrmBusinessRule;
+use App\Models\CrmEventRetentionPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -44,6 +48,18 @@ class SettingsController extends AccountBaseController
             ->get();
             
         return view('company-settings.deal_automations', $this->data);
+    }
+
+    public function crm_events()
+    {
+        $this->pageTitle = 'app.menu.crmEventSettings';
+        $this->activeSettingMenu = 'crm_event_settings';
+        $this->categories = CrmEventCategory::withCount('eventTypes')->orderBy('name')->get();
+        $this->eventTypes = CrmEventType::with(['category', 'businessRule'])->orderBy('name')->get();
+        $this->businessRules = CrmBusinessRule::withCount('eventTypes')->orderBy('name')->get();
+        $this->retentionPolicy = CrmEventRetentionPolicy::first();
+
+        return view('company-settings.crm_events', $this->data);
     }
 
     // phpcs:ignore
