@@ -49,6 +49,7 @@ use App\Http\Controllers\DatabaseBackupSettingController;
 use App\Http\Controllers\GoogleCalendarSettingController;
 use App\Http\Controllers\LeadPipelineSettingController;
 use App\Http\Controllers\DealAutomationController;
+use App\Http\Controllers\CrmEventSettingController;
 use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\OfflinePaymentSettingController;
 use App\Http\Controllers\PaymentGatewayCredentialController;
@@ -285,6 +286,35 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('company-settings/deal-automations', [SettingsController::class, 'deal_automations'])->name('company-settings.deal_automations');
     Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
     Route::resource('deal-automations', DealAutomationController::class);
+
+    // CRM Event Engine Settings
+    Route::get('company-settings/crm-events', [SettingsController::class, 'crm_events'])->name('company-settings.crm_events');
+    Route::post('crm-event-settings/change-status', [CrmEventSettingController::class, 'changeStatus'])->name('crm-event-settings.change-status');
+
+    // CRM Event Categories
+    Route::get('crm-event-categories/create', [CrmEventSettingController::class, 'createCategory'])->name('crm-event-categories.create');
+    Route::post('crm-event-categories', [CrmEventSettingController::class, 'storeCategory'])->name('crm-event-categories.store');
+    Route::get('crm-event-categories/{id}/edit', [CrmEventSettingController::class, 'editCategory'])->name('crm-event-categories.edit');
+    Route::put('crm-event-categories/{id}', [CrmEventSettingController::class, 'updateCategory'])->name('crm-event-categories.update');
+    Route::delete('crm-event-categories/{id}', [CrmEventSettingController::class, 'destroyCategory'])->name('crm-event-categories.destroy');
+
+    // CRM Event Types
+    Route::get('crm-event-types/create', [CrmEventSettingController::class, 'createType'])->name('crm-event-types.create');
+    Route::post('crm-event-types', [CrmEventSettingController::class, 'storeType'])->name('crm-event-types.store');
+    Route::get('crm-event-types/{id}/edit', [CrmEventSettingController::class, 'editType'])->name('crm-event-types.edit');
+    Route::put('crm-event-types/{id}', [CrmEventSettingController::class, 'updateType'])->name('crm-event-types.update');
+    Route::delete('crm-event-types/{id}', [CrmEventSettingController::class, 'destroyType'])->name('crm-event-types.destroy');
+
+    // CRM Business Rules
+    Route::get('crm-business-rules/create', [CrmEventSettingController::class, 'createRule'])->name('crm-business-rules.create');
+    Route::post('crm-business-rules', [CrmEventSettingController::class, 'storeRule'])->name('crm-business-rules.store');
+    Route::get('crm-business-rules/{id}/edit', [CrmEventSettingController::class, 'editRule'])->name('crm-business-rules.edit');
+    Route::put('crm-business-rules/{id}', [CrmEventSettingController::class, 'updateRule'])->name('crm-business-rules.update');
+    Route::delete('crm-business-rules/{id}', [CrmEventSettingController::class, 'destroyRule'])->name('crm-business-rules.destroy');
+
+    // CRM Event Retention Policy
+    Route::post('crm-event-retention', [CrmEventSettingController::class, 'updateRetention'])->name('crm-event-retention.update');
+
     Route::resource('company-settings', SettingsController::class)->only(['edit', 'update', 'index']);
 
     // Update App
