@@ -260,6 +260,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
         App\Providers\GrpcServiceProvider::class,
+        App\Providers\CrmEventServiceProvider::class,
         Froiden\RestAPI\Providers\ApiServiceProvider::class,
         App\Providers\FortifyServiceProvider::class,
         Barryvdh\TranslationManager\ManagerServiceProvider::class,
@@ -282,7 +283,8 @@ return [
         'ApiRoute' => Froiden\RestAPI\Facades\ApiRoute::class,
         'DataTables' => Yajra\DataTables\Facades\DataTables::class,
         'Zip' => Macellan\Zip\ZipFacade::class,
-        'PDFMerger' => Webklex\PDFMerger\Facades\PDFMergerFacade::class
+        'PDFMerger' => Webklex\PDFMerger\Facades\PDFMergerFacade::class,
+        'CrmEvent' => App\Facades\CrmEvent::class,
     ])->toArray(),
 
     'debug_blacklist' => [

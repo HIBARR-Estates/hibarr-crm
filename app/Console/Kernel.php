@@ -137,6 +137,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('send-daily-timelog-report')->dailyAt('02:30');
         // $schedule->command('app:leaves-quota-renew')->dailyAt('02:30');
         $schedule->command('log:clean --keep-last')->dailyAt('02:40');
+        $schedule->command('crm:archive-events --sync')->dailyAt('03:00');
         $schedule->command('inactive-employee')->dailyAt('02:50');
         $schedule->command('daily-schedule-reminder')->daily();
         $schedule->command('assign-shift-rotation')->dailyAt('00:01');
