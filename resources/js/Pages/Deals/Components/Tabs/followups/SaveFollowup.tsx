@@ -1,6 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 import { DealFollowup, Reminder } from "@/Types/api/deal-followup";
 import {
+    App,
     Form,
     Input,
     Button,
@@ -39,6 +40,7 @@ interface SaveFollowupFormData {
     meeting_type_id?: number;
     location: string;
     meeting_link?: string;
+    duration?: number | null; // Meeting duration in minutes
     reminders: Reminder[];
     remark?: string;
     timezone?: string; // Browser timezone
@@ -62,6 +64,7 @@ export default function SaveFollowup({
     loading = false,
     errors = [],
 }: Props) {
+    const { message } = App.useApp();
     const [form] = Form.useForm();
     const [generatingMeetingLink, setGeneratingMeetingLink] = useState(false);
 
@@ -232,6 +235,7 @@ export default function SaveFollowup({
                 meeting_type_id: followup.meeting_type?.id,
                 location: followup.location || "zoho",
                 meeting_link: followup.meeting_link || "",
+                duration: followup.duration ?? undefined,
                 reminders: existingCustomReminders, // Only set custom reminders in form
                 remark: followup.remark || "",
                 participants: followup.participants || [],
@@ -259,6 +263,12 @@ export default function SaveFollowup({
     const handleSubmit = (values: any) => {
         // Prevent submission if meeting is already scheduled
         if (isScheduled) {
+            return;
+        }
+
+        const hasAgent = deal.agent_id != null || (deal.lead_agent != null && deal.lead_agent?.id != null);
+        if (!hasAgent) {
+            message.warning("This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.");
             return;
         }
 
@@ -290,6 +300,7 @@ export default function SaveFollowup({
             meeting_type_id: values.meeting_type_id,
             location: values.location,
             meeting_link: values.meeting_link || "",
+            duration: values.duration ?? null,
             reminders: customReminders, // Only send custom reminders, defaults are handled server-side
             remark: values.remark || "",
             deal_id: deal.id,
@@ -384,6 +395,36 @@ export default function SaveFollowup({
                         disabled={loading || isScheduled}
                         prefix={<ClockCircleOutlined />}
                         placeholder="Select time"
+                    />
+                </Form.Item>
+
+                {/* Duration (minutes) */}
+                <Form.Item
+                    name="duration"
+                    label="Duration"
+                    tooltip="Meeting duration in minutes"
+                >
+                    <Select
+                        className="w-full"
+                        placeholder="Select duration"
+                        allowClear
+                        disabled={loading || isScheduled}
+                        options={[
+                            { value: 15, label: "15 min" },
+                            { value: 30, label: "30 min" },
+                            { value: 45, label: "45 min" },
+                            { value: 60, label: "1 hour" },
+                            { value: 90, label: "1.5 hours" },
+                            { value: 120, label: "2 hours" },
+                            { value: 180, label: "3 hours" },
+                            { value: 240, label: "4 hours" },
+                            { value: 300, label: "5 hours" },
+                            { value: 360, label: "6 hours" },
+                            { value: 420, label: "7 hours" },
+                            { value: 480, label: "8 hours" },
+                            { value: 540, label: "9 hours" },
+                            { value: 600, label: "10 hours" },
+                        ]}
                     />
                 </Form.Item>
             </div>

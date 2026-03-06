@@ -1596,7 +1596,8 @@ class DealController extends AccountBaseController
         $followUp->meeting_link = $request->meeting_link;
         $followUp->next_follow_up_date = $next_follow_up_date;
         $followUp->remark = $request->remark;
-        
+        $followUp->duration = $request->filled('duration') ? (int) $request->duration : null;
+
         // Set traditional reminder fields for backward compatibility (use first custom reminder or defaults)
         $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
         $followUp->send_reminder = 'yes'; // Always yes since reminders are mandatory now
@@ -1699,7 +1700,8 @@ class DealController extends AccountBaseController
 
         $followUp->remark = $request->remark;
         $followUp->status = $request->status ?? 'scheduled';
-        
+        $followUp->duration = $request->filled('duration') ? (int) $request->duration : null;
+
         // Set traditional reminder fields for backward compatibility (use first custom reminder or defaults)
         $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
         $followUp->remind_time = $firstCustomReminder['time'];

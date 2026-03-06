@@ -61,6 +61,7 @@ class DealFollowUp extends BaseModel
         'remark',
         'meeting_type',
         'next_follow_up_date',
+        'duration',
         'added_by',
         'last_updated_by',
         'event_id',
