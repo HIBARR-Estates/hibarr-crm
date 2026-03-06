@@ -247,6 +247,7 @@ export default function SaveFollowup({
             form.resetFields();
             form.setFieldsValue({
                 location: "zoho",
+                duration: 15,
                 reminders: [], // Start with empty custom reminders array
                 participants: defaultParticipants,
             });
@@ -425,26 +426,26 @@ export default function SaveFollowup({
                             { value: 540, label: "9 hours" },
                             { value: 600, label: "10 hours" },
                         ]}
-                        defaultValue={{ value: 15, label: "15 min" }}
                     />
                 </Form.Item>
-                   {/* Meeting Type */}
-            <Form.Item
-                name="meeting_type_id"
-                label="Meeting Type"
-                rules={[
-                    {
-                        required: true,
-                        message: "Please select a meeting type",
-                    },
-                ]}
-            >
-                <MeetingTypeSelector
-                    disabled={loading || isScheduled}
-                    placeholder="Select meeting type"
-                    showPlatform={false}
-                />
-            </Form.Item>
+
+                {/* Meeting Type */}
+                <Form.Item
+                    name="meeting_type_id"
+                    label="Meeting Type"
+                    rules={[
+                        {
+                            required: true,
+                            message: "Please select a meeting type",
+                        },
+                    ]}
+                >
+                    <MeetingTypeSelector
+                        disabled={loading || isScheduled}
+                        placeholder="Select meeting type"
+                        showPlatform={false}
+                    />
+                </Form.Item>
             </div>
 
             {/* Location/Platform */}
