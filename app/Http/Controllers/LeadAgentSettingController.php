@@ -52,27 +52,35 @@ class LeadAgentSettingController extends AccountBaseController
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
         $categoryIds = $this->normalizeCategoryIds($request->input('category_id', []));
+        $userId = $request->agent_id;
 
-        if (empty($categoryIds)) {
-            // Create lead agent without a category
-            LeadAgent::create([
-                'company_id' => company()->id,
-                'user_id' => $request->agent_id,
-                'lead_category_id' => null,
-                'added_by' => user()->id,
-                'status' => 'enabled',
-            ]);
-        } else {
-            foreach ($categoryIds as $categoryId) {
-                $agentCategory = new LeadAgent();
-                $agentCategory->company_id = company()->id;
-                $agentCategory->user_id = $request->agent_id;
-                $agentCategory->lead_category_id = $categoryId;
-                $agentCategory->added_by = user()->id;
-                $agentCategory->status = 'enabled';
-                $agentCategory->save();
+        DB::transaction(function () use ($userId, $categoryIds) {
+            if (empty($categoryIds)) {
+                $exists = LeadAgent::where('user_id', $userId)->whereNull('lead_category_id')->exists();
+                if (! $exists) {
+                    LeadAgent::create([
+                        'company_id' => company()->id,
+                        'user_id' => $userId,
+                        'lead_category_id' => null,
+                        'added_by' => user()->id,
+                        'status' => 'enabled',
+                    ]);
+                }
+            } else {
+                foreach ($categoryIds as $categoryId) {
+                    $exists = LeadAgent::where('user_id', $userId)->where('lead_category_id', $categoryId)->exists();
+                    if (! $exists) {
+                        LeadAgent::create([
+                            'company_id' => company()->id,
+                            'user_id' => $userId,
+                            'lead_category_id' => $categoryId,
+                            'added_by' => user()->id,
+                            'status' => 'enabled',
+                        ]);
+                    }
+                }
             }
-        }
+        });
 
         if($request->deal_category_id)
         {
@@ -131,15 +139,18 @@ class LeadAgentSettingController extends AccountBaseController
                 ]);
             } else {
                 foreach ($categoryIds as $categoryId) {
-                    LeadAgent::firstOrCreate([
-                        'user_id' => $id,
-                        'lead_category_id' => $categoryId,
-                        'last_updated_by' => user()->id,
-                        'company_id' => company()->id,
-                    ], [
-                        'added_by' => $addedBy,
-                        'status' => 'enabled',
-                    ]);
+                    LeadAgent::firstOrCreate(
+                        [
+                            'user_id' => $id,
+                            'lead_category_id' => $categoryId,
+                            'company_id' => company()->id,
+                        ],
+                        [
+                            'added_by' => $addedBy,
+                            'last_updated_by' => user()->id,
+                            'status' => 'enabled',
+                        ]
+                    );
                 }
             }
         });
