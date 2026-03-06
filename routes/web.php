@@ -575,6 +575,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
 
+    // deals route
+
     // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
     Route::get('lead-contact', [LeadContactController::class, 'index'])->name('lead-contact.index');
     Route::get('lead-contact/create', [LeadContactController::class, 'create'])->name('lead-contact.create');
