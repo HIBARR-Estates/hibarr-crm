@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package hibarr.crm.lead_source;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\LeadSource";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// LeadSource entity
+message LeadSource {
+  int64 id = 1;
+  int64 company_id = 2;
+  int64 added_by = 3;
+  int64 last_updated_by = 4;
+  string type = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+// Request to list lead sources with pagination and filters
+message ListLeadSourcesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;       // Search in type
+  optional string type = 3;
+}
+
+// Response containing a list of lead sources
+message ListLeadSourcesResponse {
+  repeated LeadSource result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk lead source export
+message StreamLeadSourcesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+  optional string created_from = 3;
+  optional string created_to = 4;
+}
+
+// Streamed batch of lead sources
+message LeadSourceBatch {
+  repeated LeadSource result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// LeadSource Service definition
+service LeadSourceService {
+  // List lead sources with pagination
+  rpc List(ListLeadSourcesRequest) returns (ListLeadSourcesResponse);
+
+  // Stream lead sources for bulk export
+  rpc Stream(StreamLeadSourcesRequest) returns (stream LeadSourceBatch);
+}

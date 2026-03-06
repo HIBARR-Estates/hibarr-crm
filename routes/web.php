@@ -505,6 +505,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // Lead Files
     Route::get('deal-files/download/{id}', [LeadFileController::class, 'download'])->name('deal-files.download');
     Route::get('deal-files/layout', [LeadFileController::class, 'layout'])->name('deal-files.layout');
+    Route::post('deal-files/store-external', [LeadFileController::class, 'storeFromExternal'])->name('deal-files.store-external');
     Route::resource('deal-files', LeadFileController::class);
 
     // Follow up
@@ -620,6 +621,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('/compatibility/{property}', [PropertyRecommendationController::class, 'getCompatibility'])->name('compatibility');
     });
     Route::get('property-recommendations/health', [PropertyRecommendationController::class, 'healthCheck'])->name('property-recommendations.health');
+
+    // Meetings (user's meetings across all deals)
+    Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
     
 // Meeting Summary Routes
 Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');

@@ -59,6 +59,94 @@ npm-build:
 migrate:
 	php artisan migrate --force
 
+# ------------------------------------
+# gRPC / Protocol Buffers
+# ------------------------------------
+
+PROTO_DIR := proto
+PROTO_OUT := app/Grpc/Generated
+PROTOC := protoc
+
+.PHONY: proto proto-clean rr-install rr-serve rr-serve-prod rr-stop rr-workers
+
+# Generate PHP classes from .proto files
+proto:
+	@echo "Generating PHP classes from Protocol Buffer definitions..."
+	@mkdir -p $(PROTO_OUT)
+	$(PROTOC) \
+		--proto_path=$(PROTO_DIR) \
+		--php_out=$(PROTO_OUT) \
+		$(PROTO_DIR)/common.proto $(PROTO_DIR)/communication_activity.proto $(PROTO_DIR)/communication_activity_file.proto $(PROTO_DIR)/country.proto $(PROTO_DIR)/currency.proto $(PROTO_DIR)/deal.proto $(PROTO_DIR)/deal_file.proto $(PROTO_DIR)/deal_follow_up.proto $(PROTO_DIR)/deal_history.proto $(PROTO_DIR)/deal_note.proto $(PROTO_DIR)/deal_participant.proto $(PROTO_DIR)/deal_watcher.proto $(PROTO_DIR)/developer.proto $(PROTO_DIR)/developer_project.proto $(PROTO_DIR)/developer_project_asset.proto $(PROTO_DIR)/developer_project_unit_type.proto $(PROTO_DIR)/developer_project_unit_type_asset.proto $(PROTO_DIR)/hibarr_deal_fields.proto $(PROTO_DIR)/lead.proto $(PROTO_DIR)/lead_agent.proto $(PROTO_DIR)/lead_category.proto $(PROTO_DIR)/lead_marketing.proto $(PROTO_DIR)/lead_pipeline.proto $(PROTO_DIR)/lead_pipeline_stage.proto $(PROTO_DIR)/lead_source.proto $(PROTO_DIR)/lead_status.proto $(PROTO_DIR)/meeting_summary.proto $(PROTO_DIR)/meeting_type.proto $(PROTO_DIR)/package.proto $(PROTO_DIR)/pipeline_stage.proto $(PROTO_DIR)/property.proto $(PROTO_DIR)/property_asset.proto $(PROTO_DIR)/task.proto $(PROTO_DIR)/task_category.proto $(PROTO_DIR)/task_history.proto $(PROTO_DIR)/task_user.proto $(PROTO_DIR)/taskable.proto $(PROTO_DIR)/taskboard_column.proto
+	@if [ -d "$(PROTO_OUT)/App/Grpc/Generated" ]; then \
+		cp -r $(PROTO_OUT)/App/Grpc/Generated/* $(PROTO_OUT)/ && \
+		rm -rf $(PROTO_OUT)/App; \
+	fi
+	@echo "Proto generation complete. Output in $(PROTO_OUT)"
+
+# Clean generated proto files and regenerate
+proto-clean:
+	@echo "Cleaning generated files..."
+	rm -rf $(PROTO_OUT)/Common $(PROTO_OUT)/CommunicationActivity $(PROTO_OUT)/CommunicationActivityFile $(PROTO_OUT)/Country $(PROTO_OUT)/Currency $(PROTO_OUT)/Deal $(PROTO_OUT)/DealFile $(PROTO_OUT)/DealFollowUp $(PROTO_OUT)/DealHistory $(PROTO_OUT)/DealNote $(PROTO_OUT)/DealParticipant $(PROTO_OUT)/DealWatcher $(PROTO_OUT)/Developer $(PROTO_OUT)/DeveloperProject $(PROTO_OUT)/DeveloperProjectAsset $(PROTO_OUT)/DeveloperProjectUnitType $(PROTO_OUT)/DeveloperProjectUnitTypeAsset $(PROTO_OUT)/HibarrDealFields $(PROTO_OUT)/Lead $(PROTO_OUT)/LeadAgent $(PROTO_OUT)/LeadCategory $(PROTO_OUT)/LeadMarketing $(PROTO_OUT)/LeadPipeline $(PROTO_OUT)/LeadPipelineStage $(PROTO_OUT)/LeadSource $(PROTO_OUT)/LeadStatus $(PROTO_OUT)/MeetingSummary $(PROTO_OUT)/MeetingType $(PROTO_OUT)/Package $(PROTO_OUT)/PipelineStage $(PROTO_OUT)/Property $(PROTO_OUT)/PropertyAsset $(PROTO_OUT)/Task $(PROTO_OUT)/Taskable $(PROTO_OUT)/TaskboardColumn $(PROTO_OUT)/TaskCategory $(PROTO_OUT)/TaskHistory $(PROTO_OUT)/TaskUser $(PROTO_OUT)/GPBMetadata
+	$(MAKE) proto
+
+# Install RoadRunner binary
+rr-install:
+	@echo "Installing RoadRunner binary..."
+	php vendor/bin/rr get-binary
+
+# Start RoadRunner server (development) - Windows
+rr-serve:
+	rr.exe serve -c .rr.yaml
+
+# Start RoadRunner server (production) - Windows
+rr-serve-prod:
+	rr.exe serve -c .rr.yaml -o "logs.mode=production" -o "reload.enabled=false"
+
+# Stop RoadRunner server - Windows
+rr-stop:
+	rr.exe stop -c .rr.yaml
+
+# Check RoadRunner workers - Windows
+rr-workers:
+	rr.exe workers -c .rr.yaml
+
+# ------------------------------------
+# RoadRunner Linux Commands (Production)
+# ------------------------------------
+
+# Start RoadRunner server (staging) - Linux
+# Uses .rr.staging.yaml which binds to 127.0.0.1 (nginx fronts with TLS)
+rr-serve-staging:
+	./rr serve -c .rr.staging.yaml
+
+# Start RoadRunner server (development) - Linux
+rr-serve-linux:
+	./rr serve -c .rr.yaml
+
+# Start RoadRunner server (production) - Linux
+rr-serve-prod-linux:
+	./rr serve -c .rr.yaml -o "logs.mode=production" -o "reload.enabled=false"
+
+# Stop RoadRunner server - Linux
+rr-stop-linux:
+	./rr stop -c .rr.yaml || true
+
+# Check RoadRunner workers - Linux
+rr-workers-linux:
+	./rr workers -c .rr.yaml
+
+# Restart RoadRunner systemd service
+rr-restart-service:
+	sudo systemctl restart roadrunner-grpc || true
+
+# Check RoadRunner systemd service status
+rr-status-service:
+	sudo systemctl status roadrunner-grpc
+
+# ------------------------------------
+# Storage and permissions
+# ------------------------------------
+
 ensure-storage:
 	@echo "Ensuring storage structure exists..."
 	mkdir -p storage/framework/cache/data
@@ -104,6 +192,8 @@ deploy-production:
 build-artifact:
 	@if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
 	php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
+	$(MAKE) proto
+	php composer.phar dump-autoload --optimize
 	npm install
 	php artisan ziggy:generate
 	npm run production
@@ -118,3 +208,33 @@ finalize-deploy:
 	php artisan cache:clear
 	php artisan config:clear
 	php artisan route:clear
+
+# ------------------------------------
+# gRPC Server Setup (one-time on staging/prod)
+# ------------------------------------
+
+# Install the systemd service unit for RoadRunner gRPC
+setup-grpc-service:
+	@echo "Installing RoadRunner gRPC systemd service..."
+	sudo cp scripts/roadrunner-grpc.service /etc/systemd/system/roadrunner-grpc.service
+	sudo systemctl daemon-reload
+	sudo systemctl enable roadrunner-grpc
+	@echo "Service installed. Start with: sudo systemctl start roadrunner-grpc"
+
+# Install the nginx gRPC reverse proxy config
+# Usage: make setup-grpc-nginx DOMAIN=grpc.staging.example.com
+setup-grpc-nginx:
+	@if [ -z "$(DOMAIN)" ]; then echo "ERROR: DOMAIN required. Usage: make setup-grpc-nginx DOMAIN=grpc.staging.example.com"; exit 1; fi
+	@echo "Installing nginx gRPC proxy config for $(DOMAIN)..."
+	sed 's/grpc\.staging\.YOURDOMAIN\.com/$(DOMAIN)/g' scripts/nginx-grpc-staging.conf \
+		| sudo tee /etc/nginx/sites-available/grpc-staging > /dev/null
+	sudo ln -sf /etc/nginx/sites-available/grpc-staging /etc/nginx/sites-enabled/
+	sudo nginx -t
+	sudo systemctl reload nginx
+	@echo "Nginx configured. Run: sudo certbot --nginx -d $(DOMAIN)"
+
+# Health check — verifies gRPC server is responding
+grpc-health:
+	@curl -sf http://127.0.0.1:2114/health > /dev/null 2>&1 \
+		&& echo "gRPC health: OK" \
+		|| (echo "gRPC health: FAILED" && exit 1)

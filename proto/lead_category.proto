@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package hibarr.crm.lead_category;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\LeadCategory";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// LeadCategory entity
+message LeadCategory {
+  int64 id = 1;
+  int64 company_id = 2;
+  int64 added_by = 3;
+  int64 last_updated_by = 4;
+  string category_name = 5;
+  bool is_default = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// Request to list lead categories with pagination and filters
+message ListLeadCategoriesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;       // Search in category_name
+  optional bool is_default = 3;
+}
+
+// Response containing a list of lead categories
+message ListLeadCategoriesResponse {
+  repeated LeadCategory result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk lead category export
+message StreamLeadCategoriesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+  optional bool is_default = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Streamed batch of lead categories
+message LeadCategoryBatch {
+  repeated LeadCategory result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// LeadCategory Service definition
+service LeadCategoryService {
+  // List lead categories with pagination
+  rpc List(ListLeadCategoriesRequest) returns (ListLeadCategoriesResponse);
+
+  // Stream lead categories for bulk export (server streaming)
+  rpc Stream(StreamLeadCategoriesRequest) returns (stream LeadCategoryBatch);
+}

@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package hibarr.crm.country;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Country";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Country entity - reference/lookup table
+message Country {
+  int64 id = 1;
+  string iso = 2;
+  string name = 3;
+  string nicename = 4;
+  string iso3 = 5;
+  int32 numcode = 6;
+  int32 phonecode = 7;
+}
+
+// Request to list countries with pagination and filters
+message ListCountriesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;       // Search in name, nicename, iso
+  optional string iso = 3;
+  optional int32 phonecode = 4;
+}
+
+// Response containing a list of countries
+message ListCountriesResponse {
+  repeated Country result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk country export
+message StreamCountriesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+  optional string iso = 3;
+}
+
+// Streamed batch of countries
+message CountryBatch {
+  repeated Country result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Country Service definition
+service CountryService {
+  // List countries with pagination
+  rpc List(ListCountriesRequest) returns (ListCountriesResponse);
+
+  // Stream countries for bulk export (server streaming)
+  rpc Stream(StreamCountriesRequest) returns (stream CountryBatch);
+}

@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package hibarr.crm.lead_marketing;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\LeadMarketing";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// LeadMarketing entity - UTM/campaign tracking data for leads
+message LeadMarketing {
+  int64 id = 1;
+  int64 lead_id = 2;
+
+  // UTM & Campaign Tracking
+  string utm_source = 3;
+  string utm_medium = 4;
+  string utm_campaign = 5;
+  string utm_content = 6;
+  string utm_term = 7;
+  string utm_audience = 8;
+
+  // Traffic Source
+  string traffic_source_id = 9;
+
+  // Lead Source Tracking
+  string facebook_click_id = 10;
+  string facebook_lead_id = 11;
+  string facebook_browser_id = 12;
+  string user_agent = 13;
+  string ip_address = 14;
+
+  // Engagement Tracking
+  bool has_registered_for_the_webinar = 15;
+  bool has_joined_the_facebook_group = 16;
+  bool has_downloaded_the_ebook = 17;
+  bool has_attended_the_webinar = 18;
+  bool registered_for_zoom_meeting = 19;
+  string last_webinar_date = 20;
+
+  // Lead Scoring
+  int32 contact_score = 21;
+
+  // Metadata
+  string created_at = 22;
+  string updated_at = 23;
+}
+
+// Request to list lead marketing records with pagination and filters
+message ListLeadMarketingsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 lead_id = 2;
+  optional string utm_source = 3;
+  optional string utm_medium = 4;
+  optional string utm_campaign = 5;
+  optional string search = 6;           // Search in utm_source, utm_campaign
+  optional string created_from = 7;
+  optional string created_to = 8;
+}
+
+// Response containing a list of lead marketing records
+message ListLeadMarketingsResponse {
+  repeated LeadMarketing result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk lead marketing export
+message StreamLeadMarketingsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 lead_id = 2;
+  optional string utm_source = 3;
+  optional string utm_campaign = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of lead marketing records
+message LeadMarketingBatch {
+  repeated LeadMarketing result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// LeadMarketing Service definition
+service LeadMarketingService {
+  // List lead marketing records with pagination
+  rpc List(ListLeadMarketingsRequest) returns (ListLeadMarketingsResponse);
+
+  // Stream lead marketing records for bulk export
+  rpc Stream(StreamLeadMarketingsRequest) returns (stream LeadMarketingBatch);
+}

@@ -1,0 +1,233 @@
+syntax = "proto3";
+
+package hibarr.crm.task;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Task";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Task entity - flat structure with ID references only
+message Task {
+  int64 id = 1;
+  string heading = 2;
+  string description = 3;
+  string task_short_code = 4;
+  
+  // Dates
+  string start_date = 5; // ISO8601 datetime
+  string due_date = 6;
+  string completed_on = 7;
+  
+  // Priority and status
+  string priority = 8; // low, medium, high, urgent
+  string status = 9; // incomplete, completed, etc.
+  int32 column_priority = 10;
+  
+  // Foreign key references (flat)
+  int64 project_id = 11;
+  int64 board_column_id = 12; // TaskboardColumn ID
+  int64 task_category_id = 13; // TaskCategory ID
+  int64 milestone_id = 14; // ProjectMilestone ID
+  int64 company_id = 15; // Company/Tenant ID
+  int64 created_by = 16; // User who created
+  int64 added_by = 17;
+  int64 last_updated_by = 18;
+  
+  // Task properties
+  bool is_private = 19;
+  bool billable = 20;
+  int32 estimate_hours = 21;
+  int32 estimate_minutes = 22;
+  
+  // Recurring task fields
+  bool repeat = 23;
+  int32 repeat_count = 24;
+  string repeat_type = 25; // day, week, month, year
+  int32 repeat_cycles = 26;
+  int64 recurring_task_id = 27;
+  int64 dependent_task_id = 28;
+  
+  // Event linkage
+  int64 event_id = 29;
+  
+  // Metadata
+  string created_at = 30;
+  string updated_at = 31;
+  string deleted_at = 32; // Soft delete timestamp
+  
+  // Related IDs (many-to-many as ID arrays)
+  repeated int64 assignee_ids = 33; // User IDs assigned to task
+  repeated int64 label_ids = 34; // TaskLabelList IDs
+  
+  // Polymorphic relations (taskables)
+  repeated int64 deal_ids = 35;
+  repeated int64 lead_ids = 36;
+  repeated int64 property_ids = 37;
+}
+
+// Request to create a new task
+message CreateTaskRequest {
+  string heading = 1;
+  optional string description = 2;
+  string start_date = 3;
+  string due_date = 4;
+  string priority = 5;
+  optional int64 project_id = 6;
+  optional int64 board_column_id = 7;
+  optional int64 task_category_id = 8;
+  optional int64 milestone_id = 9;
+  optional bool is_private = 10;
+  optional bool billable = 11;
+  optional int32 estimate_hours = 12;
+  optional int32 estimate_minutes = 13;
+  
+  // Recurring options
+  optional bool repeat = 14;
+  optional int32 repeat_count = 15;
+  optional string repeat_type = 16;
+  optional int32 repeat_cycles = 17;
+  
+  // Assignees and labels
+  repeated int64 assignee_ids = 18;
+  repeated int64 label_ids = 19;
+  
+  // Polymorphic relations
+  repeated int64 deal_ids = 20;
+  repeated int64 lead_ids = 21;
+  repeated int64 property_ids = 22;
+  
+  // Custom fields
+  optional string custom_fields_json = 23;
+}
+
+// Request to update an existing task
+message UpdateTaskRequest {
+  int64 id = 1;
+  optional string heading = 2;
+  optional string description = 3;
+  optional string start_date = 4;
+  optional string due_date = 5;
+  optional string priority = 6;
+  optional string status = 7;
+  optional int64 project_id = 8;
+  optional int64 board_column_id = 9;
+  optional int64 task_category_id = 10;
+  optional int64 milestone_id = 11;
+  optional bool is_private = 12;
+  optional bool billable = 13;
+  optional int32 estimate_hours = 14;
+  optional int32 estimate_minutes = 15;
+  optional bool repeat = 16;
+  optional int32 repeat_count = 17;
+  optional string repeat_type = 18;
+  optional int32 repeat_cycles = 19;
+  repeated int64 assignee_ids = 20;
+  repeated int64 label_ids = 21;
+  repeated int64 deal_ids = 22;
+  repeated int64 lead_ids = 23;
+  repeated int64 property_ids = 24;
+  optional string custom_fields_json = 25;
+}
+
+// Request to get a single task
+message GetTaskRequest {
+  int64 id = 1;
+  optional string task_short_code = 2;  // Alternative lookup
+}
+
+// Request to delete a task
+message DeleteTaskRequest {
+  int64 id = 1;
+}
+
+// Request to change task status
+message ChangeTaskStatusRequest {
+  int64 id = 1;
+  int64 board_column_id = 2;
+}
+
+// Request to list tasks with pagination and filters
+message ListTasksRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+  
+  // Filters
+  optional int64 project_id = 2;
+  optional int64 board_column_id = 3;
+  optional int64 task_category_id = 4;
+  optional int64 milestone_id = 5;
+  optional int64 assignee_id = 6;       // Filter by assignee
+  optional string priority = 7;
+  optional string status = 8;
+  optional bool is_private = 9;
+  optional string search = 10;           // Search in heading, description
+  optional string due_from = 11;
+  optional string due_to = 12;
+  optional string created_from = 13;
+  optional string created_to = 14;
+  
+  // Polymorphic filters
+  optional int64 deal_id = 15;           // Tasks linked to specific deal
+  optional int64 lead_id = 16;           // Tasks linked to specific lead
+  optional int64 property_id = 17;       // Tasks linked to specific property
+  
+  // Include soft-deleted
+  optional bool with_trashed = 18;
+}
+
+// Response containing a single task
+message TaskResponse {
+  Task task = 1;
+}
+
+// Response containing a list of tasks
+message ListTasksResponse {
+  repeated Task result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk task export
+message StreamTasksRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+  
+  // Optional filters
+  optional int64 project_id = 2;
+  optional string priority = 3;
+  optional string status = 4;
+  optional int64 deal_id = 5;
+  optional int64 lead_id = 6;
+  optional int64 property_id = 7;
+  optional string created_from = 8;
+  optional string created_to = 9;
+  optional bool with_trashed = 10;
+}
+
+// Streamed batch of tasks
+message TaskBatch {
+  repeated Task result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Task Service definition
+service TaskService {
+  // Create a new task
+  rpc Create(CreateTaskRequest) returns (TaskResponse);
+  
+  // Get a single task by ID or short code
+  rpc Get(GetTaskRequest) returns (TaskResponse);
+  
+  // Update an existing task
+  rpc Update(UpdateTaskRequest) returns (TaskResponse);
+  
+  // Delete a task (soft delete)
+  rpc Delete(DeleteTaskRequest) returns (hibarr.crm.common.Empty);
+  
+  // Change task status/column
+  rpc ChangeStatus(ChangeTaskStatusRequest) returns (TaskResponse);
+  
+  // List tasks with pagination
+  rpc List(ListTasksRequest) returns (ListTasksResponse);
+  
+  // Stream tasks for bulk export (server streaming)
+  rpc Stream(StreamTasksRequest) returns (stream TaskBatch);
+}

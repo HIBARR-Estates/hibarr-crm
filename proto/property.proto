@@ -1,0 +1,269 @@
+syntax = "proto3";
+
+package hibarr.crm.property;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Property";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Property entity - flat structure with ID references only
+message Property {
+  int64 id = 1;
+  string title = 2;
+  string slug = 3;
+  string description = 4;
+  string reference_code = 5;
+  
+  // Property classification
+  string property_type = 6; // Villa, Apartment, etc.
+  string primary_category = 7; // Residential, Commercial
+  string unit_style = 8;
+  string construction_status = 9;
+  string sale_type = 10; // Sale, Rent, etc.
+  string status = 11; // Active, Sold, etc.
+  
+  // Pricing (JSON serialized for complex structure)
+  string price_json = 12;
+  
+  // Location
+  string city = 13;
+  string area = 14;
+  string state = 15;
+  
+  // Property dimensions
+  double land_size = 16;
+  double living_area_sqm = 17;
+  double terrace_area_sqm = 18;
+  
+  // Property details
+  int32 bedrooms = 19;
+  int32 bathrooms = 20;
+  int32 living_room = 21;
+  int32 floor_number = 22;
+  int32 floors_in_building = 23;
+  int32 building_age = 24;
+  string completion_date = 25;
+  
+  // Property status
+  string furniture_status = 26;
+  string current_occupancy = 27;
+  
+  // Features (JSON arrays serialized as strings)
+  string view_types_json = 28;
+  string exterior_features_json = 29;
+  string interior_features_json = 30;
+  string location_features_json = 31;
+  
+  // Media and documents (JSON arrays)
+  string photos_json = 32;
+  string add_ons_json = 33;
+  string documents_checklist_json = 34;
+  
+  // Additional info (JSON objects)
+  string owner_info_json = 35;
+  string legal_info_json = 36;
+  string financial_info_json = 37;
+  string land_details_json = 38;
+  
+  // Publishing
+  bool is_published = 39;
+  string published_at = 40;
+  bool allow_101evler = 41;
+  bool allow_hangiev = 42;
+  
+  // Foreign key references (flat)
+  int64 product_id = 43;
+  int64 developer_project_id = 44;
+  int64 project_location_id = 45;
+  int64 responsible_agent_id = 46;
+  int64 added_by = 47;
+  int64 company_id = 48;
+  
+  // Metadata
+  string created_at = 49;
+  string updated_at = 50;
+}
+
+// Request to create a new property
+message CreatePropertyRequest {
+  string title = 1;
+  optional string description = 2;
+  string property_type = 3;
+  optional string primary_category = 4;
+  optional string unit_style = 5;
+  optional string construction_status = 6;
+  string sale_type = 7;
+  optional string status = 8;
+  optional string price_json = 9;
+  optional string city = 10;
+  optional string area = 11;
+  optional string state = 12;
+  optional double land_size = 13;
+  optional double living_area_sqm = 14;
+  optional double terrace_area_sqm = 15;
+  optional int32 bedrooms = 16;
+  optional int32 bathrooms = 17;
+  optional int32 living_room = 18;
+  optional int32 floor_number = 19;
+  optional int32 floors_in_building = 20;
+  optional int32 building_age = 21;
+  optional string completion_date = 22;
+  optional string furniture_status = 23;
+  optional string current_occupancy = 24;
+  optional string view_types_json = 25;
+  optional string exterior_features_json = 26;
+  optional string interior_features_json = 27;
+  optional string location_features_json = 28;
+  optional string photos_json = 29;
+  optional string add_ons_json = 30;
+  optional string documents_checklist_json = 31;
+  optional string owner_info_json = 32;
+  optional string legal_info_json = 33;
+  optional string financial_info_json = 34;
+  optional string land_details_json = 35;
+  optional bool is_published = 36;
+  optional bool allow_101evler = 37;
+  optional bool allow_hangiev = 38;
+  optional int64 product_id = 39;
+  optional int64 developer_project_id = 40;
+  optional int64 project_location_id = 41;
+  optional int64 responsible_agent_id = 42;
+}
+
+// Request to update an existing property
+message UpdatePropertyRequest {
+  int64 id = 1;
+  optional string title = 2;
+  optional string description = 3;
+  optional string property_type = 4;
+  optional string primary_category = 5;
+  optional string unit_style = 6;
+  optional string construction_status = 7;
+  optional string sale_type = 8;
+  optional string status = 9;
+  optional string price_json = 10;
+  optional string city = 11;
+  optional string area = 12;
+  optional string state = 13;
+  optional double land_size = 14;
+  optional double living_area_sqm = 15;
+  optional double terrace_area_sqm = 16;
+  optional int32 bedrooms = 17;
+  optional int32 bathrooms = 18;
+  optional int32 living_room = 19;
+  optional int32 floor_number = 20;
+  optional int32 floors_in_building = 21;
+  optional int32 building_age = 22;
+  optional string completion_date = 23;
+  optional string furniture_status = 24;
+  optional string current_occupancy = 25;
+  optional string view_types_json = 26;
+  optional string exterior_features_json = 27;
+  optional string interior_features_json = 28;
+  optional string location_features_json = 29;
+  optional string photos_json = 30;
+  optional string add_ons_json = 31;
+  optional string documents_checklist_json = 32;
+  optional string owner_info_json = 33;
+  optional string legal_info_json = 34;
+  optional string financial_info_json = 35;
+  optional string land_details_json = 36;
+  optional bool is_published = 37;
+  optional bool allow_101evler = 38;
+  optional bool allow_hangiev = 39;
+  optional int64 product_id = 40;
+  optional int64 developer_project_id = 41;
+  optional int64 project_location_id = 42;
+  optional int64 responsible_agent_id = 43;
+}
+
+// Request to get a single property
+message GetPropertyRequest {
+  int64 id = 1;
+  optional string slug = 2;         // Alternative lookup by slug
+  optional string reference_code = 3; // Alternative lookup by reference
+}
+
+// Request to delete a property
+message DeletePropertyRequest {
+  int64 id = 1;
+}
+
+// Request to list properties with pagination and filters
+message ListPropertiesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+  
+  // Filters
+  optional string property_type = 2;
+  optional string primary_category = 3;
+  optional string sale_type = 4;
+  optional string status = 5;
+  optional string city = 6;
+  optional string area = 7;
+  optional int32 min_bedrooms = 8;
+  optional int32 max_bedrooms = 9;
+  optional double min_price = 10;
+  optional double max_price = 11;
+  optional double min_size = 12;
+  optional double max_size = 13;
+  optional int64 responsible_agent_id = 14;
+  optional int64 developer_project_id = 15;
+  optional bool is_published = 16;
+  optional string search = 17;        // Search in title, description
+  optional string created_from = 18;
+  optional string created_to = 19;
+}
+
+// Response containing a single property
+message PropertyResponse {
+  Property property = 1;
+}
+
+// Response containing a list of properties
+message ListPropertiesResponse {
+  repeated Property result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk property export
+message StreamPropertiesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+  
+  // Optional filters
+  optional string property_type = 2;
+  optional string primary_category = 3;
+  optional string sale_type = 4;
+  optional string status = 5;
+  optional string city = 6;
+  optional bool is_published = 7;
+  optional string created_from = 8;
+  optional string created_to = 9;
+}
+
+// Streamed batch of properties
+message PropertyBatch {
+  repeated Property result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Property Service definition
+service PropertyService {
+  // Create a new property
+  rpc Create(CreatePropertyRequest) returns (PropertyResponse);
+  
+  // Get a single property by ID, slug, or reference code
+  rpc Get(GetPropertyRequest) returns (PropertyResponse);
+  
+  // Update an existing property
+  rpc Update(UpdatePropertyRequest) returns (PropertyResponse);
+  
+  // Delete a property
+  rpc Delete(DeletePropertyRequest) returns (hibarr.crm.common.Empty);
+  
+  // List properties with pagination
+  rpc List(ListPropertiesRequest) returns (ListPropertiesResponse);
+  
+  // Stream properties for bulk export (server streaming)
+  rpc Stream(StreamPropertiesRequest) returns (stream PropertyBatch);
+}

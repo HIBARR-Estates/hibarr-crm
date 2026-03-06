@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package hibarr.crm.lead_agent;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\LeadAgent";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// LeadAgent entity - flat structure with ID references only
+message LeadAgent {
+  int64 id = 1;
+  int64 company_id = 2;
+  int64 user_id = 3;
+  int64 lead_category_id = 4;
+  int64 added_by = 5;
+  int64 last_updated_by = 6;
+  string status = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+// Request to list lead agents with pagination and filters
+message ListLeadAgentsRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string status = 2;
+  optional int64 user_id = 3;
+  optional int64 lead_category_id = 4;
+  optional string search = 5;
+}
+
+// Response containing a list of lead agents
+message ListLeadAgentsResponse {
+  repeated LeadAgent result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk lead agent export
+message StreamLeadAgentsRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string status = 2;
+  optional int64 lead_category_id = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Streamed batch of lead agents
+message LeadAgentBatch {
+  repeated LeadAgent result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// LeadAgent Service definition
+service LeadAgentService {
+  // List lead agents with pagination
+  rpc List(ListLeadAgentsRequest) returns (ListLeadAgentsResponse);
+
+  // Stream lead agents for bulk export (server streaming)
+  rpc Stream(StreamLeadAgentsRequest) returns (stream LeadAgentBatch);
+}

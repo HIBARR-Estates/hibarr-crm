@@ -171,7 +171,15 @@ class CustomField extends BaseModel
                 }
 
                 if ($customField->type == 'file') {
-                    return $finalData ? '<a href="' . asset_url_local_s3('custom_fields/' . $finalData->value) . '" target="__blank" class="text-dark-grey">' . __('app.storageSetting.viewFile') . '</a>' : '--';
+                    if (!$finalData || empty($finalData->value)) {
+                        return '--';
+                    }
+                    // Dual support: if the value is already an external URL, link directly;
+                    // otherwise resolve via the legacy local/S3 path.
+                    $fileUrl = (str_starts_with($finalData->value, 'http://') || str_starts_with($finalData->value, 'https://'))
+                        ? $finalData->value
+                        : asset_url_local_s3('custom_fields/' . $finalData->value);
+                    return '<a href="' . $fileUrl . '" target="__blank" class="text-dark-grey">' . __('app.storageSetting.viewFile') . '</a>';
                 }
 
                 if ($customField->type == 'checkbox') {

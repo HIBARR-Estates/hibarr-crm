@@ -9,6 +9,7 @@ use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LeadAgentSettingController extends AccountBaseController
 {
@@ -50,17 +51,37 @@ class LeadAgentSettingController extends AccountBaseController
         $this->addPermission = user()->permission('add_lead_agent');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
-        $categoryIds = $request->category_id;
+        $categoryIds = $this->normalizeCategoryIds($request->input('category_id', []));
+        $userId = $request->agent_id;
 
-        foreach ($categoryIds as $categoryId) {
-            $agentCategory = new LeadAgent();
-            $agentCategory->company_id = company()->id;
-            $agentCategory->user_id = $request->agent_id;
-            $agentCategory->lead_category_id = $categoryId;
-            $agentCategory->added_by = user()->id;
-            $agentCategory->status = 'enabled';
-            $agentCategory->save();
-        }
+        DB::transaction(function () use ($userId, $categoryIds) {
+            if (empty($categoryIds)) {
+                $exists = LeadAgent::where('user_id', $userId)->whereNull('lead_category_id')->exists();
+                if (! $exists) {
+                    LeadAgent::create([
+                        'company_id' => company()->id,
+                        'user_id' => $userId,
+                        'lead_category_id' => null,
+                        'added_by' => user()->id,
+                        'status' => 'enabled',
+                    ]);
+                }
+            } else {
+                foreach ($categoryIds as $categoryId) {
+                    $exists = LeadAgent::where('user_id', $userId)->where('lead_category_id', $categoryId)->exists();
+                    if (! $exists) {
+                        LeadAgent::create([
+                            'company_id' => company()->id,
+                            'user_id' => $userId,
+                            'lead_category_id' => $categoryId,
+                            'added_by' => user()->id,
+                            'status' => 'enabled',
+                        ]);
+                    }
+                }
+            }
+        });
+
         if($request->deal_category_id)
         {
             $data = LeadAgent::with('user')->where('lead_category_id', $request->deal_category_id)->get();
@@ -99,16 +120,40 @@ class LeadAgentSettingController extends AccountBaseController
 
     public function updateCategory($id, UpdateLeadAgent $request)
     {
-        LeadAgent::where('user_id', $id)->delete();
+        $categoryIds = $this->normalizeCategoryIds($request->input('categoryId', []));
 
-        foreach($request->categoryId as $categoryId) {
-            LeadAgent::firstOrCreate([
-                'user_id' => $id,
-                'lead_category_id' => $categoryId,
-                'last_updated_by' => user()->id,
-                'company_id' => company()->id
-            ]);
-        }
+        // Preserve original added_by so destroy() permission logic continues to work
+        $addedBy = LeadAgent::where('user_id', $id)->value('added_by') ?? user()->id;
+
+        DB::transaction(function () use ($id, $categoryIds, $addedBy) {
+            LeadAgent::where('user_id', $id)->delete();
+
+            if (empty($categoryIds)) {
+                LeadAgent::create([
+                    'user_id' => $id,
+                    'lead_category_id' => null,
+                    'company_id' => company()->id,
+                    'added_by' => $addedBy,
+                    'last_updated_by' => user()->id,
+                    'status' => 'enabled',
+                ]);
+            } else {
+                foreach ($categoryIds as $categoryId) {
+                    LeadAgent::firstOrCreate(
+                        [
+                            'user_id' => $id,
+                            'lead_category_id' => $categoryId,
+                            'company_id' => company()->id,
+                        ],
+                        [
+                            'added_by' => $addedBy,
+                            'last_updated_by' => user()->id,
+                            'status' => 'enabled',
+                        ]
+                    );
+                }
+            }
+        });
 
         return Reply::success(__('messages.updateSuccess'));
     }
@@ -123,21 +168,30 @@ class LeadAgentSettingController extends AccountBaseController
     public function agentCategories()
     {
         $leadAgentCategory = LeadAgent::where('user_id', request()->agent_id)->pluck('lead_category_id')->toArray();
+        // Filter out nulls: agents with no category have lead_category_id = null; whereNotIn('id', [null]) returns no rows in SQL
+        $leadAgentCategory = array_values(array_filter($leadAgentCategory, fn ($id) => $id !== null));
 
-        if(!empty($leadAgentCategory))
-        {
-
+        if (!empty($leadAgentCategory)) {
             $leadCategory = LeadCategory::whereNotIn('id', $leadAgentCategory)->get();
-
-            return Reply::dataOnly(['data' => $leadCategory]);
-
-        }
-        else
-        {
+        } else {
             $leadCategory = LeadCategory::all();
-
-            return Reply::dataOnly(['data' => $leadCategory]);
         }
+
+        return Reply::dataOnly(['data' => $leadCategory]);
     }
 
+    /**
+     * Normalize category ID input to an array of non-empty IDs (for category_id or categoryId).
+     *
+     * @param  mixed  $input  Request input (array or scalar)
+     * @return array<int>
+     */
+    private function normalizeCategoryIds($input): array
+    {
+        if (! is_array($input)) {
+            $input = $input !== null && $input !== '' ? [ $input ] : [];
+        }
+
+        return array_values(array_filter($input));
+    }
 }

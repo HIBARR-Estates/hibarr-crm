@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package hibarr.crm.currency;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\Currency";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// Currency entity
+message Currency {
+  int64 id = 1;
+  string currency_name = 2;
+  string currency_symbol = 3;
+  string currency_code = 4;
+  double exchange_rate = 5;
+  string is_cryptocurrency = 6;
+  double usd_price = 7;
+  string currency_position = 8;
+  int32 no_of_decimal = 9;
+  string thousand_separator = 10;
+  string decimal_separator = 11;
+  int64 company_id = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+
+// Request to list currencies with pagination and filters
+message ListCurrenciesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;             // Search in currency_name, currency_code
+  optional string currency_code = 3;
+  optional string is_cryptocurrency = 4;
+}
+
+// Response containing a list of currencies
+message ListCurrenciesResponse {
+  repeated Currency result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk currency export
+message StreamCurrenciesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string search = 2;
+  optional string currency_code = 3;
+  optional string is_cryptocurrency = 4;
+}
+
+// Streamed batch of currencies
+message CurrencyBatch {
+  repeated Currency result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// Currency Service definition
+service CurrencyService {
+  // List currencies with pagination
+  rpc List(ListCurrenciesRequest) returns (ListCurrenciesResponse);
+
+  // Stream currencies for bulk export (server streaming)
+  rpc Stream(StreamCurrenciesRequest) returns (stream CurrencyBatch);
+}

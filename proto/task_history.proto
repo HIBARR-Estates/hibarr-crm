@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package hibarr.crm.task_history;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\TaskHistory";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// TaskHistory entity
+message TaskHistory {
+  int64 id = 1;
+  int64 task_id = 2;
+  int64 sub_task_id = 3;
+  int64 user_id = 4;
+  int64 board_column_id = 5;
+  string details = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// Request to list task history entries with pagination and filters
+message ListTaskHistoriesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 task_id = 2;
+  optional int64 user_id = 3;
+  optional int64 board_column_id = 4;
+  optional string search = 5;       // Search in details
+  optional string created_from = 6;
+  optional string created_to = 7;
+}
+
+// Response containing a list of task history entries
+message ListTaskHistoriesResponse {
+  repeated TaskHistory result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk task history export
+message StreamTaskHistoriesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 task_id = 2;
+  optional int64 user_id = 3;
+  optional int64 board_column_id = 4;
+  optional string search = 5;
+  optional string created_from = 6;
+  optional string created_to = 7;
+}
+
+// Streamed batch of task history entries
+message TaskHistoryBatch {
+  repeated TaskHistory result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// TaskHistory Service definition
+service TaskHistoryService {
+  // List task history entries with pagination
+  rpc List(ListTaskHistoriesRequest) returns (ListTaskHistoriesResponse);
+
+  // Stream task history entries for bulk export
+  rpc Stream(StreamTaskHistoriesRequest) returns (stream TaskHistoryBatch);
+}

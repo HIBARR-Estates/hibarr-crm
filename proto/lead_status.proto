@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package hibarr.crm.lead_status;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\LeadStatus";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// LeadStatus entity
+message LeadStatus {
+  int64 id = 1;
+  int64 company_id = 2;
+  string type = 3;
+  int32 priority = 4;
+  bool default = 5;
+  string label_color = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// Request to list lead statuses with pagination and filters
+message ListLeadStatusesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional string search = 2;       // Search in type
+  optional string type = 3;
+  optional bool default = 4;
+}
+
+// Response containing a list of lead statuses
+message ListLeadStatusesResponse {
+  repeated LeadStatus result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk lead status export
+message StreamLeadStatusesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional string type = 2;
+  optional bool default = 3;
+  optional string created_from = 4;
+  optional string created_to = 5;
+}
+
+// Streamed batch of lead statuses
+message LeadStatusBatch {
+  repeated LeadStatus result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// LeadStatus Service definition
+service LeadStatusService {
+  // List lead statuses with pagination
+  rpc List(ListLeadStatusesRequest) returns (ListLeadStatusesResponse);
+
+  // Stream lead statuses for bulk export
+  rpc Stream(StreamLeadStatusesRequest) returns (stream LeadStatusBatch);
+}

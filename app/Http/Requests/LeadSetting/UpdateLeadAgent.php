@@ -22,9 +22,10 @@ class UpdateLeadAgent extends FormRequest
      */
     public function rules()
     {
-
+        // categoryId may be empty (agent with no categories) or an array of category ids
         return [
-            'categoryId.0' => 'required',
+            'categoryId' => 'nullable|array',
+            'categoryId.*' => 'integer|exists:lead_category,id',
         ];
     }
 

@@ -59,6 +59,12 @@ pipeline {
                             # Run Build via Makefile
                             make build-artifact
                             
+                            echo 'Step 1b: gRPC binary setup...'
+                            # Proto classes already generated in build-artifact (make proto + autoload refresh)
+                            # Install RoadRunner binary for Linux
+                            make rr-install
+                            chmod +x ./rr
+                            
                             echo 'Step 2: Linking Shared Assets...'
                             # Use absolute paths to ensure the symlink never breaks
                             ln -sfn /home/$TARGET_USER/shared/.env $BUILD_PATH/.env
@@ -91,6 +97,24 @@ pipeline {
                             
                             # Reload PHP-FPM to clear OPcache
                             sudo systemctl reload php8.3-fpm || true
+                            
+                            echo 'Step 7: gRPC Server Restart...'
+                            # Restart RoadRunner gRPC server if service exists
+                            if systemctl list-units --type=service | grep -q roadrunner-grpc; then
+                                sudo systemctl restart roadrunner-grpc || true
+                                echo 'RoadRunner gRPC service restarted'
+                                
+                                # Wait for workers to allocate, then verify health
+                                sleep 5
+                                if curl -sf http://127.0.0.1:2114/health > /dev/null 2>&1; then
+                                    echo 'gRPC health check: PASSED'
+                                else
+                                    echo 'WARNING: gRPC health check failed. Check: journalctl -u roadrunner-grpc -n 50'
+                                fi
+                            else
+                                echo 'WARNING: roadrunner-grpc service not found.'
+                                echo 'Run once: sudo bash ${LIVE_LINK}/scripts/setup-grpc-staging.sh YOUR_GRPC_DOMAIN'
+                            fi
 
                             echo 'Step 7: Cleanup old deployments...'
                             cd /home/$TARGET_USER/deployments

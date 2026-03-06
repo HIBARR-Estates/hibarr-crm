@@ -34,6 +34,7 @@ use App\Console\Commands\AssignEmployeeShiftRotation;
 use App\Console\Commands\RecalculateLeavesQuotas;
 use App\Console\Commands\AutoClockOut;
 use App\Console\Commands\EscalateOverdueAvailabilityRequests;
+use App\Console\Commands\MigrateFilesToExternalStorage;
 use DateTimeZone;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -81,6 +82,7 @@ class Kernel extends ConsoleKernel
         AssignEmployeeShiftRotation::class,
         RecalculateLeavesQuotas::class,
         EscalateOverdueAvailabilityRequests::class,
+        MigrateFilesToExternalStorage::class,
     ];
 
     /**
@@ -135,6 +137,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('send-daily-timelog-report')->dailyAt('02:30');
         // $schedule->command('app:leaves-quota-renew')->dailyAt('02:30');
         $schedule->command('log:clean --keep-last')->dailyAt('02:40');
+        $schedule->command('crm:archive-events --sync')->dailyAt('03:00');
         $schedule->command('inactive-employee')->dailyAt('02:50');
         $schedule->command('daily-schedule-reminder')->daily();
         $schedule->command('assign-shift-rotation')->dailyAt('00:01');

@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package hibarr.crm.deal_note;
+
+import "common.proto";
+
+option php_namespace = "App\\Grpc\\Generated\\DealNote";
+option php_metadata_namespace = "App\\Grpc\\Generated\\GPBMetadata";
+
+// DealNote entity
+message DealNote {
+  int64 id = 1;
+  int64 deal_id = 2;
+  int64 added_by = 3;
+  int64 last_updated_by = 4;
+  string title = 5;
+  string details = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// Request to list deal notes with pagination and filters
+message ListDealNotesRequest {
+  hibarr.crm.common.PaginationRequest pagination = 1;
+
+  // Filters
+  optional int64 deal_id = 2;
+  optional int64 added_by = 3;
+  optional string search = 4;       // Search in title, details
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Response containing a list of deal notes
+message ListDealNotesResponse {
+  repeated DealNote result = 1;
+  hibarr.crm.common.PaginationMeta pagination = 2;
+}
+
+// Stream request for bulk deal note export
+message StreamDealNotesRequest {
+  hibarr.crm.common.StreamRequest stream_params = 1;
+
+  // Optional filters
+  optional int64 deal_id = 2;
+  optional int64 added_by = 3;
+  optional string search = 4;
+  optional string created_from = 5;
+  optional string created_to = 6;
+}
+
+// Streamed batch of deal notes
+message DealNoteBatch {
+  repeated DealNote result = 1;
+  hibarr.crm.common.StreamProgress progress = 2;
+}
+
+// DealNote Service definition
+service DealNoteService {
+  // List deal notes with pagination
+  rpc List(ListDealNotesRequest) returns (ListDealNotesResponse);
+
+  // Stream deal notes for bulk export
+  rpc Stream(StreamDealNotesRequest) returns (stream DealNoteBatch);
+}

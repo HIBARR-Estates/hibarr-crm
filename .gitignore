@@ -59,4 +59,6 @@ docker-compose.override.yml
 
 # RoadRunner binary
 /rr
+rr
 /rr.exe
+rr.exe
