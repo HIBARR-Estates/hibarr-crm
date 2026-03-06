@@ -1,0 +1,59 @@
+# /etc/systemd/system/roadrunner-grpc.service
+#
+# HiBarr CRM gRPC Server (RoadRunner)
+#
+# Install:
+#   sudo cp scripts/roadrunner-grpc.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable roadrunner-grpc
+#   sudo systemctl start roadrunner-grpc
+#
+# Logs:
+#   journalctl -u roadrunner-grpc -f
+#   /var/log/roadrunner-grpc/error.log (stderr)
+
+[Unit]
+Description=HiBarr CRM gRPC Server (RoadRunner)
+Documentation=https://roadrunner.dev/docs
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=hibarr
+Group=www-data
+
+# WorkingDirectory will be the live symlink for the current environment.
+# For staging:  /home/hibarr/hibarr-crm
+# For production: /home/hibarr/hibarr-crm
+WorkingDirectory=/home/hibarr/hibarr-crm
+
+ExecStart=/home/hibarr/hibarr-crm/rr serve -c .rr.staging.yaml
+ExecReload=/home/hibarr/hibarr-crm/rr reset -c .rr.staging.yaml
+ExecStop=/bin/kill -s SIGTERM $MAINPID
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/hibarr/hibarr-crm/storage
+ReadWritePaths=/var/log/roadrunner-grpc
+
+# Environment
+Environment=APP_ENV=staging
+
+# Logging — RoadRunner writes to stderr (JSON in staging), captured by journald
+StandardOutput=append:/var/log/roadrunner-grpc/access.log
+StandardError=append:/var/log/roadrunner-grpc/error.log
+
+# File limits
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
