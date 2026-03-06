@@ -24,6 +24,13 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
     ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities.internal', 'uses' => 'CommunicationActivityController@getDealActivities']);
     ApiRoute::post('internal/communication-activities/send-email', ['as' => 'api.communication-activities.send-email.internal', 'uses' => 'CommunicationActivityController@sendEmailToCustomer']);
   
+    // CRM Event Record Keeping Engine Routes
+    ApiRoute::post('crm-events', ['as' => 'api.crm-events.store', 'uses' => 'CrmEventController@store']);
+    ApiRoute::post('crm-events/batch', ['as' => 'api.crm-events.batch', 'uses' => 'CrmEventController@storeBatch']);
+    ApiRoute::get('crm-events', ['as' => 'api.crm-events.index', 'uses' => 'CrmEventController@index']);
+    ApiRoute::get('crm-events/chain/{correlationId}', ['as' => 'api.crm-events.chain', 'uses' => 'CrmEventController@chain']);
+    ApiRoute::get('crm-events/{uuid}', ['as' => 'api.crm-events.show', 'uses' => 'CrmEventController@show']);
+    ApiRoute::get('crm-event-types', ['as' => 'api.crm-event-types.index', 'uses' => 'CrmEventTypeController@index']);
 
     // External Communications Module Routes
     ApiRoute::middleware(['api.token'])->group(function () {
@@ -68,7 +75,8 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('properties/filters/propertyTypes', ['as' => 'api.properties.filters.property_types', 'uses' => 'Api\PropertyApiController@getPropertyTypes']);
         ApiRoute::get('properties/filters/features', ['as' => 'api.properties.filters.features', 'uses' => 'Api\PropertyApiController@getFeatures']);
         ApiRoute::get('properties/filters/locations', ['as' => 'api.properties.filters.location', 'uses' => 'Api\PropertyApiController@getLocation']);
-     
+
+
 
     });
 
