@@ -71,6 +71,7 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'translation' => \App\Http\Middleware\EnsureTranslationToken::class,
         'api.token' => \App\Http\Middleware\ApiTokenAuth::class,
+        'crm.event' => \App\Http\Middleware\CrmEventMiddleware::class,
     ];
 
     /**

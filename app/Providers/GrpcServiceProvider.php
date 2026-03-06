@@ -11,6 +11,9 @@ use App\Grpc\Transformers\DealTransformer;
 use App\Grpc\Transformers\LeadTransformer;
 use App\Grpc\Transformers\PropertyTransformer;
 use App\Grpc\Transformers\TaskTransformer;
+use App\Grpc\Services\CrmEventGrpcService;
+use App\Grpc\Transformers\CrmEventTransformer;
+use App\Services\CrmEventService;
 use App\Services\DealCreationService;
 use App\Services\LeadService;
 use App\Services\PropertyService;
@@ -62,6 +65,15 @@ class GrpcServiceProvider extends ServiceProvider
                 $app->make(TaskTransformer::class)
             );
         });
+
+        $this->app->singleton(CrmEventGrpcService::class, function ($app) {
+            return new CrmEventGrpcService(
+                $app->make(CrmEventService::class),
+                $app->make(CrmEventTransformer::class),
+            );
+        });
+
+        $this->app->singleton(CrmEventTransformer::class);
 
         // Register the auth interceptor
         $this->app->singleton(AuthInterceptor::class);
