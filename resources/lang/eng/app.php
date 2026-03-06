@@ -206,6 +206,7 @@ return array(
         'invoiceTemplate' => 'Invoice Template',
         'settings' => 'Settings',
         'dealAutomations' => 'Deal Automations',
+        'crmEventSettings' => 'CRM Event Engine',
         'packages' => 'Packages',
         'leadFiles' => 'Lead Files',
         'leadSource' => 'Lead Source',
