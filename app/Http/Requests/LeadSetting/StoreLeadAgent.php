@@ -26,14 +26,8 @@ class StoreLeadAgent extends CoreRequest
     {
         return [
             'agent_id' => 'required',
-            'category_id.0' => 'required'
-        ];
-    }
-
-    public function messages()
-    {
-        return [
-            'category_id.0.required' => __('messages.atleastOneCategory'),
+            'category_id' => 'nullable|array',
+            'category_id.*' => 'integer|exists:lead_category,id',
         ];
     }
 
