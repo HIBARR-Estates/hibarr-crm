@@ -9,6 +9,7 @@ use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LeadAgentSettingController extends AccountBaseController
 {
@@ -50,11 +51,7 @@ class LeadAgentSettingController extends AccountBaseController
         $this->addPermission = user()->permission('add_lead_agent');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
-        $categoryIds = $request->input('category_id', []);
-        if (! is_array($categoryIds)) {
-            $categoryIds = $categoryIds ? [ $categoryIds ] : [];
-        }
-        $categoryIds = array_values(array_filter($categoryIds));
+        $categoryIds = $this->normalizeCategoryIds($request->input('category_id', []));
 
         if (empty($categoryIds)) {
             // Create lead agent without a category
@@ -115,38 +112,37 @@ class LeadAgentSettingController extends AccountBaseController
 
     public function updateCategory($id, UpdateLeadAgent $request)
     {
-        // $id is the user_id (from User model in the agent table)
-        LeadAgent::where('user_id', $id)->delete();
+        $categoryIds = $this->normalizeCategoryIds($request->input('categoryId', []));
 
-        $categoryIds = $request->input('categoryId', []);
-        if (! is_array($categoryIds)) {
-            $categoryIds = $categoryIds ? [ $categoryIds ] : [];
-        }
-        $categoryIds = array_values(array_filter($categoryIds));
+        // Preserve original added_by so destroy() permission logic continues to work
+        $addedBy = LeadAgent::where('user_id', $id)->value('added_by') ?? user()->id;
 
-        if (empty($categoryIds)) {
-            // Keep the user as a lead agent but without a category (one row with lead_category_id = null)
-            LeadAgent::create([
-                'user_id' => $id,
-                'lead_category_id' => null,
-                'company_id' => company()->id,
-                'added_by' => $request->user()->id,
-                'last_updated_by' => user()->id,
-                'status' => 'enabled',
-            ]);
-        } else {
-            foreach ($categoryIds as $categoryId) {
-                LeadAgent::firstOrCreate([
+        DB::transaction(function () use ($id, $categoryIds, $addedBy) {
+            LeadAgent::where('user_id', $id)->delete();
+
+            if (empty($categoryIds)) {
+                LeadAgent::create([
                     'user_id' => $id,
-                    'lead_category_id' => $categoryId,
+                    'lead_category_id' => null,
+                    'company_id' => company()->id,
+                    'added_by' => $addedBy,
                     'last_updated_by' => user()->id,
-                    'company_id' => company()->id
-                ], [
-                    'added_by' => $request->user()->id,
                     'status' => 'enabled',
                 ]);
+            } else {
+                foreach ($categoryIds as $categoryId) {
+                    LeadAgent::firstOrCreate([
+                        'user_id' => $id,
+                        'lead_category_id' => $categoryId,
+                        'last_updated_by' => user()->id,
+                        'company_id' => company()->id,
+                    ], [
+                        'added_by' => $addedBy,
+                        'status' => 'enabled',
+                    ]);
+                }
             }
-        }
+        });
 
         return Reply::success(__('messages.updateSuccess'));
     }
@@ -173,4 +169,18 @@ class LeadAgentSettingController extends AccountBaseController
         return Reply::dataOnly(['data' => $leadCategory]);
     }
 
+    /**
+     * Normalize category ID input to an array of non-empty IDs (for category_id or categoryId).
+     *
+     * @param  mixed  $input  Request input (array or scalar)
+     * @return array<int>
+     */
+    private function normalizeCategoryIds($input): array
+    {
+        if (! is_array($input)) {
+            $input = $input !== null && $input !== '' ? [ $input ] : [];
+        }
+
+        return array_values(array_filter($input));
+    }
 }
