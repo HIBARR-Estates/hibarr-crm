@@ -1,0 +1,111 @@
+/**
+ * CRM Event Engine TypeScript types.
+ *
+ * Mirrors the JSON responses from:
+ *   GET  /api/v1/crm-events
+ *   GET  /api/v1/crm-events/{uuid}
+ *   GET  /api/v1/crm-event-types
+ *   POST /api/v1/crm-events
+ */
+
+export interface CrmEventCategory {
+    slug: string;
+    name: string;
+}
+
+export interface CrmEventType {
+    slug: string;
+    name: string;
+    description: string | null;
+    model_type: string | null;
+    is_system: boolean;
+    sync_processing: boolean;
+    category: CrmEventCategory | null;
+    business_rule: { slug: string; name: string } | null;
+}
+
+export interface CrmEventUser {
+    id: number;
+    name: string;
+}
+
+export interface CrmEvent {
+    uuid: string;
+    event_type: {
+        slug: string;
+        name: string;
+        category: CrmEventCategory | null;
+    } | null;
+    generation_type: "user_generated" | "system_generated";
+    user_id: number | null;
+    user: CrmEventUser | null;
+    model_type: string | null;
+    model_id: number | null;
+    correlation_id: string | null;
+    causation_id: number | null;
+    source: string | null;
+    ip_address: string | null;
+    metadata: Record<string, any> | null;
+    occurred_at: string;
+    created_at: string;
+    causation?: {
+        uuid: string;
+        event_type_slug: string | null;
+        occurred_at: string;
+    } | null;
+    effects?: Array<{
+        uuid: string;
+        event_type_slug: string | null;
+        occurred_at: string;
+    }>;
+}
+
+export interface CrmEventsIndexResponse {
+    status: string;
+    data: CrmEvent[];
+    meta: {
+        current_page: number;
+        per_page: number;
+        total: number;
+        total_pages: number;
+        has_more: boolean;
+    };
+}
+
+export interface CrmEventTypesResponse {
+    status: string;
+    data: CrmEventType[];
+}
+
+export interface CrmEventStorePayload {
+    event_type_slug: string;
+    model_type?: string;
+    model_id?: number;
+    user_id?: number;
+    generation_type?: "user_generated" | "system_generated";
+    correlation_id?: string;
+    causation_id?: number;
+    metadata?: Record<string, any>;
+    occurred_at?: string;
+}
+
+export interface CrmEventStoreResponse {
+    status: string;
+    message: string;
+    data?: CrmEvent;
+}
+
+export interface CrmEventsQueryParams {
+    model_type?: string;
+    model_id?: number;
+    event_type_slug?: string;
+    category_slug?: string;
+    user_id?: number;
+    generation_type?: string;
+    source?: string;
+    date_from?: string;
+    date_to?: string;
+    per_page?: number;
+    sort_by?: string;
+    sort_order?: "asc" | "desc";
+}
