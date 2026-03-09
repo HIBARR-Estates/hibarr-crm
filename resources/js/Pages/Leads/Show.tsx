@@ -3,6 +3,7 @@ import { Lead, LeadCategory } from "@/Types/api/leads";
 import { Deal } from "@/Types/api/deals";
 import { LeadNote } from "@/Types/api/lead-note";
 import DashboardLayout from "@/Components/DashboardLayout";
+import type { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Card, Tabs } from "antd";
 import { User } from "@/Types";
@@ -12,6 +13,8 @@ import LeadDealsTab from "./Components/LeadDealsTab";
 import LeadMarketingTab from "./Components/LeadMarketingTab";
 import { Task } from "@/Types/api/tasks";
 import TasksTab from "@/Components/TasksTab";
+import { CrmEventTimeline } from "@/Components/CrmEvents";
+import { usePage } from "@inertiajs/react";
 
 export interface LeadShowProps {
     lead: Lead;
@@ -36,7 +39,7 @@ export interface LeadShowProps {
     permissions: Record<string, string>;
 }
 
-const Show= ({
+const Show = ({
     lead,
     customFieldCategories,
     fields,
@@ -53,7 +56,9 @@ const Show= ({
     taskBoardColumns,
     projects,
     permissions,
-}: LeadShowProps ) => {
+}: LeadShowProps) => {
+    const { props } = usePage<PageProps>();
+
     const tabItems = [
         {
             key: "profile",
@@ -113,6 +118,19 @@ const Show= ({
                     employees={employees}
                     projects={projects}
                     permissions={permissions as any}
+                />
+            ),
+        },
+        {
+            key: "events",
+            label: "Events",
+            children: (
+                <CrmEventTimeline
+                    modelType="App\\Models\\Lead"
+                    modelId={lead.id}
+                    userId={props.auth?.user?.id}
+                    compact={false}
+                    entityName={lead.client_name ?? undefined}
                 />
             ),
         },
