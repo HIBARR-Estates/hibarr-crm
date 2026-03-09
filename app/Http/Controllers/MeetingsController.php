@@ -205,4 +205,47 @@ class MeetingsController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Reschedule an existing follow-up (date, time, and optionally duration).
+     * Only the creator (added_by) or users with 'all' edit permission can reschedule.
+     */
+    public function reschedule(Request $request, DealFollowUp $followUp)
+    {
+        $this->editFollowUpPermission = user()->permission('edit_lead_follow_up');
+
+        abort_403(!(
+            $this->editFollowUpPermission == 'all'
+            || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
+        ));
+
+        $request->validate([
+            'next_follow_up_date' => 'required|date_format:d-m-Y',
+            'start_time'          => 'required|date_format:H:i:s',
+            'duration'            => 'nullable|integer|min:5|max:480',
+            'timezone'            => 'nullable|string|max:100',
+        ]);
+
+        $browserTimezone = $request->input('timezone', 'UTC');
+
+        $newDateTime = Carbon::createFromFormat(
+            'd-m-Y H:i:s',
+            $request->next_follow_up_date . ' ' . $request->start_time,
+            $browserTimezone
+        )->setTimezone('UTC');
+
+        $followUp->next_follow_up_date = $newDateTime;
+        $followUp->status = 'scheduled';
+
+        if ($request->has('duration')) {
+            $followUp->duration = $request->duration;
+        }
+
+        $followUp->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting rescheduled successfully.',
+        ]);
+    }
+
 }
