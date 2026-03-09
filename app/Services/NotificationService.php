@@ -250,7 +250,7 @@ class NotificationService
             'promotion_added' => __('email.promotionAdded.subject'),
         ];
 
-        return $titles[$typeSlug] ?? ($data['title'] ?? ucfirst(str_replace('_', ' ', $typeSlug)));
+        return $titles[$typeSlug] ?? ($data['title'] ?? $data['activity_label'] ?? ucfirst(str_replace('_', ' ', $typeSlug)));
     }
 
     /**
@@ -262,43 +262,142 @@ class NotificationService
      */
     protected function getNotificationLink(string $typeSlug, array $data): ?string
     {
-        $id = $data['id'] ?? null;
+        // Check for explicit action_url in notification data first
+        if (!empty($data['action_url'])) {
+            return $data['action_url'];
+        }
+
+        // Resolve the entity ID — check type-specific keys, then fallback to generic 'id'
+        $id = $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
 
         if (!$id) {
             return null;
         }
 
         $routes = [
+            // Tasks
             'new_task' => 'tasks.show',
             'task_completed' => 'tasks.show',
+            'task_completed_client' => 'tasks.show',
             'task_updated' => 'tasks.show',
+            'task_updated_client' => 'tasks.show',
             'task_comment' => 'tasks.show',
+            'task_comment_admin' => 'tasks.show',
+            'task_comment_client' => 'tasks.show',
+            'task_comment_mention' => 'tasks.show',
             'task_status_updated' => 'tasks.show',
+            'task_note' => 'tasks.show',
+            'task_note_client' => 'tasks.show',
+            'task_note_mention' => 'tasks.show',
+            'task_mention' => 'tasks.show',
+            'task_reminder' => 'tasks.show',
+            'task_approval' => 'tasks.show',
+            'auto_task_reminder' => 'tasks.show',
+            'new_client_task' => 'tasks.show',
+            'sub_task_created' => 'tasks.show',
+            'sub_task_completed' => 'tasks.show',
+            'sub_task_assignee_added' => 'tasks.show',
+
+            // Notices
             'new_notice' => 'notices.show',
             'notice_update' => 'notices.show',
+
+            // Tickets
             'new_ticket' => 'tickets.show',
             'new_ticket_reply' => 'tickets.show',
+            'new_ticket_requester' => 'tickets.show',
+            'new_ticket_note' => 'tickets.show',
+            'ticket_agent' => 'tickets.show',
+            'mention_ticket_agent' => 'tickets.show',
+
+            // Deals / Leads
             'new_lead_created' => 'deals.show',
             'lead_agent_assigned' => 'deals.show',
             'deal_stage_updated' => 'deals.show',
+            'deal_activity_notification' => 'deals.show',
+            'auto_follow_up_reminder' => 'deals.show',
+            'new_communication_activity' => 'deals.show',
+            'lead_imported' => 'deals.show',
+
+            // Projects
+            'new_project' => 'projects.show',
             'new_project_member' => 'projects.show',
             'new_project_status' => 'projects.show',
+            'new_project_note' => 'projects.show',
+            'project_reminder' => 'projects.show',
+            'project_rating' => 'projects.show',
+            'project_note_updated' => 'projects.show',
+            'project_note_mention' => 'projects.show',
+            'project_member_mention' => 'projects.show',
+
+            // Expenses
             'new_expense_admin' => 'expenses.show',
             'new_expense_member' => 'expenses.show',
             'new_expense_status' => 'expenses.show',
+
+            // Invoices
             'invoice_payment_received' => 'invoices.show',
+            'new_invoice' => 'invoices.show',
+            'invoice_updated' => 'invoices.show',
+            'invoice_reminder' => 'invoices.show',
+            'invoice_reminder_after' => 'invoices.show',
+
+            // Leaves
             'leave_application' => 'leaves.show',
             'leave_status_approve' => 'leaves.show',
             'leave_status_reject' => 'leaves.show',
+            'leave_status_update' => 'leaves.show',
             'new_leave_request' => 'leaves.show',
+            'new_multiple_leave_request' => 'leaves.show',
+            'multiple_leave_application' => 'leaves.show',
+
+            // Events
             'event_invite' => 'events.show',
             'event_reminder' => 'events.show',
+            'event_invite_mention' => 'events.show',
+            'event_host_invite' => 'events.show',
+            'event_completed' => 'events.show',
+            'event_status_note' => 'events.show',
+
+            // Appreciations
             'new_appreciation' => 'appreciations.show',
+
+            // Contracts
             'contract_signed' => 'contracts.show',
+            'new_contract' => 'contracts.show',
+
+            // Discussions
             'new_discussion' => 'discussion.show',
             'new_discussion_reply' => 'discussion.show',
+            'new_discussion_mention' => 'discussion.show',
+
+            // Shifts
             'shift_scheduled' => 'attendances.index',
+            'shift_change_status' => 'attendances.index',
+            'shift_change_request' => 'attendances.index',
+            'bulk_shift_notification' => 'attendances.index',
+            'shift_rotation_notification' => 'attendances.index',
+
+            // Promotions
             'promotion_added' => 'employees.show',
+            'promotion_updated' => 'employees.show',
+
+            // Estimates
+            'new_estimate' => 'estimates.show',
+            'estimate_accepted' => 'estimates.show',
+            'estimate_declined' => 'estimates.show',
+
+            // Proposals
+            'new_proposal' => 'proposals.show',
+            'proposal_signed' => 'proposals.show',
+
+            // Payments
+            'new_payment' => 'payments.show',
+            'payment_reminder' => 'payments.show',
+
+            // Orders
+            'new_order' => 'orders.show',
+            'order_updated' => 'orders.show',
         ];
 
         if (isset($routes[$typeSlug])) {
@@ -321,40 +420,117 @@ class NotificationService
     protected function getNotificationIcon(string $typeSlug): string
     {
         $icons = [
+            // Tasks
             'new_task' => 'task',
             'task_completed' => 'task-completed',
+            'task_completed_client' => 'task-completed',
             'task_updated' => 'task',
+            'task_updated_client' => 'task',
             'task_comment' => 'comment',
+            'task_comment_admin' => 'comment',
+            'task_comment_client' => 'comment',
+            'task_comment_mention' => 'comment',
             'task_status_updated' => 'task',
+            'task_note' => 'comment',
+            'task_note_client' => 'comment',
+            'task_note_mention' => 'comment',
+            'task_mention' => 'task',
+            'task_reminder' => 'task',
+            'task_approval' => 'task',
+            'auto_task_reminder' => 'task',
+            'new_client_task' => 'task',
+            'sub_task_created' => 'task',
+            'sub_task_completed' => 'task-completed',
+            'sub_task_assignee_added' => 'task',
+
+            // Notices
             'new_notice' => 'notice',
             'notice_update' => 'notice',
+
+            // Chat
             'new_chat' => 'chat',
             'new_mention_chat' => 'chat',
+
+            // Tickets
             'new_ticket' => 'ticket',
             'new_ticket_reply' => 'ticket',
+            'new_ticket_requester' => 'ticket',
+            'new_ticket_note' => 'ticket',
+            'ticket_agent' => 'ticket',
+            'mention_ticket_agent' => 'ticket',
+
+            // Deals / Leads
             'new_lead_created' => 'lead',
             'lead_agent_assigned' => 'lead',
             'deal_stage_updated' => 'deal',
+            'deal_activity_notification' => 'deal',
+            'auto_follow_up_reminder' => 'deal',
+            'new_communication_activity' => 'deal',
+            'lead_imported' => 'lead',
+
+            // Projects
+            'new_project' => 'project',
             'new_project_member' => 'project',
             'new_project_status' => 'project',
+            'new_project_note' => 'project',
+            'project_reminder' => 'project',
+            'project_rating' => 'project',
+            'project_note_updated' => 'project',
+            'project_note_mention' => 'project',
+            'project_member_mention' => 'project',
+
+            // Expenses
             'new_expense_admin' => 'expense',
             'new_expense_member' => 'expense',
             'new_expense_status' => 'expense',
+
+            // Invoices
             'invoice_payment_received' => 'invoice',
+            'new_invoice' => 'invoice',
+            'invoice_updated' => 'invoice',
+            'invoice_reminder' => 'invoice',
+            'invoice_reminder_after' => 'invoice',
+
+            // Leaves
             'leave_application' => 'leave',
             'leave_status_approve' => 'leave-approved',
             'leave_status_reject' => 'leave-rejected',
+            'leave_status_update' => 'leave',
             'new_leave_request' => 'leave',
+            'new_multiple_leave_request' => 'leave',
+            'multiple_leave_application' => 'leave',
+
+            // Events
             'event_invite' => 'event',
             'event_reminder' => 'event',
+            'event_invite_mention' => 'event',
+            'event_host_invite' => 'event',
+            'event_completed' => 'event',
+            'event_status_note' => 'event',
+
+            // Appreciations & Birthday
             'new_appreciation' => 'appreciation',
             'birthday_reminder' => 'birthday',
+
+            // Contracts
             'contract_signed' => 'contract',
+            'new_contract' => 'contract',
+
+            // Discussions
             'new_discussion' => 'discussion',
             'new_discussion_reply' => 'discussion',
+            'new_discussion_mention' => 'discussion',
+
+            // Shifts
             'shift_scheduled' => 'shift',
             'shift_change_status' => 'shift',
+            'shift_change_request' => 'shift',
+            'bulk_shift_notification' => 'shift',
+            'shift_rotation_notification' => 'shift',
+
+            // Promotions
             'promotion_added' => 'promotion',
+            'promotion_updated' => 'promotion',
         ];
 
         return $icons[$typeSlug] ?? 'bell';

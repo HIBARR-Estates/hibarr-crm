@@ -37,7 +37,7 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => ['daily', 'otlp'],
             'ignore_exceptions' => false,
         ],
 
@@ -98,6 +98,11 @@ return [
 
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
+        ],
+
+        'otlp' => [
+            'driver' => 'custom',
+            'via' => App\Logging\OpenTelemetryLogChannel::class,
         ],
     ],
 
