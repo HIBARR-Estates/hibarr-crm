@@ -43,6 +43,7 @@ interface SaveFollowupFormData {
     remark?: string;
     timezone?: string; // Browser timezone
     participants?: number[]; // Array of user IDs
+    duration?: number; // Meeting duration in minutes
 }
 
 interface Props {
@@ -78,8 +79,11 @@ export default function SaveFollowup({
     };
 
     const isEditing = !!followup;
-    const isScheduled = !!(followup && followup.status && 
-        ['scheduled', 'completed', 'cancelled'].includes(followup.status));
+    const isScheduled = !!(
+        followup &&
+        followup.status &&
+        ["scheduled", "completed", "cancelled"].includes(followup.status)
+    );
     const needsZohoMeetingLink =
         form.getFieldValue("location") === "zoho" &&
         !form.getFieldValue("meeting_link");
@@ -101,14 +105,14 @@ export default function SaveFollowup({
                         ? "hour"
                         : "hours"
                     : reminder.type === "minute"
-                    ? reminder.time === 1
-                        ? "minute"
-                        : "minutes"
-                    : reminder.type === "day"
-                    ? reminder.time === 1
-                        ? "day"
-                        : "days"
-                    : reminder.type;
+                      ? reminder.time === 1
+                          ? "minute"
+                          : "minutes"
+                      : reminder.type === "day"
+                        ? reminder.time === 1
+                            ? "day"
+                            : "days"
+                        : reminder.type;
             return `${reminder.time} ${unit}`;
         }).join(", ");
     };
@@ -156,31 +160,37 @@ export default function SaveFollowup({
 
     // Map old location values to readable labels for backward compatibility
     const oldLocationLabels: Record<string, string> = {
-        'zoom': 'Zoom',
-        'teams': 'Microsoft Teams',
-        'meet': 'Google Meet',
-        'phone': 'Phone Call',
-        'skype': 'Skype',
-        'other': 'Other',
-        'zoho_meet': 'Zoho Meet',
-        'google_meet': 'Google Meet',
+        zoom: "Zoom",
+        teams: "Microsoft Teams",
+        meet: "Google Meet",
+        phone: "Phone Call",
+        skype: "Skype",
+        other: "Other",
+        zoho_meet: "Zoho Meet",
+        google_meet: "Google Meet",
     };
 
     // Get current location value from form to preserve old values
-    const currentLocation = Form.useWatch('location', form);
-    
+    const currentLocation = Form.useWatch("location", form);
+
     // Build location options including current value if it's not in standard options
     const locationOptions = (() => {
         const options = [...standardLocationOptions];
-        
+
         // If current location exists and is not in standard options, add it
-        if (currentLocation && !options.find(opt => opt.value === currentLocation)) {
+        if (
+            currentLocation &&
+            !options.find((opt) => opt.value === currentLocation)
+        ) {
             options.push({
                 value: currentLocation,
-                label: oldLocationLabels[currentLocation] || currentLocation.charAt(0).toUpperCase() + currentLocation.slice(1)
+                label:
+                    oldLocationLabels[currentLocation] ||
+                    currentLocation.charAt(0).toUpperCase() +
+                        currentLocation.slice(1),
             });
         }
-        
+
         return options;
     })();
 
@@ -193,17 +203,19 @@ export default function SaveFollowup({
     // Helper function to get default participants (participants, watchers)
     const getDefaultParticipants = (): number[] => {
         const participantIds: number[] = [];
-        
-      
+
         // Add deal participants
         if (deal.deal_participants && deal.deal_participants.length > 0) {
             deal.deal_participants.forEach((participant: any) => {
-                if (participant.id && !participantIds.includes(participant.id)) {
+                if (
+                    participant.id &&
+                    !participantIds.includes(participant.id)
+                ) {
                     participantIds.push(participant.id);
                 }
             });
         }
-        
+
         // Add deal watchers
         if (deal.deal_watchers && deal.deal_watchers.length > 0) {
             deal.deal_watchers.forEach((watcher: any) => {
@@ -212,7 +224,7 @@ export default function SaveFollowup({
                 }
             });
         }
-        
+
         return participantIds;
     };
 
@@ -235,6 +247,7 @@ export default function SaveFollowup({
                 reminders: existingCustomReminders, // Only set custom reminders in form
                 remark: followup.remark || "",
                 participants: followup.participants || [],
+                duration: followup.duration ?? undefined,
             });
         } else {
             // Reset form to default values for new follow-up
@@ -265,12 +278,14 @@ export default function SaveFollowup({
         // Validate participants for video meetings
         const isVideoMeeting = values.location === "zoho";
         const participants = values.participants || [];
-        
+
         if (isVideoMeeting && participants.length === 0) {
             form.setFields([
                 {
-                    name: 'participants',
-                    errors: ['At least one participant is required for video meetings'],
+                    name: "participants",
+                    errors: [
+                        "At least one participant is required for video meetings",
+                    ],
                 },
             ]);
             return;
@@ -295,10 +310,11 @@ export default function SaveFollowup({
             deal_id: deal.id,
             participants: participants,
             timezone: browserTimezone, // Send browser timezone to backend
+            ...(values.duration ? { duration: values.duration } : {}),
         };
 
         onSubmit(formData);
-        
+
         // Reset form after submission if creating new meeting (not editing)
         if (!isEditing) {
             form.resetFields();
@@ -388,6 +404,22 @@ export default function SaveFollowup({
                 </Form.Item>
             </div>
 
+            {/* Duration */}
+            <Form.Item
+                name="duration"
+                label="Duration (minutes)"
+                tooltip="How long the meeting is expected to last. Defaults to 30 minutes if not specified."
+            >
+                <InputNumber
+                    min={5}
+                    max={480}
+                    placeholder="30"
+                    className="w-full"
+                    disabled={loading || isScheduled}
+                    addonAfter="min"
+                />
+            </Form.Item>
+
             {/* Meeting Type */}
             <Form.Item
                 name="meeting_type_id"
@@ -441,9 +473,9 @@ export default function SaveFollowup({
                 {({ getFieldValue }) => {
                     const location = getFieldValue("location");
                     const isVideoMeeting = location === "zoho";
-                    
+
                     if (!isVideoMeeting) return null;
-                    
+
                     return (
                         <Form.Item
                             name="participants"
@@ -451,10 +483,15 @@ export default function SaveFollowup({
                             rules={[
                                 {
                                     required: true,
-                                    message: "At least one participant is required for video meetings",
+                                    message:
+                                        "At least one participant is required for video meetings",
                                     validator: (_, value) => {
                                         if (!value || value.length === 0) {
-                                            return Promise.reject(new Error("At least one participant is required for video meetings"));
+                                            return Promise.reject(
+                                                new Error(
+                                                    "At least one participant is required for video meetings",
+                                                ),
+                                            );
                                         }
                                         return Promise.resolve();
                                     },
@@ -486,7 +523,8 @@ export default function SaveFollowup({
                     const meetingLink = getFieldValue("meeting_link");
                     const showMeetingLinkField = location === "zoho";
                     const isZoho = location === "zoho";
-                    const isPhoneOrPhysical = location === "phone" || location === "physical";
+                    const isPhoneOrPhysical =
+                        location === "phone" || location === "physical";
                     const needsGeneration = isZoho && !meetingLink && isEditing;
 
                     if (!showMeetingLinkField) return null;
@@ -523,7 +561,11 @@ export default function SaveFollowup({
                                             new URL(value);
                                             return Promise.resolve();
                                         } catch {
-                                            return Promise.reject(new Error("Please enter a valid URL"));
+                                            return Promise.reject(
+                                                new Error(
+                                                    "Please enter a valid URL",
+                                                ),
+                                            );
                                         }
                                     },
                                 },
@@ -540,7 +582,11 @@ export default function SaveFollowup({
                                             ? "Meeting link will be auto-generated"
                                             : "Enter meeting link (e.g., https://zoom.us/j/...)"
                                     }
-                                    disabled={loading || (isZoho && !isEditing) || isScheduled}
+                                    disabled={
+                                        loading ||
+                                        (isZoho && !isEditing) ||
+                                        isScheduled
+                                    }
                                     readOnly={isZoho || isScheduled}
                                     style={{ flex: 1 }}
                                 />
@@ -562,11 +608,7 @@ export default function SaveFollowup({
             </Form.Item>
 
             {/* Remark/Notes */}
-            <Form.Item
-                label="Meeting Agenda"
-                name="remark"
-                className="mb-6"
-            >
+            <Form.Item label="Meeting Agenda" name="remark" className="mb-6">
                 <HtmlEditor
                     placeholder="Enter meeting agenda, details, or remarks..."
                     disabled={loading || isScheduled}
@@ -639,8 +681,7 @@ export default function SaveFollowup({
                                                             className="mb-0"
                                                             rules={[
                                                                 {
-                                                                    required:
-                                                                        true,
+                                                                    required: true,
                                                                     message:
                                                                         "Enter time",
                                                                 },
@@ -658,7 +699,8 @@ export default function SaveFollowup({
                                                                 max={1440}
                                                                 placeholder="15"
                                                                 disabled={
-                                                                    loading || isScheduled
+                                                                    loading ||
+                                                                    isScheduled
                                                                 }
                                                                 style={{
                                                                     width: 80,
@@ -675,8 +717,7 @@ export default function SaveFollowup({
                                                             className="mb-0"
                                                             rules={[
                                                                 {
-                                                                    required:
-                                                                        true,
+                                                                    required: true,
                                                                     message:
                                                                         "Select unit",
                                                                 },
@@ -685,7 +726,8 @@ export default function SaveFollowup({
                                                             <Select
                                                                 placeholder="Unit"
                                                                 disabled={
-                                                                    loading || isScheduled
+                                                                    loading ||
+                                                                    isScheduled
                                                                 }
                                                                 style={{
                                                                     width: 100,
@@ -705,7 +747,7 @@ export default function SaveFollowup({
                                                                                 type.label
                                                                             }
                                                                         </Option>
-                                                                    )
+                                                                    ),
                                                                 )}
                                                             </Select>
                                                         </Form.Item>
@@ -725,11 +767,12 @@ export default function SaveFollowup({
                                                                 }
                                                                 onClick={() =>
                                                                     remove(
-                                                                        field.name
+                                                                        field.name,
                                                                     )
                                                                 }
                                                                 disabled={
-                                                                    loading || isScheduled
+                                                                    loading ||
+                                                                    isScheduled
                                                                 }
                                                                 size="small"
                                                             />
@@ -761,7 +804,10 @@ export default function SaveFollowup({
 
             {/* Submit Buttons */}
             <div className="flex items-center justify-end gap-x-3 mt-12 mb-4 pt-4 border-t border-gray-200">
-                <Button onClick={handleCancel} disabled={loading || isScheduled}>
+                <Button
+                    onClick={handleCancel}
+                    disabled={loading || isScheduled}
+                >
                     Cancel
                 </Button>
                 <Button

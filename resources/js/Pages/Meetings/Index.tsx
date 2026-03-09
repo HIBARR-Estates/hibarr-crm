@@ -28,6 +28,7 @@ import {
     ThunderboltOutlined,
     UserOutlined,
     RightOutlined,
+    FileTextOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -261,9 +262,75 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
 
     const participantUsers = meeting.participant_users ?? [];
 
+    // Non-video meeting locations (no meeting link / summary applicable)
+    const isNonVideoLocation = ["office", "phone", "physical"].includes(
+        meeting.location,
+    );
+
+    // Meeting link rendering — mirrors FollowUpTab.renderMeetingLink
+    const renderMeetingLink = () => {
+        if (isNonVideoLocation || !meeting.meeting_link) {
+            const platformLabels: Record<string, string> = {
+                office: "Office Meeting",
+                phone: "Phone Meeting",
+                physical: "Physical Meeting",
+            };
+            return (
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                    {platformLabels[meeting.location] ?? "Office Meeting"}
+                </span>
+            );
+        }
+
+        if (!isSafeUrl(meeting.meeting_link)) {
+            return <span className="text-xs text-gray-400">Invalid link</span>;
+        }
+
+        return (
+            <a
+                href={meeting.meeting_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium whitespace-nowrap"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {getPlatformIcon(meeting.location)}
+                <span className="underline">Join Meeting</span>
+            </a>
+        );
+    };
+
+    // Summary status rendering — mirrors FollowUpTab.renderSummaryLink
+    const renderSummaryStatus = () => {
+        if (isNonVideoLocation || !meeting.meeting_link) {
+            return <span className="text-xs text-gray-400">--</span>;
+        }
+
+        if (meeting.meeting_summary) {
+            return (
+                <span
+                    className="inline-flex items-center gap-1 text-green-600 hover:text-green-800 text-xs font-medium cursor-pointer whitespace-nowrap"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onView();
+                    }}
+                >
+                    <FileTextOutlined />
+                    View Summary
+                </span>
+            );
+        }
+
+        return (
+            <Tag color="orange" className="text-xs m-0 whitespace-nowrap">
+                Pending
+            </Tag>
+        );
+    };
+
     return (
         <div
-            className={`group relative bg-white rounded-xl border transition-all hover:shadow-lg cursor-pointer ${
+            className={`group relative bg-white rounded-xl border transition-all cursor-pointer ${
                 live
                     ? "border-red-300 ring-2 ring-red-100"
                     : "border-gray-200 hover:border-blue-200"
@@ -345,7 +412,22 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                 </Tag>
             </div>
 
-            {/* Bottom row: participants + added_by + meeting link */}
+            {/* Meeting link + Summary status row */}
+            <div
+                className="px-4 pb-3 flex items-center justify-between gap-3"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center gap-1 min-w-0">
+                    {meeting.meeting_summary
+                        ? renderSummaryStatus()
+                        : renderMeetingLink()}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                    {renderSummaryStatus()}
+                </div>
+            </div>
+
+            {/* Bottom row: participants + added_by */}
             <div className="border-t border-gray-100 px-4 py-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                     {participantUsers.length > 0 ? (
@@ -374,17 +456,6 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         <span className="text-xs text-gray-400 truncate max-w-[100px]">
                             by {meeting.added_by.name}
                         </span>
-                    )}
-                    {hasValidLink && (
-                        <a
-                            href={meeting.meeting_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-xs font-medium whitespace-nowrap"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            Join <RightOutlined className="text-[10px]" />
-                        </a>
                     )}
                 </div>
             </div>
@@ -471,12 +542,11 @@ const MeetingSection: React.FC<MeetingSectionProps> = ({
                                 current={data.current_page}
                                 total={data.total}
                                 pageSize={data.per_page}
-                                showSizeChanger
-                                showQuickJumper
                                 showTotal={(t, range) =>
                                     `${range[0]}-${range[1]} of ${t}`
                                 }
                                 onChange={handlePageChange}
+                                size="small"
                             />
                         </div>
                     )}
@@ -592,7 +662,6 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                         placeholder="Search and select a deal..."
                         optionFilterProp="label"
                         className="w-full"
-                        size="large"
                         value={selectedDealId}
                         onChange={(val) => setSelectedDealId(val)}
                         options={userDeals.map((d) => ({
@@ -686,7 +755,6 @@ function MeetingsIndex() {
                         <Button
                             type="primary"
                             icon={<PlusOutlined />}
-                            size="large"
                             onClick={() => setScheduleOpen(true)}
                             className="bg-blue-600 hover:bg-blue-700"
                         >
