@@ -1,5 +1,15 @@
+import React, { useState, useEffect } from "react";
 import { usePage, router } from "@inertiajs/react";
-import { Table, Tabs, Tag, Button, Dropdown, Empty, Tooltip } from "antd";
+import {
+    Tag,
+    Button,
+    Dropdown,
+    Empty,
+    Drawer,
+    Select,
+    Spin,
+    Pagination,
+} from "antd";
 import type { MenuProps } from "antd";
 import {
     MoreOutlined,
@@ -11,11 +21,16 @@ import {
     EnvironmentOutlined,
     PhoneOutlined,
     LinkOutlined,
+    PlusOutlined,
+    ClockCircleOutlined,
+    TeamOutlined,
+    CheckCircleOutlined,
+    ThunderboltOutlined,
+    UserOutlined,
+    RightOutlined,
 } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import isBetween from "dayjs/plugin/isBetween";
 
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -25,58 +40,58 @@ import {
     PaginatedFollowupResponse,
 } from "@/Types/api/deal-followup";
 import { Deal } from "@/Types/api/deals";
-import { getStatusColor } from "@/lib/utils";
+import { getStatusColor, isLoading } from "@/lib/utils";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
+import SaveFollowup from "@/Pages/Deals/Components/Tabs/followups/SaveFollowup";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import { useApiMutate } from "@/lib/api/client";
+import { ApiResponse } from "@/lib/api/types";
+import { errorFormatter } from "@/lib/api/utils/common";
 
 dayjs.extend(utc);
-dayjs.extend(isBetween);
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface OverviewStats {
+    upcoming: number;
+    this_week: number;
+    live: number;
+    completed: number;
+}
+
 interface MeetingsPageProps extends PageProps {
     pageTitle: string;
+    overviewStats: OverviewStats;
     upcomingMeetings: PaginatedFollowupResponse;
     pastMeetings: PaginatedFollowupResponse;
+    userDeals: { id: number; name: string }[];
     meetingTypes: { id: number; name: string }[];
     permissions: Record<string, string>;
-    activeTab: "upcoming" | "past";
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Only allow http(s) URLs for meeting links — prevents XSS via javascript: etc. */
+const DEFAULT_DURATION = 30;
+
 const isSafeUrl = (url: string) => /^https?:\/\//i.test(url);
 
-/** Check if a meeting is currently "in progress" (within 1 hour of start time) */
-const isLive = (meeting: DealFollowup): boolean => {
+const isLiveMeeting = (meeting: DealFollowup): boolean => {
     if (meeting.status !== "scheduled") return false;
+    const duration = meeting.effective_duration ?? DEFAULT_DURATION;
     const start = dayjs.utc(meeting.next_follow_up_date).local();
+    const end = start.add(duration, "minute");
     const now = dayjs();
-    return now.isAfter(start) && now.isBefore(start.add(1, "hour"));
+    return now.isAfter(start) && now.isBefore(end);
 };
 
-/** Get a human-readable platform label for non-video locations */
-const getPlatformLabel = (location: string): string | null => {
-    switch (location) {
-        case "office":
-            return "Office Meeting";
-        case "phone":
-            return "Phone Meeting";
-        case "physical":
-            return "Physical Meeting";
-        default:
-            return null;
-    }
-};
-
-const getMeetingIcon = (location: string) => {
+const getPlatformIcon = (location: string) => {
     switch (location) {
         case "zoom":
             return <VideoCameraOutlined style={{ color: "#2D8CFF" }} />;
         case "teams":
-            return <VideoCameraOutlined style={{ color: "#6264A7" }} />;
+            return <TeamOutlined style={{ color: "#6264A7" }} />;
         case "meet":
         case "google_meet":
             return <VideoCameraOutlined style={{ color: "#34A853" }} />;
@@ -85,304 +100,347 @@ const getMeetingIcon = (location: string) => {
         case "office":
         case "physical":
             return <EnvironmentOutlined style={{ color: "#666" }} />;
+        case "zoho":
+            return <VideoCameraOutlined style={{ color: "#1890ff" }} />;
         default:
             return <VideoCameraOutlined style={{ color: "#1890ff" }} />;
     }
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
-function MeetingsIndex() {
-    const { props } = usePage<MeetingsPageProps>();
-    const {
-        upcomingMeetings,
-        pastMeetings,
-        permissions,
-        activeTab,
-        pageTitle,
-    } = props;
-    const user = props.auth.user;
-
-    const {
-        action,
-        handleAction,
-        handleClose,
-        selected: meeting,
-    } = useGenericEntityAction<DealFollowup>();
-
-    // ── Navigation helpers ──────────────────────────────────────────────────
-
-    const navigateTab = (tab: string) => {
-        router.get(
-            "/account/meetings",
-            { tab, page: 1 },
-            { preserveState: true, preserveScroll: true },
-        );
+const getLocationLabel = (location: string): string => {
+    const labels: Record<string, string> = {
+        zoho: "Video Meeting",
+        zoom: "Zoom",
+        teams: "Microsoft Teams",
+        meet: "Google Meet",
+        google_meet: "Google Meet",
+        phone: "Phone",
+        office: "Office",
+        physical: "Physical",
+        skype: "Skype",
+        other: "Other",
     };
+    return labels[location] ?? location;
+};
 
-    const navigatePage = (tab: string, page: number, pageSize: number) => {
-        router.get(
-            "/account/meetings",
-            { tab, page, per_page: pageSize },
-            { preserveState: true, preserveScroll: true },
-        );
-    };
+// ─── Overview Card ───────────────────────────────────────────────────────────
 
-    // ── Render helpers ──────────────────────────────────────────────────────
+interface StatCardProps {
+    icon: React.ReactNode;
+    label: string;
+    value: number;
+    color: string;
+    bgColor: string;
+}
 
-    const renderMeetingLink = (record: DealFollowup) => {
-        const platformLabel = getPlatformLabel(record.location);
+const StatCard: React.FC<StatCardProps> = ({
+    icon,
+    label,
+    value,
+    color,
+    bgColor,
+}) => (
+    <div
+        className={`rounded-xl border p-5 flex items-center gap-4 transition-all hover:shadow-md ${bgColor}`}
+    >
+        <div
+            className={`flex items-center justify-center w-12 h-12 rounded-lg ${color}`}
+        >
+            {icon}
+        </div>
+        <div>
+            <p className="text-2xl font-bold text-gray-900 mb-0 leading-none">
+                {value}
+            </p>
+            <p className="text-sm text-gray-500 mb-0 mt-1">{label}</p>
+        </div>
+    </div>
+);
 
-        if (platformLabel || !record.meeting_link) {
-            return (
-                <span className="text-gray-500">
-                    {platformLabel || "No link"}
-                </span>
-            );
-        }
+// ─── Meeting Card ────────────────────────────────────────────────────────────
 
-        if (!isSafeUrl(record.meeting_link)) {
-            return <span className="text-gray-400">Invalid link</span>;
-        }
+interface MeetingCardProps {
+    meeting: DealFollowup;
+    permissions: Record<string, string>;
+    userId?: number;
+    onView: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+}
 
-        return (
-            <a
-                href={record.meeting_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
-            >
-                {getMeetingIcon(record.location)}
-                <span className="underline">Join Meeting</span>
-            </a>
-        );
-    };
+const MeetingCard: React.FC<MeetingCardProps> = ({
+    meeting,
+    permissions,
+    userId,
+    onView,
+    onEdit,
+    onDelete,
+}) => {
+    const live = isLiveMeeting(meeting);
+    const localDate = dayjs.utc(meeting.next_follow_up_date).local();
+    const hasValidLink =
+        meeting.meeting_link &&
+        isSafeUrl(meeting.meeting_link) &&
+        !["office", "phone", "physical"].includes(meeting.location);
 
-    // ── Table columns ───────────────────────────────────────────────────────
+    const canView =
+        permissions.view_lead_follow_up === "all" ||
+        (permissions.view_lead_follow_up === "added" &&
+            meeting.added_by?.id === userId);
+    const canEdit =
+        permissions.edit_lead_follow_up === "all" ||
+        (permissions.edit_lead_follow_up === "added" &&
+            meeting.added_by?.id === userId);
+    const canDelete =
+        permissions.delete_lead_follow_up === "all" ||
+        (permissions.delete_lead_follow_up === "added" &&
+            meeting.added_by?.id === userId);
 
-    const columns: ColumnsType<DealFollowup> = [
-        {
-            title: "Date & Time",
-            dataIndex: "next_follow_up_date",
-            key: "next_follow_up_date",
-            width: 180,
-            fixed: "left" as const,
-            render: (_, record) => {
-                const localDate = dayjs.utc(record.next_follow_up_date).local();
-                const live = isLive(record);
-                return (
-                    <div
-                        className="flex items-center space-x-2 cursor-pointer hover:text-blue-600 transition-colors"
-                        onClick={() => handleAction("view", record)}
-                    >
-                        <div>
-                            <div className="font-medium whitespace-nowrap">
-                                {localDate.format("MMM DD, YYYY")}
-                            </div>
-                            <div className="text-sm text-gray-500 whitespace-nowrap">
-                                {localDate.format("h:mm A")}
-                            </div>
-                        </div>
-                        {live && (
-                            <Tag
-                                color="red"
-                                className="animate-pulse text-xs ml-1"
-                            >
-                                Live
-                            </Tag>
-                        )}
-                    </div>
-                );
-            },
-        },
-        {
-            title: "Deal",
-            key: "deal",
-            width: 180,
-            ellipsis: true,
-            render: (_, record) =>
-                record.deal ? (
-                    <a
-                        href={`/account/deals/${record.deal.id}`}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            router.visit(`/account/deals/${record.deal!.id}`);
-                        }}
-                    >
-                        {record.deal.name}
-                    </a>
-                ) : (
-                    <span className="text-gray-400">—</span>
-                ),
-        },
-        {
-            title: "Meeting Type",
-            dataIndex: "meeting_type",
-            key: "meeting_type",
-            width: 140,
-            render: (_, record) =>
-                record.meeting_type?.name ? (
-                    <span>{record.meeting_type.name}</span>
-                ) : (
-                    <span className="text-gray-500">--</span>
-                ),
-        },
-        {
-            title: "Meeting Link",
-            dataIndex: "meeting_link",
-            key: "meeting_link",
-            width: 150,
-            render: (_, record) => renderMeetingLink(record),
-        },
-        {
-            title: "Status",
-            dataIndex: "status",
-            key: "status",
-            width: 120,
-            render: (_, record) => {
-                const live = isLive(record);
-                if (live) {
-                    return (
-                        <Tag
-                            color="red"
-                            className="capitalize whitespace-nowrap animate-pulse"
-                        >
-                            In Progress
-                        </Tag>
-                    );
-                }
-                return (
-                    <Tag
-                        color={getStatusColor(record.status)}
-                        className="capitalize whitespace-nowrap"
-                    >
-                        {record.status}
-                    </Tag>
-                );
-            },
-        },
-        {
-            title: "Scheduled By",
-            key: "added_by",
-            width: 140,
-            render: (_, record) =>
-                record.added_by ? (
-                    <span className="text-gray-700">
-                        {record.added_by.name}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">—</span>
-                ),
-        },
-        {
-            title: "Actions",
-            key: "actions",
-            width: 80,
-            fixed: "right" as const,
-            render: (_, record) => {
-                const canView =
-                    permissions.view_lead_follow_up === "all" ||
-                    (permissions.view_lead_follow_up === "added" &&
-                        record.added_by?.id === user?.id);
-                const canEdit =
-                    permissions.edit_lead_follow_up === "all" ||
-                    (permissions.edit_lead_follow_up === "added" &&
-                        record.added_by?.id === user?.id);
-                const canDelete =
-                    permissions.delete_lead_follow_up === "all" ||
-                    (permissions.delete_lead_follow_up === "added" &&
-                        record.added_by?.id === user?.id);
-
-                const menuItems: MenuProps["items"] = [
-                    ...(canView
-                        ? [
-                              {
-                                  key: "view",
-                                  label: (
-                                      <span>
-                                          <EyeOutlined className="mr-2" />
-                                          View
-                                      </span>
-                                  ),
-                                  onClick: () => handleAction("view", record),
-                              },
-                          ]
-                        : []),
-                    ...(canEdit
-                        ? [
-                              {
-                                  key: "edit",
-                                  label: (
-                                      <span>
-                                          <EditOutlined className="mr-2" />
-                                          Edit
-                                      </span>
-                                  ),
-                                  onClick: () => handleAction("edit", record),
-                              },
-                          ]
-                        : []),
-                    // "Join Meeting" action — only for video meetings with a valid link
-                    ...(record.meeting_link &&
-                    isSafeUrl(record.meeting_link) &&
-                    !["office", "phone", "physical"].includes(record.location)
-                        ? [
-                              {
-                                  key: "join",
-                                  label: (
-                                      <a
-                                          href={record.meeting_link}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                      >
-                                          <LinkOutlined className="mr-2" />
-                                          Join Meeting
-                                      </a>
-                                  ),
-                              },
-                          ]
-                        : []),
-                    ...(canDelete
-                        ? [
-                              {
-                                  key: "delete",
-                                  label: (
-                                      <span>
-                                          <DeleteOutlined className="mr-2" />
-                                          Delete
-                                      </span>
-                                  ),
-                                  danger: true,
-                                  onClick: () => handleAction("delete", record),
-                              },
-                          ]
-                        : []),
-                ];
-
-                return menuItems.length > 0 ? (
-                    <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
-                        <Button
-                            type="text"
-                            icon={<MoreOutlined />}
-                            size="small"
-                        />
-                    </Dropdown>
-                ) : null;
-            },
-        },
+    const menuItems: MenuProps["items"] = [
+        ...(canView
+            ? [
+                  {
+                      key: "view",
+                      label: (
+                          <span>
+                              <EyeOutlined className="mr-2" />
+                              View
+                          </span>
+                      ),
+                      onClick: onView,
+                  },
+              ]
+            : []),
+        ...(canEdit
+            ? [
+                  {
+                      key: "edit",
+                      label: (
+                          <span>
+                              <EditOutlined className="mr-2" />
+                              Edit
+                          </span>
+                      ),
+                      onClick: onEdit,
+                  },
+              ]
+            : []),
+        ...(hasValidLink
+            ? [
+                  {
+                      key: "join",
+                      label: (
+                          <a
+                              href={meeting.meeting_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                          >
+                              <LinkOutlined className="mr-2" />
+                              Join Meeting
+                          </a>
+                      ),
+                  },
+              ]
+            : []),
+        ...(canDelete
+            ? [
+                  {
+                      key: "delete",
+                      label: (
+                          <span>
+                              <DeleteOutlined className="mr-2" />
+                              Delete
+                          </span>
+                      ),
+                      danger: true,
+                      onClick: onDelete,
+                  },
+              ]
+            : []),
     ];
 
-    // ── Tab content renderers ───────────────────────────────────────────────
+    const participantUsers = meeting.participant_users ?? [];
 
-    const renderTable = (
-        data: PaginatedFollowupResponse,
-        tab: "upcoming" | "past",
-        emptyMessage: string,
-    ) => {
-        if (data.total === 0) {
-            return (
-                <div className="py-16">
+    return (
+        <div
+            className={`group relative bg-white rounded-xl border transition-all hover:shadow-lg cursor-pointer ${
+                live
+                    ? "border-red-300 ring-2 ring-red-100"
+                    : "border-gray-200 hover:border-blue-200"
+            }`}
+            onClick={onView}
+        >
+            {/* Top bar with meeting type + live badge + actions */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex-shrink-0 text-lg">
+                        {getPlatformIcon(meeting.location)}
+                    </span>
+                    <span className="font-medium text-gray-800 text-sm truncate">
+                        {meeting.meeting_type?.name ??
+                            getLocationLabel(meeting.location)}
+                    </span>
+                    {live && (
+                        <Tag
+                            color="red"
+                            className="animate-pulse text-xs ml-1 flex-shrink-0"
+                        >
+                            <ThunderboltOutlined className="mr-1" />
+                            Live
+                        </Tag>
+                    )}
+                </div>
+                <div
+                    className="flex-shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {menuItems.length > 0 && (
+                        <Dropdown
+                            menu={{ items: menuItems }}
+                            trigger={["click"]}
+                        >
+                            <Button
+                                type="text"
+                                icon={<MoreOutlined />}
+                                size="small"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            />
+                        </Dropdown>
+                    )}
+                </div>
+            </div>
+
+            {/* Deal name */}
+            <div className="px-4 pb-2">
+                {meeting.deal ? (
+                    <p
+                        className="text-blue-600 text-sm font-medium mb-0 truncate hover:underline"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            router.visit(`/account/deals/${meeting.deal!.id}`);
+                        }}
+                    >
+                        {meeting.deal.name}
+                    </p>
+                ) : (
+                    <p className="text-gray-400 text-sm mb-0">No deal</p>
+                )}
+            </div>
+
+            {/* Date / Time / Status row */}
+            <div className="px-4 pb-3 flex items-center gap-3 flex-wrap text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                    <CalendarOutlined />
+                    {localDate.format("MMM DD, YYYY")}
+                </span>
+                <span className="flex items-center gap-1">
+                    <ClockCircleOutlined />
+                    {localDate.format("h:mm A")}
+                </span>
+                <Tag
+                    color={live ? "red" : getStatusColor(meeting.status)}
+                    className="capitalize text-xs m-0"
+                >
+                    {live ? "In Progress" : meeting.status}
+                </Tag>
+            </div>
+
+            {/* Bottom row: participants + added_by + meeting link */}
+            <div className="border-t border-gray-100 px-4 py-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    {participantUsers.length > 0 ? (
+                        <div className="flex items-center gap-1.5">
+                            <MultiUserIndicator
+                                users={participantUsers}
+                                size="xs"
+                                maxCount={3}
+                                showNames={false}
+                            />
+                            <span className="text-xs text-gray-500 whitespace-nowrap">
+                                {participantUsers.length}{" "}
+                                {participantUsers.length === 1
+                                    ? "participant"
+                                    : "participants"}
+                            </span>
+                        </div>
+                    ) : (
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <UserOutlined /> No participants
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {meeting.added_by && (
+                        <span className="text-xs text-gray-400 truncate max-w-[100px]">
+                            by {meeting.added_by.name}
+                        </span>
+                    )}
+                    {hasValidLink && (
+                        <a
+                            href={meeting.meeting_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-xs font-medium whitespace-nowrap"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            Join <RightOutlined className="text-[10px]" />
+                        </a>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ─── Section ─────────────────────────────────────────────────────────────────
+
+interface MeetingSectionProps {
+    title: string;
+    total: number;
+    data: PaginatedFollowupResponse;
+    pageName: string;
+    emptyMessage: string;
+    permissions: Record<string, string>;
+    userId?: number;
+    onView: (m: DealFollowup) => void;
+    onEdit: (m: DealFollowup) => void;
+    onDelete: (m: DealFollowup) => void;
+}
+
+const MeetingSection: React.FC<MeetingSectionProps> = ({
+    title,
+    total,
+    data,
+    pageName,
+    emptyMessage,
+    permissions,
+    userId,
+    onView,
+    onEdit,
+    onDelete,
+}) => {
+    const handlePageChange = (page: number, pageSize: number) => {
+        const params: Record<string, number> = {
+            [`${pageName}_page`]: page,
+            [`${pageName}_per_page`]: pageSize,
+        };
+        router.get("/account/meetings", params, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
+    return (
+        <div>
+            <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-lg font-semibold text-gray-800 mb-0">
+                    {title}
+                </h2>
+                <Tag className="rounded-full text-xs font-medium">{total}</Tag>
+            </div>
+
+            {data.data.length === 0 ? (
+                <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 py-12">
                     <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                         description={
@@ -392,71 +450,224 @@ function MeetingsIndex() {
                         }
                     />
                 </div>
-            );
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {data.data.map((meeting) => (
+                            <MeetingCard
+                                key={meeting.id}
+                                meeting={meeting}
+                                permissions={permissions}
+                                userId={userId}
+                                onView={() => onView(meeting)}
+                                onEdit={() => onEdit(meeting)}
+                                onDelete={() => onDelete(meeting)}
+                            />
+                        ))}
+                    </div>
+                    {data.last_page > 1 && (
+                        <div className="flex justify-center mt-6">
+                            <Pagination
+                                current={data.current_page}
+                                total={data.total}
+                                pageSize={data.per_page}
+                                showSizeChanger
+                                showQuickJumper
+                                showTotal={(t, range) =>
+                                    `${range[0]}-${range[1]} of ${t}`
+                                }
+                                onChange={handlePageChange}
+                            />
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+};
+
+// ─── Schedule Meeting Drawer ─────────────────────────────────────────────────
+
+interface ScheduleMeetingDrawerProps {
+    open: boolean;
+    onClose: () => void;
+    userDeals: { id: number; name: string }[];
+}
+
+const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
+    open,
+    onClose,
+    userDeals,
+}) => {
+    const [selectedDealId, setSelectedDealId] = useState<number | null>(null);
+    const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+    const [loadingDeal, setLoadingDeal] = useState(false);
+    const [errors, setErrors] = useState<string[]>([]);
+    const [formKey, setFormKey] = useState(0);
+
+    // Reset state when drawer opens
+    useEffect(() => {
+        if (open) {
+            setSelectedDealId(null);
+            setSelectedDeal(null);
+            setErrors([]);
+            setFormKey((prev) => prev + 1);
+        }
+    }, [open]);
+
+    // Fetch deal details when a deal is selected
+    useEffect(() => {
+        if (!selectedDealId) {
+            setSelectedDeal(null);
+            return;
         }
 
-        return (
-            <Table
-                columns={columns}
-                dataSource={data.data}
-                rowKey="id"
-                size="small"
-                scroll={{ x: 1000 }}
-                pagination={{
-                    current: data.current_page,
-                    total: data.total,
-                    pageSize: data.per_page,
-                    showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total, range) =>
-                        `${range[0]}-${range[1]} of ${total} meetings`,
-                    onChange: (page, pageSize) =>
-                        navigatePage(tab, page, pageSize),
-                }}
-            />
-        );
+        setLoadingDeal(true);
+        fetch(`/account/meetings/deal/${selectedDealId}`, {
+            headers: {
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+            },
+        })
+            .then((res) => res.json())
+            .then((json) => {
+                if (json.success) {
+                    setSelectedDeal(json.data);
+                }
+            })
+            .catch(() => {
+                setErrors(["Failed to load deal details. Please try again."]);
+            })
+            .finally(() => setLoadingDeal(false));
+    }, [selectedDealId]);
+
+    const handleCancel = () => {
+        setErrors([]);
+        setSelectedDealId(null);
+        setSelectedDeal(null);
+        setFormKey((prev) => prev + 1);
+        onClose();
     };
 
-    const tabItems = [
-        {
-            key: "upcoming",
-            label: (
-                <span className="flex items-center gap-x-2">
-                    <CalendarOutlined />
-                    Upcoming
-                    {upcomingMeetings.total > 0 && (
-                        <Tag className="ml-1">{upcomingMeetings.total}</Tag>
-                    )}
-                </span>
-            ),
-            children: renderTable(
-                upcomingMeetings,
-                "upcoming",
-                "No upcoming meetings scheduled.",
-            ),
+    const { mutate, status } = useApiMutate<any, null, ApiResponse<null>>(
+        `/account/deals/follow-up-store`,
+        "POST",
+        () => {
+            handleCancel();
         },
-        {
-            key: "past",
-            label: (
-                <span className="flex items-center gap-x-2">
-                    <CalendarOutlined />
-                    Past
-                    {pastMeetings.total > 0 && (
-                        <Tag className="ml-1">{pastMeetings.total}</Tag>
-                    )}
-                </span>
-            ),
-            children: renderTable(
-                pastMeetings,
-                "past",
-                "No past meetings found.",
-            ),
-        },
-    ];
+    );
 
-    // ── Determine the deal for the detail drawer ───────────────────────────
+    const onSubmit = (data: any) => {
+        mutate(data, {
+            onSuccess: () => {
+                setErrors([]);
+                setFormKey((prev) => prev + 1);
+                router.reload();
+            },
+            onError: (errorResponse: any) => {
+                const responseErrors =
+                    errorFormatter(errorResponse)?.errors || [];
+                setErrors(Object.values(responseErrors).flat() as string[]);
+            },
+        });
+    };
+
+    return (
+        <Drawer
+            title="Schedule Meeting"
+            placement="right"
+            size="large"
+            open={open}
+            onClose={handleCancel}
+            destroyOnClose
+        >
+            <div className="space-y-6">
+                {/* Step 1: Select deal */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Deal <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                        showSearch
+                        placeholder="Search and select a deal..."
+                        optionFilterProp="label"
+                        className="w-full"
+                        size="large"
+                        value={selectedDealId}
+                        onChange={(val) => setSelectedDealId(val)}
+                        options={userDeals.map((d) => ({
+                            value: d.id,
+                            label: d.name,
+                        }))}
+                        filterOption={(input, option) =>
+                            (option?.label as string)
+                                ?.toLowerCase()
+                                .includes(input.toLowerCase()) ?? false
+                        }
+                    />
+                </div>
+
+                {/* Loading state */}
+                {loadingDeal && (
+                    <div className="flex justify-center py-8">
+                        <Spin tip="Loading deal details..." />
+                    </div>
+                )}
+
+                {/* Step 2: SaveFollowup form */}
+                {selectedDeal && !loadingDeal && (
+                    <SaveFollowup
+                        key={formKey}
+                        deal={selectedDeal}
+                        onSubmit={onSubmit}
+                        onCancel={handleCancel}
+                        loading={isLoading({ status })}
+                        errors={errors}
+                    />
+                )}
+
+                {/* Prompt when no deal selected */}
+                {!selectedDealId && !loadingDeal && (
+                    <div className="text-center py-8 text-gray-400">
+                        <CalendarOutlined className="text-4xl mb-3 block" />
+                        <p className="text-sm">
+                            Select a deal above to schedule a meeting
+                        </p>
+                    </div>
+                )}
+            </div>
+        </Drawer>
+    );
+};
+
+// ─── Main Page Component ─────────────────────────────────────────────────────
+
+function MeetingsIndex() {
+    const { props } = usePage<MeetingsPageProps>();
+    const {
+        overviewStats,
+        upcomingMeetings,
+        pastMeetings,
+        userDeals,
+        permissions,
+        pageTitle,
+    } = props;
+    const user = props.auth.user;
+
+    const [scheduleOpen, setScheduleOpen] = useState(false);
+
+    const {
+        action,
+        handleAction,
+        handleClose,
+        selected: meeting,
+    } = useGenericEntityAction<DealFollowup>();
 
     const meetingDeal: Deal | undefined = meeting?.deal as Deal | undefined;
+
+    const canAdd =
+        permissions.add_lead_follow_up === "all" ||
+        permissions.add_lead_follow_up === "added";
 
     // ── Render ─────────────────────────────────────────────────────────────
 
@@ -465,16 +676,102 @@ function MeetingsIndex() {
             title={pageTitle || "Meetings"}
             breadcrumbs={[{ name: "Meetings" }]}
         >
-            <div className="px-6 py-4">
-                <Tabs
-                    activeKey={activeTab}
-                    onChange={navigateTab}
-                    items={tabItems}
-                    className="meetings-tabs"
+            <div className="px-4 sm:px-6 py-6 space-y-8">
+                {/* ── Header ────────────────────────────────────────── */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-0">
+                        My Meetings
+                    </h1>
+                    {canAdd && (
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            size="large"
+                            onClick={() => setScheduleOpen(true)}
+                            className="bg-blue-600 hover:bg-blue-700"
+                        >
+                            Schedule Meeting
+                        </Button>
+                    )}
+                </div>
+
+                {/* ── Overview Cards ────────────────────────────────── */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard
+                        icon={
+                            <CalendarOutlined className="text-xl text-blue-600" />
+                        }
+                        label="Upcoming"
+                        value={overviewStats.upcoming}
+                        color="bg-blue-100"
+                        bgColor="bg-white border-blue-100"
+                    />
+                    <StatCard
+                        icon={
+                            <ClockCircleOutlined className="text-xl text-indigo-600" />
+                        }
+                        label="This Week"
+                        value={overviewStats.this_week}
+                        color="bg-indigo-100"
+                        bgColor="bg-white border-indigo-100"
+                    />
+                    <StatCard
+                        icon={
+                            <ThunderboltOutlined className="text-xl text-red-600" />
+                        }
+                        label="Live Now"
+                        value={overviewStats.live}
+                        color="bg-red-100"
+                        bgColor="bg-white border-red-100"
+                    />
+                    <StatCard
+                        icon={
+                            <CheckCircleOutlined className="text-xl text-green-600" />
+                        }
+                        label="Completed"
+                        value={overviewStats.completed}
+                        color="bg-green-100"
+                        bgColor="bg-white border-green-100"
+                    />
+                </div>
+
+                {/* ── Upcoming Section ──────────────────────────────── */}
+                <MeetingSection
+                    title="Upcoming Meetings"
+                    total={upcomingMeetings.total}
+                    data={upcomingMeetings}
+                    pageName="upcoming"
+                    emptyMessage="No upcoming meetings scheduled."
+                    permissions={permissions}
+                    userId={user?.id}
+                    onView={(m) => handleAction("view", m)}
+                    onEdit={(m) => handleAction("edit", m)}
+                    onDelete={(m) => handleAction("delete", m)}
+                />
+
+                {/* ── Past Section ──────────────────────────────────── */}
+                <MeetingSection
+                    title="Past Meetings"
+                    total={pastMeetings.total}
+                    data={pastMeetings}
+                    pageName="past"
+                    emptyMessage="No past meetings found."
+                    permissions={permissions}
+                    userId={user?.id}
+                    onView={(m) => handleAction("view", m)}
+                    onEdit={(m) => handleAction("edit", m)}
+                    onDelete={(m) => handleAction("delete", m)}
                 />
             </div>
 
-            {/* View Meeting Drawer — reuses existing ViewFollowup */}
+            {/* ── Schedule Meeting Drawer ──────────────────────────── */}
+            <ScheduleMeetingDrawer
+                open={scheduleOpen}
+                onClose={() => setScheduleOpen(false)}
+                userDeals={userDeals}
+            />
+
+            {/* ── View Drawer ─────────────────────────────────────── */}
             {meeting && meetingDeal && (
                 <ViewFollowup
                     open={action === "view"}
@@ -485,7 +782,7 @@ function MeetingsIndex() {
                 />
             )}
 
-            {/* Edit Meeting Drawer */}
+            {/* ── Edit Drawer ─────────────────────────────────────── */}
             {meeting && meetingDeal && (
                 <EditFollowup
                     open={action === "edit"}
@@ -495,7 +792,7 @@ function MeetingsIndex() {
                 />
             )}
 
-            {/* Delete Meeting Confirmation */}
+            {/* ── Delete Modal ─────────────────────────────────────── */}
             <DeleteFollowup
                 open={action === "delete"}
                 onClose={() => handleClose()}
@@ -505,7 +802,6 @@ function MeetingsIndex() {
     );
 }
 
-// Assign layout
 MeetingsIndex.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>
 );
