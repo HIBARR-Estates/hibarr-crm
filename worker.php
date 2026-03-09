@@ -145,3 +145,20 @@ $server->registerService(TaskUserServiceInterface::class, $app->make(TaskUserGrp
 
 $server->serve($worker);
 
+// Flush any buffered OpenTelemetry log records before the worker exits.
+// This ensures all logs are exported when RoadRunner terminates the process.
+try {
+    $logChannel = app('log')->channel('otlp');
+    if ($logChannel && method_exists($logChannel, 'getHandlers')) {
+        foreach ($logChannel->getHandlers() as $handler) {
+            if ($handler instanceof \OpenTelemetry\Contrib\Logs\Monolog\Handler) {
+                // The handler's underlying LoggerProvider will flush on __destruct,
+                // but explicit close ensures timely export.
+                $handler->close();
+            }
+        }
+    }
+} catch (\Throwable $e) {
+    // Silently ignore — do not let OTel teardown crash the worker.
+}
+
