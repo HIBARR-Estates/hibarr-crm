@@ -36,6 +36,15 @@ export interface DealFollowup {
     participants?: number[]; // Array of user IDs
     meeting_summary?: MeetingSummary;
     deal?: Deal; // Loaded via eager-loading on Meetings page
+    duration?: number | null; // Meeting duration in minutes
+    effective_duration?: number; // Computed: duration ?? 30
+    participant_users?: {
+        id: number;
+        name: string;
+        image?: string;
+        email?: string;
+        image_url?: string;
+    }[]; // Resolved from participants IDs
 }
 
 /** Paginated response shape for meetings (Laravel paginator) */
