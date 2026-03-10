@@ -133,14 +133,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 onPipelineChange?.(formData.pipeline);
             }
         }
-    }, [
-        data,
-        form,
-        defaultCurrencyCode,
-        currencies,
-        pipelineId,
-        onPipelineChange,
-    ]);
+    }, [data, form, defaultCurrencyCode, currencies]);
 
     // Initialize form with default values
     useEffect(() => {
@@ -171,16 +164,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         ) {
             onPipelineChange?.(derivedPipelineId);
         }
-    }, [
-        contactID,
-        columnId,
-        stage,
-        data,
-        form,
-        leadPipelines,
-        pipelineId,
-        onPipelineChange,
-    ]);
+    }, [contactID, columnId, stage, data, form, leadPipelines, pipelineId]);
 
     // Fetch stages when pipeline changes
     const handlePipelineChange = (pipelineId: number) => {
