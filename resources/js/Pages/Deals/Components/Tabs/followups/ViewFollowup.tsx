@@ -4,7 +4,6 @@ import { DealFollowup } from "@/Types/api/deal-followup";
 import { IModalProps } from "@/Types/common";
 import {
     Drawer,
-    Tag,
     Tooltip,
     Button,
     Modal,
@@ -266,9 +265,9 @@ const Section: React.FC<SectionProps> = ({
     children,
     className = "",
 }) => (
-    <div className={className}>
+    <div className={`bg-gray-50/70 rounded-xl px-5 py-4 ${className}`}>
         <div className="flex items-center gap-1.5 mb-3">
-            {icon && <span className="text-xs opacity-60">{icon}</span>}
+            {icon && <span className="text-xs opacity-50">{icon}</span>}
             <span className="text-[11px] font-medium text-gray-400 uppercase tracking-widest">
                 {title}
             </span>
@@ -343,36 +342,29 @@ const ViewFollowup: React.FC<Props> = ({
                         {/* Tags row */}
                         <div className="flex items-center gap-1.5 flex-wrap">
                             {followup?.meeting_type && (
-                                <Tag
-                                    bordered={false}
-                                    className="text-[11px] m-0 rounded-full px-2 bg-blue-50 text-blue-600"
-                                >
+                                <span className="text-[11px] leading-none font-medium rounded-full px-2.5 py-1 bg-blue-100 text-blue-700">
                                     {followup.meeting_type.name}
-                                </Tag>
+                                </span>
                             )}
                             {live && (
-                                <Tag
-                                    bordered={false}
-                                    className="text-[11px] m-0 rounded-full px-2 bg-red-50 text-red-600 animate-pulse"
-                                >
-                                    <ThunderboltOutlined className="mr-0.5" />
+                                <span className="text-[11px] leading-none font-medium rounded-full px-2.5 py-1 bg-red-100 text-red-700 animate-pulse inline-flex items-center gap-0.5">
+                                    <ThunderboltOutlined />
                                     Live
-                                </Tag>
+                                </span>
                             )}
-                            <Tag
-                                bordered={false}
-                                className={`text-[11px] m-0 rounded-full px-2 capitalize ${
+                            <span
+                                className={`text-[11px] leading-none font-medium rounded-full px-2.5 py-1 capitalize ${
                                     live
-                                        ? "bg-red-50 text-red-600"
+                                        ? "bg-red-100 text-red-700"
                                         : followup?.status === "scheduled"
-                                          ? "bg-amber-50 text-amber-600"
+                                          ? "bg-amber-100 text-amber-700"
                                           : followup?.status === "completed"
-                                            ? "bg-emerald-50 text-emerald-600"
-                                            : "bg-gray-100 text-gray-500"
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-gray-200 text-gray-600"
                                 }`}
                             >
                                 {live ? "In Progress" : followup?.status}
-                            </Tag>
+                            </span>
                         </div>
                         {/* Title row */}
                         <div className="flex items-center justify-between">
@@ -407,7 +399,7 @@ const ViewFollowup: React.FC<Props> = ({
                     },
                 }}
             >
-                <div className="space-y-6">
+                <div className="space-y-4">
                     {/* ── Meeting Details ──────────────────────────────── */}
                     <Section title="Details" icon={<CalendarOutlined />}>
                         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
@@ -452,8 +444,6 @@ const ViewFollowup: React.FC<Props> = ({
                             </DetailField>
                         </div>
                     </Section>
-
-                    <div className="border-t border-gray-100" />
 
                     {/* ── Deal Information ─────────────────────────────── */}
                     <Section
@@ -515,8 +505,6 @@ const ViewFollowup: React.FC<Props> = ({
                         </div>
                     </Section>
 
-                    <div className="border-t border-gray-100" />
-
                     {/* ── Participants ─────────────────────────────────── */}
                     <Section title="Participants" icon={<TeamOutlined />}>
                         {participantUsers.length > 0 ? (
@@ -537,7 +525,6 @@ const ViewFollowup: React.FC<Props> = ({
                     {/* ── Meeting Summary ──────────────────────────────── */}
                     {followup?.meeting_summary && (
                         <>
-                            <div className="border-t border-gray-100" />
                             <Section
                                 title="Meeting Summary"
                                 icon={<FileTextOutlined />}
@@ -581,7 +568,6 @@ const ViewFollowup: React.FC<Props> = ({
                     {/* ── Remarks / Agenda ─────────────────────────────── */}
                     {followup?.remark && (
                         <>
-                            <div className="border-t border-gray-100" />
                             <Section
                                 title="Agenda & Remarks"
                                 icon={<FileTextOutlined />}
@@ -600,8 +586,7 @@ const ViewFollowup: React.FC<Props> = ({
                         !isNonVideoLocation ||
                         (isCreator && followup?.status === "scheduled")) && (
                         <>
-                            <div className="border-t border-gray-100" />
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap pt-1">
                                 {hasValidLink && (
                                     <Button
                                         type="primary"
