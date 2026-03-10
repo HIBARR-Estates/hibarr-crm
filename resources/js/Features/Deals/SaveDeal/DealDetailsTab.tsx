@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
     Row,
     Col,
@@ -71,7 +71,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     } = props;
 
     const [pipelineId, setPipelineId] = useState<number>();
+    const pipelineIdRef = useRef<number | undefined>(pipelineId);
     const [selectedCategoryId, setSelectedCategoryId] = useState<number>();
+
+    useEffect(() => {
+        pipelineIdRef.current = pipelineId;
+    }, [pipelineId]);
 
     // Populate form when data changes
     useEffect(() => {
@@ -128,7 +133,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
 
             if (
                 typeof formData.pipeline !== "undefined" &&
-                formData.pipeline !== pipelineId
+                formData.pipeline !== pipelineIdRef.current
             ) {
                 onPipelineChange?.(formData.pipeline);
             }
