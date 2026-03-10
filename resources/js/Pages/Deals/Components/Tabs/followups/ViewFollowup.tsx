@@ -4,8 +4,6 @@ import { DealFollowup } from "@/Types/api/deal-followup";
 import { IModalProps } from "@/Types/common";
 import {
     Drawer,
-    Typography,
-    Tag,
     Tooltip,
     Button,
     Modal,
@@ -13,23 +11,19 @@ import {
     TimePicker,
     InputNumber,
     Form,
-    Divider,
     Avatar,
 } from "antd";
 import {
     CalendarOutlined,
     EditOutlined,
     EnvironmentOutlined,
-    LinkOutlined,
     UserOutlined,
     VideoCameraOutlined,
     TeamOutlined,
     PhoneOutlined,
     FileTextOutlined,
-    ClockCircleOutlined,
     ThunderboltOutlined,
     ScheduleOutlined,
-    DollarOutlined,
     FundProjectionScreenOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -37,11 +31,8 @@ import utc from "dayjs/plugin/utc";
 import { usePage, router } from "@inertiajs/react";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
-import { getStatusColor } from "@/lib/utils";
 
 dayjs.extend(utc);
-
-const { Title, Text } = Typography;
 
 const DEFAULT_DURATION = 30;
 
@@ -259,7 +250,7 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
     );
 };
 
-// ─── Section Card ────────────────────────────────────────────────────────────
+// ─── Section ─────────────────────────────────────────────────────────────────
 
 interface SectionProps {
     title: string;
@@ -274,30 +265,30 @@ const Section: React.FC<SectionProps> = ({
     children,
     className = "",
 }) => (
-    <div
-        className={`border border-gray-200 rounded-lg overflow-hidden ${className}`}
-    >
-        <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-0 flex items-center gap-2">
-                {icon}
+    <div className={`bg-gray-50/70 rounded-xl px-5 py-4 ${className}`}>
+        <div className="flex items-center gap-1.5 mb-3">
+            {icon && <span className="text-xs opacity-50">{icon}</span>}
+            <span className="text-[11px] font-medium text-gray-400 uppercase tracking-widest">
                 {title}
-            </h3>
+            </span>
         </div>
-        <div className="p-4">{children}</div>
+        <div>{children}</div>
     </div>
 );
 
-// ─── Detail Row ──────────────────────────────────────────────────────────────
+// ─── Detail Field (vertical stack) ───────────────────────────────────────────
 
-const DetailRow: React.FC<{
+const DetailField: React.FC<{
     label: string;
     children: React.ReactNode;
 }> = ({ label, children }) => (
-    <div className="flex items-start justify-between py-2 border-b border-gray-50 last:border-b-0">
-        <span className="text-xs text-gray-500 uppercase tracking-wide font-medium min-w-[100px]">
+    <div>
+        <span className="text-[11px] text-gray-400 font-medium block mb-0.5">
             {label}
         </span>
-        <span className="text-sm text-gray-800 text-right">{children}</span>
+        <span className="text-[13px] text-gray-800 leading-snug">
+            {children}
+        </span>
     </div>
 );
 
@@ -347,47 +338,49 @@ const ViewFollowup: React.FC<Props> = ({
         <>
             <Drawer
                 title={
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                         {/* Tags row */}
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                             {followup?.meeting_type && (
-                                <Tag color="blue" className="text-xs m-0">
+                                <span className="text-[11px] leading-none font-medium rounded-full px-2.5 py-1 bg-blue-100 text-blue-700">
                                     {followup.meeting_type.name}
-                                </Tag>
+                                </span>
                             )}
                             {live && (
-                                <Tag
-                                    color="red"
-                                    className="text-xs m-0 animate-pulse"
-                                >
-                                    <ThunderboltOutlined className="mr-1" />
+                                <span className="text-[11px] leading-none font-medium rounded-full px-2.5 py-1 bg-red-100 text-red-700 animate-pulse inline-flex items-center gap-0.5">
+                                    <ThunderboltOutlined />
                                     Live
-                                </Tag>
+                                </span>
                             )}
-                            <Tag
-                                color={
+                            <span
+                                className={`text-[11px] leading-none font-medium rounded-full px-2.5 py-1 capitalize ${
                                     live
-                                        ? "red"
-                                        : getStatusColor(followup?.status)
-                                }
-                                className="text-xs m-0 capitalize"
+                                        ? "bg-red-100 text-red-700"
+                                        : followup?.status === "scheduled"
+                                          ? "bg-amber-100 text-amber-700"
+                                          : followup?.status === "completed"
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-gray-200 text-gray-600"
+                                }`}
                             >
                                 {live ? "In Progress" : followup?.status}
-                            </Tag>
+                            </span>
                         </div>
                         {/* Title row */}
                         <div className="flex items-center justify-between">
                             <Tooltip title={meetingTitle}>
-                                <span className="text-base font-semibold truncate max-w-[320px] block">
+                                <span className="text-base font-semibold text-gray-900 truncate max-w-[320px] block leading-tight">
                                     {meetingTitle}
                                 </span>
                             </Tooltip>
                             {onEdit && (
-                                <Tooltip title="Edit Meeting">
-                                    <EditOutlined
-                                        className="cursor-pointer text-blue-600 hover:text-blue-800 text-sm"
+                                <Tooltip title="Edit">
+                                    <button
                                         onClick={handleEdit}
-                                    />
+                                        className="text-gray-400 hover:text-gray-700 transition-colors p-1 -mr-1"
+                                    >
+                                        <EditOutlined className="text-sm" />
+                                    </button>
                                 </Tooltip>
                             )}
                         </div>
@@ -399,74 +392,70 @@ const ViewFollowup: React.FC<Props> = ({
                 onClose={() => onClose()}
                 destroyOnHidden
                 className="view-followup-drawer"
+                styles={{
+                    body: { padding: "20px 24px" },
+                    header: {
+                        borderBottom: "1px solid #f3f4f6",
+                    },
+                }}
             >
-                <div className="space-y-5">
+                <div className="space-y-4">
                     {/* ── Meeting Details ──────────────────────────────── */}
-                    <Section
-                        title="Meeting Details"
-                        icon={<CalendarOutlined className="text-blue-600" />}
-                    >
-                        <div className="space-y-0">
-                            <DetailRow label="Date">
-                                {localDate.format("MMMM DD, YYYY")}
-                            </DetailRow>
-                            <DetailRow label="Time">
+                    <Section title="Details" icon={<CalendarOutlined />}>
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                            <DetailField label="Date">
+                                {localDate.format("MMM DD, YYYY")}
+                            </DetailField>
+                            <DetailField label="Time">
                                 {localDate.format("h:mm A")}
-                            </DetailRow>
-                            <DetailRow label="Platform">
+                            </DetailField>
+                            <DetailField label="Platform">
                                 <span className="inline-flex items-center gap-1.5">
                                     {getMeetingIcon(followup?.location || "")}
-                                    <span className="capitalize">
-                                        {getLocationLabel(
-                                            followup?.location || "office",
-                                        )}
-                                    </span>
+                                    {getLocationLabel(
+                                        followup?.location || "office",
+                                    )}
                                 </span>
-                            </DetailRow>
-                            <DetailRow label="Scheduled By">
+                            </DetailField>
+                            <DetailField label="Duration">
+                                <span className="inline-flex items-center gap-1.5">
+                                    {effectiveDuration} min
+                                    {live && elapsedMinutes !== null && (
+                                        <span className="text-[11px] text-red-500 font-medium">
+                                            ({elapsedMinutes}m elapsed)
+                                        </span>
+                                    )}
+                                </span>
+                            </DetailField>
+                            <DetailField label="Scheduled by">
                                 {followup?.added_by ? (
                                     <span className="inline-flex items-center gap-1.5">
                                         <Avatar
-                                            size={20}
+                                            size={18}
                                             src={followup.added_by.image_url}
                                             icon={<UserOutlined />}
+                                            className="flex-shrink-0"
                                         />
                                         {followup.added_by.name}
                                     </span>
                                 ) : (
-                                    <Text type="secondary">--</Text>
+                                    <span className="text-gray-400">--</span>
                                 )}
-                            </DetailRow>
-                            <DetailRow label="Duration">
-                                <span className="inline-flex items-center gap-1.5">
-                                    <ClockCircleOutlined className="text-gray-400" />
-                                    {effectiveDuration} min
-                                    {live && elapsedMinutes !== null && (
-                                        <Tag
-                                            color="red"
-                                            className="text-xs m-0 ml-1"
-                                        >
-                                            {elapsedMinutes} min elapsed
-                                        </Tag>
-                                    )}
-                                </span>
-                            </DetailRow>
+                            </DetailField>
                         </div>
                     </Section>
 
                     {/* ── Deal Information ─────────────────────────────── */}
                     <Section
                         title="Deal"
-                        icon={
-                            <FundProjectionScreenOutlined className="text-indigo-600" />
-                        }
+                        icon={<FundProjectionScreenOutlined />}
                     >
-                        <div className="space-y-0">
-                            <DetailRow label="Deal Name">
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                            <DetailField label="Name">
                                 {deal?.name ? (
                                     <a
                                         href={`/account/deals/${deal.id}`}
-                                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                        className="text-gray-900 hover:text-blue-600 transition-colors font-medium"
                                         onClick={(e) => {
                                             e.preventDefault();
                                             router.visit(
@@ -477,159 +466,164 @@ const ViewFollowup: React.FC<Props> = ({
                                         {deal.name}
                                     </a>
                                 ) : (
-                                    <Text type="secondary">--</Text>
+                                    <span className="text-gray-400">--</span>
                                 )}
-                            </DetailRow>
-                            <DetailRow label="Value">
+                            </DetailField>
+                            <DetailField label="Value">
                                 {deal?.value ? (
-                                    <span className="font-medium">
+                                    <span className="font-medium tabular-nums">
                                         {deal?.currency?.currency_symbol || "$"}
                                         {Number(deal.value).toLocaleString()}
                                     </span>
                                 ) : (
-                                    <Text type="secondary">--</Text>
+                                    <span className="text-gray-400">--</span>
                                 )}
-                            </DetailRow>
-                            <DetailRow label="Stage">
+                            </DetailField>
+                            <DetailField label="Stage">
                                 {deal?.lead_stage ? (
-                                    <Tag
-                                        color={
-                                            deal.lead_stage.label_color ||
-                                            "blue"
-                                        }
-                                    >
+                                    <span className="inline-flex items-center gap-1.5 text-[13px]">
+                                        <span
+                                            className="w-2 h-2 rounded-full flex-shrink-0"
+                                            style={{
+                                                backgroundColor:
+                                                    deal.lead_stage
+                                                        .label_color ||
+                                                    "#3b82f6",
+                                            }}
+                                        />
                                         {deal.lead_stage.name}
-                                    </Tag>
+                                    </span>
                                 ) : (
-                                    <Text type="secondary">--</Text>
+                                    <span className="text-gray-400">--</span>
                                 )}
-                            </DetailRow>
+                            </DetailField>
                             {deal?.contact && (
-                                <DetailRow label="Client">
+                                <DetailField label="Client">
                                     {deal.contact.client_name}
-                                </DetailRow>
+                                </DetailField>
                             )}
                         </div>
                     </Section>
 
                     {/* ── Participants ─────────────────────────────────── */}
-                    <Section
-                        title="Participants"
-                        icon={<TeamOutlined className="text-green-600" />}
-                    >
+                    <Section title="Participants" icon={<TeamOutlined />}>
                         {participantUsers.length > 0 ? (
-                            <div className="flex items-center gap-3">
-                                <MultiUserIndicator
-                                    users={participantUsers}
-                                    size="sm"
-                                    maxCount={8}
-                                    showNames={true}
-                                    direction="vertical"
-                                />
-                            </div>
+                            <MultiUserIndicator
+                                users={participantUsers}
+                                size="sm"
+                                maxCount={8}
+                                showNames={true}
+                                direction="vertical"
+                            />
                         ) : (
-                            <Text type="secondary" italic>
+                            <p className="text-[13px] text-gray-400 italic mb-0">
                                 No participants listed
-                            </Text>
+                            </p>
                         )}
                     </Section>
 
                     {/* ── Meeting Summary ──────────────────────────────── */}
                     {followup?.meeting_summary && (
-                        <Section
-                            title="Meeting Summary"
-                            icon={
-                                <FileTextOutlined className="text-green-600" />
-                            }
-                            className="border-green-200"
-                        >
-                            {Object.keys(
-                                followup.meeting_summary.summary_object,
-                            ).length > 0 ? (
-                                <div className="space-y-3">
-                                    {Object.entries(
-                                        followup.meeting_summary.summary_object,
-                                    ).map(([key, value]) => (
-                                        <div
-                                            key={key}
-                                            className="border-b border-green-50 pb-3 last:border-b-0 last:pb-0"
-                                        >
-                                            <p className="text-xs font-semibold text-green-800 uppercase tracking-wide mb-1">
-                                                {key.replace(/[_-]/g, " ")}
-                                            </p>
-                                            <p className="text-sm text-gray-700 mb-0">
-                                                {value}
-                                            </p>
-                                        </div>
-                                    ))}
-                                    <p className="text-xs text-gray-400 mt-2 mb-0">
-                                        Generated on{" "}
-                                        {dayjs(
-                                            followup.meeting_summary.created_at,
-                                        ).format("MMM DD, YYYY [at] h:mm A")}
+                        <>
+                            <Section
+                                title="Meeting Summary"
+                                icon={<FileTextOutlined />}
+                            >
+                                {Object.keys(
+                                    followup.meeting_summary.summary_object,
+                                ).length > 0 ? (
+                                    <div className="space-y-4">
+                                        {Object.entries(
+                                            followup.meeting_summary
+                                                .summary_object,
+                                        ).map(([key, value]) => (
+                                            <div key={key}>
+                                                <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider block mb-1">
+                                                    {key.replace(/[_-]/g, " ")}
+                                                </span>
+                                                <p className="text-[13px] text-gray-700 leading-relaxed mb-0">
+                                                    {value}
+                                                </p>
+                                            </div>
+                                        ))}
+                                        <p className="text-[11px] text-gray-300 mt-3 mb-0">
+                                            Generated{" "}
+                                            {dayjs(
+                                                followup.meeting_summary
+                                                    .created_at,
+                                            ).format(
+                                                "MMM DD, YYYY [at] h:mm A",
+                                            )}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-[13px] text-gray-400 italic mb-0">
+                                        Summary recorded but contains no data
                                     </p>
-                                </div>
-                            ) : (
-                                <Text type="secondary" italic>
-                                    Meeting summary is available but contains no
-                                    data
-                                </Text>
-                            )}
-                        </Section>
+                                )}
+                            </Section>
+                        </>
                     )}
 
                     {/* ── Remarks / Agenda ─────────────────────────────── */}
                     {followup?.remark && (
-                        <Section
-                            title="Agenda & Remarks"
-                            icon={
-                                <FileTextOutlined className="text-gray-500" />
-                            }
-                        >
-                            <ContentRenderer
-                                content={followup.remark}
-                                showFullContent={true}
-                                className="prose prose-sm max-w-none"
-                            />
-                        </Section>
+                        <>
+                            <Section
+                                title="Agenda & Remarks"
+                                icon={<FileTextOutlined />}
+                            >
+                                <ContentRenderer
+                                    content={followup.remark}
+                                    showFullContent={true}
+                                    className="prose prose-sm max-w-none text-[13px] text-gray-700"
+                                />
+                            </Section>
+                        </>
                     )}
 
-                    {/* ── Meeting Link + Reschedule ────────────────────── */}
-                    <div className="flex items-center justify-between gap-3 flex-wrap pt-2">
-                        {/* Meeting Link */}
-                        <div>
-                            {hasValidLink ? (
-                                <Button
-                                    type="primary"
-                                    icon={getMeetingIcon(
-                                        followup?.location || "",
+                    {/* ── Actions (Meeting Link + Reschedule) ──────────── */}
+                    {(hasValidLink ||
+                        !isNonVideoLocation ||
+                        (isCreator && followup?.status === "scheduled")) && (
+                        <>
+                            <div className="flex items-center gap-2 flex-wrap pt-1">
+                                {hasValidLink && (
+                                    <Button
+                                        type="primary"
+                                        icon={getMeetingIcon(
+                                            followup?.location || "",
+                                        )}
+                                        href={followup.meeting_link}
+                                        size="small"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="bg-gray-900 hover:bg-gray-800 border-gray-900 rounded-md text-[13px] shadow-none"
+                                    >
+                                        Join Meeting
+                                    </Button>
+                                )}
+                                {!hasValidLink && !isNonVideoLocation && (
+                                    <span className="text-[13px] text-gray-400">
+                                        No meeting link
+                                    </span>
+                                )}
+                                {isCreator &&
+                                    followup?.status === "scheduled" && (
+                                        <Button
+                                            icon={<ScheduleOutlined />}
+                                            onClick={() =>
+                                                setRescheduleOpen(true)
+                                            }
+                                            disabled={live}
+                                            size="small"
+                                            className="rounded-md text-[13px] shadow-none"
+                                        >
+                                            Reschedule
+                                        </Button>
                                     )}
-                                    href={followup.meeting_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-blue-600 hover:bg-blue-700"
-                                >
-                                    Join Meeting
-                                </Button>
-                            ) : !isNonVideoLocation ? (
-                                <Text type="secondary" className="text-sm">
-                                    No meeting link available
-                                </Text>
-                            ) : null}
-                        </div>
-
-                        {/* Reschedule Button — only for creator */}
-                        {isCreator && followup?.status === "scheduled" && (
-                            <Button
-                                icon={<ScheduleOutlined />}
-                                onClick={() => setRescheduleOpen(true)}
-                                disabled={live}
-                                size="small"
-                            >
-                                Reschedule
-                            </Button>
-                        )}
-                    </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </Drawer>
 
