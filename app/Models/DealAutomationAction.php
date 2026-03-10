@@ -14,9 +14,12 @@ class DealAutomationAction extends BaseModel
     // Mass assignable attributes
     protected $fillable = [
         'deal_automation_id',
+        'action_type',
         'target_stage_id',
         'target_pipeline_id',
         'forward_only',
+        'field_name',
+        'field_value',
     ];
 
     protected $casts = [
