@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\LeadPipeline;
 use App\Models\Package;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
@@ -136,54 +137,64 @@ class DealGatheringService
     }
 
     /**
-     * Get dynamic steps based on Custom Field Categories
+     * Get dynamic steps based on Custom Field Categories.
+     * When $pipelineId is provided and that pipeline has categories assigned (pivot),
+     * only those categories are returned; otherwise all deal categories (backward compatibility).
+     *
+     * @param int|null $pipelineId Optional. When set, steps are filtered to this pipeline's categories.
+     * @return array
      */
-    public function getSteps()
+    public function getSteps(?int $pipelineId = null)
     {
-        // Assuming CustomFieldGroup for 'Deal' model contains categories
-        // We need to fetch categories associated with Deal model
-        
-        $group = CustomFieldGroup::where('model', 'App\Models\Deal')->first();
+        $group = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
 
         if (!$group) {
             return [];
         }
 
-        $categories = CustomFieldCategory::where('custom_field_group_id', $group->id)
+        $categoriesQuery = CustomFieldCategory::where('custom_field_group_id', $group->id)
+            ->where('company_id', company()->id)
             ->orderBy(DB::raw('`order`'), 'asc')
-            ->orderBy('id', 'asc')
-            ->with(['customFields' => function($q) {
-                // Order by display_order, don't filter by 'visible' as that's for table display
+            ->orderBy('id', 'asc');
+
+        // Filter by pipeline's assigned categories when pipeline has any
+        if ($pipelineId) {
+            $pipeline = LeadPipeline::with('customFieldCategories:id')->find($pipelineId);
+            if ($pipeline && $pipeline->customFieldCategories->isNotEmpty()) {
+                $categoryIds = $pipeline->customFieldCategories->pluck('id')->toArray();
+                $categoriesQuery->whereIn('id', $categoryIds);
+            }
+        }
+
+        $categories = $categoriesQuery
+            ->with(['customFields' => function ($q) {
                 $q->orderBy('display_order')
-                  ->with([
-                      'showRuleSet' => function($query) {
-                          // Load rule set with enabled groups and their criteria
-                          $query->with([
-                              'groups' => function($groupQuery) {
-                                  // Only load enabled groups to improve performance
-                                  $groupQuery->where('enabled', true)
-                                             ->orderBy('id')
-                                             ->with('criteria.referenceField');
-                              },
-                              // Also load single group for backward compatibility
-                              'group.criteria.referenceField'
-                          ]);
-                      }
-                  ]);
+                    ->with([
+                        'showRuleSet' => function ($query) {
+                            $query->with([
+                                'groups' => function ($groupQuery) {
+                                    $groupQuery->where('enabled', true)
+                                        ->orderBy('id')
+                                        ->with('criteria.referenceField');
+                                },
+                                'group.criteria.referenceField'
+                            ]);
+                        }
+                    ]);
             }])
             ->get();
-            
-        // Map to steps - only include categories that have fields
+
         return $categories
-            ->filter(fn($category) => $category->customFields->count() > 0)
-            ->map(function($category) {
+            ->filter(fn ($category) => $category->customFields->count() > 0)
+            ->map(function ($category) {
                 return [
                     'id' => $category->id,
                     'title' => $category->name,
-                    'fields' => $category->customFields
+                    'fields' => $category->customFields,
                 ];
             })
-            ->values();
+            ->values()
+            ->all();
     }
 
     /**

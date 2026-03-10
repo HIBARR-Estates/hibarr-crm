@@ -26,7 +26,9 @@ trait DealFormDataTrait
      */
     public function getDealFormData()
     {
-        $pipelines = LeadPipeline::all();
+        $pipelines = LeadPipeline::query()
+            ->with('customFieldCategories:id')
+            ->get();
         $defaultPipeline = LeadPipeline::where('default', 1)->first();
         $stages = PipelineStage::all();
         
@@ -45,6 +47,14 @@ trait DealFormDataTrait
                 ->orderBy('id', 'asc')
                 ->get();
         }
+
+        $pipelineCustomFieldCategoryIdsByPipeline = $pipelines
+            ->mapWithKeys(function (LeadPipeline $pipeline) {
+                return [
+                    (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
+                ];
+            })
+            ->toArray();
 
         return [
             'leadPipelines' => $pipelines,
@@ -70,6 +80,7 @@ trait DealFormDataTrait
             'packages' => Package::all(),
             'customFields' => $fields,
             'customFieldCategories' => $customFieldCategories,
+            'pipelineCustomFieldCategoryIdsByPipeline' => $pipelineCustomFieldCategoryIdsByPipeline,
         ];
     }
 }

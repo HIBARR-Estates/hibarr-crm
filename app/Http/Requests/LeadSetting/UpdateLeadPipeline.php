@@ -26,7 +26,9 @@ class UpdateLeadPipeline extends CoreRequest
     {
         return [
             'name' => 'required|unique:lead_pipelines,name,'.$this->route('lead_pipeline_setting').',id,company_id,' . company()->id,
-            'label_color' => 'required'
+            'label_color' => 'required',
+            'category_ids' => 'nullable|array',
+            'category_ids.*' => 'integer|exists:custom_field_categories,id',
         ];
     }
 

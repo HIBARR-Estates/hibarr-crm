@@ -34,6 +34,7 @@ interface DealDetailsTabProps
     > {
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
+    onPipelineChange?: (pipelineId: number | undefined) => void;
 }
 
 const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
@@ -47,6 +48,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     setErrors,
     setDeal,
     disableFields = [], // prop to disable fields
+    onPipelineChange,
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
@@ -150,6 +152,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         form.setFieldValue("pipeline", pipelineId);
         form.setFieldValue("stage_id", undefined); // Reset stage when pipeline changes
         setPipelineId(pipelineId);
+        onPipelineChange?.(pipelineId);
     };
 
     // Fetch agents when category changes
