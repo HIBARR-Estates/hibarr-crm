@@ -60,8 +60,11 @@ class LeadPipelineSettingController extends AccountBaseController
      */
     public function edit($id)
     {
-        $this->pipeline = LeadPipeline::with('customFieldCategories')->findOrFail($id);
-        $this->maxPriority = LeadPipeline::max('priority');
+        $this->pipeline = LeadPipeline::with('customFieldCategories')
+            ->where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
+          $this->maxPriority = LeadPipeline::max('priority');
 
         $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
         $this->customFieldCategories = collect();
@@ -85,12 +88,17 @@ class LeadPipelineSettingController extends AccountBaseController
      */
     public function update(UpdateLeadPipeline $request, $id)
     {
-        $pipeline = LeadPipeline::findOrFail($id);
+        $pipeline = LeadPipeline::where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
         $pipeline->name = $request->name;
         $pipeline->label_color = $request->label_color;
         $pipeline->save();
 
-        $pipeline->customFieldCategories()->sync($request->input('category_ids', []));
+        $validated = $request->validated();
+        $categoryIds = $validated['category_ids'] ?? [];
+
+        $pipeline->customFieldCategories()->sync($categoryIds);
 
         return Reply::success(__('messages.updateSuccess'));
     }

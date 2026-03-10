@@ -134,7 +134,6 @@
             container: '#editStatus',
             type: "POST",
             blockUI: true,
-            blockUI: true,
             disableButton: true,
             buttonSelector: "#save-status",
             data: $('#editStatus').serialize(),
