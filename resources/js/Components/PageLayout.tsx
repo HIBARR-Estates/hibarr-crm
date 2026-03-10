@@ -142,7 +142,7 @@ export default function PageLayout({
                             </div>
                         )}
                         <div className="ml-auto flex items-center gap-4">
-                            <LanguageSwitcher compact />
+                            {/* <LanguageSwitcher compact /> */}
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}

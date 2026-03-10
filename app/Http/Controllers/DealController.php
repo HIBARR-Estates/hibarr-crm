@@ -1611,6 +1611,11 @@ class DealController extends AccountBaseController
         if ($request->has('participants') && is_array($request->participants)) {
             $followUp->participants = $request->participants;
         }
+
+        // Set duration if provided (otherwise defaults to 30 via model)
+        if ($request->has('duration')) {
+            $followUp->duration = $request->duration;
+        }
         
         $followUp->status = 'scheduled';
 
@@ -1713,6 +1718,11 @@ class DealController extends AccountBaseController
         // Set participants if provided
         if ($request->has('participants') && is_array($request->participants)) {
             $followUp->participants = $request->participants;
+        }
+
+        // Set duration if provided
+        if ($request->has('duration')) {
+            $followUp->duration = $request->duration;
         }
 
         $followUp->save();

@@ -59,6 +59,10 @@
         "mollie/laravel-mollie": "^2.0",
         "nwidart/laravel-modules": "10.0.6",
         "opcodesio/log-viewer": "^3.8",
+        "open-telemetry/exporter-otlp": "*",
+        "open-telemetry/opentelemetry-logger-monolog": "*",
+        "open-telemetry/sdk": "*",
+        "open-telemetry/sem-conv": "*",
         "paragonie/random_compat": "^9.99",
         "paypal/rest-api-sdk-php": "dev-laravel10",
         "pcinaglia/laraupdater": "^1.0",
@@ -139,7 +143,8 @@
             "composer/package-versions-deprecated": true,
             "phpro/grumphp": true,
             "pestphp/pest-plugin": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "tbachert/spi": true
         },
         "audit": {
             "ignore": [

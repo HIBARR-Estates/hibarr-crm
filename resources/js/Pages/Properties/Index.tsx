@@ -214,9 +214,13 @@ const Index = ({
             // Leaving CP tab — allow URL-based sync again
             cpTabRef.current = false;
             setActiveTab(tab); // Optimistic update — navigate listener will confirm
-
             // Map tab to backend filter params
-            const params: Record<string, any> = { page: 1 };
+            const params: Record<string, any> = {
+                page: 1,
+                per_page: 15,
+                sort_by: "",
+                sort_direction: "asc",
+            };
             if (tab === "properties") {
                 params.publishing_status = "published";
             } else if (tab === "my_drafts") {
