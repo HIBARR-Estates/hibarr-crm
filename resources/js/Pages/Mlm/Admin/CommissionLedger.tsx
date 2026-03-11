@@ -245,192 +245,200 @@ const MlmCommissionLedger: React.FC<Props> = ({
             <PageLayout
                 title="Commission Ledger"
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm" },
+                    { name: "MLM", url: "/account/mlm/dashboard" },
                     { name: "Commission Ledger" },
                 ]}
             >
-                {/* Summary Cards */}
-                <Row gutter={[16, 16]} className="mb-6">
-                    <Col xs={12} sm={8}>
-                        <Card size="small" className="shadow-sm">
-                            <Statistic
-                                title="Page Total"
-                                value={totalAmount}
-                                prefix="$"
-                                precision={2}
-                                valueStyle={{ color: "#16a34a" }}
-                            />
-                        </Card>
-                    </Col>
-                    <Col xs={12} sm={8}>
-                        <Card size="small" className="shadow-sm">
-                            <Statistic
-                                title="Pending"
-                                value={pendingCount}
-                                valueStyle={{ color: "#ea580c" }}
-                            />
-                        </Card>
-                    </Col>
-                    <Col xs={12} sm={8}>
-                        <Card size="small" className="shadow-sm">
-                            <Statistic
-                                title="Paid"
-                                value={paidCount}
-                                valueStyle={{ color: "#16a34a" }}
-                            />
-                        </Card>
-                    </Col>
-                </Row>
+                <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Summary Cards */}
+                    <Row gutter={[16, 16]} className="mb-6">
+                        <Col xs={12} sm={8}>
+                            <Card size="small" className="shadow-sm">
+                                <Statistic
+                                    title="Page Total"
+                                    value={totalAmount}
+                                    prefix="$"
+                                    precision={2}
+                                    valueStyle={{ color: "#16a34a" }}
+                                />
+                            </Card>
+                        </Col>
+                        <Col xs={12} sm={8}>
+                            <Card size="small" className="shadow-sm">
+                                <Statistic
+                                    title="Pending"
+                                    value={pendingCount}
+                                    valueStyle={{ color: "#ea580c" }}
+                                />
+                            </Card>
+                        </Col>
+                        <Col xs={12} sm={8}>
+                            <Card size="small" className="shadow-sm">
+                                <Statistic
+                                    title="Paid"
+                                    value={paidCount}
+                                    valueStyle={{ color: "#16a34a" }}
+                                />
+                            </Card>
+                        </Col>
+                    </Row>
 
-                {/* Filters */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="mb-4"
-                >
-                    <Card size="small" className="shadow-sm">
-                        <div className="flex flex-wrap gap-3 items-center">
-                            <Filter size={16} className="text-gray-400" />
-                            <Select
-                                placeholder="Status"
-                                allowClear
-                                className="w-36"
-                                options={Object.entries(
-                                    COMMISSION_STATUS_LABELS,
-                                ).map(([v, l]) => ({ value: v, label: l }))}
-                                onChange={(v) =>
-                                    setFilters((f) => ({
-                                        ...f,
-                                        status: v,
-                                    }))
-                                }
-                            />
-                            <Select
-                                placeholder="Type"
-                                allowClear
-                                className="w-36"
-                                options={Object.entries(
-                                    COMMISSION_TYPE_LABELS,
-                                ).map(([v, l]) => ({ value: v, label: l }))}
-                                onChange={(v) =>
-                                    setFilters((f) => ({
-                                        ...f,
-                                        type: v,
-                                    }))
-                                }
-                            />
-                            <RangePicker
-                                onChange={(dates) => {
-                                    if (dates && dates[0] && dates[1]) {
+                    {/* Filters */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="mb-4"
+                    >
+                        <Card size="small" className="shadow-sm">
+                            <div className="flex flex-wrap gap-3 items-center">
+                                <Filter size={16} className="text-gray-400" />
+                                <Select
+                                    placeholder="Status"
+                                    allowClear
+                                    className="w-36"
+                                    options={Object.entries(
+                                        COMMISSION_STATUS_LABELS,
+                                    ).map(([v, l]) => ({ value: v, label: l }))}
+                                    onChange={(v) =>
                                         setFilters((f) => ({
                                             ...f,
-                                            date_from:
-                                                dates[0]!.format("YYYY-MM-DD"),
-                                            date_to:
-                                                dates[1]!.format("YYYY-MM-DD"),
-                                        }));
-                                    } else {
-                                        setFilters((f) => {
-                                            const {
-                                                date_from,
-                                                date_to,
-                                                ...rest
-                                            } = f;
-                                            return rest;
-                                        });
+                                            status: v,
+                                        }))
                                     }
+                                />
+                                <Select
+                                    placeholder="Type"
+                                    allowClear
+                                    className="w-36"
+                                    options={Object.entries(
+                                        COMMISSION_TYPE_LABELS,
+                                    ).map(([v, l]) => ({ value: v, label: l }))}
+                                    onChange={(v) =>
+                                        setFilters((f) => ({
+                                            ...f,
+                                            type: v,
+                                        }))
+                                    }
+                                />
+                                <RangePicker
+                                    onChange={(dates) => {
+                                        if (dates && dates[0] && dates[1]) {
+                                            setFilters((f) => ({
+                                                ...f,
+                                                date_from:
+                                                    dates[0]!.format(
+                                                        "YYYY-MM-DD",
+                                                    ),
+                                                date_to:
+                                                    dates[1]!.format(
+                                                        "YYYY-MM-DD",
+                                                    ),
+                                            }));
+                                        } else {
+                                            setFilters((f) => {
+                                                const {
+                                                    date_from,
+                                                    date_to,
+                                                    ...rest
+                                                } = f;
+                                                return rest;
+                                            });
+                                        }
+                                    }}
+                                />
+                                <div className="flex-1" />
+
+                                {selectedRows.length > 0 && (
+                                    <Button
+                                        type="primary"
+                                        icon={<CheckCircle size={14} />}
+                                        onClick={() =>
+                                            bulkMarkPaid.mutate({
+                                                ids: selectedRows,
+                                            })
+                                        }
+                                        loading={bulkMarkPaid.isPending}
+                                    >
+                                        Mark {selectedRows.length} Paid
+                                    </Button>
+                                )}
+
+                                <Button
+                                    icon={<Download size={14} />}
+                                    onClick={handleExport}
+                                >
+                                    Export CSV
+                                </Button>
+                            </div>
+                        </Card>
+                    </motion.div>
+
+                    {/* Table */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.1 }}
+                    >
+                        <Card className="shadow-sm">
+                            <Table
+                                columns={columns}
+                                dataSource={commissions?.data ?? []}
+                                rowKey="id"
+                                loading={isLoading}
+                                size="middle"
+                                rowSelection={{
+                                    selectedRowKeys: selectedRows,
+                                    onChange: (keys) =>
+                                        setSelectedRows(keys as number[]),
+                                    getCheckboxProps: (record) => ({
+                                        disabled: record.status !== "pending",
+                                    }),
+                                }}
+                                pagination={{
+                                    current: commissions?.current_page ?? 1,
+                                    total: commissions?.total ?? 0,
+                                    pageSize: commissions?.per_page ?? 20,
+                                    showSizeChanger: false,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}–${range[1]} of ${total}`,
+                                    onChange: (p) => setPage(p),
                                 }}
                             />
-                            <div className="flex-1" />
+                        </Card>
+                    </motion.div>
 
-                            {selectedRows.length > 0 && (
-                                <Button
-                                    type="primary"
-                                    icon={<CheckCircle size={14} />}
-                                    onClick={() =>
-                                        bulkMarkPaid.mutate({
-                                            ids: selectedRows,
-                                        })
-                                    }
-                                    loading={bulkMarkPaid.isPending}
-                                >
-                                    Mark {selectedRows.length} Paid
-                                </Button>
-                            )}
-
-                            <Button
-                                icon={<Download size={14} />}
-                                onClick={handleExport}
-                            >
-                                Export CSV
-                            </Button>
+                    {/* Revert Modal */}
+                    <Modal
+                        title="Revert Commission"
+                        open={revertModalOpen}
+                        onOk={() =>
+                            revertCommission.mutate({ reason: revertReason })
+                        }
+                        onCancel={() => {
+                            setRevertModalOpen(false);
+                            setRevertReason("");
+                            setRevertId(0);
+                        }}
+                        confirmLoading={revertCommission.isPending}
+                        okText="Revert"
+                        okType="danger"
+                    >
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Reason for reversal
+                            </label>
+                            <Input.TextArea
+                                rows={3}
+                                value={revertReason}
+                                onChange={(e) =>
+                                    setRevertReason(e.target.value)
+                                }
+                                placeholder="e.g. Deal was cancelled, duplicate commission..."
+                            />
                         </div>
-                    </Card>
-                </motion.div>
-
-                {/* Table */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.1 }}
-                >
-                    <Card className="shadow-sm">
-                        <Table
-                            columns={columns}
-                            dataSource={commissions?.data ?? []}
-                            rowKey="id"
-                            loading={isLoading}
-                            size="middle"
-                            rowSelection={{
-                                selectedRowKeys: selectedRows,
-                                onChange: (keys) =>
-                                    setSelectedRows(keys as number[]),
-                                getCheckboxProps: (record) => ({
-                                    disabled: record.status !== "pending",
-                                }),
-                            }}
-                            pagination={{
-                                current: commissions?.current_page ?? 1,
-                                total: commissions?.total ?? 0,
-                                pageSize: commissions?.per_page ?? 20,
-                                showSizeChanger: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}–${range[1]} of ${total}`,
-                                onChange: (p) => setPage(p),
-                            }}
-                        />
-                    </Card>
-                </motion.div>
-
-                {/* Revert Modal */}
-                <Modal
-                    title="Revert Commission"
-                    open={revertModalOpen}
-                    onOk={() =>
-                        revertCommission.mutate({ reason: revertReason })
-                    }
-                    onCancel={() => {
-                        setRevertModalOpen(false);
-                        setRevertReason("");
-                        setRevertId(0);
-                    }}
-                    confirmLoading={revertCommission.isPending}
-                    okText="Revert"
-                    okType="danger"
-                >
-                    <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Reason for reversal
-                        </label>
-                        <Input.TextArea
-                            rows={3}
-                            value={revertReason}
-                            onChange={(e) => setRevertReason(e.target.value)}
-                            placeholder="e.g. Deal was cancelled, duplicate commission..."
-                        />
-                    </div>
-                </Modal>
+                    </Modal>
+                </div>
             </PageLayout>
         </DashboardLayout>
     );

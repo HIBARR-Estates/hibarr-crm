@@ -196,114 +196,116 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
             <PageLayout
                 title="MLM Levels"
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm" },
+                    { name: "MLM", url: "/account/mlm/dashboard" },
                     { name: "Levels" },
                 ]}
             >
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                >
-                    <Card
-                        title={
-                            <span className="font-semibold">
-                                Commission Levels
-                            </span>
-                        }
-                        extra={
-                            <Button
-                                type="primary"
-                                icon={<Plus size={14} />}
-                                onClick={openCreate}
-                            >
-                                Add Level
-                            </Button>
-                        }
-                        className="shadow-sm"
+                <div className="max-w-7xl mx-auto space-y-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
                     >
-                        <Table
-                            columns={columns}
-                            dataSource={levels}
-                            rowKey="id"
-                            loading={isLoading}
-                            pagination={false}
-                            size="middle"
-                            locale={{
-                                emptyText: (
-                                    <Empty description="No levels defined yet. Create one to get started." />
-                                ),
-                            }}
-                        />
-                    </Card>
-                </motion.div>
-
-                {/* Create / Edit Modal */}
-                <Modal
-                    title={editing ? "Edit Level" : "Create Level"}
-                    open={modalOpen}
-                    onOk={handleSubmit}
-                    onCancel={closeModal}
-                    confirmLoading={
-                        createLevel.isPending || updateLevel.isPending
-                    }
-                    okText={editing ? "Save Changes" : "Create"}
-                    destroyOnClose
-                >
-                    <Form form={form} layout="vertical" className="mt-4">
-                        <Form.Item
-                            label="Level Name"
-                            name="name"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Enter a level name",
-                                },
-                            ]}
+                        <Card
+                            title={
+                                <span className="font-semibold">
+                                    Commission Levels
+                                </span>
+                            }
+                            extra={
+                                <Button
+                                    type="primary"
+                                    icon={<Plus size={14} />}
+                                    onClick={openCreate}
+                                >
+                                    Add Level
+                                </Button>
+                            }
+                            className="shadow-sm"
                         >
-                            <Input placeholder="e.g. Bronze, Silver, Gold" />
-                        </Form.Item>
+                            <Table
+                                columns={columns}
+                                dataSource={levels}
+                                rowKey="id"
+                                loading={isLoading}
+                                pagination={false}
+                                size="middle"
+                                locale={{
+                                    emptyText: (
+                                        <Empty description="No levels defined yet. Create one to get started." />
+                                    ),
+                                }}
+                            />
+                        </Card>
+                    </motion.div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                    {/* Create / Edit Modal */}
+                    <Modal
+                        title={editing ? "Edit Level" : "Create Level"}
+                        open={modalOpen}
+                        onOk={handleSubmit}
+                        onCancel={closeModal}
+                        confirmLoading={
+                            createLevel.isPending || updateLevel.isPending
+                        }
+                        okText={editing ? "Save Changes" : "Create"}
+                        destroyOnClose
+                    >
+                        <Form form={form} layout="vertical" className="mt-4">
                             <Form.Item
-                                label="Rank"
-                                name="rank"
+                                label="Level Name"
+                                name="name"
                                 rules={[
                                     {
                                         required: true,
-                                        message: "Enter rank",
+                                        message: "Enter a level name",
                                     },
                                 ]}
-                                tooltip="Lower rank = lower tier. Agents progress upward."
                             >
-                                <InputNumber
-                                    min={1}
-                                    className="w-full"
-                                    placeholder="1"
-                                />
+                                <Input placeholder="e.g. Bronze, Silver, Gold" />
                             </Form.Item>
 
-                            <Form.Item
-                                label="Commission %"
-                                name="commission_percentage"
-                                rules={[
-                                    {
-                                        required: true,
-                                        message: "Enter commission %",
-                                    },
-                                ]}
-                            >
-                                <InputNumber
-                                    min={0}
-                                    max={100}
-                                    className="w-full"
-                                    addonAfter="%"
-                                    placeholder="5"
-                                />
-                            </Form.Item>
-                        </div>
-                    </Form>
-                </Modal>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Form.Item
+                                    label="Rank"
+                                    name="rank"
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: "Enter rank",
+                                        },
+                                    ]}
+                                    tooltip="Lower rank = lower tier. Agents progress upward."
+                                >
+                                    <InputNumber
+                                        min={1}
+                                        className="w-full"
+                                        placeholder="1"
+                                    />
+                                </Form.Item>
+
+                                <Form.Item
+                                    label="Commission %"
+                                    name="commission_percentage"
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: "Enter commission %",
+                                        },
+                                    ]}
+                                >
+                                    <InputNumber
+                                        min={0}
+                                        max={100}
+                                        className="w-full"
+                                        addonAfter="%"
+                                        placeholder="5"
+                                    />
+                                </Form.Item>
+                            </div>
+                        </Form>
+                    </Modal>
+                </div>
             </PageLayout>
         </DashboardLayout>
     );

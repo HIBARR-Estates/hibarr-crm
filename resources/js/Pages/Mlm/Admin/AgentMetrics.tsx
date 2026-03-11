@@ -142,72 +142,74 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
             <PageLayout
                 title="Agent Metrics"
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm" },
+                    { name: "MLM", url: "/account/mlm/dashboard" },
                     { name: "Agent Metrics" },
                 ]}
             >
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                >
-                    <Card
-                        title={
-                            <div className="flex items-center gap-2">
-                                <BarChart3
-                                    size={18}
-                                    className="text-indigo-500"
-                                />
-                                <span className="font-semibold">
-                                    Agent Performance Metrics
-                                </span>
-                            </div>
-                        }
-                        className="shadow-sm"
+                <div className="max-w-7xl mx-auto space-y-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
                     >
-                        {/* Search / Filters */}
-                        <div className="flex flex-wrap gap-3 mb-4">
-                            <Input
-                                prefix={<Search size={14} />}
-                                placeholder="Search agent..."
-                                className="w-64"
-                                allowClear
-                                value={search}
-                                onChange={(e) => {
-                                    setSearch(e.target.value);
-                                    setPage(1);
+                        <Card
+                            title={
+                                <div className="flex items-center gap-2">
+                                    <BarChart3
+                                        size={18}
+                                        className="text-indigo-500"
+                                    />
+                                    <span className="font-semibold">
+                                        Agent Performance Metrics
+                                    </span>
+                                </div>
+                            }
+                            className="shadow-sm"
+                        >
+                            {/* Search / Filters */}
+                            <div className="flex flex-wrap gap-3 mb-4">
+                                <Input
+                                    prefix={<Search size={14} />}
+                                    placeholder="Search agent..."
+                                    className="w-64"
+                                    allowClear
+                                    value={search}
+                                    onChange={(e) => {
+                                        setSearch(e.target.value);
+                                        setPage(1);
+                                    }}
+                                />
+                            </div>
+
+                            <Table
+                                columns={columns}
+                                dataSource={metrics?.data ?? []}
+                                rowKey="id"
+                                loading={isLoading}
+                                size="middle"
+                                expandable={{
+                                    expandedRowRender,
+                                    rowExpandable: (record) =>
+                                        !!record.criteria_progress?.length,
+                                }}
+                                pagination={{
+                                    current: metrics?.current_page ?? 1,
+                                    total: metrics?.total ?? 0,
+                                    pageSize: metrics?.per_page ?? 20,
+                                    showSizeChanger: false,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}–${range[1]} of ${total}`,
+                                    onChange: (p) => setPage(p),
+                                }}
+                                locale={{
+                                    emptyText: (
+                                        <Empty description="No agent metrics found" />
+                                    ),
                                 }}
                             />
-                        </div>
-
-                        <Table
-                            columns={columns}
-                            dataSource={metrics?.data ?? []}
-                            rowKey="id"
-                            loading={isLoading}
-                            size="middle"
-                            expandable={{
-                                expandedRowRender,
-                                rowExpandable: (record) =>
-                                    !!record.criteria_progress?.length,
-                            }}
-                            pagination={{
-                                current: metrics?.current_page ?? 1,
-                                total: metrics?.total ?? 0,
-                                pageSize: metrics?.per_page ?? 20,
-                                showSizeChanger: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}–${range[1]} of ${total}`,
-                                onChange: (p) => setPage(p),
-                            }}
-                            locale={{
-                                emptyText: (
-                                    <Empty description="No agent metrics found" />
-                                ),
-                            }}
-                        />
-                    </Card>
-                </motion.div>
+                        </Card>
+                    </motion.div>
+                </div>
             </PageLayout>
         </DashboardLayout>
     );
