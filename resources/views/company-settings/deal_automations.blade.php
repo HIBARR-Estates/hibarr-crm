@@ -55,10 +55,19 @@
                                     <td>
                                         @foreach($automation->actions as $action)
                                             <div class="mb-1">
-                                                <i class="fa fa-arrow-right text-lightest"></i>
-                                                Move to <strong>{{ $action->targetStage->name ?? 'Unknown Stage' }}</strong>
-                                                @if($action->targetPipeline)
-                                                    in {{ $action->targetPipeline->name }}
+                                                @if(($action->action_type ?? 'stage_transition') === 'stage_transition')
+                                                    <i class="fa fa-arrow-right text-lightest"></i>
+                                                    Move to <strong>{{ $action->targetStage->name ?? 'Unknown Stage' }}</strong>
+                                                    @if($action->targetPipeline)
+                                                        in {{ $action->targetPipeline->name }}
+                                                    @endif
+                                                @elseif($action->action_type === 'set_field_value')
+                                                    <i class="fa fa-edit text-primary"></i>
+                                                    Set <strong>{{ ucwords(str_replace('_', ' ', $action->field_name)) }}</strong>
+                                                    = <code>{{ $action->field_value }}</code>
+                                                @elseif($action->action_type === 'lock_deal')
+                                                    <i class="fa fa-lock text-warning"></i>
+                                                    <strong>Lock Deal</strong>
                                                 @endif
                                             </div>
                                         @endforeach

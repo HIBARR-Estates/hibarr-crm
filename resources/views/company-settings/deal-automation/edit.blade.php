@@ -326,6 +326,67 @@
             });
 
             // Action Builder Logic
+            function toggleActionFields(row) {
+                const actionType = row.find('.action-type-select').val();
+                row.find('.action-fields-stage-transition').hide();
+                row.find('.action-fields-set-field-value').hide();
+                row.find('.action-fields-lock-deal').hide();
+
+                if (actionType === 'stage_transition') {
+                    row.find('.action-fields-stage-transition').show();
+                } else if (actionType === 'set_field_value') {
+                    row.find('.action-fields-set-field-value').show();
+                } else if (actionType === 'lock_deal') {
+                    row.find('.action-fields-lock-deal').show();
+                }
+            }
+
+            $('body').on('change', '.action-type-select', function() {
+                toggleActionFields($(this).closest('.action-row'));
+            });
+
+            // Field Value dynamic input based on selected field_name
+            function updateActionFieldValue(row) {
+                const fieldName = row.find('.action-field-name-select').val();
+                const container = row.find('.action-field-value-container');
+                const existingInput = container.find('.action-field-value-input');
+                const currentValue = existingInput.val() || '';
+
+                // Get the base name for the input
+                const nameAttr = existingInput.attr('name') || '';
+                // Extract index from name like "actions[0][field_value]"
+                const match = nameAttr.match(/actions\[(\w+)\]/);
+                const idx = match ? match[1] : '0';
+                const inputName = `actions[${idx}][field_value]`;
+
+                if (fieldName === 'outcome_status') {
+                    container.html(`
+                        <label class="f-14 text-dark-grey mb-12">Value</label>
+                        <select name="${inputName}" class="form-control height-35 f-14 action-field-value-input">
+                            <option value="won" ${currentValue === 'won' ? 'selected' : ''}>Won</option>
+                            <option value="lost" ${currentValue === 'lost' ? 'selected' : ''}>Lost</option>
+                        </select>
+                    `);
+                } else if (['strategy_meeting_booked', 'downpayment_paid', 'deposit_confirmation', 'reservation_agreement', 'sales_contract'].includes(fieldName)) {
+                    container.html(`
+                        <label class="f-14 text-dark-grey mb-12">Value</label>
+                        <select name="${inputName}" class="form-control height-35 f-14 action-field-value-input">
+                            <option value="1" ${currentValue == '1' ? 'selected' : ''}>True / Yes</option>
+                            <option value="0" ${currentValue == '0' ? 'selected' : ''}>False / No</option>
+                        </select>
+                    `);
+                } else {
+                    container.html(`
+                        <label class="f-14 text-dark-grey mb-12">Value</label>
+                        <input type="text" name="${inputName}" class="form-control height-35 f-14 action-field-value-input" value="${currentValue}" placeholder="Value">
+                    `);
+                }
+            }
+
+            $('body').on('change', '.action-field-name-select', function() {
+                updateActionFieldValue($(this).closest('.action-row'));
+            });
+
             function updateStageOptions(row) {
                 const pipelineSelect = row.find('.action-pipeline-select');
                 const stageSelect = row.find('.action-stage-select');
@@ -375,12 +436,19 @@
             // Initialize stages for existing rows
             $('.action-row').each(function() {
                 updateStageOptions($(this));
+                toggleActionFields($(this));
             });
 
             // Also initialize when adding a new row
             $('#add-action').click(function() {
                 setTimeout(function() {
-                    updateStageOptions($('#actions-container .action-row:last'));
+                    const newRow = $('#actions-container .action-row:last');
+                    updateStageOptions(newRow);
+                    toggleActionFields(newRow);
+                    // Fix forward_only checkbox id uniqueness
+                    const idx = newRow.find('.action-type-select').attr('name').match(/actions\[(\w+)\]/)[1];
+                    newRow.find('.forward-only-check').attr('id', 'forward_only_' + idx);
+                    newRow.find('.forward-only-check').next('label').attr('for', 'forward_only_' + idx);
                 }, 0);
             });
 
