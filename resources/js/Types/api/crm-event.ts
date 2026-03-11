@@ -20,8 +20,22 @@ export interface CrmEventType {
     model_type: string | null;
     is_system: boolean;
     sync_processing: boolean;
+    metadata_schema: Record<string, MetadataFieldSchema> | null;
     category: CrmEventCategory | null;
     business_rule: { slug: string; name: string } | null;
+}
+
+/**
+ * Describes one field inside an event type's metadata_schema.
+ * Example: { "property_id": { "type": "number", "label": "Property", "required": true } }
+ */
+export interface MetadataFieldSchema {
+    type?: "string" | "number" | "boolean" | "date" | "select" | "textarea";
+    label?: string;
+    required?: boolean;
+    placeholder?: string;
+    options?: Array<{ label: string; value: string }>;
+    default?: any;
 }
 
 export interface CrmEventUser {
