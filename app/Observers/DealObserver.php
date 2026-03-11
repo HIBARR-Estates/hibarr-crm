@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Events\DealEvent;
+use App\Events\DealWonEvent;
 use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\UniversalSearch;
@@ -123,6 +124,22 @@ class DealObserver
 
     public function updating(Deal $deal)
     {
+        // Prevent modifications to locked deals
+        if ($deal->getOriginal('is_locked') && !$deal->isDirty('is_locked')) {
+            // Allow only is_locked changes (for the locking operation itself)
+            // All other changes are blocked
+            $changedFields = array_keys($deal->getDirty());
+            $allowedFields = ['is_locked', 'locked_at', 'outcome_status', 'updated_at'];
+            $disallowedChanges = array_diff($changedFields, $allowedFields);
+
+            if (!empty($disallowedChanges)) {
+                \Log::warning("DealObserver: Attempted to modify locked deal {$deal->id}. Blocked fields: " . implode(', ', $disallowedChanges));
+                // Revert disallowed changes
+                foreach ($disallowedChanges as $field) {
+                    $deal->{$field} = $deal->getOriginal($field);
+                }
+            }
+        }
 
         if ($deal->isDirty('pipeline_stage_id')){
             self::createDealHistory($deal->id, 'stage-updated', agentId: $deal->agent_id, stageFromId: $deal->getOriginal('pipeline_stage_id'), stageToId: $deal->pipeline_stage_id);
@@ -167,9 +184,16 @@ class DealObserver
             if ($deal->isDirty('pipeline_stage_id')) {
                 $this->triggerMetaConversionEvent($deal);
             }
+
+            // MLM: Fire DealWonEvent when outcome_status changes to 'won'
+            if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && !$deal->is_locked) {
+                $this->fireDealWonEvent($deal);
+            }
         }
         //deal automation trigger
-        $this->dealAutomation->process($deal, 'deal_updated');
+        if (!$deal->is_locked) {
+            $this->dealAutomation->process($deal, 'deal_updated');
+        }
         
     }
 
@@ -308,6 +332,35 @@ class DealObserver
         } catch (\Exception $e) {
             // Log error but don't block deal update
             \Log::error('Failed to trigger Meta Conversion Event', [
+                'deal_id' => $deal->id,
+                'exception' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Fire DealWonEvent when outcome_status is set to won.
+     * Triggered by automation setting outcome_status = 'won', not by pipeline stage.
+     */
+    private function fireDealWonEvent(Deal $deal): void
+    {
+        try {
+            $agent = $deal->leadAgent;
+
+            if ($agent) {
+                event(new DealWonEvent($deal, $agent));
+
+                \Log::info('DealWonEvent fired', [
+                    'deal_id' => $deal->id,
+                    'agent_id' => $agent->id,
+                ]);
+            } else {
+                \Log::warning('DealWonEvent not fired: no agent assigned', [
+                    'deal_id' => $deal->id,
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to fire DealWonEvent', [
                 'deal_id' => $deal->id,
                 'exception' => $e->getMessage(),
             ]);

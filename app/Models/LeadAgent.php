@@ -6,6 +6,8 @@ use App\Scopes\ActiveScope;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\LeadCategory;
 
 /**
@@ -60,4 +62,89 @@ class LeadAgent extends BaseModel
         return $this->belongsTo(LeadCategory::class, 'lead_category_id');
     }
 
+    // ── MLM Hierarchy ────────────────────────────────────────────
+
+    /**
+     * Direct parent agent (source of truth for hierarchy).
+     */
+    public function parentAgent(): BelongsTo
+    {
+        return $this->belongsTo(LeadAgent::class, 'parent_agent_id');
+    }
+
+    /**
+     * Direct children agents.
+     */
+    public function childAgents(): HasMany
+    {
+        return $this->hasMany(LeadAgent::class, 'parent_agent_id');
+    }
+
+    /**
+     * All descendants via the closure table.
+     */
+    public function descendantLinks(): HasMany
+    {
+        return $this->hasMany(AgentHierarchy::class, 'ancestor_id')->orderBy('depth');
+    }
+
+    /**
+     * All ancestors via the closure table.
+     */
+    public function ancestorLinks(): HasMany
+    {
+        return $this->hasMany(AgentHierarchy::class, 'descendant_id')->orderBy('depth');
+    }
+
+    // ── MLM Metrics & Levels ─────────────────────────────────────
+
+    /**
+     * Precomputed agent metrics.
+     */
+    public function metrics(): HasOne
+    {
+        return $this->hasOne(AgentMetric::class, 'agent_id');
+    }
+
+    /**
+     * Full level assignment history.
+     */
+    public function levelHistory(): HasMany
+    {
+        return $this->hasMany(AgentLevelHistory::class, 'agent_id')->orderByDesc('assigned_at');
+    }
+
+    /**
+     * Most recent level assignment.
+     */
+    public function currentLevelHistory(): HasOne
+    {
+        return $this->hasOne(AgentLevelHistory::class, 'agent_id')->latestOfMany('assigned_at');
+    }
+
+    /**
+     * Get the agent's current MLM level model.
+     */
+    public function getCurrentLevelAttribute(): ?MlmLevel
+    {
+        return $this->currentLevelHistory?->level;
+    }
+
+    // ── MLM Commissions ──────────────────────────────────────────
+
+    /**
+     * Commissions received by this agent.
+     */
+    public function mlmCommissions(): HasMany
+    {
+        return $this->hasMany(MlmCommission::class, 'agent_id');
+    }
+
+    /**
+     * Commissions generated from deals this agent closed.
+     */
+    public function mlmCommissionsAsSource(): HasMany
+    {
+        return $this->hasMany(MlmCommission::class, 'source_agent_id');
+    }
 }

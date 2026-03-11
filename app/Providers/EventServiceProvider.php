@@ -11,6 +11,7 @@ use App\Events\BulkShiftEvent;
 use App\Events\ContractSignedEvent;
 use App\Events\DailyTimeLogReportEvent;
 use App\Events\DealEvent;
+use App\Events\DealWonEvent;
 use App\Events\DiscussionEvent;
 use App\Events\DiscussionReplyEvent;
 use App\Events\EmployeeShiftChangeEvent;
@@ -92,6 +93,7 @@ use App\Listeners\ContractSignedListener;
 use App\Listeners\DailyTimeLogReportListener;
 use App\Listeners\EventCompletedListener;
 use App\Listeners\DealListener;
+use App\Listeners\ProcessDealWonListener;
 use App\Listeners\DiscussionListener;
 use App\Listeners\DiscussionReplyListener;
 use App\Listeners\EmployeeShiftChangeListener;
@@ -565,6 +567,7 @@ class EventServiceProvider extends ServiceProvider
         EstimateAcceptedEvent::class => [EstimateAcceptedListener::class],
         EventInviteMentionEvent::class => [EventInviteMentionListener::class],
         DealEvent::class => [DealListener::class],
+        DealWonEvent::class => [ProcessDealWonListener::class],
         EventStatusNoteEvent::class => [EventStatusNoteListener::class],
         BulkShiftEvent::class => [BulkShiftListener::class],
         MonthlyAttendanceEvent::class => [MonthlyAttendanceListener::class],

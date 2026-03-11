@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Deal;
 use App\Models\DealAutomation;
+use App\Models\DealAutomationLog;
 use App\Models\PipelineStage;
 use Illuminate\Support\Facades\Log;
 
@@ -29,6 +30,12 @@ class DealAutomationService
      */
     public function process(Deal $deal, ?string $trigger = null): void
     {
+        // Skip automation for locked deals
+        if ($deal->is_locked) {
+            Log::info("Skipping automations for locked Deal ID: {$deal->id}");
+            return;
+        }
+
         Log::info("Processing automations for Deal ID: {$deal->id}, Trigger: " . ($trigger ?? 'None'));
 
         // Fetch active automations for the deal's pipeline and trigger
@@ -101,18 +108,38 @@ class DealAutomationService
     protected function executeActions(Deal $deal, DealAutomation $automation): void
     {
         foreach ($automation->actions as $action) {
-            $this->performAction($deal, $action);
+            $this->performAction($deal, $action, $automation);
         }
     }
 
     /**
      * Perform a single action on the deal.
      *
+     * Supports action types:
+     * - stage_transition (default/legacy): Move deal to target stage/pipeline
+     * - set_field_value: Set a field on the deal to a specific value
+     * - lock_deal: Lock the deal and set locked_at timestamp
+     *
      * @param Deal $deal
      * @param \App\Models\DealAutomationAction $action
+     * @param DealAutomation|null $automation
      * @return void
      */
-    protected function performAction(Deal $deal, $action): void
+    protected function performAction(Deal $deal, $action, ?DealAutomation $automation = null): void
+    {
+        $actionType = $action->action_type ?? 'stage_transition';
+
+        match ($actionType) {
+            'set_field_value' => $this->performSetFieldValue($deal, $action, $automation),
+            'lock_deal' => $this->performLockDeal($deal, $action, $automation),
+            default => $this->performStageTransition($deal, $action, $automation),
+        };
+    }
+
+    /**
+     * Perform a stage transition action (legacy behavior).
+     */
+    protected function performStageTransition(Deal $deal, $action, ?DealAutomation $automation = null): void
     {
         $targetStageId = $action->target_stage_id;
         $targetPipelineId = $action->target_pipeline_id ?? $deal->lead_pipeline_id;
@@ -149,8 +176,69 @@ class DealAutomationService
 
             if (!empty($changes)) {
                 $deal->save();
+                $description = "Stage transition: " . implode(', ', $changes);
                 Log::info("Action executed for Deal ID: {$deal->id}. " . implode(', ', $changes));
+                $this->logAction($deal, $automation, $description);
             }
+        }
+    }
+
+    /**
+     * Perform a set_field_value action.
+     */
+    protected function performSetFieldValue(Deal $deal, $action, ?DealAutomation $automation = null): void
+    {
+        $fieldName = $action->field_name;
+        $fieldValue = $action->field_value;
+
+        if (!$fieldName) {
+            Log::warning("SetFieldValue action missing field_name for Deal ID: {$deal->id}");
+            return;
+        }
+
+        $deal->{$fieldName} = $fieldValue;
+        $deal->save();
+
+        $description = "Set {$fieldName} = {$fieldValue}";
+        Log::info("Action executed for Deal ID: {$deal->id}. {$description}");
+        $this->logAction($deal, $automation, $description);
+    }
+
+    /**
+     * Perform a lock_deal action.
+     */
+    protected function performLockDeal(Deal $deal, $action, ?DealAutomation $automation = null): void
+    {
+        $deal->is_locked = true;
+        $deal->locked_at = now();
+        $deal->saveQuietly(); // Bypass observer to prevent cascading
+
+        $description = "Deal locked";
+        Log::info("Action executed for Deal ID: {$deal->id}. {$description}");
+        $this->logAction($deal, $automation, $description);
+    }
+
+    /**
+     * Log an automation action execution.
+     */
+    protected function logAction(Deal $deal, ?DealAutomation $automation, string $description): void
+    {
+        if (!$automation) {
+            return;
+        }
+
+        try {
+            DealAutomationLog::create([
+                'company_id' => $deal->company_id,
+                'deal_id' => $deal->id,
+                'automation_id' => $automation->id,
+                'action' => $description,
+                'executed_at' => now(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to log automation action for Deal ID: {$deal->id}", [
+                'exception' => $e->getMessage(),
+            ]);
         }
     }
 
