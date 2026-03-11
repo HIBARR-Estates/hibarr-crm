@@ -121,33 +121,34 @@ export default function CrmEventTimeline({
 
     /* ---- Filter chips ------------------------------------------------------ */
     const filterBar = (
-        <Segmented
-            size="small"
-            className="mb-3"
-            value={filter}
-            onChange={(v) => setFilter(v as FilterMode)}
-            options={[
-                { label: "All", value: "all" },
-                {
-                    label: (
-                        <span>
-                            <UserOutlined className="mr-1" />
-                            Agent
-                        </span>
-                    ),
-                    value: "agent",
-                },
-                {
-                    label: (
-                        <span>
-                            <ThunderboltOutlined className="mr-1" />
-                            System
-                        </span>
-                    ),
-                    value: "system",
-                },
-            ]}
-        />
+        <div className="mb-4">
+            <Segmented
+                size="small"
+                value={filter}
+                onChange={(v) => setFilter(v as FilterMode)}
+                options={[
+                    { label: "All", value: "all" },
+                    {
+                        label: (
+                            <span>
+                                <UserOutlined className="mr-1" />
+                                Agent
+                            </span>
+                        ),
+                        value: "agent",
+                    },
+                    {
+                        label: (
+                            <span>
+                                <ThunderboltOutlined className="mr-1" />
+                                System
+                            </span>
+                        ),
+                        value: "system",
+                    },
+                ]}
+            />
+        </div>
     );
 
     /* ---- Body (shared between sidebar & drawer) --------------------------- */
