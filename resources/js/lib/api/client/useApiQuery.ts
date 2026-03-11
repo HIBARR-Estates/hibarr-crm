@@ -8,7 +8,7 @@ const getData = async <
     Params extends Record<string, string | number | any> = Record<
         string,
         string | number | any
-    >
+    >,
 >(props: {
     path: string;
     params?: Params;
@@ -23,6 +23,9 @@ const getData = async <
     const config = {
         headers: {
             Accept: "application/json",
+            ...(props.auth?.user?.company_id
+                ? { "X-COMPANY-ID": String(props?.auth?.user?.company_id || 1) }
+                : {}),
         },
         params: props?.params,
     };
@@ -36,7 +39,7 @@ export const useApiQuery = <
     Params extends Record<string, string | number | boolean> = Record<
         string,
         string | number | boolean
-    >
+    >,
 >(input: {
     path: string;
     params?: Params;
@@ -63,13 +66,13 @@ export const useApiQuery = <
 
 export const useApiInfiniteQuery = <
     QueryResponse,
-    Params extends { page: number } & Record<string, any> = { page: number }
+    Params extends { page: number } & Record<string, any> = { page: number },
 >(input: {
     path: string;
     params: Params; // required for infinite query to include page
     getNextPageParam: (
         lastPage: QueryResponse,
-        allPages: QueryResponse[]
+        allPages: QueryResponse[],
     ) => unknown;
     initialPageParam?: number;
     options?: Partial<{

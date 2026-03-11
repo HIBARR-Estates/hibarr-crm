@@ -82,9 +82,6 @@ export default function LogActionModal({
         > = {};
 
         eventTypes.forEach((et) => {
-            // Skip system-only event types — agents cannot log them
-            if (et.is_system) return;
-
             const catName = et.category?.name ?? "Other";
             if (!groups[catName]) {
                 groups[catName] = { label: catName, options: [] };

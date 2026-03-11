@@ -193,7 +193,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     key: "mlm-dashboard",
                     label: "Dashboard",
                     icon: null,
-                    href: "/account/mlm",
+                    href: "/account/mlm/dashboard",
                 },
                 {
                     key: "mlm-levels",
@@ -242,7 +242,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     key: "my-mlm-dashboard",
                     label: "Dashboard",
                     icon: null,
-                    href: "/account/mlm/agent",
+                    href: "/account/mlm/agent/dashboard",
                 },
                 {
                     key: "my-mlm-commissions",
@@ -432,7 +432,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
 
             return (
-                <div key={item.key} className="mb-1">
+                <a key={item.key} className="mb-1" href={item?.href}>
                     {wrappedContent}
 
                     {/* Children */}
@@ -454,7 +454,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                             </div>
                         </div>
                     )}
-                </div>
+                </a>
             );
         },
         [collapsed, expandedItems, isActive, toggleExpanded, handleNavigate],
