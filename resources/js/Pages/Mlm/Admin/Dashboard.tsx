@@ -1,5 +1,15 @@
 import React from "react";
-import { Card, Col, Row, Table, Tag, Statistic, Empty, Spin } from "antd";
+import {
+    Card,
+    Col,
+    Row,
+    Table,
+    Tag,
+    Statistic,
+    Empty,
+    Spin,
+    Skeleton,
+} from "antd";
 import { motion } from "framer-motion";
 import {
     Users,
@@ -158,11 +168,15 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             <PageLayout
                 title="MLM Dashboard"
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm" },
+                    { name: "MLM", url: "/account/mlm/dashboard" },
                     { name: "Dashboard" },
                 ]}
             >
-                <Spin spinning={isLoading && !stats}>
+                <Skeleton
+                    loading={isLoading && !stats}
+                    active
+                    paragraph={{ rows: 4 }}
+                >
                     {/* Stat Cards */}
                     <Row gutter={[16, 16]} className="mb-6">
                         {cards.map((card, idx) => (
@@ -348,7 +362,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                             </motion.div>
                         </Col>
                     </Row>
-                </Spin>
+                </Skeleton>
             </PageLayout>
         </DashboardLayout>
     );

@@ -128,93 +128,99 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
             <PageLayout
                 title="Level History"
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm" },
+                    { name: "MLM", url: "/account/mlm/dashboard" },
                     { name: "Level History" },
                 ]}
             >
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                >
-                    <Card
-                        title={
-                            <div className="flex items-center gap-2">
-                                <History
-                                    size={18}
-                                    className="text-indigo-500"
-                                />
-                                <span className="font-semibold">
-                                    Level Assignment History
-                                </span>
-                            </div>
-                        }
-                        className="shadow-sm"
+                <div className="max-w-7xl mx-auto space-y-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
                     >
-                        {/* Filters */}
-                        <div className="flex flex-wrap gap-3 mb-4">
-                            <Select
-                                placeholder="Method"
-                                allowClear
-                                className="w-36"
-                                options={[
-                                    { value: "system", label: "Automatic" },
-                                    { value: "manual", label: "Manual" },
-                                ]}
-                                onChange={(v) =>
-                                    setFilters((f) => ({
-                                        ...f,
-                                        method: v,
-                                    }))
-                                }
-                            />
-                            <RangePicker
-                                onChange={(dates) => {
-                                    if (dates && dates[0] && dates[1]) {
+                        <Card
+                            title={
+                                <div className="flex items-center gap-2">
+                                    <History
+                                        size={18}
+                                        className="text-indigo-500"
+                                    />
+                                    <span className="font-semibold">
+                                        Level Assignment History
+                                    </span>
+                                </div>
+                            }
+                            className="shadow-sm"
+                        >
+                            {/* Filters */}
+                            <div className="flex flex-wrap gap-3 mb-4">
+                                <Select
+                                    placeholder="Method"
+                                    allowClear
+                                    className="w-36"
+                                    options={[
+                                        { value: "system", label: "Automatic" },
+                                        { value: "manual", label: "Manual" },
+                                    ]}
+                                    onChange={(v) =>
                                         setFilters((f) => ({
                                             ...f,
-                                            date_from:
-                                                dates[0]!.format("YYYY-MM-DD"),
-                                            date_to:
-                                                dates[1]!.format("YYYY-MM-DD"),
-                                        }));
-                                    } else {
-                                        setFilters((f) => {
-                                            const {
-                                                date_from,
-                                                date_to,
-                                                ...rest
-                                            } = f;
-                                            return rest;
-                                        });
+                                            method: v,
+                                        }))
                                     }
+                                />
+                                <RangePicker
+                                    onChange={(dates) => {
+                                        if (dates && dates[0] && dates[1]) {
+                                            setFilters((f) => ({
+                                                ...f,
+                                                date_from:
+                                                    dates[0]!.format(
+                                                        "YYYY-MM-DD",
+                                                    ),
+                                                date_to:
+                                                    dates[1]!.format(
+                                                        "YYYY-MM-DD",
+                                                    ),
+                                            }));
+                                        } else {
+                                            setFilters((f) => {
+                                                const {
+                                                    date_from,
+                                                    date_to,
+                                                    ...rest
+                                                } = f;
+                                                return rest;
+                                            });
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            <Table
+                                columns={columns}
+                                dataSource={history?.data ?? []}
+                                rowKey="id"
+                                loading={isLoading}
+                                size="middle"
+                                pagination={{
+                                    current: history?.current_page ?? 1,
+                                    total: history?.total ?? 0,
+                                    pageSize: history?.per_page ?? 20,
+                                    showSizeChanger: false,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}–${range[1]} of ${total}`,
+                                    onChange: (p) => setPage(p),
+                                }}
+                                locale={{
+                                    emptyText: (
+                                        <Empty description="No level history yet" />
+                                    ),
                                 }}
                             />
-                        </div>
-
-                        <Table
-                            columns={columns}
-                            dataSource={history?.data ?? []}
-                            rowKey="id"
-                            loading={isLoading}
-                            size="middle"
-                            pagination={{
-                                current: history?.current_page ?? 1,
-                                total: history?.total ?? 0,
-                                pageSize: history?.per_page ?? 20,
-                                showSizeChanger: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}–${range[1]} of ${total}`,
-                                onChange: (p) => setPage(p),
-                            }}
-                            locale={{
-                                emptyText: (
-                                    <Empty description="No level history yet" />
-                                ),
-                            }}
-                        />
-                    </Card>
-                </motion.div>
+                        </Card>
+                    </motion.div>
+                </div>
             </PageLayout>
         </DashboardLayout>
     );

@@ -1193,7 +1193,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::prefix('mlm')->name('mlm.')->group(function () {
         Route::get('dashboard', [App\Http\Controllers\MlmAdminController::class, 'dashboard'])->name('dashboard');
         Route::get('levels', [App\Http\Controllers\MlmAdminController::class, 'levels'])->name('levels');
-        Route::get('level-rules', [App\Http\Controllers\MlmAdminController::class, 'levelRules'])->name('level_rules');
+        Route::get('levels/{level}/rules', [App\Http\Controllers\MlmAdminController::class, 'levelRules'])->name('level_rules');
         Route::get('commission-settings', [App\Http\Controllers\MlmAdminController::class, 'commissionSettings'])->name('commission_settings');
         Route::get('agent-hierarchy', [App\Http\Controllers\MlmAdminController::class, 'agentHierarchy'])->name('agent_hierarchy');
         Route::get('commission-ledger', [App\Http\Controllers\MlmAdminController::class, 'commissionLedger'])->name('commission_ledger');

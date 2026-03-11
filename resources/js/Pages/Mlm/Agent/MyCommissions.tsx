@@ -140,154 +140,163 @@ const MyCommissions: React.FC<Props> = ({
         <DashboardLayout>
             <PageLayout
                 title="My Commissions"
-                breadcrumbs={[{ name: "MLM" }, { name: "My Commissions" }]}
+                breadcrumbs={[
+                    { name: "MLM", url: "/account/mlm/agent/dashboard" },
+                    { name: "My Commissions" },
+                ]}
             >
-                {/* Summary */}
-                <Row gutter={[16, 16]} className="mb-6">
-                    <Col xs={12} sm={8}>
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <Card size="small" className="shadow-sm">
-                                <Statistic
-                                    title="Page Total"
-                                    value={totalEarned}
-                                    prefix="$"
-                                    precision={2}
-                                    valueStyle={{ color: "#16a34a" }}
-                                />
-                            </Card>
-                        </motion.div>
-                    </Col>
-                    <Col xs={12} sm={8}>
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: 0.1 }}
-                        >
-                            <Card size="small" className="shadow-sm">
-                                <Statistic
-                                    title="Pending"
-                                    value={pendingAmount}
-                                    prefix="$"
-                                    precision={2}
-                                    valueStyle={{ color: "#ea580c" }}
-                                />
-                            </Card>
-                        </motion.div>
-                    </Col>
-                    <Col xs={12} sm={8}>
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: 0.2 }}
-                        >
-                            <Card size="small" className="shadow-sm">
-                                <Statistic
-                                    title="Total Records"
-                                    value={commissions?.total ?? 0}
-                                />
-                            </Card>
-                        </motion.div>
-                    </Col>
-                </Row>
+                <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Summary */}
+                    <Row gutter={[16, 16]} className="mb-6">
+                        <Col xs={12} sm={8}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <Card size="small" className="shadow-sm">
+                                    <Statistic
+                                        title="Page Total"
+                                        value={totalEarned}
+                                        prefix="$"
+                                        precision={2}
+                                        valueStyle={{ color: "#16a34a" }}
+                                    />
+                                </Card>
+                            </motion.div>
+                        </Col>
+                        <Col xs={12} sm={8}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: 0.1 }}
+                            >
+                                <Card size="small" className="shadow-sm">
+                                    <Statistic
+                                        title="Pending"
+                                        value={pendingAmount}
+                                        prefix="$"
+                                        precision={2}
+                                        valueStyle={{ color: "#ea580c" }}
+                                    />
+                                </Card>
+                            </motion.div>
+                        </Col>
+                        <Col xs={12} sm={8}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: 0.2 }}
+                            >
+                                <Card size="small" className="shadow-sm">
+                                    <Statistic
+                                        title="Total Records"
+                                        value={commissions?.total ?? 0}
+                                    />
+                                </Card>
+                            </motion.div>
+                        </Col>
+                    </Row>
 
-                {/* Filters */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.15 }}
-                    className="mb-4"
-                >
-                    <Card size="small" className="shadow-sm">
-                        <div className="flex flex-wrap gap-3 items-center">
-                            <Filter size={16} className="text-gray-400" />
-                            <Select
-                                placeholder="Status"
-                                allowClear
-                                className="w-36"
-                                options={Object.entries(
-                                    COMMISSION_STATUS_LABELS,
-                                ).map(([v, l]) => ({ value: v, label: l }))}
-                                onChange={(v) =>
-                                    setFilters((f) => ({
-                                        ...f,
-                                        status: v,
-                                    }))
-                                }
-                            />
-                            <Select
-                                placeholder="Type"
-                                allowClear
-                                className="w-36"
-                                options={Object.entries(
-                                    COMMISSION_TYPE_LABELS,
-                                ).map(([v, l]) => ({ value: v, label: l }))}
-                                onChange={(v) =>
-                                    setFilters((f) => ({
-                                        ...f,
-                                        type: v,
-                                    }))
-                                }
-                            />
-                            <RangePicker
-                                onChange={(dates) => {
-                                    if (dates && dates[0] && dates[1]) {
+                    {/* Filters */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.15 }}
+                        className="mb-4"
+                    >
+                        <Card size="small" className="shadow-sm">
+                            <div className="flex flex-wrap gap-3 items-center">
+                                <Filter size={16} className="text-gray-400" />
+                                <Select
+                                    placeholder="Status"
+                                    allowClear
+                                    className="w-36"
+                                    options={Object.entries(
+                                        COMMISSION_STATUS_LABELS,
+                                    ).map(([v, l]) => ({ value: v, label: l }))}
+                                    onChange={(v) =>
                                         setFilters((f) => ({
                                             ...f,
-                                            date_from:
-                                                dates[0]!.format("YYYY-MM-DD"),
-                                            date_to:
-                                                dates[1]!.format("YYYY-MM-DD"),
-                                        }));
-                                    } else {
-                                        setFilters((f) => {
-                                            const {
-                                                date_from,
-                                                date_to,
-                                                ...rest
-                                            } = f;
-                                            return rest;
-                                        });
+                                            status: v,
+                                        }))
                                     }
+                                />
+                                <Select
+                                    placeholder="Type"
+                                    allowClear
+                                    className="w-36"
+                                    options={Object.entries(
+                                        COMMISSION_TYPE_LABELS,
+                                    ).map(([v, l]) => ({ value: v, label: l }))}
+                                    onChange={(v) =>
+                                        setFilters((f) => ({
+                                            ...f,
+                                            type: v,
+                                        }))
+                                    }
+                                />
+                                <RangePicker
+                                    onChange={(dates) => {
+                                        if (dates && dates[0] && dates[1]) {
+                                            setFilters((f) => ({
+                                                ...f,
+                                                date_from:
+                                                    dates[0]!.format(
+                                                        "YYYY-MM-DD",
+                                                    ),
+                                                date_to:
+                                                    dates[1]!.format(
+                                                        "YYYY-MM-DD",
+                                                    ),
+                                            }));
+                                        } else {
+                                            setFilters((f) => {
+                                                const {
+                                                    date_from,
+                                                    date_to,
+                                                    ...rest
+                                                } = f;
+                                                return rest;
+                                            });
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </Card>
+                    </motion.div>
+
+                    {/* Table */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.2 }}
+                    >
+                        <Card className="shadow-sm">
+                            <Table
+                                columns={columns}
+                                dataSource={records}
+                                rowKey="id"
+                                loading={isLoading}
+                                size="middle"
+                                pagination={{
+                                    current: commissions?.current_page ?? 1,
+                                    total: commissions?.total ?? 0,
+                                    pageSize: commissions?.per_page ?? 20,
+                                    showSizeChanger: false,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}–${range[1]} of ${total}`,
+                                    onChange: (p) => setPage(p),
+                                }}
+                                locale={{
+                                    emptyText: (
+                                        <Empty description="No commissions yet" />
+                                    ),
                                 }}
                             />
-                        </div>
-                    </Card>
-                </motion.div>
-
-                {/* Table */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.2 }}
-                >
-                    <Card className="shadow-sm">
-                        <Table
-                            columns={columns}
-                            dataSource={records}
-                            rowKey="id"
-                            loading={isLoading}
-                            size="middle"
-                            pagination={{
-                                current: commissions?.current_page ?? 1,
-                                total: commissions?.total ?? 0,
-                                pageSize: commissions?.per_page ?? 20,
-                                showSizeChanger: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}–${range[1]} of ${total}`,
-                                onChange: (p) => setPage(p),
-                            }}
-                            locale={{
-                                emptyText: (
-                                    <Empty description="No commissions yet" />
-                                ),
-                            }}
-                        />
-                    </Card>
-                </motion.div>
+                        </Card>
+                    </motion.div>
+                </div>
             </PageLayout>
         </DashboardLayout>
     );

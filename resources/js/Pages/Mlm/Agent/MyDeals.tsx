@@ -130,138 +130,147 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
         <DashboardLayout>
             <PageLayout
                 title="My Deals"
-                breadcrumbs={[{ name: "MLM" }, { name: "My Deals" }]}
+                breadcrumbs={[
+                    { name: "MLM", url: "/account/mlm/agent/dashboard" },
+                    { name: "My Deals" },
+                ]}
             >
-                {/* Summary */}
-                <Row gutter={[16, 16]} className="mb-6">
-                    <Col xs={12} sm={8}>
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <Card size="small" className="shadow-sm">
-                                <Statistic
-                                    title="Total Deal Value"
-                                    value={totalDealValue}
-                                    prefix="$"
-                                    precision={2}
-                                />
-                            </Card>
-                        </motion.div>
-                    </Col>
-                    <Col xs={12} sm={8}>
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: 0.1 }}
-                        >
-                            <Card size="small" className="shadow-sm">
-                                <Statistic
-                                    title="Your Commission"
-                                    value={totalCommission}
-                                    prefix="$"
-                                    precision={2}
-                                    valueStyle={{ color: "#16a34a" }}
-                                />
-                            </Card>
-                        </motion.div>
-                    </Col>
-                    <Col xs={12} sm={8}>
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: 0.2 }}
-                        >
-                            <Card size="small" className="shadow-sm">
-                                <Statistic
-                                    title="Total Contributions"
-                                    value={contributions?.total ?? 0}
-                                />
-                            </Card>
-                        </motion.div>
-                    </Col>
-                </Row>
+                <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Summary */}
+                    <Row gutter={[16, 16]} className="mb-6">
+                        <Col xs={12} sm={8}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <Card size="small" className="shadow-sm">
+                                    <Statistic
+                                        title="Total Deal Value"
+                                        value={totalDealValue}
+                                        prefix="$"
+                                        precision={2}
+                                    />
+                                </Card>
+                            </motion.div>
+                        </Col>
+                        <Col xs={12} sm={8}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: 0.1 }}
+                            >
+                                <Card size="small" className="shadow-sm">
+                                    <Statistic
+                                        title="Your Commission"
+                                        value={totalCommission}
+                                        prefix="$"
+                                        precision={2}
+                                        valueStyle={{ color: "#16a34a" }}
+                                    />
+                                </Card>
+                            </motion.div>
+                        </Col>
+                        <Col xs={12} sm={8}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: 0.2 }}
+                            >
+                                <Card size="small" className="shadow-sm">
+                                    <Statistic
+                                        title="Total Contributions"
+                                        value={contributions?.total ?? 0}
+                                    />
+                                </Card>
+                            </motion.div>
+                        </Col>
+                    </Row>
 
-                {/* Filter */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.15 }}
-                    className="mb-4"
-                >
-                    <Card size="small" className="shadow-sm">
-                        <div className="flex flex-wrap gap-3 items-center">
-                            <Filter size={16} className="text-gray-400" />
-                            <RangePicker
-                                onChange={(dates) => {
-                                    if (dates && dates[0] && dates[1]) {
-                                        setFilters((f) => ({
-                                            ...f,
-                                            date_from:
-                                                dates[0]!.format("YYYY-MM-DD"),
-                                            date_to:
-                                                dates[1]!.format("YYYY-MM-DD"),
-                                        }));
-                                    } else {
-                                        setFilters((f) => {
-                                            const {
-                                                date_from,
-                                                date_to,
-                                                ...rest
-                                            } = f;
-                                            return rest;
-                                        });
-                                    }
+                    {/* Filter */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.15 }}
+                        className="mb-4"
+                    >
+                        <Card size="small" className="shadow-sm">
+                            <div className="flex flex-wrap gap-3 items-center">
+                                <Filter size={16} className="text-gray-400" />
+                                <RangePicker
+                                    onChange={(dates) => {
+                                        if (dates && dates[0] && dates[1]) {
+                                            setFilters((f) => ({
+                                                ...f,
+                                                date_from:
+                                                    dates[0]!.format(
+                                                        "YYYY-MM-DD",
+                                                    ),
+                                                date_to:
+                                                    dates[1]!.format(
+                                                        "YYYY-MM-DD",
+                                                    ),
+                                            }));
+                                        } else {
+                                            setFilters((f) => {
+                                                const {
+                                                    date_from,
+                                                    date_to,
+                                                    ...rest
+                                                } = f;
+                                                return rest;
+                                            });
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </Card>
+                    </motion.div>
+
+                    {/* Table */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.2 }}
+                    >
+                        <Card
+                            title={
+                                <div className="flex items-center gap-2">
+                                    <Briefcase
+                                        size={18}
+                                        className="text-blue-500"
+                                    />
+                                    <span className="font-semibold">
+                                        Deal Contributions
+                                    </span>
+                                </div>
+                            }
+                            className="shadow-sm"
+                        >
+                            <Table
+                                columns={columns}
+                                dataSource={records}
+                                rowKey="deal_id"
+                                loading={isLoading}
+                                size="middle"
+                                pagination={{
+                                    current: contributions?.current_page ?? 1,
+                                    total: contributions?.total ?? 0,
+                                    pageSize: contributions?.per_page ?? 20,
+                                    showSizeChanger: false,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}–${range[1]} of ${total}`,
+                                    onChange: (p) => setPage(p),
+                                }}
+                                locale={{
+                                    emptyText: (
+                                        <Empty description="No deal contributions yet" />
+                                    ),
                                 }}
                             />
-                        </div>
-                    </Card>
-                </motion.div>
-
-                {/* Table */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.2 }}
-                >
-                    <Card
-                        title={
-                            <div className="flex items-center gap-2">
-                                <Briefcase
-                                    size={18}
-                                    className="text-blue-500"
-                                />
-                                <span className="font-semibold">
-                                    Deal Contributions
-                                </span>
-                            </div>
-                        }
-                        className="shadow-sm"
-                    >
-                        <Table
-                            columns={columns}
-                            dataSource={records}
-                            rowKey="deal_id"
-                            loading={isLoading}
-                            size="middle"
-                            pagination={{
-                                current: contributions?.current_page ?? 1,
-                                total: contributions?.total ?? 0,
-                                pageSize: contributions?.per_page ?? 20,
-                                showSizeChanger: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}–${range[1]} of ${total}`,
-                                onChange: (p) => setPage(p),
-                            }}
-                            locale={{
-                                emptyText: (
-                                    <Empty description="No deal contributions yet" />
-                                ),
-                            }}
-                        />
-                    </Card>
-                </motion.div>
+                        </Card>
+                    </motion.div>
+                </div>
             </PageLayout>
         </DashboardLayout>
     );

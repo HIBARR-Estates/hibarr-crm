@@ -8,15 +8,15 @@ import {
     Select,
     InputNumber,
     Space,
-    Popconfirm,
     message,
     Tag,
     Empty,
     Descriptions,
-    Spin,
+    Divider,
+    Alert,
 } from "antd";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -57,6 +57,23 @@ const METRIC_OPTIONS = Object.entries(MLM_METRIC_LABELS).map(
     }),
 );
 
+/** Render a single criterion as a readable sentence */
+const CriterionSentence: React.FC<{ criterion: MlmLevelCriterion }> = ({
+    criterion,
+}) => (
+    <span>
+        <Tag color="blue">
+            {MLM_METRIC_LABELS[criterion.metric] ?? criterion.metric}
+        </Tag>
+        <code className="bg-gray-100 px-2 py-0.5 rounded text-sm mx-1">
+            {criterion.operator}
+        </code>
+        <span className="font-semibold">
+            {criterion.threshold.toLocaleString()}
+        </span>
+    </span>
+);
+
 const MlmLevelRules: React.FC<Props> = ({
     level: initialLevel,
     criteria: initialCriteria,
@@ -72,6 +89,8 @@ const MlmLevelRules: React.FC<Props> = ({
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<MlmLevelCriterion | null>(null);
+    const [deletingCriterion, setDeletingCriterion] =
+        useState<MlmLevelCriterion | null>(null);
     const [form] = Form.useForm<MlmLevelCriterionFormData>();
 
     const createCriterion = useCreateLevelCriterion(() => {
@@ -86,17 +105,25 @@ const MlmLevelRules: React.FC<Props> = ({
         closeModal();
     });
 
-    const deleteCriterion = useDeleteLevelCriterion(0, () => {
-        message.success("Criterion removed");
-        refetch();
-    });
+    const deleteCriterion = useDeleteLevelCriterion(
+        deletingCriterion?.id ?? 0,
+        () => {
+            message.success("Criterion removed");
+            setDeletingCriterion(null);
+            refetch();
+        },
+    );
 
     const openCreate = () => {
         setEditing(null);
         form.resetFields();
+        // Default logic_group to the next group number (or 1 if none exist)
+        const existingGroups = criteria.map((c) => c.logic_group);
+        const nextGroup =
+            existingGroups.length > 0 ? Math.max(...existingGroups) : 1;
         form.setFieldsValue({
             mlm_level_id: level.id,
-            logic_group: 1,
+            logic_group: nextGroup,
             operator: ">=",
         });
         setModalOpen(true);
@@ -134,15 +161,22 @@ const MlmLevelRules: React.FC<Props> = ({
         }
     };
 
-    // Group criteria by logic_group
-    const grouped = criteria.reduce(
-        (acc, c) => {
-            if (!acc[c.logic_group]) acc[c.logic_group] = [];
-            acc[c.logic_group].push(c);
-            return acc;
-        },
-        {} as Record<number, MlmLevelCriterion[]>,
-    );
+    const handleDeleteConfirm = () => {
+        if (!deletingCriterion) return;
+        deleteCriterion.mutate({} as any);
+    };
+
+    // Group criteria by logic_group for visual separation
+    const groupedEntries = Object.entries(
+        criteria.reduce(
+            (acc, c) => {
+                if (!acc[c.logic_group]) acc[c.logic_group] = [];
+                acc[c.logic_group].push(c);
+                return acc;
+            },
+            {} as Record<number, MlmLevelCriterion[]>,
+        ),
+    ).sort(([a], [b]) => Number(a) - Number(b));
 
     const columns = [
         {
@@ -174,16 +208,9 @@ const MlmLevelRules: React.FC<Props> = ({
             ),
         },
         {
-            title: "Group",
-            dataIndex: "logic_group",
-            key: "logic_group",
-            width: 80,
-            render: (g: number) => <Tag>Group {g}</Tag>,
-        },
-        {
             title: "Actions",
             key: "actions",
-            width: 120,
+            width: 100,
             render: (_: any, record: MlmLevelCriterion) => (
                 <Space size="small">
                     <Button
@@ -192,19 +219,13 @@ const MlmLevelRules: React.FC<Props> = ({
                         size="small"
                         onClick={() => openEdit(record)}
                     />
-                    <Popconfirm
-                        title="Remove this criterion?"
-                        onConfirm={() => deleteCriterion.mutate({} as any)}
-                        okText="Remove"
-                        okType="danger"
-                    >
-                        <Button
-                            type="text"
-                            danger
-                            icon={<Trash2 size={14} />}
-                            size="small"
-                        />
-                    </Popconfirm>
+                    <Button
+                        type="text"
+                        danger
+                        icon={<Trash2 size={14} />}
+                        size="small"
+                        onClick={() => setDeletingCriterion(record)}
+                    />
                 </Space>
             ),
         },
@@ -215,179 +236,317 @@ const MlmLevelRules: React.FC<Props> = ({
             <PageLayout
                 title={`Level Rules: ${level?.name ?? ""}`}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm" },
+                    { name: "MLM", url: "/account/mlm/dashboard" },
                     { name: "Levels", url: "/account/mlm/levels" },
                     { name: level?.name ?? "Rules" },
                 ]}
             >
-                {/* Level Summary */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="mb-6"
-                >
-                    <Card className="shadow-sm">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    icon={<ArrowLeft size={14} />}
-                                    onClick={() =>
-                                        router.visit("/account/mlm/levels")
-                                    }
-                                >
-                                    Back
-                                </Button>
-                                {level && (
-                                    <LevelBadge level={level} showPercentage />
-                                )}
-                            </div>
-                            <Descriptions size="small" column={3}>
-                                <Descriptions.Item label="Rank">
-                                    #{level?.rank}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Commission">
-                                    {level?.commission_percentage}%
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Criteria">
-                                    {criteria.length} rule
-                                    {criteria.length !== 1 ? "s" : ""}
-                                </Descriptions.Item>
-                            </Descriptions>
-                        </div>
-                    </Card>
-                </motion.div>
-
-                {/* Criteria Table */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.1 }}
-                >
-                    <Card
-                        title={
-                            <span className="font-semibold">
-                                Promotion Criteria
-                            </span>
-                        }
-                        extra={
-                            <Button
-                                type="primary"
-                                icon={<Plus size={14} />}
-                                onClick={openCreate}
-                            >
-                                Add Criterion
-                            </Button>
-                        }
-                        className="shadow-sm"
+                <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Level Summary */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="mb-6"
                     >
-                        <div className="mb-3 text-sm text-gray-500">
-                            All criteria within the same{" "}
-                            <strong>logic group</strong> must be met (AND).
-                            Different groups are evaluated as alternatives (OR).
-                        </div>
-                        <Table
-                            columns={columns}
-                            dataSource={criteria}
-                            rowKey="id"
-                            pagination={false}
-                            size="middle"
-                            locale={{
-                                emptyText: (
-                                    <Empty description="No criteria defined. Agents cannot be auto-promoted to this level until criteria are set." />
-                                ),
-                            }}
-                        />
-                    </Card>
-                </motion.div>
+                        <Card className="shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <Button
+                                        icon={<ArrowLeft size={14} />}
+                                        onClick={() =>
+                                            router.visit("/account/mlm/levels")
+                                        }
+                                    >
+                                        Back
+                                    </Button>
+                                    {level && (
+                                        <LevelBadge
+                                            level={level}
+                                            showPercentage
+                                        />
+                                    )}
+                                </div>
+                                <Descriptions size="small" column={3}>
+                                    <Descriptions.Item label="Rank">
+                                        #{level?.rank}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label="Commission">
+                                        {level?.commission_percentage}%
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label="Criteria">
+                                        {criteria.length} rule
+                                        {criteria.length !== 1 ? "s" : ""}
+                                    </Descriptions.Item>
+                                </Descriptions>
+                            </div>
+                        </Card>
+                    </motion.div>
 
-                {/* Create / Edit Modal */}
-                <Modal
-                    title={editing ? "Edit Criterion" : "Add Criterion"}
-                    open={modalOpen}
-                    onOk={handleSubmit}
-                    onCancel={closeModal}
-                    confirmLoading={
-                        createCriterion.isPending || updateCriterion.isPending
-                    }
-                    okText={editing ? "Save" : "Add"}
-                    destroyOnClose
-                >
-                    <Form form={form} layout="vertical" className="mt-4">
-                        <Form.Item
-                            label="Metric"
-                            name="metric"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Select a metric",
-                                },
-                            ]}
+                    {/* Criteria – Grouped by Logic Group */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.1 }}
+                    >
+                        <Card
+                            title={
+                                <span className="font-semibold">
+                                    Promotion Criteria
+                                </span>
+                            }
+                            extra={
+                                <Button
+                                    type="primary"
+                                    icon={<Plus size={14} />}
+                                    onClick={openCreate}
+                                >
+                                    Add Criterion
+                                </Button>
+                            }
+                            className="shadow-sm"
                         >
-                            <Select
-                                options={METRIC_OPTIONS}
-                                placeholder="Select metric..."
+                            {/* Explanation */}
+                            <Alert
+                                type="info"
+                                showIcon
+                                className="mb-4"
+                                message="How criteria work"
+                                description={
+                                    <>
+                                        Rules within the same{" "}
+                                        <strong>group</strong> must <em>all</em>{" "}
+                                        be met (
+                                        <Tag color="green" className="mx-0.5">
+                                            AND
+                                        </Tag>
+                                        ). If multiple groups exist, satisfying{" "}
+                                        <em>any one</em> group is enough (
+                                        <Tag color="orange" className="mx-0.5">
+                                            OR
+                                        </Tag>
+                                        ).
+                                    </>
+                                }
                             />
-                        </Form.Item>
 
-                        <div className="grid grid-cols-2 gap-4">
+                            {criteria.length === 0 ? (
+                                <Empty description="No criteria defined. Agents cannot be auto-promoted to this level until criteria are set." />
+                            ) : (
+                                <div className="space-y-4">
+                                    {groupedEntries.map(
+                                        ([groupNum, items], idx) => (
+                                            <React.Fragment key={groupNum}>
+                                                {/* OR divider between groups */}
+                                                {idx > 0 && (
+                                                    <Divider className="my-2">
+                                                        <Tag
+                                                            color="orange"
+                                                            className="text-sm font-semibold"
+                                                        >
+                                                            OR
+                                                        </Tag>
+                                                    </Divider>
+                                                )}
+
+                                                {/* Group card */}
+                                                <Card
+                                                    size="small"
+                                                    className="border-l-4 border-l-blue-400"
+                                                    title={
+                                                        <span className="text-sm text-gray-600">
+                                                            Group {groupNum}
+                                                            <span className="ml-2 text-xs text-gray-400">
+                                                                — all of these
+                                                                must be true
+                                                            </span>
+                                                        </span>
+                                                    }
+                                                >
+                                                    <Table
+                                                        columns={columns}
+                                                        dataSource={items}
+                                                        rowKey="id"
+                                                        pagination={false}
+                                                        size="small"
+                                                        showHeader={idx === 0}
+                                                    />
+                                                </Card>
+                                            </React.Fragment>
+                                        ),
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Human-readable summary */}
+                            {groupedEntries.length > 0 && (
+                                <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                                    <strong>Summary:</strong> An agent qualifies
+                                    for <em>{level?.name}</em> if{" "}
+                                    {groupedEntries.map(
+                                        ([groupNum, items], gIdx) => (
+                                            <React.Fragment key={groupNum}>
+                                                {gIdx > 0 && (
+                                                    <Tag
+                                                        color="orange"
+                                                        className="mx-1"
+                                                    >
+                                                        OR
+                                                    </Tag>
+                                                )}
+                                                <span>
+                                                    (
+                                                    {items.map((c, cIdx) => (
+                                                        <React.Fragment
+                                                            key={c.id}
+                                                        >
+                                                            {cIdx > 0 && (
+                                                                <Tag
+                                                                    color="green"
+                                                                    className="mx-1"
+                                                                >
+                                                                    AND
+                                                                </Tag>
+                                                            )}
+                                                            <CriterionSentence
+                                                                criterion={c}
+                                                            />
+                                                        </React.Fragment>
+                                                    ))}
+                                                    )
+                                                </span>
+                                            </React.Fragment>
+                                        ),
+                                    )}
+                                </div>
+                            )}
+                        </Card>
+                    </motion.div>
+
+                    {/* Create / Edit Modal */}
+                    <Modal
+                        title={editing ? "Edit Criterion" : "Add Criterion"}
+                        open={modalOpen}
+                        onOk={handleSubmit}
+                        onCancel={closeModal}
+                        confirmLoading={
+                            createCriterion.isPending ||
+                            updateCriterion.isPending
+                        }
+                        okText={editing ? "Save" : "Add"}
+                        destroyOnClose
+                    >
+                        <Form form={form} layout="vertical" className="mt-4">
                             <Form.Item
-                                label="Operator"
-                                name="operator"
+                                label="Metric"
+                                name="metric"
                                 rules={[
                                     {
                                         required: true,
-                                        message: "Select operator",
+                                        message: "Select a metric",
                                     },
                                 ]}
                             >
                                 <Select
-                                    options={OPERATOR_OPTIONS}
-                                    placeholder="Operator"
+                                    options={METRIC_OPTIONS}
+                                    placeholder="Select metric..."
                                 />
                             </Form.Item>
 
+                            <div className="grid grid-cols-2 gap-4">
+                                <Form.Item
+                                    label="Operator"
+                                    name="operator"
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: "Select operator",
+                                        },
+                                    ]}
+                                >
+                                    <Select
+                                        options={OPERATOR_OPTIONS}
+                                        placeholder="Operator"
+                                    />
+                                </Form.Item>
+
+                                <Form.Item
+                                    label="Threshold"
+                                    name="threshold"
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: "Enter threshold",
+                                        },
+                                    ]}
+                                >
+                                    <InputNumber
+                                        min={0}
+                                        className="w-full"
+                                        placeholder="e.g. 10"
+                                    />
+                                </Form.Item>
+                            </div>
+
                             <Form.Item
-                                label="Threshold"
-                                name="threshold"
+                                label="Logic Group"
+                                name="logic_group"
+                                tooltip="Criteria in the same group are AND'd. Different groups are OR'd."
                                 rules={[
                                     {
                                         required: true,
-                                        message: "Enter threshold",
+                                        message: "Enter group number",
                                     },
                                 ]}
                             >
                                 <InputNumber
-                                    min={0}
+                                    min={1}
                                     className="w-full"
-                                    placeholder="e.g. 10"
+                                    placeholder="1"
                                 />
                             </Form.Item>
-                        </div>
 
-                        <Form.Item
-                            label="Logic Group"
-                            name="logic_group"
-                            tooltip="Criteria in the same group are AND'd. Different groups are OR'd."
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Enter group number",
-                                },
-                            ]}
-                        >
-                            <InputNumber
-                                min={1}
-                                className="w-full"
-                                placeholder="1"
-                            />
-                        </Form.Item>
+                            <Form.Item name="mlm_level_id" hidden>
+                                <InputNumber />
+                            </Form.Item>
+                        </Form>
+                    </Modal>
 
-                        <Form.Item name="mlm_level_id" hidden>
-                            <InputNumber />
-                        </Form.Item>
-                    </Form>
-                </Modal>
+                    {/* Delete Confirmation Modal */}
+                    <Modal
+                        title={
+                            <div className="flex items-center gap-2 text-red-600">
+                                <AlertTriangle size={18} />
+                                Remove Criterion
+                            </div>
+                        }
+                        open={!!deletingCriterion}
+                        onOk={handleDeleteConfirm}
+                        onCancel={() => setDeletingCriterion(null)}
+                        confirmLoading={deleteCriterion.isPending}
+                        okText="Remove"
+                        okType="danger"
+                        destroyOnClose
+                    >
+                        {deletingCriterion && (
+                            <div className="py-2">
+                                <p className="mb-2">
+                                    Are you sure you want to remove this
+                                    criterion?
+                                </p>
+                                <div className="p-3 bg-gray-50 rounded-lg">
+                                    <CriterionSentence
+                                        criterion={deletingCriterion}
+                                    />
+                                </div>
+                                <p className="mt-2 text-sm text-gray-500">
+                                    This may affect how agents qualify for the{" "}
+                                    <strong>{level?.name}</strong> level.
+                                </p>
+                            </div>
+                        )}
+                    </Modal>
+                </div>
             </PageLayout>
         </DashboardLayout>
     );

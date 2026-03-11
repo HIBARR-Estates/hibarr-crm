@@ -56,18 +56,15 @@ class MlmAdminController extends AccountBaseController
     /**
      * Level Qualification Rules
      */
-    public function levelRules(Request $request)
+    public function levelRules(Request $request, $level)
     {
-        $levels = MlmLevel::where('company_id', company()->id)
-            ->ordered()
+        $mlmLevel = MlmLevel::where('company_id', company()->id)
             ->with('criteria')
-            ->get();
-
-        $selectedLevelId = $request->input('level_id', $levels->first()?->id);
+            ->findOrFail($level);
 
         return Inertia::render('Mlm/Admin/LevelRules', [
-            'levels' => $levels,
-            'selectedLevelId' => $selectedLevelId,
+            'level' => $mlmLevel,
+            'criteria' => $mlmLevel->criteria ?? [],
         ]);
     }
 
