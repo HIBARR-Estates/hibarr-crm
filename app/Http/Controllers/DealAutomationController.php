@@ -66,6 +66,9 @@ class DealAutomationController extends AccountBaseController
             'conditions' => 'array',
             'actions' => 'required|array|min:1',
             'actions.*.action_type' => 'required|in:stage_transition,set_field_value,lock_deal',
+            'actions.*.target_stage_id' => 'required_if:actions.*.action_type,stage_transition|nullable|exists:pipeline_stages,id',
+            'actions.*.field_name' => 'required_if:actions.*.action_type,set_field_value|nullable|string',
+            'actions.*.field_value' => 'required_if:actions.*.action_type,set_field_value|nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -156,6 +159,9 @@ class DealAutomationController extends AccountBaseController
             'conditions' => 'array',
             'actions' => 'required|array|min:1',
             'actions.*.action_type' => 'required|in:stage_transition,set_field_value,lock_deal',
+            'actions.*.target_stage_id' => 'required_if:actions.*.action_type,stage_transition|nullable|exists:pipeline_stages,id',
+            'actions.*.field_name' => 'required_if:actions.*.action_type,set_field_value|nullable|string',
+            'actions.*.field_value' => 'required_if:actions.*.action_type,set_field_value|nullable|string',
         ]);
 
         DB::beginTransaction();
