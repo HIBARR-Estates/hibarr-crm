@@ -8,6 +8,7 @@ use App\Models\CrmEvent;
 use App\Services\CrmEventService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -49,7 +50,7 @@ class CrmEventController extends Controller
             ], 422);
         }
 
-        $companyId = (int) $request->header('X-COMPANY-ID');
+        $companyId = $this->resolveCompanyId($request);
 
         $params = array_merge($validator->validated(), [
             'company_id' => $companyId,
@@ -121,7 +122,7 @@ class CrmEventController extends Controller
             ], 422);
         }
 
-        $companyId = (int) $request->header('X-COMPANY-ID');
+        $companyId = $this->resolveCompanyId($request);
         $events = collect($validator->validated()['events'])->map(function ($event) use ($companyId, $request) {
             return array_merge($event, [
                 'company_id' => $companyId,
@@ -147,7 +148,7 @@ class CrmEventController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $companyId = (int) $request->header('X-COMPANY-ID');
+        $companyId = $this->resolveCompanyId($request);
 
         $filters = array_merge($request->only([
             'event_type_slug',
@@ -187,7 +188,7 @@ class CrmEventController extends Controller
      */
     public function show(Request $request, string $uuid): JsonResponse
     {
-        $companyId = (int) $request->header('X-COMPANY-ID');
+        $companyId = $this->resolveCompanyId($request);
 
         $event = CrmEvent::withoutGlobalScopes()
             ->where('company_id', $companyId)
@@ -215,7 +216,7 @@ class CrmEventController extends Controller
      */
     public function chain(Request $request, string $correlationId): JsonResponse
     {
-        $companyId = (int) $request->header('X-COMPANY-ID');
+        $companyId = $this->resolveCompanyId($request);
 
         $events = $this->eventService->getEventChain($correlationId, $companyId);
 
@@ -234,6 +235,19 @@ class CrmEventController extends Controller
                 'total_events' => $events->count(),
             ],
         ]);
+    }
+
+    /**
+     * Resolve company ID from the X-COMPANY-ID header (external API consumers)
+     * or from the authenticated session user (frontend / Inertia requests).
+     */
+    protected function resolveCompanyId(Request $request): int
+    {
+        if ($request->hasHeader('X-COMPANY-ID') && $request->header('X-COMPANY-ID') !== '') {
+            return (int) $request->header('X-COMPANY-ID');
+        }
+
+        return (int) (Auth::user()?->company_id ?? 0);
     }
 
     /**
