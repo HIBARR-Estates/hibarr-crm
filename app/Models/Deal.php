@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Payment;
 use App\Models\LeadAgent;
+use App\Models\MlmCommission;
 
 
 /**
@@ -137,6 +138,10 @@ class Deal extends BaseModel
         'close_date' => 'datetime',
         'next_follow_up_date' => 'datetime',
         'bitrix_id' => 'integer',
+        'outcome_status' => \App\Enums\OutcomeStatus::class,
+        'is_locked' => 'boolean',
+        'locked_at' => 'datetime',
+        'max_commission_percentage' => 'decimal:2',
     ];
 
     public function getImageUrlAttribute()
@@ -304,5 +309,17 @@ class Deal extends BaseModel
     public function tasks()
     {
         return $this->morphToMany(Task::class, 'taskable');
+    }
+
+    // ── MLM ──────────────────────────────────────────────────────
+
+    public function mlmCommissions(): HasMany
+    {
+        return $this->hasMany(MlmCommission::class, 'deal_id');
+    }
+
+    public function isLocked(): bool
+    {
+        return (bool) $this->is_locked;
     }
 }
