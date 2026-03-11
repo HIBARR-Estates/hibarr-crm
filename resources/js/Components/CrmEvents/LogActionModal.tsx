@@ -1,12 +1,15 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
     Modal,
     Form,
     Select,
     Input,
+    InputNumber,
     DatePicker,
+    Switch,
     Divider,
     Typography,
+    Alert,
 } from "antd";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -18,6 +21,7 @@ import type {
     CrmEventType,
     CrmEventStorePayload,
     CrmEvent,
+    MetadataFieldSchema,
 } from "@/Types/api/crm-event";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 
@@ -44,6 +48,7 @@ export default function LogActionModal({
     userId,
 }: Props) {
     const [form] = Form.useForm();
+    const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
     /* ---- Fetch event types ------------------------------------------------ */
     const { data: typesResponse, status: typesStatus } =
@@ -53,6 +58,14 @@ export default function LogActionModal({
         });
 
     const eventTypes: CrmEventType[] = typesResponse?.data ?? [];
+
+    /** The currently selected event type (for reading its metadata_schema). */
+    const selectedEventType = useMemo(
+        () => eventTypes.find((et) => et.slug === selectedSlug) ?? null,
+        [eventTypes, selectedSlug],
+    );
+
+    const metadataSchema = selectedEventType?.metadata_schema ?? null;
 
     /** Group event types by category for the Select dropdown. */
     const groupedOptions = useMemo(() => {
@@ -102,15 +115,32 @@ export default function LogActionModal({
         try {
             const values = await form.validateFields();
 
+            // Collect metadata from comment + dynamic schema fields
+            const metadata: Record<string, any> = {};
+            if (values.comment) {
+                metadata.comment = values.comment;
+            }
+            if (metadataSchema) {
+                for (const key of Object.keys(metadataSchema)) {
+                    const fieldVal = values[`meta_${key}`];
+                    if (
+                        fieldVal !== undefined &&
+                        fieldVal !== null &&
+                        fieldVal !== ""
+                    ) {
+                        metadata[key] = fieldVal;
+                    }
+                }
+            }
+
             const payload: CrmEventStorePayload = {
                 event_type_slug: values.event_type_slug,
                 model_type: modelType,
                 model_id: modelId,
                 user_id: userId,
                 generation_type: "user_generated",
-                metadata: values.comment
-                    ? { comment: values.comment }
-                    : undefined,
+                metadata:
+                    Object.keys(metadata).length > 0 ? metadata : undefined,
                 occurred_at: values.occurred_at
                     ? dayjs(values.occurred_at).utc().toISOString()
                     : dayjs().utc().toISOString(),
@@ -124,6 +154,7 @@ export default function LogActionModal({
 
     const handleCancel = () => {
         form.resetFields();
+        setSelectedSlug(null);
         onClose();
     };
 
@@ -157,8 +188,25 @@ export default function LogActionModal({
                         loading={_isLoading({ status: typesStatus })}
                         optionFilterProp="label"
                         options={groupedOptions}
+                        onChange={(val) => setSelectedSlug(val ?? null)}
                     />
                 </Form.Item>
+
+                {/* ── Dynamic metadata fields from the selected event type ── */}
+                {metadataSchema && Object.keys(metadataSchema).length > 0 && (
+                    <>
+                        <Alert
+                            message="Additional information"
+                            description="This event type expects extra details. Please fill in the fields below."
+                            type="info"
+                            showIcon
+                            className="mb-4"
+                        />
+                        {Object.entries(metadataSchema).map(([key, field]) =>
+                            renderMetadataField(key, field),
+                        )}
+                    </>
+                )}
 
                 <Form.Item name="comment" label="Comment">
                     <TextArea
@@ -188,4 +236,126 @@ export default function LogActionModal({
             </Text>
         </Modal>
     );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Helper: render a single dynamic form field based on MetadataFieldSchema.
+ * ──────────────────────────────────────────────────────────────────────────── */
+function renderMetadataField(key: string, field: MetadataFieldSchema) {
+    const fieldName = `meta_${key}`;
+    const label =
+        field.label ??
+        key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const rules = field.required
+        ? [{ required: true, message: `${label} is required` }]
+        : [];
+
+    switch (field.type) {
+        case "number":
+            return (
+                <Form.Item
+                    key={fieldName}
+                    name={fieldName}
+                    label={label}
+                    rules={rules}
+                    initialValue={field.default}
+                >
+                    <InputNumber
+                        className="w-full"
+                        placeholder={
+                            field.placeholder ?? `Enter ${label.toLowerCase()}`
+                        }
+                    />
+                </Form.Item>
+            );
+
+        case "boolean":
+            return (
+                <Form.Item
+                    key={fieldName}
+                    name={fieldName}
+                    label={label}
+                    valuePropName="checked"
+                    initialValue={field.default ?? false}
+                    rules={rules}
+                >
+                    <Switch />
+                </Form.Item>
+            );
+
+        case "date":
+            return (
+                <Form.Item
+                    key={fieldName}
+                    name={fieldName}
+                    label={label}
+                    rules={rules}
+                >
+                    <DatePicker
+                        className="w-full"
+                        showTime
+                        placeholder={
+                            field.placeholder ?? `Select ${label.toLowerCase()}`
+                        }
+                        format="YYYY-MM-DD HH:mm:ss"
+                    />
+                </Form.Item>
+            );
+
+        case "select":
+            return (
+                <Form.Item
+                    key={fieldName}
+                    name={fieldName}
+                    label={label}
+                    rules={rules}
+                    initialValue={field.default}
+                >
+                    <Select
+                        placeholder={
+                            field.placeholder ?? `Select ${label.toLowerCase()}`
+                        }
+                        options={field.options ?? []}
+                    />
+                </Form.Item>
+            );
+
+        case "textarea":
+            return (
+                <Form.Item
+                    key={fieldName}
+                    name={fieldName}
+                    label={label}
+                    rules={rules}
+                    initialValue={field.default}
+                >
+                    <Input.TextArea
+                        rows={3}
+                        placeholder={
+                            field.placeholder ?? `Enter ${label.toLowerCase()}`
+                        }
+                        maxLength={2000}
+                        showCount
+                    />
+                </Form.Item>
+            );
+
+        case "string":
+        default:
+            return (
+                <Form.Item
+                    key={fieldName}
+                    name={fieldName}
+                    label={label}
+                    rules={rules}
+                    initialValue={field.default}
+                >
+                    <Input
+                        placeholder={
+                            field.placeholder ?? `Enter ${label.toLowerCase()}`
+                        }
+                    />
+                </Form.Item>
+            );
+    }
 }

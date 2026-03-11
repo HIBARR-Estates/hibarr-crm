@@ -172,7 +172,7 @@ export default function CrmEventTimeline({
             {/* Card header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                 <Title level={5} className="!mb-0 !text-sm">
-                    CRM Events
+                    Activity Timeline
                 </Title>
                 {headerActions}
             </div>
@@ -184,7 +184,7 @@ export default function CrmEventTimeline({
 
             {/* Expanded Drawer */}
             <Drawer
-                title={`CRM Events${entityName ? ` — ${entityName}` : ""}`}
+                title={`Activity Timeline ${entityName ? ` — ${entityName}` : ""}`}
                 open={drawerOpen}
                 onClose={() => setDrawerOpen(false)}
                 width={520}
