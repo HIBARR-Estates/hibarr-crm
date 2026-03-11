@@ -307,33 +307,41 @@ const MlmLevelRules: React.FC<Props> = ({
                             className="shadow-sm"
                         >
                             {/* Explanation */}
-                            <Alert
-                                type="info"
-                                showIcon
-                                className="mb-4"
-                                message="How criteria work"
-                                description={
-                                    <>
-                                        Rules within the same{" "}
-                                        <strong>group</strong> must <em>all</em>{" "}
-                                        be met (
-                                        <Tag color="green" className="mx-0.5">
-                                            AND
-                                        </Tag>
-                                        ). If multiple groups exist, satisfying{" "}
-                                        <em>any one</em> group is enough (
-                                        <Tag color="orange" className="mx-0.5">
-                                            OR
-                                        </Tag>
-                                        ).
-                                    </>
-                                }
-                            />
+                            <div className="mb-4">
+                                <Alert
+                                    type="info"
+                                    showIcon
+                                    message="How criteria work"
+                                    description={
+                                        <>
+                                            Rules within the same{" "}
+                                            <strong>group</strong> must{" "}
+                                            <em>all</em> be met (
+                                            <Tag
+                                                color="green"
+                                                className="mx-0.5"
+                                            >
+                                                AND
+                                            </Tag>
+                                            ). If multiple groups exist,
+                                            satisfying <em>any one</em> group is
+                                            enough (
+                                            <Tag
+                                                color="orange"
+                                                className="mx-0.5"
+                                            >
+                                                OR
+                                            </Tag>
+                                            ).
+                                        </>
+                                    }
+                                />
+                            </div>
 
                             {criteria.length === 0 ? (
                                 <Empty description="No criteria defined. Agents cannot be auto-promoted to this level until criteria are set." />
                             ) : (
-                                <div className="space-y-4">
+                                <div className="flex flex-col gap-y-4">
                                     {groupedEntries.map(
                                         ([groupNum, items], idx) => (
                                             <React.Fragment key={groupNum}>
