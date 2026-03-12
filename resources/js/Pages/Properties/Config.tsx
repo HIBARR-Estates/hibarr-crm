@@ -400,7 +400,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                     Categories
                                 </Title>
                             </div>
-                            <div className="flex-1 overflow-y-auto">
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden">
                                 <Tabs
                                     tabPosition="left"
                                     activeKey={activeType}
@@ -507,7 +507,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                             </div>
 
                             {/* Table */}
-                            <div className="flex-1 overflow-hidden p-4">
+                            <div className="flex-1 overflow-y-auto p-4">
                                 {/* Bulk action bar for property-types */}
                                 {activeType === "property-types" &&
                                     selectedRowKeys.length > 0 && (
@@ -628,7 +628,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                 : false
                                         }
                                         size="middle"
-                                        scroll={{ y: "calc(100vh - 370px)" }}
+                                        scroll={{ y: "calc(100vh - 420px)" }}
                                         tableLayout="auto"
                                     />
                                 )}
