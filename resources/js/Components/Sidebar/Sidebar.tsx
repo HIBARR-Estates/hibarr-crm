@@ -11,6 +11,8 @@ import {
     BugOutlined,
     BulbOutlined,
     BellOutlined,
+    ApartmentOutlined,
+    TeamOutlined,
 } from "@ant-design/icons";
 
 import {
@@ -182,6 +184,98 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <BankOutlined />,
             href: "/account/developers",
         },
+        {
+            key: "mlm",
+            label: "MLM",
+            icon: <ApartmentOutlined />,
+            children: [
+                {
+                    key: "mlm-dashboard",
+                    label: "Dashboard",
+                    icon: null,
+                    href: "/account/mlm/dashboard",
+                },
+                {
+                    key: "mlm-levels",
+                    label: "Levels",
+                    icon: null,
+                    href: "/account/mlm/levels",
+                },
+                {
+                    key: "mlm-commission-settings",
+                    label: "Commission Settings",
+                    icon: null,
+                    href: "/account/mlm/commission-settings",
+                },
+                {
+                    key: "mlm-hierarchy",
+                    label: "Agent Hierarchy",
+                    icon: null,
+                    href: "/account/mlm/agent-hierarchy",
+                },
+                {
+                    key: "mlm-ledger",
+                    label: "Commission Ledger",
+                    icon: null,
+                    href: "/account/mlm/commission-ledger",
+                },
+                {
+                    key: "mlm-metrics",
+                    label: "Agent Metrics",
+                    icon: null,
+                    href: "/account/mlm/agent-metrics",
+                },
+                {
+                    key: "mlm-history",
+                    label: "Level History",
+                    icon: null,
+                    href: "/account/mlm/level-history",
+                },
+            ],
+        },
+        {
+            key: "my-mlm",
+            label: "My MLM",
+            icon: <TeamOutlined />,
+            children: [
+                {
+                    key: "my-mlm-dashboard",
+                    label: "Dashboard",
+                    icon: null,
+                    href: "/account/mlm/agent/dashboard",
+                },
+                {
+                    key: "my-mlm-commissions",
+                    label: "My Commissions",
+                    icon: null,
+                    href: "/account/mlm/agent/commissions",
+                },
+                {
+                    key: "my-mlm-network",
+                    label: "My Network",
+                    icon: null,
+                    href: "/account/mlm/agent/network",
+                },
+                {
+                    key: "my-mlm-uplines",
+                    label: "My Uplines",
+                    icon: null,
+                    href: "/account/mlm/agent/uplines",
+                },
+                {
+                    key: "my-mlm-level",
+                    label: "My Level",
+                    icon: null,
+                    href: "/account/mlm/agent/my-level",
+                },
+                {
+                    key: "my-mlm-deals",
+                    label: "My Deals",
+                    icon: null,
+                    href: "/account/mlm/agent/deal-contributions",
+                },
+            ],
+        },
     ];
 
     // User dropdown menu items
@@ -338,7 +432,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
 
             return (
-                <div key={item.key} className="mb-1">
+                <a key={item.key} className="mb-1" href={item?.href}>
                     {wrappedContent}
 
                     {/* Children */}
@@ -360,7 +454,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                             </div>
                         </div>
                     )}
-                </div>
+                </a>
             );
         },
         [collapsed, expandedItems, isActive, toggleExpanded, handleNavigate],

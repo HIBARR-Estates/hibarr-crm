@@ -155,7 +155,6 @@ class NotificationController extends AccountBaseController
 
         return response()->json([
             'status' => 'success',
-            'message' => __('messages.notificationRead'),
             'data' => [
                 'unread_count' => $this->notificationService->getUnreadCount($this->user),
             ],
@@ -179,7 +178,6 @@ class NotificationController extends AccountBaseController
 
         return response()->json([
             'status' => 'success',
-            'message' => trans_choice('messages.notificationsMarkedRead', $count, ['count' => $count]),
             'data' => [
                 'marked_count' => $count,
                 'unread_count' => $this->notificationService->getUnreadCount($this->user),
@@ -207,7 +205,6 @@ class NotificationController extends AccountBaseController
 
         return response()->json([
             'status' => 'success',
-            'message' => __('messages.notificationRead'),
             'data' => [
                 'marked_count' => $count,
                 'unread_count' => 0,

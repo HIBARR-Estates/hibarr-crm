@@ -72,6 +72,7 @@ class DealFollowUp extends BaseModel
         'reminders',  // New JSON field for multiple reminders
         'participants',  // JSON field for meeting participants (user IDs)
         'status',
+        'duration',  // Meeting duration in minutes (nullable, defaults to 30)
     ];
 
     protected $casts = [
@@ -79,7 +80,11 @@ class DealFollowUp extends BaseModel
         'created_at' => 'datetime',
         'reminders' => 'array',  // Cast JSON to array
         'participants' => 'array',  // Cast JSON to array
+        'duration' => 'integer',
     ];
+
+    /** Default meeting duration (minutes) when none is set */
+    public const DEFAULT_DURATION_MINUTES = 30;
 
     // Default reminders that cannot be edited or deleted
     public const DEFAULT_REMINDERS = [
@@ -115,6 +120,15 @@ class DealFollowUp extends BaseModel
     public function deal(): BelongsTo
     {
         return $this->belongsTo(Deal::class, 'deal_id');
+    }
+
+    /**
+     * Get the effective meeting duration in minutes.
+     * Falls back to DEFAULT_DURATION_MINUTES (30) when not explicitly set.
+     */
+    public function getEffectiveDuration(): int
+    {
+        return $this->duration ?? self::DEFAULT_DURATION_MINUTES;
     }
 
     public function addedBy(): BelongsTo

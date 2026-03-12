@@ -59,7 +59,7 @@
                     <div class="col-md-12">
                         <div class="form-group my-3">
                             <label class="f-14 text-dark-grey mb-1" for="rule_config">
-                                Rule Configuration (JSON) <sup class="text-danger f-12">*</sup>
+                                Rule Configuration (JSON) 
                             </label>
                             <textarea id="rule_config" name="rule_config" rows="8"
                                       class="form-control f-14"

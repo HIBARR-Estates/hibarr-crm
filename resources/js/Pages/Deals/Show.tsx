@@ -14,6 +14,9 @@ import { DealFile } from "@/Types/api/file";
 import { Proposal } from "@/Types/api/proposal";
 import QuickActions from "./Components/ActivitySidebar/QuickActions";
 import { Task } from "@/Types/api/tasks";
+import { CrmEventTimeline } from "@/Components/CrmEvents";
+import { usePage } from "@inertiajs/react";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -61,6 +64,11 @@ export const Show = ({
     employees,
     projects,
 }: Props) => {
+    const { props } = usePage<PageProps>();
+
+    // ── Page-level refresh ──────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh();
+
     return (
         <>
             <PageLayout
@@ -70,6 +78,8 @@ export const Show = ({
                     { name: "Deals", url: route("deals.index") },
                     { name: pageTitle },
                 ]}
+                onRefresh={refresh}
+                isRefreshing={isRefreshing}
             >
                 <div className="min-h-screen mx-12">
                     <div className="max-w-10xl mx-auto">
@@ -110,8 +120,8 @@ export const Show = ({
                                                                     isCurrent
                                                                         ? "scale-105"
                                                                         : isCompleted
-                                                                        ? ""
-                                                                        : "opacity-60"
+                                                                          ? ""
+                                                                          : "opacity-60"
                                                                 }
                                                             `}
                                                                 style={{
@@ -140,7 +150,7 @@ export const Show = ({
                                                             )}
                                                         </div>
                                                     );
-                                                }
+                                                },
                                             )}
 
                                             {(!deal.pipeline?.stages ||
@@ -229,10 +239,17 @@ export const Show = ({
 
                             {/* Right Column - Activities Sidebar */}
                             <Col xs={24} lg={8} xl={8}>
-                                <div className="lg:sticky lg:top-8">
+                                <div className="lg:sticky lg:top-8 flex flex-col gap-y-4">
                                     <ActivitySidebar
                                         deal={deal}
                                         permissions={permissions}
+                                    />
+                                    <CrmEventTimeline
+                                        modelType="App\\Models\\Deal"
+                                        modelId={deal.id}
+                                        userId={props.auth?.user?.id}
+                                        compact={true}
+                                        entityName={deal.name}
                                     />
                                 </div>
                             </Col>

@@ -38,8 +38,10 @@ import AddFollowup from "./Components/Tabs/followups/AddFollowup";
 import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
 import { useMemo, useState, useCallback } from "react";
 import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import PipelineSelector from "@/Features/Deals/PipelineSelector";
 import KanbanBoard from "@/Components/Kanban/KanbanBoard";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -104,6 +106,8 @@ const Index = ({
     const { props: pageProps } = usePage<any>();
     const currentUser = pageProps.auth?.user;
     const editDealsPermission = pageProps.auth?.permissions?.edit_deals;
+
+    const queryClient = useQueryClient();
 
     // View mode state: table or kanban (persisted in localStorage)
     const { view, setView, isTableView, isKanbanView } = useViewPreference({
@@ -334,6 +338,27 @@ const Index = ({
         // Column deletion functionality - can be extended later
     }, []);
 
+    // ── Page-level refresh ──────────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh({
+        onRefresh: async () => {
+            // Reload Inertia server-rendered props (deals table data + board columns)
+            await new Promise<void>((resolve, reject) => {
+                router.reload({
+                    onSuccess: () => resolve(),
+                    onError: (errors) => reject(errors),
+                });
+            });
+
+            // For Kanban view, also bust the React Query cache that each
+            // KanbanColumn uses via useApiInfiniteQuery.
+            if (isKanbanView) {
+                await queryClient.invalidateQueries({
+                    queryKey: [route("deals.kanban_deals")],
+                });
+            }
+        },
+    });
+
     return (
         <>
             <PageLayout
@@ -346,6 +371,8 @@ const Index = ({
                     />
                 }
                 filterSection={<ContextualActiveFilters />}
+                onRefresh={refresh}
+                isRefreshing={isRefreshing}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

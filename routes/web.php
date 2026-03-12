@@ -624,6 +624,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     // Meetings (user's meetings across all deals)
     Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
+    Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
+    Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
     
 // Meeting Summary Routes
 Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
@@ -1183,5 +1185,85 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::post('telegram', [App\Http\Controllers\TestActivityController::class, 'testTelegram'])->name('telegram');
         Route::post('retry', [App\Http\Controllers\TestActivityController::class, 'testWithRetry'])->name('retry');
         Route::post('all', [App\Http\Controllers\TestActivityController::class, 'testAllChannels'])->name('all');
+    });
+
+    // ══════════════════════════════════════════════════════════════
+    //  MLM — Admin Pages (Inertia)
+    // ══════════════════════════════════════════════════════════════
+    Route::prefix('mlm')->name('mlm.')->group(function () {
+        Route::get('dashboard', [App\Http\Controllers\MlmAdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('levels', [App\Http\Controllers\MlmAdminController::class, 'levels'])->name('levels');
+        Route::get('levels/{level}/rules', [App\Http\Controllers\MlmAdminController::class, 'levelRules'])->name('level_rules');
+        Route::get('commission-settings', [App\Http\Controllers\MlmAdminController::class, 'commissionSettings'])->name('commission_settings');
+        Route::get('agent-hierarchy', [App\Http\Controllers\MlmAdminController::class, 'agentHierarchy'])->name('agent_hierarchy');
+        Route::get('commission-ledger', [App\Http\Controllers\MlmAdminController::class, 'commissionLedger'])->name('commission_ledger');
+        Route::get('agent-metrics', [App\Http\Controllers\MlmAdminController::class, 'agentMetrics'])->name('agent_metrics');
+        Route::get('level-history', [App\Http\Controllers\MlmAdminController::class, 'levelHistory'])->name('level_history');
+
+        // ── MLM Admin JSON API ───────────────────────────────────
+        Route::prefix('api')->name('api.')->group(function () {
+            Route::get('dashboard-stats', [App\Http\Controllers\MlmAdminApiController::class, 'dashboardStats'])->name('dashboard_stats');
+
+            // Levels CRUD
+            Route::get('levels', [App\Http\Controllers\MlmAdminApiController::class, 'getLevels'])->name('levels.index');
+            Route::get('levels/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'getLevel'])->name('levels.show');
+            Route::post('levels', [App\Http\Controllers\MlmAdminApiController::class, 'storeLevel'])->name('levels.store');
+            Route::put('levels/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'updateLevel'])->name('levels.update');
+            Route::delete('levels/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'destroyLevel'])->name('levels.destroy');
+            Route::post('levels/reorder', [App\Http\Controllers\MlmAdminApiController::class, 'reorderLevels'])->name('levels.reorder');
+
+            // Level Criteria
+            Route::get('levels/{levelId}/criteria', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelCriteria'])->name('criteria.index');
+            Route::post('criteria', [App\Http\Controllers\MlmAdminApiController::class, 'storeCriterion'])->name('criteria.store');
+            Route::put('criteria/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'updateCriterion'])->name('criteria.update');
+            Route::delete('criteria/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'destroyCriterion'])->name('criteria.destroy');
+
+            // Commissions
+            Route::get('commissions', [App\Http\Controllers\MlmAdminApiController::class, 'getCommissions'])->name('commissions.index');
+            Route::post('commissions/{id}/mark-paid', [App\Http\Controllers\MlmAdminApiController::class, 'markCommissionPaid'])->name('commissions.mark_paid');
+            Route::post('commissions/bulk-mark-paid', [App\Http\Controllers\MlmAdminApiController::class, 'bulkMarkPaid'])->name('commissions.bulk_mark_paid');
+            Route::post('commissions/{id}/revert', [App\Http\Controllers\MlmAdminApiController::class, 'revertCommission'])->name('commissions.revert');
+            Route::get('commissions/export', [App\Http\Controllers\MlmAdminApiController::class, 'exportCommissions'])->name('commissions.export');
+
+            // Agent Metrics
+            Route::get('agent-metrics', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentMetrics'])->name('agent_metrics');
+
+            // Level History
+            Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');
+
+            // Hierarchy
+            Route::get('hierarchy', [App\Http\Controllers\MlmAdminApiController::class, 'getHierarchy'])->name('hierarchy');
+            Route::post('hierarchy/assign', [App\Http\Controllers\MlmAdminApiController::class, 'assignDownline'])->name('hierarchy.assign');
+            Route::post('hierarchy/{agentId}/remove', [App\Http\Controllers\MlmAdminApiController::class, 'removeHierarchy'])->name('hierarchy.remove');
+
+            // Settings
+            Route::get('settings', [App\Http\Controllers\MlmAdminApiController::class, 'getSettings'])->name('settings.show');
+            Route::put('settings', [App\Http\Controllers\MlmAdminApiController::class, 'updateSettings'])->name('settings.update');
+
+            // Simulation
+            Route::get('simulate', [App\Http\Controllers\MlmAdminApiController::class, 'simulate'])->name('simulate');
+        });
+    });
+
+    // ══════════════════════════════════════════════════════════════
+    //  MLM — Agent Portal Pages (Inertia) & API
+    // ══════════════════════════════════════════════════════════════
+    Route::prefix('mlm/agent')->name('mlm.agent.')->group(function () {
+        Route::get('dashboard', [App\Http\Controllers\MlmAgentController::class, 'dashboard'])->name('dashboard');
+        Route::get('commissions', [App\Http\Controllers\MlmAgentController::class, 'commissions'])->name('commissions');
+        Route::get('network', [App\Http\Controllers\MlmAgentController::class, 'network'])->name('network');
+        Route::get('uplines', [App\Http\Controllers\MlmAgentController::class, 'uplines'])->name('uplines');
+        Route::get('my-level', [App\Http\Controllers\MlmAgentController::class, 'myLevel'])->name('my_level');
+        Route::get('deal-contributions', [App\Http\Controllers\MlmAgentController::class, 'dealContributions'])->name('deal_contributions');
+
+        // Agent JSON API
+        Route::prefix('api')->name('api.')->group(function () {
+            Route::get('dashboard-stats', [App\Http\Controllers\MlmAgentController::class, 'dashboard'])->name('dashboard_stats');
+            Route::get('commissions', [App\Http\Controllers\MlmAgentController::class, 'commissionsApi'])->name('commissions');
+            Route::get('network', [App\Http\Controllers\MlmAgentController::class, 'networkApi'])->name('network');
+            Route::get('uplines', [App\Http\Controllers\MlmAgentController::class, 'uplinesApi'])->name('uplines');
+            Route::get('my-level', [App\Http\Controllers\MlmAgentController::class, 'myLevelApi'])->name('my_level');
+            Route::get('deal-contributions', [App\Http\Controllers\MlmAgentController::class, 'dealContributionsApi'])->name('deal_contributions');
+        });
     });
 });

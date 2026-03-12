@@ -1,5 +1,4 @@
-import { useState, useMemo } from "react";
-import { Link } from "@inertiajs/react";
+import { useState, useMemo, useEffect } from "react";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
@@ -15,6 +14,7 @@ import {
     Tag,
     Tooltip,
     Select,
+    Input,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -31,6 +31,7 @@ import {
     BorderBottomOutlined,
     CheckCircleOutlined,
     ReloadOutlined,
+    SearchOutlined,
 } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
@@ -79,6 +80,26 @@ const Config = ({ pageTitle }: ConfigProps) => {
     );
 
     const activeMeta = CONFIG_CATEGORIES[activeType];
+
+    // Search & filter state
+    const [searchText, setSearchText] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [filterCityId, setFilterCityId] = useState<number | undefined>();
+
+    // Debounce search input (300ms)
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchText), 300);
+        return () => clearTimeout(timer);
+    }, [searchText]);
+
+    // Reset search/filter + selections when switching tabs
+    useEffect(() => {
+        setSearchText("");
+        setDebouncedSearch("");
+        setFilterCityId(undefined);
+        setSelectedRowKeys([]);
+        setBulkCategory(undefined);
+    }, [activeType]);
 
     // Fetch type summary counts
     const typesQuery = useApiQuery<ConfigTypesResponse>({
@@ -179,22 +200,11 @@ const Config = ({ pageTitle }: ConfigProps) => {
     const columns: ColumnsType<PropertyConfigItem> = useMemo(() => {
         const cols: ColumnsType<PropertyConfigItem> = [
             {
-                title: "Name",
-                dataIndex: "name",
-                key: "name",
-                width: 200,
-                render: (val: string) => (
-                    <Text strong className="font-mono text-sm">
-                        {val}
-                    </Text>
-                ),
-            },
-            {
                 title: "Display Label",
                 dataIndex: "label",
                 key: "label",
                 width: 220,
-                render: (val: string) => <Tag color="blue">{val}</Tag>,
+                render: (val: string) => <Text strong>{val}</Text>,
             },
         ];
 
@@ -206,11 +216,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                 key: "parent_type",
                 width: 160,
                 render: (val: string | null) =>
-                    val ? (
-                        <Tag color="geekblue">{val}</Tag>
-                    ) : (
-                        <Text type="secondary">—</Text>
-                    ),
+                    val ? <Text>{val}</Text> : <Text type="secondary">—</Text>,
             });
         }
 
@@ -224,7 +230,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                 render: (val: number | null) => {
                     const city = cityItems.find((c) => c.id === val);
                     return city ? (
-                        <Tag color="green">{city.label}</Tag>
+                        <Text>{city.label}</Text>
                     ) : (
                         <Text type="secondary">—</Text>
                     );
@@ -262,6 +268,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                 dataIndex: "description",
                 key: "description",
                 ellipsis: true,
+                responsive: ["md"],
                 render: (val: string | null) =>
                     val ? (
                         <Tooltip title={val}>
@@ -276,8 +283,8 @@ const Config = ({ pageTitle }: ConfigProps) => {
             {
                 title: "Actions",
                 key: "actions",
-                width: 120,
-                align: "center",
+                width: 100,
+                align: "right",
                 render: (_: unknown, record: PropertyConfigItem) => (
                     <Space size="small">
                         <Button
@@ -348,6 +355,23 @@ const Config = ({ pageTitle }: ConfigProps) => {
     const items = itemsQuery.data?.data ?? [];
     const isLoadingItems = itemsQuery.isLoading;
 
+    // Client-side filtered items
+    const filteredItems = useMemo(() => {
+        let result = items;
+        if (debouncedSearch) {
+            const needle = debouncedSearch.toLowerCase();
+            result = result.filter((item) =>
+                item.label.toLowerCase().includes(needle),
+            );
+        }
+        if (activeType === "areas" && filterCityId != null) {
+            result = result.filter((item) => item.city_id === filterCityId);
+        }
+        return result;
+    }, [items, debouncedSearch, activeType, filterCityId]);
+
+    const hasActiveFilters = debouncedSearch !== "" || filterCityId != null;
+
     return (
         <PageLayout
             title={pageTitle}
@@ -356,25 +380,18 @@ const Config = ({ pageTitle }: ConfigProps) => {
                 { name: "Configuration" },
             ]}
         >
-            <div className="max-w-7xl mx-auto space-y-4">
-                {/* Back to Properties */}
-                {/* <div>
-                    <Link href={route("properties.index")}>
-                        <Button
-                            type="text"
-                            icon={<ArrowLeftOutlined />}
-                            size="small"
-                        >
-                            Back to Properties
-                        </Button>
-                    </Link>
-                </div> */}
-
+            <div
+                className="max-w-7xl mx-auto"
+                style={{ height: "calc(100vh - 140px)" }}
+            >
                 {/* Main Content: Vertical Tabs + Table */}
-                <Card className="shadow-sm" styles={{ body: { padding: 0 } }}>
-                    <div className="flex min-h-[70vh]">
+                <Card
+                    className="shadow-sm h-full"
+                    styles={{ body: { padding: 0, height: "100%" } }}
+                >
+                    <div className="flex h-full overflow-hidden">
                         {/* Left: Vertical Tabs */}
-                        <div className="border-r border-gray-200 bg-gray-50/50 w-[240px] md:w-[240px]">
+                        <div className="border-r border-gray-200 bg-gray-50/50 w-[240px] flex-shrink-0 flex flex-col overflow-hidden">
                             <div className="p-4 border-b border-gray-200">
                                 <Title
                                     level={5}
@@ -383,33 +400,33 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                     Categories
                                 </Title>
                             </div>
-                            <Tabs
-                                tabPosition="left"
-                                activeKey={activeType}
-                                onChange={(key) =>
-                                    setActiveType(key as ConfigTypeSlug)
-                                }
-                                items={tabItems}
-                                className="config-vertical-tabs"
-                                style={{ minHeight: "calc(70vh - 57px)" }}
-                                tabBarStyle={{
-                                    width: 240,
-                                    marginRight: 0,
-                                    borderRight: "none",
-                                }}
-                                renderTabBar={(props, DefaultTabBar) => (
-                                    <DefaultTabBar
-                                        {...props}
-                                        className="!border-r-0"
-                                    />
-                                )}
-                            />
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                                <Tabs
+                                    tabPosition="left"
+                                    activeKey={activeType}
+                                    onChange={(key) =>
+                                        setActiveType(key as ConfigTypeSlug)
+                                    }
+                                    items={tabItems}
+                                    tabBarStyle={{
+                                        width: 240,
+                                        marginRight: 0,
+                                        borderRight: "none",
+                                    }}
+                                    renderTabBar={(props, DefaultTabBar) => (
+                                        <DefaultTabBar
+                                            {...props}
+                                            className="!border-r-0"
+                                        />
+                                    )}
+                                />
+                            </div>
                         </div>
 
                         {/* Right: Table Content */}
-                        <div className="flex-1 flex flex-col">
+                        <div className="flex-1 flex flex-col overflow-hidden">
                             {/* Table Header */}
-                            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                            <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                                 <div>
                                     <div className="flex items-center gap-2">
                                         {ICON_MAP[activeMeta.icon]}
@@ -449,8 +466,48 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                 </Space>
                             </div>
 
+                            {/* Filter Bar */}
+                            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white flex-shrink-0">
+                                <Input
+                                    prefix={
+                                        <SearchOutlined className="text-gray-400" />
+                                    }
+                                    placeholder={`Search ${activeMeta.label.toLowerCase()}...`}
+                                    value={searchText}
+                                    onChange={(e) =>
+                                        setSearchText(e.target.value)
+                                    }
+                                    allowClear
+                                    style={{ maxWidth: 320 }}
+                                />
+                                {activeType === "areas" && (
+                                    <Select
+                                        placeholder="Filter by city"
+                                        value={filterCityId}
+                                        onChange={setFilterCityId}
+                                        allowClear
+                                        showSearch
+                                        optionFilterProp="label"
+                                        style={{ width: 200 }}
+                                        options={cityItems.map((c) => ({
+                                            value: c.id,
+                                            label: c.label,
+                                        }))}
+                                    />
+                                )}
+                                {hasActiveFilters && (
+                                    <Text
+                                        type="secondary"
+                                        className="text-xs ml-auto"
+                                    >
+                                        {filteredItems.length} of {items.length}{" "}
+                                        shown
+                                    </Text>
+                                )}
+                            </div>
+
                             {/* Table */}
-                            <div className="flex-1 p-4">
+                            <div className="flex-1 overflow-y-auto p-4">
                                 {/* Bulk action bar for property-types */}
                                 {activeType === "property-types" &&
                                     selectedRowKeys.length > 0 && (
@@ -519,10 +576,36 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                             }
                                         />
                                     </div>
+                                ) : filteredItems.length === 0 &&
+                                  hasActiveFilters ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <Empty
+                                            description={
+                                                <span>
+                                                    No matching{" "}
+                                                    {activeMeta.label.toLowerCase()}{" "}
+                                                    found.
+                                                    <br />
+                                                    <Button
+                                                        type="link"
+                                                        onClick={() => {
+                                                            setSearchText("");
+                                                            setFilterCityId(
+                                                                undefined,
+                                                            );
+                                                        }}
+                                                        className="!p-0"
+                                                    >
+                                                        Clear filters
+                                                    </Button>
+                                                </span>
+                                            }
+                                        />
+                                    </div>
                                 ) : (
                                     <Table
                                         columns={columns}
-                                        dataSource={items}
+                                        dataSource={filteredItems}
                                         rowKey="id"
                                         loading={isLoadingItems}
                                         rowSelection={
@@ -537,7 +620,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                 : undefined
                                         }
                                         pagination={
-                                            items.length > 20
+                                            filteredItems.length > 20
                                                 ? {
                                                       pageSize: 20,
                                                       showSizeChanger: false,
@@ -545,7 +628,8 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                 : false
                                         }
                                         size="middle"
-                                        scroll={{ y: "calc(70vh - 200px)" }}
+                                        scroll={{ y: "calc(100vh - 420px)" }}
+                                        tableLayout="auto"
                                     />
                                 )}
                             </div>

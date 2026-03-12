@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CrmEventType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * REST API controller for listing available CRM event types.
@@ -25,7 +26,10 @@ class CrmEventTypeController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $companyId = (int) $request->header('X-COMPANY-ID');
+        // Resolve company from header (external API consumers) or authenticated user (frontend)
+        $companyId = $request->hasHeader('X-COMPANY-ID') && $request->header('X-COMPANY-ID') !== ''
+            ? (int) $request->header('X-COMPANY-ID')
+            : (int) (Auth::user()?->company_id ?? 0);
 
         $query = CrmEventType::withoutGlobalScopes()
             ->where(function ($q) use ($companyId) {
@@ -59,6 +63,7 @@ class CrmEventTypeController extends Controller
                     'slug' => $type->category->slug,
                     'name' => $type->category->name,
                 ] : null,
+                'metadata_schema' => $type->metadata_schema,
                 'business_rule' => $type->businessRule ? [
                     'slug' => $type->businessRule->slug,
                     'name' => $type->businessRule->name,

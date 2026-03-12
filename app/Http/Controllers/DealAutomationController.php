@@ -65,6 +65,10 @@ class DealAutomationController extends AccountBaseController
             'priority' => 'required|integer',
             'conditions' => 'array',
             'actions' => 'required|array|min:1',
+            'actions.*.action_type' => 'required|in:stage_transition,set_field_value,lock_deal',
+            'actions.*.target_stage_id' => 'required_if:actions.*.action_type,stage_transition|nullable|exists:pipeline_stages,id',
+            'actions.*.field_name' => 'required_if:actions.*.action_type,set_field_value|nullable|string',
+            'actions.*.field_value' => 'required_if:actions.*.action_type,set_field_value|nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -91,10 +95,14 @@ class DealAutomationController extends AccountBaseController
             }
 
             foreach ($request->actions as $action) {
+                $actionType = $action['action_type'] ?? 'stage_transition';
                 $automation->actions()->create([
-                    'target_stage_id' => $action['target_stage_id'],
-                    'target_pipeline_id' => $action['target_pipeline_id'] ?? null,
-                    'forward_only' => isset($action['forward_only']) ? 1 : 0,
+                    'action_type' => $actionType,
+                    'target_stage_id' => $actionType === 'stage_transition' ? ($action['target_stage_id'] ?? null) : null,
+                    'target_pipeline_id' => $actionType === 'stage_transition' ? ($action['target_pipeline_id'] ?? null) : null,
+                    'forward_only' => $actionType === 'stage_transition' ? (isset($action['forward_only']) ? 1 : 0) : 0,
+                    'field_name' => $actionType === 'set_field_value' ? ($action['field_name'] ?? null) : null,
+                    'field_value' => $actionType === 'set_field_value' ? ($action['field_value'] ?? null) : null,
                 ]);
             }
 
@@ -150,6 +158,10 @@ class DealAutomationController extends AccountBaseController
             'priority' => 'required|integer',
             'conditions' => 'array',
             'actions' => 'required|array|min:1',
+            'actions.*.action_type' => 'required|in:stage_transition,set_field_value,lock_deal',
+            'actions.*.target_stage_id' => 'required_if:actions.*.action_type,stage_transition|nullable|exists:pipeline_stages,id',
+            'actions.*.field_name' => 'required_if:actions.*.action_type,set_field_value|nullable|string',
+            'actions.*.field_value' => 'required_if:actions.*.action_type,set_field_value|nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -180,10 +192,14 @@ class DealAutomationController extends AccountBaseController
             // Sync actions
             $automation->actions()->delete();
             foreach ($request->actions as $action) {
+                $actionType = $action['action_type'] ?? 'stage_transition';
                 $automation->actions()->create([
-                    'target_stage_id' => $action['target_stage_id'],
-                    'target_pipeline_id' => $action['target_pipeline_id'] ?? null,
-                    'forward_only' => isset($action['forward_only']) ? 1 : 0,
+                    'action_type' => $actionType,
+                    'target_stage_id' => $actionType === 'stage_transition' ? ($action['target_stage_id'] ?? null) : null,
+                    'target_pipeline_id' => $actionType === 'stage_transition' ? ($action['target_pipeline_id'] ?? null) : null,
+                    'forward_only' => $actionType === 'stage_transition' ? (isset($action['forward_only']) ? 1 : 0) : 0,
+                    'field_name' => $actionType === 'set_field_value' ? ($action['field_name'] ?? null) : null,
+                    'field_value' => $actionType === 'set_field_value' ? ($action['field_value'] ?? null) : null,
                 ]);
             }
 

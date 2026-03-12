@@ -1,0 +1,218 @@
+import React, { useState } from "react";
+import { Card, Table, Tag, Input, Select, Empty, Progress, Space } from "antd";
+import { motion } from "framer-motion";
+import { BarChart3, Search } from "lucide-react";
+import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
+import PageLayout from "@/Components/PageLayout";
+import { useAgentMetrics } from "@/Features/Mlm/api";
+import { LevelBadge, ProgressToNextLevel } from "@/Features/Mlm/Components";
+import type {
+    AgentMetricWithProgress,
+    PaginatedResponse,
+} from "@/Features/Mlm/types";
+
+interface Props extends PageProps {
+    metrics: PaginatedResponse<AgentMetricWithProgress>;
+}
+
+const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
+    const [page, setPage] = useState(1);
+    const [search, setSearch] = useState("");
+    const [levelFilter, setLevelFilter] = useState<string | undefined>();
+
+    const { data, isLoading } = useAgentMetrics({
+        page,
+        per_page: 20,
+        ...(search ? { search } : {}),
+        ...(levelFilter ? { level: levelFilter } : {}),
+    });
+
+    const metrics: PaginatedResponse<AgentMetricWithProgress> =
+        (data as any)?.data ?? initialMetrics;
+
+    const columns = [
+        {
+            title: "Agent",
+            key: "agent",
+            render: (_: any, record: AgentMetricWithProgress) => (
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-semibold">
+                        {record.agent?.user?.name?.charAt(0) ?? "?"}
+                    </div>
+                    <div>
+                        <div className="font-medium text-sm">
+                            {record.agent?.user?.name ?? "Unknown"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                            {record.agent?.user?.email}
+                        </div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            title: "Current Level",
+            key: "level",
+            render: (_: any, record: AgentMetricWithProgress) =>
+                record.current_level ? (
+                    <LevelBadge level={record.current_level} />
+                ) : (
+                    <Tag>Unranked</Tag>
+                ),
+        },
+        {
+            title: "NSA",
+            dataIndex: "nsa",
+            key: "nsa",
+            align: "right" as const,
+            render: (val: number) => val?.toLocaleString() ?? 0,
+        },
+        {
+            title: "NSD",
+            dataIndex: "nsd",
+            key: "nsd",
+            align: "right" as const,
+            render: (val: number) => val?.toLocaleString() ?? 0,
+        },
+        {
+            title: "VSA",
+            dataIndex: "vsa",
+            key: "vsa",
+            align: "right" as const,
+            render: (val: number) => `$${(val ?? 0).toLocaleString()}`,
+        },
+        {
+            title: "VSD",
+            dataIndex: "vsd",
+            key: "vsd",
+            align: "right" as const,
+            render: (val: number) => `$${(val ?? 0).toLocaleString()}`,
+        },
+        {
+            title: "Progress to Next",
+            key: "progress",
+            width: 200,
+            render: (_: any, record: AgentMetricWithProgress) =>
+                record.next_level ? (
+                    <div>
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-500">
+                                → {record.next_level.name}
+                            </span>
+                            <span className="text-xs font-medium">
+                                {record.progress_percentage ?? 0}%
+                            </span>
+                        </div>
+                        <Progress
+                            percent={record.progress_percentage ?? 0}
+                            showInfo={false}
+                            size="small"
+                            strokeColor={
+                                (record.progress_percentage ?? 0) >= 100
+                                    ? "#16a34a"
+                                    : "#6366f1"
+                            }
+                        />
+                    </div>
+                ) : (
+                    <Tag color="gold">Max Level</Tag>
+                ),
+        },
+    ];
+
+    const expandedRowRender = (record: AgentMetricWithProgress) =>
+        record.criteria_progress?.length ? (
+            <div className="px-4 py-2">
+                <ProgressToNextLevel
+                    currentLevel={record.current_level ?? null}
+                    nextLevel={record.next_level ?? null}
+                    overallProgress={record.progress_percentage ?? 0}
+                    criteriaProgress={record.criteria_progress ?? []}
+                    compact
+                />
+            </div>
+        ) : (
+            <div className="px-4 py-2 text-sm text-gray-500">
+                No criteria progress data
+            </div>
+        );
+
+    return (
+        <DashboardLayout>
+            <PageLayout
+                title="Agent Metrics"
+                breadcrumbs={[
+                    { name: "MLM", url: "/account/mlm/dashboard" },
+                    { name: "Agent Metrics" },
+                ]}
+            >
+                <div className="max-w-7xl mx-auto space-y-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                    >
+                        <Card
+                            title={
+                                <div className="flex items-center gap-2">
+                                    <BarChart3
+                                        size={18}
+                                        className="text-indigo-500"
+                                    />
+                                    <span className="font-semibold">
+                                        Agent Performance Metrics
+                                    </span>
+                                </div>
+                            }
+                            className="shadow-sm"
+                        >
+                            {/* Search / Filters */}
+                            <div className="flex flex-wrap gap-3 mb-4">
+                                <Input
+                                    prefix={<Search size={14} />}
+                                    placeholder="Search agent..."
+                                    className="w-64"
+                                    allowClear
+                                    value={search}
+                                    onChange={(e) => {
+                                        setSearch(e.target.value);
+                                        setPage(1);
+                                    }}
+                                />
+                            </div>
+
+                            <Table
+                                columns={columns}
+                                dataSource={metrics?.data ?? []}
+                                rowKey="id"
+                                loading={isLoading}
+                                size="middle"
+                                expandable={{
+                                    expandedRowRender,
+                                    rowExpandable: (record) =>
+                                        !!record.criteria_progress?.length,
+                                }}
+                                pagination={{
+                                    current: metrics?.current_page ?? 1,
+                                    total: metrics?.total ?? 0,
+                                    pageSize: metrics?.per_page ?? 20,
+                                    showSizeChanger: false,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}–${range[1]} of ${total}`,
+                                    onChange: (p) => setPage(p),
+                                }}
+                                locale={{
+                                    emptyText: (
+                                        <Empty description="No agent metrics found" />
+                                    ),
+                                }}
+                            />
+                        </Card>
+                    </motion.div>
+                </div>
+            </PageLayout>
+        </DashboardLayout>
+    );
+};
+
+export default MlmAgentMetrics;
