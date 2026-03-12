@@ -50,6 +50,7 @@ import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 
 dayjs.extend(utc);
 
@@ -738,12 +739,17 @@ function MeetingsIndex() {
         permissions.add_lead_follow_up === "all" ||
         permissions.add_lead_follow_up === "added";
 
+    // ── Page-level refresh ──────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh();
+
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (
         <PageLayout
             title={pageTitle || "Meetings"}
             breadcrumbs={[{ name: "Meetings" }]}
+            onRefresh={refresh}
+            isRefreshing={isRefreshing}
         >
             <div className="px-4 sm:px-6 py-6 space-y-8">
                 {/* ── Header ────────────────────────────────────────── */}

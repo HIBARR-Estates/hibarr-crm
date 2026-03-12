@@ -16,6 +16,7 @@ import QuickActions from "./Components/ActivitySidebar/QuickActions";
 import { Task } from "@/Types/api/tasks";
 import { CrmEventTimeline } from "@/Components/CrmEvents";
 import { usePage } from "@inertiajs/react";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -65,6 +66,9 @@ export const Show = ({
 }: Props) => {
     const { props } = usePage<PageProps>();
 
+    // ── Page-level refresh ──────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh();
+
     return (
         <>
             <PageLayout
@@ -74,6 +78,8 @@ export const Show = ({
                     { name: "Deals", url: route("deals.index") },
                     { name: pageTitle },
                 ]}
+                onRefresh={refresh}
+                isRefreshing={isRefreshing}
             >
                 <div className="min-h-screen mx-12">
                     <div className="max-w-10xl mx-auto">
