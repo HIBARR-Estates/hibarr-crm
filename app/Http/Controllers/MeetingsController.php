@@ -94,15 +94,40 @@ class MeetingsController extends AccountBaseController
         $upcomingPerPage = (int) $request->get('upcoming_per_page', 6);
         $pastPerPage     = (int) $request->get('past_per_page', 6);
 
+        // A meeting is "live" when it has started but not yet ended:
+        //   next_follow_up_date <= now AND next_follow_up_date + duration > now AND status = 'scheduled'
+        // Live meetings should appear in Upcoming, not Past.
+        $defaultDuration = DealFollowUp::DEFAULT_DURATION_MINUTES;
+
         $upcomingMeetings = DealFollowUp::with($eagerLoads)
             ->where($scopeUser)
-            ->where('next_follow_up_date', '>=', $now)
+            ->where(function ($query) use ($now, $defaultDuration) {
+                // Truly upcoming (haven't started yet)
+                $query->where('next_follow_up_date', '>=', $now)
+                    // OR currently live (started but not ended)
+                    ->orWhere(function ($q) use ($now, $defaultDuration) {
+                        $q->where('status', 'scheduled')
+                          ->where('next_follow_up_date', '<=', $now)
+                          ->whereRaw(
+                              'DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?',
+                              [$defaultDuration, $now]
+                          );
+                    });
+            })
             ->orderBy('next_follow_up_date', 'asc')
             ->paginate($upcomingPerPage, ['*'], 'upcoming_page');
 
         $pastMeetings = DealFollowUp::with($eagerLoads)
             ->where($scopeUser)
             ->where('next_follow_up_date', '<', $now)
+            // Exclude live meetings from Past
+            ->where(function ($query) use ($now, $defaultDuration) {
+                $query->where('status', '!=', 'scheduled')
+                    ->orWhereRaw(
+                        'DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) < ?',
+                        [$defaultDuration, $now]
+                    );
+            })
             ->orderBy('next_follow_up_date', 'desc')
             ->paginate($pastPerPage, ['*'], 'past_page');
 
