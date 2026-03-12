@@ -180,30 +180,9 @@ const ConfigItemModal = ({
                         <Input placeholder="e.g. Sea View" />
                     </Form.Item>
 
-                    <Form.Item
-                        name="name"
-                        label={
-                            <span>
-                                Name{" "}
-                                <Text
-                                    type="secondary"
-                                    className="text-xs font-normal"
-                                >
-                                    {isEditing
-                                        ? "(locked)"
-                                        : "(auto-generated)"}
-                                </Text>
-                            </span>
-                        }
-                        rules={[{ max: 255, message: "Max 255 characters" }]}
-                        tooltip="Internal identifier — auto-generated from the label. Cannot be changed after creation."
-                    >
-                        <Input
-                            disabled
-                            placeholder={
-                                isEditing ? "" : "Auto-generated from label..."
-                            }
-                        />
+                    {/* Name field hidden — auto-generated from label on the backend */}
+                    <Form.Item name="name" hidden>
+                        <Input type="hidden" />
                     </Form.Item>
 
                     {activeType === "sub-types" && (
