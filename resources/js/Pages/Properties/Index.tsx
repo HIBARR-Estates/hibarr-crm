@@ -37,6 +37,7 @@ import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createPropertyFilterConfig } from "@/configs/propertyFilterConfig";
 import { createPropertySearchConfig } from "@/configs/searchConfigs";
 import usePageSort from "@/Hooks/usePageSort";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 
 import type {
     DeveloperProjectOption,
@@ -370,6 +371,9 @@ const Index = ({
     // Whether we're showing the properties table or construction projects
     const showPropertiesTable = activeTab !== "construction_projects";
 
+    // ── Page-level refresh ──────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh();
+
     return (
         <>
             <PageLayout
@@ -388,6 +392,8 @@ const Index = ({
                         <ContextualActiveFilters />
                     ) : undefined
                 }
+                onRefresh={refresh}
+                isRefreshing={isRefreshing}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     {/* Unified Tab Navigation */}

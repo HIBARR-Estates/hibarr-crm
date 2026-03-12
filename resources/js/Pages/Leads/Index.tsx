@@ -34,6 +34,7 @@ import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 
 export interface IndexProps extends PageProps {
     pageTitle: string;
@@ -63,11 +64,11 @@ const Index = ({
             "client-categories",
             "languages",
         ],
-        []
+        [],
     );
 
     const { data: formData, loading: formDataLoading } = useFormDataBatch(
-        formDataTypes as FormDataType[]
+        formDataTypes as FormDataType[],
     );
     console.log(formData, "FORM DATA");
     // // Memoize configs to prevent unnecessary re-renders and filter resets
@@ -82,7 +83,7 @@ const Index = ({
                 languages: formData.languages || [],
                 excludeFields: ["search"],
             }),
-        [formData]
+        [formData],
     );
 
     // Setup search and filter contexts
@@ -110,7 +111,7 @@ const Index = ({
         (lead: Lead) => {
             handleAction("edit", lead);
         },
-        [handleAction]
+        [handleAction],
     );
 
     // Handle import leads
@@ -170,13 +171,16 @@ const Index = ({
                 },
             },
         ],
-        [handleEditLead, handleAction]
+        [handleEditLead, handleAction],
     );
 
     const columns = useMemo(
         () => LEAD_TABLE_COLUMNS(getActionItems),
-        [getActionItems]
+        [getActionItems],
     );
+
+    // ── Page-level refresh ──────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh();
 
     return (
         <>
@@ -190,6 +194,8 @@ const Index = ({
                     />
                 }
                 filterSection={<ContextualActiveFilters />}
+                onRefresh={refresh}
+                isRefreshing={isRefreshing}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -223,7 +229,7 @@ const Index = ({
                             {selectedEntities.length > 0 && (
                                 <BulkLeadActionSelector
                                     selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id
+                                        ({ id }) => id,
                                     )}
                                     clearSelected={clearSelected}
                                 />
@@ -257,7 +263,7 @@ const Index = ({
                                         {
                                             preserveState: true,
                                             preserveScroll: true,
-                                        }
+                                        },
                                     );
                                 },
                             }}
