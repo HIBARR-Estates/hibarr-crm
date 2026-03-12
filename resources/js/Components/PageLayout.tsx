@@ -1,7 +1,16 @@
 import React, { useEffect } from "react";
-import { App, Avatar, Breadcrumb, Dropdown, MenuProps, Switch } from "antd";
+import {
+    App,
+    Avatar,
+    Breadcrumb,
+    Button,
+    Dropdown,
+    MenuProps,
+    Switch,
+    Tooltip,
+} from "antd";
 import { Head, Link, router, usePage } from "@inertiajs/react";
-import { HomeOutlined } from "@ant-design/icons";
+import { HomeOutlined, ReloadOutlined } from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import NotificationDropdown from "./NotificationDropdown";
@@ -22,6 +31,10 @@ interface PageLayoutProps {
         showTitle?: boolean;
     };
     mainContentClassName?: string;
+    /** Callback fired when the user clicks the refresh trigger. */
+    onRefresh?: () => void;
+    /** Whether a refresh is currently in-flight (shows spinner & disables button). */
+    isRefreshing?: boolean;
 }
 const defaultConfig = {
     showTitle: false,
@@ -35,6 +48,8 @@ export default function PageLayout({
     filterSection,
     config = defaultConfig,
     mainContentClassName = "px-6 py-6",
+    onRefresh,
+    isRefreshing = false,
 }: PageLayoutProps) {
     // Generate breadcrumb items
     const breadcrumbItems = [
@@ -142,6 +157,24 @@ export default function PageLayout({
                             </div>
                         )}
                         <div className="ml-auto flex items-center gap-4">
+                            {/* Desktop refresh button — hidden on small viewports */}
+                            {onRefresh && (
+                                <Tooltip title="Refresh data">
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={
+                                            <ReloadOutlined
+                                                spin={isRefreshing}
+                                            />
+                                        }
+                                        onClick={onRefresh}
+                                        disabled={isRefreshing}
+                                        className="hidden md:inline-flex"
+                                        aria-label="Refresh data"
+                                    />
+                                </Tooltip>
+                            )}
                             {/* <LanguageSwitcher compact /> */}
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
@@ -187,6 +220,22 @@ export default function PageLayout({
                 {/* Main Content */}
                 <div className={mainContentClassName}>{children}</div>
             </div>
+
+            {/* Mobile floating refresh button — visible only below md breakpoint */}
+            {onRefresh && (
+                <Tooltip title="Refresh data" placement="left">
+                    <Button
+                        type="primary"
+                        shape="circle"
+                        size="large"
+                        icon={<ReloadOutlined spin={isRefreshing} />}
+                        onClick={onRefresh}
+                        disabled={isRefreshing}
+                        className="fixed bottom-6 right-6 z-50 md:hidden shadow-lg"
+                        aria-label="Refresh data"
+                    />
+                </Tooltip>
+            )}
         </>
     );
 }
