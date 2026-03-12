@@ -323,7 +323,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
 
         return (
             <Tag color="orange" className="text-xs m-0 whitespace-nowrap">
-                Pending
+                Generating Summary
             </Tag>
         );
     };
@@ -404,12 +404,12 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                     <ClockCircleOutlined />
                     {localDate.format("h:mm A")}
                 </span>
-                <Tag
+                {/* <Tag
                     color={live ? "red" : getStatusColor(meeting.status)}
                     className="capitalize text-xs m-0"
                 >
                     {live ? "In Progress" : meeting.status}
-                </Tag>
+                </Tag> */}
             </div>
 
             {/* Meeting link + Summary status row */}
