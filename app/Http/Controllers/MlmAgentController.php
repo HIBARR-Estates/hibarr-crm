@@ -167,7 +167,7 @@ class MlmAgentController extends AccountBaseController
 
         $query = MlmCommission::where('agent_id', $agent->id)
             ->where('type', '!=', MlmCommissionType::System->value)
-            ->with(['deal:id,name,value,total_value', 'sourceAgent.user:id,name,email,image', 'level:id,name'])
+            ->with(['deal:id,name,value', 'sourceAgent.user:id,name,email,image', 'level:id,name'])
             ->orderByDesc('created_at');
 
         if ($request->filled('status')) {
@@ -405,7 +405,7 @@ class MlmAgentController extends AccountBaseController
 
         $query = MlmCommission::where('agent_id', $agent->id)
             ->where('type', '!=', MlmCommissionType::System->value)
-            ->with(['deal:id,name,value,total_value', 'sourceAgent.user:id,name'])
+            ->with(['deal:id,name,value', 'sourceAgent.user:id,name'])
             ->orderByDesc('created_at');
 
         $perPage = min($request->input('per_page', 15), 100);
@@ -417,7 +417,7 @@ class MlmAgentController extends AccountBaseController
                 'deal_name' => $c->deal?->name ?? 'Unknown Deal',
                 'closed_by' => $c->sourceAgent?->user?->name ?? 'Unknown',
                 'closed_by_self' => $c->source_agent_id === $agent->id,
-                'deal_value' => (float) ($c->deal?->total_value ?? $c->deal?->value ?? 0),
+                'deal_value' => (float) ($c->deal?->value ?? 0),
                 'commission_amount' => (float) $c->amount,
                 'commission_type' => $c->type->value ?? $c->type,
                 'date' => $c->created_at->format('Y-m-d'),

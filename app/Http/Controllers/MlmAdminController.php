@@ -28,7 +28,7 @@ class MlmAdminController extends AccountBaseController
 
         $stats = [
             'total_agents' => LeadAgent::where('company_id', $companyId)->count(),
-            'total_deals_won' => \App\Models\Deal::where('company_id', $companyId)->whereNotNull('close_date')->count(),
+            'total_deals_won' => \App\Models\Deal::where('company_id', $companyId)->where('outcome_status', 'won')->count(),
             'total_commissions_paid' => (float) MlmCommission::where('company_id', $companyId)->where('status', MlmCommissionStatus::Paid->value)->sum('amount'),
             'pending_commissions' => (float) MlmCommission::where('company_id', $companyId)->where('status', MlmCommissionStatus::Pending->value)->sum('amount'),
         ];
