@@ -28,7 +28,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
     });
 
     const metrics: PaginatedResponse<AgentMetricWithProgress> =
-        (data as any)?.data ?? initialMetrics;
+        (data as any) ?? initialMetrics;
 
     const columns = [
         {
@@ -61,28 +61,28 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                 ),
         },
         {
-            title: "NSA",
+            title: "Number of Sales by Agent (NSA)",
             dataIndex: "nsa",
             key: "nsa",
             align: "right" as const,
             render: (val: number) => val?.toLocaleString() ?? 0,
         },
         {
-            title: "NSD",
+            title: "Number of Sales by Agent's Downline (NSD)",
             dataIndex: "nsd",
             key: "nsd",
             align: "right" as const,
             render: (val: number) => val?.toLocaleString() ?? 0,
         },
         {
-            title: "VSA",
+            title: "Value of Sales by Agent (VSA)",
             dataIndex: "vsa",
             key: "vsa",
             align: "right" as const,
             render: (val: number) => `$${(val ?? 0).toLocaleString()}`,
         },
         {
-            title: "VSD",
+            title: "Value of Sales by Agent's Downline (VSD)",
             dataIndex: "vsd",
             key: "vsd",
             align: "right" as const,
