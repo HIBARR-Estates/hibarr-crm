@@ -73,7 +73,7 @@ const statCards = (stats: MlmAdminDashboardStats) => [
 
 const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     const { data, isLoading } = useMlmAdminDashboard();
-    const stats: MlmAdminDashboardStats = (data as any)?.data ?? initialStats;
+    const stats: MlmAdminDashboardStats = (data as any) ?? initialStats;
 
     const cards = statCards(stats);
 
