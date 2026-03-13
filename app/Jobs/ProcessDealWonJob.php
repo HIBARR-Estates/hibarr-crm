@@ -65,7 +65,7 @@ class ProcessDealWonJob implements ShouldQueue
             Log::warning("ProcessDealWonJob: No agent found for deal {$deal->id}, skipping");
             return;
         }
-        if ($deal->outcome_status !== 'won') {
+        if ($deal->outcome_status !== \App\Enums\OutcomeStatus::Won) {
             Log::warning("ProcessDealWonJob: Deal {$deal->id} is not marked as won, skipping. Only won deals should trigger this job.");
             return;
         }
