@@ -79,6 +79,14 @@ class MlmAdminController extends AccountBaseController
                 'auto_evaluate_ancestors' => (bool) config('mlm.auto_evaluate_ancestors'),
                 'enable_commission_reversal' => true,
             ],
+            'agents' => LeadAgent::where('company_id', company()->id)
+            ->with('user:id,name,email,image')
+            ->get()
+            ->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->user?->name ?? 'Unknown',
+                'email' => $a->user?->email,
+            ]),
         ]);
     }
 
