@@ -14,7 +14,7 @@ interface Props extends PageProps {
 const MyUplines: React.FC<Props> = ({ uplines: initialUplines }) => {
     const { data, isLoading } = useMyUplines();
     const uplines: AgentHierarchyNode[] =
-        (data as any)?.data?.data ?? initialUplines ?? [];
+        (data as any)?.data ?? initialUplines ?? [];
 
     return (
         <DashboardLayout>

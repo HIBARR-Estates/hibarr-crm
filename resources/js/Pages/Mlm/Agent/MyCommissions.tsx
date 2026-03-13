@@ -45,7 +45,7 @@ const MyCommissions: React.FC<Props> = ({
     });
 
     const commissions: PaginatedResponse<MlmCommission> =
-        (data as any)?.data ?? initialCommissions;
+        (data as any) ?? initialCommissions;
 
     const records = commissions?.data ?? [];
     const totalEarned = records.reduce(

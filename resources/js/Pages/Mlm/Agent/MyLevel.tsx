@@ -40,7 +40,7 @@ interface Props extends PageProps {
 
 const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
     const { data, isLoading } = useMyLevel();
-    const levelData: LevelData = (data as any)?.data?.data ?? initialData;
+    const levelData: LevelData = (data as any)?.data ?? initialData;
 
     const historyColumns = [
         {

@@ -24,7 +24,7 @@ interface Props extends PageProps {
 const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     const { data, isLoading, refetch } = useMyNetwork();
     const network: AgentHierarchyNode | null =
-        (data as any)?.data?.data ?? initialNetwork;
+        (data as any)?.data ?? initialNetwork;
 
     const [selectedNode, setSelectedNode] = useState<AgentHierarchyNode | null>(
         null,
