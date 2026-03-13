@@ -112,7 +112,7 @@ class DealAutomationService
         foreach ($automation->actions as $action) {
             $this->performAction($deal, $action, $automation);
         }
-        // After the actions we then emit the necessary events, such as mlm engine DealWonEvent
+        // After the actions we then emit the necessary events, such as mlm engine DealWonEvent. This is because we save the dealModel quietly to avoid cascades because we do support an array of actions that will cannot afford to trigger the deal observer as this will lead to recursive updates ...
         // MLM: Fire DealWonEvent when outcome_status changes to 'won'
         if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && !$deal->is_locked) {
             $this->fireDealWonEvent($deal);
