@@ -35,7 +35,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
     });
 
     const contributions: PaginatedResponse<DealContribution> =
-        (data as any)?.data ?? initialContributions;
+        (data as any) ?? initialContributions;
 
     const records = contributions?.data ?? [];
     const totalCommission = records.reduce(

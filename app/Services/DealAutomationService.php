@@ -107,6 +107,7 @@ class DealAutomationService
      */
     protected function executeActions(Deal $deal, DealAutomation $automation): void
     {
+        // NOTE: A general rule of thumb should be that actions should save deals quietly, so that there is no recursive loop
         foreach ($automation->actions as $action) {
             $this->performAction($deal, $action, $automation);
         }
@@ -175,7 +176,7 @@ class DealAutomationService
             }
 
             if (!empty($changes)) {
-                $deal->save();
+                $deal->saveQuietly(); // Bypass observer to prevent cascading
                 $description = "Stage transition: " . implode(', ', $changes);
                 Log::info("Action executed for Deal ID: {$deal->id}. " . implode(', ', $changes));
                 $this->logAction($deal, $automation, $description);
@@ -197,7 +198,7 @@ class DealAutomationService
         }
 
         $deal->{$fieldName} = $fieldValue;
-        $deal->save();
+        $deal->saveQuietly(); // Bypass observer to prevent cascading
 
         $description = "Set {$fieldName} = {$fieldValue}";
         Log::info("Action executed for Deal ID: {$deal->id}. {$description}");

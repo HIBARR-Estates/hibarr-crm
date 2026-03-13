@@ -42,7 +42,7 @@ class MlmAgentController extends AccountBaseController
     }
 
     /**
-     * Agent MLM Dashboard
+     * Agent MLM Dashboard (Inertia page)
      */
     public function dashboard()
     {
@@ -55,6 +55,33 @@ class MlmAgentController extends AccountBaseController
             ]);
         }
 
+        return Inertia::render('Mlm/Agent/Dashboard', [
+            'stats' => $this->buildDashboardStats($agent),
+        ]);
+    }
+
+    /**
+     * Agent MLM Dashboard — JSON API
+     */
+    public function dashboardApi(): JsonResponse
+    {
+        $agent = $this->getAgent();
+
+        if (!$agent) {
+            return response()->json(['status' => 'success', 'data' => null]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->buildDashboardStats($agent),
+        ]);
+    }
+
+    /**
+     * Build the dashboard stats array for the given agent.
+     */
+    private function buildDashboardStats(LeadAgent $agent): array
+    {
         $metrics = AgentMetric::where('agent_id', $agent->id)->first();
         $currentLevel = $this->levelService->getCurrentLevel($agent);
 
@@ -135,23 +162,21 @@ class MlmAgentController extends AccountBaseController
             ->limit(5)
             ->get();
 
-        return Inertia::render('Mlm/Agent/Dashboard', [
-            'stats' => [
-                'current_level' => $currentLevel,
-                'next_level' => $nextLevel,
-                'progress_percentage' => $overallProgress,
-                'criteria_progress' => $criteriaProgress,
-                'total_earnings' => $totalEarnings,
-                'pending_earnings' => $pendingEarnings,
-                'paid_earnings' => $paidEarnings,
-                'total_downlines' => $totalDownlines,
-                'total_sales' => $metrics?->nsa ?? 0,
-                'total_sales_value' => (float) ($metrics?->vsa ?? 0),
-                'monthly_commissions' => $monthlyCommissions,
-                'network_growth' => [],
-                'recent_commissions' => $recentCommissions,
-            ],
-        ]);
+        return [
+            'current_level' => $currentLevel,
+            'next_level' => $nextLevel,
+            'progress_percentage' => $overallProgress,
+            'criteria_progress' => $criteriaProgress,
+            'total_earnings' => $totalEarnings,
+            'pending_earnings' => $pendingEarnings,
+            'paid_earnings' => $paidEarnings,
+            'total_downlines' => $totalDownlines,
+            'total_sales' => $metrics?->nsa ?? 0,
+            'total_sales_value' => (float) ($metrics?->vsa ?? 0),
+            'monthly_commissions' => $monthlyCommissions,
+            'network_growth' => [],
+            'recent_commissions' => $recentCommissions,
+        ];
     }
 
     /**
