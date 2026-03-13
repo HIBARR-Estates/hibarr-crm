@@ -47,7 +47,7 @@ class MlmAdminApiController extends AccountBaseController
 
         $totalAgents = LeadAgent::where('company_id', $companyId)->count();
         $totalDealsWon = Deal::where('company_id', $companyId)
-            ->whereNotNull('close_date')
+            ->where('outcome_status', 'won')
             ->count();
 
         $commissionQuery = MlmCommission::where('company_id', $companyId);
@@ -63,8 +63,8 @@ class MlmAdminApiController extends AccountBaseController
         $totalCommissionValue = (clone $commissionQuery)->sum('amount');
 
         $totalSalesValue = Deal::where('company_id', $companyId)
-            ->whereNotNull('close_date')
-            ->sum(DB::raw('COALESCE(total_value, value, 0)'));
+            ->where('outcome_status', 'won')
+            ->sum(DB::raw('COALESCE(value, 0)'));
 
         // Top 10 agents by total earned
         $topAgents = MlmCommission::where('mlm_commissions.company_id', $companyId)
@@ -294,7 +294,7 @@ class MlmAdminApiController extends AccountBaseController
     public function getCommissions(Request $request): JsonResponse
     {
         $query = MlmCommission::where('company_id', company()->id)
-            ->with(['deal:id,name,value,total_value', 'agent.user:id,name,email,image', 'sourceAgent.user:id,name,email,image', 'level'])
+            ->with(['deal:id,name,value', 'agent.user:id,name,email,image', 'sourceAgent.user:id,name,email,image', 'level'])
             ->orderByDesc('created_at');
 
         // Filters
@@ -452,6 +452,8 @@ class MlmAdminApiController extends AccountBaseController
 
         $perPage = min($request->input('per_page', 15), 100);
 
+        // The model's $appends automatically includes:
+        // current_level, next_level, progress_percentage, criteria_progress
         return response()->json($query->paginate($perPage));
     }
 
