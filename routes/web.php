@@ -1256,7 +1256,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
         // Agent JSON API
         Route::prefix('api')->name('api.')->group(function () {
-            Route::get('dashboard-stats', [App\Http\Controllers\MlmAgentController::class, 'dashboard'])->name('dashboard_stats');
+            Route::get('dashboard-stats', [App\Http\Controllers\MlmAgentController::class, 'dashboardApi'])->name('dashboard_stats');
             Route::get('commissions', [App\Http\Controllers\MlmAgentController::class, 'commissionsApi'])->name('commissions');
             Route::get('network', [App\Http\Controllers\MlmAgentController::class, 'networkApi'])->name('network');
             Route::get('uplines', [App\Http\Controllers\MlmAgentController::class, 'uplinesApi'])->name('uplines');
