@@ -1198,6 +1198,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('commission-ledger', [App\Http\Controllers\MlmAdminController::class, 'commissionLedger'])->name('commission_ledger');
         Route::get('agent-metrics', [App\Http\Controllers\MlmAdminController::class, 'agentMetrics'])->name('agent_metrics');
         Route::get('level-history', [App\Http\Controllers\MlmAdminController::class, 'levelHistory'])->name('level_history');
+        Route::get('cycle-management', [App\Http\Controllers\MlmAdminController::class, 'cycleManagement'])->name('cycle_management');
 
         // ── MLM Admin JSON API ───────────────────────────────────
         Route::prefix('api')->name('api.')->group(function () {
@@ -1241,6 +1242,14 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
             // Simulation
             Route::get('simulate', [App\Http\Controllers\MlmAdminApiController::class, 'simulate'])->name('simulate');
+
+            // Cycles
+            Route::get('cycle-config', [App\Http\Controllers\MlmAdminApiController::class, 'getCycleConfig'])->name('cycle_config.show');
+            Route::put('cycle-config', [App\Http\Controllers\MlmAdminApiController::class, 'updateCycleConfig'])->name('cycle_config.update');
+            Route::get('cycles', [App\Http\Controllers\MlmAdminApiController::class, 'getCycles'])->name('cycles.index');
+            Route::get('cycles/active', [App\Http\Controllers\MlmAdminApiController::class, 'getActiveCycle'])->name('cycles.active');
+            Route::get('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'getCycleDetail'])->name('cycles.show');
+            Route::post('cycles/{cycleId}/enrollments/{enrollmentId}/force-complete', [App\Http\Controllers\MlmAdminApiController::class, 'forceCompleteEnrollment'])->name('cycles.force_complete_enrollment');
         });
     });
 
@@ -1263,6 +1272,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::get('uplines', [App\Http\Controllers\MlmAgentController::class, 'uplinesApi'])->name('uplines');
             Route::get('my-level', [App\Http\Controllers\MlmAgentController::class, 'myLevelApi'])->name('my_level');
             Route::get('deal-contributions', [App\Http\Controllers\MlmAgentController::class, 'dealContributionsApi'])->name('deal_contributions');
+            Route::get('my-enrollment', [App\Http\Controllers\MlmAgentController::class, 'myEnrollmentApi'])->name('my_enrollment');
         });
     });
 });

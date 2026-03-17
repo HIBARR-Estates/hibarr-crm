@@ -3,7 +3,33 @@ export type MlmMetric = "nsa" | "nsd" | "vsa" | "vsd" | "nsa_nsd" | "vsa_vsd";
 export type MlmCommissionType = "agent" | "upline" | "system";
 export type MlmCommissionStatus = "pending" | "paid" | "reverted";
 export type CriteriaOperator = ">=" | "<=" | "=" | ">" | "<";
+// ── Cycle Enums ──────────────────────────────────────────────────
+export type CycleDurationType = "monthly" | "quarterly" | "custom";
+export type CycleStatus = "upcoming" | "active" | "completed";
+export type EnrollmentStatus =
+    | "active"
+    | "extended"
+    | "completed"
+    | "force_completed";
 
+export const CYCLE_DURATION_LABELS: Record<CycleDurationType, string> = {
+    monthly: "Monthly (30 days)",
+    quarterly: "Quarterly (90 days)",
+    custom: "Custom",
+};
+
+export const CYCLE_STATUS_LABELS: Record<CycleStatus, string> = {
+    upcoming: "Upcoming",
+    active: "Active",
+    completed: "Completed",
+};
+
+export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
+    active: "Active",
+    extended: "Extended (Overflow)",
+    completed: "Completed",
+    force_completed: "Force Completed",
+};
 export const MLM_METRIC_LABELS: Record<MlmMetric, string> = {
     nsa: "Number of Sales (Agent)",
     nsd: "Number of Sales (Downlines)",
@@ -228,6 +254,12 @@ export interface MlmAgentDashboardStats {
     total_downlines: number;
     total_sales: number;
     total_sales_value: number;
+    all_time_metrics?: {
+        nsa: number;
+        nsd: number;
+        vsa: number;
+        vsd: number;
+    } | null;
     monthly_commissions: Array<{
         month: string;
         amount: number;
@@ -237,6 +269,29 @@ export interface MlmAgentDashboardStats {
         count: number;
     }>;
     recent_commissions: MlmCommission[];
+    // Cycle data
+    enrollment?: {
+        id: number;
+        status: EnrollmentStatus;
+        effective_start_date: string;
+        effective_end_date: string;
+        overflow_start_date: string | null;
+        max_overflow_date: string | null;
+        days_remaining: number;
+        is_overflowing: boolean;
+    } | null;
+    cycle_metrics?: {
+        nsa: number;
+        nsd: number;
+        vsa: number;
+        vsd: number;
+    } | null;
+    active_cycle?: {
+        cycle_number: number;
+        start_date: string;
+        end_date: string;
+        days_remaining: number;
+    } | null;
 }
 
 // ── Paginated Response ───────────────────────────────────────────
@@ -255,4 +310,91 @@ export interface MlmSettings {
     max_commission_percentage: number;
     auto_evaluate_ancestors: boolean;
     enable_commission_reversal: boolean;
+}
+
+// ── Cycle Config ─────────────────────────────────────────────────
+export interface MlmCycleConfig {
+    id: number;
+    duration_type: CycleDurationType;
+    duration_days: number | null;
+    duration_days_resolved: number;
+    anchor_date: string;
+    max_overflow_multiplier: number;
+    max_overflow_days: number;
+    auto_generate: boolean;
+}
+
+export interface MlmCycleConfigFormData {
+    duration_type: CycleDurationType;
+    duration_days: number | null;
+    anchor_date: string;
+    max_overflow_multiplier: number;
+    auto_generate: boolean;
+}
+
+// ── Cycle ────────────────────────────────────────────────────────
+export interface MlmCycle {
+    id: number;
+    cycle_config_id: number;
+    cycle_number: number;
+    start_date: string;
+    end_date: string;
+    status: CycleStatus;
+    duration_days: number;
+    enrollments_count?: number;
+}
+
+// ── Cycle Enrollment ─────────────────────────────────────────────
+export interface AgentCycleEnrollment {
+    id: number;
+    agent_id: number;
+    cycle_id: number;
+    status: EnrollmentStatus;
+    effective_start_date: string;
+    effective_end_date: string;
+    overflow_start_date: string | null;
+    max_overflow_date: string | null;
+    criteria_met_at: string | null;
+    level_achieved_id: number | null;
+    days_remaining: number;
+    is_overflowing: boolean;
+    agent_name?: string;
+    agent_email?: string;
+    level_achieved?: string;
+    metrics?: {
+        nsa: number;
+        nsd: number;
+        vsa: number;
+        vsd: number;
+    } | null;
+}
+
+// ── Active Cycle Summary ─────────────────────────────────────────
+export interface ActiveCycleSummary {
+    cycle: MlmCycle | null;
+    config: {
+        duration_type: CycleDurationType;
+        duration_days_resolved: number;
+        max_overflow_multiplier: number;
+    } | null;
+    days_remaining: number;
+    enrollment_count: number;
+}
+
+// ── My Enrollment Data ───────────────────────────────────────────
+export interface MyEnrollmentData {
+    enrollment: AgentCycleEnrollment | null;
+    cycle: MlmCycle | null;
+    cycle_metrics: {
+        nsa: number;
+        nsd: number;
+        vsa: number;
+        vsd: number;
+    } | null;
+    all_time_metrics: {
+        nsa: number;
+        nsd: number;
+        vsa: number;
+        vsd: number;
+    } | null;
 }

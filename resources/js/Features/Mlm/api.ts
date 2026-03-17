@@ -15,6 +15,12 @@ import type {
     MlmAgentDashboardStats,
     MlmSettings,
     PaginatedResponse,
+    MlmCycleConfig,
+    MlmCycleConfigFormData,
+    MlmCycle,
+    ActiveCycleSummary,
+    AgentCycleEnrollment,
+    MyEnrollmentData,
 } from "./types";
 import { ApiResponse } from "@/lib/api/types";
 
@@ -105,6 +111,43 @@ export const useCommissionSimulation = (
             enabled:
                 Number(params.deal_value) > 0 && Number(params.agent_id) > 0,
         },
+    });
+
+// ══════════════════════════════════════════════════════════════════
+// ADMIN CYCLE QUERIES
+// ══════════════════════════════════════════════════════════════════
+
+/** Company cycle configuration */
+export const useCycleConfig = () =>
+    useApiQuery<{ data: MlmCycleConfig | null }>({
+        path: `${ADMIN_API}/cycle-config`,
+    });
+
+/** Active cycle summary */
+export const useActiveCycle = () =>
+    useApiQuery<{ data: ActiveCycleSummary }>({
+        path: `${ADMIN_API}/cycles/active`,
+    });
+
+/** Paginated cycles list */
+export const useMlmCycles = (
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<MlmCycle>>({
+        path: `${ADMIN_API}/cycles`,
+        params,
+    });
+
+/** Cycle detail with enrollments */
+export const useMlmCycleDetail = (id: number) =>
+    useApiQuery<{
+        data: {
+            cycle: MlmCycle;
+            enrollments: AgentCycleEnrollment[];
+        };
+    }>({
+        path: `${ADMIN_API}/cycles/${id}`,
+        options: { enabled: id > 0 },
     });
 
 // ══════════════════════════════════════════════════════════════════
@@ -236,6 +279,26 @@ export const useRemoveHierarchy = (
         onSuccess,
     );
 
+/** Update cycle configuration */
+export const useUpdateCycleConfig = (onSuccess?: (res?: any) => void) =>
+    useApiMutate<
+        MlmCycleConfigFormData,
+        MlmCycleConfig,
+        ApiResponse<MlmCycleConfig>
+    >(`${ADMIN_API}/cycle-config`, "PUT", onSuccess);
+
+/** Force-complete an enrollment */
+export const useForceCompleteEnrollment = (
+    cycleId: number,
+    enrollmentId: number,
+    onSuccess?: (res?: any) => void,
+) =>
+    useApiMutate<{}, void, ApiResponse<void>>(
+        `${ADMIN_API}/cycles/${cycleId}/enrollments/${enrollmentId}/force-complete`,
+        "POST",
+        onSuccess,
+    );
+
 // ══════════════════════════════════════════════════════════════════
 // AGENT QUERIES (read-only)
 // ══════════════════════════════════════════════════════════════════
@@ -305,4 +368,10 @@ export const useMyDealContributions = (
     >({
         path: `${AGENT_API}/deal-contributions`,
         params,
+    });
+
+/** Agent's current enrollment data */
+export const useMyEnrollment = () =>
+    useApiQuery<{ data: MyEnrollmentData }>({
+        path: `${AGENT_API}/my-enrollment`,
     });

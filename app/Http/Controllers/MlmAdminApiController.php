@@ -5,13 +5,18 @@ namespace App\Http\Controllers;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Enums\MlmMetric;
+use App\Enums\CycleDurationType;
+use App\Models\AgentCycleEnrollment;
 use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
 use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
+use App\Models\MlmCycle;
+use App\Models\MlmCycleConfig;
 use App\Models\MlmLevel;
 use App\Models\MlmLevelCriterion;
+use App\Services\CycleService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\MlmCommissionService;
@@ -25,16 +30,19 @@ class MlmAdminApiController extends AccountBaseController
     protected HierarchyService $hierarchyService;
     protected LevelService $levelService;
     protected MlmCommissionService $commissionService;
+    protected CycleService $cycleService;
 
     public function __construct(
         HierarchyService $hierarchyService,
         LevelService $levelService,
-        MlmCommissionService $commissionService
+        MlmCommissionService $commissionService,
+        CycleService $cycleService
     ) {
         parent::__construct();
         $this->hierarchyService = $hierarchyService;
         $this->levelService = $levelService;
         $this->commissionService = $commissionService;
+        $this->cycleService = $cycleService;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -725,6 +733,210 @@ class MlmAdminApiController extends AccountBaseController
                 'system_commission' => $systemAmount,
                 'deal_value' => $dealValue,
             ],
+        ]);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  CYCLE MANAGEMENT
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Get the company's cycle configuration.
+     */
+    public function getCycleConfig(): JsonResponse
+    {
+        $config = MlmCycleConfig::where('company_id', company()->id)->first();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $config ? [
+                'id' => $config->id,
+                'duration_type' => $config->duration_type->value,
+                'duration_days' => $config->duration_days,
+                'duration_days_resolved' => $config->duration_days_resolved,
+                'anchor_date' => $config->anchor_date?->format('Y-m-d'),
+                'max_overflow_multiplier' => (float) $config->max_overflow_multiplier,
+                'max_overflow_days' => $config->max_overflow_days,
+                'auto_generate' => (bool) $config->auto_generate,
+            ] : null,
+        ]);
+    }
+
+    /**
+     * Create or update the company's cycle configuration.
+     */
+    public function updateCycleConfig(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'duration_type' => 'required|string|in:monthly,quarterly,custom',
+            'duration_days' => 'nullable|integer|min:1|max:365',
+            'anchor_date' => 'required|date',
+            'max_overflow_multiplier' => 'required|numeric|min:0|max:5',
+            'auto_generate' => 'required|boolean',
+        ]);
+
+        if ($validated['duration_type'] === 'custom' && empty($validated['duration_days'])) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Duration days is required for custom duration type.',
+            ], 422);
+        }
+
+        $config = MlmCycleConfig::updateOrCreate(
+            ['company_id' => company()->id],
+            [
+                'duration_type' => $validated['duration_type'],
+                'duration_days' => $validated['duration_days'],
+                'anchor_date' => $validated['anchor_date'],
+                'max_overflow_multiplier' => $validated['max_overflow_multiplier'],
+                'auto_generate' => $validated['auto_generate'],
+            ]
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cycle configuration updated successfully.',
+            'data' => [
+                'id' => $config->id,
+                'duration_type' => $config->duration_type->value,
+                'duration_days' => $config->duration_days,
+                'duration_days_resolved' => $config->duration_days_resolved,
+                'anchor_date' => $config->anchor_date?->format('Y-m-d'),
+                'max_overflow_multiplier' => (float) $config->max_overflow_multiplier,
+                'max_overflow_days' => $config->max_overflow_days,
+                'auto_generate' => (bool) $config->auto_generate,
+            ],
+        ]);
+    }
+
+    /**
+     * List all cycles with enrollment counts.
+     */
+    public function getCycles(Request $request): JsonResponse
+    {
+        $query = MlmCycle::where('company_id', company()->id)
+            ->withCount('enrollments')
+            ->orderByDesc('cycle_number');
+
+        $perPage = min($request->input('per_page', 15), 100);
+
+        return response()->json($query->paginate($perPage));
+    }
+
+    /**
+     * Get the currently active cycle with summary.
+     */
+    public function getActiveCycle(): JsonResponse
+    {
+        $cycle = $this->cycleService->getOrCreateCurrentCycle(company()->id);
+        $config = MlmCycleConfig::where('company_id', company()->id)->first();
+
+        $enrollmentCount = 0;
+        $daysRemaining = 0;
+
+        if ($cycle) {
+            $enrollmentCount = AgentCycleEnrollment::where('cycle_id', $cycle->id)->count();
+            $daysRemaining = max(0, (int) now()->startOfDay()->diffInDays($cycle->end_date, false));
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'cycle' => $cycle ? [
+                    'id' => $cycle->id,
+                    'cycle_number' => $cycle->cycle_number,
+                    'start_date' => $cycle->start_date->format('Y-m-d'),
+                    'end_date' => $cycle->end_date->format('Y-m-d'),
+                    'status' => $cycle->status->value,
+                    'duration_days' => $cycle->duration_days,
+                ] : null,
+                'config' => $config ? [
+                    'duration_type' => $config->duration_type->value,
+                    'duration_days_resolved' => $config->duration_days_resolved,
+                    'max_overflow_multiplier' => (float) $config->max_overflow_multiplier,
+                ] : null,
+                'days_remaining' => $daysRemaining,
+                'enrollment_count' => $enrollmentCount,
+            ],
+        ]);
+    }
+
+    /**
+     * Get detailed cycle info with enrollments.
+     */
+    public function getCycleDetail(int $id): JsonResponse
+    {
+        $cycle = MlmCycle::where('company_id', company()->id)
+            ->withCount('enrollments')
+            ->findOrFail($id);
+
+        $enrollments = AgentCycleEnrollment::where('cycle_id', $cycle->id)
+            ->with(['agent.user:id,name,email,image', 'metrics', 'levelAchieved'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($enrollment) {
+                return [
+                    'id' => $enrollment->id,
+                    'agent_id' => $enrollment->agent_id,
+                    'agent_name' => $enrollment->agent?->user?->name ?? 'Unknown',
+                    'agent_email' => $enrollment->agent?->user?->email,
+                    'status' => $enrollment->status->value,
+                    'effective_start_date' => $enrollment->effective_start_date?->format('Y-m-d'),
+                    'effective_end_date' => $enrollment->effective_end_date?->format('Y-m-d'),
+                    'overflow_start_date' => $enrollment->overflow_start_date?->format('Y-m-d'),
+                    'max_overflow_date' => $enrollment->max_overflow_date?->format('Y-m-d'),
+                    'criteria_met_at' => $enrollment->criteria_met_at?->format('Y-m-d H:i:s'),
+                    'level_achieved' => $enrollment->levelAchieved?->name,
+                    'days_remaining' => $enrollment->daysRemaining(),
+                    'is_overflowing' => $enrollment->isOverflowing(),
+                    'metrics' => $enrollment->metrics ? [
+                        'nsa' => $enrollment->metrics->nsa,
+                        'nsd' => $enrollment->metrics->nsd,
+                        'vsa' => (float) $enrollment->metrics->vsa,
+                        'vsd' => (float) $enrollment->metrics->vsd,
+                    ] : null,
+                ];
+            });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'cycle' => [
+                    'id' => $cycle->id,
+                    'cycle_number' => $cycle->cycle_number,
+                    'start_date' => $cycle->start_date->format('Y-m-d'),
+                    'end_date' => $cycle->end_date->format('Y-m-d'),
+                    'status' => $cycle->status->value,
+                    'duration_days' => $cycle->duration_days,
+                    'enrollments_count' => $cycle->enrollments_count,
+                ],
+                'enrollments' => $enrollments,
+            ],
+        ]);
+    }
+
+    /**
+     * Force-complete an extended enrollment.
+     */
+    public function forceCompleteEnrollment(int $cycleId, int $enrollmentId): JsonResponse
+    {
+        $cycle = MlmCycle::where('company_id', company()->id)->findOrFail($cycleId);
+
+        $enrollment = AgentCycleEnrollment::where('cycle_id', $cycle->id)
+            ->findOrFail($enrollmentId);
+
+        if (!$enrollment->status->isReceivingMetrics()) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'This enrollment is not currently active or extended.',
+            ], 422);
+        }
+
+        $this->cycleService->forceCompleteEnrollment($enrollment);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Enrollment force-completed. Agent has been re-enrolled in the current cycle.',
         ]);
     }
 }

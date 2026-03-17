@@ -8,15 +8,19 @@ use App\Models\AgentMetric;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\MlmLevel;
+use App\Services\CycleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class MlmAdminController extends AccountBaseController
 {
-    public function __construct()
+    protected CycleService $cycleService;
+
+    public function __construct(CycleService $cycleService)
     {
         parent::__construct();
+        $this->cycleService = $cycleService;
     }
 
     /**
@@ -144,5 +148,13 @@ class MlmAdminController extends AccountBaseController
             'levels' => $levels,
             'agents' => $agents,
         ]);
+    }
+
+    /**
+     * Cycle Management
+     */
+    public function cycleManagement()
+    {
+        return Inertia::render('Mlm/Admin/CycleManagement');
     }
 }
