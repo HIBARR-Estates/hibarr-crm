@@ -45,7 +45,6 @@ interface SaveFollowupFormData {
     remark?: string;
     timezone?: string; // Browser timezone
     participants?: number[]; // Array of user IDs
-    duration?: number; // Meeting duration in minutes
 }
 
 interface Props {
@@ -251,7 +250,6 @@ export default function SaveFollowup({
                 reminders: existingCustomReminders, // Only set custom reminders in form
                 remark: followup.remark || "",
                 participants: followup.participants || [],
-                duration: followup.duration ?? undefined,
             });
         } else {
             // Reset form to default values for new follow-up
@@ -280,9 +278,13 @@ export default function SaveFollowup({
             return;
         }
 
-        const hasAgent = deal.agent_id != null || (deal.lead_agent != null && deal.lead_agent?.id != null);
+        const hasAgent =
+            deal.agent_id != null ||
+            (deal.lead_agent != null && deal.lead_agent?.id != null);
         if (!hasAgent) {
-            message.warning("This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.");
+            message.warning(
+                "This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.",
+            );
             return;
         }
 
