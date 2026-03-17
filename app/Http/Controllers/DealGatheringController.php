@@ -98,14 +98,17 @@ class DealGatheringController extends AccountBaseController
     }
 
     /**
-     * Get Steps configuration
+     * Get Steps configuration. Optional query param: pipeline_id (filters steps to that pipeline's categories).
      */
-    public function getSteps()
+    public function getSteps(Request $request)
     {
-        $steps = $this->service->getSteps();
-        
+        $pipelineId = $request->filled('pipeline_id')
+            ? (int) $request->input('pipeline_id')
+            : null;
+        $steps = $this->service->getSteps($pipelineId);
+
         return response()->json([
-            'steps' => $steps
+            'steps' => $steps,
         ]);
     }
     

@@ -2489,6 +2489,7 @@ return array(
         'category' => 'Category',
         'product' => 'Product',
         'assignAgent' => 'Assign Agent',
+        'pipelineCategoryHint' => 'Only selected categories will be shown on deals in this pipeline. Leave all unchecked to show all categories.',
     ),
     'estimateRequest' => array(
         'estimateRequest' => 'Estimate Request',

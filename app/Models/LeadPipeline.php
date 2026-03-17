@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasCompany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -58,6 +59,11 @@ class LeadPipeline extends BaseModel
     public function deals(): HasMany
     {
         return $this->hasMany(Deal::class, 'lead_pipeline_id', 'id');
+    }
+
+    public function customFieldCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomFieldCategory::class, 'custom_field_category_pipeline', 'pipeline_id', 'category_id');
     }
 
 }

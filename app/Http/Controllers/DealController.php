@@ -500,6 +500,7 @@ class DealController extends AccountBaseController
             'contact',
             'category',
             'pipeline.stages',
+            'pipeline.customFieldCategories.customFields',
             'leadStage',
             'currency',
             'products:id,name',
@@ -556,8 +557,16 @@ class DealController extends AccountBaseController
         }
 
         $productNames = $deal->products->pluck('name')->toArray();
-        $customFieldCategories = $this->getDealCustomFieldCategories();
-        
+
+        // Filter categories by deal's pipeline: if pipeline has categories assigned, show only those; else show all (backward compatibility)
+        if ($deal->pipeline && $deal->pipeline->customFieldCategories->isNotEmpty()) {
+            $customFieldCategories = $deal->pipeline->customFieldCategories
+                ->sortBy(fn ($c) => [($c->order ?? 0), $c->id])
+                ->values();
+        } else {
+            $customFieldCategories = $this->getDealCustomFieldCategories();
+        }
+
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $fields = null;
         if ($getCustomFieldGroupsWithFields) {
@@ -671,9 +680,10 @@ class DealController extends AccountBaseController
         $employees = User::allEmployees();
         $projects = \App\Models\Project::all();
 
-        return Inertia::render('Deals/Show', array_merge([
+        return Inertia::render('Deals/Show', array_merge($formData, [
             'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
+            'customFieldCategories' => $customFieldCategories,
             'fields' => $formData['customFields'], // Map customFields to fields as well
             'notes' => $notes,
             'dealFollowUps' => $dealFollowUps,
@@ -692,7 +702,7 @@ class DealController extends AccountBaseController
             'taskBoardColumns' => $taskBoardColumns,
             'employees' => $employees,
             'projects' => $projects,
-        ], $formData));
+        ]));
     }
 
     private function prepareNotesTab(int $dealId): void
