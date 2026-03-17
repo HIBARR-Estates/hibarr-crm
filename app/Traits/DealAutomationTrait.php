@@ -50,6 +50,7 @@ trait DealAutomationTrait
                     'meeting_link' => $followUp->meeting_link,
                     'next_follow_up_date' => $followUp->next_follow_up_date,
                     'next_follow_up_date_timezone' => $browserTimezone,
+                    'duration' => $followUp->duration,
                     'remark' => $followUp->remark,
                     'status' => $followUp->status,
                     'created_at' => $followUp->created_at->format('Y-m-d H:i:s'),

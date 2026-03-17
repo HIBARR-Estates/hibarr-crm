@@ -1,6 +1,6 @@
 import { Deal } from "@/Types/api/deals";
 import { IModalProps } from "@/Types/common";
-import { Drawer } from "antd";
+import { App, Drawer } from "antd";
 import { useState, useEffect } from "react";
 import SaveFollowup from "./SaveFollowup";
 import { useApiMutate } from "@/lib/api/client";
@@ -16,6 +16,7 @@ interface SaveFollowupFormData {
     meeting_type_id?: number;
     location: string;
     meeting_link?: string;
+    duration?: number | null;
     send_reminder?: boolean;
     remind_time?: number;
     remind_type?: string;
@@ -29,6 +30,7 @@ interface Props extends IModalProps {
 }
 
 const AddFollowup: React.FC<Props> = ({ deal, onClose, open }) => {
+    const { message } = App.useApp();
     const [errors, setErrors] = useState<string[]>([]);
     const [formKey, setFormKey] = useState(0);
 
@@ -54,11 +56,16 @@ const AddFollowup: React.FC<Props> = ({ deal, onClose, open }) => {
     });
 
     const onSubmit = (data: SaveFollowupFormData) => {
+        const hasAgent = deal.agent_id != null || (deal.lead_agent != null && deal.lead_agent.id != null);
+        if (!hasAgent) {
+            message.warning("This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.");
+            return;
+        }
+
         mutate(data, {
             onSuccess: () => {
                 setErrors([]);
                 setFormKey(prev => prev + 1); // Reset form after successful submission
-                console.log("Follow-up created successfully");
                 router.reload();
             },
             onError: (errorResponse) => {
