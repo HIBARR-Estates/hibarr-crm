@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AgentCycleMetric;
 use App\Models\AgentHierarchy;
 use App\Models\AgentMetric;
 use App\Models\Deal;
@@ -12,17 +13,20 @@ use Illuminate\Support\Facades\Log;
 class MetricsService
 {
     protected HierarchyService $hierarchyService;
+    protected CycleService $cycleService;
 
-    public function __construct(HierarchyService $hierarchyService)
+    public function __construct(HierarchyService $hierarchyService, CycleService $cycleService)
     {
         $this->hierarchyService = $hierarchyService;
+        $this->cycleService = $cycleService;
     }
 
     /**
      * Increment metrics when a deal is won.
      *
-     * - Increments Agent's NSA and VSA
-     * - Increments all ancestors' NSD and VSD
+     * - Increments Agent's NSA and VSA (all-time + cycle)
+     * - Increments all ancestors' NSD and VSD (all-time + their active cycle)
+     * - Sets won_at on the deal for cycle attribution
      */
     public function incrementOnDealWon(Deal $deal): void
     {
@@ -42,27 +46,41 @@ class MetricsService
 
         $dealValue = (float) ($deal?->value ?? 0);
 
-        // Update the agent's own metrics (NSA, VSA)
+        // Set won_at for cycle attribution
+        if (!$deal->won_at) {
+            $deal->won_at = now();
+            $deal->saveQuietly();
+        }
+
+        // ── All-time metrics (existing behavior) ─────────────────
         $metrics = $this->getOrCreateMetrics($agent);
         $metrics->increment('nsa', 1);
         $metrics->increment('vsa', $dealValue);
 
-        Log::info("MetricsService: Agent {$agentId} NSA+1, VSA+{$dealValue} for deal {$deal->id}");
+        Log::info("MetricsService: Agent {$agentId} all-time NSA+1, VSA+{$dealValue} for deal {$deal->id}");
 
-        // Update all ancestors' downline metrics (NSD, VSD)
+        // ── Cycle metrics (new) ──────────────────────────────────
+        $cycleMetrics = $this->cycleService->getOrCreateCycleMetrics($agent);
+        if ($cycleMetrics) {
+            $cycleMetrics->increment('nsa', 1);
+            $cycleMetrics->increment('vsa', $dealValue);
+            Log::info("MetricsService: Agent {$agentId} cycle NSA+1, VSA+{$dealValue} (enrollment {$cycleMetrics->enrollment_id})");
+        }
+
+        // ── Ancestor metrics (all-time + cycle) ──────────────────
         $ancestorIds = AgentHierarchy::where('descendant_id', $agent->id)
             ->pluck('ancestor_id')
             ->toArray();
 
         if (!empty($ancestorIds)) {
-            // Bulk update all ancestors at once
+            // All-time bulk update
             AgentMetric::whereIn('agent_id', $ancestorIds)
                 ->update([
                     'nsd' => DB::raw('nsd + 1'),
                     'vsd' => DB::raw("vsd + {$dealValue}"),
                 ]);
 
-            // Ensure metrics rows exist for ancestors that don't have them yet
+            // Ensure all-time metrics rows exist for ancestors that don't have them yet
             $existingIds = AgentMetric::whereIn('agent_id', $ancestorIds)->pluck('agent_id')->toArray();
             $missingIds = array_diff($ancestorIds, $existingIds);
 
@@ -80,12 +98,27 @@ class MetricsService
                 }
             }
 
+            // Cycle metrics for each ancestor — credits go to the UPLINE'S own active enrollment
+            foreach ($ancestorIds as $ancestorId) {
+                $ancestorAgent = LeadAgent::find($ancestorId);
+                if (!$ancestorAgent) {
+                    continue;
+                }
+
+                $ancestorCycleMetrics = $this->cycleService->getOrCreateCycleMetrics($ancestorAgent);
+                if ($ancestorCycleMetrics) {
+                    $ancestorCycleMetrics->increment('nsd', 1);
+                    $ancestorCycleMetrics->increment('vsd', $dealValue);
+                }
+            }
+
             Log::info("MetricsService: Updated NSD/VSD for " . count($ancestorIds) . " ancestors of agent {$agentId}");
         }
     }
 
     /**
      * Decrement metrics when a deal commission is reverted.
+     * Decrements both all-time and cycle metrics.
      */
     public function decrementOnDealReverted(Deal $deal): void
     {
@@ -103,30 +136,53 @@ class MetricsService
 
         $dealValue = (float) ($deal?->value ?? 0);
 
-        // Decrement agent's own metrics
+        // ── All-time metrics ─────────────────────────────────────
         $metrics = $this->getOrCreateMetrics($agent);
         $metrics->decrement('nsa', min(1, $metrics->nsa));
         $metrics->decrement('vsa', min($dealValue, $metrics->vsa));
 
-        // Decrement ancestors' downline metrics
+        // ── Cycle metrics ────────────────────────────────────────
+        // Find the cycle metric that was incremented for this deal
+        // Use the agent's active enrollment since that's where the deal was counted
+        $cycleMetrics = $this->cycleService->getOrCreateCycleMetrics($agent);
+        if ($cycleMetrics) {
+            $cycleMetrics->decrement('nsa', min(1, $cycleMetrics->nsa));
+            $cycleMetrics->decrement('vsa', min($dealValue, (float) $cycleMetrics->vsa));
+        }
+
+        // ── Ancestor all-time + cycle ────────────────────────────
         $ancestorIds = AgentHierarchy::where('descendant_id', $agent->id)
             ->pluck('ancestor_id')
             ->toArray();
 
         if (!empty($ancestorIds)) {
-            // Use GREATEST to prevent negative values
+            // All-time bulk update
             AgentMetric::whereIn('agent_id', $ancestorIds)
                 ->update([
                     'nsd' => DB::raw('GREATEST(CAST(nsd AS SIGNED) - 1, 0)'),
                     'vsd' => DB::raw("GREATEST(vsd - {$dealValue}, 0)"),
                 ]);
+
+            // Cycle metrics for each ancestor
+            foreach ($ancestorIds as $ancestorId) {
+                $ancestorAgent = LeadAgent::find($ancestorId);
+                if (!$ancestorAgent) {
+                    continue;
+                }
+
+                $ancestorCycleMetrics = $this->cycleService->getOrCreateCycleMetrics($ancestorAgent);
+                if ($ancestorCycleMetrics) {
+                    $ancestorCycleMetrics->decrement('nsd', min(1, $ancestorCycleMetrics->nsd));
+                    $ancestorCycleMetrics->decrement('vsd', min($dealValue, (float) $ancestorCycleMetrics->vsd));
+                }
+            }
         }
 
         Log::info("MetricsService: Decremented metrics for deal {$deal->id} revert");
     }
 
     /**
-     * Full recalculation of metrics for an agent from deal data.
+     * Full recalculation of all-time metrics for an agent from deal data.
      */
     public function recalculateForAgent(LeadAgent $agent): AgentMetric
     {
@@ -161,9 +217,66 @@ class MetricsService
 
         $metrics->save();
 
-        Log::info("MetricsService: Recalculated metrics for agent {$agent->id}: NSA={$metrics->nsa}, NSD={$metrics->nsd}, VSA={$metrics->vsa}, VSD={$metrics->vsd}");
+        Log::info("MetricsService: Recalculated all-time metrics for agent {$agent->id}: NSA={$metrics->nsa}, NSD={$metrics->nsd}, VSA={$metrics->vsa}, VSD={$metrics->vsd}");
 
         return $metrics;
+    }
+
+    /**
+     * Recalculate cycle metrics for a specific enrollment from deal data.
+     * Only counts deals whose won_at falls within the enrollment's effective date range.
+     */
+    public function recalculateForEnrollment(\App\Models\AgentCycleEnrollment $enrollment): ?AgentCycleMetric
+    {
+        $agent = $enrollment->agent;
+        $dateRange = $enrollment->getMetricDateRange();
+        $startDate = $dateRange['start'];
+        $endDate = $dateRange['end'];
+
+        $cycleMetrics = $enrollment->metrics ?? AgentCycleMetric::create([
+            'company_id' => $enrollment->company_id,
+            'enrollment_id' => $enrollment->id,
+            'agent_id' => $agent->id,
+            'nsa' => 0,
+            'nsd' => 0,
+            'vsa' => 0,
+            'vsd' => 0,
+        ]);
+
+        // Recalculate own sales within the enrollment date range
+        $ownDeals = Deal::where('agent_id', $agent->id)
+            ->where('outcome_status', 'won')
+            ->whereBetween('won_at', [$startDate->startOfDay(), $endDate->endOfDay()])
+            ->selectRaw('COUNT(*) as deal_count, COALESCE(SUM(COALESCE(value, 0)), 0) as deal_value')
+            ->first();
+
+        $cycleMetrics->nsa = $ownDeals->deal_count ?? 0;
+        $cycleMetrics->vsa = $ownDeals->deal_value ?? 0;
+
+        // Recalculate downline sales within the enrollment date range
+        $descendantIds = AgentHierarchy::where('ancestor_id', $agent->id)
+            ->pluck('descendant_id')
+            ->toArray();
+
+        if (!empty($descendantIds)) {
+            $downlineDeals = Deal::whereIn('agent_id', $descendantIds)
+                ->where('outcome_status', 'won')
+                ->whereBetween('won_at', [$startDate->startOfDay(), $endDate->endOfDay()])
+                ->selectRaw('COUNT(*) as deal_count, COALESCE(SUM(COALESCE(value, 0)), 0) as deal_value')
+                ->first();
+
+            $cycleMetrics->nsd = $downlineDeals->deal_count ?? 0;
+            $cycleMetrics->vsd = $downlineDeals->deal_value ?? 0;
+        } else {
+            $cycleMetrics->nsd = 0;
+            $cycleMetrics->vsd = 0;
+        }
+
+        $cycleMetrics->save();
+
+        Log::info("MetricsService: Recalculated cycle metrics for enrollment {$enrollment->id} (agent {$agent->id}): NSA={$cycleMetrics->nsa}, NSD={$cycleMetrics->nsd}, VSA={$cycleMetrics->vsa}, VSD={$cycleMetrics->vsd}");
+
+        return $cycleMetrics;
     }
 
     /**
