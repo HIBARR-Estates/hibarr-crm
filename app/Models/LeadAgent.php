@@ -147,4 +147,35 @@ class LeadAgent extends BaseModel
     {
         return $this->hasMany(MlmCommission::class, 'source_agent_id');
     }
+
+    // ── MLM Cycle Enrollments ────────────────────────────────────
+
+    /**
+     * All cycle enrollments for this agent.
+     */
+    public function cycleEnrollments(): HasMany
+    {
+        return $this->hasMany(AgentCycleEnrollment::class, 'agent_id');
+    }
+
+    /**
+     * The agent's current active/extended enrollment (the one receiving metrics).
+     */
+    public function activeEnrollment(): HasOne
+    {
+        return $this->hasOne(AgentCycleEnrollment::class, 'agent_id')
+            ->whereIn('status', [
+                \App\Enums\EnrollmentStatus::Active,
+                \App\Enums\EnrollmentStatus::Extended,
+            ])
+            ->latestOfMany('effective_start_date');
+    }
+
+    /**
+     * All cycle metrics for this agent across enrollments.
+     */
+    public function cycleMetrics(): HasMany
+    {
+        return $this->hasMany(AgentCycleMetric::class, 'agent_id');
+    }
 }

@@ -2,8 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Enums\EnrollmentStatus;
 use App\Models\Deal;
 use App\Models\LeadAgent;
+use App\Services\CycleService;
 use App\Services\LevelService;
 use App\Services\MetricsService;
 use App\Services\MlmCommissionService;
@@ -35,16 +37,18 @@ class ProcessDealWonJob implements ShouldQueue
      *
      * Steps:
      * 1. Idempotency guard (skip if already locked)
-     * 2. Set outcome_status = 'won'
-     * 3. Update agent metrics (NSA/VSA + ancestor NSD/VSD)
-     * 4. Evaluate level qualifications (agent + all ancestors)
-     * 5. Distribute commissions (differential model)
-     * 6. Lock the deal
+     * 2. Validate deal is won and has an agent
+     * 3. Update agent metrics (all-time + cycle: NSA/VSA + ancestor NSD/VSD)
+     * 4. Evaluate level qualifications (agent + all ancestors, using cycle metrics)
+     * 5. Check for enrollment completions (criteria met while in overflow → complete → re-enroll)
+     * 6. Distribute commissions (differential model)
+     * 7. Lock the deal
      */
     public function handle(
         MetricsService $metricsService,
         LevelService $levelService,
-        MlmCommissionService $commissionService
+        MlmCommissionService $commissionService,
+        CycleService $cycleService
     ): void {
         $deal = $this->deal->fresh();
 
@@ -70,15 +74,25 @@ class ProcessDealWonJob implements ShouldQueue
             return;
         }
 
-        DB::transaction(function () use ($deal, $agent, $metricsService, $levelService, $commissionService) {
+        DB::transaction(function () use ($deal, $agent, $metricsService, $levelService, $commissionService, $cycleService) {
             Log::info("ProcessDealWonJob: Starting MLM pipeline for deal {$deal->id}, agent {$agent->id}");
 
-          
-            // Step 2: Update agent metrics
+            // Step 1: Update agent metrics (all-time + cycle)
             $metricsService->incrementOnDealWon($deal);
 
-            // Step 3: Evaluate level qualifications (agent + ancestors)
+            // Step 2: Evaluate level qualifications (agent + ancestors, using cycle metrics)
             $levelService->evaluateWithAncestors($agent, $deal);
+
+            // Step 3: Check for enrollment completions
+            // If the agent's enrollment is extended (overflow) and they now qualify for a level,
+            // complete the enrollment and re-enroll them in the current cycle.
+            $this->checkEnrollmentCompletions($agent, $levelService, $cycleService);
+
+            // Also check ancestors
+            $ancestors = app(\App\Services\HierarchyService::class)->getAncestors($agent);
+            foreach ($ancestors as $ancestor) {
+                $this->checkEnrollmentCompletions($ancestor, $levelService, $cycleService);
+            }
 
             // Step 4: Distribute commissions
             $commissionService->distribute($deal);
@@ -90,6 +104,36 @@ class ProcessDealWonJob implements ShouldQueue
 
             Log::info("ProcessDealWonJob: Completed MLM pipeline for deal {$deal->id}");
         });
+    }
+
+    /**
+     * Check if an agent's enrollment should be completed.
+     *
+     * An enrollment is completed when:
+     * - The enrollment is in 'extended' (overflow) status
+     * - The agent now meets the level criteria for at least their current level
+     *
+     * On completion, the agent is auto-enrolled in the current company cycle.
+     */
+    protected function checkEnrollmentCompletions(
+        LeadAgent $agent,
+        LevelService $levelService,
+        CycleService $cycleService
+    ): void {
+        $enrollment = $cycleService->getActiveEnrollment($agent);
+
+        if (!$enrollment || $enrollment->status !== EnrollmentStatus::Extended) {
+            return; // Only check enrollments in overflow
+        }
+
+        // Check if the agent now meets criteria for any level above base
+        $currentLevel = $levelService->getCurrentLevel($agent);
+
+        if ($currentLevel) {
+            // Agent has a level — enrollment criteria considered met
+            $cycleService->completeEnrollment($enrollment, $currentLevel);
+            Log::info("ProcessDealWonJob: Agent {$agent->id} enrollment completed during overflow (level: {$currentLevel->name})");
+        }
     }
 
     /**

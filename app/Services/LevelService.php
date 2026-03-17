@@ -14,24 +14,29 @@ class LevelService
 {
     protected HierarchyService $hierarchyService;
     protected MetricsService $metricsService;
+    protected CycleService $cycleService;
 
-    public function __construct(HierarchyService $hierarchyService, MetricsService $metricsService)
+    public function __construct(HierarchyService $hierarchyService, MetricsService $metricsService, CycleService $cycleService)
     {
         $this->hierarchyService = $hierarchyService;
         $this->metricsService = $metricsService;
+        $this->cycleService = $cycleService;
     }
 
     /**
      * Evaluate whether the agent qualifies for a new (higher) level.
      *
-     * If the agent qualifies for a level higher than their current level,
-     * a new AgentLevelHistory record is created.
+     * Uses CYCLE metrics (from the agent's active enrollment) for evaluation.
+     * Levels never demote — only promotes if the qualifying level is higher than current.
      *
      * @return MlmLevel|null The newly assigned level, or null if no change.
      */
     public function evaluate(LeadAgent $agent, ?Deal $triggerDeal = null): ?MlmLevel
     {
-        $metrics = $this->metricsService->getOrCreateMetrics($agent);
+        // Use cycle metrics for evaluation (primary), fall back to all-time if no enrollment
+        $cycleMetrics = $this->cycleService->getOrCreateCycleMetrics($agent);
+        $metricsForEvaluation = $cycleMetrics ?? $this->metricsService->getOrCreateMetrics($agent);
+
         $companyId = $agent->company_id;
 
         // Get all levels for the company, ordered by rank DESC (highest first)
@@ -56,7 +61,7 @@ class LevelService
                 break;
             }
 
-            if ($this->evaluateCriteria($metrics, $level->criteria)) {
+            if ($this->evaluateCriteria($metricsForEvaluation, $level->criteria)) {
                 $qualifiedLevel = $level;
                 break; // Found the highest qualifying level
             }
@@ -97,13 +102,15 @@ class LevelService
     }
 
     /**
-     * Evaluate criteria for a level against agent metrics.
+     * Evaluate criteria for a level against metrics.
+     *
+     * Accepts both AgentMetric and AgentCycleMetric — both provide nsa/nsd/vsa/vsd.
      *
      * Logic groups:
      * - Conditions within the same logic_group are OR'd (any must pass)
      * - Different logic_groups are AND'd (all groups must pass)
      */
-    public function evaluateCriteria(AgentMetric $metrics, Collection $criteria): bool
+    public function evaluateCriteria(object $metrics, Collection $criteria): bool
     {
         if ($criteria->isEmpty()) {
             return false; // No criteria = cannot qualify
