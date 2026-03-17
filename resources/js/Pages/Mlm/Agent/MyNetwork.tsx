@@ -185,35 +185,49 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                             "Unranked"
                                         )}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Agent Sales (NSA)">
-                                        {selectedNode.nsa ?? 0}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Downline Sales (NSD)">
-                                        {selectedNode.nsd ?? 0}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Agent Value (VSA)">
-                                        $
-                                        {(
-                                            selectedNode.vsa ?? 0
-                                        ).toLocaleString()}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Downline Value (VSD)">
-                                        $
-                                        {(
-                                            selectedNode.vsd ?? 0
-                                        ).toLocaleString()}
-                                    </Descriptions.Item>
                                     <Descriptions.Item label="Direct Downlines">
                                         {selectedNode.children?.length ?? 0}
                                     </Descriptions.Item>
-                                    {selectedNode.joined_date && (
-                                        <Descriptions.Item label="Joined">
-                                            {new Date(
-                                                selectedNode.joined_date,
-                                            ).toLocaleDateString()}
-                                        </Descriptions.Item>
-                                    )}
                                 </Descriptions>
+
+                                <div className="mt-4 mb-2">
+                                    <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                                        All-Time Metrics
+                                    </div>
+                                    <Descriptions
+                                        column={2}
+                                        size="small"
+                                        bordered
+                                    >
+                                        <Descriptions.Item label="NSA">
+                                            {selectedNode.nsa ?? 0}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="NSD">
+                                            {selectedNode.nsd ?? 0}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="VSA">
+                                            $
+                                            {(
+                                                selectedNode.vsa ?? 0
+                                            ).toLocaleString()}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="VSD">
+                                            $
+                                            {(
+                                                selectedNode.vsd ?? 0
+                                            ).toLocaleString()}
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </div>
+
+                                {selectedNode.joined_date && (
+                                    <div className="mt-2 text-xs text-gray-500">
+                                        Joined:{" "}
+                                        {new Date(
+                                            selectedNode.joined_date,
+                                        ).toLocaleDateString()}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </Drawer>

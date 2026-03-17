@@ -9,12 +9,13 @@ import {
     Row,
     Col,
     Statistic,
+    Button,
 } from "antd";
 import { motion } from "framer-motion";
-import { DollarSign, Filter } from "lucide-react";
+import { DollarSign, Filter, CalendarDays } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { useMyCommissions } from "@/Features/Mlm/api";
+import { useMyCommissions, useMyEnrollment } from "@/Features/Mlm/api";
 import { CommissionStatusBadge, LevelBadge } from "@/Features/Mlm/Components";
 import type {
     MlmCommission,
@@ -37,6 +38,9 @@ const MyCommissions: React.FC<Props> = ({
 }) => {
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
+
+    const { data: enrollmentData } = useMyEnrollment();
+    const activeCycle = (enrollmentData as any)?.data?.active_cycle ?? null;
 
     const { data, isLoading } = useMyCommissions({
         page,
@@ -262,6 +266,31 @@ const MyCommissions: React.FC<Props> = ({
                                         }
                                     }}
                                 />
+                                {activeCycle && (
+                                    <Button
+                                        size="small"
+                                        icon={<CalendarDays size={14} />}
+                                        type={
+                                            filters.date_from ===
+                                                activeCycle.start_date &&
+                                            filters.date_to ===
+                                                activeCycle.end_date
+                                                ? "primary"
+                                                : "default"
+                                        }
+                                        onClick={() => {
+                                            setFilters((f) => ({
+                                                ...f,
+                                                date_from:
+                                                    activeCycle.start_date,
+                                                date_to: activeCycle.end_date,
+                                            }));
+                                            setPage(1);
+                                        }}
+                                    >
+                                        Cycle #{activeCycle.cycle_number}
+                                    </Button>
+                                )}
                             </div>
                         </Card>
                     </motion.div>

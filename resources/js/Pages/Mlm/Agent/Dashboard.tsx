@@ -37,6 +37,8 @@ import {
     LevelBadge,
     CommissionStatusBadge,
     ProgressToNextLevel,
+    EnrollmentStatusCard,
+    CycleMetricsDisplay,
 } from "@/Features/Mlm/Components";
 import type {
     MlmAgentDashboardStats,
@@ -199,6 +201,39 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                 </div>
                             </Card>
                         </motion.div>
+
+                        {/* Cycle Enrollment & Metrics */}
+                        <Row gutter={[16, 16]} className="mb-6">
+                            <Col xs={24} lg={10}>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.05 }}
+                                >
+                                    <EnrollmentStatusCard
+                                        enrollment={stats.enrollment ?? null}
+                                        activeCycle={stats.active_cycle ?? null}
+                                    />
+                                </motion.div>
+                            </Col>
+                            <Col xs={24} lg={14}>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.1 }}
+                                >
+                                    <CycleMetricsDisplay
+                                        cycleMetrics={
+                                            stats.cycle_metrics ?? null
+                                        }
+                                        allTimeMetrics={
+                                            stats.all_time_metrics ?? null
+                                        }
+                                        showToggle
+                                    />
+                                </motion.div>
+                            </Col>
+                        </Row>
 
                         {/* Stat Cards */}
                         <Row gutter={[16, 16]} className="mb-6">

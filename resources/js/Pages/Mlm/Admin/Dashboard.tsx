@@ -18,6 +18,7 @@ import {
     Award,
     ArrowUpRight,
     Clock,
+    CalendarDays,
 } from "lucide-react";
 import {
     AreaChart,
@@ -30,9 +31,12 @@ import {
 } from "recharts";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { useMlmAdminDashboard } from "@/Features/Mlm/api";
-import { LevelBadge } from "@/Features/Mlm/Components";
-import type { MlmAdminDashboardStats } from "@/Features/Mlm/types";
+import { useMlmAdminDashboard, useActiveCycle } from "@/Features/Mlm/api";
+import { LevelBadge, CycleStatusBadge } from "@/Features/Mlm/Components";
+import type {
+    MlmAdminDashboardStats,
+    ActiveCycleSummary,
+} from "@/Features/Mlm/types";
 
 interface Props extends PageProps {
     stats: MlmAdminDashboardStats;
@@ -74,6 +78,10 @@ const statCards = (stats: MlmAdminDashboardStats) => [
 const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     const { data, isLoading } = useMlmAdminDashboard();
     const stats: MlmAdminDashboardStats = (data as any) ?? initialStats;
+
+    const { data: activeCycleData } = useActiveCycle();
+    const cycleSummary: ActiveCycleSummary | null =
+        (activeCycleData as any)?.data ?? null;
 
     const cards = statCards(stats);
 
@@ -217,6 +225,64 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                             </Col>
                         ))}
                     </Row>
+
+                    {/* Active Cycle Summary Bar */}
+                    {cycleSummary?.cycle && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.35 }}
+                            className="mb-6"
+                        >
+                            <Card
+                                size="small"
+                                className="shadow-sm bg-gradient-to-r from-indigo-50 to-white border-l-4 border-l-indigo-500"
+                                bodyStyle={{ padding: "12px 20px" }}
+                            >
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <CalendarDays
+                                            size={16}
+                                            className="text-indigo-500"
+                                        />
+                                        <span className="font-semibold text-sm">
+                                            Cycle #
+                                            {cycleSummary.cycle.cycle_number}
+                                        </span>
+                                        <CycleStatusBadge
+                                            status={
+                                                cycleSummary.cycle.status as any
+                                            }
+                                        />
+                                        <span className="text-xs text-gray-500">
+                                            {cycleSummary.cycle.start_date} →{" "}
+                                            {cycleSummary.cycle.end_date}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <span>
+                                            <strong>
+                                                {cycleSummary.days_remaining}
+                                            </strong>{" "}
+                                            days remaining
+                                        </span>
+                                        <span>
+                                            <strong>
+                                                {cycleSummary.enrollment_count}
+                                            </strong>{" "}
+                                            enrolled agents
+                                        </span>
+                                        <a
+                                            href="/account/mlm/cycle-management"
+                                            className="text-indigo-600 hover:underline text-xs"
+                                        >
+                                            Manage →
+                                        </a>
+                                    </div>
+                                </div>
+                            </Card>
+                        </motion.div>
+                    )}
 
                     {/* Commission Trend Chart */}
                     <motion.div
