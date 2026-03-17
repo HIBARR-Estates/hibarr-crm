@@ -115,7 +115,7 @@ const ConstructionProjectPhotosSection: React.FC<
         data: assetsResponse,
         isLoading: isLoadingAssets,
         refetch: refetchAssets,
-    } = useApiQuery<{ data: { assets: DeveloperProjectAsset[] } }>({
+    } = useApiQuery<{ status: string; assets: DeveloperProjectAsset[] }>({
         path: projectId
             ? route("developer-projects.assets.index", projectId)
             : "",
@@ -124,7 +124,7 @@ const ConstructionProjectPhotosSection: React.FC<
     });
 
     const imageAssets = useMemo(
-        () => assetsResponse?.data?.assets ?? [],
+        () => assetsResponse?.assets ?? [],
         [assetsResponse],
     );
 

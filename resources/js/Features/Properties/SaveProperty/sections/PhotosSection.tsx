@@ -30,6 +30,7 @@ import type { PrimaryCategory, PropertyAsset, AssetTag } from "@/Types";
 import type { IUploadResponseItem } from "@/Types/uploads";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import { router } from "@inertiajs/react";
 
@@ -89,7 +90,7 @@ interface PhotosSectionProps {
     primaryCategory: PrimaryCategory;
     /** Property ID — present in edit mode, absent on create */
     propertyId?: number;
-    /** Existing property assets loaded from backend */
+    /** Existing property assets loaded from backend (used as fallback only) */
     existingAssets?: PropertyAsset[];
     /**
      * Called when user wants to save the property first (create mode)
@@ -110,6 +111,17 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
     onSaveForUpload,
 }) => {
     const { message: messageApi } = App.useApp();
+
+    // ─── Fetch existing assets via API (independent of parent props) ───
+    const {
+        data: assetsResponse,
+        isLoading: isLoadingAssets,
+        refetch: refetchAssets,
+    } = useApiQuery<{ status: string; assets: PropertyAsset[] }>({
+        path: propertyId ? route("properties.assets.list", propertyId) : "",
+        params: { asset_type: "image" },
+        options: { enabled: !!propertyId },
+    });
 
     // Upload modal state
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -162,13 +174,12 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                 : "",
             "POST",
             () => {
-                // Close modal, reset state, reload the page data
+                // Close modal, reset state, refetch assets from API
                 setIsUploadModalOpen(false);
                 setUploadFileList([]);
                 setUploadStatuses([]);
                 setSelectedTags([]);
-                // Reload assets on the page
-                router.reload({ only: ["property"] });
+                refetchAssets();
             },
         );
 
@@ -178,7 +189,7 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
         void,
         ApiSuccessResponse<void>
     >("", "DELETE", () => {
-        router.reload({ only: ["property"] });
+        refetchAssets();
     });
 
     // ─── Upload flow (mirrors ManageAssets) ───
@@ -342,7 +353,7 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                         .then((res) => res.json())
                         .then(() => {
                             messageApi.success("Photo deleted");
-                            router.reload({ only: ["property"] });
+                            refetchAssets();
                         })
                         .catch(() => {
                             messageApi.error("Failed to delete photo");
@@ -350,14 +361,16 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                 },
             });
         },
-        [propertyId, deleteModal, messageApi],
+        [propertyId, deleteModal, messageApi, refetchAssets],
     );
 
-    // Filter to image-type assets only
-    const imageAssets = useMemo(
-        () => existingAssets.filter((a) => a.asset_type === "image"),
-        [existingAssets],
-    );
+    // Use API-fetched assets if available, fall back to prop-based existingAssets
+    const imageAssets = useMemo(() => {
+        if (assetsResponse?.assets) {
+            return assetsResponse.assets;
+        }
+        return existingAssets.filter((a) => a.asset_type === "image");
+    }, [assetsResponse, existingAssets]);
 
     // ─── Create mode: property not saved yet ───
     if (!propertyId) {
