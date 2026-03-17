@@ -144,6 +144,9 @@ class Kernel extends ConsoleKernel
         // Retry queue cleanup every day at 3:00 AM
         $schedule->command('activity:retry-queue cleanup --days=30')->dailyAt('03:00');
 
+        // MLM cycle management: transition statuses, handle overflows, auto-generate cycles
+        $schedule->command('mlm:cycle-check')->dailyAt('00:15');
+
         // Hourly
         $schedule->command('clear-null-session')->hourly();
         $schedule->command('create-database-backup')->hourly();

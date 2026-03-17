@@ -36,9 +36,10 @@ class MlmLevelCriterion extends BaseModel
     // ── Evaluation ───────────────────────────────────────────────
 
     /**
-     * Evaluate this criterion against the given agent metrics.
+     * Evaluate this criterion against the given metrics.
+     * Accepts both AgentMetric and AgentCycleMetric (both have nsa/nsd/vsa/vsd).
      */
-    public function evaluate(AgentMetric $metrics): bool
+    public function evaluate(object $metrics): bool
     {
         $value = $this->metric->resolveValue($metrics);
 
