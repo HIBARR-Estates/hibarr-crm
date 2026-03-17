@@ -8,6 +8,7 @@ use App\Models\UniversalSearch;
 use App\Models\User;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\LeadImported;
+use App\Notifications\LeadOwnerAssigned;
 
 
 class LeadObserver
@@ -80,6 +81,34 @@ class LeadObserver
             // Log the error but don't let it block the deletion
             \Log::warning('Failed to clean up universal_search for lead ID ' . $leadContact->id . ': ' . $e->getMessage());
         }
+    }
+
+    public function updated(Lead $leadContact)
+    {
+        if (isRunningInConsoleOrSeeding()) {
+            return;
+        }
+
+        if (!$leadContact->wasChanged('lead_owner')) {
+            return;
+        }
+
+        $newOwnerId = $leadContact->lead_owner;
+        if (!$newOwnerId) {
+            return;
+        }
+
+        $oldOwnerId = $leadContact->getOriginal('lead_owner');
+        if ($oldOwnerId === $newOwnerId) {
+            return;
+        }
+
+        $newOwner = User::find($newOwnerId);
+        if (!$newOwner) {
+            return;
+        }
+
+        Notification::send($newOwner, new LeadOwnerAssigned($leadContact, $oldOwnerId));
     }
 
 }
