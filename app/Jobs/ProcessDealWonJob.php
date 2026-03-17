@@ -65,13 +65,15 @@ class ProcessDealWonJob implements ShouldQueue
             Log::warning("ProcessDealWonJob: No agent found for deal {$deal->id}, skipping");
             return;
         }
+        if ($deal->outcome_status !== \App\Enums\OutcomeStatus::Won) {
+            Log::warning("ProcessDealWonJob: Deal {$deal->id} is not marked as won, skipping. Only won deals should trigger this job.");
+            return;
+        }
 
         DB::transaction(function () use ($deal, $agent, $metricsService, $levelService, $commissionService) {
             Log::info("ProcessDealWonJob: Starting MLM pipeline for deal {$deal->id}, agent {$agent->id}");
 
-            // Step 1: Set outcome status
-            $deal->outcome_status = 'won';
-
+          
             // Step 2: Update agent metrics
             $metricsService->incrementOnDealWon($deal);
 

@@ -28,7 +28,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
     });
 
     const history: PaginatedResponse<AgentLevelHistory> =
-        (data as any)?.data ?? initialHistory;
+        (data as any) ?? initialHistory;
 
     const columns = [
         {

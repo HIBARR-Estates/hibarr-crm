@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
     Row,
     Col,
@@ -34,6 +34,7 @@ interface DealDetailsTabProps
     > {
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
+    onPipelineChange?: (pipelineId: number | undefined) => void;
 }
 
 const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
@@ -47,6 +48,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     setErrors,
     setDeal,
     disableFields = [], // prop to disable fields
+    onPipelineChange,
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
@@ -69,7 +71,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     } = props;
 
     const [pipelineId, setPipelineId] = useState<number>();
+    const pipelineIdRef = useRef<number | undefined>(pipelineId);
     const [selectedCategoryId, setSelectedCategoryId] = useState<number>();
+
+    useEffect(() => {
+        pipelineIdRef.current = pipelineId;
+    }, [pipelineId]);
 
     // Populate form when data changes
     useEffect(() => {
@@ -123,6 +130,13 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             setPipelineId(formData.pipeline);
             setSelectedCategoryId(formData.category_id);
             form.setFieldsValue(formData as any);
+
+            if (
+                typeof formData.pipeline !== "undefined" &&
+                formData.pipeline !== pipelineIdRef.current
+            ) {
+                onPipelineChange?.(formData.pipeline);
+            }
         }
     }, [data, form, defaultCurrencyCode, currencies]);
 
@@ -131,17 +145,29 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         if (columnId && !data?.stage_id) {
             form.setFieldValue("stage_id", columnId);
         }
+
+        let derivedPipelineId: number | undefined = pipelineId;
+
         if (stage && stage.lead_pipeline_id && !data?.pipeline) {
-            form.setFieldValue("pipeline", stage.lead_pipeline_id);
-            setPipelineId(stage.lead_pipeline_id);
+            derivedPipelineId = stage.lead_pipeline_id;
+            form.setFieldValue("pipeline", derivedPipelineId);
+            setPipelineId(derivedPipelineId);
         } else if (!data?.pipeline && !pipelineId && leadPipelines.length > 0) {
             const defaultPipeline =
                 leadPipelines.find((p: any) => p.default === 1) ||
                 leadPipelines[0];
             if (defaultPipeline) {
-                form.setFieldValue("pipeline", defaultPipeline.id);
-                setPipelineId(defaultPipeline.id);
+                derivedPipelineId = defaultPipeline.id;
+                form.setFieldValue("pipeline", derivedPipelineId);
+                setPipelineId(derivedPipelineId);
             }
+        }
+
+        if (
+            typeof derivedPipelineId !== "undefined" &&
+            derivedPipelineId !== pipelineId
+        ) {
+            onPipelineChange?.(derivedPipelineId);
         }
     }, [contactID, columnId, stage, data, form, leadPipelines, pipelineId]);
 
@@ -150,6 +176,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         form.setFieldValue("pipeline", pipelineId);
         form.setFieldValue("stage_id", undefined); // Reset stage when pipeline changes
         setPipelineId(pipelineId);
+        onPipelineChange?.(pipelineId);
     };
 
     // Fetch agents when category changes

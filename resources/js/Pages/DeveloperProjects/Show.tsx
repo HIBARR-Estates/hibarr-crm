@@ -55,6 +55,7 @@ import GenerateUnitTypeExposeModal from "../../Features/DeveloperProjects/Genera
 import GenerateProjectExposeModal from "../../Features/DeveloperProjects/GenerateProjectExposeModal";
 import UnitTypesSection from "../../Features/DeveloperProjects/UnitTypesSection";
 import ConstructionProjectFormModal from "../../Features/DeveloperProjects/ConstructionProjectFormModal";
+import ProjectPhotosSection from "../../Features/DeveloperProjects/ProjectPhotosSection";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -122,6 +123,7 @@ export interface ShowProps extends PageProps {
 type SectionKey =
     | "overview"
     | "unit_types"
+    | "photos"
     | "facilities"
     | "exterior"
     | "interior"
@@ -729,6 +731,11 @@ const Show = ({
             label: `Unit Types (${unitTypes?.length || 0})`,
         },
         {
+            key: "photos",
+            icon: <PictureOutlined />,
+            label: "Photos",
+        },
+        {
             key: "facilities",
             icon: <HomeOutlined />,
             label: "Facilities",
@@ -777,6 +784,8 @@ const Show = ({
                         unitTypes={unitTypes ?? []}
                     />
                 );
+            case "photos":
+                return <ProjectPhotosSection projectId={project.id} />;
             case "facilities":
                 return <FacilitiesSection facilities={facilities} />;
             case "exterior":

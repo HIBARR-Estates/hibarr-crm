@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Tabs, Alert } from "antd";
 import type { TabsProps } from "antd";
 import { CreateDealFormData, Deal } from "@/Types/api/deals";
@@ -38,9 +38,38 @@ const DealForm: React.FC<DealFormProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
-    console.log(data, "what is the data .....");
-    const customFieldCategories =
+    const [selectedPipelineId, setSelectedPipelineId] = useState<
+        number | undefined
+    >(data?.pipeline);
+
+    const allCustomFieldCategories: any[] =
         props.dealCustomFieldCategories || props.customFieldCategories || [];
+
+    const pipelineCustomFieldCategoryIdsByPipeline: Record<string, number[]> =
+        props.pipelineCustomFieldCategoryIdsByPipeline || {};
+
+    useEffect(() => {
+        if (data?.pipeline !== undefined) {
+            setSelectedPipelineId(data.pipeline);
+        }
+    }, [data?.pipeline]);
+
+    const customFieldCategories = useMemo(() => {
+        const key = selectedPipelineId != null ? String(selectedPipelineId) : "";
+        const allowedIds = key ? pipelineCustomFieldCategoryIdsByPipeline[key] : undefined;
+
+        // If pipeline has 0 associated categories, fall back to showing all (backward compatibility)
+        if (!allowedIds || allowedIds.length === 0) {
+            return allCustomFieldCategories;
+        }
+
+        const allowedSet = new Set<number>(allowedIds);
+        return allCustomFieldCategories.filter((c: any) => allowedSet.has(c.id));
+    }, [
+        selectedPipelineId,
+        allCustomFieldCategories,
+        pipelineCustomFieldCategoryIdsByPipeline,
+    ]);
 
     useEffect(() => {
         if (!visible) {
@@ -70,6 +99,9 @@ const DealForm: React.FC<DealFormProps> = ({
                     cancelText={cancelText}
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
+                    onPipelineChange={(pipelineId) =>
+                        setSelectedPipelineId(pipelineId)
+                    }
                 />
             ),
         },

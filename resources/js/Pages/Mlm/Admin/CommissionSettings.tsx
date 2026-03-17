@@ -39,7 +39,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
 }) => {
     const { data: settingsData, isLoading } = useMlmSettings();
     const settings: MlmSettings =
-        (settingsData as any)?.data?.data ?? initialSettings;
+        (settingsData as any)?.data ?? initialSettings;
 
     const [form] = Form.useForm<MlmSettings>();
     const [simDealValue, setSimDealValue] = useState<number>(0);
@@ -203,6 +203,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                 onChange={(v) =>
                                                     setSimDealValue(v ?? 0)
                                                 }
+                                                style={{ width: "100%" }}
                                             />
                                         </div>
 

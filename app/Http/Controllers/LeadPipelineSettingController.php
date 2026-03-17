@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Http\Requests\LeadSetting\StoreLeadPipeline;
 use App\Http\Requests\LeadSetting\UpdateLeadPipeline;
+use App\Models\CustomFieldCategory;
+use App\Models\CustomFieldGroup;
 use App\Models\Deal;
 use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
+use Illuminate\Support\Facades\DB;
 
 class LeadPipelineSettingController extends AccountBaseController
 {
@@ -16,7 +19,7 @@ class LeadPipelineSettingController extends AccountBaseController
     {
         parent::__construct();
         $this->middleware(function ($request, $next) {
-            abort_403(!in_array('leads', $this->user->modules));
+            abort_403(!(user()->permission('manage_lead_setting') == 'all' && in_array('leads', $this->user->modules)));
             return $next($request);
         });
     }
@@ -57,9 +60,23 @@ class LeadPipelineSettingController extends AccountBaseController
      */
     public function edit($id)
     {
-        $this->pipeline = LeadPipeline::findOrFail($id);
+        $this->pipeline = LeadPipeline::with('customFieldCategories')
+            ->where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
+          $this->maxPriority = LeadPipeline::max('priority');
 
-        $this->maxPriority = LeadPipeline::max('priority');
+        $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
+        $this->customFieldCategories = collect();
+        if ($dealCustomFieldGroup) {
+            $this->customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $dealCustomFieldGroup->id)
+                ->where('company_id', company()->id)
+                ->orderBy(DB::raw('`order`'), 'asc')
+                ->orderBy('id', 'asc')
+                ->get();
+        }
+        $this->pipelineCategoryIds = $this->pipeline->customFieldCategories->pluck('id')->toArray();
+
         return view('lead-settings.edit-pipeline-modal', $this->data);
     }
 
@@ -71,10 +88,17 @@ class LeadPipelineSettingController extends AccountBaseController
      */
     public function update(UpdateLeadPipeline $request, $id)
     {
-        $pipeline = LeadPipeline::findOrFail($id);
+        $pipeline = LeadPipeline::where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
         $pipeline->name = $request->name;
         $pipeline->label_color = $request->label_color;
         $pipeline->save();
+
+        $validated = $request->validated();
+        $categoryIds = $validated['category_ids'] ?? [];
+
+        $pipeline->customFieldCategories()->sync($categoryIds);
 
         return Reply::success(__('messages.updateSuccess'));
     }

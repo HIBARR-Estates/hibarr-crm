@@ -40,7 +40,7 @@ class MlmCommissionService
             return [];
         }
 
-        $dealValue = (float) ($deal->total_value ?? $deal->value ?? 0);
+        $dealValue = (float) ($deal->value ?? 0);
         $maxCommission = $this->getMaxCommissionPercentage($deal);
 
         if ($dealValue <= 0 || $maxCommission <= 0) {

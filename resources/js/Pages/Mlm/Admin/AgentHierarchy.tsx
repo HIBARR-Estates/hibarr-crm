@@ -7,12 +7,12 @@ import {
     Descriptions,
     Tag,
     Empty,
-    Spin,
     Space,
     Modal,
     Form,
     message,
     Popconfirm,
+    Skeleton,
 } from "antd";
 import { motion } from "framer-motion";
 import { GitBranch, Plus, Unlink, RefreshCw } from "lucide-react";
@@ -37,7 +37,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
 }) => {
     const { data, isLoading, refetch } = useAgentHierarchy();
     const hierarchy: AgentHierarchyNode[] =
-        (data as any)?.data?.data ?? initialHierarchy ?? [];
+        (data as any)?.data ?? initialHierarchy ?? [];
 
     const [selectedNode, setSelectedNode] = useState<AgentHierarchyNode | null>(
         null,
@@ -124,7 +124,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                         >
                             {isLoading ? (
                                 <div className="flex items-center justify-center h-96">
-                                    <Spin size="large" />
+                                    <Skeleton active paragraph={{ rows: 6 }} />
                                 </div>
                             ) : hierarchy.length > 0 ? (
                                 <div style={{ height: 600 }}>

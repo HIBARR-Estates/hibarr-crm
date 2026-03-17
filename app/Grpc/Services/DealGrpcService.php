@@ -315,7 +315,7 @@ class DealGrpcService implements DealServiceInterface
         $msg->setClientId($deal->client_id ?? 0);
         $msg->setAddedBy($deal->added_by ?? 0);
         $msg->setLastUpdatedBy($deal->last_updated_by ?? 0);
-        $msg->setTotalValue((float) ($deal->total_value ?? 0));
+        $msg->setTotalValue((float) ($deal?->value ?? 0));
         $msg->setCloseDate($this->dateToString($deal->close_date));
         $msg->setNextFollowUpDate($this->dateToString($deal->next_follow_up_date));
         $msg->setColumnPriority($deal->column_priority ?? 0);

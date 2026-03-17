@@ -63,7 +63,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
 
     const { data, isLoading, refetch } = useMlmCommissions(queryParams);
     const commissions: PaginatedResponse<MlmCommission> =
-        (data as any)?.data ?? initialCommissions;
+        (data as any) ?? initialCommissions;
 
     const markPaid = useMarkCommissionPaid(0, () => {
         message.success("Commission marked as paid");

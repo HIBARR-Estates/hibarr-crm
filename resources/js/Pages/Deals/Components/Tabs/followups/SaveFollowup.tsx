@@ -1,6 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 import { DealFollowup, Reminder } from "@/Types/api/deal-followup";
 import {
+    App,
     Form,
     Input,
     Button,
@@ -39,11 +40,11 @@ interface SaveFollowupFormData {
     meeting_type_id?: number;
     location: string;
     meeting_link?: string;
+    duration?: number | null; // Meeting duration in minutes
     reminders: Reminder[];
     remark?: string;
     timezone?: string; // Browser timezone
     participants?: number[]; // Array of user IDs
-    duration?: number; // Meeting duration in minutes
 }
 
 interface Props {
@@ -63,6 +64,7 @@ export default function SaveFollowup({
     loading = false,
     errors = [],
 }: Props) {
+    const { message } = App.useApp();
     const [form] = Form.useForm();
     const [generatingMeetingLink, setGeneratingMeetingLink] = useState(false);
 
@@ -244,10 +246,10 @@ export default function SaveFollowup({
                 meeting_type_id: followup.meeting_type?.id,
                 location: followup.location || "zoho",
                 meeting_link: followup.meeting_link || "",
+                duration: followup.duration ?? undefined,
                 reminders: existingCustomReminders, // Only set custom reminders in form
                 remark: followup.remark || "",
                 participants: followup.participants || [],
-                duration: followup.duration ?? undefined,
             });
         } else {
             // Reset form to default values for new follow-up
@@ -256,6 +258,7 @@ export default function SaveFollowup({
             form.resetFields();
             form.setFieldsValue({
                 location: "zoho",
+                duration: 15,
                 reminders: [], // Start with empty custom reminders array
                 participants: defaultParticipants,
             });
@@ -272,6 +275,16 @@ export default function SaveFollowup({
     const handleSubmit = (values: any) => {
         // Prevent submission if meeting is already scheduled
         if (isScheduled) {
+            return;
+        }
+
+        const hasAgent =
+            deal.agent_id != null ||
+            (deal.lead_agent != null && deal.lead_agent?.id != null);
+        if (!hasAgent) {
+            message.warning(
+                "This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.",
+            );
             return;
         }
 
@@ -305,6 +318,7 @@ export default function SaveFollowup({
             meeting_type_id: values.meeting_type_id,
             location: values.location,
             meeting_link: values.meeting_link || "",
+            duration: values.duration ?? null,
             reminders: customReminders, // Only send custom reminders, defaults are handled server-side
             remark: values.remark || "",
             deal_id: deal.id,
@@ -402,41 +416,55 @@ export default function SaveFollowup({
                         placeholder="Select time"
                     />
                 </Form.Item>
+
+                {/* Duration (minutes) */}
+                <Form.Item
+                    name="duration"
+                    label="Duration"
+                    tooltip="Meeting duration in minutes"
+                >
+                    <Select
+                        className="w-full"
+                        placeholder="Select duration"
+                        allowClear
+                        disabled={loading || isScheduled}
+                        options={[
+                            { value: 15, label: "15 min" },
+                            { value: 30, label: "30 min" },
+                            { value: 45, label: "45 min" },
+                            { value: 60, label: "1 hour" },
+                            { value: 90, label: "1.5 hours" },
+                            { value: 120, label: "2 hours" },
+                            { value: 180, label: "3 hours" },
+                            { value: 240, label: "4 hours" },
+                            { value: 300, label: "5 hours" },
+                            { value: 360, label: "6 hours" },
+                            { value: 420, label: "7 hours" },
+                            { value: 480, label: "8 hours" },
+                            { value: 540, label: "9 hours" },
+                            { value: 600, label: "10 hours" },
+                        ]}
+                    />
+                </Form.Item>
+
+                {/* Meeting Type */}
+                <Form.Item
+                    name="meeting_type_id"
+                    label="Meeting Type"
+                    rules={[
+                        {
+                            required: true,
+                            message: "Please select a meeting type",
+                        },
+                    ]}
+                >
+                    <MeetingTypeSelector
+                        disabled={loading || isScheduled}
+                        placeholder="Select meeting type"
+                        showPlatform={false}
+                    />
+                </Form.Item>
             </div>
-
-            {/* Duration */}
-            <Form.Item
-                name="duration"
-                label="Duration (minutes)"
-                tooltip="How long the meeting is expected to last. Defaults to 30 minutes if not specified."
-            >
-                <InputNumber
-                    min={5}
-                    max={480}
-                    placeholder="30"
-                    className="w-full"
-                    disabled={loading || isScheduled}
-                    addonAfter="min"
-                />
-            </Form.Item>
-
-            {/* Meeting Type */}
-            <Form.Item
-                name="meeting_type_id"
-                label="Meeting Type"
-                rules={[
-                    {
-                        required: true,
-                        message: "Please select a meeting type",
-                    },
-                ]}
-            >
-                <MeetingTypeSelector
-                    disabled={loading || isScheduled}
-                    placeholder="Select meeting type"
-                    showPlatform={false}
-                />
-            </Form.Item>
 
             {/* Location/Platform */}
             <Form.Item

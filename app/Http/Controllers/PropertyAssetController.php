@@ -79,6 +79,33 @@ class PropertyAssetController extends AccountBaseController
     }
 
     /**
+     * Return property assets as JSON (used by PhotosSection inside modals).
+     */
+    public function apiIndex(Request $request, $propertyId)
+    {
+        $property = Property::findOrFail($propertyId);
+
+        abort_if(!$this->canViewProperty($property), 403);
+
+        $query = PropertyAsset::where('property_id', $propertyId);
+
+        if ($request->filled('asset_type')) {
+            $query->where('asset_type', $request->asset_type);
+        }
+
+        if ($request->filled('tags')) {
+            $tags = is_array($request->tags) ? $request->tags : [$request->tags];
+            $query->byTags($tags);
+        }
+
+        $assets = $query->ordered()->get();
+
+        return Reply::successWithData('Property assets fetched', [
+            'assets' => $assets,
+        ]);
+    }
+
+    /**
      * Upload new assets
      */
     public function store(Request $request, $propertyId)

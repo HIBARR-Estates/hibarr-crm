@@ -3,9 +3,13 @@
 namespace App\Observers;
 
 use App\Models\LeadAgent;
+use App\Services\LevelService;
 
 class LeadAgentObserver
 {
+    public function __construct(protected LevelService $levelService)
+    {
+    }
 
     public function saving(LeadAgent $leadAgent)
     {
@@ -25,4 +29,11 @@ class LeadAgentObserver
         }
     }
 
+    /**
+     * After a new agent is created, assign the base MLM level.
+     */
+    public function created(LeadAgent $leadAgent): void
+    {
+        $this->levelService->assignBaseLevel($leadAgent);
+    }
 }

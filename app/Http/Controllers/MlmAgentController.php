@@ -42,7 +42,7 @@ class MlmAgentController extends AccountBaseController
     }
 
     /**
-     * Agent MLM Dashboard
+     * Agent MLM Dashboard (Inertia page)
      */
     public function dashboard()
     {
@@ -55,6 +55,33 @@ class MlmAgentController extends AccountBaseController
             ]);
         }
 
+        return Inertia::render('Mlm/Agent/Dashboard', [
+            'stats' => $this->buildDashboardStats($agent),
+        ]);
+    }
+
+    /**
+     * Agent MLM Dashboard — JSON API
+     */
+    public function dashboardApi(): JsonResponse
+    {
+        $agent = $this->getAgent();
+
+        if (!$agent) {
+            return response()->json(['status' => 'success', 'data' => null]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->buildDashboardStats($agent),
+        ]);
+    }
+
+    /**
+     * Build the dashboard stats array for the given agent.
+     */
+    private function buildDashboardStats(LeadAgent $agent): array
+    {
         $metrics = AgentMetric::where('agent_id', $agent->id)->first();
         $currentLevel = $this->levelService->getCurrentLevel($agent);
 
@@ -135,23 +162,21 @@ class MlmAgentController extends AccountBaseController
             ->limit(5)
             ->get();
 
-        return Inertia::render('Mlm/Agent/Dashboard', [
-            'stats' => [
-                'current_level' => $currentLevel,
-                'next_level' => $nextLevel,
-                'progress_percentage' => $overallProgress,
-                'criteria_progress' => $criteriaProgress,
-                'total_earnings' => $totalEarnings,
-                'pending_earnings' => $pendingEarnings,
-                'paid_earnings' => $paidEarnings,
-                'total_downlines' => $totalDownlines,
-                'total_sales' => $metrics?->nsa ?? 0,
-                'total_sales_value' => (float) ($metrics?->vsa ?? 0),
-                'monthly_commissions' => $monthlyCommissions,
-                'network_growth' => [],
-                'recent_commissions' => $recentCommissions,
-            ],
-        ]);
+        return [
+            'current_level' => $currentLevel,
+            'next_level' => $nextLevel,
+            'progress_percentage' => $overallProgress,
+            'criteria_progress' => $criteriaProgress,
+            'total_earnings' => $totalEarnings,
+            'pending_earnings' => $pendingEarnings,
+            'paid_earnings' => $paidEarnings,
+            'total_downlines' => $totalDownlines,
+            'total_sales' => $metrics?->nsa ?? 0,
+            'total_sales_value' => (float) ($metrics?->vsa ?? 0),
+            'monthly_commissions' => $monthlyCommissions,
+            'network_growth' => [],
+            'recent_commissions' => $recentCommissions,
+        ];
     }
 
     /**
@@ -167,7 +192,7 @@ class MlmAgentController extends AccountBaseController
 
         $query = MlmCommission::where('agent_id', $agent->id)
             ->where('type', '!=', MlmCommissionType::System->value)
-            ->with(['deal:id,name,value,total_value', 'sourceAgent.user:id,name,email,image', 'level:id,name'])
+            ->with(['deal:id,name,value', 'sourceAgent.user:id,name,email,image', 'level:id,name'])
             ->orderByDesc('created_at');
 
         if ($request->filled('status')) {
@@ -405,7 +430,7 @@ class MlmAgentController extends AccountBaseController
 
         $query = MlmCommission::where('agent_id', $agent->id)
             ->where('type', '!=', MlmCommissionType::System->value)
-            ->with(['deal:id,name,value,total_value', 'sourceAgent.user:id,name'])
+            ->with(['deal:id,name,value', 'sourceAgent.user:id,name'])
             ->orderByDesc('created_at');
 
         $perPage = min($request->input('per_page', 15), 100);
@@ -417,7 +442,7 @@ class MlmAgentController extends AccountBaseController
                 'deal_name' => $c->deal?->name ?? 'Unknown Deal',
                 'closed_by' => $c->sourceAgent?->user?->name ?? 'Unknown',
                 'closed_by_self' => $c->source_agent_id === $agent->id,
-                'deal_value' => (float) ($c->deal?->total_value ?? $c->deal?->value ?? 0),
+                'deal_value' => (float) ($c->deal?->value ?? 0),
                 'commission_amount' => (float) $c->amount,
                 'commission_type' => $c->type->value ?? $c->type,
                 'date' => $c->created_at->format('Y-m-d'),

@@ -36,7 +36,7 @@ class DealTransformer
             'last_updated_by' => (int) ($deal->last_updated_by ?? 0),
             
             // Value fields
-            'total_value' => (float) ($deal->total_value ?? 0),
+            'total_value' => (float) ($deal?->value ?? 0),
             'close_date' => $this->formatDate($deal->close_date),
             'next_follow_up_date' => $this->formatDate($deal->next_follow_up_date),
             'column_priority' => (int) ($deal->column_priority ?? 0),

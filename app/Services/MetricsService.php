@@ -40,7 +40,7 @@ class MetricsService
             return;
         }
 
-        $dealValue = (float) ($deal->total_value ?? $deal->value ?? 0);
+        $dealValue = (float) ($deal?->value ?? 0);
 
         // Update the agent's own metrics (NSA, VSA)
         $metrics = $this->getOrCreateMetrics($agent);
@@ -101,7 +101,7 @@ class MetricsService
             return;
         }
 
-        $dealValue = (float) ($deal->total_value ?? $deal->value ?? 0);
+        $dealValue = (float) ($deal?->value ?? 0);
 
         // Decrement agent's own metrics
         $metrics = $this->getOrCreateMetrics($agent);
@@ -135,7 +135,7 @@ class MetricsService
         // Recalculate own sales (NSA, VSA)
         $ownDeals = Deal::where('agent_id', $agent->id)
             ->where('outcome_status', 'won')
-            ->selectRaw('COUNT(*) as deal_count, COALESCE(SUM(COALESCE(total_value, value, 0)), 0) as deal_value')
+            ->selectRaw('COUNT(*) as deal_count, COALESCE(SUM(COALESCE(value, 0)), 0) as deal_value')
             ->first();
 
         $metrics->nsa = $ownDeals->deal_count ?? 0;
@@ -149,7 +149,7 @@ class MetricsService
         if (!empty($descendantIds)) {
             $downlineDeals = Deal::whereIn('agent_id', $descendantIds)
                 ->where('outcome_status', 'won')
-                ->selectRaw('COUNT(*) as deal_count, COALESCE(SUM(COALESCE(total_value, value, 0)), 0) as deal_value')
+                ->selectRaw('COUNT(*) as deal_count, COALESCE(SUM(COALESCE(value, 0)), 0) as deal_value')
                 ->first();
 
             $metrics->nsd = $downlineDeals->deal_count ?? 0;

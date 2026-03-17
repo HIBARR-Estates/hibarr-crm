@@ -157,24 +157,6 @@ export default function PageLayout({
                             </div>
                         )}
                         <div className="ml-auto flex items-center gap-4">
-                            {/* Desktop refresh button — hidden on small viewports */}
-                            {onRefresh && (
-                                <Tooltip title="Refresh data">
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={
-                                            <ReloadOutlined
-                                                spin={isRefreshing}
-                                            />
-                                        }
-                                        onClick={onRefresh}
-                                        disabled={isRefreshing}
-                                        className="hidden md:inline-flex"
-                                        aria-label="Refresh data"
-                                    />
-                                </Tooltip>
-                            )}
                             {/* <LanguageSwitcher compact /> */}
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
@@ -221,19 +203,37 @@ export default function PageLayout({
                 <div className={mainContentClassName}>{children}</div>
             </div>
 
-            {/* Mobile floating refresh button — visible only below md breakpoint */}
+            {/* Floating refresh button — anchored bottom-right of main content area */}
             {onRefresh && (
-                <Tooltip title="Refresh data" placement="left">
+                <Tooltip
+                    title={
+                        isRefreshing
+                            ? "Refreshing…"
+                            : "Sync latest data without reloading the page"
+                    }
+                    placement="left"
+                >
                     <Button
-                        type="primary"
-                        shape="circle"
+                        type="default"
                         size="large"
                         icon={<ReloadOutlined spin={isRefreshing} />}
                         onClick={onRefresh}
                         disabled={isRefreshing}
-                        className="fixed bottom-6 right-6 z-50 md:hidden shadow-lg"
                         aria-label="Refresh data"
-                    />
+                        className="
+                            fixed bottom-6 right-6 z-50
+                            flex items-center gap-2
+                            rounded-full shadow-md
+                            border-gray-200 bg-white hover:bg-gray-50
+                            hover:shadow-lg hover:border-gray-300
+                            transition-all duration-200
+                        "
+                    >
+                        {/* Text label visible on sm+ screens, hidden on xs */}
+                        <span className="hidden sm:inline">
+                            {isRefreshing ? "Refreshing…" : "Refresh"}
+                        </span>
+                    </Button>
                 </Tooltip>
             )}
         </>

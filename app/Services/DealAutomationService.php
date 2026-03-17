@@ -6,6 +6,7 @@ use App\Models\Deal;
 use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
 use App\Models\PipelineStage;
+use App\Events\DealWonEvent;
 use Illuminate\Support\Facades\Log;
 
 class DealAutomationService
@@ -107,8 +108,43 @@ class DealAutomationService
      */
     protected function executeActions(Deal $deal, DealAutomation $automation): void
     {
+        // NOTE: A general rule of thumb should be that actions should save deals quietly, so that there is no recursive loop
         foreach ($automation->actions as $action) {
             $this->performAction($deal, $action, $automation);
+        }
+        // After the actions we then emit the necessary events, such as mlm engine DealWonEvent. This is because we save the dealModel quietly to avoid cascades because we do support an array of actions that will cannot afford to trigger the deal observer as this will lead to recursive updates ...
+        // MLM: Fire DealWonEvent when outcome_status changes to 'won'
+        if ($deal->wasChanged('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && !$deal->is_locked) {
+            $this->fireDealWonEvent($deal);
+        }
+    }
+
+     /**
+     * Fire DealWonEvent when outcome_status is set to won.
+     * Triggered by automation setting outcome_status = 'won', not by pipeline stage.
+     */
+    private function fireDealWonEvent(Deal $deal): void
+    {
+        try {
+            $agent = $deal->leadAgent;
+
+            if ($agent) {
+                event(new DealWonEvent($deal, $agent));
+
+                Log::info('DealWonEvent fired', [
+                    'deal_id' => $deal->id,
+                    'agent_id' => $agent->id,
+                ]);
+            } else {
+                Log::warning('DealWonEvent not fired: no agent assigned', [
+                    'deal_id' => $deal->id,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to fire DealWonEvent', [
+                'deal_id' => $deal->id,
+                'exception' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -175,7 +211,7 @@ class DealAutomationService
             }
 
             if (!empty($changes)) {
-                $deal->save();
+                $deal->saveQuietly(); // Bypass observer to prevent cascading
                 $description = "Stage transition: " . implode(', ', $changes);
                 Log::info("Action executed for Deal ID: {$deal->id}. " . implode(', ', $changes));
                 $this->logAction($deal, $automation, $description);
@@ -197,7 +233,7 @@ class DealAutomationService
         }
 
         $deal->{$fieldName} = $fieldValue;
-        $deal->save();
+        $deal->saveQuietly(); // Bypass observer to prevent cascading
 
         $description = "Set {$fieldName} = {$fieldValue}";
         Log::info("Action executed for Deal ID: {$deal->id}. {$description}");

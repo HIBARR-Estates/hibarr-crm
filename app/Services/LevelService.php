@@ -163,4 +163,69 @@ class LevelService
             'trigger_deal_id' => $deal?->id,
         ]);
     }
+
+    /**
+     * Get the lowest-rank (entry/base) MLM level for a company.
+     */
+    public function getBaseLevel(?int $companyId = null): ?MlmLevel
+    {
+        $query = MlmLevel::ordered();
+
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
+        return $query->first();
+    }
+
+    /**
+     * Assign the base (lowest-rank) MLM level to an agent if they don't already have one.
+     *
+     * @return bool Whether a level was assigned.
+     */
+    public function assignBaseLevel(LeadAgent $agent): bool
+    {
+        // Skip if agent already has a level
+        if ($this->getCurrentLevel($agent) !== null) {
+            return false;
+        }
+
+        $baseLevel = $this->getBaseLevel($agent->company_id);
+
+        if (!$baseLevel) {
+            Log::warning("LevelService: No base level found for company {$agent->company_id}. Cannot assign level to agent {$agent->id}.");
+            return false;
+        }
+
+        $this->assignLevel($agent, $baseLevel, systemAssigned: true);
+
+        Log::info("LevelService: Assigned base level '{$baseLevel->name}' (rank {$baseLevel->rank}) to agent {$agent->id}.");
+
+        return true;
+    }
+
+    /**
+     * Backfill base level for all agents that have no level assigned.
+     *
+     * @return int Number of agents updated.
+     */
+    public function backfillBaseLevelForAllAgents(?int $companyId = null): int
+    {
+        $query = LeadAgent::whereDoesntHave('levelHistory');
+
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
+        $agents = $query->get();
+        $count = 0;
+
+        foreach ($agents as $agent) {
+            if ($this->assignBaseLevel($agent)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
 }
