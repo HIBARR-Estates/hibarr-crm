@@ -49,8 +49,20 @@ const DealInformationGatheringForm: React.FC<Props> = ({
         (urlPipelineId ? Number(urlPipelineId) : null) ||
         defaultPipelineId;
 
+    // For steps: use current deal's pipeline when we have a deal (edit or after StepOne), else selected/default pipeline
+    const effectivePipelineIdForSteps =
+        deal?.lead_pipeline_id ??
+        editDeal?.lead_pipeline_id ??
+        pipelineId ??
+        defaultPipelineId;
+
+    const stepsPath =
+        effectivePipelineIdForSteps != null
+            ? `${route("deals.gathering.steps")}?pipeline_id=${effectivePipelineIdForSteps}`
+            : route("deals.gathering.steps");
+
     const { data: stepsData, status } = useApiQuery<{ steps: any[] }>({
-        path: route("deals.gathering.steps"),
+        path: stepsPath,
     });
 
     const dynamicSteps = stepsData?.steps || [];

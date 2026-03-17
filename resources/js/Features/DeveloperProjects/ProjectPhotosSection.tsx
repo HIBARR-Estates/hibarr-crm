@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import {
     Button,
+    Card,
     Select,
     Upload,
     Modal,
@@ -10,8 +11,9 @@ import {
     Progress,
     Empty,
     Space,
-    App,
     Spin,
+    App,
+    Segmented,
 } from "antd";
 import {
     UploadOutlined,
@@ -19,22 +21,22 @@ import {
     DeleteOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
-    SaveOutlined,
+    AppstoreOutlined,
+    TagsOutlined,
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
-import type { FormInstance } from "antd/lib/form";
 import type { AssetTag } from "@/Types";
 import type { DeveloperProjectAsset } from "@/Types/developerProject";
 import type { IUploadResponseItem } from "@/Types/uploads";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
-import { ApiSuccessResponse } from "@/lib/api/types";
+import type { ApiSuccessResponse } from "@/lib/api/types";
 
 const { Text, Title } = Typography;
 
 // ────────────────────────────────────────────────────────────
-// Tag definitions (same as PropertyAsset / PhotosSection)
+// Tag definitions
 // ────────────────────────────────────────────────────────────
 const ASSET_TAGS: Record<AssetTag, string> = {
     hero: "Hero Image",
@@ -68,7 +70,7 @@ const TAG_COLORS: Record<AssetTag, string> = {
 };
 
 // ────────────────────────────────────────────────────────────
-// Upload status tracking (mirrors ManageAssets / PhotosSection)
+// Upload status tracking
 // ────────────────────────────────────────────────────────────
 interface FileUploadStatus {
     fileId: string;
@@ -82,21 +84,23 @@ interface FileUploadStatus {
 // ────────────────────────────────────────────────────────────
 // Props
 // ────────────────────────────────────────────────────────────
-interface ConstructionProjectPhotosSectionProps {
-    form: FormInstance;
-    /** DeveloperProject ID — present in edit mode, absent on create */
-    projectId?: number;
-    /** Callback to trigger a "save & continue" flow so the project gets created first */
-    onSaveForUpload?: () => void;
+interface ProjectPhotosSectionProps {
+    projectId: number;
 }
 
 // ────────────────────────────────────────────────────────────
 // Component
 // ────────────────────────────────────────────────────────────
-const ConstructionProjectPhotosSection: React.FC<
-    ConstructionProjectPhotosSectionProps
-> = ({ form, projectId, onSaveForUpload }) => {
+const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
+    projectId,
+}) => {
     const { message: messageApi } = App.useApp();
+
+    // View mode: all photos or grouped by tag
+    const [viewMode, setViewMode] = useState<"all" | "by-tag">("all");
+
+    // Filter by tag
+    const [filterTag, setFilterTag] = useState<AssetTag | "all">("all");
 
     // Upload modal state
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -110,40 +114,66 @@ const ConstructionProjectPhotosSection: React.FC<
     // Delete confirmation
     const [deleteModal, deleteContextHolder] = Modal.useModal();
 
-    // ─── Fetch existing assets ───
+    // ─── Fetch all project assets ───
     const {
         data: assetsResponse,
-        isLoading: isLoadingAssets,
+        isLoading,
         refetch: refetchAssets,
     } = useApiQuery<{ status: string; assets: DeveloperProjectAsset[] }>({
-        path: projectId
-            ? route("developer-projects.assets.index", projectId)
-            : "",
-        params: { asset_type: "image" },
+        path: route("developer-projects.assets.index", projectId),
         options: { enabled: !!projectId },
     });
 
-    const imageAssets = useMemo(
+    const allAssets = useMemo(
         () => assetsResponse?.assets ?? [],
         [assetsResponse],
     );
 
-    // Upload service — configured per project
-    const uploadService = useMemo(() => {
-        if (!projectId) return null;
-        return getFileUploadService({
-            defaultTargetFolder: `developer-projects/${projectId}/assets`,
-            allowedTypes: [
-                "image/jpeg",
-                "image/png",
-                "image/gif",
-                "image/webp",
-            ],
-            maxFileSize: 50 * 1024 * 1024, // 50 MB
-        });
-    }, [projectId]);
+    const imageAssets = useMemo(
+        () => allAssets.filter((a) => a.asset_type === "image"),
+        [allAssets],
+    );
 
-    // Mutation: save uploaded file URLs to backend as DeveloperProjectAssets
+    // Filtered assets based on selected tag
+    const filteredAssets = useMemo(() => {
+        if (filterTag === "all") return imageAssets;
+        return imageAssets.filter((a) => a.tags && a.tags.includes(filterTag));
+    }, [imageAssets, filterTag]);
+
+    // Assets grouped by tag for "by-tag" view
+    const assetsByTag = useMemo(() => {
+        const groups: Record<string, DeveloperProjectAsset[]> = {};
+        for (const asset of imageAssets) {
+            if (asset.tags && asset.tags.length > 0) {
+                for (const tag of asset.tags) {
+                    if (!groups[tag]) groups[tag] = [];
+                    groups[tag].push(asset);
+                }
+            } else {
+                if (!groups["untagged"]) groups["untagged"] = [];
+                groups["untagged"].push(asset);
+            }
+        }
+        return groups;
+    }, [imageAssets]);
+
+    // Upload service
+    const uploadService = useMemo(
+        () =>
+            getFileUploadService({
+                defaultTargetFolder: `developer-projects/${projectId}/assets`,
+                allowedTypes: [
+                    "image/jpeg",
+                    "image/png",
+                    "image/gif",
+                    "image/webp",
+                ],
+                maxFileSize: 50 * 1024 * 1024,
+            }),
+        [projectId],
+    );
+
+    // Mutation: save uploaded file URLs to backend
     interface SaveAssetsPayload {
         assets: Array<{
             url: string;
@@ -162,9 +192,7 @@ const ConstructionProjectPhotosSection: React.FC<
             { assets: DeveloperProjectAsset[] },
             ApiSuccessResponse<{ assets: DeveloperProjectAsset[] }>
         >(
-            projectId
-                ? route("developer-projects.assets.store_from_urls", projectId)
-                : "",
+            route("developer-projects.assets.store_from_urls", projectId),
             "POST",
             () => {
                 setIsUploadModalOpen(false);
@@ -177,7 +205,7 @@ const ConstructionProjectPhotosSection: React.FC<
 
     // ─── Upload flow ───
     const handleUpload = useCallback(async () => {
-        if (!uploadService || !projectId) return;
+        if (!uploadService) return;
 
         const files: File[] = [];
         for (const f of uploadFileList) {
@@ -191,7 +219,6 @@ const ConstructionProjectPhotosSection: React.FC<
             return;
         }
 
-        // Initialise statuses
         const initialStatuses: FileUploadStatus[] = files.map((file, i) => ({
             fileId: `file-${i}-${file.name}`,
             fileName: file.name,
@@ -259,7 +286,6 @@ const ConstructionProjectPhotosSection: React.FC<
                 }
             }
 
-            // Save successful uploads to backend
             if (successfulUploads.length > 0) {
                 const failedCount = files.length - successfulUploads.length;
                 if (failedCount > 0) {
@@ -297,8 +323,6 @@ const ConstructionProjectPhotosSection: React.FC<
     // ─── Delete handler ───
     const handleDeleteAsset = useCallback(
         (asset: DeveloperProjectAsset) => {
-            if (!projectId) return;
-
             deleteModal.confirm({
                 title: "Delete Photo",
                 content: `Delete "${asset.name}"? This cannot be undone.`,
@@ -335,56 +359,76 @@ const ConstructionProjectPhotosSection: React.FC<
         [projectId, deleteModal, messageApi, refetchAssets],
     );
 
-    // ─── Create mode: project not saved yet ───
-    if (!projectId) {
-        return (
-            <div className="text-center py-8">
-                <CameraOutlined
-                    style={{ fontSize: 48, color: "#d9d9d9" }}
-                    className="mb-4"
+    // ─── Photo card renderer ───
+    const renderPhotoCard = (asset: DeveloperProjectAsset) => (
+        <div
+            key={asset.id}
+            className="relative group border border-gray-200 rounded-lg overflow-hidden"
+        >
+            <Image
+                src={asset.url || asset.external_url || ""}
+                alt={asset.name}
+                width="100%"
+                height={160}
+                style={{ objectFit: "cover" }}
+                preview={{ mask: "Preview" }}
+            />
+
+            {/* Tags */}
+            {asset.tags && asset.tags.length > 0 && (
+                <div className="absolute top-1 left-1 flex flex-wrap gap-0.5">
+                    {asset.tags.map((tag) => (
+                        <Tag
+                            key={tag}
+                            color={TAG_COLORS[tag] || "default"}
+                            className="text-[10px] leading-tight px-1 py-0"
+                        >
+                            {ASSET_TAGS[tag] || tag}
+                        </Tag>
+                    ))}
+                </div>
+            )}
+
+            {/* Delete overlay */}
+            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                    type="primary"
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAsset(asset);
+                    }}
                 />
-                <Title level={5} type="secondary">
-                    Save the project to upload photos
-                </Title>
-                <Text type="secondary" className="block mb-4">
-                    Photos can be uploaded once the project has been saved.
-                    These photos will be visible on all individual units of this
-                    project.
-                </Text>
-                {onSaveForUpload && (
-                    <Button
-                        type="primary"
-                        icon={<SaveOutlined />}
-                        onClick={onSaveForUpload}
-                    >
-                        Save & Continue
-                    </Button>
-                )}
             </div>
-        );
-    }
 
-    // ─── Edit mode: full upload UI ───
-    if (isLoadingAssets) {
+            {/* Name */}
+            <div className="px-2 py-1 truncate">
+                <Text className="text-xs" ellipsis>
+                    {asset.name}
+                </Text>
+            </div>
+        </div>
+    );
+
+    // ─── Loading state ───
+    if (isLoading) {
         return (
-            <div className="flex justify-center py-12">
-                <Spin tip="Loading photos..." />
-            </div>
+            <Card>
+                <div className="flex justify-center py-12">
+                    <Spin tip="Loading photos..." />
+                </div>
+            </Card>
         );
     }
 
-    return (
-        <div>
-            {deleteContextHolder}
-
-            {/* Action bar */}
-            <div className="flex items-center justify-between mb-4">
-                <Text type="secondary" className="text-sm">
-                    {imageAssets.length > 0
-                        ? `${imageAssets.length} photo${imageAssets.length !== 1 ? "s" : ""}`
-                        : "No photos yet"}
-                </Text>
-                <Space>
+    // ─── Empty state ───
+    if (imageAssets.length === 0) {
+        return (
+            <Card
+                title="Project Photos"
+                extra={
                     <Button
                         type="primary"
                         icon={<UploadOutlined />}
@@ -392,69 +436,13 @@ const ConstructionProjectPhotosSection: React.FC<
                     >
                         Upload Photos
                     </Button>
-                </Space>
-            </div>
-
-            {/* Existing photos grid */}
-            {imageAssets.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {imageAssets.map((asset) => (
-                        <div
-                            key={asset.id}
-                            className="relative group border border-gray-200 rounded-lg overflow-hidden"
-                        >
-                            <Image
-                                src={asset.url || asset.external_url || ""}
-                                alt={asset.name}
-                                width="100%"
-                                height={120}
-                                style={{ objectFit: "cover" }}
-                                preview={{ mask: "Preview" }}
-                            />
-
-                            {/* Tags */}
-                            {asset.tags && asset.tags.length > 0 && (
-                                <div className="absolute top-1 left-1 flex flex-wrap gap-0.5">
-                                    {asset.tags.map((tag) => (
-                                        <Tag
-                                            key={tag}
-                                            color={TAG_COLORS[tag] || "default"}
-                                            className="text-[10px] leading-tight px-1 py-0"
-                                        >
-                                            {ASSET_TAGS[tag] || tag}
-                                        </Tag>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Delete overlay */}
-                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button
-                                    type="primary"
-                                    danger
-                                    size="small"
-                                    icon={<DeleteOutlined />}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteAsset(asset);
-                                    }}
-                                />
-                            </div>
-
-                            {/* Name */}
-                            <div className="px-2 py-1 truncate">
-                                <Text className="text-xs" ellipsis>
-                                    {asset.name}
-                                </Text>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
+                }
+            >
+                {deleteContextHolder}
                 <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                     description="No photos uploaded yet"
-                    className="my-4"
+                    className="my-8"
                 >
                     <Button
                         type="primary"
@@ -464,9 +452,14 @@ const ConstructionProjectPhotosSection: React.FC<
                         Upload Your First Photo
                     </Button>
                 </Empty>
-            )}
+                {renderUploadModal()}
+            </Card>
+        );
+    }
 
-            {/* Upload Modal */}
+    // ─── Render helpers ───
+    function renderUploadModal() {
+        return (
             <Modal
                 title="Upload Photos"
                 open={isUploadModalOpen}
@@ -539,7 +532,6 @@ const ConstructionProjectPhotosSection: React.FC<
                         </p>
                     </Upload.Dragger>
                 ) : (
-                    /* Upload progress list */
                     <div className="space-y-2">
                         {uploadStatuses.map((us) => (
                             <div
@@ -574,8 +566,113 @@ const ConstructionProjectPhotosSection: React.FC<
                     </div>
                 )}
             </Modal>
-        </div>
+        );
+    }
+
+    // ─── Main render ───
+    return (
+        <Card
+            title={`Project Photos (${imageAssets.length})`}
+            extra={
+                <Space>
+                    <Segmented
+                        size="small"
+                        options={[
+                            {
+                                value: "all",
+                                icon: <AppstoreOutlined />,
+                                label: "All",
+                            },
+                            {
+                                value: "by-tag",
+                                icon: <TagsOutlined />,
+                                label: "By Tag",
+                            },
+                        ]}
+                        value={viewMode}
+                        onChange={(v) => setViewMode(v as "all" | "by-tag")}
+                    />
+                    {viewMode === "all" && (
+                        <Select
+                            size="small"
+                            value={filterTag}
+                            onChange={setFilterTag}
+                            style={{ width: 160 }}
+                            options={[
+                                { value: "all", label: "All Tags" },
+                                ...TAG_OPTIONS,
+                            ]}
+                        />
+                    )}
+                    <Button
+                        type="primary"
+                        icon={<UploadOutlined />}
+                        onClick={() => setIsUploadModalOpen(true)}
+                    >
+                        Upload Photos
+                    </Button>
+                </Space>
+            }
+        >
+            {deleteContextHolder}
+
+            {viewMode === "all" ? (
+                /* ── Flat grid view ── */
+                filteredAssets.length > 0 ? (
+                    <Image.PreviewGroup>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                            {filteredAssets.map(renderPhotoCard)}
+                        </div>
+                    </Image.PreviewGroup>
+                ) : (
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description={
+                            filterTag === "all"
+                                ? "No photos uploaded yet"
+                                : `No photos tagged "${ASSET_TAGS[filterTag]}"`
+                        }
+                    />
+                )
+            ) : (
+                /* ── Grouped by tag view ── */
+                <div className="flex flex-col gap-6">
+                    {Object.entries(assetsByTag).map(([tag, assets]) => (
+                        <div key={tag}>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Tag
+                                    color={
+                                        TAG_COLORS[tag as AssetTag] || "default"
+                                    }
+                                    className="text-sm"
+                                >
+                                    {ASSET_TAGS[tag as AssetTag] ||
+                                        (tag === "untagged" ? "Untagged" : tag)}
+                                </Tag>
+                                <Text type="secondary" className="text-sm">
+                                    {assets.length} photo
+                                    {assets.length !== 1 ? "s" : ""}
+                                </Text>
+                            </div>
+                            <Image.PreviewGroup>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                    {assets.map(renderPhotoCard)}
+                                </div>
+                            </Image.PreviewGroup>
+                        </div>
+                    ))}
+                    {Object.keys(assetsByTag).length === 0 && (
+                        <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description="No photos uploaded yet"
+                        />
+                    )}
+                </div>
+            )}
+
+            {renderUploadModal()}
+        </Card>
     );
 };
 
-export default ConstructionProjectPhotosSection;
+export default ProjectPhotosSection;

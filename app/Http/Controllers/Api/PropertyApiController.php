@@ -500,14 +500,52 @@ class PropertyApiController extends Controller
         $companyId = (int) $companyId;
 
         try {
-            $locations = ProjectLocation::where('company_id', $companyId)
-                ->orderBy('name')
-                ->get()
+            $query = ProjectLocation::where('company_id', $companyId)
+                ->orderBy('name');
+
+            // Search by name or address street
+            if ($request->filled('search')) {
+                $search = $request->input('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('city', 'like', "%{$search}%")
+                      ->orWhere('area', 'like', "%{$search}%")
+                      ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(address, '$.street')) LIKE ?", ["%{$search}%"]);
+                });
+            }
+
+            $locations = $query->get()
                 ->map(function (ProjectLocation $location) {
+                    // Normalise address: always return an object with consistent keys
+                    $rawAddress = $location->address;
+                    $address = null;
+
+                    if (is_array($rawAddress) && !empty(array_filter($rawAddress))) {
+                        $address = [
+                            'street'     => $rawAddress['street'] ?? null,
+                            'state'      => $rawAddress['state'] ?? null,
+                            'country'    => $rawAddress['country'] ?? null,
+                            'postalCode' => $rawAddress['postalCode'] ?? null,
+                        ];
+                    } elseif (is_string($rawAddress) && $rawAddress !== '') {
+                        // Legacy: bare string stored in the column — treat as street
+                        $address = [
+                            'street'     => $rawAddress,
+                            'state'      => null,
+                            'country'    => null,
+                            'postalCode' => null,
+                        ];
+                    }
+
                     return [
-                        'id' => $location->id,
-                        'name' => $location->name,
-                        'address' => $location->address ?? null,
+                        'id'          => $location->id,
+                        'name'        => $location->name ?? null,
+                        'city'        => $location->city ?? null,
+                        'area'        => $location->area ?? null,
+                        'address'     => $address,
+                        'map_url'     => $location->map_url ?? null,
+                        'latitude'    => $location->latitude ?? null,
+                        'longitude'   => $location->longitude ?? null,
                     ];
                 })
                 ->values()

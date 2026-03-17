@@ -1155,6 +1155,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');
     Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {
         Route::get('/', [App\Http\Controllers\PropertyAssetController::class, 'index'])->name('index');
+        Route::get('/list', [App\Http\Controllers\PropertyAssetController::class, 'apiIndex'])->name('list');
         Route::post('/', [App\Http\Controllers\PropertyAssetController::class, 'store'])->name('store');
         Route::post('/from-urls', [App\Http\Controllers\PropertyAssetController::class, 'storeFromUrls'])->name('store_from_urls');
         Route::post('/external-url', [App\Http\Controllers\PropertyAssetController::class, 'storeExternalUrl'])->name('store_external_url');
