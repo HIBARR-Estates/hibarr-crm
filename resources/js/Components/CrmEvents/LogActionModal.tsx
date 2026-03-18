@@ -22,6 +22,8 @@ import type {
     CrmEventStorePayload,
     CrmEvent,
     MetadataFieldSchema,
+    CrmEventStatus,
+    CrmEventDirection,
 } from "@/Types/api/crm-event";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 
@@ -136,6 +138,8 @@ export default function LogActionModal({
                 model_id: modelId,
                 user_id: userId,
                 generation_type: "user_generated",
+                status: values.status || "completed",
+                direction: values.direction || undefined,
                 metadata:
                     Object.keys(metadata).length > 0 ? metadata : undefined,
                 occurred_at: values.occurred_at
@@ -205,10 +209,43 @@ export default function LogActionModal({
                     </>
                 )}
 
-                <Form.Item name="comment" label="Comment">
+                <Form.Item
+                    name="status"
+                    label="Status"
+                    initialValue="completed"
+                >
+                    <Select
+                        options={[
+                            { label: "Completed", value: "completed" },
+                            {
+                                label: "Error Occurred",
+                                value: "error_occurred",
+                            },
+                            { label: "Missed", value: "missed" },
+                            { label: "Rejected", value: "rejected" },
+                        ]}
+                    />
+                </Form.Item>
+
+                <Form.Item
+                    name="direction"
+                    label="Direction"
+                    tooltip="Leave blank if direction does not apply"
+                >
+                    <Select
+                        placeholder="None"
+                        allowClear
+                        options={[
+                            { label: "Inbound", value: "inbound" },
+                            { label: "Outbound", value: "outbound" },
+                        ]}
+                    />
+                </Form.Item>
+
+                <Form.Item name="comment" label="Message">
                     <TextArea
                         rows={3}
-                        placeholder="Add a note about this action…"
+                        placeholder="Add a message about this action…"
                         maxLength={2000}
                         showCount
                     />

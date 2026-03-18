@@ -38,6 +38,17 @@ export interface MetadataFieldSchema {
     default?: any;
 }
 
+export type CrmEventStatus =
+    | "completed"
+    | "error_occurred"
+    | "missed"
+    | "rejected";
+export type CrmEventDirection = "inbound" | "outbound";
+export type CrmEventGenerationType =
+    | "user_generated"
+    | "system_generated"
+    | "external";
+
 export interface CrmEventUser {
     id: number;
     name: string;
@@ -50,7 +61,9 @@ export interface CrmEvent {
         name: string;
         category: CrmEventCategory | null;
     } | null;
-    generation_type: "user_generated" | "system_generated";
+    generation_type: CrmEventGenerationType;
+    status: CrmEventStatus;
+    direction: CrmEventDirection | null;
     user_id: number | null;
     user: CrmEventUser | null;
     model_type: string | null;
@@ -96,7 +109,9 @@ export interface CrmEventStorePayload {
     model_type?: string;
     model_id?: number;
     user_id?: number;
-    generation_type?: "user_generated" | "system_generated";
+    generation_type?: CrmEventGenerationType;
+    status?: CrmEventStatus;
+    direction?: CrmEventDirection;
     correlation_id?: string;
     causation_id?: number;
     metadata?: Record<string, any>;
@@ -116,6 +131,8 @@ export interface CrmEventsQueryParams {
     category_slug?: string;
     user_id?: number;
     generation_type?: string;
+    status?: string;
+    direction?: string;
     source?: string;
     date_from?: string;
     date_to?: string;

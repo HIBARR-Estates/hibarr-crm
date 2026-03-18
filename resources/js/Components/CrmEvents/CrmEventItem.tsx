@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Tag, Tooltip, Typography } from "antd";
 import {
     UserOutlined,
@@ -6,10 +6,23 @@ import {
     ClockCircleOutlined,
     LinkOutlined,
     GlobalOutlined,
+    ApiOutlined,
+    CheckCircleOutlined,
+    CloseCircleOutlined,
+    ExclamationCircleOutlined,
+    MinusCircleOutlined,
+    ArrowDownOutlined,
+    ArrowUpOutlined,
+    DownOutlined,
+    UpOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import type { CrmEvent } from "@/Types/api/crm-event";
+import type {
+    CrmEvent,
+    CrmEventStatus,
+    CrmEventDirection,
+} from "@/Types/api/crm-event";
 
 dayjs.extend(relativeTime);
 
@@ -20,33 +33,31 @@ const CATEGORY_COLORS: Record<
     string,
     { bg: string; text: string; dot: string }
 > = {
-    engagement: {
+    deal: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
+    lead: { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500" },
+    property: {
+        bg: "bg-emerald-50",
+        text: "text-emerald-700",
+        dot: "bg-emerald-500",
+    },
+    task: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+    contact: {
         bg: "bg-purple-50",
         text: "text-purple-700",
         dot: "bg-purple-500",
-    },
-    lifecycle: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
-    marketing: {
-        bg: "bg-amber-50",
-        text: "text-amber-700",
-        dot: "bg-amber-500",
     },
     communication: {
         bg: "bg-teal-50",
         text: "text-teal-700",
         dot: "bg-teal-500",
     },
-    conversion: {
-        bg: "bg-green-50",
-        text: "text-green-700",
-        dot: "bg-green-500",
+    system: { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-500" },
+    external: {
+        bg: "bg-orange-50",
+        text: "text-orange-700",
+        dot: "bg-orange-500",
     },
-    support: { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500" },
-    data_management: {
-        bg: "bg-slate-50",
-        text: "text-slate-700",
-        dot: "bg-slate-500",
-    },
+    user: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-500" },
 };
 
 const DEFAULT_CAT = {
@@ -55,37 +66,112 @@ const DEFAULT_CAT = {
     dot: "bg-gray-400",
 };
 
+/** Generation type → display config */
+const GENERATION_CONFIG: Record<
+    string,
+    { label: string; icon: React.ReactNode; className: string }
+> = {
+    user_generated: {
+        label: "Agent",
+        icon: <UserOutlined />,
+        className: "bg-green-100 text-green-600",
+    },
+    system_generated: {
+        label: "System",
+        icon: <ThunderboltOutlined />,
+        className: "bg-blue-100 text-blue-600",
+    },
+    external: {
+        label: "External",
+        icon: <ApiOutlined />,
+        className: "bg-orange-100 text-orange-600",
+    },
+};
+
+/** Status → display config */
+const STATUS_CONFIG: Record<
+    CrmEventStatus,
+    { label: string; icon: React.ReactNode; className: string }
+> = {
+    completed: {
+        label: "Completed",
+        icon: <CheckCircleOutlined />,
+        className: "bg-green-100 text-green-700",
+    },
+    error_occurred: {
+        label: "Error",
+        icon: <CloseCircleOutlined />,
+        className: "bg-red-100 text-red-700",
+    },
+    missed: {
+        label: "Missed",
+        icon: <ExclamationCircleOutlined />,
+        className: "bg-orange-100 text-orange-700",
+    },
+    rejected: {
+        label: "Rejected",
+        icon: <MinusCircleOutlined />,
+        className: "bg-red-50 text-red-600",
+    },
+};
+
+/** Direction → display config */
+const DIRECTION_CONFIG: Record<
+    CrmEventDirection,
+    { label: string; icon: React.ReactNode; className: string }
+> = {
+    inbound: {
+        label: "Inbound",
+        icon: <ArrowDownOutlined />,
+        className: "bg-cyan-100 text-cyan-700",
+    },
+    outbound: {
+        label: "Outbound",
+        icon: <ArrowUpOutlined />,
+        className:
+            "bg-geekblue-100 text-geekblue-700 bg-blue-100 text-blue-700",
+    },
+};
+
 interface Props {
     event: CrmEvent;
     compact?: boolean;
 }
 
 export default function CrmEventItem({ event, compact = false }: Props) {
+    const [expanded, setExpanded] = useState(false);
+
     const catSlug = event.event_type?.category?.slug ?? "";
     const colors = CATEGORY_COLORS[catSlug] || DEFAULT_CAT;
-    const isSystem = event.generation_type === "system_generated";
-
-    const utmKeys = Object.keys(event.metadata ?? {}).filter((k) =>
-        k.startsWith("utm_"),
-    );
+    const gen =
+        GENERATION_CONFIG[event.generation_type] ??
+        GENERATION_CONFIG.system_generated;
+    const statusCfg = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.completed;
+    const directionCfg = event.direction
+        ? DIRECTION_CONFIG[event.direction]
+        : null;
+    const message = event.metadata?.comment as string | undefined;
 
     return (
-        <div
-            className={`rounded-lg border px-3 py-2 ${
-                isSystem
-                    ? "border-blue-100 bg-blue-50/40"
-                    : "border-green-100 bg-green-50/40"
-            }`}
-        >
-            {/* Header row */}
+        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 hover:border-gray-300 transition-colors">
+            {/* Row 1: Event Type + Origin + Timestamp */}
             <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                     <span
                         className={`flex-shrink-0 h-2 w-2 rounded-full ${colors.dot}`}
                     />
-                    <Text strong className="text-sm truncate leading-tight">
+                    <Text
+                        strong
+                        className="text-[13px] truncate leading-tight text-gray-900"
+                    >
                         {event.event_type?.name ?? "Unknown Event"}
                     </Text>
+                    <Tag
+                        className={`${gen.className} border-0 rounded text-[10px] leading-[16px] px-1 ml-0.5`}
+                        icon={gen.icon}
+                    >
+                        {gen.label}
+                    </Tag>
                 </div>
 
                 <Tooltip
@@ -95,81 +181,97 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                 >
                     <Text
                         type="secondary"
-                        className="text-xs flex-shrink-0 whitespace-nowrap"
+                        className="text-[11px] flex-shrink-0 whitespace-nowrap"
                     >
-                        <ClockCircleOutlined className="mr-1" />
+                        <ClockCircleOutlined className="mr-0.5" />
                         {dayjs(event.occurred_at).fromNow()}
                     </Text>
                 </Tooltip>
             </div>
 
-            {/* Category + generation badge row */}
-            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            {/* Row 2: Category + Status Badge + Direction Badge */}
+            <div className="flex flex-wrap items-center gap-1 mt-1.5">
                 {event.event_type?.category && (
                     <Tag
-                        className={`${colors.bg} ${colors.text} border-0 rounded-md text-[11px] leading-[18px] px-1.5`}
+                        className={`${colors.bg} ${colors.text} border-0 rounded text-[10px] leading-[16px] px-1.5`}
                     >
                         {event.event_type.category.name}
                     </Tag>
                 )}
                 <Tag
-                    className={`border-0 rounded-md text-[11px] leading-[18px] px-1.5 ${
-                        isSystem
-                            ? "bg-blue-100 text-blue-600"
-                            : "bg-green-100 text-green-600"
-                    }`}
-                    icon={isSystem ? <ThunderboltOutlined /> : <UserOutlined />}
+                    className={`${statusCfg.className} border-0 rounded text-[10px] leading-[16px] px-1.5`}
+                    icon={statusCfg.icon}
                 >
-                    {isSystem ? "System" : "Agent"}
+                    {statusCfg.label}
                 </Tag>
-                {event.source && (
+                {directionCfg && (
                     <Tag
-                        className="bg-gray-100 text-gray-600 border-0 rounded-md text-[11px] leading-[18px] px-1.5"
+                        className="bg-cyan-50 text-cyan-700 border-0 rounded text-[10px] leading-[16px] px-1.5"
+                        icon={directionCfg.icon}
+                    >
+                        {directionCfg.label}
+                    </Tag>
+                )}
+                {event.source && !compact && (
+                    <Tag
+                        className="bg-gray-100 text-gray-500 border-0 rounded text-[10px] leading-[16px] px-1"
                         icon={<GlobalOutlined />}
                     >
                         {event.source}
                     </Tag>
                 )}
+                {event.user && (
+                    <span className="text-[11px] text-gray-500 ml-auto">
+                        <UserOutlined className="mr-0.5" />
+                        {event.user.name}
+                    </span>
+                )}
             </div>
 
-            {/* User */}
-            {event.user && (
+            {/* Row 3: Message (truncated with expand) */}
+            {message && !compact && (
                 <div className="mt-1.5">
-                    <Text type="secondary" className="text-xs">
-                        <UserOutlined className="mr-1" />
-                        {event.user.name}
-                    </Text>
-                </div>
-            )}
-
-            {/* Comment / metadata.comment */}
-            {event.metadata?.comment && !compact && (
-                <div className="mt-1.5 text-xs text-gray-600 bg-white/60 rounded px-2 py-1">
-                    {event.metadata.comment}
-                </div>
-            )}
-
-            {/* UTM badges */}
-            {utmKeys.length > 0 && !compact && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                    {utmKeys.map((k) => (
-                        <Tag
-                            key={k}
-                            className="bg-indigo-50 text-indigo-600 border-0 rounded text-[10px] leading-[16px] px-1"
+                    <div
+                        className={`text-[12px] text-gray-600 bg-gray-50 rounded px-2 py-1 ${
+                            !expanded ? "line-clamp-2" : ""
+                        }`}
+                    >
+                        {message}
+                    </div>
+                    {message.length > 120 && (
+                        <button
+                            type="button"
+                            onClick={() => setExpanded(!expanded)}
+                            className="text-[10px] text-blue-500 hover:text-blue-600 mt-0.5 flex items-center gap-0.5 bg-transparent border-0 cursor-pointer p-0"
                         >
-                            {k.replace("utm_", "")}:{" "}
-                            {String(event.metadata?.[k])}
-                        </Tag>
-                    ))}
+                            {expanded ? (
+                                <>
+                                    <UpOutlined style={{ fontSize: 8 }} /> Less
+                                </>
+                            ) : (
+                                <>
+                                    <DownOutlined style={{ fontSize: 8 }} />{" "}
+                                    More
+                                </>
+                            )}
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Compact message preview */}
+            {message && compact && (
+                <div className="mt-1 text-[11px] text-gray-500 truncate">
+                    {message}
                 </div>
             )}
 
             {/* Correlation link */}
             {event.correlation_id && !compact && (
-                <div className="mt-1.5">
+                <div className="mt-1">
                     <Tooltip title={`Correlation: ${event.correlation_id}`}>
                         <Text type="secondary" className="text-[10px]">
-                            <LinkOutlined className="mr-1" />
+                            <LinkOutlined className="mr-0.5" />
                             {event.correlation_id.slice(0, 8)}…
                         </Text>
                     </Tooltip>

@@ -13,6 +13,7 @@ import {
     BellOutlined,
     ApartmentOutlined,
     TeamOutlined,
+    HistoryOutlined,
 } from "@ant-design/icons";
 
 import {
@@ -177,6 +178,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             label: t("app.menu.properties"),
             icon: <HouseDoorIcon />,
             href: "/account/properties?page=1&per_page=15&sort_by=&sort_direction=asc",
+        },
+        {
+            key: "crm-events",
+            label: "CRM Events",
+            icon: <HistoryOutlined />,
+            href: "/account/crm-events",
         },
         {
             key: "developers",

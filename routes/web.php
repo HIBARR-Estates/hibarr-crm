@@ -1079,6 +1079,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::delete('/{id}', [App\Http\Controllers\ProjectLocationController::class, 'destroy'])->name('destroy');
     });
 
+    // CRM Events (Admin viewer)
+    Route::get('crm-events', [App\Http\Controllers\CrmEventAdminController::class, 'index'])->name('crm-events.index');
+
     // Developers
     Route::prefix('developers')->name('developers.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeveloperController::class, 'index'])->name('index');
