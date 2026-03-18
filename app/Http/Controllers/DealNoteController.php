@@ -7,11 +7,14 @@ use App\Helper\Reply;
 use App\Http\Requests\Lead\StoreLeadNote;
 use App\Http\Requests\StoreDealNote;
 use App\Models\DealNote;
+use App\Models\Deal;
 use App\Models\User;
+use App\Traits\RecordsCrmEvents;
 use Illuminate\Http\Request;
 
 class DealNoteController extends AccountBaseController
 {
+    use RecordsCrmEvents;
 
     public function __construct()
     {
@@ -88,6 +91,18 @@ class DealNoteController extends AccountBaseController
         $note->save();
 
         \Log::info('Deal Note Created: ', ['id' => $note->id, 'deal_id' => $note->deal_id,]);
+
+        // ── CRM Event: deal_note_added ──
+        $deal = Deal::find($note->deal_id);
+        if ($deal) {
+            $this->recordCrmEvent('deal_note_added', $deal, [
+                'metadata' => [
+                    'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
+                    'note_id' => $note->id,
+                    'note_title' => $note->title,
+                ],
+            ]);
+        }
 
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes']);
     }
