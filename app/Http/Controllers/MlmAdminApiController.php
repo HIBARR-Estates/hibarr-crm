@@ -775,7 +775,7 @@ class MlmAdminApiController extends AccountBaseController
             'auto_generate' => 'required|boolean',
         ]);
 
-        if ($validated['duration_type'] === 'custom' && empty($validated['duration_days'])) {
+        if ($validated['duration_type'] === 'custom' && empty($validated['duration_days'] ?? null)) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'Duration days is required for custom duration type.',
@@ -786,7 +786,7 @@ class MlmAdminApiController extends AccountBaseController
             ['company_id' => company()->id],
             [
                 'duration_type' => $validated['duration_type'],
-                'duration_days' => $validated['duration_days'],
+                'duration_days' => $validated['duration_days'] ?? null,
                 'anchor_date' => $validated['anchor_date'],
                 'max_overflow_multiplier' => $validated['max_overflow_multiplier'],
                 'auto_generate' => $validated['auto_generate'],
