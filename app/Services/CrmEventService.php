@@ -90,6 +90,8 @@ class CrmEventService
             'company_id' => $params['company_id'],
             'event_type_id' => $eventType->id,
             'generation_type' => $generationType,
+            'status' => $params['status'] ?? 'completed',
+            'direction' => $params['direction'] ?? null,
             'user_id' => $params['user_id'] ?? null,
             'model_type' => $params['model_type'] ?? $eventType->model_type,
             'model_id' => $params['model_id'] ?? null,
@@ -218,6 +220,16 @@ class CrmEventService
         // Generation type
         if (!empty($filters['generation_type'])) {
             $query->where('generation_type', $filters['generation_type']);
+        }
+
+        // Status
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        // Direction
+        if (!empty($filters['direction'])) {
+            $query->where('direction', $filters['direction']);
         }
 
         // Source

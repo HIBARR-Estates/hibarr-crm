@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\CrmEventGenerationType;
 use App\Enums\CrmEventSource;
+use App\Enums\CrmEventStatus;
+use App\Enums\CrmEventDirection;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +23,8 @@ class CrmEvent extends BaseModel
         'company_id',
         'event_type_id',
         'generation_type',
+        'status',
+        'direction',
         'user_id',
         'model_type',
         'model_id',
@@ -38,6 +42,8 @@ class CrmEvent extends BaseModel
         'occurred_at' => 'datetime',
         'generation_type' => CrmEventGenerationType::class,
         'source' => CrmEventSource::class,
+        'status' => CrmEventStatus::class,
+        'direction' => CrmEventDirection::class,
     ];
 
     // ─── Relationships ───────────────────────────────────────────
@@ -114,6 +120,34 @@ class CrmEvent extends BaseModel
     public function scopeSystemGenerated($query)
     {
         return $query->where('generation_type', CrmEventGenerationType::SYSTEM_GENERATED);
+    }
+
+    /**
+     * Scope to external events.
+     */
+    public function scopeExternal($query)
+    {
+        return $query->where('generation_type', CrmEventGenerationType::EXTERNAL);
+    }
+
+    /**
+     * Scope to events with a specific status.
+     */
+    public function scopeWithStatus($query, CrmEventStatus|string $status)
+    {
+        $value = $status instanceof CrmEventStatus ? $status->value : $status;
+
+        return $query->where('status', $value);
+    }
+
+    /**
+     * Scope to events with a specific direction.
+     */
+    public function scopeWithDirection($query, CrmEventDirection|string $direction)
+    {
+        $value = $direction instanceof CrmEventDirection ? $direction->value : $direction;
+
+        return $query->where('direction', $value);
     }
 
     /**
