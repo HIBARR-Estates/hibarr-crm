@@ -54,7 +54,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
         agent_id: simAgentId,
     });
     const simResult: CommissionSimulationResult | null =
-        (simData as any)?.data?.data ?? null;
+        (simData as any)?.data ?? null;
 
     useEffect(() => {
         if (settings) {
