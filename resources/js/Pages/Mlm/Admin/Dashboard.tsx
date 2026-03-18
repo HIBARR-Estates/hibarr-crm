@@ -90,28 +90,21 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             title: "Agent",
             dataIndex: ["user", "name"],
             key: "name",
+
             render: (_: any, record: any) => (
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-semibold">
-                        {record.user?.name?.charAt(0) ?? "?"}
-                    </div>
-                    <div>
-                        <div className="font-medium text-sm">
-                            {record.user?.name ?? "Unknown"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                            {record.user?.email}
-                        </div>
-                    </div>
-                </div>
+                <span className="font-medium">
+                    {record.agent?.user?.name ?? "—"}
+                </span>
             ),
         },
         {
             title: "Level",
             key: "level",
             render: (_: any, record: any) =>
-                record.current_level_history?.level ? (
-                    <LevelBadge level={record.current_level_history.level} />
+                record?.agent?.current_level_history?.level ? (
+                    <LevelBadge
+                        level={record.agent.current_level_history.level}
+                    />
                 ) : (
                     <Tag>Unranked</Tag>
                 ),
