@@ -326,7 +326,7 @@ function Index({
 
     return (
         <PageLayout title={pageTitle} breadcrumbs={[{ name: "CRM Events" }]}>
-            <div className="max-w-full mx-auto">
+            <div className="max-w-7xl mx-auto">
                 {/* Toolbar */}
                 <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                     <Input.Search

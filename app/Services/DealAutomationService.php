@@ -7,10 +7,13 @@ use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
 use App\Models\PipelineStage;
 use App\Events\DealWonEvent;
+use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\Log;
 
 class DealAutomationService
 {
+    use RecordsCrmEvents;
+
     protected FieldResolverService $fieldResolver;
     protected ConditionEvaluatorService $conditionEvaluator;
 
@@ -199,6 +202,8 @@ class DealAutomationService
         }
 
         if ($shouldUpdate) {
+            $originalStageId = $deal->pipeline_stage_id;
+            $originalPipelineId = $deal->lead_pipeline_id;
             $changes = [];
             if ($deal->pipeline_stage_id != $targetStageId) {
                 $deal->pipeline_stage_id = $targetStageId;
@@ -215,6 +220,49 @@ class DealAutomationService
                 $description = "Stage transition: " . implode(', ', $changes);
                 Log::info("Action executed for Deal ID: {$deal->id}. " . implode(', ', $changes));
                 $this->logAction($deal, $automation, $description);
+
+                // Record CRM events for automation-driven changes
+                if ($originalStageId != $targetStageId) {
+                    $fromStage = $this->getStage($originalStageId);
+                    $toStage = $this->getStage($targetStageId);
+
+                    $this->recordCrmEvent('deal_stage_changed', $deal, [
+                        'generation_type' => 'system_generated',
+                        'metadata' => [
+                            'from_stage' => $fromStage?->name,
+                            'to_stage' => $toStage?->name,
+                            'from_stage_id' => $originalStageId,
+                            'to_stage_id' => $targetStageId,
+                            'automation_id' => $automation?->id,
+                            'automation_name' => $automation?->name,
+                        ],
+                    ]);
+
+                    // Fire win/lost events when automation moves deal to terminal stages
+                    if ($toStage && $toStage->slug === 'win') {
+                        $this->recordCrmEvent('deal_closed_won', $deal, [
+                            'generation_type' => 'system_generated',
+                            'metadata' => ['stage_id' => $targetStageId, 'stage_name' => $toStage->name, 'automation_id' => $automation?->id],
+                        ]);
+                    } elseif ($toStage && $toStage->slug === 'lost') {
+                        $this->recordCrmEvent('deal_closed_lost', $deal, [
+                            'generation_type' => 'system_generated',
+                            'metadata' => ['stage_id' => $targetStageId, 'stage_name' => $toStage->name, 'automation_id' => $automation?->id],
+                        ]);
+                    }
+                }
+
+                if ($originalPipelineId != $targetPipelineId) {
+                    $this->recordCrmEvent('deal_pipeline_changed', $deal, [
+                        'generation_type' => 'system_generated',
+                        'metadata' => [
+                            'from_pipeline_id' => $originalPipelineId,
+                            'to_pipeline_id' => $targetPipelineId,
+                            'automation_id' => $automation?->id,
+                            'automation_name' => $automation?->name,
+                        ],
+                    ]);
+                }
             }
         }
     }
@@ -238,6 +286,17 @@ class DealAutomationService
         $description = "Set {$fieldName} = {$fieldValue}";
         Log::info("Action executed for Deal ID: {$deal->id}. {$description}");
         $this->logAction($deal, $automation, $description);
+
+        // Record CRM event for automation-driven field change
+        $this->recordCrmEvent('deal_updated', $deal, [
+            'generation_type' => 'system_generated',
+            'metadata' => [
+                'field_name' => $fieldName,
+                'field_value' => $fieldValue,
+                'automation_id' => $automation?->id,
+                'automation_name' => $automation?->name,
+            ],
+        ]);
     }
 
     /**
@@ -252,6 +311,17 @@ class DealAutomationService
         $description = "Deal locked";
         Log::info("Action executed for Deal ID: {$deal->id}. {$description}");
         $this->logAction($deal, $automation, $description);
+
+        // Record CRM event for automation-driven deal lock
+        $this->recordCrmEvent('deal_updated', $deal, [
+            'generation_type' => 'system_generated',
+            'status' => 'completed',
+            'metadata' => [
+                'action' => 'deal_locked',
+                'automation_id' => $automation?->id,
+                'automation_name' => $automation?->name,
+            ],
+        ]);
     }
 
     /**
