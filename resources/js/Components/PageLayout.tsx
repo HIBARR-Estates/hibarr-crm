@@ -157,29 +157,6 @@ export default function PageLayout({
                             </div>
                         )}
                         <div className="ml-auto flex items-center gap-4">
-                            {/* Refresh button in the top bar — clearly visible on all screens */}
-                            {onRefresh && (
-                                <Tooltip title="Sync latest data without reloading the page">
-                                    <Button
-                                        type="default"
-                                        icon={
-                                            <ReloadOutlined
-                                                spin={isRefreshing}
-                                            />
-                                        }
-                                        onClick={onRefresh}
-                                        disabled={isRefreshing}
-                                        aria-label="Refresh data"
-                                        size="small"
-                                    >
-                                        <span className="hidden sm:inline">
-                                            {isRefreshing
-                                                ? "Refreshing…"
-                                                : "Refresh"}
-                                        </span>
-                                    </Button>
-                                </Tooltip>
-                            )}
                             {/* <LanguageSwitcher compact /> */}
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
@@ -225,6 +202,46 @@ export default function PageLayout({
                 {/* Main Content */}
                 <div className={mainContentClassName}>{children}</div>
             </div>
+
+            {/* Floating refresh button — fixed bottom-right, all screen sizes */}
+            {onRefresh && (
+                <div
+                    style={{
+                        position: "fixed",
+                        bottom: 24,
+                        right: 24,
+                        zIndex: 1050,
+                    }}
+                >
+                    <Tooltip
+                        title={
+                            isRefreshing
+                                ? "Refreshing…"
+                                : "Sync latest data without reloading the page"
+                        }
+                        placement="left"
+                    >
+                        <Button
+                            type="primary"
+                            shape="round"
+                            size="large"
+                            icon={<ReloadOutlined spin={isRefreshing} />}
+                            onClick={onRefresh}
+                            disabled={isRefreshing}
+                            aria-label="Refresh data"
+                            style={{
+                                boxShadow:
+                                    "0 6px 16px 0 rgba(0, 0, 0, 0.12), 0 3px 6px -4px rgba(0, 0, 0, 0.08)",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                            }}
+                        >
+                            {isRefreshing ? "Refreshing…" : "Refresh"}
+                        </Button>
+                    </Tooltip>
+                </div>
+            )}
         </>
     );
 }
