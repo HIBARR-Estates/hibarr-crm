@@ -33,6 +33,11 @@ class MlmCycle extends BaseModel
         'max_overflow_multiplier' => 'decimal:2',
     ];
 
+    protected $appends = [
+        'duration_days',
+        'days_remaining',
+    ];
+
     // ── Relationships ────────────────────────────────────────────
 
     public function company(): BelongsTo
@@ -97,6 +102,18 @@ class MlmCycle extends BaseModel
     {
         $today = now()->startOfDay();
         return $today->between($this->start_date, $this->end_date);
+    }
+
+    /**
+     * Days remaining until this cycle ends (0 for completed/upcoming cycles).
+     */
+    public function getDaysRemainingAttribute(): int
+    {
+        if ($this->status !== CycleStatus::Active) {
+            return 0;
+        }
+
+        return max(0, (int) now()->startOfDay()->diffInDays($this->end_date, false));
     }
 
     /**

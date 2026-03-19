@@ -369,6 +369,19 @@ const CycleManagement: React.FC<Props> = () => {
             render: (v: number) => `${v} days`,
         },
         {
+            title: "Days Left",
+            dataIndex: "days_remaining",
+            key: "days_remaining",
+            render: (v: number, record: MlmCycle) =>
+                record.status === "active" ? (
+                    <Tag color={v <= 7 ? "red" : v <= 14 ? "orange" : "blue"}>
+                        {v}d
+                    </Tag>
+                ) : (
+                    <span className="text-gray-400">—</span>
+                ),
+        },
+        {
             title: "Overflow ×",
             dataIndex: "max_overflow_multiplier",
             key: "overflow",

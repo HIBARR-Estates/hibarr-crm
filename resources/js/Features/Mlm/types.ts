@@ -324,6 +324,7 @@ export interface MlmCycle {
     end_date: string;
     status: CycleStatus;
     duration_days: number;
+    days_remaining: number;
     max_overflow_multiplier: number;
     enrollments_count?: number;
 }
