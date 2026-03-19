@@ -179,12 +179,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <HouseDoorIcon />,
             href: "/account/properties?page=1&per_page=15&sort_by=&sort_direction=asc",
         },
-        {
-            key: "crm-events",
-            label: "CRM Events",
-            icon: <HistoryOutlined />,
-            href: "/account/crm-events",
-        },
+        // {
+        //     key: "crm-events",
+        //     label: "CRM Events",
+        //     icon: <HistoryOutlined />,
+        //     href: "/account/crm-events",
+        // },
         {
             key: "developers",
             label: "Construction Companies",
@@ -269,12 +269,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     icon: null,
                     href: "/account/mlm/agent/network",
                 },
-                {
-                    key: "my-mlm-uplines",
-                    label: "My Uplines",
-                    icon: null,
-                    href: "/account/mlm/agent/uplines",
-                },
+                // {
+                //     key: "my-mlm-uplines",
+                //     label: "My Uplines",
+                //     icon: null,
+                //     href: "/account/mlm/agent/uplines",
+                // },
                 {
                     key: "my-mlm-level",
                     label: "My Level",

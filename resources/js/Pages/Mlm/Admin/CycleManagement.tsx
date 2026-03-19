@@ -8,7 +8,6 @@ import {
     Table,
     Tag,
     Empty,
-    message,
     Spin,
     Popconfirm,
     Modal,
@@ -16,13 +15,15 @@ import {
 import { motion } from "framer-motion";
 import { Plus, Pencil, Trash2, CalendarDays, XCircle } from "lucide-react";
 import dayjs from "dayjs";
-import axios from "axios";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
     useMlmCycles,
     useMlmCycleDetail,
     useCreateCycle,
+    useUpdateCycle,
+    useDeleteCycle,
+    useForceCompleteEnrollment,
     useMlmSettings,
 } from "@/Features/Mlm/api";
 import {
@@ -48,12 +49,20 @@ const CycleFormModal: React.FC<{
     onSaved: () => void;
 }> = ({ open, editingCycle, defaultOverflow, onClose, onSaved }) => {
     const [form] = Form.useForm();
-    const [saving, setSaving] = useState(false);
 
     const isEdit = !!editingCycle;
     const title = isEdit
         ? `Edit Cycle #${editingCycle!.cycle_number}`
         : "Create New Cycle";
+
+    const handleSuccess = () => {
+        onSaved();
+        onClose();
+    };
+
+    const createCycle = useCreateCycle(handleSuccess);
+    const updateCycle = useUpdateCycle(editingCycle?.id ?? 0, handleSuccess);
+    const isSaving = createCycle.isPending || updateCycle.isPending;
 
     React.useEffect(() => {
         if (open) {
@@ -76,8 +85,6 @@ const CycleFormModal: React.FC<{
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            setSaving(true);
-
             const payload: MlmCycleFormData = {
                 start_date: values.start_date.format("YYYY-MM-DD"),
                 end_date: values.end_date.format("YYYY-MM-DD"),
@@ -85,24 +92,12 @@ const CycleFormModal: React.FC<{
             };
 
             if (isEdit) {
-                await axios.put(
-                    `/account/mlm/api/cycles/${editingCycle!.id}`,
-                    payload,
-                );
-                message.success("Cycle updated");
+                updateCycle.mutate(payload);
             } else {
-                await axios.post(`/account/mlm/api/cycles`, payload);
-                message.success("Cycle created");
+                createCycle.mutate(payload);
             }
-
-            onSaved();
-            onClose();
-        } catch (err: any) {
-            if (err?.response?.data?.message) {
-                message.error(err.response.data.message);
-            }
-        } finally {
-            setSaving(false);
+        } catch {
+            // form validation failed
         }
     };
 
@@ -112,7 +107,7 @@ const CycleFormModal: React.FC<{
             open={open}
             onCancel={onClose}
             onOk={handleSubmit}
-            confirmLoading={saving}
+            confirmLoading={isSaving}
             okText={isEdit ? "Save Changes" : "Create Cycle"}
             destroyOnClose
         >
@@ -152,28 +147,68 @@ const CycleFormModal: React.FC<{
 };
 
 /* ------------------------------------------------------------------ */
+/*  Force-Complete Button (own hook per row)                            */
+/* ------------------------------------------------------------------ */
+const ForceCompleteButton: React.FC<{
+    cycleId: number;
+    enrollmentId: number;
+    onCompleted: () => void;
+}> = ({ cycleId, enrollmentId, onCompleted }) => {
+    const mutation = useForceCompleteEnrollment(
+        cycleId,
+        enrollmentId,
+        onCompleted,
+    );
+
+    return (
+        <Popconfirm
+            title="Force-complete this enrollment?"
+            description="The agent's cycle will end and they will be re-enrolled in the current cycle."
+            onConfirm={() => mutation.mutate({})}
+        >
+            <Button
+                size="small"
+                danger
+                icon={<XCircle size={12} />}
+                loading={mutation.isPending}
+            >
+                End
+            </Button>
+        </Popconfirm>
+    );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Delete Cycle Button (own hook per row)                             */
+/* ------------------------------------------------------------------ */
+const DeleteCycleButton: React.FC<{
+    cycleId: number;
+    onDeleted: () => void;
+}> = ({ cycleId, onDeleted }) => {
+    const mutation = useDeleteCycle(cycleId, onDeleted);
+
+    return (
+        <Popconfirm
+            title="Delete this cycle?"
+            onConfirm={() => mutation.mutate({})}
+        >
+            <Button
+                size="small"
+                type="text"
+                danger
+                icon={<Trash2 size={14} />}
+                loading={mutation.isPending}
+            />
+        </Popconfirm>
+    );
+};
+
+/* ------------------------------------------------------------------ */
 /*  Expandable Enrollment Row                                          */
 /* ------------------------------------------------------------------ */
 const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
     const { data, isLoading, refetch } = useMlmCycleDetail(cycleId);
     const enrollments = (data as any)?.data?.enrollments ?? [];
-
-    const [forceLoading, setForceLoading] = useState(false);
-
-    const handleForceComplete = async (enrollmentId: number) => {
-        setForceLoading(true);
-        try {
-            await axios.post(
-                `/account/mlm/api/cycles/${cycleId}/enrollments/${enrollmentId}/force-complete`,
-            );
-            message.success("Enrollment force-completed");
-            refetch();
-        } catch {
-            message.error("Failed to force-complete enrollment");
-        } finally {
-            setForceLoading(false);
-        }
-    };
 
     const columns = [
         {
@@ -256,20 +291,11 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
             width: 100,
             render: (_: any, r: any) =>
                 r.status === "active" || r.status === "extended" ? (
-                    <Popconfirm
-                        title="Force-complete this enrollment?"
-                        description="The agent's cycle will end and they will be re-enrolled in the current cycle."
-                        onConfirm={() => handleForceComplete(r.id)}
-                    >
-                        <Button
-                            size="small"
-                            danger
-                            icon={<XCircle size={12} />}
-                            loading={forceLoading}
-                        >
-                            End
-                        </Button>
-                    </Popconfirm>
+                    <ForceCompleteButton
+                        cycleId={cycleId}
+                        enrollmentId={r.id}
+                        onCompleted={() => refetch()}
+                    />
                 ) : null,
         },
     ];
@@ -316,7 +342,6 @@ const CycleManagement: React.FC<Props> = () => {
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editingCycle, setEditingCycle] = useState<MlmCycle | null>(null);
-    const [deleting, setDeleting] = useState<number | null>(null);
 
     const openCreate = () => {
         setEditingCycle(null);
@@ -326,21 +351,6 @@ const CycleManagement: React.FC<Props> = () => {
     const openEdit = (cycle: MlmCycle) => {
         setEditingCycle(cycle);
         setModalOpen(true);
-    };
-
-    const handleDelete = async (id: number) => {
-        setDeleting(id);
-        try {
-            await axios.delete(`/account/mlm/api/cycles/${id}`);
-            message.success("Cycle deleted");
-            refetch();
-        } catch (err: any) {
-            message.error(
-                err?.response?.data?.message ?? "Failed to delete cycle",
-            );
-        } finally {
-            setDeleting(null);
-        }
     };
 
     const columns = [
@@ -367,6 +377,19 @@ const CycleManagement: React.FC<Props> = () => {
             dataIndex: "duration_days",
             key: "duration_days",
             render: (v: number) => `${v} days`,
+        },
+        {
+            title: "Days Left",
+            dataIndex: "days_remaining",
+            key: "days_remaining",
+            render: (v: number, record: MlmCycle) =>
+                record.status === "active" ? (
+                    <Tag color={v <= 7 ? "red" : v <= 14 ? "orange" : "blue"}>
+                        {v}d
+                    </Tag>
+                ) : (
+                    <span className="text-gray-400">—</span>
+                ),
         },
         {
             title: "Overflow ×",
@@ -405,18 +428,10 @@ const CycleManagement: React.FC<Props> = () => {
                             />
                         )}
                         {isUpcoming && !hasEnrollments && (
-                            <Popconfirm
-                                title="Delete this cycle?"
-                                onConfirm={() => handleDelete(record.id)}
-                            >
-                                <Button
-                                    size="small"
-                                    type="text"
-                                    danger
-                                    icon={<Trash2 size={14} />}
-                                    loading={deleting === record.id}
-                                />
-                            </Popconfirm>
+                            <DeleteCycleButton
+                                cycleId={record.id}
+                                onDeleted={() => refetch()}
+                            />
                         )}
                     </div>
                 );
