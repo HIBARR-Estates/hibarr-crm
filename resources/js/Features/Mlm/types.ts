@@ -305,43 +305,33 @@ export interface PaginatedResponse<T> {
     to: number;
 }
 
-// ── Commission Settings ──────────────────────────────────────────
+// ── Commission & Cycle Settings ──────────────────────────────────
 export interface MlmSettings {
     max_commission_percentage: number;
     auto_evaluate_ancestors: boolean;
     enable_commission_reversal: boolean;
-}
-
-// ── Cycle Config ─────────────────────────────────────────────────
-export interface MlmCycleConfig {
-    id: number;
-    duration_type: CycleDurationType;
-    duration_days: number | null;
-    duration_days_resolved: number;
-    anchor_date: string;
-    max_overflow_multiplier: number;
-    max_overflow_days: number;
-    auto_generate: boolean;
-}
-
-export interface MlmCycleConfigFormData {
-    duration_type: CycleDurationType;
-    duration_days: number | null;
-    anchor_date: string;
-    max_overflow_multiplier: number;
-    auto_generate: boolean;
+    auto_generate_cycles: boolean;
+    default_cycle_duration_type: CycleDurationType;
+    default_cycle_duration_days: number | null;
+    default_overflow_multiplier: number;
 }
 
 // ── Cycle ────────────────────────────────────────────────────────
 export interface MlmCycle {
     id: number;
-    cycle_config_id: number;
     cycle_number: number;
     start_date: string;
     end_date: string;
     status: CycleStatus;
     duration_days: number;
+    max_overflow_multiplier: number;
     enrollments_count?: number;
+}
+
+export interface MlmCycleFormData {
+    start_date: string;
+    end_date: string;
+    max_overflow_multiplier?: number;
 }
 
 // ── Cycle Enrollment ─────────────────────────────────────────────
@@ -372,11 +362,7 @@ export interface AgentCycleEnrollment {
 // ── Active Cycle Summary ─────────────────────────────────────────
 export interface ActiveCycleSummary {
     cycle: MlmCycle | null;
-    config: {
-        duration_type: CycleDurationType;
-        duration_days_resolved: number;
-        max_overflow_multiplier: number;
-    } | null;
+    default_overflow_multiplier: number;
     days_remaining: number;
     enrollment_count: number;
 }

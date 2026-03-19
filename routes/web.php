@@ -1249,11 +1249,12 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::get('simulate', [App\Http\Controllers\MlmAdminApiController::class, 'simulate'])->name('simulate');
 
             // Cycles
-            Route::get('cycle-config', [App\Http\Controllers\MlmAdminApiController::class, 'getCycleConfig'])->name('cycle_config.show');
-            Route::put('cycle-config', [App\Http\Controllers\MlmAdminApiController::class, 'updateCycleConfig'])->name('cycle_config.update');
             Route::get('cycles', [App\Http\Controllers\MlmAdminApiController::class, 'getCycles'])->name('cycles.index');
             Route::get('cycles/active', [App\Http\Controllers\MlmAdminApiController::class, 'getActiveCycle'])->name('cycles.active');
+            Route::post('cycles', [App\Http\Controllers\MlmAdminApiController::class, 'createCycle'])->name('cycles.store');
             Route::get('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'getCycleDetail'])->name('cycles.show');
+            Route::put('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'updateCycle'])->name('cycles.update');
+            Route::delete('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'deleteCycle'])->name('cycles.destroy');
             Route::post('cycles/{cycleId}/enrollments/{enrollmentId}/force-complete', [App\Http\Controllers\MlmAdminApiController::class, 'forceCompleteEnrollment'])->name('cycles.force_complete_enrollment');
         });
     });

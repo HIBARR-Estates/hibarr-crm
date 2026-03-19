@@ -15,9 +15,8 @@ import type {
     MlmAgentDashboardStats,
     MlmSettings,
     PaginatedResponse,
-    MlmCycleConfig,
-    MlmCycleConfigFormData,
     MlmCycle,
+    MlmCycleFormData,
     ActiveCycleSummary,
     AgentCycleEnrollment,
     MyEnrollmentData,
@@ -116,12 +115,6 @@ export const useCommissionSimulation = (
 // ══════════════════════════════════════════════════════════════════
 // ADMIN CYCLE QUERIES
 // ══════════════════════════════════════════════════════════════════
-
-/** Company cycle configuration */
-export const useCycleConfig = () =>
-    useApiQuery<{ data: MlmCycleConfig | null }>({
-        path: `${ADMIN_API}/cycle-config`,
-    });
 
 /** Active cycle summary */
 export const useActiveCycle = () =>
@@ -280,12 +273,28 @@ export const useRemoveHierarchy = (
     );
 
 /** Update cycle configuration */
-export const useUpdateCycleConfig = (onSuccess?: (res?: any) => void) =>
-    useApiMutate<
-        MlmCycleConfigFormData,
-        MlmCycleConfig,
-        ApiResponse<MlmCycleConfig>
-    >(`${ADMIN_API}/cycle-config`, "PUT", onSuccess);
+export const useCreateCycle = (onSuccess?: (res?: any) => void) =>
+    useApiMutate<MlmCycleFormData, MlmCycle, ApiResponse<MlmCycle>>(
+        `${ADMIN_API}/cycles`,
+        "POST",
+        onSuccess,
+    );
+
+/** Update an existing cycle (upcoming only) */
+export const useUpdateCycle = (id: number, onSuccess?: (res?: any) => void) =>
+    useApiMutate<Partial<MlmCycleFormData>, MlmCycle, ApiResponse<MlmCycle>>(
+        `${ADMIN_API}/cycles/${id}`,
+        "PUT",
+        onSuccess,
+    );
+
+/** Delete a cycle (upcoming + zero enrollments only) */
+export const useDeleteCycle = (id: number, onSuccess?: (res?: any) => void) =>
+    useApiMutate<{}, void, ApiResponse<void>>(
+        `${ADMIN_API}/cycles/${id}`,
+        "DELETE",
+        onSuccess,
+    );
 
 /** Force-complete an enrollment */
 export const useForceCompleteEnrollment = (

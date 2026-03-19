@@ -18,11 +18,11 @@ class MlmCycle extends BaseModel
 
     protected $fillable = [
         'company_id',
-        'cycle_config_id',
         'cycle_number',
         'start_date',
         'end_date',
         'status',
+        'max_overflow_multiplier',
     ];
 
     protected $casts = [
@@ -30,6 +30,7 @@ class MlmCycle extends BaseModel
         'start_date' => 'date',
         'end_date' => 'date',
         'status' => CycleStatus::class,
+        'max_overflow_multiplier' => 'decimal:2',
     ];
 
     // ── Relationships ────────────────────────────────────────────
@@ -37,11 +38,6 @@ class MlmCycle extends BaseModel
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
-    }
-
-    public function config(): BelongsTo
-    {
-        return $this->belongsTo(MlmCycleConfig::class, 'cycle_config_id');
     }
 
     public function enrollments(): HasMany
@@ -101,5 +97,13 @@ class MlmCycle extends BaseModel
     {
         $today = now()->startOfDay();
         return $today->between($this->start_date, $this->end_date);
+    }
+
+    /**
+     * Maximum overflow days based on this cycle's overflow multiplier.
+     */
+    public function getMaxOverflowDaysAttribute(): int
+    {
+        return (int) round($this->duration_days * (float) $this->max_overflow_multiplier);
     }
 }
