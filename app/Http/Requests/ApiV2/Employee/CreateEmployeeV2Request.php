@@ -55,6 +55,11 @@ class CreateEmployeeV2Request extends CoreRequest
 
             'status' => 'nullable|in:active,inactive',
             'createLeadAgent' => 'nullable|boolean',
+            'uplineId' => [
+                'nullable',
+                'integer',
+                Rule::exists('lead_agents', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
+            ],
 
             // Optional: ignored. We always send "set password" email.
             'password' => 'nullable|string',

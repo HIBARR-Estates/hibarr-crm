@@ -70,6 +70,11 @@ class UpdateEmployeeV2Request extends CoreRequest
             'status' => 'nullable|in:active,inactive',
             'statusFilter' => 'nullable|in:active,inactive',
             'createLeadAgent' => 'nullable|boolean',
+            'uplineId' => [
+                'nullable',
+                'integer',
+                Rule::exists('lead_agents', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
+            ],
 
             // ignored
             'password' => 'nullable|string',

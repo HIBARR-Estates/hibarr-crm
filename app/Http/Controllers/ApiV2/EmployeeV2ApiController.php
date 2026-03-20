@@ -90,7 +90,9 @@ class EmployeeV2ApiController extends Controller
         $query = User::query()
             ->where('company_id', $companyId)
             ->onlyEmployee()
-            ->with(['employeeDetail.department', 'employeeDetail.designation'])
+            ->with(['employeeDetail.department', 'employeeDetail.designation', 'leadAgent' => function ($q) {
+                $q->whereNull('lead_category_id');
+            }])
             ->orderBy('users.id', 'desc');
 
         // Default behavior: active only (ActiveScope stays applied).
@@ -104,6 +106,9 @@ class EmployeeV2ApiController extends Controller
 
         $data = collect($paginator->items())->map(function (User $user) {
             $employee = $user->employeeDetail;
+            $leadAgent = $user->leadAgent instanceof \Illuminate\Support\Collection
+                ? $user->leadAgent->first()
+                : $user->leadAgent;
             $parts = preg_split('/\s+/', trim((string) $user->name), 2);
             $firstName = $parts[0] ?? '';
             $lastName = $parts[1] ?? '';
@@ -121,6 +126,8 @@ class EmployeeV2ApiController extends Controller
                 'designationId' => $employee?->designation_id,
                 'departmentId' => $employee?->department_id,
                 'joiningDate' => $this->formatYmd($employee?->joining_date),
+                'leadAgentId' => $leadAgent?->id,
+                'uplineId' => $leadAgent?->parent_agent_id,
             ];
         })->values();
 
@@ -147,10 +154,15 @@ class EmployeeV2ApiController extends Controller
         $user = User::withoutGlobalScope(ActiveScope::class)
             ->where('company_id', $companyId)
             ->onlyEmployee()
-            ->with(['employeeDetail.department', 'employeeDetail.designation'])
+            ->with(['employeeDetail.department', 'employeeDetail.designation', 'leadAgent' => function ($q) {
+                $q->whereNull('lead_category_id');
+            }])
             ->findOrFail($userId);
 
         $employee = $user->employeeDetail;
+        $leadAgent = $user->leadAgent instanceof \Illuminate\Support\Collection
+            ? $user->leadAgent->first()
+            : $user->leadAgent;
 
         $parts = preg_split('/\s+/', trim((string) $user->name), 2);
         $firstName = $parts[0] ?? '';
@@ -170,6 +182,8 @@ class EmployeeV2ApiController extends Controller
             'designationId' => $employee?->designation_id,
             'departmentId' => $employee?->department_id,
             'joiningDate' => $this->formatYmd($employee?->joining_date),
+            'leadAgentId' => $leadAgent?->id,
+            'uplineId' => $leadAgent?->parent_agent_id,
         ]));
     }
 
@@ -191,8 +205,9 @@ class EmployeeV2ApiController extends Controller
         }
 
         $createLeadAgent = $request->boolean('createLeadAgent', false);
+        $uplineId = $request->filled('uplineId') ? (int) $request->input('uplineId') : null;
 
-        [$user, $employee] = DB::transaction(function () use ($request, $companyId, $company, $employeeRole, $createLeadAgent) {
+        [$user, $employee, $leadAgent] = DB::transaction(function () use ($request, $companyId, $company, $employeeRole, $createLeadAgent, $uplineId) {
             $user = new User();
             $user->company_id = $companyId;
             $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
@@ -216,11 +231,12 @@ class EmployeeV2ApiController extends Controller
             $user->attachRole($employeeRole);
             $user->assignUserRolePermission($employeeRole->id);
 
+            $leadAgent = null;
             if ($createLeadAgent) {
-                $this->ensureLeadAgentWithoutCategory($companyId, $user->id);
+                $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
             }
 
-            return [$user, $employee];
+            return [$user, $employee, $leadAgent];
         });
 
         // Only trigger password setup when `password` is provided with a non-empty value.
@@ -233,6 +249,8 @@ class EmployeeV2ApiController extends Controller
             'userId' => $user->id,
             'employeeId' => $employee->employee_id,
             'status' => $request->input('status', 'active') === 'inactive' ? 'inactive' : 'active',
+            'leadAgentId' => $leadAgent?->id,
+            'uplineId' => $leadAgent?->parent_agent_id,
         ]), 201);
     }
 
@@ -329,8 +347,20 @@ class EmployeeV2ApiController extends Controller
             $this->sendPasswordSetupEmail($user);
         }
 
+        $leadAgent = null;
         if ($request->boolean('createLeadAgent', false)) {
-            $this->ensureLeadAgentWithoutCategory($companyId, $user->id);
+            $uplineId = $request->filled('uplineId') ? (int) $request->input('uplineId') : null;
+            $existingLeadAgentId = LeadAgent::query()
+                ->where('company_id', $companyId)
+                ->where('user_id', $user->id)
+                ->whereNull('lead_category_id')
+                ->value('id');
+
+            if ($uplineId !== null && $existingLeadAgentId !== null && $uplineId === (int) $existingLeadAgentId) {
+                return response()->json(Reply::error('uplineId cannot reference the same lead agent'), 422);
+            }
+
+            $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
         }
 
         return response()->json(Reply::successWithData('Employee updated successfully', [
@@ -338,6 +368,8 @@ class EmployeeV2ApiController extends Controller
             'employeeId' => $employee->employee_id,
             'status' => $user->status === 'deactive' ? 'inactive' : 'active',
             'inactiveDate' => $this->formatYmd($user->inactive_date),
+            'leadAgentId' => $leadAgent?->id,
+            'uplineId' => $leadAgent?->parent_agent_id,
         ]));
     }
 
@@ -380,9 +412,9 @@ class EmployeeV2ApiController extends Controller
         $user->notify(new EmployeePasswordResetNotification($token, $company));
     }
 
-    private function ensureLeadAgentWithoutCategory(int $companyId, int $userId): void
+    private function ensureLeadAgentWithoutCategory(int $companyId, int $userId, ?int $uplineId = null): LeadAgent
     {
-        LeadAgent::firstOrCreate(
+        $leadAgent = LeadAgent::firstOrCreate(
             [
                 'company_id' => $companyId,
                 'user_id' => $userId,
@@ -392,8 +424,16 @@ class EmployeeV2ApiController extends Controller
                 'status' => 'enabled',
                 'added_by' => null,
                 'last_updated_by' => null,
+                'parent_agent_id' => $uplineId,
             ]
         );
+
+        if ($uplineId !== null && $leadAgent->parent_agent_id !== $uplineId) {
+            $leadAgent->parent_agent_id = $uplineId;
+            $leadAgent->save();
+        }
+
+        return $leadAgent;
     }
 
     private function formatYmd(mixed $value): ?string
