@@ -3,8 +3,6 @@
 namespace App\Http\Requests\ApiV2\Employee;
 
 use App\Http\Requests\CoreRequest;
-use App\Models\Company;
-use Carbon\Carbon;
 use Illuminate\Validation\Rule;
 
 class UpdateEmployeeV2Request extends CoreRequest

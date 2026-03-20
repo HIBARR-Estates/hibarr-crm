@@ -3,10 +3,8 @@
 namespace App\Notifications;
 
 use App\Models\Company;
-use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
 
 class EmployeePasswordResetNotification extends BaseNotification implements ShouldQueue
@@ -14,13 +12,10 @@ class EmployeePasswordResetNotification extends BaseNotification implements Shou
     use Queueable;
 
     private string $token;
-    private string $resetEmail;
 
     public function __construct(string $token, Company $company)
     {
         $this->token = $token;
-        $this->resetEmail = '';
-
         $this->company = $company;
     }
 
@@ -31,11 +26,11 @@ class EmployeePasswordResetNotification extends BaseNotification implements Shou
 
     public function toMail($notifiable): MailMessage
     {
-        $this->resetEmail = $notifiable->getEmailForPasswordReset();
+        $resetEmail = $notifiable->getEmailForPasswordReset();
 
         $url = route('password.reset', [
             'token' => $this->token,
-            'email' => $this->resetEmail,
+            'email' => $resetEmail,
         ], false);
 
         $url = getDomainSpecificUrl($url, $this->company);

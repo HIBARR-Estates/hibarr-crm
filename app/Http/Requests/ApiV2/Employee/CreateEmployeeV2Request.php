@@ -3,8 +3,6 @@
 namespace App\Http\Requests\ApiV2\Employee;
 
 use App\Http\Requests\CoreRequest;
-use App\Models\Company;
-use Carbon\Carbon;
 use Illuminate\Validation\Rule;
 
 class CreateEmployeeV2Request extends CoreRequest
@@ -28,7 +26,6 @@ class CreateEmployeeV2Request extends CoreRequest
     public function rules()
     {
         $companyId = (int) $this->input('companyId');
-        $company = $companyId ? Company::find($companyId) : null;
 
         return [
             'firstName' => 'required|string|max:50',

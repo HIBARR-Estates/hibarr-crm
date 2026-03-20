@@ -145,8 +145,6 @@ class EmployeeV2ApiController extends Controller
 
         $user = User::withoutGlobalScope(ActiveScope::class)
             ->where('company_id', $companyId)
-            // v2 rule: when fetching by id, do not return active employees
-            ->where('status', 'deactive')
             ->with(['employeeDetail.department', 'employeeDetail.designation'])
             ->findOrFail($userId);
 
@@ -252,9 +250,18 @@ class EmployeeV2ApiController extends Controller
         }
 
         if ($request->filled('firstName') || $request->filled('lastName')) {
-            $firstName = $request->input('firstName', '');
-            $lastName = $request->input('lastName', '');
-            $user->name = trim($firstName . ' ' . $lastName);
+            $nameParts = preg_split('/\s+/', trim((string) $user->name), 2);
+            $existingFirstName = $nameParts[0] ?? '';
+            $existingLastName = $nameParts[1] ?? '';
+
+            $newFirstName = $request->filled('firstName')
+                ? (string) $request->input('firstName')
+                : $existingFirstName;
+            $newLastName = $request->filled('lastName')
+                ? (string) $request->input('lastName')
+                : $existingLastName;
+
+            $user->name = trim($newFirstName . ' ' . $newLastName);
         }
 
         if ($request->filled('email')) {

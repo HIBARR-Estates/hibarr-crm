@@ -20,7 +20,6 @@ class ApiTokenAuth
         $token = $this->extractToken($request);
         $companyId = $request->header('X-COMPANY-ID');
 
-        Log::info("API Token: " . $token);
         Log::info("Company ID: " . $companyId);
 
         // Check if token is provided
@@ -45,6 +44,12 @@ class ApiTokenAuth
         $resolvedCompanyId = $this->resolveCompanyId($requestCompanyId, $tokenCompanyId);
         if (!$resolvedCompanyId) {
             // v2 fallback: allow integration calls to default to company 1
+            // when company context is not provided via headers or token.
+            if ($this->isV2Route($request)) {
+                $resolvedCompanyId = 1;
+            } else {
+                return response()->json(['message' => __('messages.unAuthorisedUser')], 401);
+            }
             // when company context is not provided via headers or token.
             if ($this->isV2Route($request)) {
                 $resolvedCompanyId = 1;
@@ -96,16 +101,16 @@ class ApiTokenAuth
     {
         return $requestCompanyId ?? $tokenCompanyId;
     }
-
-    private function hasCompanyMismatch(?int $requestCompanyId, ?int $tokenCompanyId): bool
-    {
-        return (bool) ($requestCompanyId && $tokenCompanyId && $requestCompanyId !== $tokenCompanyId);
-    }
-
     private function isV2Route(Request $request): bool
     {
         // Actual URL pattern: /api/v2/...
         $path = ltrim((string) $request->path(), '/');
         return $path === 'api/v2' || str_starts_with($path, 'api/v2/');
     }
+
+    private function hasCompanyMismatch(?int $requestCompanyId, ?int $tokenCompanyId): bool
+    {
+        return (bool) ($requestCompanyId && $tokenCompanyId && $requestCompanyId !== $tokenCompanyId);
+    }
+
 }
