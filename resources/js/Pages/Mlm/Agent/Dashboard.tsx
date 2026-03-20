@@ -52,7 +52,7 @@ interface Props extends PageProps {
 
 const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     const { data, isLoading } = useMlmAgentDashboard();
-    const stats: MlmAgentDashboardStats = (data as any) ?? initialStats;
+    const stats: MlmAgentDashboardStats = (data as any)?.data ?? initialStats;
 
     const statCards = [
         {

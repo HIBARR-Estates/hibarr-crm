@@ -53,12 +53,13 @@ const MyCommissions: React.FC<Props> = ({
 
     const records = commissions?.data ?? [];
     const totalEarned = records.reduce(
-        (sum, c) => sum + (c.status !== "reverted" ? c.amount : 0),
+        (sum, c) =>
+            Number(sum) + (c.status !== "reverted" ? Number(c.amount) : 0),
         0,
     );
     const pendingAmount = records
         .filter((c) => c.status === "pending")
-        .reduce((sum, c) => sum + c.amount, 0);
+        .reduce((sum, c) => Number(sum) + Number(c.amount), 0);
 
     const columns = [
         {
