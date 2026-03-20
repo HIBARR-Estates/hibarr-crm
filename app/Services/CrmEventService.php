@@ -70,7 +70,7 @@ class CrmEventService
         }
 
         // Check if the category is active
-        if ($eventType->relationLoaded('category') && !$eventType->category->is_active) {
+        if ($eventType->relationLoaded('category') && $eventType->category && !$eventType->category->is_active) {
             Log::debug('CrmEventService::record — Event category is inactive. Skipping.', [
                 'slug' => $params['event_type_slug'],
                 'category' => $eventType->category->slug ?? 'unknown',
