@@ -54,6 +54,7 @@ class CreateEmployeeV2Request extends CoreRequest
             'joiningDate' => 'required|date_format:Y-m-d',
 
             'status' => 'nullable|in:active,inactive',
+            'createLeadAgent' => 'nullable|boolean',
 
             // Optional: ignored. We always send "set password" email.
             'password' => 'nullable|string',

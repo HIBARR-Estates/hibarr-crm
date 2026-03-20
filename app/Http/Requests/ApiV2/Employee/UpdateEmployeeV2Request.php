@@ -69,6 +69,7 @@ class UpdateEmployeeV2Request extends CoreRequest
 
             'status' => 'nullable|in:active,inactive',
             'statusFilter' => 'nullable|in:active,inactive',
+            'createLeadAgent' => 'nullable|boolean',
 
             // ignored
             'password' => 'nullable|string',

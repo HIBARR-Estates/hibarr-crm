@@ -8,6 +8,7 @@ use App\Http\Requests\ApiV2\Employee\CreateEmployeeV2Request;
 use App\Models\EmployeeDetails;
 use App\Models\Team;
 use App\Models\Designation;
+use App\Models\LeadAgent;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Company;
@@ -189,7 +190,9 @@ class EmployeeV2ApiController extends Controller
             return response()->json(Reply::error('Employee role not found for this company'), 422);
         }
 
-        [$user, $employee] = DB::transaction(function () use ($request, $companyId, $company, $employeeRole) {
+        $createLeadAgent = $request->boolean('createLeadAgent', false);
+
+        [$user, $employee] = DB::transaction(function () use ($request, $companyId, $company, $employeeRole, $createLeadAgent) {
             $user = new User();
             $user->company_id = $companyId;
             $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
@@ -212,6 +215,10 @@ class EmployeeV2ApiController extends Controller
 
             $user->attachRole($employeeRole);
             $user->assignUserRolePermission($employeeRole->id);
+
+            if ($createLeadAgent) {
+                $this->ensureLeadAgentWithoutCategory($companyId, $user->id);
+            }
 
             return [$user, $employee];
         });
@@ -322,6 +329,10 @@ class EmployeeV2ApiController extends Controller
             $this->sendPasswordSetupEmail($user);
         }
 
+        if ($request->boolean('createLeadAgent', false)) {
+            $this->ensureLeadAgentWithoutCategory($companyId, $user->id);
+        }
+
         return response()->json(Reply::successWithData('Employee updated successfully', [
             'userId' => $user->id,
             'employeeId' => $employee->employee_id,
@@ -367,6 +378,22 @@ class EmployeeV2ApiController extends Controller
         }
 
         $user->notify(new EmployeePasswordResetNotification($token, $company));
+    }
+
+    private function ensureLeadAgentWithoutCategory(int $companyId, int $userId): void
+    {
+        LeadAgent::firstOrCreate(
+            [
+                'company_id' => $companyId,
+                'user_id' => $userId,
+                'lead_category_id' => null,
+            ],
+            [
+                'status' => 'enabled',
+                'added_by' => null,
+                'last_updated_by' => null,
+            ]
+        );
     }
 
     private function formatYmd(mixed $value): ?string
