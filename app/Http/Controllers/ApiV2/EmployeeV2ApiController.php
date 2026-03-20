@@ -145,6 +145,7 @@ class EmployeeV2ApiController extends Controller
 
         $user = User::withoutGlobalScope(ActiveScope::class)
             ->where('company_id', $companyId)
+            ->onlyEmployee()
             ->with(['employeeDetail.department', 'employeeDetail.designation'])
             ->findOrFail($userId);
 
@@ -180,35 +181,40 @@ class EmployeeV2ApiController extends Controller
             return response()->json(Reply::error('Company not found'), 404);
         }
 
-        $user = new User();
-        $user->company_id = $companyId;
-        $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
-        $user->email = $request->input('email');
-        $user->password = bcrypt(Str::random(20)); // ignored later; only used to satisfy DB schema
-        $user->locale = $request->input('locale', $company->locale ?? 'en');
-
-        $this->applyStatus($user, $company, $request->input('status', 'active'));
-
-        $user->save();
-
-        $employee = new EmployeeDetails();
-        $employee->user_id = $user->id;
-        $employee->company_id = $companyId;
-        $employee->employee_id = (string) $user->id; // ignore request employeeId
-        $employee->department_id = $request->input('departmentId');
-        $employee->designation_id = $request->input('designationId');
-        $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
-        $employee->calendar_view = 'task,events,holiday,tickets,leaves,follow_ups';
-        $employee->save();
-
         $employeeRole = Role::where('name', 'employee')
             ->where('company_id', $companyId)
             ->first();
 
-        if ($employeeRole) {
+        if (!$employeeRole) {
+            return response()->json(Reply::error('Employee role not found for this company'), 422);
+        }
+
+        [$user, $employee] = DB::transaction(function () use ($request, $companyId, $company, $employeeRole) {
+            $user = new User();
+            $user->company_id = $companyId;
+            $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
+            $user->email = $request->input('email');
+            $user->password = bcrypt(Str::random(20)); // ignored later; only used to satisfy DB schema
+            $user->locale = $request->input('locale', $company->locale ?? 'en');
+
+            $this->applyStatus($user, $company, $request->input('status', 'active'));
+            $user->save();
+
+            $employee = new EmployeeDetails();
+            $employee->user_id = $user->id;
+            $employee->company_id = $companyId;
+            $employee->employee_id = (string) $user->id; // ignore request employeeId
+            $employee->department_id = $request->input('departmentId');
+            $employee->designation_id = $request->input('designationId');
+            $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
+            $employee->calendar_view = 'task,events,holiday,tickets,leaves,follow_ups';
+            $employee->save();
+
             $user->attachRole($employeeRole);
             $user->assignUserRolePermission($employeeRole->id);
-        }
+
+            return [$user, $employee];
+        });
 
         // Only trigger password setup when `password` is provided with a non-empty value.
         // If `password` is null/empty, do not send the reset email.
@@ -236,6 +242,8 @@ class EmployeeV2ApiController extends Controller
 
         $user = User::withoutGlobalScope(ActiveScope::class)
             ->where('company_id', $companyId)
+            ->onlyEmployee()
+            ->with(['employeeDetail.department', 'employeeDetail.designation'])
             ->findOrFail($userId);
 
         $employee = EmployeeDetails::where('company_id', $companyId)
@@ -286,12 +294,7 @@ class EmployeeV2ApiController extends Controller
             $previousStatus = $user->status;
             $newStatus = strtolower(trim((string) $statusValue));
 
-            $this->applyStatus($user, $company, $newStatus);
-
-            // Spec: inactive -> active should clear the end/inactive_date.
-            if ($previousStatus === 'deactive' && $newStatus === 'active') {
-                $user->inactive_date = null;
-            }
+            $this->applyStatus($user, $company, $newStatus, $previousStatus);
         }
 
         $user->save();
@@ -327,13 +330,18 @@ class EmployeeV2ApiController extends Controller
         ]));
     }
 
-    private function applyStatus(User $user, Company $company, string $status): void
+    private function applyStatus(User $user, Company $company, string $status, ?string $previousStatus = null): void
     {
         $today = now($company->timezone)->toDateString();
+        $previousStatus = strtolower(trim((string) $previousStatus));
 
         if ($status === 'inactive') {
             $user->status = 'deactive';
-            $user->inactive_date = $today;
+
+            // Preserve original inactive_date if user is already inactive.
+            if ($previousStatus !== 'deactive') {
+                $user->inactive_date = $today;
+            }
         } else {
             $user->status = 'active';
             $user->inactive_date = null;

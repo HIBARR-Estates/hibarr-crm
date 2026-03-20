@@ -31,31 +31,33 @@ class EmployeePasswordResetNotification extends BaseNotification implements Shou
         $url = route('password.reset', [
             'token' => $this->token,
             'email' => $resetEmail,
-        ], false);
+        ], true);
 
         $url = getDomainSpecificUrl($url, $this->company);
 
-        $content = __('email.forgetPassword.content')
-            . '<br>' . __('email.forgetPassword.expire')
-            . '<br>' . __('email.forgetPassword.contentPassword');
-
-        $title = __('email.forgetPassword.subject') . ' ' . config('app.name') . '.';
-
         $build = parent::build($notifiable);
 
-        $build
-            ->subject($title)
-            ->view('mail.password-reset-notification', [
-                'url' => $url,
-                'content' => $content,
-                'actionText' => __('email.forgetPassword.actionButton'),
-                'notifiableName' => $notifiable->name ?? '',
-                'title' => $title,
-                'intro' => __('email.forgetPassword.content'),
-                'actionDescription' => __('email.forgetPassword.content'),
-            ]);
+        try {
+            $content = __('email.forgetPassword.content')
+                . '<br>' . __('email.forgetPassword.expire')
+                . '<br>' . __('email.forgetPassword.contentPassword');
 
-        parent::resetLocale();
+            $title = __('email.forgetPassword.subject') . ' ' . config('app.name') . '.';
+
+            $build
+                ->subject($title)
+                ->view('mail.password-reset-notification', [
+                    'url' => $url,
+                    'content' => $content,
+                    'actionText' => __('email.forgetPassword.actionButton'),
+                    'notifiableName' => $notifiable->name ?? '',
+                    'title' => $title,
+                    'intro' => __('email.forgetPassword.content'),
+                    'actionDescription' => __('email.forgetPassword.content'),
+                ]);
+        } finally {
+            parent::resetLocale();
+        }
 
         return $build;
     }
