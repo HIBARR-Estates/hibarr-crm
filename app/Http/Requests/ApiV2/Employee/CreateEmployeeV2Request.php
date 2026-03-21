@@ -52,13 +52,14 @@ class CreateEmployeeV2Request extends CoreRequest
             ],
 
             'joiningDate' => 'required|date_format:Y-m-d',
+            'locale' => ['nullable|optional', 'string', 'max:10', 'regex:/^[a-z]{2}(?:[_-][A-Z]{2})?$/'],
 
             'status' => 'nullable|in:active,inactive',
             'createLeadAgent' => 'nullable|boolean',
             'uplineId' => [
                 'nullable',
                 'integer',
-                Rule::exists('lead_agents', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
+                Rule::exists('lead_agents', 'id')->where(fn ($q) => $q->where('company_id', $companyId)->whereNull('lead_category_id')),
             ],
 
             // Optional: ignored. We always send "set password" email.

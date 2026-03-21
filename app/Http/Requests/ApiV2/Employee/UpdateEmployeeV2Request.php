@@ -73,7 +73,7 @@ class UpdateEmployeeV2Request extends CoreRequest
             'uplineId' => [
                 'nullable',
                 'integer',
-                Rule::exists('lead_agents', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
+                Rule::exists('lead_agents', 'id')->where(fn ($q) => $q->where('company_id', $companyId)->whereNull('lead_category_id')),
             ],
 
             // ignored

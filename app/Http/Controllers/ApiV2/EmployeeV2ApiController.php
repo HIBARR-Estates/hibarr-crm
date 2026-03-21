@@ -213,7 +213,7 @@ class EmployeeV2ApiController extends Controller
             $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
             $user->email = $request->input('email');
             $user->password = bcrypt(Str::random(20)); // ignored later; only used to satisfy DB schema
-            $user->locale = $request->input('locale', $company->locale ?? 'en');
+            $user->locale = $request->validated('locale') ?? ($company->locale ?? 'en');
 
             $this->applyStatus($user, $company, $request->input('status', 'active'));
             $user->save();
@@ -221,7 +221,8 @@ class EmployeeV2ApiController extends Controller
             $employee = new EmployeeDetails();
             $employee->user_id = $user->id;
             $employee->company_id = $companyId;
-            $employee->employee_id = (string) $user->id; // ignore request employeeId
+            $requestedEmployeeId = trim((string) $request->input('employeeId', ''));
+            $employee->employee_id = $requestedEmployeeId !== '' ? $requestedEmployeeId : (string) $user->id;
             $employee->department_id = $request->input('departmentId');
             $employee->designation_id = $request->input('designationId');
             $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
@@ -282,6 +283,17 @@ class EmployeeV2ApiController extends Controller
             $employee->calendar_view = 'task,events,holiday,tickets,leaves,follow_ups';
         }
 
+        $uplineId = $request->filled('uplineId') ? (int) $request->input('uplineId') : null;
+        $existingLeadAgentId = LeadAgent::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $user->id)
+            ->whereNull('lead_category_id')
+            ->value('id');
+
+        if ($uplineId !== null && $existingLeadAgentId !== null && $uplineId === (int) $existingLeadAgentId) {
+            return response()->json(Reply::error('uplineId cannot reference the same lead agent'), 422);
+        }
+
         if ($request->filled('firstName') || $request->filled('lastName')) {
             $nameParts = preg_split('/\s+/', trim((string) $user->name), 2);
             $existingFirstName = $nameParts[0] ?? '';
@@ -336,8 +348,16 @@ class EmployeeV2ApiController extends Controller
             $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
         }
 
-        // Always ignore request employeeId
-        $employee->employee_id = (string) $user->id;
+        if ($request->has('employeeId')) {
+            $requestedEmployeeId = trim((string) $request->input('employeeId'));
+            if ($requestedEmployeeId !== '') {
+                $employee->employee_id = $requestedEmployeeId;
+            } elseif (empty($employee->employee_id)) {
+                $employee->employee_id = (string) $user->id;
+            }
+        } elseif (empty($employee->employee_id)) {
+            $employee->employee_id = (string) $user->id;
+        }
 
         $employee->save();
 
@@ -349,18 +369,15 @@ class EmployeeV2ApiController extends Controller
 
         $leadAgent = null;
         if ($request->boolean('createLeadAgent', false)) {
-            $uplineId = $request->filled('uplineId') ? (int) $request->input('uplineId') : null;
-            $existingLeadAgentId = LeadAgent::query()
+            $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
+        }
+
+        if ($leadAgent === null) {
+            $leadAgent = LeadAgent::query()
                 ->where('company_id', $companyId)
                 ->where('user_id', $user->id)
                 ->whereNull('lead_category_id')
-                ->value('id');
-
-            if ($uplineId !== null && $existingLeadAgentId !== null && $uplineId === (int) $existingLeadAgentId) {
-                return response()->json(Reply::error('uplineId cannot reference the same lead agent'), 422);
-            }
-
-            $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
+                ->first();
         }
 
         return response()->json(Reply::successWithData('Employee updated successfully', [
