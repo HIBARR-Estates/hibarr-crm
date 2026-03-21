@@ -14,18 +14,27 @@ class LeadAgentObserver
     public function saving(LeadAgent $leadAgent)
     {
         if (!isRunningInConsoleOrSeeding()) {
-            $leadAgent->last_updated_by = user()->id;
+            $currentUserId = auth()->id();
+            if ($currentUserId) {
+                $leadAgent->last_updated_by = $currentUserId;
+            }
         }
     }
 
     public function creating(LeadAgent $leadAgent)
     {
         if (!isRunningInConsoleOrSeeding()) {
-            $leadAgent->added_by = user()->id;
+            $currentUserId = auth()->id();
+            if ($currentUserId) {
+                $leadAgent->added_by = $currentUserId;
+            }
         }
 
-        if (company()) {
-            $leadAgent->company_id = company()->id;
+        if (empty($leadAgent->company_id)) {
+            $currentUser = auth()->user();
+            if ($currentUser && !empty($currentUser->company_id)) {
+                $leadAgent->company_id = $currentUser->company_id;
+            }
         }
     }
 
