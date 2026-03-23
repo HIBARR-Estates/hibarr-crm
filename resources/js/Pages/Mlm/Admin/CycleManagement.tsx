@@ -127,7 +127,7 @@ const CycleFormModal: React.FC<{
                 >
                     <DatePicker className="w-full" />
                 </Form.Item>
-
+                {/* 
                 <Form.Item
                     label="Overflow Multiplier"
                     name="max_overflow_multiplier"
@@ -140,7 +140,7 @@ const CycleFormModal: React.FC<{
                         step={0.1}
                         className="w-full"
                     />
-                </Form.Item>
+                </Form.Item> */}
             </Form>
         </Modal>
     );
@@ -391,12 +391,12 @@ const CycleManagement: React.FC<Props> = () => {
                     <span className="text-gray-400">—</span>
                 ),
         },
-        {
-            title: "Overflow ×",
-            dataIndex: "max_overflow_multiplier",
-            key: "overflow",
-            render: (v: number) => `${Number(v).toFixed(1)}×`,
-        },
+        // {
+        //     title: "Overflow ×",
+        //     dataIndex: "max_overflow_multiplier",
+        //     key: "overflow",
+        //     render: (v: number) => `${Number(v).toFixed(1)}×`,
+        // },
         {
             title: "Status",
             dataIndex: "status",
