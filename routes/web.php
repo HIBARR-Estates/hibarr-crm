@@ -1254,6 +1254,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::put('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'updateCycle'])->name('cycles.update');
             Route::delete('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'deleteCycle'])->name('cycles.destroy');
             Route::post('cycles/{cycleId}/enrollments/{enrollmentId}/force-complete', [App\Http\Controllers\MlmAdminApiController::class, 'forceCompleteEnrollment'])->name('cycles.force_complete_enrollment');
+            Route::post('cycles/{id}/resnapshot', [App\Http\Controllers\MlmAdminApiController::class, 'resnapshot'])->name('cycles.resnapshot');
         });
     });
 
