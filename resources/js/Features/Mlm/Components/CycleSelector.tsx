@@ -58,7 +58,7 @@ const CycleSelector: React.FC<Props> = ({
         return (
             <div className="flex items-center gap-2 text-sm">
                 <CalendarDays size={14} className="text-indigo-500" />
-                <span className="font-medium">Cycle #{cycle.cycle_number}</span>
+                <span className="font-medium">{cycle.name}</span>
                 <span className="text-gray-500">
                     ({startLabel} – {endLabel})
                 </span>
@@ -72,7 +72,7 @@ const CycleSelector: React.FC<Props> = ({
         { value: 0, label: "All Time" },
         ...cycles.map((c: any) => ({
             value: c.id,
-            label: `Cycle #${c.cycle_number} (${new Date(c.start_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${new Date(c.end_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })})`,
+            label: `${c.name} (${new Date(c.start_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${new Date(c.end_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })})`,
         })),
     ];
 

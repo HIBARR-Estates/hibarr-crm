@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Modal, message, Button, Skeleton } from "antd";
+import { Modal, message, Button, Skeleton, Alert } from "antd";
+import { LockOutlined } from "@ant-design/icons";
 import StepOne from "./StepOne";
 import CustomFieldStep from "./CustomFieldStep";
 import ModernSteps from "./ModernSteps";
@@ -204,6 +205,22 @@ const DealInformationGatheringForm: React.FC<Props> = ({
 
     const renderContent = () => {
         let content = null;
+
+        // Prevent editing locked deals
+        if (isEditMode && editDeal?.is_locked) {
+            content = (
+                <div className="py-12 px-4">
+                    <Alert
+                        message="Deal Locked"
+                        description="This deal is locked and cannot be modified."
+                        type="warning"
+                        showIcon
+                        icon={<LockOutlined />}
+                    />
+                </div>
+            );
+            return <div className="min-h-[300px]">{content}</div>;
+        }
 
         // Show loading state during auto-initialization
         if (autoInitializing) {

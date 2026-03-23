@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import {
     Card,
     Form,
+    Input,
     InputNumber,
     DatePicker,
     Button,
@@ -60,7 +61,7 @@ const CycleFormModal: React.FC<{
 
     const isEdit = !!editingCycle;
     const title = isEdit
-        ? `Edit Cycle #${editingCycle!.cycle_number}`
+        ? `Edit Cycle: ${editingCycle!.name}`
         : "Create New Cycle";
 
     const handleSuccess = () => {
@@ -76,6 +77,7 @@ const CycleFormModal: React.FC<{
         if (open) {
             if (editingCycle) {
                 form.setFieldsValue({
+                    name: editingCycle.name,
                     start_date: dayjs(editingCycle.start_date),
                     end_date: dayjs(editingCycle.end_date),
                     max_overflow_multiplier:
@@ -94,6 +96,7 @@ const CycleFormModal: React.FC<{
         try {
             const values = await form.validateFields();
             const payload: MlmCycleFormData = {
+                name: values.name,
                 start_date: values.start_date.format("YYYY-MM-DD"),
                 end_date: values.end_date.format("YYYY-MM-DD"),
                 max_overflow_multiplier: values.max_overflow_multiplier,
@@ -120,6 +123,17 @@ const CycleFormModal: React.FC<{
             destroyOnClose
         >
             <Form form={form} layout="vertical" className="mt-4">
+                <Form.Item
+                    label="Cycle Name"
+                    name="name"
+                    rules={[
+                        { required: true, message: "Required" },
+                        { max: 100, message: "Max 100 characters" },
+                    ]}
+                >
+                    <Input placeholder="e.g. Q1 2026" />
+                </Form.Item>
+
                 <Form.Item
                     label="Start Date"
                     name="start_date"
@@ -394,6 +408,12 @@ const CycleManagement: React.FC<Props> = () => {
             dataIndex: "cycle_number",
             key: "cycle_number",
             width: 60,
+        },
+        {
+            title: "Name",
+            dataIndex: "name",
+            key: "name",
+            render: (v: string) => <span className="font-medium">{v}</span>,
         },
         {
             title: "Start",

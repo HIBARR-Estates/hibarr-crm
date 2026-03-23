@@ -240,11 +240,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                 className="text-indigo-500"
                                             />
                                             <span className="font-semibold text-sm">
-                                                Cycle #
-                                                {
-                                                    cycleSummary.cycle
-                                                        .cycle_number
-                                                }
+                                                {cycleSummary.cycle.name}
                                             </span>
                                             <CycleStatusBadge
                                                 status={
