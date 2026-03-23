@@ -168,6 +168,10 @@ class DealGrpcService implements DealServiceInterface
                 throw new GRPCException("Deal not found with ID: {$id}", StatusCode::NOT_FOUND);
             }
 
+            if ($deal->isLocked()) {
+                throw new GRPCException('This deal is locked and cannot be deleted', StatusCode::FAILED_PRECONDITION);
+            }
+
             $deal->delete();
 
             return new PBEmpty();

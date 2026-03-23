@@ -16,6 +16,7 @@ class AgentLevelHistory extends BaseModel
         'company_id',
         'agent_id',
         'level_id',
+        'cycle_level_snapshot_id',
         'assigned_at',
         'assigned_by',
         'system_assigned',
@@ -47,5 +48,10 @@ class AgentLevelHistory extends BaseModel
     public function triggerDeal(): BelongsTo
     {
         return $this->belongsTo(Deal::class, 'trigger_deal_id');
+    }
+
+    public function cycleLevelSnapshot(): BelongsTo
+    {
+        return $this->belongsTo(MlmCycleLevelSnapshot::class, 'cycle_level_snapshot_id');
     }
 }

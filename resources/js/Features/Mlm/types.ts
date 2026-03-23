@@ -196,6 +196,8 @@ export interface AgentHierarchyNode {
     vsa?: number;
     vsd?: number;
     joined_date?: string;
+    is_self?: boolean;
+    is_upline?: boolean;
     children?: AgentHierarchyNode[];
 }
 
@@ -320,6 +322,7 @@ export interface MlmSettings {
 export interface MlmCycle {
     id: number;
     cycle_number: number;
+    name: string;
     start_date: string;
     end_date: string;
     status: CycleStatus;
@@ -330,6 +333,7 @@ export interface MlmCycle {
 }
 
 export interface MlmCycleFormData {
+    name: string;
     start_date: string;
     end_date: string;
     max_overflow_multiplier?: number;

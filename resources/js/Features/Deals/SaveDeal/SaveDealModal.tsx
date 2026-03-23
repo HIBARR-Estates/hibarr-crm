@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
-import { Drawer, message, Form } from "antd";
+import { Drawer, message, Form, Alert } from "antd";
+import { LockOutlined } from "@ant-design/icons";
 import { Deal, CreateDealFormData } from "@/Types/api/deals";
 import { IModalProps } from "@/Types/common";
 import { useApiMutate } from "@/lib/api/client";
@@ -45,6 +46,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
 
     // Determine if we're editing or creating
     const isEditing = !!deal;
+    const isLocked = isEditing && !!deal?.is_locked;
     const submitText = isEditing ? "Update Deal" : "Create Deal";
 
     // Initialize form data - value as { amount, currency } so CurrencyInput can show and persist currency from DB
@@ -143,24 +145,35 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
             onClose={handleCancel}
             destroyOnHidden
         >
-            <DealForm
-                data={formData || undefined}
-                disableFields={disableFields}
-                visible={open}
-                onCancel={handleCancel}
-                onSubmit={handleSubmit}
-                submitText={submitText}
-                cancelText={"Cancel"}
-                errors={errors}
-                setErrors={(newErrors) => {
-                    if (Array.isArray(newErrors)) {
-                        setErrors(newErrors);
-                    }
-                }}
-                onErrorsClear={handleErrorsClear}
-                setDeal={setDeal}
-                loading={isLoading}
-            />
+            {isLocked ? (
+                <Alert
+                    message="Deal Locked"
+                    description="This deal is locked and cannot be modified."
+                    type="warning"
+                    showIcon
+                    icon={<LockOutlined />}
+                    className="m-4"
+                />
+            ) : (
+                <DealForm
+                    data={formData || undefined}
+                    disableFields={disableFields}
+                    visible={open}
+                    onCancel={handleCancel}
+                    onSubmit={handleSubmit}
+                    submitText={submitText}
+                    cancelText={"Cancel"}
+                    errors={errors}
+                    setErrors={(newErrors) => {
+                        if (Array.isArray(newErrors)) {
+                            setErrors(newErrors);
+                        }
+                    }}
+                    onErrorsClear={handleErrorsClear}
+                    setDeal={setDeal}
+                    loading={isLoading}
+                />
+            )}
         </Drawer>
     );
 };

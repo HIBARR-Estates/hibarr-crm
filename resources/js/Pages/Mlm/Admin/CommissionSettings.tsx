@@ -212,7 +212,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                 )}
                                             </Row>
 
-                                            <Form.Item
+                                            {/* <Form.Item
                                                 label="Default Overflow Multiplier"
                                                 name="default_overflow_multiplier"
                                                 tooltip="Applied to newly auto-generated cycles. Agents can overflow for (cycle_days × this) extra days."
@@ -223,7 +223,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                     step={0.1}
                                                     className="w-full"
                                                 />
-                                            </Form.Item>
+                                            </Form.Item> */}
 
                                             <Divider />
 

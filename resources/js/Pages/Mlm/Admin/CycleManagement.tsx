@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import {
     Card,
     Form,
+    Input,
     InputNumber,
     DatePicker,
     Button,
@@ -13,7 +14,14 @@ import {
     Modal,
 } from "antd";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, CalendarDays, XCircle } from "lucide-react";
+import {
+    Plus,
+    Pencil,
+    Trash2,
+    CalendarDays,
+    XCircle,
+    RefreshCw,
+} from "lucide-react";
 import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -24,6 +32,7 @@ import {
     useUpdateCycle,
     useDeleteCycle,
     useForceCompleteEnrollment,
+    useResnapshot,
     useMlmSettings,
 } from "@/Features/Mlm/api";
 import {
@@ -52,7 +61,7 @@ const CycleFormModal: React.FC<{
 
     const isEdit = !!editingCycle;
     const title = isEdit
-        ? `Edit Cycle #${editingCycle!.cycle_number}`
+        ? `Edit Cycle: ${editingCycle!.name}`
         : "Create New Cycle";
 
     const handleSuccess = () => {
@@ -68,6 +77,7 @@ const CycleFormModal: React.FC<{
         if (open) {
             if (editingCycle) {
                 form.setFieldsValue({
+                    name: editingCycle.name,
                     start_date: dayjs(editingCycle.start_date),
                     end_date: dayjs(editingCycle.end_date),
                     max_overflow_multiplier:
@@ -86,6 +96,7 @@ const CycleFormModal: React.FC<{
         try {
             const values = await form.validateFields();
             const payload: MlmCycleFormData = {
+                name: values.name,
                 start_date: values.start_date.format("YYYY-MM-DD"),
                 end_date: values.end_date.format("YYYY-MM-DD"),
                 max_overflow_multiplier: values.max_overflow_multiplier,
@@ -113,6 +124,17 @@ const CycleFormModal: React.FC<{
         >
             <Form form={form} layout="vertical" className="mt-4">
                 <Form.Item
+                    label="Cycle Name"
+                    name="name"
+                    rules={[
+                        { required: true, message: "Required" },
+                        { max: 100, message: "Max 100 characters" },
+                    ]}
+                >
+                    <Input placeholder="e.g. Q1 2026" />
+                </Form.Item>
+
+                <Form.Item
                     label="Start Date"
                     name="start_date"
                     rules={[{ required: true, message: "Required" }]}
@@ -127,7 +149,7 @@ const CycleFormModal: React.FC<{
                 >
                     <DatePicker className="w-full" />
                 </Form.Item>
-
+                {/* 
                 <Form.Item
                     label="Overflow Multiplier"
                     name="max_overflow_multiplier"
@@ -140,7 +162,7 @@ const CycleFormModal: React.FC<{
                         step={0.1}
                         className="w-full"
                     />
-                </Form.Item>
+                </Form.Item> */}
             </Form>
         </Modal>
     );
@@ -198,6 +220,33 @@ const DeleteCycleButton: React.FC<{
                 danger
                 icon={<Trash2 size={14} />}
                 loading={mutation.isPending}
+            />
+        </Popconfirm>
+    );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Resnapshot Button (active cycles — emergency correction)           */
+/* ------------------------------------------------------------------ */
+const ResnapshotButton: React.FC<{
+    cycleId: number;
+    onCompleted: () => void;
+}> = ({ cycleId, onCompleted }) => {
+    const mutation = useResnapshot(cycleId, onCompleted);
+
+    return (
+        <Popconfirm
+            title="Re-snapshot levels for this cycle?"
+            description="This will update the frozen level rules used for commission calculations. Already-calculated commissions are not affected."
+            onConfirm={() => mutation.mutate({})}
+            okText="Re-snapshot"
+        >
+            <Button
+                size="small"
+                type="text"
+                icon={<RefreshCw size={14} />}
+                loading={mutation.isPending}
+                title="Re-snapshot levels"
             />
         </Popconfirm>
     );
@@ -361,6 +410,12 @@ const CycleManagement: React.FC<Props> = () => {
             width: 60,
         },
         {
+            title: "Name",
+            dataIndex: "name",
+            key: "name",
+            render: (v: string) => <span className="font-medium">{v}</span>,
+        },
+        {
             title: "Start",
             dataIndex: "start_date",
             key: "start_date",
@@ -391,12 +446,12 @@ const CycleManagement: React.FC<Props> = () => {
                     <span className="text-gray-400">—</span>
                 ),
         },
-        {
-            title: "Overflow ×",
-            dataIndex: "max_overflow_multiplier",
-            key: "overflow",
-            render: (v: number) => `${Number(v).toFixed(1)}×`,
-        },
+        // {
+        //     title: "Overflow ×",
+        //     dataIndex: "max_overflow_multiplier",
+        //     key: "overflow",
+        //     render: (v: number) => `${Number(v).toFixed(1)}×`,
+        // },
         {
             title: "Status",
             dataIndex: "status",
@@ -415,6 +470,7 @@ const CycleManagement: React.FC<Props> = () => {
             width: 120,
             render: (_: any, record: MlmCycle) => {
                 const isUpcoming = record.status === "upcoming";
+                const isActive = record.status === "active";
                 const hasEnrollments = (record.enrollments_count ?? 0) > 0;
 
                 return (
@@ -431,6 +487,12 @@ const CycleManagement: React.FC<Props> = () => {
                             <DeleteCycleButton
                                 cycleId={record.id}
                                 onDeleted={() => refetch()}
+                            />
+                        )}
+                        {isActive && (
+                            <ResnapshotButton
+                                cycleId={record.id}
+                                onCompleted={() => refetch()}
                             />
                         )}
                     </div>

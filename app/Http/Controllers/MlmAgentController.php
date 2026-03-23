@@ -215,6 +215,7 @@ class MlmAgentController extends AccountBaseController
             ] : null,
             'active_cycle' => $activeCycle ? [
                 'cycle_number' => $activeCycle->cycle_number,
+                'name' => $activeCycle->name,
                 'start_date' => $activeCycle->start_date->format('Y-m-d'),
                 'end_date' => $activeCycle->end_date->format('Y-m-d'),
                 'days_remaining' => max(0, (int) now()->startOfDay()->diffInDays($activeCycle->end_date, false)),
@@ -301,6 +302,21 @@ class MlmAgentController extends AccountBaseController
         }
 
         $tree = $this->buildNetworkNode($agent, 0, 5);
+        $tree['is_self'] = true;
+
+        // Include direct upline as the root if one exists
+        if ($agent->parent_agent_id) {
+            $parent = LeadAgent::where('id', $agent->parent_agent_id)
+                ->with(['user:id,name,email,image', 'currentLevelHistory.level', 'metrics'])
+                ->first();
+
+            if ($parent) {
+                $parentNode = $this->buildNetworkNode($parent, 0, 0);
+                $parentNode['is_upline'] = true;
+                $parentNode['children'] = [$tree];
+                $tree = $parentNode;
+            }
+        }
 
         return response()->json(['status' => 'success', 'data' => $tree]);
     }
@@ -470,6 +486,7 @@ class MlmAgentController extends AccountBaseController
                 ] : null,
                 'active_cycle' => $activeCycle ? [
                     'cycle_number' => $activeCycle->cycle_number,
+                    'name' => $activeCycle->name,
                     'end_date' => $activeCycle->end_date->format('Y-m-d'),
                     'days_remaining' => max(0, (int) now()->startOfDay()->diffInDays($activeCycle->end_date, false)),
                 ] : null,
