@@ -37,14 +37,36 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
         setDrawerOpen(true);
     };
 
-    const countNodes = (node: AgentHierarchyNode | null): number => {
+    /** Find the "self" node in the tree (may be root or child of upline). */
+    const findSelf = (
+        node: AgentHierarchyNode | null,
+    ): AgentHierarchyNode | null => {
+        if (!node) return null;
+        if (node.is_self) return node;
+        for (const c of node.children ?? []) {
+            const found = findSelf(c);
+            if (found) return found;
+        }
+        return null;
+    };
+
+    /** Count only downline nodes (excludes upline and self). */
+    const countDownlines = (node: AgentHierarchyNode | null): number => {
         if (!node) return 0;
+        if (node.is_upline || node.is_self) {
+            return (
+                node.children?.reduce((sum, c) => sum + countDownlines(c), 0) ??
+                0
+            );
+        }
         return (
-            1 + (node.children?.reduce((sum, c) => sum + countNodes(c), 0) ?? 0)
+            1 +
+            (node.children?.reduce((sum, c) => sum + countDownlines(c), 0) ?? 0)
         );
     };
 
-    const totalNodes = network ? countNodes(network) - 1 : 0; // exclude root (self)
+    const selfNode = findSelf(network);
+    const totalNodes = countDownlines(network);
 
     return (
         <DashboardLayout>
@@ -74,11 +96,11 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                         Total Downlines:{" "}
                                         <strong>{totalNodes}</strong>
                                     </span>
-                                    {network && (
+                                    {selfNode && (
                                         <span className="text-sm text-gray-600">
                                             Direct:{" "}
                                             <strong>
-                                                {network.children?.length ?? 0}
+                                                {selfNode.children?.length ?? 0}
                                             </strong>
                                         </span>
                                     )}

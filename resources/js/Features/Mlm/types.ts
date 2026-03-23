@@ -196,6 +196,8 @@ export interface AgentHierarchyNode {
     vsa?: number;
     vsd?: number;
     joined_date?: string;
+    is_self?: boolean;
+    is_upline?: boolean;
     children?: AgentHierarchyNode[];
 }
 

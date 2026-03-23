@@ -301,6 +301,21 @@ class MlmAgentController extends AccountBaseController
         }
 
         $tree = $this->buildNetworkNode($agent, 0, 5);
+        $tree['is_self'] = true;
+
+        // Include direct upline as the root if one exists
+        if ($agent->parent_agent_id) {
+            $parent = LeadAgent::where('id', $agent->parent_agent_id)
+                ->with(['user:id,name,email,image', 'currentLevelHistory.level', 'metrics'])
+                ->first();
+
+            if ($parent) {
+                $parentNode = $this->buildNetworkNode($parent, 0, 0);
+                $parentNode['is_upline'] = true;
+                $parentNode['children'] = [$tree];
+                $tree = $parentNode;
+            }
+        }
 
         return response()->json(['status' => 'success', 'data' => $tree]);
     }

@@ -47,6 +47,12 @@ const renderCustomNode = ({
           } as any)
         : null;
 
+    const borderClass = raw.is_upline
+        ? "border-amber-300 bg-amber-50"
+        : raw.is_self
+          ? "border-indigo-300 bg-indigo-50"
+          : "border-gray-100 bg-white";
+
     return (
         <g>
             <foreignObject
@@ -57,7 +63,7 @@ const renderCustomNode = ({
                 style={{ overflow: "visible" }}
             >
                 <div
-                    className="bg-white rounded-xl shadow-md border border-gray-100 p-3 cursor-pointer hover:shadow-lg transition-shadow duration-200 text-center"
+                    className={`rounded-xl shadow-md border p-3 cursor-pointer hover:shadow-lg transition-shadow duration-200 text-center ${borderClass}`}
                     onClick={() => onNodeClick?.(raw)}
                     style={{ width: 200 }}
                 >
@@ -71,6 +77,16 @@ const renderCustomNode = ({
                         <div className="flex-1 text-left min-w-0">
                             <div className="text-sm font-semibold text-gray-800 truncate">
                                 {raw.name}
+                                {raw.is_upline && (
+                                    <span className="ml-1 text-xs font-normal text-amber-600">
+                                        (Upline)
+                                    </span>
+                                )}
+                                {raw.is_self && (
+                                    <span className="ml-1 text-xs font-normal text-indigo-600">
+                                        (You)
+                                    </span>
+                                )}
                             </div>
                             {raw.email && (
                                 <div className="text-xs text-gray-400 truncate">
