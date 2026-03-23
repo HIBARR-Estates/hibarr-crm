@@ -23,6 +23,7 @@ class MlmCycle extends BaseModel
         'end_date',
         'status',
         'max_overflow_multiplier',
+        'max_commission_snapshot',
     ];
 
     protected $casts = [
@@ -31,6 +32,7 @@ class MlmCycle extends BaseModel
         'end_date' => 'date',
         'status' => CycleStatus::class,
         'max_overflow_multiplier' => 'decimal:2',
+        'max_commission_snapshot' => 'decimal:2',
     ];
 
     protected $appends = [
@@ -48,6 +50,11 @@ class MlmCycle extends BaseModel
     public function enrollments(): HasMany
     {
         return $this->hasMany(AgentCycleEnrollment::class, 'cycle_id');
+    }
+
+    public function levelSnapshots(): HasMany
+    {
+        return $this->hasMany(MlmCycleLevelSnapshot::class, 'cycle_id');
     }
 
     // ── Scopes ───────────────────────────────────────────────────
@@ -122,5 +129,26 @@ class MlmCycle extends BaseModel
     public function getMaxOverflowDaysAttribute(): int
     {
         return (int) round($this->duration_days * (float) $this->max_overflow_multiplier);
+    }
+
+    /**
+     * Whether this cycle has level snapshots taken.
+     */
+    public function hasSnapshots(): bool
+    {
+        return $this->levelSnapshots()->exists();
+    }
+
+    /**
+     * Get the effective max commission percentage.
+     * Uses the snapshot value if available, otherwise falls back to live settings.
+     */
+    public function getEffectiveMaxCommissionAttribute(): float
+    {
+        if ($this->max_commission_snapshot !== null) {
+            return (float) $this->max_commission_snapshot;
+        }
+
+        return (float) MlmSetting::forCompany($this->company_id)->max_commission_percentage;
     }
 }

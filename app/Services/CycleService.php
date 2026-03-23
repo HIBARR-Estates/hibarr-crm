@@ -17,6 +17,13 @@ use Illuminate\Support\Facades\Log;
 
 class CycleService
 {
+    protected CycleLevelSnapshotService $snapshotService;
+
+    public function __construct(CycleLevelSnapshotService $snapshotService)
+    {
+        $this->snapshotService = $snapshotService;
+    }
+
     /**
      * Get or create the currently active cycle for a company.
      * If no active cycle exists but auto_generate is enabled, generates one.
@@ -42,6 +49,7 @@ class CycleService
 
         if ($upcomingNowActive) {
             $upcomingNowActive->update(['status' => CycleStatus::Active]);
+            $this->snapshotService->snapshotForCycle($upcomingNowActive);
             return $upcomingNowActive;
         }
 
@@ -95,7 +103,12 @@ class CycleService
             'max_overflow_multiplier' => $settings->default_overflow_multiplier,
         ]);
 
-        Log::info("CycleService: Generated cycle #{$nextNumber} for company {$companyId} ({$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')})");
+        // If the cycle is immediately active, snapshot levels
+        if ($status === CycleStatus::Active) {
+            $this->snapshotService->snapshotForCycle($cycle);
+        }
+
+        Log::info("CycleService: Generated cycle #{$nextNumber} for company {$companyId} ({$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')})");;
 
         return $cycle;
     }
@@ -255,12 +268,17 @@ class CycleService
         $stats = ['cycles_activated' => 0, 'cycles_completed' => 0, 'enrollments_extended' => 0, 'enrollments_force_completed' => 0, 'enrollments_auto_enrolled' => 0];
 
         // 1. Activate upcoming cycles where start_date <= today
-        $activatedCount = MlmCycle::where('company_id', $companyId)
+        $cyclesToActivate = MlmCycle::where('company_id', $companyId)
             ->where('status', CycleStatus::Upcoming)
             ->where('start_date', '<=', $today)
-            ->update(['status' => CycleStatus::Active]);
+            ->get();
 
-        $stats['cycles_activated'] = $activatedCount;
+        foreach ($cyclesToActivate as $cycle) {
+            $cycle->update(['status' => CycleStatus::Active]);
+            $this->snapshotService->snapshotForCycle($cycle);
+        }
+
+        $stats['cycles_activated'] = $cyclesToActivate->count();
 
         // 2. Complete active cycles where end_date < today
         $completedCycleIds = MlmCycle::where('company_id', $companyId)

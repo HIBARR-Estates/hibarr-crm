@@ -6,6 +6,7 @@ use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Enums\MlmMetric;
 use App\Enums\CycleDurationType;
+use App\Enums\CycleStatus;
 use App\Models\AgentCycleEnrollment;
 use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
@@ -17,6 +18,7 @@ use App\Models\MlmSetting;
 use App\Models\MlmLevel;
 use App\Models\MlmLevelCriterion;
 use App\Services\CycleService;
+use App\Services\CycleLevelSnapshotService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\MlmCommissionService;
@@ -31,18 +33,21 @@ class MlmAdminApiController extends AccountBaseController
     protected LevelService $levelService;
     protected MlmCommissionService $commissionService;
     protected CycleService $cycleService;
+    protected CycleLevelSnapshotService $snapshotService;
 
     public function __construct(
         HierarchyService $hierarchyService,
         LevelService $levelService,
         MlmCommissionService $commissionService,
-        CycleService $cycleService
+        CycleService $cycleService,
+        CycleLevelSnapshotService $snapshotService
     ) {
         parent::__construct();
         $this->hierarchyService = $hierarchyService;
         $this->levelService = $levelService;
         $this->commissionService = $commissionService;
         $this->cycleService = $cycleService;
+        $this->snapshotService = $snapshotService;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -127,7 +132,15 @@ class MlmAdminApiController extends AccountBaseController
             ->with('criteria')
             ->get();
 
-        return response()->json(['status' => 'success', 'data' => $levels]);
+        $hasActiveCycle = MlmCycle::where('company_id', company()->id)
+            ->active()
+            ->exists();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $levels,
+            'has_active_cycle' => $hasActiveCycle,
+        ]);
     }
 
     public function getLevel(int $id): JsonResponse
@@ -136,7 +149,15 @@ class MlmAdminApiController extends AccountBaseController
             ->with('criteria')
             ->findOrFail($id);
 
-        return response()->json(['status' => 'success', 'data' => $level]);
+        $hasActiveCycle = MlmCycle::where('company_id', company()->id)
+            ->active()
+            ->exists();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $level,
+            'has_active_cycle' => $hasActiveCycle,
+        ]);
     }
 
     public function storeLevel(Request $request): JsonResponse
@@ -1002,6 +1023,28 @@ class MlmAdminApiController extends AccountBaseController
         return response()->json([
             'status' => 'success',
             'message' => 'Enrollment force-completed. Agent has been re-enrolled in the current cycle.',
+        ]);
+    }
+
+    /**
+     * Re-snapshot levels for an active cycle (emergency correction).
+     */
+    public function resnapshot(int $cycleId): JsonResponse
+    {
+        $cycle = MlmCycle::where('company_id', company()->id)->findOrFail($cycleId);
+
+        if ($cycle->status !== CycleStatus::Active) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Only active cycles can be re-snapshotted.',
+            ], 422);
+        }
+
+        $this->snapshotService->reSnapshot($cycle);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Levels have been re-snapshotted for this cycle. New commissions will use the updated rules.',
         ]);
     }
 }
