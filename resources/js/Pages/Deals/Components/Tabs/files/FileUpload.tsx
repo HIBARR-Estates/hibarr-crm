@@ -120,7 +120,7 @@ const FileUpload: React.FC<Props> = ({
             saveMutation.mutate({
                 deal_id: deal.id,
                 files: results.map((r) => ({
-                    downloadUrl: r.downloadUrl,
+                    downloadUrl: encodeURI(r.downloadUrl),
                     objectPath: r.objectPath,
                     originalName: r.originalName,
                     size: 0, // Size not returned by external API — fine for now
