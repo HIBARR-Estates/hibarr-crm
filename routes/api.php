@@ -77,9 +77,20 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('properties/filters/locations', ['as' => 'api.properties.filters.location', 'uses' => 'Api\PropertyApiController@getLocation']);
 
 
-
     });
 
+});
+
+// v2 compatibility routes (mount at /api/v2/)
+Route::middleware(['api.token'])->prefix('v2')->group(function () {
+    Route::post('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@createEmployee', 'as' => 'api.v2.employees.create.compat']);
+    Route::get('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@listEmployees', 'as' => 'api.v2.employees.list.compat']);
+    Route::get('employees/departments', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@listDepartments', 'as' => 'api.v2.employees.departments.compat']);
+    Route::get('employees/designations', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@listDesignations', 'as' => 'api.v2.employees.designations.compat']);
+    Route::get('employees/{userId}', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@getEmployee', 'as' => 'api.v2.employees.get.compat'])
+        ->whereNumber('userId');
+    Route::match(['put', 'patch'], 'employees/{userId}', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@updateEmployee', 'as' => 'api.v2.employees.update.compat'])
+        ->whereNumber('userId');
 });
 
 // API Routes for external applications
