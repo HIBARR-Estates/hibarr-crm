@@ -44,6 +44,14 @@ class DealGatheringController extends AccountBaseController
             ? Deal::findOrFail($request->deal_id) 
             : null;
 
+        // Prevent modifications to locked deals
+        if ($existingDeal && $existingDeal->isLocked()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
         // Get or create the lead
         if ($request->filled('lead_id')) {
             // Using an existing lead (either same or different from current)
@@ -128,7 +136,14 @@ class DealGatheringController extends AccountBaseController
     public function updateStep(Request $request, $id)
     {
         $deal = Deal::findOrFail($id);
-        
+
+        if ($deal->isLocked()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
         // This relies on CustomFieldsTrait
         if ($request->has('custom_fields_data')) {
             $deal->updateCustomFieldData($request->input('custom_fields_data'));
@@ -174,6 +189,13 @@ class DealGatheringController extends AccountBaseController
             ]);
 
             $deal = Deal::findOrFail($id);
+
+            if ($deal->isLocked()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('messages.dealLocked'),
+                ], 403);
+            }
 
             // Process data to handle file uploads
             $data = [];

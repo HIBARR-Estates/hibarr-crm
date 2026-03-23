@@ -15,6 +15,11 @@ import type {
     MlmAgentDashboardStats,
     MlmSettings,
     PaginatedResponse,
+    MlmCycle,
+    MlmCycleFormData,
+    ActiveCycleSummary,
+    AgentCycleEnrollment,
+    MyEnrollmentData,
 } from "./types";
 import { ApiResponse } from "@/lib/api/types";
 
@@ -34,13 +39,13 @@ export const useMlmAdminDashboard = () =>
 
 /** All MLM levels with criteria */
 export const useMlmLevels = () =>
-    useApiQuery<{ data: MlmLevel[] }>({
+    useApiQuery<{ data: MlmLevel[]; has_active_cycle: boolean }>({
         path: `${ADMIN_API}/levels`,
     });
 
 /** Single level with criteria */
 export const useMlmLevel = (id: number) =>
-    useApiQuery<{ data: MlmLevel }>({
+    useApiQuery<{ data: MlmLevel; has_active_cycle: boolean }>({
         path: `${ADMIN_API}/levels/${id}`,
         options: { enabled: id > 0 },
     });
@@ -105,6 +110,37 @@ export const useCommissionSimulation = (
             enabled:
                 Number(params.deal_value) > 0 && Number(params.agent_id) > 0,
         },
+    });
+
+// ══════════════════════════════════════════════════════════════════
+// ADMIN CYCLE QUERIES
+// ══════════════════════════════════════════════════════════════════
+
+/** Active cycle summary */
+export const useActiveCycle = () =>
+    useApiQuery<{ data: ActiveCycleSummary }>({
+        path: `${ADMIN_API}/cycles/active`,
+    });
+
+/** Paginated cycles list */
+export const useMlmCycles = (
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<MlmCycle>>({
+        path: `${ADMIN_API}/cycles`,
+        params,
+    });
+
+/** Cycle detail with enrollments */
+export const useMlmCycleDetail = (id: number) =>
+    useApiQuery<{
+        data: {
+            cycle: MlmCycle;
+            enrollments: AgentCycleEnrollment[];
+        };
+    }>({
+        path: `${ADMIN_API}/cycles/${id}`,
+        options: { enabled: id > 0 },
     });
 
 // ══════════════════════════════════════════════════════════════════
@@ -236,6 +272,53 @@ export const useRemoveHierarchy = (
         onSuccess,
     );
 
+/** Update cycle configuration */
+export const useCreateCycle = (onSuccess?: (res?: any) => void) =>
+    useApiMutate<MlmCycleFormData, MlmCycle, ApiResponse<MlmCycle>>(
+        `${ADMIN_API}/cycles`,
+        "POST",
+        onSuccess,
+    );
+
+/** Update an existing cycle (upcoming only) */
+export const useUpdateCycle = (id: number, onSuccess?: (res?: any) => void) =>
+    useApiMutate<Partial<MlmCycleFormData>, MlmCycle, ApiResponse<MlmCycle>>(
+        `${ADMIN_API}/cycles/${id}`,
+        "PUT",
+        onSuccess,
+    );
+
+/** Delete a cycle (upcoming + zero enrollments only) */
+export const useDeleteCycle = (id: number, onSuccess?: (res?: any) => void) =>
+    useApiMutate<{}, void, ApiResponse<void>>(
+        `${ADMIN_API}/cycles/${id}`,
+        "DELETE",
+        onSuccess,
+    );
+
+/** Force-complete an enrollment */
+export const useForceCompleteEnrollment = (
+    cycleId: number,
+    enrollmentId: number,
+    onSuccess?: (res?: any) => void,
+) =>
+    useApiMutate<{}, void, ApiResponse<void>>(
+        `${ADMIN_API}/cycles/${cycleId}/enrollments/${enrollmentId}/force-complete`,
+        "POST",
+        onSuccess,
+    );
+
+/** Re-snapshot levels for an active cycle */
+export const useResnapshot = (
+    cycleId: number,
+    onSuccess?: (res?: any) => void,
+) =>
+    useApiMutate<{}, void, ApiResponse<void>>(
+        `${ADMIN_API}/cycles/${cycleId}/resnapshot`,
+        "POST",
+        onSuccess,
+    );
+
 // ══════════════════════════════════════════════════════════════════
 // AGENT QUERIES (read-only)
 // ══════════════════════════════════════════════════════════════════
@@ -305,4 +388,10 @@ export const useMyDealContributions = (
     >({
         path: `${AGENT_API}/deal-contributions`,
         params,
+    });
+
+/** Agent's current enrollment data */
+export const useMyEnrollment = () =>
+    useApiQuery<{ data: MyEnrollmentData }>({
+        path: `${AGENT_API}/my-enrollment`,
     });

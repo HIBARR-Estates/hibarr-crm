@@ -9,7 +9,7 @@ use App\Models\AgentCycleMetric;
 use App\Models\Company;
 use App\Models\LeadAgent;
 use App\Models\MlmCycle;
-use App\Models\MlmCycleConfig;
+use App\Models\MlmSetting;
 use App\Models\MlmLevel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +17,13 @@ use Illuminate\Support\Facades\Log;
 
 class CycleService
 {
+    protected CycleLevelSnapshotService $snapshotService;
+
+    public function __construct(CycleLevelSnapshotService $snapshotService)
+    {
+        $this->snapshotService = $snapshotService;
+    }
+
     /**
      * Get or create the currently active cycle for a company.
      * If no active cycle exists but auto_generate is enabled, generates one.
@@ -42,26 +49,29 @@ class CycleService
 
         if ($upcomingNowActive) {
             $upcomingNowActive->update(['status' => CycleStatus::Active]);
+            $this->snapshotService->snapshotForCycle($upcomingNowActive);
             return $upcomingNowActive;
         }
 
-        // Auto-generate if config allows
-        $config = MlmCycleConfig::where('company_id', $companyId)->first();
+        // Auto-generate if settings allow
+        $settings = MlmSetting::where('company_id', $companyId)->first();
 
-        if (!$config || !$config->auto_generate) {
+        if (!$settings || !$settings->auto_generate_cycles) {
             return null;
         }
 
-        return $this->generateNextCycle($config);
+        return $this->generateNextCycle($companyId);
     }
 
     /**
-     * Generate the next cycle based on the config.
-     * Starts from the last cycle's end date + 1 day, or from the anchor_date if no cycles exist.
+     * Generate the next cycle based on company settings.
+     * Starts from the last cycle's end date + 1 day, or from today if no cycles exist.
      */
-    public function generateNextCycle(MlmCycleConfig $config): MlmCycle
+    public function generateNextCycle(int $companyId): MlmCycle
     {
-        $lastCycle = MlmCycle::where('cycle_config_id', $config->id)
+        $settings = MlmSetting::forCompany($companyId);
+
+        $lastCycle = MlmCycle::where('company_id', $companyId)
             ->orderByDesc('cycle_number')
             ->first();
 
@@ -69,11 +79,11 @@ class CycleService
             $startDate = $lastCycle->end_date->copy()->addDay();
             $nextNumber = $lastCycle->cycle_number + 1;
         } else {
-            $startDate = $config->anchor_date->copy();
+            $startDate = now()->startOfDay();
             $nextNumber = 1;
         }
 
-        $endDate = $config->calculateEndDate($startDate);
+        $endDate = $settings->calculateDefaultEndDate($startDate);
         $today = now()->startOfDay();
 
         // Determine initial status based on dates
@@ -85,48 +95,71 @@ class CycleService
         }
 
         $cycle = MlmCycle::create([
-            'company_id' => $config->company_id,
-            'cycle_config_id' => $config->id,
+            'company_id' => $companyId,
             'cycle_number' => $nextNumber,
+            'name' => "Cycle #{$nextNumber}",
             'start_date' => $startDate,
             'end_date' => $endDate,
             'status' => $status,
+            'max_overflow_multiplier' => $settings->default_overflow_multiplier,
         ]);
 
-        Log::info("CycleService: Generated cycle #{$nextNumber} for company {$config->company_id} ({$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')})");
+        // If the cycle is immediately active, snapshot levels
+        if ($status === CycleStatus::Active) {
+            $this->snapshotService->snapshotForCycle($cycle);
+        }
+
+        Log::info("CycleService: Generated cycle #{$nextNumber} for company {$companyId} ({$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')})");;
 
         return $cycle;
     }
 
     /**
-     * Enroll an agent into a cycle.
+     * Validate that a cycle's date range does not overlap with existing cycles for the same company.
      *
-     * @param LeadAgent $agent
-     * @param MlmCycle $cycle
-     * @param Carbon|null $effectiveStart - Override start date (for mid-cycle joiners). Defaults to cycle start_date.
-     * @return AgentCycleEnrollment
+     * @return string|null Error message if overlap exists, null if valid.
+     */
+    public function validateNoOverlap(int $companyId, Carbon $startDate, Carbon $endDate, ?int $excludeCycleId = null): ?string
+    {
+        $query = MlmCycle::where('company_id', $companyId)
+            ->where(function ($q) use ($startDate, $endDate) {
+                // Overlap: existing.start <= new.end AND existing.end >= new.start
+                $q->where('start_date', '<=', $endDate)
+                  ->where('end_date', '>=', $startDate);
+            });
+
+        if ($excludeCycleId) {
+            $query->where('id', '!=', $excludeCycleId);
+        }
+
+        $overlapping = $query->first();
+
+        if ($overlapping) {
+            return "Date range overlaps with Cycle #{$overlapping->cycle_number} ({$overlapping->start_date->format('Y-m-d')} to {$overlapping->end_date->format('Y-m-d')}).";
+        }
+
+        return null;
+    }
+
+    /**
+     * Enroll an agent into a cycle.
      */
     public function enrollAgent(LeadAgent $agent, MlmCycle $cycle, ?Carbon $effectiveStart = null): AgentCycleEnrollment
     {
         $startDate = $effectiveStart ?? $cycle->start_date;
 
-        // Calculate effective end date
-        // For mid-cycle joiners: their cycle runs for the same duration as the full cycle
-        // regardless of when they join
+        // For mid-cycle joiners: use same duration from their start date
         $isMidCycleJoiner = $startDate->gt($cycle->start_date);
 
         if ($isMidCycleJoiner) {
-            // Mid-cycle joiner gets the same duration as the cycle from their start date
-            $config = $cycle->config;
-            $effectiveEndDate = $config->calculateEndDate($startDate);
+            $settings = MlmSetting::forCompany($cycle->company_id);
+            $effectiveEndDate = $settings->calculateDefaultEndDate($startDate);
         } else {
-            // Aligned with cycle
             $effectiveEndDate = $cycle->end_date;
         }
 
-        // Calculate max overflow date
-        $config = $cycle->config;
-        $overflowDays = $config->max_overflow_days;
+        // Calculate max overflow date using the cycle's own multiplier
+        $overflowDays = $cycle->max_overflow_days;
 
         $enrollment = AgentCycleEnrollment::create([
             'company_id' => $agent->company_id,
@@ -156,7 +189,6 @@ class CycleService
 
     /**
      * Get the active enrollment for an agent (the one currently receiving metrics).
-     * Returns null if the agent has no active or extended enrollment.
      */
     public function getActiveEnrollment(LeadAgent $agent): ?AgentCycleEnrollment
     {
@@ -169,7 +201,6 @@ class CycleService
 
     /**
      * Complete an enrollment when criteria are met.
-     * Optionally records the level achieved and auto-enrolls in the current company cycle.
      */
     public function completeEnrollment(AgentCycleEnrollment $enrollment, ?MlmLevel $levelAchieved = null): ?AgentCycleEnrollment
     {
@@ -189,7 +220,6 @@ class CycleService
 
     /**
      * Force-complete an enrollment when max overflow is reached without meeting criteria.
-     * Agent is moved to the current cycle with metrics reset to zero.
      */
     public function forceCompleteEnrollment(AgentCycleEnrollment $enrollment): ?AgentCycleEnrollment
     {
@@ -206,7 +236,6 @@ class CycleService
 
     /**
      * Auto-enroll an agent in the currently active company cycle.
-     * Called after an enrollment is completed or force-completed.
      */
     protected function autoEnrollInCurrentCycle(LeadAgent $agent): ?AgentCycleEnrollment
     {
@@ -233,11 +262,6 @@ class CycleService
 
     /**
      * Transition cycle statuses based on dates (run by scheduler).
-     *
-     * - upcoming → active (when start_date is today or past)
-     * - active → completed (when end_date is past)
-     * - active enrollments → extended (when cycle ends but criteria not met)
-     * - extended enrollments past max_overflow_date → force_completed
      */
     public function transitionCycleStatuses(int $companyId): array
     {
@@ -245,12 +269,17 @@ class CycleService
         $stats = ['cycles_activated' => 0, 'cycles_completed' => 0, 'enrollments_extended' => 0, 'enrollments_force_completed' => 0, 'enrollments_auto_enrolled' => 0];
 
         // 1. Activate upcoming cycles where start_date <= today
-        $activatedCount = MlmCycle::where('company_id', $companyId)
+        $cyclesToActivate = MlmCycle::where('company_id', $companyId)
             ->where('status', CycleStatus::Upcoming)
             ->where('start_date', '<=', $today)
-            ->update(['status' => CycleStatus::Active]);
+            ->get();
 
-        $stats['cycles_activated'] = $activatedCount;
+        foreach ($cyclesToActivate as $cycle) {
+            $cycle->update(['status' => CycleStatus::Active]);
+            $this->snapshotService->snapshotForCycle($cycle);
+        }
+
+        $stats['cycles_activated'] = $cyclesToActivate->count();
 
         // 2. Complete active cycles where end_date < today
         $completedCycleIds = MlmCycle::where('company_id', $companyId)
@@ -290,22 +319,21 @@ class CycleService
         }
 
         // 5. Auto-generate next cycle if needed
-        $config = MlmCycleConfig::where('company_id', $companyId)->first();
-        if ($config && $config->auto_generate) {
+        $settings = MlmSetting::where('company_id', $companyId)->first();
+        if ($settings && $settings->auto_generate_cycles) {
             $latestCycle = MlmCycle::where('company_id', $companyId)
                 ->orderByDesc('cycle_number')
                 ->first();
 
             // Generate if the latest cycle has already started (ensure we always have a future cycle)
             if ($latestCycle && $latestCycle->start_date->lte($today)) {
-                // Check if the next cycle already exists
                 $nextStartDate = $latestCycle->end_date->copy()->addDay();
                 $existsAlready = MlmCycle::where('company_id', $companyId)
                     ->where('start_date', $nextStartDate)
                     ->exists();
 
                 if (!$existsAlready) {
-                    $this->generateNextCycle($config);
+                    $this->generateNextCycle($companyId);
                 }
             }
         }
@@ -317,8 +345,6 @@ class CycleService
 
     /**
      * Ensure an agent has an active enrollment.
-     * If not, enroll them in the current cycle.
-     * Returns the enrollment that should receive metrics.
      */
     public function ensureEnrollment(LeadAgent $agent): ?AgentCycleEnrollment
     {
@@ -339,7 +365,6 @@ class CycleService
 
     /**
      * Get the cycle metrics for an agent's active enrollment.
-     * Creates enrollment if needed.
      */
     public function getOrCreateCycleMetrics(LeadAgent $agent): ?AgentCycleMetric
     {

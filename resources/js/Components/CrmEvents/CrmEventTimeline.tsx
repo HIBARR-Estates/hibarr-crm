@@ -15,6 +15,7 @@ import {
     ExpandAltOutlined,
     ThunderboltOutlined,
     UserOutlined,
+    ApiOutlined,
 } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { isLoading as _isLoading } from "@/lib/utils";
@@ -24,7 +25,7 @@ import type { CrmEventsIndexResponse, CrmEvent } from "@/Types/api/crm-event";
 
 const { Title } = Typography;
 
-type FilterMode = "all" | "agent" | "system";
+type FilterMode = "all" | "agent" | "system" | "external";
 
 interface Props {
     /** Fully-qualified model class, e.g. "App\\Models\\Deal" */
@@ -69,6 +70,7 @@ export default function CrmEventTimeline({
             ...(filter === "system"
                 ? { generation_type: "system_generated" }
                 : {}),
+            ...(filter === "external" ? { generation_type: "external" } : {}),
         },
     });
 
@@ -83,7 +85,9 @@ export default function CrmEventTimeline({
                 color:
                     evt.generation_type === "system_generated"
                         ? "blue"
-                        : "green",
+                        : evt.generation_type === "external"
+                          ? "orange"
+                          : "green",
                 children: <CrmEventItem event={evt} compact={compact} />,
             })),
         [events, compact],
@@ -145,6 +149,15 @@ export default function CrmEventTimeline({
                             </span>
                         ),
                         value: "system",
+                    },
+                    {
+                        label: (
+                            <span>
+                                <ApiOutlined className="mr-1" />
+                                External
+                            </span>
+                        ),
+                        value: "external",
                     },
                 ]}
             />

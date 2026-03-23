@@ -4,13 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
+use App\Models\AgentCycleEnrollment;
+use App\Models\AgentCycleMetric;
 use App\Models\AgentHierarchy;
 use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
+use App\Models\MlmCycle;
 use App\Models\MlmLevel;
 use App\Models\MlmLevelCriterion;
+use App\Services\CycleService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\MetricsService;
@@ -23,12 +27,14 @@ class MlmAgentController extends AccountBaseController
 {
     protected HierarchyService $hierarchyService;
     protected LevelService $levelService;
+    protected CycleService $cycleService;
 
-    public function __construct(HierarchyService $hierarchyService, LevelService $levelService)
+    public function __construct(HierarchyService $hierarchyService, LevelService $levelService, CycleService $cycleService)
     {
         parent::__construct();
         $this->hierarchyService = $hierarchyService;
         $this->levelService = $levelService;
+        $this->cycleService = $cycleService;
     }
 
     /**
@@ -82,8 +88,16 @@ class MlmAgentController extends AccountBaseController
      */
     private function buildDashboardStats(LeadAgent $agent): array
     {
-        $metrics = AgentMetric::where('agent_id', $agent->id)->first();
+        $allTimeMetrics = AgentMetric::where('agent_id', $agent->id)->first();
         $currentLevel = $this->levelService->getCurrentLevel($agent);
+
+        // Cycle data
+        $enrollment = $this->cycleService->getActiveEnrollment($agent);
+        $cycleMetrics = $enrollment?->metrics;
+        $activeCycle = $enrollment?->cycle;
+
+        // Use cycle metrics for criteria progress (matches backend evaluation)
+        $metricsForEvaluation = $cycleMetrics ?? $allTimeMetrics;
 
         // Get next level
         $nextLevel = null;
@@ -104,14 +118,14 @@ class MlmAgentController extends AccountBaseController
         $criteriaProgress = [];
         $overallProgress = 0;
 
-        if ($nextLevel && $nextLevel->criteria->count() > 0 && $metrics) {
+        if ($nextLevel && $nextLevel->criteria->count() > 0 && $metricsForEvaluation) {
             $totalCriteria = $nextLevel->criteria->count();
             $metCount = 0;
 
             foreach ($nextLevel->criteria as $criterion) {
-                $currentValue = $criterion->metric->resolveValue($metrics);
+                $currentValue = $criterion->metric->resolveValue($metricsForEvaluation);
                 $targetValue = (float) $criterion->threshold;
-                $met = $criterion->evaluate($metrics);
+                $met = $criterion->evaluate($metricsForEvaluation);
                 $percentage = $targetValue > 0 ? min(100, ($currentValue / $targetValue) * 100) : 0;
 
                 if ($met) $metCount++;
@@ -171,11 +185,41 @@ class MlmAgentController extends AccountBaseController
             'pending_earnings' => $pendingEarnings,
             'paid_earnings' => $paidEarnings,
             'total_downlines' => $totalDownlines,
-            'total_sales' => $metrics?->nsa ?? 0,
-            'total_sales_value' => (float) ($metrics?->vsa ?? 0),
+            'total_sales' => $allTimeMetrics?->nsa ?? 0,
+            'total_sales_value' => (float) ($allTimeMetrics?->vsa ?? 0),
+            'all_time_metrics' => $allTimeMetrics ? [
+                'nsa' => $allTimeMetrics->nsa,
+                'nsd' => $allTimeMetrics->nsd,
+                'vsa' => (float) $allTimeMetrics->vsa,
+                'vsd' => (float) $allTimeMetrics->vsd,
+            ] : null,
             'monthly_commissions' => $monthlyCommissions,
             'network_growth' => [],
             'recent_commissions' => $recentCommissions,
+            // Cycle data
+            'enrollment' => $enrollment ? [
+                'id' => $enrollment->id,
+                'status' => $enrollment->status->value,
+                'effective_start_date' => $enrollment->effective_start_date?->format('Y-m-d'),
+                'effective_end_date' => $enrollment->effective_end_date?->format('Y-m-d'),
+                'overflow_start_date' => $enrollment->overflow_start_date?->format('Y-m-d'),
+                'max_overflow_date' => $enrollment->max_overflow_date?->format('Y-m-d'),
+                'days_remaining' => $enrollment->daysRemaining(),
+                'is_overflowing' => $enrollment->isOverflowing(),
+            ] : null,
+            'cycle_metrics' => $cycleMetrics ? [
+                'nsa' => $cycleMetrics->nsa,
+                'nsd' => $cycleMetrics->nsd,
+                'vsa' => (float) $cycleMetrics->vsa,
+                'vsd' => (float) $cycleMetrics->vsd,
+            ] : null,
+            'active_cycle' => $activeCycle ? [
+                'cycle_number' => $activeCycle->cycle_number,
+                'name' => $activeCycle->name,
+                'start_date' => $activeCycle->start_date->format('Y-m-d'),
+                'end_date' => $activeCycle->end_date->format('Y-m-d'),
+                'days_remaining' => max(0, (int) now()->startOfDay()->diffInDays($activeCycle->end_date, false)),
+            ] : null,
         ];
     }
 
@@ -258,6 +302,21 @@ class MlmAgentController extends AccountBaseController
         }
 
         $tree = $this->buildNetworkNode($agent, 0, 5);
+        $tree['is_self'] = true;
+
+        // Include direct upline as the root if one exists
+        if ($agent->parent_agent_id) {
+            $parent = LeadAgent::where('id', $agent->parent_agent_id)
+                ->with(['user:id,name,email,image', 'currentLevelHistory.level', 'metrics'])
+                ->first();
+
+            if ($parent) {
+                $parentNode = $this->buildNetworkNode($parent, 0, 0);
+                $parentNode['is_upline'] = true;
+                $parentNode['children'] = [$tree];
+                $tree = $parentNode;
+            }
+        }
 
         return response()->json(['status' => 'success', 'data' => $tree]);
     }
@@ -350,7 +409,13 @@ class MlmAgentController extends AccountBaseController
         }
 
         $currentLevel = $this->levelService->getCurrentLevel($agent);
-        $metrics = AgentMetric::where('agent_id', $agent->id)->first();
+        $allTimeMetrics = AgentMetric::where('agent_id', $agent->id)->first();
+
+        // Cycle data for criteria evaluation
+        $enrollment = $this->cycleService->getActiveEnrollment($agent);
+        $cycleMetrics = $enrollment?->metrics;
+        $activeCycle = $enrollment?->cycle;
+        $metricsForEvaluation = $cycleMetrics ?? $allTimeMetrics;
 
         // Next level
         $nextLevel = null;
@@ -369,11 +434,11 @@ class MlmAgentController extends AccountBaseController
 
         // Criteria progress
         $criteriaProgress = [];
-        if ($nextLevel && $metrics) {
+        if ($nextLevel && $metricsForEvaluation) {
             foreach ($nextLevel->criteria as $criterion) {
-                $currentValue = $criterion->metric->resolveValue($metrics);
+                $currentValue = $criterion->metric->resolveValue($metricsForEvaluation);
                 $targetValue = (float) $criterion->threshold;
-                $met = $criterion->evaluate($metrics);
+                $met = $criterion->evaluate($metricsForEvaluation);
                 $percentage = $targetValue > 0 ? min(100, ($currentValue / $targetValue) * 100) : 0;
 
                 $criteriaProgress[] = [
@@ -398,11 +463,33 @@ class MlmAgentController extends AccountBaseController
                 'current_level' => $currentLevel,
                 'next_level' => $nextLevel,
                 'metrics' => [
-                    'nsa' => $metrics?->nsa ?? 0,
-                    'nsd' => $metrics?->nsd ?? 0,
-                    'vsa' => (float) ($metrics?->vsa ?? 0),
-                    'vsd' => (float) ($metrics?->vsd ?? 0),
+                    'nsa' => $allTimeMetrics?->nsa ?? 0,
+                    'nsd' => $allTimeMetrics?->nsd ?? 0,
+                    'vsa' => (float) ($allTimeMetrics?->vsa ?? 0),
+                    'vsd' => (float) ($allTimeMetrics?->vsd ?? 0),
                 ],
+                'cycle_metrics' => $cycleMetrics ? [
+                    'nsa' => $cycleMetrics->nsa,
+                    'nsd' => $cycleMetrics->nsd,
+                    'vsa' => (float) $cycleMetrics->vsa,
+                    'vsd' => (float) $cycleMetrics->vsd,
+                ] : null,
+                'enrollment' => $enrollment ? [
+                    'id' => $enrollment->id,
+                    'status' => $enrollment->status->value,
+                    'effective_start_date' => $enrollment->effective_start_date?->format('Y-m-d'),
+                    'effective_end_date' => $enrollment->effective_end_date?->format('Y-m-d'),
+                    'overflow_start_date' => $enrollment->overflow_start_date?->format('Y-m-d'),
+                    'max_overflow_date' => $enrollment->max_overflow_date?->format('Y-m-d'),
+                    'days_remaining' => $enrollment->daysRemaining(),
+                    'is_overflowing' => $enrollment->isOverflowing(),
+                ] : null,
+                'active_cycle' => $activeCycle ? [
+                    'cycle_number' => $activeCycle->cycle_number,
+                    'name' => $activeCycle->name,
+                    'end_date' => $activeCycle->end_date->format('Y-m-d'),
+                    'days_remaining' => max(0, (int) now()->startOfDay()->diffInDays($activeCycle->end_date, false)),
+                ] : null,
                 'criteria_progress' => $criteriaProgress,
                 'level_history' => $levelHistory,
             ],
@@ -457,6 +544,61 @@ class MlmAgentController extends AccountBaseController
             'total' => $paginated->total(),
             'from' => $paginated->firstItem(),
             'to' => $paginated->lastItem(),
+        ]);
+    }
+
+    /**
+     * My Enrollment — JSON API
+     */
+    public function myEnrollmentApi(): JsonResponse
+    {
+        $agent = $this->getAgent();
+
+        if (!$agent) {
+            return response()->json(['status' => 'success', 'data' => null]);
+        }
+
+        $enrollment = $this->cycleService->getActiveEnrollment($agent);
+        $cycleMetrics = $enrollment?->metrics;
+        $allTimeMetrics = AgentMetric::where('agent_id', $agent->id)->first();
+        $activeCycle = $enrollment?->cycle;
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'enrollment' => $enrollment ? [
+                    'id' => $enrollment->id,
+                    'agent_id' => $enrollment->agent_id,
+                    'cycle_id' => $enrollment->cycle_id,
+                    'status' => $enrollment->status->value,
+                    'effective_start_date' => $enrollment->effective_start_date?->format('Y-m-d'),
+                    'effective_end_date' => $enrollment->effective_end_date?->format('Y-m-d'),
+                    'overflow_start_date' => $enrollment->overflow_start_date?->format('Y-m-d'),
+                    'max_overflow_date' => $enrollment->max_overflow_date?->format('Y-m-d'),
+                    'criteria_met_at' => $enrollment->criteria_met_at?->format('Y-m-d H:i:s'),
+                    'days_remaining' => $enrollment->daysRemaining(),
+                    'is_overflowing' => $enrollment->isOverflowing(),
+                ] : null,
+                'cycle' => $activeCycle ? [
+                    'id' => $activeCycle->id,
+                    'cycle_number' => $activeCycle->cycle_number,
+                    'start_date' => $activeCycle->start_date->format('Y-m-d'),
+                    'end_date' => $activeCycle->end_date->format('Y-m-d'),
+                    'status' => $activeCycle->status->value,
+                ] : null,
+                'cycle_metrics' => $cycleMetrics ? [
+                    'nsa' => $cycleMetrics->nsa,
+                    'nsd' => $cycleMetrics->nsd,
+                    'vsa' => (float) $cycleMetrics->vsa,
+                    'vsd' => (float) $cycleMetrics->vsd,
+                ] : null,
+                'all_time_metrics' => $allTimeMetrics ? [
+                    'nsa' => $allTimeMetrics->nsa,
+                    'nsd' => $allTimeMetrics->nsd,
+                    'vsa' => (float) $allTimeMetrics->vsa,
+                    'vsd' => (float) $allTimeMetrics->vsd,
+                ] : null,
+            ],
         ]);
     }
 }

@@ -26,6 +26,7 @@ import {
 import type {
     MlmSettings,
     CommissionSimulationResult,
+    CycleDurationType,
 } from "@/Features/Mlm/types";
 
 interface Props extends PageProps {
@@ -44,6 +45,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
     const [form] = Form.useForm<MlmSettings>();
     const [simDealValue, setSimDealValue] = useState<number>(0);
     const [simAgentId, setSimAgentId] = useState<number>(0);
+    const [durationType, setDurationType] = useState<string>("monthly");
 
     const updateSettings = useUpdateMlmSettings(() => {
         message.success("Settings updated successfully");
@@ -54,11 +56,12 @@ const MlmCommissionSettings: React.FC<Props> = ({
         agent_id: simAgentId,
     });
     const simResult: CommissionSimulationResult | null =
-        (simData as any)?.data?.data ?? null;
+        (simData as any)?.data ?? null;
 
     useEffect(() => {
         if (settings) {
             form.setFieldsValue(settings);
+            setDurationType(settings.default_cycle_duration_type ?? "monthly");
         }
     }, [settings, form]);
 
@@ -140,6 +143,87 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                             >
                                                 <Switch />
                                             </Form.Item>
+
+                                            <Divider>
+                                                Cycle Auto-Generation Defaults
+                                            </Divider>
+
+                                            <Form.Item
+                                                label="Auto-Generate Cycles"
+                                                name="auto_generate_cycles"
+                                                valuePropName="checked"
+                                                tooltip="When enabled, new cycles are created automatically by the scheduler."
+                                            >
+                                                <Switch />
+                                            </Form.Item>
+
+                                            <Row gutter={16}>
+                                                <Col xs={24} md={12}>
+                                                    <Form.Item
+                                                        label="Default Duration Type"
+                                                        name="default_cycle_duration_type"
+                                                        tooltip="Duration type applied when auto-generating cycles."
+                                                    >
+                                                        <Select
+                                                            onChange={(v) =>
+                                                                setDurationType(
+                                                                    v,
+                                                                )
+                                                            }
+                                                            options={[
+                                                                {
+                                                                    value: "monthly",
+                                                                    label: "Monthly (~30 days)",
+                                                                },
+                                                                {
+                                                                    value: "quarterly",
+                                                                    label: "Quarterly (~90 days)",
+                                                                },
+                                                                {
+                                                                    value: "custom",
+                                                                    label: "Custom Duration",
+                                                                },
+                                                            ]}
+                                                        />
+                                                    </Form.Item>
+                                                </Col>
+
+                                                {durationType === "custom" && (
+                                                    <Col xs={24} md={12}>
+                                                        <Form.Item
+                                                            label="Custom Duration (days)"
+                                                            name="default_cycle_duration_days"
+                                                            rules={[
+                                                                {
+                                                                    required: true,
+                                                                    message:
+                                                                        "Required for custom type",
+                                                                },
+                                                            ]}
+                                                        >
+                                                            <InputNumber
+                                                                min={1}
+                                                                max={365}
+                                                                className="w-full"
+                                                                placeholder="e.g. 45"
+                                                            />
+                                                        </Form.Item>
+                                                    </Col>
+                                                )}
+                                            </Row>
+
+                                            {/* <Form.Item
+                                                label="Default Overflow Multiplier"
+                                                name="default_overflow_multiplier"
+                                                tooltip="Applied to newly auto-generated cycles. Agents can overflow for (cycle_days × this) extra days."
+                                            >
+                                                <InputNumber
+                                                    min={0}
+                                                    max={5}
+                                                    step={0.1}
+                                                    className="w-full"
+                                                />
+                                            </Form.Item> */}
 
                                             <Divider />
 

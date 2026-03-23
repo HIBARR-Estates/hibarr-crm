@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Company;
-use App\Models\MlmCycleConfig;
+use App\Models\MlmSetting;
 use App\Services\CycleService;
 use Illuminate\Console\Command;
 
@@ -19,16 +19,16 @@ class MlmCycleCheckCommand extends Command
     {
         $this->info('MLM Cycle Check starting...');
 
-        $query = MlmCycleConfig::query();
+        $query = MlmSetting::query();
 
         if ($companyId = $this->option('company')) {
             $query->where('company_id', $companyId);
         }
 
-        $configs = $query->get();
+        $settings = $query->get();
 
-        if ($configs->isEmpty()) {
-            $this->warn('No MLM cycle configurations found.');
+        if ($settings->isEmpty()) {
+            $this->warn('No MLM settings found.');
             return 0;
         }
 
@@ -42,16 +42,16 @@ class MlmCycleCheckCommand extends Command
             'enrollments_auto_enrolled' => 0,
         ];
 
-        foreach ($configs as $config) {
-            $this->line("Processing company #{$config->company_id}...");
+        foreach ($settings as $setting) {
+            $this->line("Processing company #{$setting->company_id}...");
 
             if ($isDryRun) {
-                $this->info("  [DRY RUN] Would transition cycle statuses for company #{$config->company_id}");
+                $this->info("  [DRY RUN] Would transition cycle statuses for company #{$setting->company_id}");
                 $totalStats['companies_processed']++;
                 continue;
             }
 
-            $stats = $cycleService->transitionCycleStatuses($config->company_id);
+            $stats = $cycleService->transitionCycleStatuses($setting->company_id);
 
             $totalStats['companies_processed']++;
             $totalStats['cycles_activated'] += $stats['cycles_activated'];

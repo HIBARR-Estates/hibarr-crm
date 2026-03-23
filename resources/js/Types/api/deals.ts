@@ -79,6 +79,10 @@ export interface Deal {
     // Custom Fields
     // custom_fields?: Record<string, any>;
     custom_fields_data?: Record<string, any>;
+
+    // Lock state
+    is_locked?: boolean;
+    locked_at?: string | null;
 }
 
 export interface HibarrDealFields {

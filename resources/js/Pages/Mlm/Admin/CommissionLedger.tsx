@@ -22,6 +22,7 @@ import {
     CheckCircle,
     RotateCcw,
     Filter,
+    CalendarDays,
 } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -30,6 +31,7 @@ import {
     useMarkCommissionPaid,
     useBulkMarkCommissionsPaid,
     useRevertCommission,
+    useActiveCycle,
 } from "@/Features/Mlm/api";
 import { CommissionStatusBadge, LevelBadge } from "@/Features/Mlm/Components";
 import type {
@@ -64,6 +66,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
     const { data, isLoading, refetch } = useMlmCommissions(queryParams);
     const commissions: PaginatedResponse<MlmCommission> =
         (data as any) ?? initialCommissions;
+
+    const { data: activeCycleData } = useActiveCycle();
+    const activeCycle = (activeCycleData as any)?.data?.cycle ?? null;
 
     const markPaid = useMarkCommissionPaid(0, () => {
         message.success("Commission marked as paid");
@@ -102,7 +107,10 @@ const MlmCommissionLedger: React.FC<Props> = ({
 
     // Summary stats
     const totalAmount =
-        commissions?.data?.reduce((sum, c) => sum + (c.amount ?? 0), 0) ?? 0;
+        commissions?.data?.reduce(
+            (sum, c) => Number(sum) + (Number(c.amount) ?? 0),
+            0,
+        ) ?? 0;
     const pendingCount =
         commissions?.data?.filter((c) => c.status === "pending").length ?? 0;
     const paidCount =
@@ -347,6 +355,31 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                         }
                                     }}
                                 />
+                                {activeCycle && (
+                                    <Button
+                                        size="small"
+                                        icon={<CalendarDays size={14} />}
+                                        type={
+                                            filters.date_from ===
+                                                activeCycle.start_date &&
+                                            filters.date_to ===
+                                                activeCycle.end_date
+                                                ? "primary"
+                                                : "default"
+                                        }
+                                        onClick={() => {
+                                            setFilters((f) => ({
+                                                ...f,
+                                                date_from:
+                                                    activeCycle.start_date,
+                                                date_to: activeCycle.end_date,
+                                            }));
+                                            setPage(1);
+                                        }}
+                                    >
+                                        Cycle #{activeCycle.cycle_number}
+                                    </Button>
+                                )}
                                 <div className="flex-1" />
 
                                 {selectedRows.length > 0 && (

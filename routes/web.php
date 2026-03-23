@@ -1079,6 +1079,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::delete('/{id}', [App\Http\Controllers\ProjectLocationController::class, 'destroy'])->name('destroy');
     });
 
+    // CRM Events (Admin viewer)
+    Route::get('crm-events', [App\Http\Controllers\CrmEventAdminController::class, 'index'])->name('crm-events.index');
+
     // Developers
     Route::prefix('developers')->name('developers.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeveloperController::class, 'index'])->name('index');
@@ -1200,6 +1203,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('commission-ledger', [App\Http\Controllers\MlmAdminController::class, 'commissionLedger'])->name('commission_ledger');
         Route::get('agent-metrics', [App\Http\Controllers\MlmAdminController::class, 'agentMetrics'])->name('agent_metrics');
         Route::get('level-history', [App\Http\Controllers\MlmAdminController::class, 'levelHistory'])->name('level_history');
+        Route::get('cycle-management', [App\Http\Controllers\MlmAdminController::class, 'cycleManagement'])->name('cycle_management');
 
         // ── MLM Admin JSON API ───────────────────────────────────
         Route::prefix('api')->name('api.')->group(function () {
@@ -1243,6 +1247,16 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
             // Simulation
             Route::get('simulate', [App\Http\Controllers\MlmAdminApiController::class, 'simulate'])->name('simulate');
+
+            // Cycles
+            Route::get('cycles', [App\Http\Controllers\MlmAdminApiController::class, 'getCycles'])->name('cycles.index');
+            Route::get('cycles/active', [App\Http\Controllers\MlmAdminApiController::class, 'getActiveCycle'])->name('cycles.active');
+            Route::post('cycles', [App\Http\Controllers\MlmAdminApiController::class, 'createCycle'])->name('cycles.store');
+            Route::get('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'getCycleDetail'])->name('cycles.show');
+            Route::put('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'updateCycle'])->name('cycles.update');
+            Route::delete('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'deleteCycle'])->name('cycles.destroy');
+            Route::post('cycles/{cycleId}/enrollments/{enrollmentId}/force-complete', [App\Http\Controllers\MlmAdminApiController::class, 'forceCompleteEnrollment'])->name('cycles.force_complete_enrollment');
+            Route::post('cycles/{id}/resnapshot', [App\Http\Controllers\MlmAdminApiController::class, 'resnapshot'])->name('cycles.resnapshot');
         });
     });
 
@@ -1265,6 +1279,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::get('uplines', [App\Http\Controllers\MlmAgentController::class, 'uplinesApi'])->name('uplines');
             Route::get('my-level', [App\Http\Controllers\MlmAgentController::class, 'myLevelApi'])->name('my_level');
             Route::get('deal-contributions', [App\Http\Controllers\MlmAgentController::class, 'dealContributionsApi'])->name('deal_contributions');
+            Route::get('my-enrollment', [App\Http\Controllers\MlmAgentController::class, 'myEnrollmentApi'])->name('my_enrollment');
         });
     });
 });

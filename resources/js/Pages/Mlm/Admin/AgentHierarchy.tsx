@@ -188,25 +188,37 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                     <Descriptions.Item label="Direct Downlines">
                                         {selectedNode.children?.length ?? 0}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="NSA">
-                                        {selectedNode.nsa ?? 0}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="NSD">
-                                        {selectedNode.nsd ?? 0}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="VSA">
-                                        $
-                                        {(
-                                            selectedNode.vsa ?? 0
-                                        ).toLocaleString()}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="VSD">
-                                        $
-                                        {(
-                                            selectedNode.vsd ?? 0
-                                        ).toLocaleString()}
-                                    </Descriptions.Item>
                                 </Descriptions>
+
+                                <div className="mt-4 mb-2">
+                                    <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                                        All-Time Metrics
+                                    </div>
+                                    <Descriptions
+                                        column={2}
+                                        size="small"
+                                        bordered
+                                    >
+                                        <Descriptions.Item label="NSA">
+                                            {selectedNode.nsa ?? 0}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="NSD">
+                                            {selectedNode.nsd ?? 0}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="VSA">
+                                            $
+                                            {(
+                                                selectedNode.vsa ?? 0
+                                            ).toLocaleString()}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="VSD">
+                                            $
+                                            {(
+                                                selectedNode.vsd ?? 0
+                                            ).toLocaleString()}
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </div>
 
                                 <div className="mt-6">
                                     <Popconfirm

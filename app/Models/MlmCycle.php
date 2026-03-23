@@ -18,11 +18,13 @@ class MlmCycle extends BaseModel
 
     protected $fillable = [
         'company_id',
-        'cycle_config_id',
         'cycle_number',
+        'name',
         'start_date',
         'end_date',
         'status',
+        'max_overflow_multiplier',
+        'max_commission_snapshot',
     ];
 
     protected $casts = [
@@ -30,6 +32,13 @@ class MlmCycle extends BaseModel
         'start_date' => 'date',
         'end_date' => 'date',
         'status' => CycleStatus::class,
+        'max_overflow_multiplier' => 'decimal:2',
+        'max_commission_snapshot' => 'decimal:2',
+    ];
+
+    protected $appends = [
+        'duration_days',
+        'days_remaining',
     ];
 
     // ── Relationships ────────────────────────────────────────────
@@ -39,14 +48,14 @@ class MlmCycle extends BaseModel
         return $this->belongsTo(Company::class);
     }
 
-    public function config(): BelongsTo
-    {
-        return $this->belongsTo(MlmCycleConfig::class, 'cycle_config_id');
-    }
-
     public function enrollments(): HasMany
     {
         return $this->hasMany(AgentCycleEnrollment::class, 'cycle_id');
+    }
+
+    public function levelSnapshots(): HasMany
+    {
+        return $this->hasMany(MlmCycleLevelSnapshot::class, 'cycle_id');
     }
 
     // ── Scopes ───────────────────────────────────────────────────
@@ -101,5 +110,46 @@ class MlmCycle extends BaseModel
     {
         $today = now()->startOfDay();
         return $today->between($this->start_date, $this->end_date);
+    }
+
+    /**
+     * Days remaining until this cycle ends (0 for completed/upcoming cycles).
+     */
+    public function getDaysRemainingAttribute(): int
+    {
+        if ($this->status !== CycleStatus::Active) {
+            return 0;
+        }
+
+        return max(0, (int) now()->startOfDay()->diffInDays($this->end_date, false));
+    }
+
+    /**
+     * Maximum overflow days based on this cycle's overflow multiplier.
+     */
+    public function getMaxOverflowDaysAttribute(): int
+    {
+        return (int) round($this->duration_days * (float) $this->max_overflow_multiplier);
+    }
+
+    /**
+     * Whether this cycle has level snapshots taken.
+     */
+    public function hasSnapshots(): bool
+    {
+        return $this->levelSnapshots()->exists();
+    }
+
+    /**
+     * Get the effective max commission percentage.
+     * Uses the snapshot value if available, otherwise falls back to live settings.
+     */
+    public function getEffectiveMaxCommissionAttribute(): float
+    {
+        if ($this->max_commission_snapshot !== null) {
+            return (float) $this->max_commission_snapshot;
+        }
+
+        return (float) MlmSetting::forCompany($this->company_id)->max_commission_percentage;
     }
 }

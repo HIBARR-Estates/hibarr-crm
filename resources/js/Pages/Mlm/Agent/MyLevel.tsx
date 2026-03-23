@@ -17,19 +17,46 @@ import { Award, TrendingUp, History } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { useMyLevel } from "@/Features/Mlm/api";
-import { LevelBadge, ProgressToNextLevel } from "@/Features/Mlm/Components";
+import {
+    LevelBadge,
+    ProgressToNextLevel,
+    EnrollmentStatusCard,
+    CycleMetricsDisplay,
+} from "@/Features/Mlm/Components";
 import { MLM_METRIC_LABELS } from "@/Features/Mlm/types";
 import type {
     MlmLevel,
     MlmLevelCriterion,
     AgentLevelHistory,
     CriterionProgress,
+    EnrollmentStatus,
 } from "@/Features/Mlm/types";
 
 interface LevelData {
     current_level: MlmLevel | null;
     next_level: MlmLevel | null;
     metrics: { nsa: number; nsd: number; vsa: number; vsd: number };
+    cycle_metrics?: {
+        nsa: number;
+        nsd: number;
+        vsa: number;
+        vsd: number;
+    } | null;
+    enrollment?: {
+        id: number;
+        status: EnrollmentStatus;
+        effective_start_date: string;
+        effective_end_date: string;
+        overflow_start_date?: string | null;
+        max_overflow_date?: string | null;
+        days_remaining: number;
+        is_overflowing: boolean;
+    } | null;
+    active_cycle?: {
+        cycle_number: number;
+        end_date: string;
+        days_remaining: number;
+    } | null;
     criteria_progress: CriterionProgress[];
     level_history: AgentLevelHistory[];
 }
@@ -94,6 +121,23 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                         active
                         paragraph={{ rows: 6 }}
                     >
+                        {/* Enrollment Status */}
+                        {(levelData?.enrollment || levelData?.active_cycle) && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="mb-4"
+                            >
+                                <EnrollmentStatusCard
+                                    enrollment={levelData?.enrollment ?? null}
+                                    activeCycle={
+                                        levelData?.active_cycle ?? null
+                                    }
+                                />
+                            </motion.div>
+                        )}
+
                         <Row gutter={[16, 16]}>
                             {/* Current Level Card */}
                             <Col xs={24} lg={10}>
@@ -126,26 +170,16 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
 
                                         <Divider />
 
-                                        <Descriptions column={2} size="small">
-                                            <Descriptions.Item label="Agent Sales">
-                                                {levelData?.metrics?.nsa ?? 0}
-                                            </Descriptions.Item>
-                                            <Descriptions.Item label="Downline Sales">
-                                                {levelData?.metrics?.nsd ?? 0}
-                                            </Descriptions.Item>
-                                            <Descriptions.Item label="Agent Value">
-                                                $
-                                                {(
-                                                    levelData?.metrics?.vsa ?? 0
-                                                ).toLocaleString()}
-                                            </Descriptions.Item>
-                                            <Descriptions.Item label="Downline Value">
-                                                $
-                                                {(
-                                                    levelData?.metrics?.vsd ?? 0
-                                                ).toLocaleString()}
-                                            </Descriptions.Item>
-                                        </Descriptions>
+                                        <CycleMetricsDisplay
+                                            cycleMetrics={
+                                                levelData?.cycle_metrics ?? null
+                                            }
+                                            allTimeMetrics={
+                                                levelData?.metrics ?? null
+                                            }
+                                            showToggle
+                                            compact
+                                        />
                                     </Card>
                                 </motion.div>
                             </Col>
@@ -167,6 +201,14 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                                 <span className="font-semibold">
                                                     Progress to Next Level
                                                 </span>
+                                                {levelData?.cycle_metrics && (
+                                                    <Tag
+                                                        color="blue"
+                                                        className="ml-2 text-xs"
+                                                    >
+                                                        Current Cycle
+                                                    </Tag>
+                                                )}
                                             </div>
                                         }
                                         className="shadow-sm h-full"

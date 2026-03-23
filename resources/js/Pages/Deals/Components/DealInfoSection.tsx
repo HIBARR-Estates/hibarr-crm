@@ -19,6 +19,7 @@ import {
     CloseOutlined,
     CheckOutlined,
     SaveOutlined,
+    LockOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
@@ -119,6 +120,7 @@ export default function DealInfoSection({
     // Check edit permission - only creator and agent can edit
     const canEdit = dealPermissions.canEdit;
     const canDelete = dealPermissions.canDelete;
+    const isLocked = dealPermissions.isLocked;
 
     // Fields are editable only when in edit mode AND user has permission
     const isFieldEditable = isEditMode && canEdit;
@@ -1035,6 +1037,15 @@ export default function DealInfoSection({
                         <h2 className="text-lg font-semibold text-gray-900">
                             Deal Information
                         </h2>
+                        {isLocked && (
+                            <Tag
+                                color="orange"
+                                icon={<LockOutlined />}
+                                className="text-xs"
+                            >
+                                Locked
+                            </Tag>
+                        )}
                         {isEditMode && (
                             <Tag color="blue" className="text-xs">
                                 Edit Mode

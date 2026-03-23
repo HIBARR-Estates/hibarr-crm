@@ -11,6 +11,7 @@ import {
     EditOutlined,
     EyeOutlined,
     UserOutlined,
+    LockOutlined,
 } from "@ant-design/icons";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
@@ -45,11 +46,12 @@ const DealCard: React.FC<DealCardProps> = ({
         isDragging,
     } = useSortable({
         id: deal.id.toString(),
-        disabled: !draggable,
+        disabled: !draggable || !!deal.is_locked,
     });
 
     // Get deal permissions to check if user can edit
     const { canEdit } = useDealPermissions(deal);
+    const isLocked = !!deal.is_locked;
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -124,7 +126,8 @@ const DealCard: React.FC<DealCardProps> = ({
                 className={`
                     transition-all duration-150 cursor-pointer rounded-lg
                     ${isDragging ? "ring-1 ring-blue-400 rotate-1 opacity-60" : "hover:border-gray-300"}
-                    border border-gray-200
+                    ${isLocked ? "border-amber-300 opacity-80" : "border-gray-200"}
+                    border
                 `}
                 styles={{
                     body: {
@@ -149,6 +152,9 @@ const DealCard: React.FC<DealCardProps> = ({
                                 className="text-[15px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors"
                                 ellipsis={{ tooltip: deal.name }}
                             >
+                                {isLocked && (
+                                    <LockOutlined className="text-amber-500 mr-1 text-[12px]" />
+                                )}
                                 <span className="font-medium">{deal.name}</span>
                                 {deal.contact?.client_id && (
                                     <i

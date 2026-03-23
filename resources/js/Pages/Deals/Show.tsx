@@ -1,7 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 
-import { Card, Row, Col, Divider, Typography } from "antd";
-import { RightOutlined } from "@ant-design/icons";
+import { Card, Row, Col, Divider, Typography, Alert } from "antd";
+import { RightOutlined, LockOutlined } from "@ant-design/icons";
 import DealInfoSection from "./Components/DealInfoSection";
 import DealTabs from "./Components/DealTabs";
 import ActivitySidebar from "./Components/ActivitySidebar";
@@ -83,11 +83,26 @@ export const Show = ({
             >
                 <div className="min-h-screen mx-12">
                     <div className="max-w-10xl mx-auto">
+                        {/* Locked Deal Banner */}
+                        {deal.is_locked && (
+                            <Alert
+                                message="This deal is locked and cannot be modified."
+                                type="warning"
+                                showIcon
+                                icon={<LockOutlined />}
+                                className="mb-4"
+                                banner
+                            />
+                        )}
+
                         {/* Page Header */}
                         <div className="mb-6 sm:mb-8">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="min-w-0 flex-1">
                                     <Title level={4} className="mb-2">
+                                        {deal.is_locked && (
+                                            <LockOutlined className="text-amber-500 mr-2" />
+                                        )}
                                         {deal.name}
                                     </Title>
                                     <div className="flex flex-col gap-3">

@@ -1002,6 +1002,14 @@ class DealController extends AccountBaseController
     public function update(UpdateRequest $request, $id)
     {
         $deal = Deal::with('leadAgent', 'leadAgent.user')->findOrFail($id);
+
+        if ($deal->isLocked()) {
+            if ($request->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.dealLocked'));
+            }
+            return Reply::error(__('messages.dealLocked'));
+        }
+
         $dealRules = [
             'added' => 'added_by',
             'owned' => function($user, $deal) {
@@ -1097,7 +1105,14 @@ class DealController extends AccountBaseController
     public function patch(PatchRequest $request, $id)
     {
         $deal = Deal::with('contact')->findOrFail($id);
-        
+
+        if ($deal->isLocked()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
         // Check permissions
         $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
         $editPermission = user()->permission('edit_deals');
@@ -1339,6 +1354,13 @@ class DealController extends AccountBaseController
             abort(403);
         }
 
+        if ($deal->isLocked()) {
+            if (request()->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.dealLocked'));
+            }
+            return Reply::error(__('messages.dealLocked'));
+        }
+
         $model = new ReflectionClass('App\Models\Deal');
 
         DB::table('custom_fields_data')
@@ -1362,6 +1384,11 @@ class DealController extends AccountBaseController
     public function changeStatus(CommonRequest $request)
     {
         $deal = Deal::findOrFail($request->leadID);
+
+        if ($deal->isLocked()) {
+            return Reply::error(__('messages.dealLocked'));
+        }
+
         $this->editPermission = user()->permission('edit_deals');
         $this->changeLeadStatusPermission = user()->permission('change_deal_stages');
 
@@ -1389,6 +1416,11 @@ class DealController extends AccountBaseController
         ]);
 
         $deal = Deal::findOrFail($request->deal_id);
+
+        if ($deal->isLocked()) {
+            return Reply::error(__('messages.dealLocked'));
+        }
+
         $this->editPermission = user()->permission('edit_deals');
 
         // Check permission - allow if user has 'all' permission or added the deal
@@ -1480,14 +1512,24 @@ class DealController extends AccountBaseController
     {
         abort_403(user()->permission('delete_deals') != 'all');
 
+        $rowIds = explode(',', $request->row_ids);
+
+        // Exclude locked deals from bulk deletion
+        $lockedIds = Deal::whereIn('id', $rowIds)->where('is_locked', true)->pluck('id')->toArray();
+        $deletableIds = array_diff($rowIds, $lockedIds);
+
+        if (empty($deletableIds)) {
+            return;
+        }
+
         $model = new ReflectionClass('App\Models\Deal');
 
         DB::table('custom_fields_data')
             ->where('model', $model->getName())
-            ->whereIn('model_id', explode(',', $request->row_ids))
+            ->whereIn('model_id', $deletableIds)
             ->delete();
 
-        Deal::whereIn('id', explode(',', $request->row_ids))->delete();
+        Deal::whereIn('id', $deletableIds)->delete();
     }
 
     protected function changeBulkStatus($request)
@@ -1502,11 +1544,18 @@ class DealController extends AccountBaseController
 
         $stage = PipelineStage::find($newStatus);
 
-        if ($stage->slug === 'win' || $stage->slug === 'lost') {
-            Deal::whereIn('id', $rowIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
+        // Exclude locked deals from bulk status change
+        $editableIds = Deal::whereIn('id', $rowIds)->where('is_locked', false)->pluck('id')->toArray();
+
+        if (empty($editableIds)) {
+            return;
         }
 
-        Deal::whereIn('id', $rowIds)->update(['pipeline_stage_id' => $newStatus]);
+        if ($stage->slug === 'win' || $stage->slug === 'lost') {
+            Deal::whereIn('id', $editableIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
+        }
+
+        Deal::whereIn('id', $editableIds)->update(['pipeline_stage_id' => $newStatus]);
     }
 
     protected function changeAgentStatus($request)
@@ -2079,6 +2128,11 @@ class DealController extends AccountBaseController
     public function changeStage(CommonRequest $request)
     {
         $deal = Deal::findOrFail($request->leadID);
+
+        if ($deal->isLocked()) {
+            return Reply::error(__('messages.dealLocked'));
+        }
+
         $currentStageSlug = PipelineStage::findOrFail($request->statusID);
 
         // if the current stage is 'win' or 'lost', do not update
@@ -2171,6 +2225,10 @@ class DealController extends AccountBaseController
     public function saveStageChange(StageChangeRequest $request)
     {
         $deal = Deal::findOrFail($request->dealId);
+
+        if ($deal->isLocked()) {
+            return Reply::error(__('messages.dealLocked'));
+        }
 
         $deal->pipeline_stage_id = $request->pipelineStageId;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
