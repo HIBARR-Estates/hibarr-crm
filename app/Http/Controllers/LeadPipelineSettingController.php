@@ -129,7 +129,7 @@ class LeadPipelineSettingController extends AccountBaseController
      */
     public function destroy($id)
     {
-        Deal::where('lead_pipeline_id', $id)->delete();
+        Deal::where('lead_pipeline_id', $id)->where('is_locked', false)->delete();
         PipelineStage::where('lead_pipeline_id', $id)->delete();
 
         LeadPipeline::destroy($id);

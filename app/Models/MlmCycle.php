@@ -19,6 +19,7 @@ class MlmCycle extends BaseModel
     protected $fillable = [
         'company_id',
         'cycle_number',
+        'name',
         'start_date',
         'end_date',
         'status',

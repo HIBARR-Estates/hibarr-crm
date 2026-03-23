@@ -215,6 +215,7 @@ class MlmAgentController extends AccountBaseController
             ] : null,
             'active_cycle' => $activeCycle ? [
                 'cycle_number' => $activeCycle->cycle_number,
+                'name' => $activeCycle->name,
                 'start_date' => $activeCycle->start_date->format('Y-m-d'),
                 'end_date' => $activeCycle->end_date->format('Y-m-d'),
                 'days_remaining' => max(0, (int) now()->startOfDay()->diffInDays($activeCycle->end_date, false)),
@@ -485,6 +486,7 @@ class MlmAgentController extends AccountBaseController
                 ] : null,
                 'active_cycle' => $activeCycle ? [
                     'cycle_number' => $activeCycle->cycle_number,
+                    'name' => $activeCycle->name,
                     'end_date' => $activeCycle->end_date->format('Y-m-d'),
                     'days_remaining' => max(0, (int) now()->startOfDay()->diffInDays($activeCycle->end_date, false)),
                 ] : null,

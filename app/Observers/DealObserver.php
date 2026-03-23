@@ -317,6 +317,10 @@ class DealObserver
 
     public function deleting(Deal $deal)
     {
+        if ($deal->isLocked()) {
+            return false;
+        }
+
         $notifyData = ['App\Notifications\LeadAgentAssigned'];
         \App\Models\Notification::deleteNotification($notifyData, $deal->id);
 

@@ -97,6 +97,7 @@ class CycleService
         $cycle = MlmCycle::create([
             'company_id' => $companyId,
             'cycle_number' => $nextNumber,
+            'name' => "Cycle #{$nextNumber}",
             'start_date' => $startDate,
             'end_date' => $endDate,
             'status' => $status,

@@ -792,6 +792,7 @@ class MlmAdminApiController extends AccountBaseController
                 'cycle' => $cycle ? [
                     'id' => $cycle->id,
                     'cycle_number' => $cycle->cycle_number,
+                    'name' => $cycle->name,
                     'start_date' => $cycle->start_date->format('Y-m-d'),
                     'end_date' => $cycle->end_date->format('Y-m-d'),
                     'status' => $cycle->status->value,
@@ -811,6 +812,7 @@ class MlmAdminApiController extends AccountBaseController
     public function createCycle(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'name' => 'required|string|max:100',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
             'max_overflow_multiplier' => 'sometimes|numeric|min:0|max:5',
@@ -847,6 +849,7 @@ class MlmAdminApiController extends AccountBaseController
         $cycle = MlmCycle::create([
             'company_id' => $companyId,
             'cycle_number' => $lastNumber + 1,
+            'name' => $validated['name'],
             'start_date' => $startDate,
             'end_date' => $endDate,
             'status' => $status,
@@ -875,6 +878,7 @@ class MlmAdminApiController extends AccountBaseController
         }
 
         $validated = $request->validate([
+            'name' => 'sometimes|string|max:100',
             'start_date' => 'sometimes|date',
             'end_date' => 'sometimes|date',
             'max_overflow_multiplier' => 'sometimes|numeric|min:0|max:5',
@@ -904,6 +908,7 @@ class MlmAdminApiController extends AccountBaseController
         }
 
         $cycle->update(array_filter([
+            'name' => $validated['name'] ?? null,
             'start_date' => $startDate,
             'end_date' => $endDate,
             'max_overflow_multiplier' => $validated['max_overflow_multiplier'] ?? null,
@@ -990,6 +995,7 @@ class MlmAdminApiController extends AccountBaseController
                 'cycle' => [
                     'id' => $cycle->id,
                     'cycle_number' => $cycle->cycle_number,
+                    'name' => $cycle->name,
                     'start_date' => $cycle->start_date->format('Y-m-d'),
                     'end_date' => $cycle->end_date->format('Y-m-d'),
                     'status' => $cycle->status->value,
