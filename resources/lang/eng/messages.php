@@ -33,6 +33,7 @@ return array(
     'qrCodeAndFirstSignError' => '\'QR Code\' and \'Auto clock-in employee by first sign in\' cannot be enabled simultaneously. To enable QR Code, please first disable \'Auto Clock-In by First Sign-In\'.',
     'updateSuccess' => 'Updated successfully.',
     'dealUpdateSuccess' => 'Deal updated successfully.',
+    'dealLocked' => 'This deal is locked and cannot be modified.',
     'leadUpdateSuccess' => 'Contact updated successfully.',
     'propertyUpdateSuccess' => 'Property updated successfully.',
     'taskUpdateSuccess' => 'Task updated successfully.',
