@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 import {
+    Alert,
     Card,
     Table,
     Button,
@@ -36,6 +37,8 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
     const { data, isLoading, refetch } = useMlmLevels();
     const levels: MlmLevel[] =
         (data as any)?.data?.data ?? (data as any)?.data ?? initialLevels ?? [];
+    const hasActiveCycle: boolean =
+        (data as any)?.data?.has_active_cycle ?? false;
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<MlmLevel | null>(null);
@@ -201,6 +204,15 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
+                    {hasActiveCycle && (
+                        <Alert
+                            type="info"
+                            showIcon
+                            message="Active cycle in progress"
+                            description="Changes to levels and criteria will take effect in the next cycle. The current active cycle uses a snapshot of the rules as they were when it started. An admin can re-snapshot from the Cycle Management page if needed."
+                            className="mb-0"
+                        />
+                    )}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}

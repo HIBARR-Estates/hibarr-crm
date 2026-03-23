@@ -39,13 +39,13 @@ export const useMlmAdminDashboard = () =>
 
 /** All MLM levels with criteria */
 export const useMlmLevels = () =>
-    useApiQuery<{ data: MlmLevel[] }>({
+    useApiQuery<{ data: MlmLevel[]; has_active_cycle: boolean }>({
         path: `${ADMIN_API}/levels`,
     });
 
 /** Single level with criteria */
 export const useMlmLevel = (id: number) =>
-    useApiQuery<{ data: MlmLevel }>({
+    useApiQuery<{ data: MlmLevel; has_active_cycle: boolean }>({
         path: `${ADMIN_API}/levels/${id}`,
         options: { enabled: id > 0 },
     });
@@ -304,6 +304,17 @@ export const useForceCompleteEnrollment = (
 ) =>
     useApiMutate<{}, void, ApiResponse<void>>(
         `${ADMIN_API}/cycles/${cycleId}/enrollments/${enrollmentId}/force-complete`,
+        "POST",
+        onSuccess,
+    );
+
+/** Re-snapshot levels for an active cycle */
+export const useResnapshot = (
+    cycleId: number,
+    onSuccess?: (res?: any) => void,
+) =>
+    useApiMutate<{}, void, ApiResponse<void>>(
+        `${ADMIN_API}/cycles/${cycleId}/resnapshot`,
         "POST",
         onSuccess,
     );

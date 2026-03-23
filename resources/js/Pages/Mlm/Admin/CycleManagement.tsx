@@ -13,7 +13,14 @@ import {
     Modal,
 } from "antd";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, CalendarDays, XCircle } from "lucide-react";
+import {
+    Plus,
+    Pencil,
+    Trash2,
+    CalendarDays,
+    XCircle,
+    RefreshCw,
+} from "lucide-react";
 import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -24,6 +31,7 @@ import {
     useUpdateCycle,
     useDeleteCycle,
     useForceCompleteEnrollment,
+    useResnapshot,
     useMlmSettings,
 } from "@/Features/Mlm/api";
 import {
@@ -198,6 +206,33 @@ const DeleteCycleButton: React.FC<{
                 danger
                 icon={<Trash2 size={14} />}
                 loading={mutation.isPending}
+            />
+        </Popconfirm>
+    );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Resnapshot Button (active cycles — emergency correction)           */
+/* ------------------------------------------------------------------ */
+const ResnapshotButton: React.FC<{
+    cycleId: number;
+    onCompleted: () => void;
+}> = ({ cycleId, onCompleted }) => {
+    const mutation = useResnapshot(cycleId, onCompleted);
+
+    return (
+        <Popconfirm
+            title="Re-snapshot levels for this cycle?"
+            description="This will update the frozen level rules used for commission calculations. Already-calculated commissions are not affected."
+            onConfirm={() => mutation.mutate({})}
+            okText="Re-snapshot"
+        >
+            <Button
+                size="small"
+                type="text"
+                icon={<RefreshCw size={14} />}
+                loading={mutation.isPending}
+                title="Re-snapshot levels"
             />
         </Popconfirm>
     );
@@ -415,6 +450,7 @@ const CycleManagement: React.FC<Props> = () => {
             width: 120,
             render: (_: any, record: MlmCycle) => {
                 const isUpcoming = record.status === "upcoming";
+                const isActive = record.status === "active";
                 const hasEnrollments = (record.enrollments_count ?? 0) > 0;
 
                 return (
@@ -431,6 +467,12 @@ const CycleManagement: React.FC<Props> = () => {
                             <DeleteCycleButton
                                 cycleId={record.id}
                                 onDeleted={() => refetch()}
+                            />
+                        )}
+                        {isActive && (
+                            <ResnapshotButton
+                                cycleId={record.id}
+                                onCompleted={() => refetch()}
                             />
                         )}
                     </div>
