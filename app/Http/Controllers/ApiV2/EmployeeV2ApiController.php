@@ -212,6 +212,7 @@ class EmployeeV2ApiController extends Controller
             $user->company_id = $companyId;
             $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
             $user->email = $request->input('email');
+            $this->formatPhone($user, $request->input('phone'));
             $user->password = bcrypt(Str::random(20)); // ignored later; only used to satisfy DB schema
             $user->locale = $request->validated('locale') ?? ($company->locale ?? 'en');
 
@@ -311,6 +312,10 @@ class EmployeeV2ApiController extends Controller
 
         if ($request->filled('email')) {
             $user->email = $request->input('email');
+        }
+
+        if ($request->has('phone')) {
+            $this->formatPhone($user, $request->input('phone'));
         }
 
         $statusProvided = $request->has('status') || $request->has('statusFilter');
@@ -468,6 +473,38 @@ class EmployeeV2ApiController extends Controller
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    private function formatPhone(User $user, mixed $phoneInput): void
+    {
+        if (!is_string($phoneInput)) {
+            return;
+        }
+
+        $e164Phone = trim($phoneInput);
+        if ($e164Phone === '' || !str_starts_with($e164Phone, '+')) {
+            return;
+        }
+
+        $digits = preg_replace('/\D+/', '', $e164Phone);
+        if ($digits === '') {
+            return;
+        }
+
+        // For API v2 we receive E.164 (e.g. +905338773001).
+        // Store in production-compatible JSON shape used across the app.
+        $countryCode = substr($digits, 0, 2);
+        $localPhone = substr($digits, 2);
+
+        if ($countryCode === '' || $localPhone === '') {
+            return;
+        }
+
+        $user->mobile = json_encode([
+            'phone' => '+' . $countryCode . ' ' . $localPhone,
+            'country_code' => $countryCode,
+        ]);
+        $user->country_phonecode = (int) $countryCode;
     }
 }
 
