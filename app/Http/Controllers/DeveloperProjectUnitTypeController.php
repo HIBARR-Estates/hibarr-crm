@@ -93,6 +93,7 @@ class DeveloperProjectUnitTypeController extends Controller
             ->findOrFail($projectId);
 
         $unitType = $project->unitTypes()->findOrFail($unitTypeId);
+        $incoming = $request->only($this->fillableFields());
 
         $validator = Validator::make($request->all(), $this->validationRules(true));
 
@@ -100,7 +101,7 @@ class DeveloperProjectUnitTypeController extends Controller
             return Reply::error($validator->errors()->first());
         }
 
-        $unitType->update($request->only($this->fillableFields()));
+        $unitType->update($incoming);
 
         return Reply::successWithData('Unit type updated successfully', [
             'unit_type' => $unitType->fresh('assets'),
