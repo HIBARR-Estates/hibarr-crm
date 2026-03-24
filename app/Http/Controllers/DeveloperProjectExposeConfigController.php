@@ -70,6 +70,15 @@ class DeveloperProjectExposeConfigController extends AccountBaseController
     {
         $project = DeveloperProject::where('company_id', user()->company_id)
             ->findOrFail($projectId);
+        $incoming = $request->only([
+            'logo',
+            'project_overview',
+            'grouped_images',
+            'generic_images',
+            'info_blocks',
+            'monetary_evaluation',
+            'contact_details',
+        ]);
 
         $validator = Validator::make($request->all(), [
             'logo' => 'nullable|array',
@@ -101,15 +110,7 @@ class DeveloperProjectExposeConfigController extends AccountBaseController
 
         $config = DeveloperProjectExposeConfig::updateOrCreate(
             ['developer_project_id' => $project->id],
-            $request->only([
-                'logo',
-                'project_overview',
-                'grouped_images',
-                'generic_images',
-                'info_blocks',
-                'monetary_evaluation',
-                'contact_details',
-            ])
+            $incoming
         );
 
         return Reply::successWithData('Expose config saved successfully', [
