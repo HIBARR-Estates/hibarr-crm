@@ -16,9 +16,18 @@ class UpdateEmployeeV2Request extends CoreRequest
     {
         $companyId = $this->header('X-COMPANY-ID');
         $companyId = $companyId && is_numeric($companyId) ? (int) $companyId : null;
+        $phone = $this->input('phone');
+
+        if (is_string($phone)) {
+            $normalizedPhone = preg_replace('/[^\d+]/', '', trim($phone));
+            if (is_string($normalizedPhone) && $normalizedPhone !== '' && str_starts_with($normalizedPhone, '+')) {
+                $phone = '+' . preg_replace('/\D+/', '', substr($normalizedPhone, 1));
+            }
+        }
 
         $this->merge([
             'companyId' => $companyId,
+            'phone' => $phone,
         ]);
 
         // Accept both `status` and `statusFilter` with the same values.
@@ -78,6 +87,7 @@ class UpdateEmployeeV2Request extends CoreRequest
 
             // ignored
             'password' => 'nullable|string',
+            'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+\d{8,15}$/'],
         ];
     }
 }

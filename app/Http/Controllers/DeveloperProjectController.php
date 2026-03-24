@@ -458,24 +458,28 @@ class DeveloperProjectController extends AccountBaseController
         }
 
         // Handle location — update existing or create new
-        if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
+        if ($request->hasAny(['city', 'area', 'address', 'latitude', 'longitude', 'map_url'])) {
             // The address column is JSON ({street?, state?, country?, postalCode?}).
             // If a plain string is provided, wrap it in the expected structure.
-            $address = $request->address;
-
-            if (is_string($address)) {
-                $address = ['street' => $address];
-            }
-
             $locationData = [
                 'company_id' => user()->company_id,
-                'city' => $request->city,
-                'area' => $request->area,
-                'address' => $address,
-                'latitude' => $request->latitude,
-                'longitude' => $request->longitude,
-                'map_url' => $request->map_url,
             ];
+
+            foreach (['city', 'area', 'latitude', 'longitude', 'map_url'] as $field) {
+                if ($request->has($field)) {
+                    $locationData[$field] = $request->input($field);
+                }
+            }
+
+            if ($request->has('address')) {
+                $address = $request->input('address');
+
+                if (is_string($address)) {
+                    $address = ['street' => $address];
+                }
+
+                $locationData['address'] = $address;
+            }
 
             if ($project->project_location_id) {
                 $project->location()->update($locationData);
