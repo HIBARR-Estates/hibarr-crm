@@ -139,7 +139,7 @@ const ConstructionProjectPhotosSection: React.FC<
                 "image/gif",
                 "image/webp",
             ],
-            maxFileSize: 50 * 1024 * 1024, // 50 MB
+            maxFileSize: 200 * 1024 * 1024, // 200 MB
         });
     }, [projectId]);
 

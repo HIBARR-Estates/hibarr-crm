@@ -118,7 +118,7 @@ const ManageAssets = ({
                 "video/webm",
                 "video/quicktime",
             ],
-            maxFileSize: 50 * 1024 * 1024, // 50MB for videos
+            maxFileSize: 200 * 1024 * 1024, // 200MB for videos
         });
     }, [property.id]);
 

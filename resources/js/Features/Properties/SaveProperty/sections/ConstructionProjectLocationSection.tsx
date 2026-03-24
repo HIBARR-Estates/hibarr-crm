@@ -100,9 +100,9 @@ const ConstructionProjectLocationSection: React.FC<
                     rules={[
                         {
                             type: "number",
-                            min: -90,
-                            max: 90,
-                            message: "Must be between -90 and 90",
+                            // min: -90,
+                            // max: 90,
+                            // message: "Must be between -90 and 90",
                             transform: (v: string) =>
                                 v ? Number(v) : undefined,
                         },
@@ -124,9 +124,9 @@ const ConstructionProjectLocationSection: React.FC<
                     rules={[
                         {
                             type: "number",
-                            min: -180,
-                            max: 180,
-                            message: "Must be between -180 and 180",
+                            // min: -180,
+                            // max: 180,
+                            // message: "Must be between -180 and 180",
                             transform: (v: string) =>
                                 v ? Number(v) : undefined,
                         },

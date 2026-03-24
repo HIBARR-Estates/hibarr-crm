@@ -146,7 +146,7 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                 "image/gif",
                 "image/webp",
             ],
-            maxFileSize: 50 * 1024 * 1024, // 50MB
+            maxFileSize: 200 * 1024 * 1024, // 200MB
         });
     }, [propertyId]);
 
