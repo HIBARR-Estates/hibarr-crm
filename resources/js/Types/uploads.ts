@@ -47,7 +47,7 @@ export const DEFAULT_UPLOAD_CONFIG: Required<
         "application/vnd.ms-excel",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ],
-    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFileSize: 300 * 1024 * 1024, // 300MB
     maxConcurrent: 3,
     defaultTargetFolder: "backend-uploads",
 };

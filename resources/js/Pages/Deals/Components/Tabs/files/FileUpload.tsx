@@ -35,7 +35,12 @@ const FileUpload: React.FC<Props> = ({
     const [fileList, setFileList] = useState<UploadFile[]>([]);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const uploadServiceRef = useRef(getFileUploadService());
+    const uploadServiceRef = useRef(
+        getFileUploadService({
+            maxFileSize: 200 * 1024 * 1024, // 200MB
+            allowedTypes: [], // Allow all file types
+        }),
+    );
 
     // Mutation to save file references to the backend after external upload
     const saveMutation = useApiMutate<
