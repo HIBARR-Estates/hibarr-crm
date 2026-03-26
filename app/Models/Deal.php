@@ -133,7 +133,7 @@ class Deal extends BaseModel
     protected $hidden = ["pivot"];
 
 
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url', 'total_discount'];
 
     protected $casts = [
         'close_date' => 'datetime',

@@ -508,6 +508,7 @@ class DealController extends AccountBaseController
             'packages:id,name',
             'communicationActivities',
             'hibarrFields',
+            'offerApplications.offer',
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
                       ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')

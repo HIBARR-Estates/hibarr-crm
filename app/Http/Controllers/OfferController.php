@@ -10,6 +10,7 @@ use App\Models\DeveloperProjectUnitType;
 use App\Models\Offer;
 use App\Services\DealOfferService;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class OfferController extends AccountBaseController
 {
@@ -37,8 +38,25 @@ class OfferController extends AccountBaseController
 
         $offers = $query->orderBy('created_at', 'desc')->paginate($request->input('per_page', 15));
 
-        return Reply::successWithData('Offers fetched successfully', [
-            'offers' => $offers,
+        // Return Inertia page for browser requests, JSON for API requests
+        if ($request->wantsJson()) {
+            return Reply::successWithData('Offers fetched successfully', [
+                'offers' => $offers,
+            ]);
+        }
+
+        return Inertia::render('Offers/Index', [
+            'pageTitle' => 'Offers',
+            'offers' => [
+                'data' => $offers->items(),
+                'current_page' => $offers->currentPage(),
+                'last_page' => $offers->lastPage(),
+                'per_page' => $offers->perPage(),
+                'total' => $offers->total(),
+                'from' => $offers->firstItem(),
+                'to' => $offers->lastItem(),
+            ],
+            'filters' => $request->only(['search', 'active_only']),
         ]);
     }
 
