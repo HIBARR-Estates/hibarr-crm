@@ -42,6 +42,10 @@ enum DealActivityType: string
     case PACKAGE_ASSIGNED = 'package_assigned';
     case PACKAGE_REMOVED = 'package_removed';
 
+    // Offers
+    case OFFER_APPLIED = 'offer_applied';
+    case OFFER_REMOVED = 'offer_removed';
+
     // Agent Assignment
     case AGENT_ASSIGNED = 'agent_assigned';
     case AGENT_CHANGED = 'agent_changed';
@@ -73,6 +77,8 @@ enum DealActivityType: string
             self::PROPERTY_UNLINKED => 'Property Unlinked',
             self::PACKAGE_ASSIGNED => 'Package Assigned',
             self::PACKAGE_REMOVED => 'Package Removed',
+            self::OFFER_APPLIED => 'Offer Applied',
+            self::OFFER_REMOVED => 'Offer Removed',
             self::AGENT_ASSIGNED => 'Agent Assigned',
             self::AGENT_CHANGED => 'Agent Changed',
             self::WATCHER_ADDED => 'Watcher Added',
@@ -93,6 +99,7 @@ enum DealActivityType: string
             self::FILE_UPLOADED, self::FILE_DELETED => 'file',
             self::PROPERTY_LINKED, self::PROPERTY_UNLINKED => 'property',
             self::PACKAGE_ASSIGNED, self::PACKAGE_REMOVED => 'package',
+            self::OFFER_APPLIED, self::OFFER_REMOVED => 'offer',
             self::AGENT_ASSIGNED, self::AGENT_CHANGED => 'agent',
             self::WATCHER_ADDED, self::WATCHER_REMOVED => 'watcher',
         };

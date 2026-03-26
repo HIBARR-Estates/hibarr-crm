@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasCompany;
+use App\Traits\HasOffers;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class DeveloperProjectUnitType extends BaseModel
 {
-    use HasFactory, HasCompany, SoftDeletes;
+    use HasFactory, HasCompany, HasOffers, SoftDeletes;
 
     protected $table = 'developer_project_unit_types';
 

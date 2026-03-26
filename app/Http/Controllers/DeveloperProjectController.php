@@ -82,7 +82,7 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function show(Request $request, $id)
     {
-        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'unitTypes.assets'])
+        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'unitTypes.assets', 'unitTypes.offers', 'offers'])
             ->withCount('properties')
             ->where('company_id', user()->company_id)
             ->findOrFail($id);
@@ -353,6 +353,18 @@ class DeveloperProjectController extends AccountBaseController
                 'map_url' => $request->map_url,
             ]);
             $locationId = $location->id;
+        }
+
+        // If the project name is not in the developer's project_list, add it
+        if ($request->filled('developer_id') && $request->filled('name')) {
+            $developer = \App\Models\Developer::find($request->developer_id);
+            if ($developer) {
+                $projectList = $developer->project_list ?? [];
+                if (!in_array($request->name, $projectList)) {
+                    $projectList[] = $request->name;
+                    $developer->update(['project_list' => $projectList]);
+                }
+            }
         }
 
         $project = DeveloperProject::create([
