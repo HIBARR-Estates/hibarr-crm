@@ -14,6 +14,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Models\Payment;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
+use App\Models\DealOfferApplication;
 
 
 /**
@@ -132,7 +133,7 @@ class Deal extends BaseModel
     protected $hidden = ["pivot"];
 
 
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url', 'total_discount'];
 
     protected $casts = [
         'close_date' => 'datetime',
@@ -310,6 +311,21 @@ class Deal extends BaseModel
     public function tasks()
     {
         return $this->morphToMany(Task::class, 'taskable');
+    }
+
+    // ── Offers ────────────────────────────────────────────────────
+
+    public function offerApplications(): HasMany
+    {
+        return $this->hasMany(DealOfferApplication::class, 'deal_id');
+    }
+
+    /**
+     * Get the total discount amount from all applied offers.
+     */
+    public function getTotalDiscountAttribute(): float
+    {
+        return (float) $this->offerApplications()->sum('discount_amount');
     }
 
     // ── MLM ──────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 import { Button, Select } from "antd";
 import React from "react";
-import BulkDeleteAgents from "./BulkDeleteAgents";
-import BulkChangeAgentStatus from "./BulkChangeAgentStatus";
-import BulkChangeAgentRole from "./BulkChangeAgentRole";
 import { Role } from "@/Types";
+import BulkChangeAgentRole from "./BulkChangeAgentRole";
+import BulkChangeAgentStatus from "./BulkChangeAgentStatus";
+import BulkDeleteAgents from "./BulkDeleteAgents";
 
 type TAgentBulkAction = "delete" | "enable" | "disable" | "change_role";
 

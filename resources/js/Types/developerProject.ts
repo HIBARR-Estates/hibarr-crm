@@ -180,6 +180,9 @@ export interface DeveloperProject {
     expose_config?: DeveloperProjectExposeConfig;
     properties?: Property[];
     unit_types_details?: DeveloperProjectUnitType[];
+    // Offers
+    offers?: import("./api/offers").Offer[];
+    offers_count?: number;
     // Computed
     properties_count?: number;
 }
@@ -261,6 +264,9 @@ export interface DeveloperProjectUnitType {
     deleted_at: string | null;
     // Relations
     assets?: DeveloperProjectUnitTypeAsset[];
+    // Offers
+    offers?: import("./api/offers").Offer[];
+    offers_count?: number;
     // Computed
     display_label?: string;
     formatted_price?: string;

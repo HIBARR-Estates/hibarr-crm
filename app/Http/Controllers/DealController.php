@@ -56,6 +56,7 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Services\PermissionService;
+use App\Services\DealOfferService;
 
 class DealController extends AccountBaseController
 {
@@ -507,6 +508,7 @@ class DealController extends AccountBaseController
             'packages:id,name',
             'communicationActivities',
             'hibarrFields',
+            'offerApplications.offer',
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
                       ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
@@ -854,6 +856,9 @@ class DealController extends AccountBaseController
             }
         }
 
+        // Auto-apply offers based on product properties
+        app(DealOfferService::class)->applyOffersToDeal($deal);
+
         // To add custom fields data
         if ($request->custom_fields_data) {
             $deal->updateCustomFieldData($request->custom_fields_data);
@@ -1085,6 +1090,9 @@ class DealController extends AccountBaseController
         }
 
         $deal->products()->sync($request->product_id);
+
+        // Auto-apply offers based on product properties
+        app(DealOfferService::class)->applyOffersToDeal($deal);
 
         if (!$deal->wasChanged() && $customFieldsUpdated) {
              app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');

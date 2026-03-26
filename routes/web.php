@@ -1172,6 +1172,25 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         });
     });
 
+    // ─── Offers ──────────────────────────────────────────────────
+    Route::prefix('offers')->name('offers.')->group(function () {
+        Route::get('/', [App\Http\Controllers\OfferController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\OfferController::class, 'store'])->name('store');
+        Route::get('/{id}', [App\Http\Controllers\OfferController::class, 'show'])->name('show');
+        Route::put('/{id}', [App\Http\Controllers\OfferController::class, 'update'])->name('update');
+        Route::delete('/{id}', [App\Http\Controllers\OfferController::class, 'destroy'])->name('destroy');
+        Route::post('/{offerId}/attach', [App\Http\Controllers\OfferController::class, 'attach'])->name('attach');
+        Route::post('/{offerId}/detach', [App\Http\Controllers\OfferController::class, 'detach'])->name('detach');
+    });
+
+    // Deal offer endpoints
+    Route::prefix('deals/{dealId}/offers')->name('deals.offers.')->group(function () {
+        Route::get('/', [App\Http\Controllers\OfferController::class, 'dealOffers'])->name('index');
+        Route::post('/apply', [App\Http\Controllers\OfferController::class, 'applyToDeal'])->name('apply');
+        Route::get('/preview', [App\Http\Controllers\OfferController::class, 'previewForDeal'])->name('preview');
+        Route::delete('/', [App\Http\Controllers\OfferController::class, 'removeFromDeal'])->name('remove');
+    });
+
     // Property Asset Management (New System)
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');
     Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {
