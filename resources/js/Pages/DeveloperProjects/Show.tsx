@@ -39,6 +39,7 @@ import {
     BuildOutlined,
     CheckCircleOutlined,
     ClockCircleOutlined,
+    GiftOutlined,
 } from "@ant-design/icons";
 import type {
     DeveloperProject,
@@ -56,6 +57,7 @@ import GenerateProjectExposeModal from "../../Features/DeveloperProjects/Generat
 import UnitTypesSection from "../../Features/DeveloperProjects/UnitTypesSection";
 import ConstructionProjectFormModal from "../../Features/DeveloperProjects/ConstructionProjectFormModal";
 import ProjectPhotosSection from "../../Features/DeveloperProjects/ProjectPhotosSection";
+import ProjectOffersSection from "../../Features/Offers/ProjectOffersSection";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -129,7 +131,8 @@ type SectionKey =
     | "interior"
     | "siteplan"
     | "pricelist"
-    | "pdf";
+    | "pdf"
+    | "offers";
 
 // ============================================
 // Section Components
@@ -765,6 +768,11 @@ const Show = ({
             icon: <FilePdfOutlined />,
             label: "PDF Files",
         },
+        {
+            key: "offers",
+            icon: <GiftOutlined />,
+            label: "Offers",
+        },
     ];
 
     const renderSection = () => {
@@ -821,6 +829,13 @@ const Show = ({
                         projectName={project.name}
                         unitTypes={unitTypes}
                         priceList={priceList}
+                    />
+                );
+            case "offers":
+                return (
+                    <ProjectOffersSection
+                        project={project}
+                        unitTypes={unitTypes ?? []}
                     />
                 );
             default:

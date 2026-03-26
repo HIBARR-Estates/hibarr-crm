@@ -623,6 +623,13 @@ export interface AppProps extends PageProps {
 export { type Lead } from "./api/leads";
 // Deal Types
 export { type Deal } from "./api/deals";
+// Offer Types
+export type {
+    Offer,
+    DealOfferApplication,
+    OfferFormValues,
+    PaginatedOfferResponse,
+} from "./api/offers";
 
 // Client Types
 export interface Country {
