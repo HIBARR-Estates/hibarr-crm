@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import {
     Form,
     Select,
+    AutoComplete,
     Input,
     Button,
     Typography,
@@ -108,20 +109,20 @@ const ConstructionProjectInfoSection: React.FC<
                         },
                     ]}
                 >
-                    <Select
+                    <AutoComplete
                         placeholder={
                             selectedDeveloperId
-                                ? "Select project name"
+                                ? "Type or select a project name"
                                 : "Select a company first"
                         }
                         allowClear
-                        showSearch
-                        optionFilterProp="label"
                         disabled={!selectedDeveloperId}
                         options={projectNameOptions}
-                        // Allow typing a custom project name
-                        mode={undefined}
-                        notFoundContent="No projects found — type a custom name"
+                        filterOption={(inputValue, option) =>
+                            ((option?.label as string) ?? "")
+                                .toLowerCase()
+                                .includes(inputValue.toLowerCase())
+                        }
                     />
                 </Form.Item>
             </Col>
