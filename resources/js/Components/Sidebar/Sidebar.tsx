@@ -161,6 +161,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             href: "/account/lead-contact",
         },
         {
+            key: "agents",
+            label: "Agents",
+            icon: <TeamOutlined />,
+            href: "/account/agents",
+        },
+        {
             key: "deals",
             label: t("app.menu.deal"),
             icon: <BriefcaseIcon />,
