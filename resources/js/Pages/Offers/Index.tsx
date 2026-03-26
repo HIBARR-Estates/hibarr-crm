@@ -2,7 +2,6 @@ import { useMemo, useCallback, useState } from "react";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import OfferFormModal from "@/Features/Offers/OfferFormModal";
-import OfferDetailDrawer from "@/Features/Offers/OfferDetailDrawer";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import type { Offer } from "@/Types/api/offers";
 import {
@@ -17,6 +16,7 @@ import type { TableColumnsType } from "antd";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import dayjs from "dayjs";
+import OfferDetailDrawer from "@/Features/Offers/OfferDetailDrawer";
 
 interface OffersIndexProps {
     pageTitle: string;
