@@ -42,8 +42,13 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function index(Request $request)
     {
-        $query = DeveloperProject::with(['location', 'exposeConfig', 'developer'])
+        $query = DeveloperProject::with(['location', 'exposeConfig', 'developer', 'assets' => function ($q) {
+                $q->where('asset_type', 'image')->orderBy('order')->limit(1);
+            }])
             ->withCount('properties')
+            ->withCount(['properties as sold_properties_count' => function ($q) {
+                $q->where('status', Property::STATUS_SOLD);
+            }])
             ->where('company_id', user()->company_id);
 
         // Search by name or description
@@ -60,14 +65,33 @@ class DeveloperProjectController extends AccountBaseController
             $query->where('project_location_id', $request->location_id);
         }
 
-        $projects = $query->orderBy('created_at', 'desc')->paginate(15);
+        // Apply sort
+        switch ($request->input('sort', 'newest')) {
+            case 'oldest':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            case 'properties_desc':
+                $query->orderByDesc('properties_count');
+                break;
+            default: // newest
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        $projects = $query->paginate(15);
 
         // For Inertia page render
         // if (!$request->ajax() && !$request->wantsJson()) {
             return Inertia::render('DeveloperProjects/Index', [
                 'pageTitle' => 'Construction Projects',
                 'projects' => $projects,
-                'filters' => $request->only(['search', 'location_id']),
+                'filters' => $request->only(['search', 'location_id', 'sort']),
             ]);
         // }
 
