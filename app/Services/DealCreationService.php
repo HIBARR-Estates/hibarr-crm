@@ -437,6 +437,9 @@ class DealCreationService
                     if ($isNewDeal) {
                         $this->sendDealCreatedNotifications($deal);
                     }
+
+                    // Auto-apply offers based on product properties
+                    app(DealOfferService::class)->applyOffersToDeal($deal);
                 } catch (\Exception $e) {
                     // Log errors but don't fail the request - these are non-critical operations
                     Log::error('DealCreationService: Error in post-transaction operations', [
