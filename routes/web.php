@@ -125,6 +125,7 @@ use App\Http\Controllers\EmployeeShiftChangeRequestController;
 use App\Http\Controllers\EstimateRequestController;
 use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
 use App\Http\Controllers\InvoicePaymentDetailController;
@@ -584,6 +585,23 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::put('lead-contact/{lead_contact}', [LeadContactController::class, 'update'])->name('lead-contact.update');
     Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
     Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
+
+    // Agent management routes
+    Route::group(['prefix' => 'agents'], function () {
+        Route::post('apply-quick-action', [AgentController::class, 'applyQuickAction'])->name('agents.apply_quick_action');
+        Route::get('import', [AgentController::class, 'importAgents'])->name('agents.import');
+        Route::post('import', [AgentController::class, 'importStore'])->name('agents.import.store');
+        Route::post('import/process', [AgentController::class, 'importProcess'])->name('agents.import.process');
+        Route::get('sample-import', [AgentController::class, 'downloadSampleImport'])->name('agents.sample_import');
+    });
+
+    Route::get('agents', [AgentController::class, 'index'])->name('agents.index');
+    Route::get('agents/create', [AgentController::class, 'create'])->name('agents.create');
+    Route::post('agents', [AgentController::class, 'store'])->name('agents.store');
+    Route::get('agents/{agent}', [AgentController::class, 'show'])->name('agents.show');
+    Route::get('agents/{agent}/edit', [AgentController::class, 'edit'])->name('agents.edit');
+    Route::put('agents/{agent}', [AgentController::class, 'update'])->name('agents.update');
+    Route::delete('agents/{agent}', [AgentController::class, 'destroy'])->name('agents.destroy');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
