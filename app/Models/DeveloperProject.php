@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasCompany;
+use App\Traits\HasOffers;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,7 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class DeveloperProject extends BaseModel
 {
-    use HasFactory, HasCompany, SoftDeletes;
+    use HasFactory, HasCompany, HasOffers, SoftDeletes;
 
     // ================================================================
     // Construction Status Constants (project-level)

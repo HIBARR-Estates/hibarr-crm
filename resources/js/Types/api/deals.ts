@@ -1,5 +1,6 @@
 import { User } from "..";
 import { Lead, LeadCategory, LeadSource } from "./leads";
+import type { DealOfferApplication } from "./offers";
 
 export interface PaginatedDealResponse {
     current_page: number;
@@ -83,6 +84,10 @@ export interface Deal {
     // Lock state
     is_locked?: boolean;
     locked_at?: string | null;
+
+    // Offers
+    offer_applications?: DealOfferApplication[];
+    total_discount?: number;
 }
 
 export interface HibarrDealFields {

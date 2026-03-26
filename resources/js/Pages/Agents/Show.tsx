@@ -21,9 +21,9 @@ import {
 import { Link, router } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import UserIndicator from "@/Components/UserIndicator";
 import SaveAgentModal from "@/Features/Agents/SaveAgentModal";
 import DeleteAgent from "@/Features/Agents/DeleteAgent";
-import UserIndicator from "@/Components/UserIndicator";
 
 const Show = ({
     pageTitle,
@@ -239,7 +239,7 @@ const Show = ({
 
             <DeleteAgent
                 open={action === "delete"}
-                onClose={handleClose}
+                onClose={() => handleClose()}
                 agent={selected}
             />
         </>

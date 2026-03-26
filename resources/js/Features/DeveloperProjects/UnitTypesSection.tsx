@@ -28,10 +28,13 @@ import {
     DeleteOutlined,
     EyeOutlined,
     CopyOutlined,
+    GiftOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
+import type { Offer } from "@/Types/api/offers";
 import UnitTypeFormModal from "./UnitTypeFormModal";
+import OfferAttachSection from "@/Features/Offers/OfferAttachSection";
 import {
     getCurrencySymbol,
     VIEW_TYPE_OPTIONS,
@@ -234,6 +237,30 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
             align: "right",
             render: (_, record) =>
                 formatPrice(record.starting_price, record.currency),
+        },
+        {
+            title: "Offer",
+            key: "offer",
+            width: 160,
+            render: (_: any, record: DeveloperProjectUnitType) => {
+                const offer =
+                    record.offers && record.offers.length > 0
+                        ? (record.offers.find((o: Offer) => o.is_active) ??
+                          record.offers[0])
+                        : null;
+                if (!offer)
+                    return <span className="text-gray-400">&mdash;</span>;
+                return (
+                    <Tag
+                        color={offer.type === "percentage" ? "blue" : "green"}
+                        icon={<GiftOutlined />}
+                    >
+                        {offer.type === "percentage"
+                            ? `${offer.value}%`
+                            : Number(offer.value).toLocaleString("en-GB")}
+                    </Tag>
+                );
+            },
         },
         {
             title: "Actions",
@@ -449,6 +476,28 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                                 </Image.PreviewGroup>
                             </div>
                         )}
+
+                        {/* Offer */}
+                        <div className="mt-3">
+                            <Text
+                                type="secondary"
+                                className="text-xs block mb-1"
+                            >
+                                Offer:
+                            </Text>
+                            <OfferAttachSection
+                                currentOffer={
+                                    record.offers && record.offers.length > 0
+                                        ? (record.offers.find(
+                                              (o: Offer) => o.is_active,
+                                          ) ?? record.offers[0])
+                                        : null
+                                }
+                                offerableType="unit_type"
+                                offerableId={record.id}
+                                onRefresh={handleSuccess}
+                            />
+                        </div>
                     </Col>
                 </Row>
             </div>

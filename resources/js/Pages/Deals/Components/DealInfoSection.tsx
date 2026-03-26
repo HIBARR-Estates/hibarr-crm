@@ -20,6 +20,7 @@ import {
     CheckOutlined,
     SaveOutlined,
     LockOutlined,
+    GiftOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
@@ -30,6 +31,7 @@ import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import UserIndicator from "@/Components/UserIndicator";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import DealDetailsTab from "./DealDetailsTab";
+import DealOffersTab from "@/Features/Deals/DealOffersTab";
 import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import { Task } from "@/Types/api/tasks";
 import EditableField from "@/Components/EditableField";
@@ -916,6 +918,18 @@ export default function DealInfoSection({
                             />
                         </Descriptions.Item>
 
+                        {currentDeal.total_discount != null &&
+                            currentDeal.total_discount > 0 && (
+                                <Descriptions.Item label="Total Discount">
+                                    <Tag color="green" icon={<GiftOutlined />}>
+                                        -
+                                        {Number(
+                                            currentDeal.total_discount,
+                                        ).toLocaleString("en-GB")}
+                                    </Tag>
+                                </Descriptions.Item>
+                            )}
+
                         <Descriptions.Item label="Properties" span={"filled"}>
                             <EditableField
                                 value={
@@ -1001,6 +1015,16 @@ export default function DealInfoSection({
                 </div>
             ),
         })),
+        {
+            key: "offers",
+            label: (
+                <span>
+                    <GiftOutlined className="mr-1" />
+                    Offers
+                </span>
+            ),
+            children: <DealOffersTab deal={currentDeal} />,
+        },
     ];
 
     return (
