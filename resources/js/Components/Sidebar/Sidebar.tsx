@@ -161,12 +161,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <PersonIcon />,
             href: "/account/lead-contact",
         },
-        {
-            key: "agents",
-            label: "Agents",
-            icon: <TeamOutlined />,
-            href: "/account/agents",
-        },
+        // {
+        //     key: "agents",
+        //     label: "Agents",
+        //     icon: <TeamOutlined />,
+        //     href: "/account/agents",
+        // },
         {
             key: "deals",
             label: t("app.menu.deal"),
@@ -192,12 +192,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                           },
                       ],
         },
-        {
-            key: "offers",
-            label: "Offers",
-            icon: <GiftOutlined />,
-            href: "/account/offers",
-        },
+        // {
+        //     key: "offers",
+        //     label: "Offers",
+        //     icon: <GiftOutlined />,
+        //     href: "/account/offers",
+        // },
         {
             key: "meetings",
             label: t("app.menu.meetings"),
