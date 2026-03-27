@@ -1315,6 +1315,11 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::get('my-level', [App\Http\Controllers\MlmAgentController::class, 'myLevelApi'])->name('my_level');
             Route::get('deal-contributions', [App\Http\Controllers\MlmAgentController::class, 'dealContributionsApi'])->name('deal_contributions');
             Route::get('my-enrollment', [App\Http\Controllers\MlmAgentController::class, 'myEnrollmentApi'])->name('my_enrollment');
+
+            // Downline deals & agent invitations
+            Route::get('downline/{downlineId}/deals', [App\Http\Controllers\MlmAgentController::class, 'downlineDealsApi'])->name('downline_deals');
+            Route::post('invites', [App\Http\Controllers\MlmAgentController::class, 'sendInviteApi'])->name('send_invite');
+            Route::get('invites', [App\Http\Controllers\MlmAgentController::class, 'getInvitesApi'])->name('invites');
         });
     });
 });
