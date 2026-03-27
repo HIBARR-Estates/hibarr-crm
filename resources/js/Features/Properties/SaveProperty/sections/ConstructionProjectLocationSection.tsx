@@ -4,12 +4,14 @@ import type { FormInstance } from "antd/lib/form";
 import type { PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
+import { DeveloperProject } from "@/Types/developerProject";
 
 const { TextArea } = Input;
 
 interface ConstructionProjectLocationSectionProps {
     form: FormInstance;
     enumValues?: PropertyEnumValues;
+    project?: DeveloperProject | null;
 }
 
 /**
@@ -21,7 +23,7 @@ interface ConstructionProjectLocationSectionProps {
  */
 const ConstructionProjectLocationSection: React.FC<
     ConstructionProjectLocationSectionProps
-> = ({ form, enumValues }) => {
+> = ({ form, enumValues, project }) => {
     const { props } = usePage<any>();
 
     // Watch city value for area filtering
@@ -53,7 +55,10 @@ const ConstructionProjectLocationSection: React.FC<
             isInitialCity.current = false;
             return;
         }
-        form.setFieldValue("area", undefined);
+        form.setFieldValue(
+            "area",
+            project?.location?.area ? project?.location?.area : undefined,
+        );
     }, [selectedCity]);
 
     return (
@@ -73,11 +78,19 @@ const ConstructionProjectLocationSection: React.FC<
 
             {/* Area / District */}
             <Col xs={24} md={12}>
-                <Form.Item name="area" label="Area / District">
+                <Form.Item
+                    name="area"
+                    label="Area / District"
+                    initialValue={project?.location?.area}
+                >
                     <Select
                         options={areaOptions}
                         placeholder={
-                            selectedCity ? "Select area" : "Select a city first"
+                            selectedCity
+                                ? "Select area"
+                                : project?.location?.area
+                                  ? project?.location?.area
+                                  : "Select city first"
                         }
                         allowClear
                         showSearch

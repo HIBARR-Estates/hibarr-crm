@@ -389,3 +389,30 @@ export interface MyEnrollmentData {
         vsd: number;
     } | null;
 }
+
+// ── Downline Deal Contribution ───────────────────────────────────
+export interface DownlineDealContribution {
+    deal_id: number;
+    deal_name: string;
+    closed_by: string;
+    closed_by_self: boolean;
+    deal_value: number;
+    commission_amount: number;
+    commission_type: string;
+    date: string;
+}
+
+// ── Agent Invitation ─────────────────────────────────────────────
+export type AgentInviteStatus = "pending" | "accepted" | "expired";
+
+export interface AgentInvite {
+    id: number;
+    email: string;
+    status: AgentInviteStatus;
+    sent_at: string;
+    accepted_at: string | null;
+}
+
+export interface SendInvitePayload {
+    email: string;
+}
