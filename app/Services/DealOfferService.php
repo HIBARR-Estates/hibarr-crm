@@ -18,6 +18,7 @@ class DealOfferService
     /**
      * Apply offers to a deal based on its products' properties.
      * Removes previously applied offers and recalculates from scratch.
+     * Multiple offers may apply per product (each independently, no compounding).
      */
     public function applyOffersToDeal(Deal $deal): Collection
     {
@@ -30,9 +31,9 @@ class DealOfferService
         $products = $deal->products()
             ->whereHas('property')
             ->with([
-                'property.unitType.offers' => fn ($q) => $q->active(),
-                'property.unitType.project.offers' => fn ($q) => $q->active(),
-                'property.developerProject.offers' => fn ($q) => $q->active(),
+                'property.unitType.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
+                'property.unitType.project.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
+                'property.developerProject.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
             ])
             ->get();
 
@@ -45,36 +46,38 @@ class DealOfferService
 
             $resolved = $this->policy->resolve($property);
 
-            if (!$resolved) {
+            if ($resolved->isEmpty()) {
                 continue;
             }
 
-            $offer = $resolved['offer'];
             $originalAmount = (float) ($product->price ?? 0);
 
             if ($originalAmount <= 0) {
                 continue;
             }
 
-            $discountAmount = $offer->computeDiscount($originalAmount);
+            foreach ($resolved as $entry) {
+                $offer = $entry['offer'];
+                $discountAmount = $offer->computeDiscount($originalAmount);
 
-            if ($discountAmount <= 0) {
-                continue;
+                if ($discountAmount <= 0) {
+                    continue;
+                }
+
+                $application = DealOfferApplication::create([
+                    'deal_id' => $deal->id,
+                    'offer_id' => $offer->id,
+                    'product_id' => $product->id,
+                    'resolved_from_type' => $entry['resolved_from_type'],
+                    'resolved_from_id' => $entry['resolved_from_id'],
+                    'original_amount' => $originalAmount,
+                    'discount_amount' => $discountAmount,
+                    'offer_type' => $offer->type->value,
+                    'offer_value' => $offer->value,
+                ]);
+
+                $applications->push($application);
             }
-
-            $application = DealOfferApplication::create([
-                'deal_id' => $deal->id,
-                'offer_id' => $offer->id,
-                'product_id' => $product->id,
-                'resolved_from_type' => $resolved['resolved_from_type'],
-                'resolved_from_id' => $resolved['resolved_from_id'],
-                'original_amount' => $originalAmount,
-                'discount_amount' => $discountAmount,
-                'offer_type' => $offer->type->value,
-                'offer_value' => $offer->value,
-            ]);
-
-            $applications->push($application);
         }
 
         Log::info('DealOfferService: Applied offers to deal', [
@@ -109,9 +112,9 @@ class DealOfferService
         $products = $deal->products()
             ->whereHas('property')
             ->with([
-                'property.unitType.offers' => fn ($q) => $q->active(),
-                'property.unitType.project.offers' => fn ($q) => $q->active(),
-                'property.developerProject.offers' => fn ($q) => $q->active(),
+                'property.unitType.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
+                'property.unitType.project.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
+                'property.developerProject.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
             ])
             ->get();
 
@@ -124,31 +127,33 @@ class DealOfferService
 
             $resolved = $this->policy->resolve($property);
 
-            if (!$resolved) {
+            if ($resolved->isEmpty()) {
                 continue;
             }
 
-            $offer = $resolved['offer'];
             $originalAmount = (float) ($product->price ?? 0);
 
             if ($originalAmount <= 0) {
                 continue;
             }
 
-            $discountAmount = $offer->computeDiscount($originalAmount);
+            foreach ($resolved as $entry) {
+                $offer = $entry['offer'];
+                $discountAmount = $offer->computeDiscount($originalAmount);
 
-            if ($discountAmount <= 0) {
-                continue;
+                if ($discountAmount <= 0) {
+                    continue;
+                }
+
+                $previews->push([
+                    'product_id' => $product->id,
+                    'offer' => $offer,
+                    'resolved_from_type' => $entry['resolved_from_type'],
+                    'resolved_from_id' => $entry['resolved_from_id'],
+                    'original_amount' => $originalAmount,
+                    'discount_amount' => $discountAmount,
+                ]);
             }
-
-            $previews->push([
-                'product_id' => $product->id,
-                'offer' => $offer,
-                'resolved_from_type' => $resolved['resolved_from_type'],
-                'resolved_from_id' => $resolved['resolved_from_id'],
-                'original_amount' => $originalAmount,
-                'discount_amount' => $discountAmount,
-            ]);
         }
 
         return $previews;

@@ -23,6 +23,7 @@ import type {
     DownlineDealContribution,
     AgentInvite,
     SendInvitePayload,
+    DownlineListItem,
 } from "./types";
 import { ApiResponse } from "@/lib/api/types";
 
@@ -425,4 +426,19 @@ export const useMyInvites = (
     useApiQuery<PaginatedResponse<AgentInvite>>({
         path: `${AGENT_API}/invites`,
         params,
+    });
+
+/** Agent's own deals (or a downline's deals when filtered) */
+export const useAgentDeals = (
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<any>>({
+        path: `${AGENT_API}/deals`,
+        params,
+    });
+
+/** Flat list of all downline agents (for dropdown selector) */
+export const useDownlineList = () =>
+    useApiQuery<{ data: DownlineListItem[] }>({
+        path: `${AGENT_API}/downlines`,
     });

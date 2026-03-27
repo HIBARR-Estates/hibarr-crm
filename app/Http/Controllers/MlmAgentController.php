@@ -12,6 +12,7 @@ use App\Models\AgentMetric;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\MlmCycle;
+use App\Models\Deal;
 use App\Models\MlmLevel;
 use App\Models\MlmLevelCriterion;
 use App\Services\CycleService;
@@ -678,6 +679,123 @@ class MlmAgentController extends AccountBaseController
         }
 
         return false;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  Agent Deals & Downline List
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Deals for the authenticated agent (or a specific downline) — JSON API
+     *
+     * Default: deals where auth user is the assigned agent OR a watcher.
+     * With ?downline_agent_id=X: deals assigned to that downline.
+     */
+    public function agentDealsApi(Request $request): JsonResponse
+    {
+        $agent = $this->getAgent();
+
+        if (!$agent) {
+            return response()->json(['data' => [], 'total' => 0]);
+        }
+
+        $query = Deal::with([
+            'leadAgent.user:id,name,email,image',
+            'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id',
+            'contact.leadSource',
+            'leadStage:id,name,label_color,slug',
+            'pipeline:id,name',
+            'currency:id,currency_symbol,currency_code',
+            'dealWatchers',
+        ])
+        ->select(
+            'deals.id',
+            'deals.name',
+            'deals.lead_id',
+            'deals.lead_pipeline_id',
+            'deals.agent_id',
+            'deals.next_follow_up',
+            'deals.value',
+            'deals.pipeline_stage_id',
+            'deals.created_at',
+            'deals.close_date',
+            'deals.updated_at',
+            'deals.currency_id',
+            'deals.category_id'
+        );
+
+        if ($request->filled('downline_agent_id')) {
+            $downlineId = (int) $request->input('downline_agent_id');
+
+            if (!$this->isDownline($agent->id, $downlineId)) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+
+            $query->where('deals.agent_id', $downlineId);
+        } else {
+            // Own deals: assigned agent OR watcher
+            $userId = user()->id;
+            $query->where(function ($q) use ($agent, $userId) {
+                $q->where('deals.agent_id', $agent->id)
+                  ->orWhereHas('dealWatchers', function ($wq) use ($userId) {
+                      $wq->where('users.id', $userId);
+                  });
+            });
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('deals.name', 'like', '%' . $search . '%')
+                  ->orWhereHas('contact', function ($cq) use ($search) {
+                      $cq->where('client_name', 'like', '%' . $search . '%')
+                         ->orWhere('client_email', 'like', '%' . $search . '%');
+                  });
+            });
+        }
+
+        $query->orderByDesc('deals.created_at');
+
+        $perPage = min($request->input('per_page', 15), 100);
+
+        return response()->json($query->paginate($perPage));
+    }
+
+    /**
+     * Flat list of all downline agents — JSON API (for dropdown selector)
+     */
+    public function downlineListApi(): JsonResponse
+    {
+        $agent = $this->getAgent();
+
+        if (!$agent) {
+            return response()->json(['data' => []]);
+        }
+
+        $downlines = [];
+        $currentIds = [$agent->id];
+
+        for ($depth = 0; $depth < 10; $depth++) {
+            $children = LeadAgent::whereIn('parent_agent_id', $currentIds)
+                ->with('user:id,name,email')
+                ->get();
+
+            if ($children->isEmpty()) {
+                break;
+            }
+
+            foreach ($children as $child) {
+                $downlines[] = [
+                    'id' => $child->id,
+                    'name' => $child->user?->name ?? 'Unknown',
+                    'email' => $child->user?->email ?? '',
+                ];
+            }
+
+            $currentIds = $children->pluck('id')->toArray();
+        }
+
+        return response()->json(['data' => $downlines]);
     }
 
     // ══════════════════════════════════════════════════════════════

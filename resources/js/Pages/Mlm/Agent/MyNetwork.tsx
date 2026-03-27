@@ -14,6 +14,8 @@ import {
     Form,
     message,
     Divider,
+    Select,
+    Tooltip,
 } from "antd";
 import { motion } from "framer-motion";
 import {
@@ -23,21 +25,30 @@ import {
     Minimize2,
     Mail,
     Send,
+    Briefcase,
+    Search,
 } from "lucide-react";
+import { Link } from "@inertiajs/react";
+import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import UserIndicator from "@/Components/UserIndicator";
 import {
     useMyNetwork,
     useDownlineDeals,
     useSendInvite,
     useMyInvites,
+    useAgentDeals,
+    useDownlineList,
 } from "@/Features/Mlm/api";
 import { AgentTreeView } from "@/Features/Mlm/Components";
 import type {
     AgentHierarchyNode,
     DownlineDealContribution,
     AgentInvite,
+    DownlineListItem,
 } from "@/Features/Mlm/types";
+import type { Deal } from "@/Types/api/deals";
 
 interface Props extends PageProps {
     network: AgentHierarchyNode | null;
@@ -308,6 +319,229 @@ const InvitationsTab: React.FC = () => {
     );
 };
 
+// ── Deals Tab ────────────────────────────────────────────────────
+const DealsTab: React.FC = () => {
+    const [page, setPage] = useState(1);
+    const [search, setSearch] = useState("");
+    const [selectedDownline, setSelectedDownline] = useState<number | null>(
+        null,
+    );
+
+    const { data: downlineData } = useDownlineList();
+    const downlines: DownlineListItem[] = (downlineData as any)?.data ?? [];
+
+    const params: Record<string, string | number | boolean> = {
+        page,
+        per_page: 15,
+    };
+    if (search) params.search = search;
+    if (selectedDownline) params.downline_agent_id = selectedDownline;
+
+    const { data: dealsData, isLoading, refetch } = useAgentDeals(params);
+
+    const deals: Deal[] = (dealsData as any)?.data ?? [];
+    const totalDeals = (dealsData as any)?.total ?? 0;
+
+    const dealColumns = [
+        {
+            title: "Deal Name",
+            key: "deal_name",
+            width: 250,
+            render: (_: any, record: Deal) => (
+                <Tooltip title={record.name}>
+                    <Link
+                        href={`/account/deals/${record.id}`}
+                        className="text-gray-900 hover:text-blue-600 hover:underline font-medium truncate block max-w-full"
+                    >
+                        {record.name}
+                    </Link>
+                </Tooltip>
+            ),
+        },
+        {
+            title: "Contact",
+            key: "contact",
+            width: 180,
+            render: (_: any, record: Deal) => {
+                if (!record.contact)
+                    return <span className="text-gray-400">--</span>;
+                return (
+                    <div>
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                            {record.contact.client_name}
+                        </div>
+                        {record.contact.client_email && (
+                            <div className="text-xs text-gray-500 truncate">
+                                {record.contact.client_email}
+                            </div>
+                        )}
+                    </div>
+                );
+            },
+        },
+        {
+            title: "Stage",
+            key: "stage",
+            width: 140,
+            render: (_: any, record: Deal) => {
+                if (!record.lead_stage)
+                    return <span className="text-gray-400">--</span>;
+                return (
+                    <div className="flex items-center gap-2">
+                        <div
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{
+                                backgroundColor:
+                                    record.lead_stage.label_color || "#007bff",
+                            }}
+                        />
+                        <span className="text-sm text-gray-900 truncate">
+                            {record.lead_stage.name}
+                        </span>
+                    </div>
+                );
+            },
+        },
+        {
+            title: "Assigned Agent",
+            key: "agent",
+            width: 160,
+            render: (_: any, record: Deal) => {
+                if (!record.lead_agent?.user)
+                    return <span className="text-gray-400">--</span>;
+                return (
+                    <UserIndicator
+                        data={record.lead_agent.user}
+                        size="sm"
+                        maxNameLength={15}
+                    />
+                );
+            },
+        },
+        {
+            title: "Value",
+            key: "value",
+            width: 110,
+            align: "right" as const,
+            render: (_: any, record: Deal) => {
+                const symbol = record.currency?.currency_symbol ?? "$";
+                return (
+                    <span className="font-medium text-gray-900">
+                        {symbol}
+                        {record.value?.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                        })}
+                    </span>
+                );
+            },
+        },
+        {
+            title: "Created",
+            key: "created_at",
+            width: 110,
+            render: (_: any, record: Deal) =>
+                record.created_at ? (
+                    <span className="text-gray-900 text-sm">
+                        {dayjs(record.created_at).format("MMM DD, YYYY")}
+                    </span>
+                ) : (
+                    <span className="text-gray-400">--</span>
+                ),
+        },
+    ];
+
+    return (
+        <div className="space-y-4">
+            {/* Filters */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+            >
+                <Card size="small" className="shadow-sm">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Select
+                            placeholder="My Deals"
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                            style={{ minWidth: 220 }}
+                            value={selectedDownline}
+                            onChange={(val) => {
+                                setSelectedDownline(val ?? null);
+                                setPage(1);
+                            }}
+                            options={downlines.map((d) => ({
+                                value: d.id,
+                                label: `${d.name} (${d.email})`,
+                            }))}
+                        />
+                        <Input
+                            placeholder="Search deals..."
+                            prefix={
+                                <Search size={14} className="text-gray-400" />
+                            }
+                            allowClear
+                            style={{ maxWidth: 260 }}
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setPage(1);
+                            }}
+                        />
+                        <Button
+                            icon={<RefreshCw size={14} />}
+                            size="small"
+                            onClick={() => refetch()}
+                            loading={isLoading}
+                        >
+                            Refresh
+                        </Button>
+                    </div>
+                </Card>
+            </motion.div>
+
+            {/* Deals Table */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+            >
+                <Card size="small" className="shadow-sm">
+                    <Table
+                        dataSource={deals}
+                        columns={dealColumns}
+                        rowKey="id"
+                        size="small"
+                        loading={isLoading}
+                        scroll={{ x: 950 }}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    description={
+                                        selectedDownline
+                                            ? "No deals found for this downline"
+                                            : "No deals found"
+                                    }
+                                />
+                            ),
+                        }}
+                        pagination={{
+                            current: page,
+                            total: totalDeals,
+                            pageSize: 15,
+                            size: "small",
+                            showSizeChanger: false,
+                            showTotal: (total) => `${total} deals`,
+                            onChange: (p) => setPage(p),
+                        }}
+                    />
+                </Card>
+            </motion.div>
+        </div>
+    );
+};
+
 // ── Main Page ────────────────────────────────────────────────────
 const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     const { data, isLoading, refetch } = useMyNetwork();
@@ -522,6 +756,16 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                     </span>
                                 ),
                                 children: <InvitationsTab />,
+                            },
+                            {
+                                key: "deals",
+                                label: (
+                                    <span className="flex items-center gap-1.5">
+                                        <Briefcase size={14} />
+                                        Deals
+                                    </span>
+                                ),
+                                children: <DealsTab />,
                             },
                         ]}
                     />
