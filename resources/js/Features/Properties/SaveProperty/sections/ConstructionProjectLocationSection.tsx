@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Form, Select, Input, InputNumber, Row, Col, Alert } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PropertyEnumValues } from "@/Types";
@@ -46,8 +46,13 @@ const ConstructionProjectLocationSection: React.FC<
         }));
     }, [selectedCity, enumValues?.areas_by_city]);
 
-    // Clear area when city changes
+    // Clear area when city changes (but not on initial form population)
+    const isInitialCity = useRef(true);
     useEffect(() => {
+        if (isInitialCity.current) {
+            isInitialCity.current = false;
+            return;
+        }
         form.setFieldValue("area", undefined);
     }, [selectedCity]);
 
