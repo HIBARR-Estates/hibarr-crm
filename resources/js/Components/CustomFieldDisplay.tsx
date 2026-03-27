@@ -1,5 +1,4 @@
 import {
-    Descriptions,
     Tag,
     Upload,
     Button,
@@ -8,6 +7,7 @@ import {
     Tooltip,
     Progress,
 } from "antd";
+import { DetailSection, DetailField } from "@/Components/DetailSection";
 import {
     UploadOutlined,
     DeleteOutlined,
@@ -1539,7 +1539,7 @@ export default function CustomFieldDisplay({
     }
 
     return (
-        <Descriptions column={column} bordered size="middle">
+        <DetailSection gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
             {filteredFields.map((field) => {
                 const fieldKey = `field_${field.id}`;
                 const value =
@@ -1548,19 +1548,15 @@ export default function CustomFieldDisplay({
                 const span = calculateSpan(field, value);
 
                 return (
-                    <Descriptions.Item
+                    <DetailField
                         key={field.id}
-                        label={
-                            <div className="max-w-[120px] sm:max-w-[150px] whitespace-normal break-words leading-tight">
-                                {field.label}
-                            </div>
-                        }
-                        span={span}
+                        label={field.label}
+                        span={span === column ? 2 : 1}
                     >
                         {renderEditable(field, value)}
-                    </Descriptions.Item>
+                    </DetailField>
                 );
             })}
-        </Descriptions>
+        </DetailSection>
     );
 }
