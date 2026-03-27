@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Each developer is company-scoped (multi-tenant) and can have:
  * - Basic info (name, logo, description)
  * - Multiple DeveloperProjects (1:Many)
+ * - Multiple Offers (1:Many)
  */
 class Developer extends BaseModel
 {
@@ -47,6 +48,14 @@ class Developer extends BaseModel
     public function projects(): HasMany
     {
         return $this->hasMany(DeveloperProject::class);
+    }
+
+    /**
+     * Get all offers owned by this developer.
+     */
+    public function offers(): HasMany
+    {
+        return $this->hasMany(Offer::class);
     }
 
     /**

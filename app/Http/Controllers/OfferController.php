@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Http\Requests\Offer\StoreOfferRequest;
 use App\Http\Requests\Offer\UpdateOfferRequest;
+use App\Models\Developer;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\Offer;
@@ -26,10 +27,15 @@ class OfferController extends AccountBaseController
     public function index(Request $request)
     {
         $query = Offer::where('company_id', user()->company_id)
+            ->with(['developer:id,name'])
             ->withCount(['dealApplications', 'developerProjects']);
 
         if ($request->boolean('active_only')) {
             $query->active();
+        }
+
+        if ($request->filled('developer_id')) {
+            $query->where('developer_id', $request->developer_id);
         }
 
         if ($request->filled('search')) {
@@ -37,6 +43,12 @@ class OfferController extends AccountBaseController
         }
 
         $offers = $query->orderBy('created_at', 'desc')->paginate($request->input('per_page', 15));
+
+        // Fetch developers for the filter dropdown
+        $developers = Developer::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         // Return Inertia page for browser requests, JSON for API requests
         if ($request->wantsJson()) {
@@ -56,17 +68,19 @@ class OfferController extends AccountBaseController
                 'from' => $offers->firstItem(),
                 'to' => $offers->lastItem(),
             ],
-            'filters' => $request->only(['search', 'active_only']),
+            'developers' => $developers,
+            'filters' => $request->only(['search', 'active_only', 'developer_id']),
         ]);
     }
 
     /**
-     * Create a new offer.
+     * Create a new offer. Optionally attach to projects in the same request.
      */
     public function store(StoreOfferRequest $request)
     {
         $offer = Offer::create([
             'company_id' => user()->company_id,
+            'developer_id' => $request->developer_id,
             'name' => $request->name,
             'description' => $request->description,
             'type' => $request->type,
@@ -79,18 +93,23 @@ class OfferController extends AccountBaseController
             'last_updated_by' => user()->id,
         ]);
 
+        // Attach to projects if provided
+        if ($request->filled('project_ids')) {
+            $offer->developerProjects()->attach($request->project_ids);
+        }
+
         return Reply::successWithData('Offer created successfully', [
-            'offer' => $offer,
+            'offer' => $offer->load('developer:id,name'),
         ]);
     }
 
     /**
-     * Show a single offer with its attached models.
+     * Show a single offer with its attached models (including pivot status).
      */
     public function show(int $id)
     {
         $offer = Offer::where('company_id', user()->company_id)
-            ->with(['developerProjects', 'unitTypes'])
+            ->with(['developer:id,name', 'developerProjects', 'unitTypes'])
             ->withCount(['dealApplications'])
             ->findOrFail($id);
 
@@ -112,7 +131,7 @@ class OfferController extends AccountBaseController
         ));
 
         return Reply::successWithData('Offer updated successfully', [
-            'offer' => $offer->fresh(),
+            'offer' => $offer->fresh()->load('developer:id,name'),
         ]);
     }
 
@@ -127,13 +146,53 @@ class OfferController extends AccountBaseController
         return Reply::success('Offer deleted successfully');
     }
 
-    // ── Attach / Detach ──────────────────────────────────────────
+    // ── Attach / Disable / Enable ────────────────────────────────
 
     /**
      * Attach an offer to a DeveloperProject or DeveloperProjectUnitType.
-     * Enforces the "one active offer per model" constraint.
+     * Supports bulk via offerable_ids array.
+     * Validates that the target belongs to the offer's developer.
      */
     public function attach(Request $request, int $offerId)
+    {
+        $request->validate([
+            'offerable_type' => 'required|in:developer_project,unit_type',
+            'offerable_ids' => 'required|array|min:1',
+            'offerable_ids.*' => 'integer',
+        ]);
+
+        $offer = Offer::where('company_id', user()->company_id)->findOrFail($offerId);
+
+        $attachedIds = [];
+
+        foreach ($request->offerable_ids as $offerableId) {
+            $model = $this->resolveOfferableModel($request->offerable_type, $offerableId);
+
+            // Validate model belongs to offer's developer
+            if ($offer->developer_id) {
+                $developerId = $this->getModelDeveloperId($request->offerable_type, $model);
+
+                if ($developerId && $developerId !== $offer->developer_id) {
+                    continue; // Skip models not belonging to the offer's developer
+                }
+            }
+
+            $model->offers()->syncWithoutDetaching([$offer->id]);
+            $attachedIds[] = $offerableId;
+        }
+
+        return Reply::successWithData('Offer attached successfully', [
+            'offer' => $offer,
+            'offerable_type' => $request->offerable_type,
+            'attached_ids' => $attachedIds,
+        ]);
+    }
+
+    /**
+     * Disable an offer on a specific DeveloperProject or DeveloperProjectUnitType.
+     * The attachment is NOT removed — only disabled via pivot.
+     */
+    public function disable(Request $request, int $offerId)
     {
         $request->validate([
             'offerable_type' => 'required|in:developer_project,unit_type',
@@ -143,30 +202,23 @@ class OfferController extends AccountBaseController
         $offer = Offer::where('company_id', user()->company_id)->findOrFail($offerId);
 
         $model = $this->resolveOfferableModel($request->offerable_type, $request->offerable_id);
+        $model->offers()->updateExistingPivot($offer->id, [
+            'is_active' => false,
+            'disabled_at' => now(),
+            'disabled_by' => user()->id,
+        ]);
 
-        // Enforce one active offer per model
-        if ($offer->is_active && $model->hasActiveOffer()) {
-            $existingOffer = $model->activeOffer();
-            if ($existingOffer && $existingOffer->id !== $offer->id) {
-                return Reply::error(
-                    "This {$request->offerable_type} already has an active offer: \"{$existingOffer->name}\". Remove it first or deactivate it."
-                );
-            }
-        }
-
-        $model->offers()->syncWithoutDetaching([$offer->id]);
-
-        return Reply::successWithData('Offer attached successfully', [
-            'offer' => $offer,
+        return Reply::successWithData('Offer disabled on this attachment', [
+            'offer_id' => $offer->id,
             'offerable_type' => $request->offerable_type,
             'offerable_id' => $request->offerable_id,
         ]);
     }
 
     /**
-     * Detach an offer from a DeveloperProject or DeveloperProjectUnitType.
+     * Re-enable a previously disabled offer on a DeveloperProject or DeveloperProjectUnitType.
      */
-    public function detach(Request $request, int $offerId)
+    public function enable(Request $request, int $offerId)
     {
         $request->validate([
             'offerable_type' => 'required|in:developer_project,unit_type',
@@ -176,10 +228,14 @@ class OfferController extends AccountBaseController
         $offer = Offer::where('company_id', user()->company_id)->findOrFail($offerId);
 
         $model = $this->resolveOfferableModel($request->offerable_type, $request->offerable_id);
-        $model->offers()->detach($offer->id);
+        $model->offers()->updateExistingPivot($offer->id, [
+            'is_active' => true,
+            'disabled_at' => null,
+            'disabled_by' => null,
+        ]);
 
-        return Reply::successWithData('Offer detached successfully', [
-            'offer' => $offer,
+        return Reply::successWithData('Offer re-enabled on this attachment', [
+            'offer_id' => $offer->id,
             'offerable_type' => $request->offerable_type,
             'offerable_id' => $request->offerable_id,
         ]);
@@ -255,6 +311,15 @@ class OfferController extends AccountBaseController
         return match ($type) {
             'developer_project' => DeveloperProject::where('company_id', $companyId)->findOrFail($id),
             'unit_type' => DeveloperProjectUnitType::where('company_id', $companyId)->findOrFail($id),
+        };
+    }
+
+    private function getModelDeveloperId(string $type, $model): ?int
+    {
+        return match ($type) {
+            'developer_project' => $model->developer_id,
+            'unit_type' => $model->project?->developer_id,
+            default => null,
         };
     }
 }

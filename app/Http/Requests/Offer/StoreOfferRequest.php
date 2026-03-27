@@ -16,6 +16,7 @@ class StoreOfferRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'developer_id' => 'required|exists:developers,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'type' => ['required', new Enum(OfferType::class)],
@@ -24,6 +25,8 @@ class StoreOfferRequest extends FormRequest
             'is_active' => 'boolean',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
+            'project_ids' => 'nullable|array',
+            'project_ids.*' => 'integer|exists:developer_projects,id',
         ];
     }
 
@@ -34,6 +37,20 @@ class StoreOfferRequest extends FormRequest
                 $value = (float) $this->input('value', 0);
                 if ($value > 100) {
                     $validator->errors()->add('value', 'Percentage value cannot exceed 100.');
+                }
+            }
+
+            // Validate projects belong to the selected developer
+            if ($this->filled('project_ids') && $this->filled('developer_id')) {
+                $developerProjectIds = \App\Models\DeveloperProject::where('developer_id', $this->input('developer_id'))
+                    ->whereIn('id', $this->input('project_ids'))
+                    ->pluck('id')
+                    ->toArray();
+
+                $invalid = array_diff($this->input('project_ids'), $developerProjectIds);
+
+                if (!empty($invalid)) {
+                    $validator->errors()->add('project_ids', 'Some projects do not belong to the selected developer.');
                 }
             }
         });

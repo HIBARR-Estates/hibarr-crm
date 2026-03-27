@@ -2,15 +2,16 @@
 
 namespace App\Contracts;
 
-use App\Models\Offer;
 use App\Models\Property;
+use Illuminate\Support\Collection;
 
 interface OfferPolicyContract
 {
     /**
-     * Resolve which offer (if any) applies to a given property.
+     * Resolve which offers apply to a given property.
+     * Proximity: UnitType-level offers win over Project-level.
      *
-     * @return array{offer: Offer, resolved_from_type: string, resolved_from_id: int}|null
+     * @return Collection<int, array{offer: \App\Models\Offer, resolved_from_type: string, resolved_from_id: int}>
      */
-    public function resolve(Property $property): ?array;
+    public function resolve(Property $property): Collection;
 }

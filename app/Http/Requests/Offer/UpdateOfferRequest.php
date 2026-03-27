@@ -16,6 +16,7 @@ class UpdateOfferRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'developer_id' => 'sometimes|required|exists:developers,id',
             'name' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
             'type' => ['sometimes', 'required', new Enum(OfferType::class)],
