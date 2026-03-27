@@ -29,8 +29,10 @@ interface ConstructionProjectPricingSectionProps {
 const ConstructionProjectPricingSection: React.FC<
     ConstructionProjectPricingSectionProps
 > = ({ form }) => {
-    const paymentPlanEnabled =
-        Form.useWatch(["payment_plan", "enabled"], form) ?? false;
+    const paymentPlanEnabled = !!Form.useWatch(
+        ["payment_plan", "enabled"],
+        form,
+    );
     const downpaymentType = Form.useWatch(
         ["payment_plan", "downpayment_type"],
         form,
@@ -101,8 +103,12 @@ const ConstructionProjectPricingSection: React.FC<
             </Col>
 
             {/* Payment Plan Toggle */}
-            <Form.Item name={["payment_plan", "enabled"]} hidden>
-                <Input />
+            <Form.Item
+                name={["payment_plan", "enabled"]}
+                hidden
+                valuePropName="checked"
+            >
+                <Switch />
             </Form.Item>
             <Col span={24}>
                 <div className="flex items-center gap-3 mb-4 mt-2">
