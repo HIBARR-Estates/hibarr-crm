@@ -46,12 +46,12 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
     // Fetch developers for dropdown
     const { data: developersData } = useApiQuery<{
         status: string;
-        data: { developers: Developer[] };
+        developers: Developer[];
     }>({
         path: route("developers.all"),
         options: { enabled: open },
     });
-    const developers = developersData?.data?.developers ?? [];
+    const developers = developersData?.developers ?? [];
 
     // Fetch all projects for cascading dropdown
     const { data: projectsData } = useApiQuery<{
