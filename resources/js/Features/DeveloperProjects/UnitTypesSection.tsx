@@ -243,22 +243,29 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
             key: "offer",
             width: 160,
             render: (_: any, record: DeveloperProjectUnitType) => {
-                const offer =
-                    record.offers && record.offers.length > 0
-                        ? (record.offers.find((o: Offer) => o.is_active) ??
-                          record.offers[0])
-                        : null;
-                if (!offer)
+                const offers = record.offers ?? [];
+                if (offers.length === 0)
                     return <span className="text-gray-400">&mdash;</span>;
                 return (
-                    <Tag
-                        color={offer.type === "percentage" ? "blue" : "green"}
-                        icon={<GiftOutlined />}
-                    >
-                        {offer.type === "percentage"
-                            ? `${offer.value}%`
-                            : Number(offer.value).toLocaleString("en-GB")}
-                    </Tag>
+                    <Space size={[4, 4]} wrap>
+                        {offers.map((offer: Offer) => (
+                            <Tag
+                                key={offer.id}
+                                color={
+                                    offer.type === "percentage"
+                                        ? "blue"
+                                        : "green"
+                                }
+                                icon={<GiftOutlined />}
+                            >
+                                {offer.type === "percentage"
+                                    ? `${offer.value}%`
+                                    : Number(offer.value).toLocaleString(
+                                          "en-GB",
+                                      )}
+                            </Tag>
+                        ))}
+                    </Space>
                 );
             },
         },
@@ -486,13 +493,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                                 Offer:
                             </Text>
                             <OfferAttachSection
-                                currentOffer={
-                                    record.offers && record.offers.length > 0
-                                        ? (record.offers.find(
-                                              (o: Offer) => o.is_active,
-                                          ) ?? record.offers[0])
-                                        : null
-                                }
+                                offers={record.offers ?? []}
                                 offerableType="unit_type"
                                 offerableId={record.id}
                                 onRefresh={handleSuccess}
