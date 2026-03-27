@@ -93,7 +93,7 @@ class DealNoteController extends AccountBaseController
         \Log::info('Deal Note Created: ', ['id' => $note->id, 'deal_id' => $note->deal_id,]);
 
         // ── CRM Event: deal_note_added ──
-        $deal = Deal::find($note->deal_id);
+        $deal = Deal::withoutGlobalScopes()->find($note->deal_id);
         if ($deal) {
             $this->recordCrmEvent('deal_note_added', $deal, [
                 'metadata' => [
