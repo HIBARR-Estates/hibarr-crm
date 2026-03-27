@@ -11,7 +11,7 @@ const { TextArea } = Input;
 interface ConstructionProjectLocationSectionProps {
     form: FormInstance;
     enumValues?: PropertyEnumValues;
-    project?: DeveloperProject;
+    project?: DeveloperProject | null;
 }
 
 /**
