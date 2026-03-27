@@ -601,4 +601,177 @@ class MlmAgentController extends AccountBaseController
             ],
         ]);
     }
+
+    // ══════════════════════════════════════════════════════════════
+    //  Downline Deals
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Deals for a specific downline agent — JSON API
+     */
+    public function downlineDealsApi(Request $request, int $downlineId): JsonResponse
+    {
+        $agent = $this->getAgent();
+
+        if (!$agent) {
+            return response()->json(['data' => [], 'total' => 0]);
+        }
+
+        // Verify the target agent is actually a downline of the authenticated agent
+        if (!$this->isDownline($agent->id, $downlineId)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $query = MlmCommission::where('agent_id', $downlineId)
+            ->where('type', '!=', MlmCommissionType::System->value)
+            ->with(['deal:id,name,value', 'sourceAgent.user:id,name'])
+            ->orderByDesc('created_at');
+
+        $perPage = min($request->input('per_page', 8), 100);
+        $paginated = $query->paginate($perPage);
+
+        $data = collect($paginated->items())->map(function ($c) use ($downlineId) {
+            return [
+                'deal_id' => $c->deal_id,
+                'deal_name' => $c->deal?->name ?? 'Unknown Deal',
+                'closed_by' => $c->sourceAgent?->user?->name ?? 'Unknown',
+                'closed_by_self' => $c->source_agent_id === $downlineId,
+                'deal_value' => (float) ($c->deal?->value ?? 0),
+                'commission_amount' => (float) $c->amount,
+                'commission_type' => $c->type->value ?? $c->type,
+                'date' => $c->created_at->format('Y-m-d'),
+            ];
+        });
+
+        return response()->json([
+            'data' => $data,
+            'current_page' => $paginated->currentPage(),
+            'last_page' => $paginated->lastPage(),
+            'per_page' => $paginated->perPage(),
+            'total' => $paginated->total(),
+            'from' => $paginated->firstItem(),
+            'to' => $paginated->lastItem(),
+        ]);
+    }
+
+    /**
+     * Check whether $downlineId is a descendant of $parentId (BFS, max 10 levels).
+     */
+    private function isDownline(int $parentId, int $downlineId): bool
+    {
+        $currentIds = [$parentId];
+
+        for ($depth = 0; $depth < 10; $depth++) {
+            $childIds = LeadAgent::whereIn('parent_agent_id', $currentIds)
+                ->pluck('id')
+                ->toArray();
+
+            if (empty($childIds)) {
+                return false;
+            }
+
+            if (in_array($downlineId, $childIds, true)) {
+                return true;
+            }
+
+            $currentIds = $childIds;
+        }
+
+        return false;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  Agent Invitations (external — mocked for now)
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Send an agent invitation — JSON API
+     *
+     * Calls an external endpoint with { email, parent_agent_id }.
+     * Currently mocked — returns a static success response.
+     */
+    public function sendInviteApi(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $agent = $this->getAgent();
+
+        if (!$agent) {
+            return response()->json(['message' => 'Agent not found'], 404);
+        }
+
+        $payload = [
+            'email' => $request->input('email'),
+            'parent_agent_id' => $agent->id,
+        ];
+
+        // TODO: Replace with real external API call
+        // $response = Http::post(config('mlm.invite_endpoint'), $payload);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Invitation sent successfully',
+            'data' => [
+                'id' => rand(1000, 9999),
+                'email' => $payload['email'],
+                'parent_agent_id' => $payload['parent_agent_id'],
+                'status' => 'pending',
+                'sent_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * List sent invitations — JSON API
+     *
+     * Fetches invitations from an external endpoint.
+     * Currently mocked — returns a static list.
+     */
+    public function getInvitesApi(Request $request): JsonResponse
+    {
+        $agent = $this->getAgent();
+
+        if (!$agent) {
+            return response()->json(['data' => [], 'total' => 0]);
+        }
+
+        // TODO: Replace with real external API call
+        // $response = Http::get(config('mlm.invites_endpoint'), ['parent_agent_id' => $agent->id]);
+
+        $mockInvites = [
+            [
+                'id' => 1,
+                'email' => 'invited.agent@example.com',
+                'status' => 'pending',
+                'sent_at' => now()->subDays(2)->toIso8601String(),
+                'accepted_at' => null,
+            ],
+            [
+                'id' => 2,
+                'email' => 'john.doe@example.com',
+                'status' => 'accepted',
+                'sent_at' => now()->subDays(10)->toIso8601String(),
+                'accepted_at' => now()->subDays(8)->toIso8601String(),
+            ],
+            [
+                'id' => 3,
+                'email' => 'expired.invite@example.com',
+                'status' => 'expired',
+                'sent_at' => now()->subDays(30)->toIso8601String(),
+                'accepted_at' => null,
+            ],
+        ];
+
+        return response()->json([
+            'data' => $mockInvites,
+            'current_page' => 1,
+            'last_page' => 1,
+            'per_page' => 15,
+            'total' => count($mockInvites),
+            'from' => 1,
+            'to' => count($mockInvites),
+        ]);
+    }
 }

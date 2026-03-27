@@ -8,19 +8,307 @@ import {
     Spin,
     Button,
     Space,
+    Tabs,
+    Table,
+    Input,
+    Form,
+    message,
+    Divider,
 } from "antd";
 import { motion } from "framer-motion";
-import { GitBranch, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
+import {
+    GitBranch,
+    RefreshCw,
+    Maximize2,
+    Minimize2,
+    Mail,
+    Send,
+} from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { useMyNetwork } from "@/Features/Mlm/api";
+import {
+    useMyNetwork,
+    useDownlineDeals,
+    useSendInvite,
+    useMyInvites,
+} from "@/Features/Mlm/api";
 import { AgentTreeView } from "@/Features/Mlm/Components";
-import type { AgentHierarchyNode } from "@/Features/Mlm/types";
+import type {
+    AgentHierarchyNode,
+    DownlineDealContribution,
+    AgentInvite,
+} from "@/Features/Mlm/types";
 
 interface Props extends PageProps {
     network: AgentHierarchyNode | null;
 }
 
+// ── Downline Deals Table (used inside the Drawer) ────────────────
+const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
+    const [page, setPage] = useState(1);
+
+    const { data, isLoading } = useDownlineDeals(agentId, {
+        page,
+        per_page: 8,
+    });
+
+    const records = (data as any)?.data ?? [];
+    const total = (data as any)?.total ?? 0;
+
+    const columns = [
+        {
+            title: "Deal",
+            key: "deal",
+            render: (_: any, r: DownlineDealContribution) => (
+                <div>
+                    <div className="font-medium text-sm">{r.deal_name}</div>
+                    <div className="text-xs text-gray-500">#{r.deal_id}</div>
+                </div>
+            ),
+        },
+        {
+            title: "Value",
+            dataIndex: "deal_value",
+            key: "deal_value",
+            align: "right" as const,
+            render: (val: number) => (
+                <span className="font-medium">
+                    $
+                    {val?.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                    })}
+                </span>
+            ),
+        },
+        {
+            title: "Commission",
+            dataIndex: "commission_amount",
+            key: "commission_amount",
+            align: "right" as const,
+            render: (val: number) => (
+                <span className="font-semibold text-green-600">
+                    $
+                    {val?.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                    })}
+                </span>
+            ),
+        },
+        {
+            title: "Type",
+            dataIndex: "commission_type",
+            key: "commission_type",
+            render: (t: string) => (
+                <Tag
+                    color={
+                        t === "agent"
+                            ? "blue"
+                            : t === "upline"
+                              ? "purple"
+                              : "default"
+                    }
+                >
+                    {t}
+                </Tag>
+            ),
+        },
+        {
+            title: "Date",
+            dataIndex: "date",
+            key: "date",
+            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+        },
+    ];
+
+    return (
+        <Table
+            dataSource={records}
+            columns={columns}
+            rowKey="deal_id"
+            size="small"
+            loading={isLoading}
+            locale={{ emptyText: <Empty description="No deals found" /> }}
+            pagination={{
+                current: page,
+                total,
+                pageSize: 8,
+                size: "small",
+                showSizeChanger: false,
+                onChange: (p) => setPage(p),
+            }}
+        />
+    );
+};
+
+// ── Invitations Tab ──────────────────────────────────────────────
+const InvitationsTab: React.FC = () => {
+    const [form] = Form.useForm();
+    const [invitePage, setInvitePage] = useState(1);
+
+    const {
+        data: invitesData,
+        isLoading: invitesLoading,
+        refetch: refetchInvites,
+    } = useMyInvites({ page: invitePage, per_page: 10 });
+
+    const invites: AgentInvite[] = (invitesData as any)?.data ?? [];
+    const invitesTotal = (invitesData as any)?.total ?? 0;
+
+    const { mutate: sendInvite, isPending: sending } = useSendInvite(() => {
+        message.success("Invitation sent successfully");
+        form.resetFields();
+        refetchInvites();
+    });
+
+    const handleSendInvite = (values: { email: string }) => {
+        sendInvite({ email: values.email });
+    };
+
+    const statusColor: Record<string, string> = {
+        pending: "orange",
+        accepted: "green",
+        expired: "default",
+    };
+
+    const inviteColumns = [
+        {
+            title: "Email",
+            dataIndex: "email",
+            key: "email",
+            render: (email: string) => (
+                <span className="text-sm font-medium">{email}</span>
+            ),
+        },
+        {
+            title: "Status",
+            dataIndex: "status",
+            key: "status",
+            render: (s: string) => (
+                <Tag color={statusColor[s] ?? "default"}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                </Tag>
+            ),
+        },
+        {
+            title: "Sent",
+            dataIndex: "sent_at",
+            key: "sent_at",
+            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+        },
+        {
+            title: "Accepted",
+            dataIndex: "accepted_at",
+            key: "accepted_at",
+            render: (d: string | null) =>
+                d ? new Date(d).toLocaleDateString() : "—",
+        },
+    ];
+
+    return (
+        <div className="space-y-6">
+            {/* Invite Form */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+            >
+                <Card
+                    size="small"
+                    className="shadow-sm"
+                    title={
+                        <div className="flex items-center gap-2">
+                            <Mail size={16} className="text-indigo-500" />
+                            <span>Invite Agent</span>
+                        </div>
+                    }
+                >
+                    <Form
+                        form={form}
+                        layout="inline"
+                        onFinish={handleSendInvite}
+                        className="flex flex-wrap gap-2"
+                    >
+                        <Form.Item
+                            name="email"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Email is required",
+                                },
+                                {
+                                    type: "email",
+                                    message: "Enter a valid email",
+                                },
+                            ]}
+                            className="flex-1 min-w-[250px]"
+                        >
+                            <Input
+                                placeholder="agent@example.com"
+                                size="middle"
+                            />
+                        </Form.Item>
+                        <Form.Item>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={sending}
+                                icon={<Send size={14} />}
+                            >
+                                Send Invite
+                            </Button>
+                        </Form.Item>
+                    </Form>
+                </Card>
+            </motion.div>
+
+            {/* Invitations List */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+            >
+                <Card
+                    size="small"
+                    className="shadow-sm"
+                    title="Sent Invitations"
+                    extra={
+                        <Button
+                            icon={<RefreshCw size={14} />}
+                            size="small"
+                            onClick={() => refetchInvites()}
+                            loading={invitesLoading}
+                        >
+                            Refresh
+                        </Button>
+                    }
+                >
+                    <Table
+                        dataSource={invites}
+                        columns={inviteColumns}
+                        rowKey="id"
+                        size="small"
+                        loading={invitesLoading}
+                        locale={{
+                            emptyText: (
+                                <Empty description="No invitations sent yet" />
+                            ),
+                        }}
+                        pagination={{
+                            current: invitePage,
+                            total: invitesTotal,
+                            pageSize: 10,
+                            size: "small",
+                            showSizeChanger: false,
+                            onChange: (p) => setInvitePage(p),
+                        }}
+                    />
+                </Card>
+            </motion.div>
+        </div>
+    );
+};
+
+// ── Main Page ────────────────────────────────────────────────────
 const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     const { data, isLoading, refetch } = useMyNetwork();
     const network: AgentHierarchyNode | null =
@@ -68,6 +356,10 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     const selfNode = findSelf(network);
     const totalNodes = countDownlines(network);
 
+    /** Whether the selected node is a downline (not self or upline). */
+    const isDownlineNode =
+        selectedNode && !selectedNode.is_self && !selectedNode.is_upline;
+
     return (
         <DashboardLayout>
             <PageLayout
@@ -77,101 +369,164 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                     { name: "My Network" },
                 ]}
             >
-                <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Summary */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="mb-4"
-                    >
-                        <Card size="small" className="shadow-sm">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <GitBranch
-                                        size={18}
-                                        className="text-indigo-500"
-                                    />
-                                    <span className="text-sm text-gray-600">
-                                        Total Downlines:{" "}
-                                        <strong>{totalNodes}</strong>
+                <div className="max-w-7xl mx-auto">
+                    <Tabs
+                        defaultActiveKey="network"
+                        items={[
+                            {
+                                key: "network",
+                                label: (
+                                    <span className="flex items-center gap-1.5">
+                                        <GitBranch size={14} />
+                                        Network
                                     </span>
-                                    {selfNode && (
-                                        <span className="text-sm text-gray-600">
-                                            Direct:{" "}
-                                            <strong>
-                                                {selfNode.children?.length ?? 0}
-                                            </strong>
-                                        </span>
-                                    )}
-                                </div>
-                                <Space>
-                                    <Button
-                                        icon={
-                                            fullscreen ? (
-                                                <Minimize2 size={14} />
-                                            ) : (
-                                                <Maximize2 size={14} />
-                                            )
-                                        }
-                                        size="small"
-                                        onClick={() => setFullscreen((f) => !f)}
-                                    >
-                                        {fullscreen
-                                            ? "Exit Fullscreen"
-                                            : "Fullscreen"}
-                                    </Button>
-                                    <Button
-                                        icon={<RefreshCw size={14} />}
-                                        size="small"
-                                        onClick={() => refetch()}
-                                        loading={isLoading}
-                                    >
-                                        Refresh
-                                    </Button>
-                                </Space>
-                            </div>
-                        </Card>
-                    </motion.div>
+                                ),
+                                children: (
+                                    <div className="space-y-6">
+                                        {/* Summary */}
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="mb-4"
+                                        >
+                                            <Card
+                                                size="small"
+                                                className="shadow-sm"
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <GitBranch
+                                                            size={18}
+                                                            className="text-indigo-500"
+                                                        />
+                                                        <span className="text-sm text-gray-600">
+                                                            Total Downlines:{" "}
+                                                            <strong>
+                                                                {totalNodes}
+                                                            </strong>
+                                                        </span>
+                                                        {selfNode && (
+                                                            <span className="text-sm text-gray-600">
+                                                                Direct:{" "}
+                                                                <strong>
+                                                                    {selfNode
+                                                                        .children
+                                                                        ?.length ??
+                                                                        0}
+                                                                </strong>
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <Space>
+                                                        <Button
+                                                            icon={
+                                                                fullscreen ? (
+                                                                    <Minimize2
+                                                                        size={
+                                                                            14
+                                                                        }
+                                                                    />
+                                                                ) : (
+                                                                    <Maximize2
+                                                                        size={
+                                                                            14
+                                                                        }
+                                                                    />
+                                                                )
+                                                            }
+                                                            size="small"
+                                                            onClick={() =>
+                                                                setFullscreen(
+                                                                    (f) => !f,
+                                                                )
+                                                            }
+                                                        >
+                                                            {fullscreen
+                                                                ? "Exit Fullscreen"
+                                                                : "Fullscreen"}
+                                                        </Button>
+                                                        <Button
+                                                            icon={
+                                                                <RefreshCw
+                                                                    size={14}
+                                                                />
+                                                            }
+                                                            size="small"
+                                                            onClick={() =>
+                                                                refetch()
+                                                            }
+                                                            loading={isLoading}
+                                                        >
+                                                            Refresh
+                                                        </Button>
+                                                    </Space>
+                                                </div>
+                                            </Card>
+                                        </motion.div>
 
-                    {/* Tree */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.1 }}
-                    >
-                        <Card
-                            className="shadow-sm"
-                            bodyStyle={{
-                                padding: 0,
-                                minHeight: fullscreen ? "80vh" : 500,
-                            }}
-                        >
-                            {isLoading ? (
-                                <div className="flex items-center justify-center h-96">
-                                    <Spin size="large" />
-                                </div>
-                            ) : network ? (
-                                <div
-                                    style={{
-                                        height: fullscreen ? "80vh" : 500,
-                                    }}
-                                >
-                                    <AgentTreeView
-                                        data={[network]}
-                                        onNodeClick={handleNodeClick}
-                                        orientation="vertical"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center h-96">
-                                    <Empty description="You don't have any downlines yet." />
-                                </div>
-                            )}
-                        </Card>
-                    </motion.div>
+                                        {/* Tree */}
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{
+                                                duration: 0.4,
+                                                delay: 0.1,
+                                            }}
+                                        >
+                                            <Card
+                                                className="shadow-sm"
+                                                bodyStyle={{
+                                                    padding: 0,
+                                                    minHeight: fullscreen
+                                                        ? "80vh"
+                                                        : 500,
+                                                }}
+                                            >
+                                                {isLoading ? (
+                                                    <div className="flex items-center justify-center h-96">
+                                                        <Spin size="large" />
+                                                    </div>
+                                                ) : network ? (
+                                                    <div
+                                                        style={{
+                                                            height: fullscreen
+                                                                ? "80vh"
+                                                                : 500,
+                                                        }}
+                                                    >
+                                                        <AgentTreeView
+                                                            data={[network]}
+                                                            onNodeClick={
+                                                                handleNodeClick
+                                                            }
+                                                            orientation="vertical"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center justify-center h-96">
+                                                        <Empty description="You don't have any downlines yet." />
+                                                    </div>
+                                                )}
+                                            </Card>
+                                        </motion.div>
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: "invitations",
+                                label: (
+                                    <span className="flex items-center gap-1.5">
+                                        <Mail size={14} />
+                                        Invitations
+                                    </span>
+                                ),
+                                children: <InvitationsTab />,
+                            },
+                        ]}
+                    />
 
-                    {/* Node Detail Drawer */}
+                    {/* Node Detail Drawer (with Downline Deals) */}
                     <Drawer
                         title="Agent Details"
                         open={drawerOpen}
@@ -179,7 +534,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                             setDrawerOpen(false);
                             setSelectedNode(null);
                         }}
-                        width={380}
+                        width={520}
                     >
                         {selectedNode && (
                             <div>
@@ -249,6 +604,19 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                             selectedNode.joined_date,
                                         ).toLocaleDateString()}
                                     </div>
+                                )}
+
+                                {/* Downline Deals Section */}
+                                {isDownlineNode && (
+                                    <>
+                                        <Divider />
+                                        <div className="text-xs uppercase tracking-wider text-gray-400 mb-3">
+                                            Deals
+                                        </div>
+                                        <DownlineDealsSection
+                                            agentId={selectedNode.id}
+                                        />
+                                    </>
                                 )}
                             </div>
                         )}
