@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Table, Tag, Empty, Button, Typography } from "antd";
+import { Card, Table, Tag, Empty, Button, Space } from "antd";
 import type { TableColumnsType } from "antd";
 import { PlusOutlined, GiftOutlined } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
@@ -7,14 +7,14 @@ import type {
     DeveloperProject,
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
-import type { Offer } from "@/Types/api/offers";
+import type { Offer, OfferablePivot } from "@/Types/api/offers";
 import OfferAttachSection from "./OfferAttachSection";
 
-const { Title } = Typography;
+type OfferWithPivot = Offer & { pivot?: OfferablePivot };
 
 interface ProjectOffersSectionProps {
-    project: DeveloperProject;
-    unitTypes: DeveloperProjectUnitType[];
+    project: DeveloperProject & { offers?: OfferWithPivot[] };
+    unitTypes: (DeveloperProjectUnitType & { offers?: OfferWithPivot[] })[];
 }
 
 const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
@@ -25,12 +25,9 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
         router.reload();
     };
 
-    const projectOffer =
-        project.offers && project.offers.length > 0
-            ? (project.offers.find((o) => o.is_active) ?? project.offers[0])
-            : null;
-
-    const unitTypeColumns: TableColumnsType<DeveloperProjectUnitType> = [
+    const unitTypeColumns: TableColumnsType<
+        DeveloperProjectUnitType & { offers?: OfferWithPivot[] }
+    > = [
         {
             title: "Unit Type",
             key: "label",
@@ -57,27 +54,42 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
                     : "-",
         },
         {
-            title: "Offer",
-            key: "offer",
-            width: 200,
+            title: "Offers",
+            key: "offers",
+            width: 280,
             render: (_, record) => {
-                const offer =
-                    record.offers && record.offers.length > 0
-                        ? (record.offers.find((o) => o.is_active) ??
-                          record.offers[0])
-                        : null;
-                if (!offer) return <span className="text-gray-400">-</span>;
+                const offers = (record.offers ?? []) as OfferWithPivot[];
+                if (offers.length === 0)
+                    return <span className="text-gray-400">—</span>;
                 return (
-                    <Tag
-                        color={offer.type === "percentage" ? "blue" : "green"}
-                        icon={<GiftOutlined />}
-                    >
-                        {offer.name} (
-                        {offer.type === "percentage"
-                            ? `${offer.value}%`
-                            : Number(offer.value).toLocaleString("en-GB")}
-                        )
-                    </Tag>
+                    <Space size={[4, 4]} wrap>
+                        {offers.map((offer) => {
+                            const active =
+                                offer.pivot?.is_active !== false &&
+                                offer.is_active;
+                            return (
+                                <Tag
+                                    key={offer.id}
+                                    color={
+                                        !active
+                                            ? "default"
+                                            : offer.type === "percentage"
+                                              ? "blue"
+                                              : "green"
+                                    }
+                                    icon={<GiftOutlined />}
+                                >
+                                    {offer.name} (
+                                    {offer.type === "percentage"
+                                        ? `${offer.value}%`
+                                        : Number(offer.value).toLocaleString(
+                                              "en-GB",
+                                          )}
+                                    ){!active && " · Disabled"}
+                                </Tag>
+                            );
+                        })}
+                    </Space>
                 );
             },
         },
@@ -85,10 +97,10 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
 
     return (
         <div className="space-y-6">
-            {/* Project-Level Offer */}
-            <Card title="Project Offer" size="small">
+            {/* Project-Level Offers */}
+            <Card title="Project Offers" size="small">
                 <OfferAttachSection
-                    currentOffer={projectOffer}
+                    offers={(project.offers ?? []) as OfferWithPivot[]}
                     offerableType="developer_project"
                     offerableId={project.id}
                     onRefresh={handleRefresh}

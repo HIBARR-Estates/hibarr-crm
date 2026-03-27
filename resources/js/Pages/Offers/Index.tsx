@@ -5,6 +5,7 @@ import OfferFormModal from "@/Features/Offers/OfferFormModal";
 import DeleteOffer from "@/Features/Offers/DeleteOffer";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import type { Offer } from "@/Types/api/offers";
+import type { Developer } from "@/Types/developerProject";
 import {
     PlusOutlined,
     EditOutlined,
@@ -30,13 +31,20 @@ interface OffersIndexProps {
         from: number | null;
         to: number | null;
     };
+    developers: { id: number; name: string }[];
     filters: {
         search?: string;
         active_only?: string;
+        developer_id?: string;
     };
 }
 
-const Index = ({ pageTitle, offers, filters }: OffersIndexProps) => {
+const Index = ({
+    pageTitle,
+    offers,
+    developers,
+    filters,
+}: OffersIndexProps) => {
     const {
         handleAction,
         handleClose,
@@ -47,6 +55,9 @@ const Index = ({ pageTitle, offers, filters }: OffersIndexProps) => {
     const { refresh, isRefreshing } = usePageRefresh();
     const [activeFilter, setActiveFilter] = useState<string | undefined>(
         filters.active_only,
+    );
+    const [developerFilter, setDeveloperFilter] = useState<string | undefined>(
+        filters.developer_id,
     );
 
     const applyFilter = (key: string, value: string | undefined) => {
@@ -74,6 +85,15 @@ const Index = ({ pageTitle, offers, filters }: OffersIndexProps) => {
                 render: (name: string, record: Offer) => (
                     <a onClick={() => handleAction("view", record)}>{name}</a>
                 ),
+            },
+            {
+                title: "Developer",
+                key: "developer",
+                width: 150,
+                render: (_, record) =>
+                    record.developer?.name ?? (
+                        <span className="text-gray-400">-</span>
+                    ),
             },
             {
                 title: "Type",
@@ -202,6 +222,28 @@ const Index = ({ pageTitle, offers, filters }: OffersIndexProps) => {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <Select
+                                placeholder="Developer"
+                                value={developerFilter}
+                                onChange={(v) => {
+                                    setDeveloperFilter(v);
+                                    applyFilter("developer_id", v);
+                                }}
+                                allowClear
+                                style={{ width: 180 }}
+                                size="small"
+                                showSearch
+                                filterOption={(input, option) =>
+                                    (option?.label ?? "")
+                                        .toString()
+                                        .toLowerCase()
+                                        .includes(input.toLowerCase())
+                                }
+                                options={developers.map((d) => ({
+                                    label: d.name,
+                                    value: String(d.id),
+                                }))}
+                            />
                             <Select
                                 placeholder="Status"
                                 value={activeFilter}
