@@ -26,7 +26,7 @@ class OfferController extends AccountBaseController
     public function index(Request $request)
     {
         $query = Offer::where('company_id', user()->company_id)
-            ->withCount(['dealApplications']);
+            ->withCount(['dealApplications', 'developerProjects']);
 
         if ($request->boolean('active_only')) {
             $query->active();

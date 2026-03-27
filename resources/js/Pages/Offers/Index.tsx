@@ -1,7 +1,8 @@
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useState } from "react";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import OfferFormModal from "@/Features/Offers/OfferFormModal";
+import DeleteOffer from "@/Features/Offers/DeleteOffer";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import type { Offer } from "@/Types/api/offers";
 import {
@@ -11,7 +12,7 @@ import {
     EyeOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
-import { Button, Table, Tag, Select, Popconfirm, Space } from "antd";
+import { Button, Table, Tag, Select, Space } from "antd";
 import type { TableColumnsType } from "antd";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageRefresh from "@/Hooks/usePageRefresh";
@@ -47,20 +48,6 @@ const Index = ({ pageTitle, offers, filters }: OffersIndexProps) => {
     const [activeFilter, setActiveFilter] = useState<string | undefined>(
         filters.active_only,
     );
-
-    const handleDelete = useCallback((record: Offer) => {
-        fetch(route("offers.destroy", record.id), {
-            method: "DELETE",
-            headers: {
-                "X-Requested-With": "XMLHttpRequest",
-                "X-CSRF-TOKEN":
-                    document
-                        .querySelector('meta[name="csrf-token"]')
-                        ?.getAttribute("content") ?? "",
-                Accept: "application/json",
-            },
-        }).then(() => router.reload());
-    }, []);
 
     const applyFilter = (key: string, value: string | undefined) => {
         const params: Record<string, string | undefined> = {
@@ -172,25 +159,20 @@ const Index = ({ pageTitle, offers, filters }: OffersIndexProps) => {
                             icon={<EditOutlined />}
                             onClick={() => handleAction("edit", record)}
                         />
-                        <Popconfirm
-                            title="Delete this offer?"
-                            description="This action cannot be undone."
-                            onConfirm={() => handleDelete(record)}
-                            okText="Delete"
-                            okType="danger"
-                        >
+                        {!((record.developer_projects_count ?? 0) > 0) && (
                             <Button
                                 type="text"
                                 size="small"
                                 danger
                                 icon={<DeleteOutlined />}
+                                onClick={() => handleAction("delete", record)}
                             />
-                        </Popconfirm>
+                        )}
                     </Space>
                 ),
             },
         ],
-        [handleAction, handleDelete],
+        [handleAction],
     );
 
     return (
@@ -283,6 +265,12 @@ const Index = ({ pageTitle, offers, filters }: OffersIndexProps) => {
                 onClose={handleClose}
                 offerId={offer?.id ?? null}
                 onEdit={(o: Offer) => handleAction("edit", o)}
+            />
+
+            <DeleteOffer
+                open={action === "delete"}
+                onClose={() => handleClose()}
+                offer={action === "delete" ? (offer ?? undefined) : undefined}
             />
         </>
     );

@@ -40,12 +40,11 @@ interface OfferDetailDrawerProps {
 
 interface OfferShowResponse {
     status: string;
-    data: {
-        offer: Offer & {
-            developer_projects?: DeveloperProject[];
-            unit_types?: DeveloperProjectUnitType[];
-            deal_applications_count?: number;
-        };
+
+    offer: Offer & {
+        developer_projects?: DeveloperProject[];
+        unit_types?: DeveloperProjectUnitType[];
+        deal_applications_count?: number;
     };
 }
 
@@ -67,7 +66,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
         options: { enabled: open && !!offerId },
     });
 
-    const offer = data?.data?.offer;
+    const offer = data?.offer;
 
     // Fetch projects and unit types for the attach dropdown
     const { data: projectsData } = useApiQuery<{
