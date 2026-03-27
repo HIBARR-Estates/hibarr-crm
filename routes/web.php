@@ -1318,6 +1318,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
             // Downline deals & agent invitations
             Route::get('downline/{downlineId}/deals', [App\Http\Controllers\MlmAgentController::class, 'downlineDealsApi'])->name('downline_deals');
+            Route::get('deals', [App\Http\Controllers\MlmAgentController::class, 'agentDealsApi'])->name('agent_deals');
+            Route::get('downlines', [App\Http\Controllers\MlmAgentController::class, 'downlineListApi'])->name('downline_list');
             Route::post('invites', [App\Http\Controllers\MlmAgentController::class, 'sendInviteApi'])->name('send_invite');
             Route::get('invites', [App\Http\Controllers\MlmAgentController::class, 'getInvitesApi'])->name('invites');
         });

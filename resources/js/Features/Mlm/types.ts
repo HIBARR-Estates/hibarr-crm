@@ -416,3 +416,10 @@ export interface AgentInvite {
 export interface SendInvitePayload {
     email: string;
 }
+
+// ── Downline List Item (for dropdown selector) ───────────────────
+export interface DownlineListItem {
+    id: number;
+    name: string;
+    email: string;
+}
