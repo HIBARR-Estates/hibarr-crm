@@ -84,6 +84,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 // v2 compatibility routes (mount at /api/v2/)
 Route::middleware(['api.token'])->prefix('v2')->group(function () {
     Route::post('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@createEmployee', 'as' => 'api.v2.employees.create.compat']);
+    Route::post('employees/find-or-create', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@findOrCreateEmployee', 'as' => 'api.v2.employees.findOrCreate.compat']);
     Route::get('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@listEmployees', 'as' => 'api.v2.employees.list.compat']);
     Route::get('employees/departments', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@listDepartments', 'as' => 'api.v2.employees.departments.compat']);
     Route::get('employees/designations', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@listDesignations', 'as' => 'api.v2.employees.designations.compat']);
