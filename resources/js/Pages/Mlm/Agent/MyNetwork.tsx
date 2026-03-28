@@ -752,10 +752,11 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                 label: (
                                     <span className="flex items-center gap-1.5">
                                         <Mail size={14} />
-                                        Invitations
+                                        Invitations (Coming Soon)
                                     </span>
                                 ),
                                 children: <InvitationsTab />,
+                                disabled: true,
                             },
                             {
                                 key: "deals",
