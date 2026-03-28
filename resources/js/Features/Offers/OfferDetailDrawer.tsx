@@ -10,19 +10,14 @@ import {
     Empty,
     Typography,
     Divider,
-    Popconfirm,
     Spin,
+    Switch,
     App,
 } from "antd";
 import type { TableColumnsType } from "antd";
-import {
-    GiftOutlined,
-    LinkOutlined,
-    DisconnectOutlined,
-    EditOutlined,
-} from "@ant-design/icons";
+import { GiftOutlined, LinkOutlined, EditOutlined } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client";
-import type { Offer } from "@/Types/api/offers";
+import type { Offer, OfferablePivot } from "@/Types/api/offers";
 import type {
     DeveloperProject,
     DeveloperProjectUnitType,
@@ -30,6 +25,9 @@ import type {
 import dayjs from "dayjs";
 
 const { Text } = Typography;
+
+type ProjectWithPivot = DeveloperProject & { pivot?: OfferablePivot };
+type UnitTypeWithPivot = DeveloperProjectUnitType & { pivot?: OfferablePivot };
 
 interface OfferDetailDrawerProps {
     open: boolean;
@@ -40,14 +38,23 @@ interface OfferDetailDrawerProps {
 
 interface OfferShowResponse {
     status: string;
-    data: {
-        offer: Offer & {
-            developer_projects?: DeveloperProject[];
-            unit_types?: DeveloperProjectUnitType[];
-            deal_applications_count?: number;
-        };
+
+    offer: Offer & {
+        developer_projects?: ProjectWithPivot[];
+        unit_types?: UnitTypeWithPivot[];
+        deal_applications_count?: number;
     };
 }
+
+const csrfHeaders = () => ({
+    "Content-Type": "application/json",
+    "X-Requested-With": "XMLHttpRequest",
+    "X-CSRF-TOKEN":
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content") ?? "",
+    Accept: "application/json",
+});
 
 const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
     open,
@@ -61,30 +68,41 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
     >(null);
     const [attachId, setAttachId] = useState<number | null>(null);
     const [attachLoading, setAttachLoading] = useState(false);
+    const [toggleLoading, setToggleLoading] = useState<string | null>(null);
 
     const { data, isLoading, refetch } = useApiQuery<OfferShowResponse>({
         path: offerId ? route("offers.show", offerId) : "",
         options: { enabled: open && !!offerId },
     });
 
-    const offer = data?.data?.offer;
+    const offer = data?.offer;
 
-    // Fetch projects and unit types for the attach dropdown
+    // Fetch projects belonging to this offer's developer for the attach dropdown
     const { data: projectsData } = useApiQuery<{
-        data: DeveloperProject[];
+        status: string;
+        data: { projects: DeveloperProject[] };
     }>({
-        path: route("developer-projects.index"),
-        params: { per_page: 200 },
-        options: { enabled: open && attachType === "developer_project" },
+        path: route("developer-projects.all"),
+        options: {
+            enabled:
+                open &&
+                attachType === "developer_project" &&
+                !!offer?.developer_id,
+        },
     });
 
-    const { data: unitTypesData } = useApiQuery<{
-        data: { unit_types: DeveloperProjectUnitType[] };
-    }>({
-        path: route("developer-projects.index"),
-        params: { per_page: 200, include_unit_types: true },
-        options: { enabled: open && attachType === "unit_type" },
-    });
+    // Filter to only the offer's developer's projects
+    const developerProjects = (projectsData?.data?.projects ?? []).filter(
+        (p) => p.developer_id === offer?.developer_id,
+    );
+
+    // Exclude already-attached projects
+    const attachedProjectIds = new Set(
+        (offer?.developer_projects ?? []).map((p) => p.id),
+    );
+    const selectableProjects = developerProjects.filter(
+        (p) => !attachedProjectIds.has(p.id),
+    );
 
     const handleAttach = async () => {
         if (!offerId || !attachType || !attachId) return;
@@ -92,18 +110,10 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
         try {
             const res = await fetch(route("offers.attach", offerId), {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") ?? "",
-                    Accept: "application/json",
-                },
+                headers: csrfHeaders(),
                 body: JSON.stringify({
                     offerable_type: attachType,
-                    offerable_id: attachId,
+                    offerable_ids: [attachId],
                 }),
             });
             const result = await res.json();
@@ -120,66 +130,81 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
         }
     };
 
-    const handleDetach = async (
+    const handleToggle = async (
         type: "developer_project" | "unit_type",
         id: number,
+        enable: boolean,
     ) => {
         if (!offerId) return;
+        const key = `${type}-${id}`;
+        setToggleLoading(key);
         try {
-            await fetch(route("offers.detach", offerId), {
+            const endpoint = enable
+                ? route("offers.enable", offerId)
+                : route("offers.disable", offerId);
+            await fetch(endpoint, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") ?? "",
-                    Accept: "application/json",
-                },
+                headers: csrfHeaders(),
                 body: JSON.stringify({
                     offerable_type: type,
                     offerable_id: id,
                 }),
             });
-            message.success("Offer detached");
             refetch();
         } catch {
-            message.error("Failed to detach");
+            message.error("Failed to update status");
+        } finally {
+            setToggleLoading(null);
         }
     };
 
-    const projectColumns: TableColumnsType<DeveloperProject> = [
+    const projectColumns: TableColumnsType<ProjectWithPivot> = [
         {
             title: "Project",
             dataIndex: "name",
             key: "name",
         },
         {
+            title: "Status",
+            key: "status",
+            width: 100,
+            align: "center",
+            render: (_, record) => {
+                const active = record.pivot?.is_active !== false;
+                return (
+                    <Tag color={active ? "green" : "default"}>
+                        {active ? "Active" : "Disabled"}
+                    </Tag>
+                );
+            },
+        },
+        {
             title: "",
             key: "action",
             width: 80,
-            render: (_, record) => (
-                <Popconfirm
-                    title="Detach from this project?"
-                    onConfirm={() =>
-                        handleDetach("developer_project", record.id)
-                    }
-                    okText="Detach"
-                    okType="danger"
-                >
-                    <Button
-                        type="text"
+            render: (_, record) => {
+                const active = record.pivot?.is_active !== false;
+                return (
+                    <Switch
                         size="small"
-                        danger
-                        icon={<DisconnectOutlined />}
+                        checked={active}
+                        loading={
+                            toggleLoading === `developer_project-${record.id}`
+                        }
+                        onChange={(checked) =>
+                            handleToggle(
+                                "developer_project",
+                                record.id,
+                                checked,
+                            )
+                        }
                     />
-                </Popconfirm>
-            ),
+                );
+            },
         },
     ];
 
-    const unitTypeColumns: TableColumnsType<DeveloperProjectUnitType> = [
+    const unitTypeColumns: TableColumnsType<UnitTypeWithPivot> = [
         {
             title: "Unit Type",
             key: "label",
@@ -195,24 +220,36 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
             render: (v: number | null) => v ?? "-",
         },
         {
+            title: "Status",
+            key: "status",
+            width: 100,
+            align: "center",
+            render: (_, record) => {
+                const active = record.pivot?.is_active !== false;
+                return (
+                    <Tag color={active ? "green" : "default"}>
+                        {active ? "Active" : "Disabled"}
+                    </Tag>
+                );
+            },
+        },
+        {
             title: "",
             key: "action",
             width: 80,
-            render: (_, record) => (
-                <Popconfirm
-                    title="Detach from this unit type?"
-                    onConfirm={() => handleDetach("unit_type", record.id)}
-                    okText="Detach"
-                    okType="danger"
-                >
-                    <Button
-                        type="text"
+            render: (_, record) => {
+                const active = record.pivot?.is_active !== false;
+                return (
+                    <Switch
                         size="small"
-                        danger
-                        icon={<DisconnectOutlined />}
+                        checked={active}
+                        loading={toggleLoading === `unit_type-${record.id}`}
+                        onChange={(checked) =>
+                            handleToggle("unit_type", record.id, checked)
+                        }
                     />
-                </Popconfirm>
-            ),
+                );
+            },
         },
     ];
 
@@ -256,6 +293,11 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                         <Descriptions.Item label="Name" span={2}>
                             {offer.name}
                         </Descriptions.Item>
+                        {offer.developer && (
+                            <Descriptions.Item label="Developer" span={2}>
+                                {offer.developer.name}
+                            </Descriptions.Item>
+                        )}
                         {offer.description && (
                             <Descriptions.Item label="Description" span={2}>
                                 {offer.description}
@@ -398,12 +440,12 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                             .toLowerCase()
                                             .includes(input.toLowerCase())
                                     }
-                                    options={(
-                                        (projectsData as any)?.data ?? []
-                                    ).map((p: DeveloperProject) => ({
-                                        label: p.name,
-                                        value: p.id,
-                                    }))}
+                                    options={selectableProjects.map(
+                                        (p: DeveloperProject) => ({
+                                            label: p.name,
+                                            value: p.id,
+                                        }),
+                                    )}
                                     value={attachId}
                                     onChange={setAttachId}
                                 />
@@ -413,21 +455,13 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                     className="flex-1"
                                     placeholder="Select unit type..."
                                     showSearch
-                                    filterOption={(input, option) =>
+                                    filterOption={(input, option: any) =>
                                         (option?.label ?? "")
                                             .toString()
                                             .toLowerCase()
                                             .includes(input.toLowerCase())
                                     }
-                                    options={(
-                                        (unitTypesData as any)?.data
-                                            ?.unit_types ?? []
-                                    ).map((ut: DeveloperProjectUnitType) => ({
-                                        label:
-                                            ut.display_label ||
-                                            `${ut.primary_category} - ${ut.property_type || "N/A"}`,
-                                        value: ut.id,
-                                    }))}
+                                    options={[]}
                                     value={attachId}
                                     onChange={setAttachId}
                                 />

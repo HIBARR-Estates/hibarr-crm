@@ -26,14 +26,19 @@ import {
     EnvironmentOutlined,
     WhatsAppOutlined,
     CopyOutlined,
+    GiftOutlined,
+    PlusOutlined,
 } from "@ant-design/icons";
 import type {
     Developer,
     DeveloperProject,
     ProjectLocation,
 } from "../../Types/developerProject";
+import type { Offer } from "@/Types/api/offers";
 import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
 import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
+import OfferFormModal from "@/Features/Offers/OfferFormModal";
+import OfferDetailDrawer from "@/Features/Offers/OfferDetailDrawer";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -55,6 +60,7 @@ export interface ShowProps extends PageProps {
     pageTitle: string;
     developer: Developer;
     projects: PaginationData;
+    offers: Offer[];
     filters: {
         search?: string;
     };
@@ -64,12 +70,21 @@ export interface ShowProps extends PageProps {
 // Main Component
 // ============================================
 
-const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
+const Show = ({
+    pageTitle,
+    developer,
+    projects,
+    offers,
+    filters,
+}: ShowProps) => {
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editProject, setEditProject] = useState<DeveloperProject | null>(
         null,
     );
     const [searchValue, setSearchValue] = useState(filters.search || "");
+    const [offerModalOpen, setOfferModalOpen] = useState(false);
+    const [editOffer, setEditOffer] = useState<Offer | null>(null);
+    const [drawerOfferId, setDrawerOfferId] = useState<number | null>(null);
 
     const handleSuccess = useCallback(() => {
         router.reload({ only: ["developer", "projects"] });
@@ -315,6 +330,147 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                         />
                     )}
                 </Card>
+
+                {/* Offers Section */}
+                <Card
+                    title={
+                        <Space>
+                            <GiftOutlined />
+                            Offers ({offers.length})
+                        </Space>
+                    }
+                    extra={
+                        <Button
+                            type="primary"
+                            size="small"
+                            icon={<PlusOutlined />}
+                            onClick={() => {
+                                setEditOffer(null);
+                                setOfferModalOpen(true);
+                            }}
+                        >
+                            New Offer
+                        </Button>
+                    }
+                >
+                    {offers.length === 0 ? (
+                        <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description="No offers for this developer"
+                        >
+                            <Button
+                                type="primary"
+                                onClick={() => {
+                                    setEditOffer(null);
+                                    setOfferModalOpen(true);
+                                }}
+                            >
+                                Create First Offer
+                            </Button>
+                        </Empty>
+                    ) : (
+                        <Table
+                            dataSource={offers}
+                            rowKey="id"
+                            pagination={false}
+                            size="small"
+                            columns={[
+                                {
+                                    title: "Name",
+                                    dataIndex: "name",
+                                    key: "name",
+                                    render: (name: string, record: Offer) => (
+                                        <a
+                                            onClick={() =>
+                                                setDrawerOfferId(record.id)
+                                            }
+                                        >
+                                            {name}
+                                        </a>
+                                    ),
+                                },
+                                {
+                                    title: "Type",
+                                    dataIndex: "type",
+                                    key: "type",
+                                    width: 100,
+                                    render: (type: string) => (
+                                        <Tag
+                                            color={
+                                                type === "percentage"
+                                                    ? "blue"
+                                                    : "green"
+                                            }
+                                        >
+                                            {type === "percentage"
+                                                ? "Percentage"
+                                                : "Fixed"}
+                                        </Tag>
+                                    ),
+                                },
+                                {
+                                    title: "Value",
+                                    key: "value",
+                                    width: 100,
+                                    render: (_: any, record: Offer) =>
+                                        record.type === "percentage"
+                                            ? `${record.value}%`
+                                            : Number(
+                                                  record.value,
+                                              ).toLocaleString("en-GB"),
+                                },
+                                {
+                                    title: "Status",
+                                    dataIndex: "is_active",
+                                    key: "status",
+                                    width: 90,
+                                    render: (active: boolean) => (
+                                        <Tag
+                                            color={active ? "green" : "default"}
+                                        >
+                                            {active ? "Active" : "Inactive"}
+                                        </Tag>
+                                    ),
+                                },
+                                {
+                                    title: "Projects",
+                                    dataIndex: "developer_projects_count",
+                                    key: "projects",
+                                    width: 80,
+                                    align: "center" as const,
+                                    render: (v: number) => v ?? 0,
+                                },
+                                {
+                                    title: "Actions",
+                                    key: "actions",
+                                    width: 80,
+                                    align: "center" as const,
+                                    render: (_: any, record: Offer) => (
+                                        <Space size="small">
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<EyeOutlined />}
+                                                onClick={() =>
+                                                    setDrawerOfferId(record.id)
+                                                }
+                                            />
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<EditOutlined />}
+                                                onClick={() => {
+                                                    setEditOffer(record);
+                                                    setOfferModalOpen(true);
+                                                }}
+                                            />
+                                        </Space>
+                                    ),
+                                },
+                            ]}
+                        />
+                    )}
+                </Card>
             </div>
 
             {/* Edit Developer Modal */}
@@ -332,6 +488,30 @@ const Show = ({ pageTitle, developer, projects, filters }: ShowProps) => {
                 project={editProject}
                 developer={developer}
                 onSuccess={handleSuccess}
+            />
+
+            {/* Offer Form Modal */}
+            <OfferFormModal
+                open={offerModalOpen}
+                onClose={() => {
+                    setOfferModalOpen(false);
+                    setEditOffer(null);
+                }}
+                offer={editOffer}
+                defaultDeveloperId={developer.id}
+                onSuccess={handleSuccess}
+            />
+
+            {/* Offer Detail Drawer */}
+            <OfferDetailDrawer
+                open={!!drawerOfferId}
+                onClose={() => setDrawerOfferId(null)}
+                offerId={drawerOfferId}
+                onEdit={(offer) => {
+                    setDrawerOfferId(null);
+                    setEditOffer(offer);
+                    setOfferModalOpen(true);
+                }}
             />
         </PageLayout>
     );

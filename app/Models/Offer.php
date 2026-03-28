@@ -16,6 +16,7 @@ class Offer extends BaseModel
 
     protected $fillable = [
         'company_id',
+        'developer_id',
         'name',
         'description',
         'type',
@@ -39,14 +40,23 @@ class Offer extends BaseModel
 
     // ── Relationships ────────────────────────────────────────────
 
+    public function developer(): BelongsTo
+    {
+        return $this->belongsTo(Developer::class);
+    }
+
     public function developerProjects(): MorphToMany
     {
-        return $this->morphedByMany(DeveloperProject::class, 'offerable');
+        return $this->morphedByMany(DeveloperProject::class, 'offerable')
+            ->withPivot('is_active', 'disabled_at', 'disabled_by')
+            ->withTimestamps();
     }
 
     public function unitTypes(): MorphToMany
     {
-        return $this->morphedByMany(DeveloperProjectUnitType::class, 'offerable');
+        return $this->morphedByMany(DeveloperProjectUnitType::class, 'offerable')
+            ->withPivot('is_active', 'disabled_at', 'disabled_by')
+            ->withTimestamps();
     }
 
     public function dealApplications(): HasMany

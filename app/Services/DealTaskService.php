@@ -6,10 +6,12 @@ use App\Models\Deal;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
+use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
 
 class DealTaskService
 {
+    use RecordsCrmEvents;
     // Define task types
     public const TASK_SCHEDULE_MEETING = 'schedule_meeting';
     public const TASK_SEND_PROPERTY_DETAILS = 'send_property_details';
@@ -113,6 +115,17 @@ class DealTaskService
         // Associate with Deal
         // Using the morphToMany relationship defined in Deal model
         $deal->tasks()->attach($task->id);
+
+        // Record CRM event for deal task creation
+        $this->recordCrmEvent('deal_updated', $deal, [
+            'metadata' => [
+                'action' => 'task_added',
+                'task_id' => $task->id,
+                'task_heading' => $task->heading,
+                'task_priority' => $task->priority,
+                'comment' => 'Task added: ' . $task->heading,
+            ],
+        ]);
 
         // If deal has an agent (LeadAgent), we might want to assign the task to the corresponding User.
         // LeadAgent model usually links to a User.

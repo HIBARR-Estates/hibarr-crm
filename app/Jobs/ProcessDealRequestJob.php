@@ -63,11 +63,25 @@ class ProcessDealRequestJob implements ShouldQueue
         // The observer fix (checking if user() exists) handles null user cases.
         
         try {
+            Log::info('ProcessDealRequestJob: Starting deal processing', [
+                'contact_id' => $this->contactId,
+                'company_id' => $this->companyId,
+                'has_update_agent_if_exists' => array_key_exists('update_agent_if_exists', $this->requestData),
+                'update_agent_if_exists' => $this->requestData['update_agent_if_exists'] ?? null,
+                'deal_owner_id' => $this->requestData['deal_owner_id'] ?? null,
+                'email' => $this->requestData['email'] ?? null,
+            ]);
+
             $service->processDeal(
                 $this->contactId,
                 $this->companyId,
                 $this->requestData
             );
+
+            Log::info('ProcessDealRequestJob: Completed deal processing', [
+                'contact_id' => $this->contactId,
+                'company_id' => $this->companyId,
+            ]);
         } catch (\Exception $e) {
             Log::error('ProcessDealRequestJob: Failed to process deal', [
                 'contact_id' => $this->contactId,

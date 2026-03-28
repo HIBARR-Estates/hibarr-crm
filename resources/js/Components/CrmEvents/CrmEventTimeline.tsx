@@ -72,6 +72,7 @@ export default function CrmEventTimeline({
                 : {}),
             ...(filter === "external" ? { generation_type: "external" } : {}),
         },
+        options: { refetchInterval: 15000 },
     });
 
     const events: CrmEvent[] = eventsResponse?.data ?? [];

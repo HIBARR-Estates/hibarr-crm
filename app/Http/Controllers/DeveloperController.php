@@ -71,7 +71,7 @@ class DeveloperController extends AccountBaseController
      */
     public function show(Request $request, $id)
     {
-        $developer = Developer::withCount('projects')
+        $developer = Developer::withCount(['projects', 'offers'])
             ->where('company_id', user()->company_id)
             ->findOrFail($id);
 
@@ -92,10 +92,17 @@ class DeveloperController extends AccountBaseController
 
         $projects = $projectsQuery->orderBy('created_at', 'desc')->paginate(15);
 
+        // Get developer's offers
+        $offers = $developer->offers()
+            ->withCount(['dealApplications', 'developerProjects'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return Inertia::render('Developers/Show', [
             'pageTitle' => $developer->name,
             'developer' => $developer,
             'projects' => $projects,
+            'offers' => $offers,
             'filters' => $request->only(['search']),
         ]);
     }

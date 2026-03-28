@@ -1180,7 +1180,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::put('/{id}', [App\Http\Controllers\OfferController::class, 'update'])->name('update');
         Route::delete('/{id}', [App\Http\Controllers\OfferController::class, 'destroy'])->name('destroy');
         Route::post('/{offerId}/attach', [App\Http\Controllers\OfferController::class, 'attach'])->name('attach');
-        Route::post('/{offerId}/detach', [App\Http\Controllers\OfferController::class, 'detach'])->name('detach');
+        Route::post('/{offerId}/disable', [App\Http\Controllers\OfferController::class, 'disable'])->name('disable');
+        Route::post('/{offerId}/enable', [App\Http\Controllers\OfferController::class, 'enable'])->name('enable');
     });
 
     // Deal offer endpoints
@@ -1320,6 +1321,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
             // Downline deals & agent invitations
             Route::get('downline/{downlineId}/deals', [App\Http\Controllers\MlmAgentController::class, 'downlineDealsApi'])->name('downline_deals');
+            Route::get('deals', [App\Http\Controllers\MlmAgentController::class, 'agentDealsApi'])->name('agent_deals');
+            Route::get('downlines', [App\Http\Controllers\MlmAgentController::class, 'downlineListApi'])->name('downline_list');
             Route::post('invites', [App\Http\Controllers\MlmAgentController::class, 'sendInviteApi'])->name('send_invite');
             Route::get('invites', [App\Http\Controllers\MlmAgentController::class, 'getInvitesApi'])->name('invites');
         });

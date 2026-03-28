@@ -768,11 +768,11 @@ const Show = ({
             icon: <FilePdfOutlined />,
             label: "PDF Files",
         },
-        {
-            key: "offers",
-            icon: <GiftOutlined />,
-            label: "Offers",
-        },
+        // {
+        //     key: "offers",
+        //     icon: <GiftOutlined />,
+        //     label: "Offers",
+        // },
     ];
 
     const renderSection = () => {
