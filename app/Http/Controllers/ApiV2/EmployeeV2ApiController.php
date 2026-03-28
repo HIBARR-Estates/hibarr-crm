@@ -12,6 +12,7 @@ use App\Models\LeadAgent;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Company;
+use App\Models\Country;
 use App\Scopes\ActiveScope;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -222,8 +223,8 @@ class EmployeeV2ApiController extends Controller
             $employee = new EmployeeDetails();
             $employee->user_id = $user->id;
             $employee->company_id = $companyId;
-            $requestedEmployeeId = trim((string) $request->input('employeeId', ''));
-            $employee->employee_id = $requestedEmployeeId !== '' ? $requestedEmployeeId : (string) $user->id;
+            // Employee ID must always mirror the User ID in v2 API.
+            $employee->employee_id = (string) $user->id;
             $employee->department_id = $request->input('departmentId');
             $employee->designation_id = $request->input('designationId');
             $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
@@ -353,16 +354,8 @@ class EmployeeV2ApiController extends Controller
             $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
         }
 
-        if ($request->has('employeeId')) {
-            $requestedEmployeeId = trim((string) $request->input('employeeId'));
-            if ($requestedEmployeeId !== '') {
-                $employee->employee_id = $requestedEmployeeId;
-            } elseif (empty($employee->employee_id)) {
-                $employee->employee_id = (string) $user->id;
-            }
-        } elseif (empty($employee->employee_id)) {
-            $employee->employee_id = (string) $user->id;
-        }
+        // Employee ID must always mirror the User ID in v2 API.
+        $employee->employee_id = (string) $user->id;
 
         $employee->save();
 
@@ -492,9 +485,12 @@ class EmployeeV2ApiController extends Controller
         }
 
         // For API v2 we receive E.164 (e.g. +905338773001).
-        // Store in production-compatible JSON shape used across the app.
-        $countryCode = substr($digits, 0, 2);
-        $localPhone = substr($digits, 2);
+        // Resolve by longest known country dialing code prefix.
+        $countryCode = $this->resolveCountryCodeFromE164Digits($digits);
+        if ($countryCode === null) {
+            return;
+        }
+        $localPhone = substr($digits, strlen($countryCode));
 
         if ($countryCode === '' || $localPhone === '') {
             return;
@@ -505,6 +501,30 @@ class EmployeeV2ApiController extends Controller
             'country_code' => $countryCode,
         ]);
         $user->country_phonecode = (int) $countryCode;
+    }
+
+    private function resolveCountryCodeFromE164Digits(string $digits): ?string
+    {
+        static $countryCodes = null;
+
+        if ($countryCodes === null) {
+            $countryCodes = Country::query()
+                ->where('phonecode', '>', 0)
+                ->pluck('phonecode')
+                ->map(fn ($code) => (string) $code)
+                ->unique()
+                ->sortByDesc(fn (string $code) => strlen($code))
+                ->values()
+                ->all();
+        }
+
+        foreach ($countryCodes as $countryCode) {
+            if (str_starts_with($digits, $countryCode)) {
+                return $countryCode;
+            }
+        }
+
+        return null;
     }
 }
 
