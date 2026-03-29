@@ -85,12 +85,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
             className="group relative bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
         >
             {/* ── Developer logo strip ── */}
-            <div className="px-3 py-2 flex justify-center items-center h-10 border-b border-gray-100">
+            <div className="px-3 py-2 flex justify-center items-center h-12 border-b border-gray-100">
                 {project.developer?.logo_url ? (
                     <img
                         src={project.developer.logo_url}
                         alt={project.developer.name}
-                        className="max-w-[40px] max-h-full object-contain"
+                        className="max-h-full object-contain max-w-[90%] w-full"
                     />
                 ) : (
                     <span className="text-[11px] font-semibold text-gray-400 truncate">

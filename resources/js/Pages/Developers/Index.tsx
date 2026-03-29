@@ -84,10 +84,10 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
     ];
 
     return (
-        <div className="relative bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-sm transition-shadow duration-200 cursor-pointer">
+        <div className="group relative bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-sm transition-shadow duration-200 cursor-pointer">
             {/* ··· action menu */}
             <div
-                className="absolute top-2 right-2 z-10"
+                className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                 onClick={(e) => e.stopPropagation()}
             >
                 <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
@@ -104,7 +104,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
                         <img
                             src={developer.logo_url}
                             alt={developer.name}
-                            className="max-h-20 max-w-[80%] object-contain"
+                            className="max-h-20 max-w-[90%] object-contain"
                         />
                     ) : (
                         <Landmark size={50} strokeWidth={1.2} className="text-gray-300" />

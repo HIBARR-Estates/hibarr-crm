@@ -114,15 +114,30 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
         <div className="flex flex-col gap-6">
             {/* ── Main card ────────────────────────────────────────── */}
             <div className="bg-white border border-gray-200 rounded-2xl p-7">
-                <h1 className="text-[28px] font-bold text-slate-900 mb-1 leading-tight">
-                    {project.name}
-                </h1>
-                {project.location?.name && (
-                    <p className="flex items-center gap-1.5 text-sm text-gray-500 mb-7">
-                        <MapPin size={14} className="text-gray-400" />
-                        {project.location.name}
-                    </p>
-                )}
+                <div className="flex flex-col gap-2 mb-4">
+                    <h1 className="text-[28px] font-bold text-slate-900 leading-tight">
+                        {project.name}
+                    </h1>
+                    {project.location?.name && (
+                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mb-7">
+                            <MapPin size={14} className="text-gray-400" />
+                            {project.location.name}
+                        </p>
+                    )}
+
+                    {project.developer && (
+                        <div className="flex items-center gap-2 text-sm">
+                            <Landmark size={14} className="text-[#1a2a6c]" />
+                            <span className="text-gray-500">Developer:</span>
+                            <Link
+                                href={route("developers.show", project.developer.id)}
+                                className="text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                                {project.developer.name}
+                            </Link>
+                        </div>
+                    )}
+                </div>
 
                 {/* Stat Cards */}
                 <div className="flex flex-wrap gap-3 mb-9">
@@ -136,7 +151,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                 <div className="clearfix">
                     {/* Hero image — floated right so text wraps around and under */}
                     {heroImage && !imgError ? (
-                        <div className="float-right ml-6 mb-4 rounded-xl overflow-hidden shadow-lg w-2/5 min-h-52">
+                        <div className="mb-4 rounded-xl overflow-hidden shadow-lg w-full min-h-52 md:float-right md:ml-6 md:w-2/5">
                             <img
                                 src={heroImage}
                                 alt={project.name}
@@ -149,19 +164,6 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                     {project.description ? (
                         <p className="text-sm leading-7 text-gray-600">{project.description}</p>
                     ) : null}
-
-                    {project.developer && (
-                        <div className="flex items-center gap-2 text-sm mt-4">
-                            <Landmark size={14} className="text-[#1a2a6c]" />
-                            <span className="text-gray-500">Developer:</span>
-                            <Link
-                                href={route("developers.show", project.developer.id)}
-                                className="text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                                {project.developer.name}
-                            </Link>
-                        </div>
-                    )}
 
                     <div className="clear-both" />
                 </div>
