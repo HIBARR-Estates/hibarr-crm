@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
 import { Avatar, Tooltip, Dropdown } from "antd";
 import type { MenuProps } from "antd";
@@ -14,6 +14,7 @@ import {
     ApartmentOutlined,
     TeamOutlined,
     HistoryOutlined,
+    GiftOutlined,
 } from "@ant-design/icons";
 
 import {
@@ -56,9 +57,34 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const defaultPipeline = pipelines.find((p) => p.default === 1);
     const { t, isRtl } = useTranslation();
 
-    const [expandedItems, setExpandedItems] = useState<Set<string>>(
-        new Set(["deals"]),
-    );
+    const STORAGE_KEY = "sidebar_expanded_items";
+
+    const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return new Set(parsed);
+                }
+            }
+        } catch {
+            // ignore parse errors
+        }
+        return new Set(["deals"]);
+    });
+
+    // Persist expanded state to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify([...expandedItems]),
+            );
+        } catch {
+            // ignore storage errors
+        }
+    }, [expandedItems]);
 
     // Get current path and search params for active state
     const getCurrentUrl = useCallback(() => {
@@ -109,16 +135,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         [currentPath, currentSearch],
     );
 
-    // Toggle expanded state for items with children
+    // Toggle expanded state for items with children (accordion: only one open at a time)
     const toggleExpanded = useCallback((key: string) => {
         setExpandedItems((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(key)) {
-                newSet.delete(key);
-            } else {
-                newSet.add(key);
+            if (prev.has(key)) {
+                // Collapsing the currently open item
+                return new Set();
             }
-            return newSet;
+            // Opening a new item — close all others (accordion)
+            return new Set([key]);
         });
     }, []);
 
@@ -136,6 +161,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <PersonIcon />,
             href: "/account/lead-contact",
         },
+        // {
+        //     key: "agents",
+        //     label: "Agents",
+        //     icon: <TeamOutlined />,
+        //     href: "/account/agents",
+        // },
         {
             key: "deals",
             label: t("app.menu.deal"),
@@ -161,6 +192,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                           },
                       ],
         },
+        // {
+        //     key: "offers",
+        //     label: "Offers",
+        //     icon: <GiftOutlined />,
+        //     href: "/account/offers",
+        // },
         {
             key: "meetings",
             label: t("app.menu.meetings"),
@@ -179,12 +216,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <HouseDoorIcon />,
             href: "/account/properties?page=1&per_page=15&sort_by=&sort_direction=asc",
         },
-        {
-            key: "crm-events",
-            label: "CRM Events",
-            icon: <HistoryOutlined />,
-            href: "/account/crm-events",
-        },
+        // {
+        //     key: "crm-events",
+        //     label: "CRM Events",
+        //     icon: <HistoryOutlined />,
+        //     href: "/account/crm-events",
+        // },
         {
             key: "developers",
             label: "Construction Projects",
@@ -269,12 +306,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     icon: null,
                     href: "/account/mlm/agent/network",
                 },
-                {
-                    key: "my-mlm-uplines",
-                    label: "My Uplines",
-                    icon: null,
-                    href: "/account/mlm/agent/uplines",
-                },
+                // {
+                //     key: "my-mlm-uplines",
+                //     label: "My Uplines",
+                //     icon: null,
+                //     href: "/account/mlm/agent/uplines",
+                // },
                 {
                     key: "my-mlm-level",
                     label: "My Level",

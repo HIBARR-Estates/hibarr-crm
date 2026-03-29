@@ -30,6 +30,11 @@ class AppServiceProvider extends ServiceProvider
         if (config('app.redirect_https')) {
             $this->app['request']->server->set('HTTPS', true);
         }
+
+        $this->app->bind(
+            \App\Contracts\OfferPolicyContract::class,
+            \App\Services\ProximityOfferPolicy::class,
+        );
     }
 
     public function boot()

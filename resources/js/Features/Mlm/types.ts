@@ -196,6 +196,8 @@ export interface AgentHierarchyNode {
     vsa?: number;
     vsd?: number;
     joined_date?: string;
+    is_self?: boolean;
+    is_upline?: boolean;
     children?: AgentHierarchyNode[];
 }
 
@@ -305,43 +307,36 @@ export interface PaginatedResponse<T> {
     to: number;
 }
 
-// ── Commission Settings ──────────────────────────────────────────
+// ── Commission & Cycle Settings ──────────────────────────────────
 export interface MlmSettings {
     max_commission_percentage: number;
     auto_evaluate_ancestors: boolean;
     enable_commission_reversal: boolean;
-}
-
-// ── Cycle Config ─────────────────────────────────────────────────
-export interface MlmCycleConfig {
-    id: number;
-    duration_type: CycleDurationType;
-    duration_days: number | null;
-    duration_days_resolved: number;
-    anchor_date: string;
-    max_overflow_multiplier: number;
-    max_overflow_days: number;
-    auto_generate: boolean;
-}
-
-export interface MlmCycleConfigFormData {
-    duration_type: CycleDurationType;
-    duration_days: number | null;
-    anchor_date: string;
-    max_overflow_multiplier: number;
-    auto_generate: boolean;
+    auto_generate_cycles: boolean;
+    default_cycle_duration_type: CycleDurationType;
+    default_cycle_duration_days: number | null;
+    default_overflow_multiplier: number;
 }
 
 // ── Cycle ────────────────────────────────────────────────────────
 export interface MlmCycle {
     id: number;
-    cycle_config_id: number;
     cycle_number: number;
+    name: string;
     start_date: string;
     end_date: string;
     status: CycleStatus;
     duration_days: number;
+    days_remaining: number;
+    max_overflow_multiplier: number;
     enrollments_count?: number;
+}
+
+export interface MlmCycleFormData {
+    name: string;
+    start_date: string;
+    end_date: string;
+    max_overflow_multiplier?: number;
 }
 
 // ── Cycle Enrollment ─────────────────────────────────────────────
@@ -372,11 +367,7 @@ export interface AgentCycleEnrollment {
 // ── Active Cycle Summary ─────────────────────────────────────────
 export interface ActiveCycleSummary {
     cycle: MlmCycle | null;
-    config: {
-        duration_type: CycleDurationType;
-        duration_days_resolved: number;
-        max_overflow_multiplier: number;
-    } | null;
+    default_overflow_multiplier: number;
     days_remaining: number;
     enrollment_count: number;
 }
@@ -397,4 +388,38 @@ export interface MyEnrollmentData {
         vsa: number;
         vsd: number;
     } | null;
+}
+
+// ── Downline Deal Contribution ───────────────────────────────────
+export interface DownlineDealContribution {
+    deal_id: number;
+    deal_name: string;
+    closed_by: string;
+    closed_by_self: boolean;
+    deal_value: number;
+    commission_amount: number;
+    commission_type: string;
+    date: string;
+}
+
+// ── Agent Invitation ─────────────────────────────────────────────
+export type AgentInviteStatus = "pending" | "accepted" | "expired";
+
+export interface AgentInvite {
+    id: number;
+    email: string;
+    status: AgentInviteStatus;
+    sent_at: string;
+    accepted_at: string | null;
+}
+
+export interface SendInvitePayload {
+    email: string;
+}
+
+// ── Downline List Item (for dropdown selector) ───────────────────
+export interface DownlineListItem {
+    id: number;
+    name: string;
+    email: string;
 }

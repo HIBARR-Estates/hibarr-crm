@@ -15,12 +15,15 @@ import type {
     MlmAgentDashboardStats,
     MlmSettings,
     PaginatedResponse,
-    MlmCycleConfig,
-    MlmCycleConfigFormData,
     MlmCycle,
+    MlmCycleFormData,
     ActiveCycleSummary,
     AgentCycleEnrollment,
     MyEnrollmentData,
+    DownlineDealContribution,
+    AgentInvite,
+    SendInvitePayload,
+    DownlineListItem,
 } from "./types";
 import { ApiResponse } from "@/lib/api/types";
 
@@ -40,13 +43,13 @@ export const useMlmAdminDashboard = () =>
 
 /** All MLM levels with criteria */
 export const useMlmLevels = () =>
-    useApiQuery<{ data: MlmLevel[] }>({
+    useApiQuery<{ data: MlmLevel[]; has_active_cycle: boolean }>({
         path: `${ADMIN_API}/levels`,
     });
 
 /** Single level with criteria */
 export const useMlmLevel = (id: number) =>
-    useApiQuery<{ data: MlmLevel }>({
+    useApiQuery<{ data: MlmLevel; has_active_cycle: boolean }>({
         path: `${ADMIN_API}/levels/${id}`,
         options: { enabled: id > 0 },
     });
@@ -116,12 +119,6 @@ export const useCommissionSimulation = (
 // ══════════════════════════════════════════════════════════════════
 // ADMIN CYCLE QUERIES
 // ══════════════════════════════════════════════════════════════════
-
-/** Company cycle configuration */
-export const useCycleConfig = () =>
-    useApiQuery<{ data: MlmCycleConfig | null }>({
-        path: `${ADMIN_API}/cycle-config`,
-    });
 
 /** Active cycle summary */
 export const useActiveCycle = () =>
@@ -280,12 +277,28 @@ export const useRemoveHierarchy = (
     );
 
 /** Update cycle configuration */
-export const useUpdateCycleConfig = (onSuccess?: (res?: any) => void) =>
-    useApiMutate<
-        MlmCycleConfigFormData,
-        MlmCycleConfig,
-        ApiResponse<MlmCycleConfig>
-    >(`${ADMIN_API}/cycle-config`, "PUT", onSuccess);
+export const useCreateCycle = (onSuccess?: (res?: any) => void) =>
+    useApiMutate<MlmCycleFormData, MlmCycle, ApiResponse<MlmCycle>>(
+        `${ADMIN_API}/cycles`,
+        "POST",
+        onSuccess,
+    );
+
+/** Update an existing cycle (upcoming only) */
+export const useUpdateCycle = (id: number, onSuccess?: (res?: any) => void) =>
+    useApiMutate<Partial<MlmCycleFormData>, MlmCycle, ApiResponse<MlmCycle>>(
+        `${ADMIN_API}/cycles/${id}`,
+        "PUT",
+        onSuccess,
+    );
+
+/** Delete a cycle (upcoming + zero enrollments only) */
+export const useDeleteCycle = (id: number, onSuccess?: (res?: any) => void) =>
+    useApiMutate<{}, void, ApiResponse<void>>(
+        `${ADMIN_API}/cycles/${id}`,
+        "DELETE",
+        onSuccess,
+    );
 
 /** Force-complete an enrollment */
 export const useForceCompleteEnrollment = (
@@ -295,6 +308,17 @@ export const useForceCompleteEnrollment = (
 ) =>
     useApiMutate<{}, void, ApiResponse<void>>(
         `${ADMIN_API}/cycles/${cycleId}/enrollments/${enrollmentId}/force-complete`,
+        "POST",
+        onSuccess,
+    );
+
+/** Re-snapshot levels for an active cycle */
+export const useResnapshot = (
+    cycleId: number,
+    onSuccess?: (res?: any) => void,
+) =>
+    useApiMutate<{}, void, ApiResponse<void>>(
+        `${ADMIN_API}/cycles/${cycleId}/resnapshot`,
         "POST",
         onSuccess,
     );
@@ -374,4 +398,47 @@ export const useMyDealContributions = (
 export const useMyEnrollment = () =>
     useApiQuery<{ data: MyEnrollmentData }>({
         path: `${AGENT_API}/my-enrollment`,
+    });
+
+/** Deals for a specific downline agent */
+export const useDownlineDeals = (
+    downlineId: number,
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<DownlineDealContribution>>({
+        path: `${AGENT_API}/downline/${downlineId}/deals`,
+        params,
+        options: { enabled: downlineId > 0 },
+    });
+
+/** Send an agent invitation */
+export const useSendInvite = (onSuccess?: (res?: any) => void) =>
+    useApiMutate<SendInvitePayload, AgentInvite, ApiResponse<AgentInvite>>(
+        `${AGENT_API}/invites`,
+        "POST",
+        onSuccess,
+    );
+
+/** List sent invitations */
+export const useMyInvites = (
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<AgentInvite>>({
+        path: `${AGENT_API}/invites`,
+        params,
+    });
+
+/** Agent's own deals (or a downline's deals when filtered) */
+export const useAgentDeals = (
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<any>>({
+        path: `${AGENT_API}/deals`,
+        params,
+    });
+
+/** Flat list of all downline agents (for dropdown selector) */
+export const useDownlineList = () =>
+    useApiQuery<{ data: DownlineListItem[] }>({
+        path: `${AGENT_API}/downlines`,
     });

@@ -106,7 +106,7 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function show(Request $request, $id)
     {
-        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'unitTypes.assets'])
+        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'unitTypes.assets', 'unitTypes.offers', 'offers'])
             ->withCount('properties')
             ->where('company_id', user()->company_id)
             ->findOrFail($id);
@@ -379,6 +379,18 @@ class DeveloperProjectController extends AccountBaseController
             $locationId = $location->id;
         }
 
+        // If the project name is not in the developer's project_list, add it
+        if ($request->filled('developer_id') && $request->filled('name')) {
+            $developer = \App\Models\Developer::find($request->developer_id);
+            if ($developer) {
+                $projectList = $developer->project_list ?? [];
+                if (!in_array($request->name, $projectList)) {
+                    $projectList[] = $request->name;
+                    $developer->update(['project_list' => $projectList]);
+                }
+            }
+        }
+
         $project = DeveloperProject::create([
             'company_id' => user()->company_id,
             'developer_id' => $request->developer_id,
@@ -482,24 +494,28 @@ class DeveloperProjectController extends AccountBaseController
         }
 
         // Handle location — update existing or create new
-        if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
+        if ($request->hasAny(['city', 'area', 'address', 'latitude', 'longitude', 'map_url'])) {
             // The address column is JSON ({street?, state?, country?, postalCode?}).
             // If a plain string is provided, wrap it in the expected structure.
-            $address = $request->address;
-
-            if (is_string($address)) {
-                $address = ['street' => $address];
-            }
-
             $locationData = [
                 'company_id' => user()->company_id,
-                'city' => $request->city,
-                'area' => $request->area,
-                'address' => $address,
-                'latitude' => $request->latitude,
-                'longitude' => $request->longitude,
-                'map_url' => $request->map_url,
             ];
+
+            foreach (['city', 'area', 'latitude', 'longitude', 'map_url'] as $field) {
+                if ($request->has($field)) {
+                    $locationData[$field] = $request->input($field);
+                }
+            }
+
+            if ($request->has('address')) {
+                $address = $request->input('address');
+
+                if (is_string($address)) {
+                    $address = ['street' => $address];
+                }
+
+                $locationData['address'] = $address;
+            }
 
             if ($project->project_location_id) {
                 $project->location()->update($locationData);

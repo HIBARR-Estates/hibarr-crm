@@ -6,6 +6,7 @@ use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
 use App\Models\Deal;
 use App\Models\LeadAgent;
+use App\Models\MlmCycle;
 use App\Models\MlmLevel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -15,23 +16,27 @@ class LevelService
     protected HierarchyService $hierarchyService;
     protected MetricsService $metricsService;
     protected CycleService $cycleService;
+    protected CycleLevelSnapshotService $snapshotService;
 
-    public function __construct(HierarchyService $hierarchyService, MetricsService $metricsService, CycleService $cycleService)
+    public function __construct(HierarchyService $hierarchyService, MetricsService $metricsService, CycleService $cycleService, CycleLevelSnapshotService $snapshotService)
     {
         $this->hierarchyService = $hierarchyService;
         $this->metricsService = $metricsService;
         $this->cycleService = $cycleService;
+        $this->snapshotService = $snapshotService;
     }
 
     /**
      * Evaluate whether the agent qualifies for a new (higher) level.
      *
      * Uses CYCLE metrics (from the agent's active enrollment) for evaluation.
+     * When a cycle with snapshots is available, levels are read from the snapshot
+     * instead of the live mlm_levels table.
      * Levels never demote — only promotes if the qualifying level is higher than current.
      *
      * @return MlmLevel|null The newly assigned level, or null if no change.
      */
-    public function evaluate(LeadAgent $agent, ?Deal $triggerDeal = null): ?MlmLevel
+    public function evaluate(LeadAgent $agent, ?Deal $triggerDeal = null, ?MlmCycle $cycle = null): ?MlmLevel
     {
         // Use cycle metrics for evaluation (primary), fall back to all-time if no enrollment
         $cycleMetrics = $this->cycleService->getOrCreateCycleMetrics($agent);
@@ -39,7 +44,20 @@ class LevelService
 
         $companyId = $agent->company_id;
 
-        // Get all levels for the company, ordered by rank DESC (highest first)
+        // Resolve the cycle if not provided
+        if (!$cycle) {
+            $enrollment = $this->cycleService->getActiveEnrollment($agent);
+            $cycle = $enrollment?->cycle;
+        }
+
+        // Use snapshot levels if the cycle has them, otherwise fall back to live
+        $useSnapshots = $cycle && $cycle->hasSnapshots();
+
+        if ($useSnapshots) {
+            return $this->evaluateWithSnapshots($agent, $metricsForEvaluation, $cycle, $triggerDeal);
+        }
+
+        // ── Fallback: live levels (no active cycle or no snapshots) ──
         $levels = MlmLevel::where('company_id', $companyId)
             ->orderedDesc()
             ->with('criteria')
@@ -87,17 +105,22 @@ class LevelService
     /**
      * Evaluate an agent and all their ancestors.
      * Called after a deal is won (since ancestor NSD/VSD changed).
+     * Resolves the cycle from the agent's enrollment and passes it through.
      */
     public function evaluateWithAncestors(LeadAgent $agent, ?Deal $triggerDeal = null): void
     {
+        // Resolve cycle once and reuse for all evaluations
+        $enrollment = $this->cycleService->getActiveEnrollment($agent);
+        $cycle = $enrollment?->cycle;
+
         // Evaluate the agent first
-        $this->evaluate($agent, $triggerDeal);
+        $this->evaluate($agent, $triggerDeal, $cycle);
 
         // Evaluate all ancestors (their downline metrics changed)
         $ancestors = $this->hierarchyService->getAncestors($agent);
 
         foreach ($ancestors as $ancestor) {
-            $this->evaluate($ancestor, $triggerDeal);
+            $this->evaluate($ancestor, $triggerDeal, $cycle);
         }
     }
 
@@ -158,17 +181,66 @@ class LevelService
         MlmLevel $level,
         ?int $assignedBy = null,
         ?Deal $deal = null,
-        bool $systemAssigned = false
+        bool $systemAssigned = false,
+        ?int $cycleLevelSnapshotId = null
     ): AgentLevelHistory {
         return AgentLevelHistory::create([
             'company_id' => $agent->company_id,
             'agent_id' => $agent->id,
             'level_id' => $level->id,
+            'cycle_level_snapshot_id' => $cycleLevelSnapshotId,
             'assigned_at' => now(),
             'assigned_by' => $assignedBy,
             'system_assigned' => $systemAssigned,
             'trigger_deal_id' => $deal?->id,
         ]);
+    }
+
+    /**
+     * Evaluate using snapshot levels for the given cycle.
+     */
+    private function evaluateWithSnapshots(LeadAgent $agent, object $metrics, MlmCycle $cycle, ?Deal $triggerDeal): ?MlmLevel
+    {
+        $snapshotLevels = $this->snapshotService->getSnapshotLevels($cycle);
+
+        if ($snapshotLevels->isEmpty()) {
+            return null;
+        }
+
+        $currentLevel = $this->getCurrentLevel($agent);
+        $currentRank = $currentLevel?->rank ?? -1;
+
+        foreach ($snapshotLevels as $snapshot) {
+            if ($snapshot->rank <= $currentRank) {
+                break;
+            }
+
+            if ($snapshot->evaluateCriteria($metrics)) {
+                $liveLevel = $snapshot->source_level_id
+                    ? MlmLevel::find($snapshot->source_level_id)
+                    : null;
+
+                if (!$liveLevel) {
+                    Log::warning("LevelService: Snapshot #{$snapshot->id} references deleted source_level_id {$snapshot->source_level_id}, skipping.");
+                    continue;
+                }
+
+                $this->assignLevel(
+                    $agent,
+                    $liveLevel,
+                    assignedBy: null,
+                    deal: $triggerDeal,
+                    systemAssigned: true,
+                    cycleLevelSnapshotId: $snapshot->id
+                );
+
+                Log::info("LevelService: Agent {$agent->id} promoted to level '{$liveLevel->name}' (rank {$liveLevel->rank}) [snapshot #{$snapshot->id}]");
+
+                return $liveLevel;
+            }
+        }
+
+        return null;
     }
 
     /**

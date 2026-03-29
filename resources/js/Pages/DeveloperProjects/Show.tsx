@@ -23,6 +23,7 @@ import ImageGallerySection from "./components/ImageGallerySection";
 import PriceListSection from "./components/PriceListSection";
 import PdfFilesSection from "./components/PdfFilesSection";
 import DevelopersSection from "./components/DevelopersSection";
+import ProjectOffersSection from "../../Features/Offers/ProjectOffersSection";
 
 // ============================================
 // Types
@@ -95,7 +96,8 @@ export type SectionKey =
     | "interior"
     | "siteplan"
     | "pricelist"
-    | "pdf";
+    | "pdf"
+    | "offers";
 
 // ============================================
 // Error Boundary
@@ -217,6 +219,13 @@ const Show = ({
                         projectName={project.name}
                         unitTypes={unitTypes}
                         priceList={priceList}
+                    />
+                );
+            case "offers":
+                return (
+                    <ProjectOffersSection
+                        project={project}
+                        unitTypes={unitTypes ?? []}
                     />
                 );
             default:

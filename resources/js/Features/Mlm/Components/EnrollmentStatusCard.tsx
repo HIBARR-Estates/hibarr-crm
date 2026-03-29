@@ -17,6 +17,7 @@ interface EnrollmentInfo {
 
 interface CycleInfo {
     cycle_number: number;
+    name?: string;
     start_date?: string;
     end_date: string;
     days_remaining: number;
@@ -81,7 +82,8 @@ const EnrollmentStatusCard: React.FC<Props> = ({ enrollment, activeCycle }) => {
                             <div className="flex items-center gap-2">
                                 {activeCycle && (
                                     <span className="font-medium text-sm">
-                                        Cycle #{activeCycle.cycle_number}
+                                        {activeCycle.name ??
+                                            `Cycle #${activeCycle.cycle_number}`}
                                     </span>
                                 )}
                                 <EnrollmentStatusBadge

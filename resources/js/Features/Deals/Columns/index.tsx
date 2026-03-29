@@ -6,6 +6,7 @@ import {
     UserOutlined,
     MailOutlined,
     PhoneOutlined,
+    LockOutlined,
 } from "@ant-design/icons";
 import { Deal } from "@/Types/api/deals";
 import dayjs from "dayjs";
@@ -44,6 +45,9 @@ export const DEAL_TABLE_COLUMNS = (
                                 href={route("deals.show", record.id)}
                                 className="block text-gray-900 hover:text-blue-600 hover:underline transition-colors duration-200 truncate font-medium max-w-full"
                             >
+                                {record.is_locked && (
+                                    <LockOutlined className="text-amber-500 mr-1.5 text-xs" />
+                                )}
                                 {record.name}
                             </Link>
                         </Tooltip>

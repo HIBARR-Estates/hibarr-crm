@@ -181,6 +181,9 @@ export interface DeveloperProject {
     properties?: Property[];
     unit_types_details?: DeveloperProjectUnitType[];
     assets?: DeveloperProjectAsset[];
+    // Offers
+    offers?: import("./api/offers").Offer[];
+    offers_count?: number;
     // Computed
     properties_count?: number;
     sold_properties_count?: number;
@@ -263,6 +266,9 @@ export interface DeveloperProjectUnitType {
     deleted_at: string | null;
     // Relations
     assets?: DeveloperProjectUnitTypeAsset[];
+    // Offers
+    offers?: import("./api/offers").Offer[];
+    offers_count?: number;
     // Computed
     display_label?: string;
     formatted_price?: string;

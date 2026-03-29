@@ -105,6 +105,7 @@ class CreateDealRequest extends CoreRequest
             'pipeline_id' => 'nullable|integer|exists:lead_pipelines,id',
             'pipeline_stage_id' => 'nullable|integer|exists:pipeline_stages,id',
             'deal_owner_id' => 'nullable|integer|exists:users,id',
+            'update_agent_if_exists' => 'nullable|boolean',
             'deal_watcher' => 'nullable|array',
             'deal_watcher.*' => 'integer|exists:users,id',
             

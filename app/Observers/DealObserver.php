@@ -23,11 +23,13 @@ use App\Models\MetaConversionTrigger;
 use App\Jobs\SendMetaConversionEventJob;
 
 use App\Traits\DealHistoryTrait;
+use App\Traits\RecordsCrmEvents;
 
 class DealObserver
 {
     use DealHistoryTrait;
     use EmployeeActivityTrait;
+    use RecordsCrmEvents;
 
     protected DealAutomationService $dealAutomation;
     protected DealNotificationService $notificationService;
@@ -167,6 +169,7 @@ class DealObserver
 
             if ($deal->isDirty('agent_id')) {
                 event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
+                $this->addParentAgentAsWatcher($deal);
             }
 
             if ($deal->isDirty('pipeline_stage_id') || $deal->isDirty('lead_pipeline_id')) {
@@ -188,6 +191,64 @@ class DealObserver
             // MLM: Fire DealWonEvent when outcome_status changes to 'won'
             if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && !$deal->is_locked) {
                 $this->fireDealWonEvent($deal);
+            }
+
+            // ── CRM Events for specific deal changes ──
+            if ($deal->isDirty('pipeline_stage_id')) {
+                $fromStage = PipelineStage::find($deal->getOriginal('pipeline_stage_id'));
+                $toStage = PipelineStage::find($deal->pipeline_stage_id);
+                $this->recordCrmEvent('deal_stage_changed', $deal, [
+                    'metadata' => [
+                        'comment' => 'Stage changed from ' . ($fromStage->name ?? 'Unknown') . ' to ' . ($toStage->name ?? 'Unknown'),
+                        'from_stage_id' => $deal->getOriginal('pipeline_stage_id'),
+                        'to_stage_id' => $deal->pipeline_stage_id,
+                        'from_stage_name' => $fromStage->name ?? null,
+                        'to_stage_name' => $toStage->name ?? null,
+                    ],
+                ]);
+
+                // Check for closed won / closed lost based on stage slug
+                if ($toStage && $toStage->slug === 'win') {
+                    $this->recordCrmEvent('deal_closed_won', $deal, [
+                        'status' => 'completed',
+                        'metadata' => ['comment' => 'Deal closed as won'],
+                    ]);
+                } elseif ($toStage && $toStage->slug === 'lost') {
+                    $this->recordCrmEvent('deal_closed_lost', $deal, [
+                        'status' => 'completed',
+                        'metadata' => ['comment' => 'Deal closed as lost'],
+                    ]);
+                }
+            }
+
+            if ($deal->isDirty('lead_pipeline_id')) {
+                $this->recordCrmEvent('deal_pipeline_changed', $deal, [
+                    'metadata' => [
+                        'comment' => 'Deal moved to different pipeline',
+                        'from_pipeline_id' => $deal->getOriginal('lead_pipeline_id'),
+                        'to_pipeline_id' => $deal->lead_pipeline_id,
+                    ],
+                ]);
+            }
+
+            if ($deal->isDirty('agent_id')) {
+                $this->recordCrmEvent('deal_agent_assigned', $deal, [
+                    'metadata' => [
+                        'comment' => 'Agent reassigned on deal',
+                        'from_agent_id' => $deal->getOriginal('agent_id'),
+                        'to_agent_id' => $deal->agent_id,
+                    ],
+                ]);
+            }
+
+            // Generic deal_updated for all other field changes
+            if (!$deal->isDirty('pipeline_stage_id') && !$deal->isDirty('lead_pipeline_id') && !$deal->isDirty('agent_id')) {
+                $this->recordCrmEvent('deal_updated', $deal, [
+                    'metadata' => [
+                        'comment' => 'Deal details updated',
+                        'changed_fields' => array_keys($deal->getDirty()),
+                    ],
+                ]);
             }
         }
         //deal automation trigger
@@ -234,6 +295,11 @@ class DealObserver
 
             $this->createClient($deal);
 
+            // Add parent agent as watcher when deal is created with an agent
+            if ($deal->agent_id) {
+                $this->addParentAgentAsWatcher($deal);
+            }
+
             // Meta Conversions API trigger for new deals
             if ($deal->pipeline_stage_id) {
                 $this->triggerMetaConversionEvent($deal);
@@ -245,10 +311,22 @@ class DealObserver
         //deal automation trigger
         $this->dealAutomation->process($deal, 'deal_created');
 
+        // ── CRM Event: deal_created ──
+        $this->recordCrmEvent('deal_created', $deal, [
+            'metadata' => [
+                'comment' => 'Deal created' . ($deal->agent_id ? ' with agent assigned' : ''),
+                'pipeline_stage_id' => $deal->pipeline_stage_id,
+                'lead_pipeline_id' => $deal->lead_pipeline_id,
+            ],
+        ]);
     }
 
     public function deleting(Deal $deal)
     {
+        if ($deal->isLocked()) {
+            return false;
+        }
+
         $notifyData = ['App\Notifications\LeadAgentAssigned'];
         \App\Models\Notification::deleteNotification($notifyData, $deal->id);
 
@@ -362,6 +440,32 @@ class DealObserver
         } catch (\Exception $e) {
             \Log::error('Failed to fire DealWonEvent', [
                 'deal_id' => $deal->id,
+                'exception' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Add the assigned agent's parent agent as a watcher on the deal.
+     */
+    private function addParentAgentAsWatcher(Deal $deal): void
+    {
+        try {
+            $agent = $deal->leadAgent;
+
+            if (!$agent) {
+                return;
+            }
+
+            $parentAgent = $agent->parentAgent;
+
+            if ($parentAgent && $parentAgent->user_id) {
+                $deal->dealWatchers()->syncWithoutDetaching([$parentAgent->user_id]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to add parent agent as deal watcher', [
+                'deal_id' => $deal->id,
+                'agent_id' => $deal->agent_id,
                 'exception' => $e->getMessage(),
             ]);
         }

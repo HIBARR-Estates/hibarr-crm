@@ -35,7 +35,12 @@ const FileUpload: React.FC<Props> = ({
     const [fileList, setFileList] = useState<UploadFile[]>([]);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const uploadServiceRef = useRef(getFileUploadService());
+    const uploadServiceRef = useRef(
+        getFileUploadService({
+            maxFileSize: 200 * 1024 * 1024, // 200MB
+            allowedTypes: [], // Allow all file types
+        }),
+    );
 
     // Mutation to save file references to the backend after external upload
     const saveMutation = useApiMutate<
@@ -120,7 +125,7 @@ const FileUpload: React.FC<Props> = ({
             saveMutation.mutate({
                 deal_id: deal.id,
                 files: results.map((r) => ({
-                    downloadUrl: r.downloadUrl,
+                    downloadUrl: encodeURI(r.downloadUrl),
                     objectPath: r.objectPath,
                     originalName: r.originalName,
                     size: 0, // Size not returned by external API — fine for now

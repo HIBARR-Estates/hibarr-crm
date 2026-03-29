@@ -30,6 +30,7 @@ const DeleteDeal: React.FC<Props> = ({
     // Handle single deal deletion
     const handleDeleteDeal = () => {
         if (!deal) return;
+        if (deal.is_locked) return;
 
         deleteDeal(undefined, {
             onSuccess: () => {
@@ -50,11 +51,13 @@ const DeleteDeal: React.FC<Props> = ({
                 fn: handleDeleteDeal,
                 loading: loading,
             }}
-            title="Delete Deal"
+            title={deal?.is_locked ? "Deal Locked" : "Delete Deal"}
             description={
-                deal
-                    ? `Are you sure you want to delete "${deal?.name}"? This action cannot be undone.`
-                    : "Are you sure you want to delete this deal? This action cannot be undone."
+                deal?.is_locked
+                    ? "This deal is locked and cannot be deleted."
+                    : deal
+                      ? `Are you sure you want to delete "${deal?.name}"? This action cannot be undone.`
+                      : "Are you sure you want to delete this deal? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
             confirmText="Yes, Delete"

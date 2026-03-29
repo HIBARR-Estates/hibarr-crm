@@ -345,7 +345,46 @@ class DealCreationService
                 $deal->name = $dealName;
                 $deal->lead_pipeline_id = $pipelineId;
                 $deal->pipeline_stage_id = $request->input('pipeline_stage_id') ?? $firstStageId ?? $deal->pipeline_stage_id;
-                $deal->agent_id = $agentId ?? $deal->agent_id;
+                if ($isNewDeal) {
+                    $deal->agent_id = $agentId ?? $deal->agent_id;
+                    Log::info('DealCreationService: Deal agent decision (new deal)', [
+                        'contact_id' => $contactId,
+                        'company_id' => $companyId,
+                        'deal_id' => $deal->id,
+                        'deal_hash' => $deal->hash,
+                        'deal_owner_id' => $request->input('deal_owner_id'),
+                        'resolved_agent_id' => $agentId,
+                        'final_agent_id' => $deal->agent_id,
+                    ]);
+                } elseif ($request->boolean('update_agent_if_exists', false) && !$deal->agent_id && $agentId) {
+                    // Only assign agent for existing deals when currently unassigned.
+                    // Never overwrite an existing agent assignment, even when the flag is true.
+                    $previousAgentId = $deal->agent_id;
+                    $deal->agent_id = $agentId;
+                    Log::info('DealCreationService: Deal agent decision (existing deal assigned)', [
+                        'contact_id' => $contactId,
+                        'company_id' => $companyId,
+                        'deal_id' => $deal->id,
+                        'deal_hash' => $deal->hash,
+                        'update_agent_if_exists' => true,
+                        'previous_agent_id' => $previousAgentId,
+                        'resolved_agent_id' => $agentId,
+                        'final_agent_id' => $deal->agent_id,
+                    ]);
+                } else {
+                    Log::info('DealCreationService: Deal agent decision (existing deal skipped)', [
+                        'contact_id' => $contactId,
+                        'company_id' => $companyId,
+                        'deal_id' => $deal->id,
+                        'deal_hash' => $deal->hash,
+                        'update_agent_if_exists' => $request->boolean('update_agent_if_exists', false),
+                        'current_agent_id' => $deal->agent_id,
+                        'resolved_agent_id' => $agentId,
+                        'reason' => !$request->boolean('update_agent_if_exists', false)
+                            ? 'flag_false'
+                            : ($deal->agent_id ? 'already_assigned' : (!$agentId ? 'no_resolved_agent' : 'unknown')),
+                    ]);
+                }
                 $deal->next_follow_up = 'yes';
                 $deal->create_client = 0;
                 
@@ -368,9 +407,35 @@ class DealCreationService
                         ->where('id', $contactId)
                         ->lockForUpdate() // Lock the row to serialize concurrent updates
                         ->first();
-                    if ($lead && !$lead->lead_owner) {
+                    $shouldUpdateLeadOwner = $request->boolean('update_agent_if_exists', false)
+                        && $lead
+                        && !$lead->lead_owner;
+
+                    if ($shouldUpdateLeadOwner) {
+                        $previousLeadOwner = $lead->lead_owner;
                         $lead->lead_owner = $dealOwnerId;
                         $lead->saveQuietly();
+                        Log::info('DealCreationService: Lead owner set', [
+                            'contact_id' => $contactId,
+                            'company_id' => $companyId,
+                            'lead_id' => $lead->id,
+                            'update_agent_if_exists' => true,
+                            'previous_lead_owner' => $previousLeadOwner,
+                            'final_lead_owner' => $lead->lead_owner,
+                            'deal_owner_id' => $dealOwnerId,
+                        ]);
+                    } else {
+                        Log::info('DealCreationService: Lead owner skipped', [
+                            'contact_id' => $contactId,
+                            'company_id' => $companyId,
+                            'lead_id' => $lead?->id,
+                            'update_agent_if_exists' => $request->boolean('update_agent_if_exists', false),
+                            'current_lead_owner' => $lead?->lead_owner,
+                            'deal_owner_id' => $dealOwnerId,
+                            'reason' => !$request->boolean('update_agent_if_exists', false)
+                                ? 'flag_false'
+                                : (!$lead ? 'lead_not_found' : ($lead->lead_owner ? 'already_assigned' : 'unknown')),
+                        ]);
                     }
                 }
 
@@ -437,6 +502,9 @@ class DealCreationService
                     if ($isNewDeal) {
                         $this->sendDealCreatedNotifications($deal);
                     }
+
+                    // Auto-apply offers based on product properties
+                    app(DealOfferService::class)->applyOffersToDeal($deal);
                 } catch (\Exception $e) {
                     // Log errors but don't fail the request - these are non-critical operations
                     Log::error('DealCreationService: Error in post-transaction operations', [

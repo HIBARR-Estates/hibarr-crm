@@ -125,6 +125,7 @@ use App\Http\Controllers\EmployeeShiftChangeRequestController;
 use App\Http\Controllers\EstimateRequestController;
 use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
 use App\Http\Controllers\InvoicePaymentDetailController;
@@ -584,6 +585,23 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::put('lead-contact/{lead_contact}', [LeadContactController::class, 'update'])->name('lead-contact.update');
     Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
     Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
+
+    // Agent management routes
+    Route::group(['prefix' => 'agents'], function () {
+        Route::post('apply-quick-action', [AgentController::class, 'applyQuickAction'])->name('agents.apply_quick_action');
+        Route::get('import', [AgentController::class, 'importAgents'])->name('agents.import');
+        Route::post('import', [AgentController::class, 'importStore'])->name('agents.import.store');
+        Route::post('import/process', [AgentController::class, 'importProcess'])->name('agents.import.process');
+        Route::get('sample-import', [AgentController::class, 'downloadSampleImport'])->name('agents.sample_import');
+    });
+
+    Route::get('agents', [AgentController::class, 'index'])->name('agents.index');
+    Route::get('agents/create', [AgentController::class, 'create'])->name('agents.create');
+    Route::post('agents', [AgentController::class, 'store'])->name('agents.store');
+    Route::get('agents/{agent}', [AgentController::class, 'show'])->name('agents.show');
+    Route::get('agents/{agent}/edit', [AgentController::class, 'edit'])->name('agents.edit');
+    Route::put('agents/{agent}', [AgentController::class, 'update'])->name('agents.update');
+    Route::delete('agents/{agent}', [AgentController::class, 'destroy'])->name('agents.destroy');
 
     Route::get('deals/get-stage/{id}', [DealController::class, 'getStages'])->name('deals.get-stage');
     Route::get('deals/get-deals/{id}', [DealController::class, 'getDeals'])->name('deals.get-deals');
@@ -1152,6 +1170,26 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         });
     });
 
+    // ─── Offers ──────────────────────────────────────────────────
+    Route::prefix('offers')->name('offers.')->group(function () {
+        Route::get('/', [App\Http\Controllers\OfferController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\OfferController::class, 'store'])->name('store');
+        Route::get('/{id}', [App\Http\Controllers\OfferController::class, 'show'])->name('show');
+        Route::put('/{id}', [App\Http\Controllers\OfferController::class, 'update'])->name('update');
+        Route::delete('/{id}', [App\Http\Controllers\OfferController::class, 'destroy'])->name('destroy');
+        Route::post('/{offerId}/attach', [App\Http\Controllers\OfferController::class, 'attach'])->name('attach');
+        Route::post('/{offerId}/disable', [App\Http\Controllers\OfferController::class, 'disable'])->name('disable');
+        Route::post('/{offerId}/enable', [App\Http\Controllers\OfferController::class, 'enable'])->name('enable');
+    });
+
+    // Deal offer endpoints
+    Route::prefix('deals/{dealId}/offers')->name('deals.offers.')->group(function () {
+        Route::get('/', [App\Http\Controllers\OfferController::class, 'dealOffers'])->name('index');
+        Route::post('/apply', [App\Http\Controllers\OfferController::class, 'applyToDeal'])->name('apply');
+        Route::get('/preview', [App\Http\Controllers\OfferController::class, 'previewForDeal'])->name('preview');
+        Route::delete('/', [App\Http\Controllers\OfferController::class, 'removeFromDeal'])->name('remove');
+    });
+
     // Property Asset Management (New System)
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');
     Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {
@@ -1247,12 +1285,14 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::get('simulate', [App\Http\Controllers\MlmAdminApiController::class, 'simulate'])->name('simulate');
 
             // Cycles
-            Route::get('cycle-config', [App\Http\Controllers\MlmAdminApiController::class, 'getCycleConfig'])->name('cycle_config.show');
-            Route::put('cycle-config', [App\Http\Controllers\MlmAdminApiController::class, 'updateCycleConfig'])->name('cycle_config.update');
             Route::get('cycles', [App\Http\Controllers\MlmAdminApiController::class, 'getCycles'])->name('cycles.index');
             Route::get('cycles/active', [App\Http\Controllers\MlmAdminApiController::class, 'getActiveCycle'])->name('cycles.active');
+            Route::post('cycles', [App\Http\Controllers\MlmAdminApiController::class, 'createCycle'])->name('cycles.store');
             Route::get('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'getCycleDetail'])->name('cycles.show');
+            Route::put('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'updateCycle'])->name('cycles.update');
+            Route::delete('cycles/{id}', [App\Http\Controllers\MlmAdminApiController::class, 'deleteCycle'])->name('cycles.destroy');
             Route::post('cycles/{cycleId}/enrollments/{enrollmentId}/force-complete', [App\Http\Controllers\MlmAdminApiController::class, 'forceCompleteEnrollment'])->name('cycles.force_complete_enrollment');
+            Route::post('cycles/{id}/resnapshot', [App\Http\Controllers\MlmAdminApiController::class, 'resnapshot'])->name('cycles.resnapshot');
         });
     });
 
@@ -1276,6 +1316,13 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::get('my-level', [App\Http\Controllers\MlmAgentController::class, 'myLevelApi'])->name('my_level');
             Route::get('deal-contributions', [App\Http\Controllers\MlmAgentController::class, 'dealContributionsApi'])->name('deal_contributions');
             Route::get('my-enrollment', [App\Http\Controllers\MlmAgentController::class, 'myEnrollmentApi'])->name('my_enrollment');
+
+            // Downline deals & agent invitations
+            Route::get('downline/{downlineId}/deals', [App\Http\Controllers\MlmAgentController::class, 'downlineDealsApi'])->name('downline_deals');
+            Route::get('deals', [App\Http\Controllers\MlmAgentController::class, 'agentDealsApi'])->name('agent_deals');
+            Route::get('downlines', [App\Http\Controllers\MlmAgentController::class, 'downlineListApi'])->name('downline_list');
+            Route::post('invites', [App\Http\Controllers\MlmAgentController::class, 'sendInviteApi'])->name('send_invite');
+            Route::get('invites', [App\Http\Controllers\MlmAgentController::class, 'getInvitesApi'])->name('invites');
         });
     });
 });

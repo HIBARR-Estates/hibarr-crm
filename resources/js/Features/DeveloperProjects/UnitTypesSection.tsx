@@ -28,10 +28,13 @@ import {
     DeleteOutlined,
     EyeOutlined,
     CopyOutlined,
+    GiftOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
+import type { Offer } from "@/Types/api/offers";
 import UnitTypeFormModal from "./UnitTypeFormModal";
+import OfferAttachSection from "@/Features/Offers/OfferAttachSection";
 import {
     getCurrencySymbol,
     VIEW_TYPE_OPTIONS,
@@ -234,6 +237,37 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
             align: "right",
             render: (_, record) =>
                 formatPrice(record.starting_price, record.currency),
+        },
+        {
+            title: "Offer",
+            key: "offer",
+            width: 160,
+            render: (_: any, record: DeveloperProjectUnitType) => {
+                const offers = record.offers ?? [];
+                if (offers.length === 0)
+                    return <span className="text-gray-400">&mdash;</span>;
+                return (
+                    <Space size={[4, 4]} wrap>
+                        {offers.map((offer: Offer) => (
+                            <Tag
+                                key={offer.id}
+                                color={
+                                    offer.type === "percentage"
+                                        ? "blue"
+                                        : "green"
+                                }
+                                icon={<GiftOutlined />}
+                            >
+                                {offer.type === "percentage"
+                                    ? `${offer.value}%`
+                                    : Number(offer.value).toLocaleString(
+                                          "en-GB",
+                                      )}
+                            </Tag>
+                        ))}
+                    </Space>
+                );
+            },
         },
         {
             title: "Actions",
@@ -449,6 +483,22 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                                 </Image.PreviewGroup>
                             </div>
                         )}
+
+                        {/* Offer */}
+                        <div className="mt-3">
+                            <Text
+                                type="secondary"
+                                className="text-xs block mb-1"
+                            >
+                                Offer:
+                            </Text>
+                            <OfferAttachSection
+                                offers={record.offers ?? []}
+                                offerableType="unit_type"
+                                offerableId={record.id}
+                                onRefresh={handleSuccess}
+                            />
+                        </div>
                     </Col>
                 </Row>
             </div>

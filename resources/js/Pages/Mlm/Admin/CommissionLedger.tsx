@@ -107,7 +107,10 @@ const MlmCommissionLedger: React.FC<Props> = ({
 
     // Summary stats
     const totalAmount =
-        commissions?.data?.reduce((sum, c) => sum + (c.amount ?? 0), 0) ?? 0;
+        commissions?.data?.reduce(
+            (sum, c) => Number(sum) + (Number(c.amount) ?? 0),
+            0,
+        ) ?? 0;
     const pendingCount =
         commissions?.data?.filter((c) => c.status === "pending").length ?? 0;
     const paidCount =

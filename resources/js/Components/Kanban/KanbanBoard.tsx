@@ -292,6 +292,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
         if (!result) return;
 
+        // Prevent moving locked deals
+        if (result.deal.is_locked) return;
+
         // Find which column the deal ended up in
         const currentResult = findDealAndColumn(dealId);
         if (!currentResult) return;

@@ -7,12 +7,15 @@ use App\Helper\Reply;
 use App\Http\Requests\Lead\StoreLeadNote;
 use App\Models\LeadNote;
 use App\Models\LeadUserNote;
+use App\Models\Lead;
 use App\Models\User;
+use App\Traits\RecordsCrmEvents;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class LeadNoteController extends AccountBaseController
 {
+    use RecordsCrmEvents;
 
     public function __construct()
     {
@@ -103,6 +106,19 @@ class LeadNoteController extends AccountBaseController
                     ]);
                 }
             }
+        }
+
+        // ── CRM Event: lead_note_added (using lead_updated since lead_note_added may not be seeded) ──
+        $lead = Lead::find($note->lead_id);
+        if ($lead) {
+            $this->recordCrmEvent('lead_updated', $lead, [
+                'metadata' => [
+                    'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
+                    'note_id' => $note->id,
+                    'note_title' => $note->title,
+                    'note_type' => $note->type == 1 ? 'private' : 'public',
+                ],
+            ]);
         }
 
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('lead-contact.show', $note->lead_id) . '?tab=notes']);

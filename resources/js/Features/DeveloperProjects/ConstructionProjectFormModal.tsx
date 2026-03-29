@@ -74,6 +74,11 @@ interface ConstructionProjectFormModalProps {
     onSuccess?: () => void;
 }
 
+const removeUndefined = (payload: Record<string, any>) =>
+    Object.fromEntries(
+        Object.entries(payload).filter(([, value]) => value !== undefined),
+    );
+
 // ============================================
 // Component
 // ============================================
@@ -208,7 +213,6 @@ const ConstructionProjectFormModal: React.FC<
                           (project.location as any).longitude ?? undefined,
                   }
                 : {};
-            console.log(project, "_____||");
             form.setFieldsValue({
                 developer_id: project.developer_id,
                 name: project.name,
@@ -252,17 +256,12 @@ const ConstructionProjectFormModal: React.FC<
                 .then((values) => {
                     const { _selected_developer_id, ...cleanData } = values;
 
-                    const submitData = {
+                    const submitData = removeUndefined({
                         ...cleanData,
                         completion_date: cleanData.completion_date
                             ? cleanData.completion_date.format("YYYY-MM-DD")
-                            : null,
-                        primary_categories: cleanData.primary_categories || [],
-                        unit_types: cleanData.unit_types || [],
-                        facilities: cleanData.facilities || [],
-                        distances: cleanData.distances || {},
-                        payment_plan: cleanData.payment_plan || {},
-                    };
+                            : cleanData.completion_date,
+                    });
 
                     const onError = (error: any) => {
                         if (error?.errors) {
@@ -394,6 +393,7 @@ const ConstructionProjectFormModal: React.FC<
                             <ConstructionProjectLocationSection
                                 form={form}
                                 enumValues={enumValues}
+                                project={project}
                             />
                         </FormSection>
 

@@ -9,10 +9,12 @@ use App\Models\User;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\LeadImported;
 use App\Notifications\LeadOwnerAssigned;
+use App\Traits\RecordsCrmEvents;
 
 
 class LeadObserver
 {
+    use RecordsCrmEvents;
 
     public function saving(Lead $lead)
     {
@@ -63,6 +65,15 @@ class LeadObserver
 
             }
         }
+
+        // ── CRM Event: lead_created ──
+        $this->recordCrmEvent('lead_created', $leadContact, [
+            'metadata' => [
+                'comment' => 'New lead created' . (session()->has('is_imported') ? ' (imported)' : ''),
+                'client_name' => $leadContact->client_name,
+                'company_name' => $leadContact->company_name,
+            ],
+        ]);
     }
 
     public function deleting(Lead $leadContact)
@@ -109,6 +120,16 @@ class LeadObserver
         }
 
         Notification::send($newOwner, new LeadOwnerAssigned($leadContact, $oldOwnerId));
+
+        // ── CRM Event: lead_status_changed (owner reassigned) ──
+        $this->recordCrmEvent('lead_status_changed', $leadContact, [
+            'metadata' => [
+                'comment' => 'Lead owner changed',
+                'from_owner_id' => $oldOwnerId,
+                'to_owner_id' => $newOwnerId,
+                'new_owner_name' => $newOwner->name,
+            ],
+        ]);
     }
 
 }

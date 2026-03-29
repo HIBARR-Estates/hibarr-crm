@@ -7,6 +7,7 @@ use App\Enums\MlmCommissionType;
 use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
+use App\Models\MlmCycleLevelSnapshot;
 use App\Models\MlmLevel;
 use Illuminate\Support\Facades\Log;
 
@@ -14,11 +15,19 @@ class MlmCommissionService
 {
     protected HierarchyService $hierarchyService;
     protected LevelService $levelService;
+    protected CycleService $cycleService;
+    protected CycleLevelSnapshotService $snapshotService;
 
-    public function __construct(HierarchyService $hierarchyService, LevelService $levelService)
-    {
+    public function __construct(
+        HierarchyService $hierarchyService,
+        LevelService $levelService,
+        CycleService $cycleService,
+        CycleLevelSnapshotService $snapshotService
+    ) {
         $this->hierarchyService = $hierarchyService;
         $this->levelService = $levelService;
+        $this->cycleService = $cycleService;
+        $this->snapshotService = $snapshotService;
     }
 
     /**
@@ -41,15 +50,32 @@ class MlmCommissionService
         }
 
         $dealValue = (float) ($deal->value ?? 0);
-        $maxCommission = $this->getMaxCommissionPercentage($deal);
+
+        // Resolve cycle context for snapshot-aware distribution
+        $enrollment = $this->cycleService->getActiveEnrollment($agent);
+        $cycle = $enrollment?->cycle;
+        $useSnapshots = $cycle && $cycle->hasSnapshots();
+
+        $maxCommission = $this->getMaxCommissionPercentage($deal, $cycle);
 
         if ($dealValue <= 0 || $maxCommission <= 0) {
             Log::info("MlmCommissionService: Skipping deal {$deal->id} - zero value or max commission");
             return [];
         }
 
+        // Resolve agent's commission percentage from snapshot or live level
         $agentLevel = $this->levelService->getCurrentLevel($agent);
-        $agentCommissionPct = $agentLevel ? (float) $agentLevel->commission_percentage : 0;
+        $agentSnapshotLevel = null;
+        $agentCommissionPct = 0;
+
+        if ($useSnapshots && $agentLevel) {
+            $agentSnapshotLevel = $this->snapshotService->getSnapshotLevelBySourceId($cycle, $agentLevel->id);
+            $agentCommissionPct = $agentSnapshotLevel
+                ? (float) $agentSnapshotLevel->commission_percentage
+                : (float) $agentLevel->commission_percentage;
+        } elseif ($agentLevel) {
+            $agentCommissionPct = (float) $agentLevel->commission_percentage;
+        }
 
         $records = [];
         $cumulativePct = 0;
@@ -64,7 +90,8 @@ class MlmCommissionService
                 level: $agentLevel,
                 percentage: $effectivePct,
                 amount: $this->calculateAmount($dealValue, $effectivePct),
-                type: MlmCommissionType::Agent
+                type: MlmCommissionType::Agent,
+                cycleLevelSnapshotId: $agentSnapshotLevel?->id
             );
             $cumulativePct = $effectivePct;
         }
@@ -81,10 +108,19 @@ class MlmCommissionService
                 $ancestorLevel = $ancestor->currentLevelHistory?->level;
 
                 if (!$ancestorLevel) {
-                    continue; // Ancestor has no level, skip
+                    continue;
                 }
 
+                // Resolve commission % from snapshot or live
+                $ancestorSnapshotLevel = null;
                 $ancestorPct = (float) $ancestorLevel->commission_percentage;
+
+                if ($useSnapshots) {
+                    $ancestorSnapshotLevel = $this->snapshotService->getSnapshotLevelBySourceId($cycle, $ancestorLevel->id);
+                    if ($ancestorSnapshotLevel) {
+                        $ancestorPct = (float) $ancestorSnapshotLevel->commission_percentage;
+                    }
+                }
 
                 // Differential: only pay if their level's % is higher than cumulative
                 if ($ancestorPct > $cumulativePct) {
@@ -99,7 +135,8 @@ class MlmCommissionService
                             level: $ancestorLevel,
                             percentage: $effectivePct,
                             amount: $this->calculateAmount($dealValue, $effectivePct),
-                            type: MlmCommissionType::Upline
+                            type: MlmCommissionType::Upline,
+                            cycleLevelSnapshotId: $ancestorSnapshotLevel?->id
                         );
                         $cumulativePct += $effectivePct;
                     }
@@ -110,10 +147,10 @@ class MlmCommissionService
         // 3. System commission (remaining %)
         $remainingPct = $maxCommission - $cumulativePct;
 
-        if ($remainingPct > 0.001) { // Avoid floating point dust
+        if ($remainingPct > 0.001) {
             $records[] = $this->createCommissionRecord(
                 deal: $deal,
-                agent: $agent, // System entry attributed to the source agent
+                agent: $agent,
                 sourceAgent: $agent,
                 level: null,
                 percentage: round($remainingPct, 2),
@@ -122,7 +159,7 @@ class MlmCommissionService
             );
         }
 
-        Log::info("MlmCommissionService: Distributed " . count($records) . " commission records for deal {$deal->id} (total {$cumulativePct}% of {$maxCommission}% max)");
+        Log::info("MlmCommissionService: Distributed " . count($records) . " commission records for deal {$deal->id} (total {$cumulativePct}% of {$maxCommission}% max)" . ($useSnapshots ? ' [snapshot]' : ''));
 
         return $records;
     }
@@ -155,13 +192,18 @@ class MlmCommissionService
 
     /**
      * Get the max commission percentage for a deal.
-     * Falls back to company config, then global config.
+     * Uses cycle snapshot if available, then per-deal override, then global config.
      */
-    protected function getMaxCommissionPercentage(Deal $deal): float
+    protected function getMaxCommissionPercentage(Deal $deal, ?\App\Models\MlmCycle $cycle = null): float
     {
-        // Per-deal override
+        // Per-deal override takes highest priority
         if ($deal->max_commission_percentage !== null && $deal->max_commission_percentage > 0) {
             return (float) $deal->max_commission_percentage;
+        }
+
+        // Use cycle snapshot if available
+        if ($cycle && $cycle->max_commission_snapshot !== null) {
+            return (float) $cycle->max_commission_snapshot;
         }
 
         // Fall back to config
@@ -178,7 +220,8 @@ class MlmCommissionService
         ?MlmLevel $level,
         float $percentage,
         float $amount,
-        MlmCommissionType $type
+        MlmCommissionType $type,
+        ?int $cycleLevelSnapshotId = null
     ): MlmCommission {
         return MlmCommission::create([
             'company_id' => $deal->company_id,
@@ -186,6 +229,7 @@ class MlmCommissionService
             'agent_id' => $agent->id,
             'source_agent_id' => $sourceAgent->id,
             'level_id' => $level?->id,
+            'cycle_level_snapshot_id' => $cycleLevelSnapshotId,
             'percentage' => $percentage,
             'amount' => $amount,
             'type' => $type->value,

@@ -20,6 +20,7 @@ class MlmCommission extends BaseModel
         'agent_id',
         'source_agent_id',
         'level_id',
+        'cycle_level_snapshot_id',
         'percentage',
         'amount',
         'type',
@@ -62,6 +63,11 @@ class MlmCommission extends BaseModel
     public function level(): BelongsTo
     {
         return $this->belongsTo(MlmLevel::class, 'level_id');
+    }
+
+    public function cycleLevelSnapshot(): BelongsTo
+    {
+        return $this->belongsTo(MlmCycleLevelSnapshot::class, 'cycle_level_snapshot_id');
     }
 
     // ── Status Transitions ───────────────────────────────────────

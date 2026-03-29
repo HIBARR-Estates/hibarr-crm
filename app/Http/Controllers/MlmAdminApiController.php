@@ -6,6 +6,7 @@ use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Enums\MlmMetric;
 use App\Enums\CycleDurationType;
+use App\Enums\CycleStatus;
 use App\Models\AgentCycleEnrollment;
 use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
@@ -13,10 +14,11 @@ use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\MlmCycle;
-use App\Models\MlmCycleConfig;
+use App\Models\MlmSetting;
 use App\Models\MlmLevel;
 use App\Models\MlmLevelCriterion;
 use App\Services\CycleService;
+use App\Services\CycleLevelSnapshotService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\MlmCommissionService;
@@ -31,18 +33,21 @@ class MlmAdminApiController extends AccountBaseController
     protected LevelService $levelService;
     protected MlmCommissionService $commissionService;
     protected CycleService $cycleService;
+    protected CycleLevelSnapshotService $snapshotService;
 
     public function __construct(
         HierarchyService $hierarchyService,
         LevelService $levelService,
         MlmCommissionService $commissionService,
-        CycleService $cycleService
+        CycleService $cycleService,
+        CycleLevelSnapshotService $snapshotService
     ) {
         parent::__construct();
         $this->hierarchyService = $hierarchyService;
         $this->levelService = $levelService;
         $this->commissionService = $commissionService;
         $this->cycleService = $cycleService;
+        $this->snapshotService = $snapshotService;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -127,7 +132,15 @@ class MlmAdminApiController extends AccountBaseController
             ->with('criteria')
             ->get();
 
-        return response()->json(['status' => 'success', 'data' => $levels]);
+        $hasActiveCycle = MlmCycle::where('company_id', company()->id)
+            ->active()
+            ->exists();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $levels,
+            'has_active_cycle' => $hasActiveCycle,
+        ]);
     }
 
     public function getLevel(int $id): JsonResponse
@@ -136,7 +149,15 @@ class MlmAdminApiController extends AccountBaseController
             ->with('criteria')
             ->findOrFail($id);
 
-        return response()->json(['status' => 'success', 'data' => $level]);
+        $hasActiveCycle = MlmCycle::where('company_id', company()->id)
+            ->active()
+            ->exists();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $level,
+            'has_active_cycle' => $hasActiveCycle,
+        ]);
     }
 
     public function storeLevel(Request $request): JsonResponse
@@ -588,12 +609,18 @@ class MlmAdminApiController extends AccountBaseController
 
     public function getSettings(): JsonResponse
     {
+        $settings = MlmSetting::forCompany(company()->id);
+
         return response()->json([
             'status' => 'success',
             'data' => [
-                'max_commission_percentage' => (float) config('mlm.max_commission_percentage'),
-                'auto_evaluate_ancestors' => (bool) config('mlm.auto_evaluate_ancestors'),
-                'enable_commission_reversal' => true,
+                'max_commission_percentage' => (float) $settings->max_commission_percentage,
+                'auto_evaluate_ancestors' => (bool) $settings->auto_evaluate_ancestors,
+                'enable_commission_reversal' => (bool) $settings->enable_commission_reversal,
+                'auto_generate_cycles' => (bool) $settings->auto_generate_cycles,
+                'default_cycle_duration_type' => $settings->default_cycle_duration_type?->value ?? 'monthly',
+                'default_cycle_duration_days' => $settings->default_cycle_duration_days,
+                'default_overflow_multiplier' => (float) $settings->default_overflow_multiplier,
             ],
         ]);
     }
@@ -604,39 +631,28 @@ class MlmAdminApiController extends AccountBaseController
             'max_commission_percentage' => 'required|numeric|min:0|max:100',
             'auto_evaluate_ancestors' => 'required|boolean',
             'enable_commission_reversal' => 'required|boolean',
+            'auto_generate_cycles' => 'sometimes|boolean',
+            'default_cycle_duration_type' => 'sometimes|string|in:monthly,quarterly,custom',
+            'default_cycle_duration_days' => 'nullable|integer|min:1|max:365',
+            'default_overflow_multiplier' => 'sometimes|numeric|min:0|max:5',
         ]);
 
-        // Update the .env values or store in a settings table
-        // For now, we update environment variables via helper
-        $this->updateEnvValue('MLM_MAX_COMMISSION_PCT', $validated['max_commission_percentage']);
-        $this->updateEnvValue('MLM_AUTO_EVALUATE_ANCESTORS', $validated['auto_evaluate_ancestors'] ? 'true' : 'false');
+        $settings = MlmSetting::forCompany(company()->id);
+        $settings->update($validated);
 
         return response()->json([
             'status' => 'success',
             'message' => 'MLM settings updated successfully.',
-            'data' => $validated,
+            'data' => [
+                'max_commission_percentage' => (float) $settings->max_commission_percentage,
+                'auto_evaluate_ancestors' => (bool) $settings->auto_evaluate_ancestors,
+                'enable_commission_reversal' => (bool) $settings->enable_commission_reversal,
+                'auto_generate_cycles' => (bool) $settings->auto_generate_cycles,
+                'default_cycle_duration_type' => $settings->default_cycle_duration_type?->value ?? 'monthly',
+                'default_cycle_duration_days' => $settings->default_cycle_duration_days,
+                'default_overflow_multiplier' => (float) $settings->default_overflow_multiplier,
+            ],
         ]);
-    }
-
-    private function updateEnvValue(string $key, $value): void
-    {
-        $path = base_path('.env');
-
-        if (file_exists($path)) {
-            $content = file_get_contents($path);
-
-            if (str_contains($content, $key . '=')) {
-                $content = preg_replace(
-                    "/^{$key}=.*/m",
-                    "{$key}={$value}",
-                    $content
-                );
-            } else {
-                $content .= "\n{$key}={$value}";
-            }
-
-            file_put_contents($path, $content);
-        }
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -741,75 +757,6 @@ class MlmAdminApiController extends AccountBaseController
     // ══════════════════════════════════════════════════════════════
 
     /**
-     * Get the company's cycle configuration.
-     */
-    public function getCycleConfig(): JsonResponse
-    {
-        $config = MlmCycleConfig::where('company_id', company()->id)->first();
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $config ? [
-                'id' => $config->id,
-                'duration_type' => $config->duration_type->value,
-                'duration_days' => $config->duration_days,
-                'duration_days_resolved' => $config->duration_days_resolved,
-                'anchor_date' => $config->anchor_date?->format('Y-m-d'),
-                'max_overflow_multiplier' => (float) $config->max_overflow_multiplier,
-                'max_overflow_days' => $config->max_overflow_days,
-                'auto_generate' => (bool) $config->auto_generate,
-            ] : null,
-        ]);
-    }
-
-    /**
-     * Create or update the company's cycle configuration.
-     */
-    public function updateCycleConfig(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'duration_type' => 'required|string|in:monthly,quarterly,custom',
-            'duration_days' => 'nullable|integer|min:1|max:365',
-            'anchor_date' => 'required|date',
-            'max_overflow_multiplier' => 'required|numeric|min:0|max:5',
-            'auto_generate' => 'required|boolean',
-        ]);
-
-        if ($validated['duration_type'] === 'custom' && empty($validated['duration_days'] ?? null)) {
-            return response()->json([
-                'status' => 'fail',
-                'message' => 'Duration days is required for custom duration type.',
-            ], 422);
-        }
-
-        $config = MlmCycleConfig::updateOrCreate(
-            ['company_id' => company()->id],
-            [
-                'duration_type' => $validated['duration_type'],
-                'duration_days' => $validated['duration_days'] ?? null,
-                'anchor_date' => $validated['anchor_date'],
-                'max_overflow_multiplier' => $validated['max_overflow_multiplier'],
-                'auto_generate' => $validated['auto_generate'],
-            ]
-        );
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Cycle configuration updated successfully.',
-            'data' => [
-                'id' => $config->id,
-                'duration_type' => $config->duration_type->value,
-                'duration_days' => $config->duration_days,
-                'duration_days_resolved' => $config->duration_days_resolved,
-                'anchor_date' => $config->anchor_date?->format('Y-m-d'),
-                'max_overflow_multiplier' => (float) $config->max_overflow_multiplier,
-                'max_overflow_days' => $config->max_overflow_days,
-                'auto_generate' => (bool) $config->auto_generate,
-            ],
-        ]);
-    }
-
-    /**
      * List all cycles with enrollment counts.
      */
     public function getCycles(Request $request): JsonResponse
@@ -829,7 +776,7 @@ class MlmAdminApiController extends AccountBaseController
     public function getActiveCycle(): JsonResponse
     {
         $cycle = $this->cycleService->getOrCreateCurrentCycle(company()->id);
-        $config = MlmCycleConfig::where('company_id', company()->id)->first();
+        $settings = MlmSetting::where('company_id', company()->id)->first();
 
         $enrollmentCount = 0;
         $daysRemaining = 0;
@@ -845,19 +792,163 @@ class MlmAdminApiController extends AccountBaseController
                 'cycle' => $cycle ? [
                     'id' => $cycle->id,
                     'cycle_number' => $cycle->cycle_number,
+                    'name' => $cycle->name,
                     'start_date' => $cycle->start_date->format('Y-m-d'),
                     'end_date' => $cycle->end_date->format('Y-m-d'),
                     'status' => $cycle->status->value,
                     'duration_days' => $cycle->duration_days,
+                    'max_overflow_multiplier' => (float) $cycle->max_overflow_multiplier,
                 ] : null,
-                'config' => $config ? [
-                    'duration_type' => $config->duration_type->value,
-                    'duration_days_resolved' => $config->duration_days_resolved,
-                    'max_overflow_multiplier' => (float) $config->max_overflow_multiplier,
-                ] : null,
+                'default_overflow_multiplier' => $settings ? (float) $settings->default_overflow_multiplier : 1.0,
                 'days_remaining' => $daysRemaining,
                 'enrollment_count' => $enrollmentCount,
             ],
+        ]);
+    }
+
+    /**
+     * Create a new cycle (manual).
+     */
+    public function createCycle(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after:start_date',
+            'max_overflow_multiplier' => 'sometimes|numeric|min:0|max:5',
+        ]);
+
+        $companyId = company()->id;
+        $startDate = \Carbon\Carbon::parse($validated['start_date'])->startOfDay();
+        $endDate = \Carbon\Carbon::parse($validated['end_date'])->startOfDay();
+
+        // Validate no overlap
+        $overlapError = $this->cycleService->validateNoOverlap($companyId, $startDate, $endDate);
+        if ($overlapError) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $overlapError,
+            ], 422);
+        }
+
+        // Determine cycle number
+        $lastNumber = MlmCycle::where('company_id', $companyId)->max('cycle_number') ?? 0;
+
+        // Determine default overflow from settings
+        $settings = MlmSetting::forCompany($companyId);
+
+        // Determine initial status
+        $today = now()->startOfDay();
+        $status = 'upcoming';
+        if ($today->between($startDate, $endDate)) {
+            $status = 'active';
+        } elseif ($today->gt($endDate)) {
+            $status = 'completed';
+        }
+
+        $cycle = MlmCycle::create([
+            'company_id' => $companyId,
+            'cycle_number' => $lastNumber + 1,
+            'name' => $validated['name'],
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'status' => $status,
+            'max_overflow_multiplier' => $validated['max_overflow_multiplier'] ?? $settings->default_overflow_multiplier,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cycle created successfully.',
+            'data' => $cycle->loadCount('enrollments'),
+        ], 201);
+    }
+
+    /**
+     * Update an existing cycle (only if upcoming).
+     */
+    public function updateCycle(Request $request, int $id): JsonResponse
+    {
+        $cycle = MlmCycle::where('company_id', company()->id)->findOrFail($id);
+
+        if ($cycle->status !== \App\Enums\CycleStatus::Upcoming) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Only upcoming cycles can be edited.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:100',
+            'start_date' => 'sometimes|date',
+            'end_date' => 'sometimes|date',
+            'max_overflow_multiplier' => 'sometimes|numeric|min:0|max:5',
+        ]);
+
+        $startDate = isset($validated['start_date'])
+            ? \Carbon\Carbon::parse($validated['start_date'])->startOfDay()
+            : $cycle->start_date;
+        $endDate = isset($validated['end_date'])
+            ? \Carbon\Carbon::parse($validated['end_date'])->startOfDay()
+            : $cycle->end_date;
+
+        if ($endDate->lte($startDate)) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'End date must be after start date.',
+            ], 422);
+        }
+
+        // Validate no overlap (exclude self)
+        $overlapError = $this->cycleService->validateNoOverlap(company()->id, $startDate, $endDate, $cycle->id);
+        if ($overlapError) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $overlapError,
+            ], 422);
+        }
+
+        $cycle->update(array_filter([
+            'name' => $validated['name'] ?? null,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'max_overflow_multiplier' => $validated['max_overflow_multiplier'] ?? null,
+        ], fn($v) => $v !== null));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cycle updated successfully.',
+            'data' => $cycle->fresh()->loadCount('enrollments'),
+        ]);
+    }
+
+    /**
+     * Delete a cycle (only if upcoming and zero enrollments).
+     */
+    public function deleteCycle(int $id): JsonResponse
+    {
+        $cycle = MlmCycle::where('company_id', company()->id)
+            ->withCount('enrollments')
+            ->findOrFail($id);
+
+        if ($cycle->status !== \App\Enums\CycleStatus::Upcoming) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Only upcoming cycles can be deleted.',
+            ], 422);
+        }
+
+        if ($cycle->enrollments_count > 0) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Cannot delete a cycle that has enrollments.',
+            ], 422);
+        }
+
+        $cycle->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cycle deleted successfully.',
         ]);
     }
 
@@ -904,6 +995,7 @@ class MlmAdminApiController extends AccountBaseController
                 'cycle' => [
                     'id' => $cycle->id,
                     'cycle_number' => $cycle->cycle_number,
+                    'name' => $cycle->name,
                     'start_date' => $cycle->start_date->format('Y-m-d'),
                     'end_date' => $cycle->end_date->format('Y-m-d'),
                     'status' => $cycle->status->value,
@@ -937,6 +1029,28 @@ class MlmAdminApiController extends AccountBaseController
         return response()->json([
             'status' => 'success',
             'message' => 'Enrollment force-completed. Agent has been re-enrolled in the current cycle.',
+        ]);
+    }
+
+    /**
+     * Re-snapshot levels for an active cycle (emergency correction).
+     */
+    public function resnapshot(int $cycleId): JsonResponse
+    {
+        $cycle = MlmCycle::where('company_id', company()->id)->findOrFail($cycleId);
+
+        if ($cycle->status !== CycleStatus::Active) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Only active cycles can be re-snapshotted.',
+            ], 422);
+        }
+
+        $this->snapshotService->reSnapshot($cycle);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Levels have been re-snapshotted for this cycle. New commissions will use the updated rules.',
         ]);
     }
 }

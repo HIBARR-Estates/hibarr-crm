@@ -216,6 +216,7 @@ class DealContactApiController extends Controller
                 }
                 
                 $companyId = (int) $companyId;
+                $updateAgentIfExists = $request->boolean('update_agent_if_exists', false);
                 
                 // Check if contact already exists by email (most reliable identifier)
                 $existingContact = null;
@@ -280,7 +281,7 @@ class DealContactApiController extends Controller
                     }
                     // Update lead_owner if provided (user_id directly, not agent_id)
                     if ($request->has('lead_owner_id') && !empty($request->lead_owner_id)) {
-                        if ($existingContact->lead_owner != $request->lead_owner_id) {
+                        if (!$existingContact->lead_owner && $updateAgentIfExists) {
                             $existingContact->lead_owner = $request->lead_owner_id;
                             $updated = true;
                         }

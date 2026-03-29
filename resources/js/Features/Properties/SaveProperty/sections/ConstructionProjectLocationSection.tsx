@@ -1,15 +1,17 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Form, Select, Input, InputNumber, Row, Col, Alert } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
+import { DeveloperProject } from "@/Types/developerProject";
 
 const { TextArea } = Input;
 
 interface ConstructionProjectLocationSectionProps {
     form: FormInstance;
     enumValues?: PropertyEnumValues;
+    project?: DeveloperProject | null;
 }
 
 /**
@@ -21,7 +23,7 @@ interface ConstructionProjectLocationSectionProps {
  */
 const ConstructionProjectLocationSection: React.FC<
     ConstructionProjectLocationSectionProps
-> = ({ form, enumValues }) => {
+> = ({ form, enumValues, project }) => {
     const { props } = usePage<any>();
 
     // Watch city value for area filtering
@@ -46,9 +48,17 @@ const ConstructionProjectLocationSection: React.FC<
         }));
     }, [selectedCity, enumValues?.areas_by_city]);
 
-    // Clear area when city changes
+    // Clear area when city changes (but not on initial form population)
+    const isInitialCity = useRef(true);
     useEffect(() => {
-        form.setFieldValue("area", undefined);
+        if (isInitialCity.current) {
+            isInitialCity.current = false;
+            return;
+        }
+        form.setFieldValue(
+            "area",
+            project?.location?.area ? project?.location?.area : undefined,
+        );
     }, [selectedCity]);
 
     return (
@@ -68,11 +78,19 @@ const ConstructionProjectLocationSection: React.FC<
 
             {/* Area / District */}
             <Col xs={24} md={12}>
-                <Form.Item name="area" label="Area / District">
+                <Form.Item
+                    name="area"
+                    label="Area / District"
+                    initialValue={project?.location?.area}
+                >
                     <Select
                         options={areaOptions}
                         placeholder={
-                            selectedCity ? "Select area" : "Select a city first"
+                            selectedCity
+                                ? "Select area"
+                                : project?.location?.area
+                                  ? project?.location?.area
+                                  : "Select city first"
                         }
                         allowClear
                         showSearch
@@ -100,9 +118,9 @@ const ConstructionProjectLocationSection: React.FC<
                     rules={[
                         {
                             type: "number",
-                            min: -90,
-                            max: 90,
-                            message: "Must be between -90 and 90",
+                            // min: -90,
+                            // max: 90,
+                            // message: "Must be between -90 and 90",
                             transform: (v: string) =>
                                 v ? Number(v) : undefined,
                         },
@@ -124,9 +142,9 @@ const ConstructionProjectLocationSection: React.FC<
                     rules={[
                         {
                             type: "number",
-                            min: -180,
-                            max: 180,
-                            message: "Must be between -180 and 180",
+                            // min: -180,
+                            // max: 180,
+                            // message: "Must be between -180 and 180",
                             transform: (v: string) =>
                                 v ? Number(v) : undefined,
                         },
