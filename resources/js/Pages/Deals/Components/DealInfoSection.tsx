@@ -466,59 +466,58 @@ export default function DealInfoSection({
         // Toggle edit mode button - only show if user can edit
         ...(canEdit && !isEditMode
             ? [
-                  {
-                      key: "edit",
-                      icon: <EditOutlined />,
-                      tooltip: "Edit Deal",
-                      type: "text" as const,
-                      onClick: handleToggleEditMode,
-                  },
-              ]
+                {
+                    key: "edit",
+                    icon: <EditOutlined />,
+                    tooltip: "Edit Deal",
+                    type: "text" as const,
+                    onClick: handleToggleEditMode,
+                },
+            ]
             : []),
         // Save all button - only show when in edit mode with changes
         ...(isEditMode
             ? [
-                  {
-                      key: "save_all",
-                      icon: <SaveOutlined />,
-                      tooltip: hasUnsavedChanges
-                          ? `Save All Changes (${
-                                Object.keys(pendingChanges).length
-                            })`
-                          : "No changes to save",
-                      type: "primary" as const,
-                      onClick: handleSaveAll,
-                      disabled: !hasUnsavedChanges || isSavingAll,
-                      loading: isSavingAll,
-                  },
-              ]
+                {
+                    key: "save_all",
+                    icon: <SaveOutlined />,
+                    tooltip: hasUnsavedChanges
+                        ? `Save All Changes (${Object.keys(pendingChanges).length
+                        })`
+                        : "No changes to save",
+                    type: "primary" as const,
+                    onClick: handleSaveAll,
+                    disabled: !hasUnsavedChanges || isSavingAll,
+                    loading: isSavingAll,
+                },
+            ]
             : []),
         // Cancel edit mode button - only show when in edit mode
         ...(isEditMode
             ? [
-                  {
-                      key: "cancel_edit",
-                      icon: <CloseOutlined />,
-                      tooltip: "Cancel Edit",
-                      type: "text" as const,
-                      onClick: handleExitEditMode,
-                  },
-              ]
+                {
+                    key: "cancel_edit",
+                    icon: <CloseOutlined />,
+                    tooltip: "Cancel Edit",
+                    type: "text" as const,
+                    onClick: handleExitEditMode,
+                },
+            ]
             : []),
         // Only show delete button if user can delete
         ...(canDelete
             ? [
-                  {
-                      key: "delete",
-                      icon: <DeleteOutlined />,
-                      tooltip: "Delete Deal",
-                      type: "text" as const,
-                      danger: true,
-                      onClick: () => {
-                          handleAction("delete");
-                      },
-                  },
-              ]
+                {
+                    key: "delete",
+                    icon: <DeleteOutlined />,
+                    tooltip: "Delete Deal",
+                    type: "text" as const,
+                    danger: true,
+                    onClick: () => {
+                        handleAction("delete");
+                    },
+                },
+            ]
             : []),
     ];
 
@@ -613,8 +612,8 @@ export default function DealInfoSection({
                                 formatValue={(value) =>
                                     value
                                         ? dayjs(value.toString()).format(
-                                              "MMM DD, YYYY",
-                                          )
+                                            "MMM DD, YYYY",
+                                        )
                                         : "--"
                                 }
                                 alwaysEditing={isFieldEditable}
@@ -639,11 +638,11 @@ export default function DealInfoSection({
                                 displayValue={
                                     currentDeal.packages?.length
                                         ? currentDeal.packages
-                                              .map(
-                                                  (pkg: any) =>
-                                                      pkg?.name || pkg,
-                                              )
-                                              .join(", ")
+                                            .map(
+                                                (pkg: any) =>
+                                                    pkg?.name || pkg,
+                                            )
+                                            .join(", ")
                                         : "--"
                                 }
                                 onSave={(value) =>
@@ -702,6 +701,83 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+
+                        <DetailField label="Deal Category">
+                            <EditableField
+                                value={currentDeal.category_id}
+                                fieldName="category_id"
+                                selectorType="categories"
+                                displayValue={
+                                    currentDeal.category?.category_name ? (
+                                        <Tag color="blue" className="font-medium">
+                                            {currentDeal.category.category_name}
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("category_id", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("category_id")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+
+                        <DetailField label="Properties" span={2}>
+                            <EditableField
+                                value={
+                                    currentDeal.products?.map(
+                                        (p: any) => p.id,
+                                    ) || []
+                                }
+                                fieldName="product_id"
+                                selectorType="products"
+                                mode="multiple"
+                                displayValue={
+                                    productNames.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {productNames.map(
+                                                (product, index) => (
+                                                    <Tag
+                                                        key={index}
+                                                        color="blue"
+                                                    >
+                                                        {product}
+                                                    </Tag>
+                                                ),
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("product_id", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("product_id")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+
+                        {currentDeal?.lead_status && (
+                            <DetailField label="Status">
+                                <Tag
+                                    color={currentDeal.lead_status.label_color}
+                                    className="font-medium"
+                                >
+                                    {currentDeal.lead_status.type}
+                                </Tag>
+                            </DetailField>
+                        )}
                     </DetailSection>
 
                     {/* Contact Info */}
@@ -780,34 +856,8 @@ export default function DealInfoSection({
                         </DetailField>
                     </DetailSection>
 
-                    {/* Classification */}
-                    <DetailSection title="Classification">
-                        <DetailField label="Deal Category">
-                            <EditableField
-                                value={currentDeal.category_id}
-                                fieldName="category_id"
-                                selectorType="categories"
-                                displayValue={
-                                    currentDeal.category?.category_name ? (
-                                        <Tag color="blue" className="font-medium">
-                                            {currentDeal.category.category_name}
-                                        </Tag>
-                                    ) : (
-                                        <span className="text-gray-400">--</span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("category_id", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll || isFieldLoading("category_id")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </DetailField>
-
+                    {/* Team */}
+                    <DetailSection title="Team">
                         <DetailField label="Deal Agent">
                             <EditableField
                                 value={currentDeal.agent_id}
@@ -818,6 +868,7 @@ export default function DealInfoSection({
                                         <UserIndicator
                                             data={currentDeal.lead_agent.user}
                                             size="sm"
+                                            maxNameLength={40}
                                         />
                                     ) : (
                                         <span className="text-gray-400">--</span>
@@ -834,21 +885,6 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
-
-                        {currentDeal?.lead_status && (
-                            <DetailField label="Status">
-                                <Tag
-                                    color={currentDeal.lead_status.label_color}
-                                    className="font-medium"
-                                >
-                                    {currentDeal.lead_status.type}
-                                </Tag>
-                            </DetailField>
-                        )}
-                    </DetailSection>
-
-                    {/* Team */}
-                    <DetailSection title="Team">
                         <DetailField label="Deal Watchers" span={2}>
                             <EditableField
                                 value={
@@ -861,7 +897,7 @@ export default function DealInfoSection({
                                 mode="multiple"
                                 displayValue={
                                     currentDeal.deal_watchers &&
-                                    currentDeal.deal_watchers.length > 0 ? (
+                                        currentDeal.deal_watchers.length > 0 ? (
                                         <MultiUserIndicator
                                             users={currentDeal.deal_watchers.map(
                                                 (watcher: any) => ({
@@ -905,7 +941,7 @@ export default function DealInfoSection({
                                 mode="multiple"
                                 displayValue={
                                     currentDeal.deal_participants &&
-                                    currentDeal.deal_participants.length > 0 ? (
+                                        currentDeal.deal_participants.length > 0 ? (
                                         <MultiUserIndicator
                                             users={currentDeal.deal_participants.map(
                                                 (participant: any) => ({
@@ -937,45 +973,7 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Properties" span={2}>
-                            <EditableField
-                                value={
-                                    currentDeal.products?.map(
-                                        (p: any) => p.id,
-                                    ) || []
-                                }
-                                fieldName="product_id"
-                                selectorType="products"
-                                mode="multiple"
-                                displayValue={
-                                    productNames.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {productNames.map(
-                                                (product, index) => (
-                                                    <Tag
-                                                        key={index}
-                                                        color="blue"
-                                                    >
-                                                        {product}
-                                                    </Tag>
-                                                ),
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-400">--</span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("product_id", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll || isFieldLoading("product_id")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </DetailField>
+
                     </DetailSection>
                 </div>
             ),
@@ -1058,11 +1056,10 @@ export default function DealInfoSection({
             <div>
                 {/* Header */}
                 <div
-                    className={`flex items-center justify-between px-5 py-3 border-b ${
-                        isEditMode
+                    className={`flex items-center justify-between px-5 py-3 border-b ${isEditMode
                             ? "bg-blue-50 border-blue-100"
                             : "bg-gray-50/80 border-gray-100"
-                    }`}
+                        }`}
                 >
                     <div className="flex items-center gap-3">
                         <h2 className="text-sm font-semibold text-gray-700">
