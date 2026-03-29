@@ -1,43 +1,43 @@
 import React, { useState } from "react";
-import {
-    Card,
-    Tag,
-    Button,
-    Select,
-    Popconfirm,
-    Empty,
-    Space,
-    Spin,
-} from "antd";
-import {
-    GiftOutlined,
-    LinkOutlined,
-    DisconnectOutlined,
-} from "@ant-design/icons";
+import { Card, Tag, Button, Select, Empty, Space, Switch, List } from "antd";
+import { GiftOutlined, LinkOutlined } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client";
-import type { Offer } from "@/Types/api/offers";
+import type { Offer, OfferablePivot } from "@/Types/api/offers";
 import dayjs from "dayjs";
 
+type OfferWithPivot = Offer & { pivot?: OfferablePivot };
+
 interface OfferAttachSectionProps {
-    /** The currently attached offer (if any) */
-    currentOffer?: Offer | null;
+    /** All attached offers (including disabled ones) */
+    offers?: OfferWithPivot[];
     /** The type of the offerable model */
     offerableType: "developer_project" | "unit_type";
     /** The ID of the offerable model */
     offerableId: number;
-    /** Called after successful attach/detach to refresh data */
+    /** Called after successful action to refresh data */
     onRefresh: () => void;
 }
 
+const csrfHeaders = () => ({
+    "Content-Type": "application/json",
+    "X-Requested-With": "XMLHttpRequest",
+    "X-CSRF-TOKEN":
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content") ?? "",
+    Accept: "application/json",
+});
+
 const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
-    currentOffer,
+    offers = [],
     offerableType,
     offerableId,
     onRefresh,
 }) => {
     const [attaching, setAttaching] = useState(false);
     const [selectedOfferId, setSelectedOfferId] = useState<number | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState<number | null>(null); // track by offer ID
+    const [attachLoading, setAttachLoading] = useState(false);
 
     // Fetch available offers for the Select dropdown (only when attaching)
     const { data: availableOffersData, isLoading: offersLoading } =
@@ -48,25 +48,22 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
         });
 
     const availableOffers = availableOffersData?.data?.offers?.data ?? [];
+    // Filter out already-attached offers
+    const attachedIds = new Set(offers.map((o) => o.id));
+    const selectableOffers = availableOffers.filter(
+        (o) => !attachedIds.has(o.id),
+    );
 
     const handleAttach = async () => {
         if (!selectedOfferId) return;
-        setLoading(true);
+        setAttachLoading(true);
         try {
             const res = await fetch(route("offers.attach", selectedOfferId), {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") ?? "",
-                    Accept: "application/json",
-                },
+                headers: csrfHeaders(),
                 body: JSON.stringify({
                     offerable_type: offerableType,
-                    offerable_id: offerableId,
+                    offerable_ids: [offerableId],
                 }),
             });
             const data = await res.json();
@@ -75,31 +72,22 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                 setSelectedOfferId(null);
                 onRefresh();
             } else {
-                // Show error (the API returns error messages)
-                const { App: AntApp } = await import("antd");
-                // Fallback: use alert for simplicity since we can't use hooks here dynamically
                 alert(data.message || "Failed to attach offer");
             }
         } finally {
-            setLoading(false);
+            setAttachLoading(false);
         }
     };
 
-    const handleDetach = async () => {
-        if (!currentOffer) return;
-        setLoading(true);
+    const handleToggle = async (offer: OfferWithPivot, enable: boolean) => {
+        setLoading(offer.id);
         try {
-            await fetch(route("offers.detach", currentOffer.id), {
+            const endpoint = enable
+                ? route("offers.enable", offer.id)
+                : route("offers.disable", offer.id);
+            await fetch(endpoint, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") ?? "",
-                    Accept: "application/json",
-                },
+                headers: csrfHeaders(),
                 body: JSON.stringify({
                     offerable_type: offerableType,
                     offerable_id: offerableId,
@@ -107,79 +95,109 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
             });
             onRefresh();
         } finally {
-            setLoading(false);
+            setLoading(null);
         }
     };
 
-    if (currentOffer) {
-        return (
-            <Card size="small" className="mb-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <GiftOutlined className="text-lg text-green-600" />
-                        <div>
-                            <div className="font-medium">
-                                {currentOffer.name}
-                            </div>
-                            <div className="text-xs text-gray-500 flex items-center gap-2">
-                                <Tag
-                                    color={
-                                        currentOffer.type === "percentage"
-                                            ? "blue"
-                                            : "green"
+    return (
+        <Card size="small" className="mb-4">
+            {offers.length > 0 ? (
+                <List
+                    size="small"
+                    dataSource={offers}
+                    renderItem={(offer) => {
+                        const pivotActive = offer.pivot?.is_active !== false;
+                        return (
+                            <List.Item
+                                key={offer.id}
+                                actions={[
+                                    <Switch
+                                        key="toggle"
+                                        size="small"
+                                        checked={pivotActive}
+                                        loading={loading === offer.id}
+                                        onChange={(checked) =>
+                                            handleToggle(offer, checked)
+                                        }
+                                    />,
+                                ]}
+                            >
+                                <List.Item.Meta
+                                    avatar={
+                                        <GiftOutlined
+                                            className={`text-lg ${pivotActive ? "text-green-600" : "text-gray-400"}`}
+                                        />
                                     }
-                                    className="text-xs"
-                                >
-                                    {currentOffer.type === "percentage"
-                                        ? `${currentOffer.value}%`
-                                        : `${Number(currentOffer.value).toLocaleString("en-GB")}`}
-                                </Tag>
-                                {currentOffer.max_discount_amount && (
-                                    <span>
-                                        Cap:{" "}
-                                        {Number(
-                                            currentOffer.max_discount_amount,
-                                        ).toLocaleString("en-GB")}
-                                    </span>
-                                )}
-                                {currentOffer.starts_at && (
-                                    <span>
-                                        {dayjs(currentOffer.starts_at).format(
-                                            "MMM DD",
-                                        )}
-                                        {currentOffer.ends_at
-                                            ? ` → ${dayjs(currentOffer.ends_at).format("MMM DD")}`
-                                            : "+"}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <Popconfirm
-                        title="Detach this offer?"
-                        onConfirm={handleDetach}
-                        okText="Detach"
-                        okType="danger"
-                    >
-                        <Button
-                            type="text"
-                            size="small"
-                            danger
-                            icon={<DisconnectOutlined />}
-                            loading={loading}
-                        >
-                            Detach
-                        </Button>
-                    </Popconfirm>
-                </div>
-            </Card>
-        );
-    }
+                                    title={
+                                        <Space size={4}>
+                                            <span
+                                                className={
+                                                    !pivotActive
+                                                        ? "text-gray-400"
+                                                        : ""
+                                                }
+                                            >
+                                                {offer.name}
+                                            </span>
+                                            {!pivotActive && (
+                                                <Tag color="default">
+                                                    Disabled
+                                                </Tag>
+                                            )}
+                                        </Space>
+                                    }
+                                    description={
+                                        <Space size={8} className="text-xs">
+                                            <Tag
+                                                color={
+                                                    offer.type === "percentage"
+                                                        ? "blue"
+                                                        : "green"
+                                                }
+                                                className="text-xs"
+                                            >
+                                                {offer.type === "percentage"
+                                                    ? `${offer.value}%`
+                                                    : Number(
+                                                          offer.value,
+                                                      ).toLocaleString("en-GB")}
+                                            </Tag>
+                                            {offer.max_discount_amount && (
+                                                <span>
+                                                    Cap:{" "}
+                                                    {Number(
+                                                        offer.max_discount_amount,
+                                                    ).toLocaleString("en-GB")}
+                                                </span>
+                                            )}
+                                            {offer.starts_at && (
+                                                <span>
+                                                    {dayjs(
+                                                        offer.starts_at,
+                                                    ).format("MMM DD")}
+                                                    {offer.ends_at
+                                                        ? ` → ${dayjs(offer.ends_at).format("MMM DD")}`
+                                                        : "+"}
+                                                </span>
+                                            )}
+                                        </Space>
+                                    }
+                                />
+                            </List.Item>
+                        );
+                    }}
+                />
+            ) : (
+                <Empty
+                    description="No offers attached"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    className="my-2"
+                />
+            )}
 
-    if (attaching) {
-        return (
-            <Card size="small" className="mb-4">
-                <div className="flex items-center gap-3">
+            {/* Attach new offer */}
+            {attaching ? (
+                <div className="flex items-center gap-3 mt-3">
                     <Select
                         className="flex-1"
                         placeholder="Select an offer..."
@@ -191,7 +209,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                                 .toLowerCase()
                                 .includes(input.toLowerCase())
                         }
-                        options={availableOffers.map((o) => ({
+                        options={selectableOffers.map((o) => ({
                             label: `${o.name} (${o.type === "percentage" ? `${o.value}%` : o.value})`,
                             value: o.id,
                         }))}
@@ -202,7 +220,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                         type="primary"
                         size="small"
                         onClick={handleAttach}
-                        loading={loading}
+                        loading={attachLoading}
                         disabled={!selectedOfferId}
                     >
                         Attach
@@ -217,23 +235,18 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                         Cancel
                     </Button>
                 </div>
-            </Card>
-        );
-    }
-
-    return (
-        <Card size="small" className="mb-4">
-            <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm">No offer attached</span>
-                <Button
-                    type="link"
-                    size="small"
-                    icon={<LinkOutlined />}
-                    onClick={() => setAttaching(true)}
-                >
-                    Attach Offer
-                </Button>
-            </div>
+            ) : (
+                <div className="mt-3">
+                    <Button
+                        type="link"
+                        size="small"
+                        icon={<LinkOutlined />}
+                        onClick={() => setAttaching(true)}
+                    >
+                        Attach Offer
+                    </Button>
+                </div>
+            )}
         </Card>
     );
 };

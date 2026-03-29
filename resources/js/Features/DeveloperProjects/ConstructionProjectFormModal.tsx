@@ -393,6 +393,7 @@ const ConstructionProjectFormModal: React.FC<
                             <ConstructionProjectLocationSection
                                 form={form}
                                 enumValues={enumValues}
+                                project={project}
                             />
                         </FormSection>
 

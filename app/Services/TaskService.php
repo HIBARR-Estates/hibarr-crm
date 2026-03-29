@@ -12,6 +12,7 @@ use App\Models\TaskFile;
 use App\Models\TaskHistory;
 use App\Models\User;
 use App\Traits\ProjectProgress;
+use App\Traits\RecordsCrmEvents;
 use App\Services\DealNotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,7 @@ use Illuminate\Support\Str;
 class TaskService
 {
     use ProjectProgress;
+    use RecordsCrmEvents;
 
     /**
      * Create a new task.
@@ -342,9 +344,31 @@ class TaskService
             }
             
             if ($modelClass) {
-                $entity = $modelClass::find($id);
+                $entity = $modelClass::withoutGlobalScopes()->find($id);
                 if ($entity) {
                     $entity->tasks()->syncWithoutDetaching([$task->id]);
+
+                    // Record CRM event for task linked to deal/lead
+                    if ($isNewTask && strtolower($type) === 'deal') {
+                        $this->recordCrmEvent('deal_updated', $entity, [
+                            'metadata' => [
+                                'action' => 'task_added',
+                                'task_id' => $task->id,
+                                'task_heading' => $task->heading,
+                                'task_priority' => $task->priority,
+                                'comment' => 'Task added: ' . $task->heading,
+                            ],
+                        ]);
+                    } elseif ($isNewTask && strtolower($type) === 'lead') {
+                        $this->recordCrmEvent('lead_updated', $entity, [
+                            'metadata' => [
+                                'action' => 'task_added',
+                                'task_id' => $task->id,
+                                'task_heading' => $task->heading,
+                                'comment' => 'Task added: ' . $task->heading,
+                            ],
+                        ]);
+                    }
 
                     // Auto-assign deal agent if applicable
                     if (strtolower($type) === 'deal' && $entity->agent_id) {

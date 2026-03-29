@@ -594,6 +594,11 @@ export default function PropertyCategoryForm({
                                         <ConstructionProjectLocationSection
                                             form={form}
                                             enumValues={enumValues}
+                                            project={
+                                                isConstructionProject
+                                                    ? (data as any)
+                                                    : null
+                                            }
                                         />
                                     </FormSection>
 

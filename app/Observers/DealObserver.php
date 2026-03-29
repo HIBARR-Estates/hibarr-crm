@@ -169,6 +169,7 @@ class DealObserver
 
             if ($deal->isDirty('agent_id')) {
                 event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
+                $this->addParentAgentAsWatcher($deal);
             }
 
             if ($deal->isDirty('pipeline_stage_id') || $deal->isDirty('lead_pipeline_id')) {
@@ -293,6 +294,11 @@ class DealObserver
             }
 
             $this->createClient($deal);
+
+            // Add parent agent as watcher when deal is created with an agent
+            if ($deal->agent_id) {
+                $this->addParentAgentAsWatcher($deal);
+            }
 
             // Meta Conversions API trigger for new deals
             if ($deal->pipeline_stage_id) {
@@ -434,6 +440,32 @@ class DealObserver
         } catch (\Exception $e) {
             \Log::error('Failed to fire DealWonEvent', [
                 'deal_id' => $deal->id,
+                'exception' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Add the assigned agent's parent agent as a watcher on the deal.
+     */
+    private function addParentAgentAsWatcher(Deal $deal): void
+    {
+        try {
+            $agent = $deal->leadAgent;
+
+            if (!$agent) {
+                return;
+            }
+
+            $parentAgent = $agent->parentAgent;
+
+            if ($parentAgent && $parentAgent->user_id) {
+                $deal->dealWatchers()->syncWithoutDetaching([$parentAgent->user_id]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to add parent agent as deal watcher', [
+                'deal_id' => $deal->id,
+                'agent_id' => $deal->agent_id,
                 'exception' => $e->getMessage(),
             ]);
         }

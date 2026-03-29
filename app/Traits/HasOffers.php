@@ -9,27 +9,34 @@ trait HasOffers
 {
     public function offers(): MorphToMany
     {
-        return $this->morphToMany(Offer::class, 'offerable');
+        return $this->morphToMany(Offer::class, 'offerable')
+            ->withPivot('is_active', 'disabled_at', 'disabled_by')
+            ->withTimestamps();
     }
 
+    /**
+     * Get offers that are both globally active and enabled on this pivot.
+     */
     public function activeOffers(): MorphToMany
     {
-        return $this->offers()->active();
+        return $this->offers()
+            ->active()
+            ->wherePivot('is_active', true);
     }
 
     /**
-     * Get the single active offer for this model (only one allowed).
+     * Get offers enabled on this pivot (regardless of global active status).
      */
-    public function activeOffer(): ?Offer
+    public function enabledOffers(): MorphToMany
     {
-        return $this->activeOffers()->first();
+        return $this->offers()->wherePivot('is_active', true);
     }
 
     /**
-     * Check if this model already has an active offer attached.
+     * Get offers disabled on this pivot.
      */
-    public function hasActiveOffer(): bool
+    public function disabledOffers(): MorphToMany
     {
-        return $this->activeOffers()->exists();
+        return $this->offers()->wherePivot('is_active', false);
     }
 }

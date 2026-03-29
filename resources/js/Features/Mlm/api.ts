@@ -20,6 +20,10 @@ import type {
     ActiveCycleSummary,
     AgentCycleEnrollment,
     MyEnrollmentData,
+    DownlineDealContribution,
+    AgentInvite,
+    SendInvitePayload,
+    DownlineListItem,
 } from "./types";
 import { ApiResponse } from "@/lib/api/types";
 
@@ -394,4 +398,47 @@ export const useMyDealContributions = (
 export const useMyEnrollment = () =>
     useApiQuery<{ data: MyEnrollmentData }>({
         path: `${AGENT_API}/my-enrollment`,
+    });
+
+/** Deals for a specific downline agent */
+export const useDownlineDeals = (
+    downlineId: number,
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<DownlineDealContribution>>({
+        path: `${AGENT_API}/downline/${downlineId}/deals`,
+        params,
+        options: { enabled: downlineId > 0 },
+    });
+
+/** Send an agent invitation */
+export const useSendInvite = (onSuccess?: (res?: any) => void) =>
+    useApiMutate<SendInvitePayload, AgentInvite, ApiResponse<AgentInvite>>(
+        `${AGENT_API}/invites`,
+        "POST",
+        onSuccess,
+    );
+
+/** List sent invitations */
+export const useMyInvites = (
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<AgentInvite>>({
+        path: `${AGENT_API}/invites`,
+        params,
+    });
+
+/** Agent's own deals (or a downline's deals when filtered) */
+export const useAgentDeals = (
+    params: Record<string, string | number | boolean> = {},
+) =>
+    useApiQuery<PaginatedResponse<any>>({
+        path: `${AGENT_API}/deals`,
+        params,
+    });
+
+/** Flat list of all downline agents (for dropdown selector) */
+export const useDownlineList = () =>
+    useApiQuery<{ data: DownlineListItem[] }>({
+        path: `${AGENT_API}/downlines`,
     });
