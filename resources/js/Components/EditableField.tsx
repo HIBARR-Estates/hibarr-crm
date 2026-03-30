@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useContext } from "react";
 import {
     Input,
     Typography,
@@ -26,6 +26,7 @@ import { FormDataType } from "@/Hooks/useFormData";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "./CurrencyInput";
 import { parsePropertyPrice, formatCurrencyWithSymbol, formatCountryForDisplay, formatMobileForDisplay } from "@/lib/utils";
+import { DetailFieldEditContext } from "./DetailSection";
 
 const { Text } = Typography;
 
@@ -262,6 +263,24 @@ export default function EditableField({
             setInputValue(normalizedValue ?? "");
         }
     };
+
+    // Keep a stable ref to startEditing so the context registration never goes stale
+    const startEditingRef = useRef(startEditing);
+    startEditingRef.current = startEditing;
+
+    // Register/unregister with the nearest parent DetailField via context
+    const detailFieldCtx = useContext(DetailFieldEditContext);
+    useEffect(() => {
+        if (!detailFieldCtx) return;
+        if (canStartEditing && !editing) {
+            detailFieldCtx.setEditHandler(() => startEditingRef.current());
+        } else {
+            detailFieldCtx.setEditHandler(null);
+        }
+        return () => {
+            detailFieldCtx.setEditHandler(null);
+        };
+    }, [detailFieldCtx, canStartEditing, editing]);
 
     const handleSave = async () => {
         // Clear any pending blur timeout to prevent double save
@@ -841,23 +860,12 @@ export default function EditableField({
     return (
         <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
             <div
-                className={`group flex items-center justify-between gap-2 px-2 py-1 rounded transition-colors ${
-                    canStartEditing ? "hover:bg-gray-50 cursor-pointer" : ""
-                } ${
+                className={`w-full px-2 py-1 ${
                     isLocked ? "cursor-not-allowed opacity-50" : ""
                 } ${className}`}
                 onDoubleClick={canStartEditing ? startEditing : undefined}
             >
-                <Text className="flex-1 break-words">{displayText}</Text>
-                {canStartEditing && (
-                    <EditOutlined
-                        className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            startEditing();
-                        }}
-                    />
-                )}
+                <span className="break-words whitespace-normal">{displayText}</span>
             </div>
         </Skeleton>
     );
