@@ -1,9 +1,10 @@
 import React from "react";
 import { Deal, HibarrDealFields } from "@/Types/api/deals";
-import { Descriptions, Tag } from "antd";
+import { Tag } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import EditableField from "@/Components/EditableField";
+import { DetailSection, DetailField } from "@/Components/DetailSection";
 
 interface Props {
     deal: Deal;
@@ -55,13 +56,9 @@ const DealDetailsTab: React.FC<Props> = ({
     };
 
     return (
-        <div className="p-6">
-            <Descriptions
-                column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
-                bordered
-                size="middle"
-            >
-                <Descriptions.Item label="Interested In">
+        <div className="p-4 space-y-4">
+            <DetailSection title="Interest & Budget">
+                <DetailField label="Interested In">
                     <EditableField
                         value={fields.interested_in}
                         fieldName="interested_in"
@@ -72,22 +69,9 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("interested_in")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
+                </DetailField>
 
-                <Descriptions.Item label="Budget Range">
-                    <EditableField
-                        value={fields.budget_range}
-                        fieldName="budget_range"
-                        fieldType="text"
-                        onSave={(value) => handleSave("budget_range", value)}
-                        alwaysEditing={editable}
-                        onChange={onChange}
-                        loading={isFieldLoading("budget_range")}
-                        disabled={disabled}
-                    />
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Purchase Timeline">
+                <DetailField label="Purchase Timeline">
                     <EditableField
                         value={fields.purchase_timeline}
                         fieldName="purchase_timeline"
@@ -100,9 +84,9 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("purchase_timeline")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
+                </DetailField>
 
-                <Descriptions.Item label="Motivation">
+                <DetailField label="Motivation" span={2}>
                     <EditableField
                         value={fields.motivation}
                         fieldName="motivation"
@@ -113,9 +97,11 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("motivation")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
+                </DetailField>
+            </DetailSection>
 
-                <Descriptions.Item label="Strategy Meeting Booked">
+            <DetailSection title="Progress">
+                <DetailField label="Strategy Meeting Booked">
                     <EditableField
                         value={fields.strategy_meeting_booked ? 1 : 0}
                         fieldName="strategy_meeting_booked"
@@ -131,9 +117,9 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("strategy_meeting_booked")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
+                </DetailField>
 
-                <Descriptions.Item label="Downpayment Paid">
+                <DetailField label="Downpayment Paid">
                     <EditableField
                         value={fields.downpayment_paid ? 1 : 0}
                         fieldName="downpayment_paid"
@@ -147,9 +133,9 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("downpayment_paid")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
+                </DetailField>
 
-                <Descriptions.Item label="Inspection Trip Date">
+                <DetailField label="Inspection Trip Date">
                     <EditableField
                         value={fields.inspection_trip_date}
                         fieldName="inspection_trip_date"
@@ -165,9 +151,9 @@ const DealDetailsTab: React.FC<Props> = ({
                             val ? dayjs(val).format("MMM DD, YYYY") : "--"
                         }
                     />
-                </Descriptions.Item>
+                </DetailField>
 
-                <Descriptions.Item label="Deposit Confirmation">
+                <DetailField label="Deposit Confirmation">
                     <EditableField
                         value={fields.deposit_confirmation}
                         fieldName="deposit_confirmation"
@@ -180,9 +166,11 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("deposit_confirmation")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
+                </DetailField>
+            </DetailSection>
 
-                <Descriptions.Item label="Reservation Agreement">
+            <DetailSection title="Documentation">
+                <DetailField label="Reservation Agreement">
                     <EditableField
                         value={fields.reservation_agreement}
                         fieldName="reservation_agreement"
@@ -195,9 +183,9 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("reservation_agreement")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
+                </DetailField>
 
-                <Descriptions.Item label="Sales Contract">
+                <DetailField label="Sales Contract">
                     <EditableField
                         value={fields.sales_contract}
                         fieldName="sales_contract"
@@ -208,8 +196,11 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("sales_contract")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
-                <Descriptions.Item label="Message">
+                </DetailField>
+            </DetailSection>
+
+            <DetailSection title="Notes" gridClassName="grid grid-cols-1">
+                <DetailField label="Message" span={2}>
                     <EditableField
                         value={fields.message}
                         fieldName="message"
@@ -220,8 +211,8 @@ const DealDetailsTab: React.FC<Props> = ({
                         loading={isFieldLoading("message")}
                         disabled={disabled}
                     />
-                </Descriptions.Item>
-            </Descriptions>
+                </DetailField>
+            </DetailSection>
         </div>
     );
 };

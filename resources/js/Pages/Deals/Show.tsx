@@ -1,4 +1,5 @@
 import { Deal } from "@/Types/api/deals";
+import { useState } from "react";
 
 import { Card, Row, Col, Divider, Typography, Alert } from "antd";
 import { RightOutlined, LockOutlined } from "@ant-design/icons";
@@ -68,6 +69,8 @@ export const Show = ({
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
+
+    const [isDealEditMode, setIsDealEditMode] = useState(false);
 
     return (
         <>
@@ -221,6 +224,8 @@ export const Show = ({
                                             taskBoardColumns={taskBoardColumns}
                                             employees={employees}
                                             projects={projects}
+                                            isEditMode={isDealEditMode}
+                                            onEditModeChange={setIsDealEditMode}
                                         />
                                     </Card>
 
