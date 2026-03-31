@@ -131,7 +131,7 @@ return [
             'category' => 'deal',
             'model_type' => 'App\\Models\\Deal',
             'description' => 'A note was added to a deal.',
-            'sync_processing' => true,
+            'sync_processing' => false,
         ],
         [
             'slug' => 'deal_file_uploaded',
@@ -147,7 +147,23 @@ return [
             'category' => 'deal',
             'model_type' => 'App\\Models\\Deal',
             'description' => 'A property was linked to a deal.',
-            'sync_processing' => true,
+            'sync_processing' => false,
+        ],
+        [
+            'slug' => 'deal_followup_created',
+            'name' => 'Deal Follow-Up Created',
+            'category' => 'deal',
+            'model_type' => 'App\\Models\\Deal',
+            'description' => 'A follow-up or meeting was scheduled for a deal.',
+            'sync_processing' => false,
+        ],
+        [
+            'slug' => 'deal_task_created',
+            'name' => 'Deal Task Created',
+            'category' => 'deal',
+            'model_type' => 'App\\Models\\Deal',
+            'description' => 'A task was created and linked to a deal.',
+            'sync_processing' => false,
         ],
         [
             'slug' => 'deal_closed_won',
