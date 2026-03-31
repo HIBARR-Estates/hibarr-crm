@@ -1,12 +1,33 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import Tree from "react-d3-tree";
 import { Avatar, Typography, Spin, Empty } from "antd";
-import { UserOutlined } from "@ant-design/icons";
+import {
+    UserOutlined,
+    TeamOutlined,
+    MinusCircleOutlined,
+} from "@ant-design/icons";
 import type { AgentHierarchyNode } from "../types";
 import LevelBadge from "./LevelBadge";
 import type { MlmLevel } from "../types";
 
 const { Text } = Typography;
+
+const MAX_VISIBLE_CHILDREN = 4;
+
+interface ShowMoreRaw {
+    id: number;
+    name: string;
+    _isShowMore: true;
+    _parentId: number;
+    _hiddenCount: number;
+}
+
+interface CollapseRaw {
+    id: number;
+    name: string;
+    _isCollapse: true;
+    _parentId: number;
+}
 
 interface AgentTreeViewProps {
     data: AgentHierarchyNode | AgentHierarchyNode[];
@@ -17,7 +38,48 @@ interface AgentTreeViewProps {
 }
 
 /** Convert our data shape to react-d3-tree's expected format */
-function toTreeData(node: AgentHierarchyNode): any {
+function toTreeData(node: AgentHierarchyNode, expandedNodes: Set<number>): any {
+    const children = node.children ?? [];
+    const isExpanded = expandedNodes.has(node.id);
+
+    let mappedChildren: any[];
+
+    if (children.length > MAX_VISIBLE_CHILDREN && !isExpanded) {
+        const visible = children
+            .slice(0, MAX_VISIBLE_CHILDREN)
+            .map((c) => toTreeData(c, expandedNodes));
+        const hiddenCount = children.length - MAX_VISIBLE_CHILDREN;
+        visible.push({
+            name: `+${hiddenCount} more`,
+            attributes: {},
+            __raw: {
+                id: -(node.id * 1000 + 1),
+                name: `+${hiddenCount} more`,
+                _isShowMore: true,
+                _parentId: node.id,
+                _hiddenCount: hiddenCount,
+            } as ShowMoreRaw,
+            children: [],
+        });
+        mappedChildren = visible;
+    } else if (children.length > MAX_VISIBLE_CHILDREN && isExpanded) {
+        mappedChildren = children.map((c) => toTreeData(c, expandedNodes));
+        // Add a "collapse" node so users can fold back
+        mappedChildren.push({
+            name: "Show less",
+            attributes: {},
+            __raw: {
+                id: -(node.id * 1000 + 2),
+                name: "Show less",
+                _isCollapse: true,
+                _parentId: node.id,
+            } as CollapseRaw,
+            children: [],
+        });
+    } else {
+        mappedChildren = children.map((c) => toTreeData(c, expandedNodes));
+    }
+
     return {
         name: node.name,
         attributes: {
@@ -25,7 +87,7 @@ function toTreeData(node: AgentHierarchyNode): any {
             sales: node.total_sales ?? 0,
         },
         __raw: node,
-        children: node.children?.map(toTreeData) ?? [],
+        children: mappedChildren,
     };
 }
 
@@ -33,11 +95,60 @@ function toTreeData(node: AgentHierarchyNode): any {
 const renderCustomNode = ({
     nodeDatum,
     onNodeClick,
+    onToggleExpand,
 }: {
     nodeDatum: any;
     onNodeClick?: (node: AgentHierarchyNode) => void;
+    onToggleExpand?: (parentId: number, expand: boolean) => void;
 }) => {
-    const raw: AgentHierarchyNode = nodeDatum.__raw;
+    const raw: any = nodeDatum.__raw;
+
+    // Render "+N more" pill
+    if (raw._isShowMore) {
+        return (
+            <g>
+                <foreignObject
+                    width={160}
+                    height={56}
+                    x={-80}
+                    y={-28}
+                    style={{ overflow: "visible" }}
+                >
+                    <div
+                        className="rounded-full bg-indigo-50 border-2 border-dashed border-indigo-300 text-indigo-700 text-sm font-medium px-4 py-2.5 cursor-pointer hover:bg-indigo-100 hover:border-indigo-400 transition-all duration-200 text-center flex items-center justify-center gap-1.5"
+                        onClick={() => onToggleExpand?.(raw._parentId, true)}
+                    >
+                        <TeamOutlined />
+                        {raw.name}
+                    </div>
+                </foreignObject>
+            </g>
+        );
+    }
+
+    // Render "Show less" pill
+    if (raw._isCollapse) {
+        return (
+            <g>
+                <foreignObject
+                    width={140}
+                    height={48}
+                    x={-70}
+                    y={-24}
+                    style={{ overflow: "visible" }}
+                >
+                    <div
+                        className="rounded-full bg-gray-50 border border-gray-300 text-gray-500 text-xs font-medium px-3 py-2 cursor-pointer hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 text-center flex items-center justify-center gap-1"
+                        onClick={() => onToggleExpand?.(raw._parentId, false)}
+                    >
+                        <MinusCircleOutlined />
+                        Show less
+                    </div>
+                </foreignObject>
+            </g>
+        );
+    }
+
     const levelObj: MlmLevel | null = raw.level_rank
         ? ({
               id: 0,
@@ -116,10 +227,27 @@ export default function AgentTreeView({
     orientation = "vertical",
     height = 600,
 }: AgentTreeViewProps) {
+    const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+
+    const handleToggleExpand = useCallback(
+        (parentId: number, expand: boolean) => {
+            setExpandedNodes((prev) => {
+                const next = new Set(prev);
+                if (expand) {
+                    next.add(parentId);
+                } else {
+                    next.delete(parentId);
+                }
+                return next;
+            });
+        },
+        [],
+    );
+
     const treeData = useMemo(() => {
         if (Array.isArray(data)) {
             if (data.length === 0) return null;
-            if (data.length === 1) return toTreeData(data[0]);
+            if (data.length === 1) return toTreeData(data[0], expandedNodes);
             // Wrap multiple roots in a virtual root
             return {
                 name: "Organization",
@@ -129,15 +257,20 @@ export default function AgentTreeView({
                     name: "Organization",
                     children: data,
                 } as AgentHierarchyNode,
-                children: data.map(toTreeData),
+                children: data.map((d) => toTreeData(d, expandedNodes)),
             };
         }
-        return toTreeData(data);
-    }, [data]);
+        return toTreeData(data, expandedNodes);
+    }, [data, expandedNodes]);
 
     const renderNode = useCallback(
-        (rd3tProps: any) => renderCustomNode({ ...rd3tProps, onNodeClick }),
-        [onNodeClick],
+        (rd3tProps: any) =>
+            renderCustomNode({
+                ...rd3tProps,
+                onNodeClick,
+                onToggleExpand: handleToggleExpand,
+            }),
+        [onNodeClick, handleToggleExpand],
     );
 
     if (loading) {
