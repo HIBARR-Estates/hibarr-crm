@@ -16,6 +16,7 @@ import {
     DeleteOutlined,
     ImportOutlined,
     FilterOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import { Button, MenuProps, Table, Select } from "antd";
@@ -23,7 +24,14 @@ import { useState } from "react";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 
-const Index = ({ pageTitle, agents, categories, filters, permissions, roles }: AgentIndexProps) => {
+const Index = ({
+    pageTitle,
+    agents,
+    categories,
+    filters,
+    permissions,
+    roles,
+}: AgentIndexProps) => {
     const {
         handleAction,
         handleClose,
@@ -132,8 +140,6 @@ const Index = ({ pageTitle, agents, categories, filters, permissions, roles }: A
                         className="w-full"
                     />
                 }
-                onRefresh={refresh}
-                isRefreshing={isRefreshing}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -159,6 +165,14 @@ const Index = ({ pageTitle, agents, categories, filters, permissions, roles }: A
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <Button
+                                icon={<ReloadOutlined spin={isRefreshing} />}
+                                onClick={refresh}
+                                disabled={isRefreshing}
+                                type="text"
+                            >
+                                Refresh
+                            </Button>
                             <Select
                                 placeholder="Status"
                                 value={statusFilter}

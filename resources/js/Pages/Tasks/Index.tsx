@@ -28,6 +28,7 @@ import createTaskFilterConfig from "@/configs/taskFilterConfig";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import TaskListView from "@/Features/Tasks/Components/TaskListView";
 import { taskApi } from "@/lib/api/tasks";
@@ -310,6 +311,9 @@ const TasksIndex = ({
 
     console.log(tableTasks, "TABLE COTNET");
 
+    // ── Page-level refresh ──────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh();
+
     return (
         <>
             <PageLayout
@@ -380,8 +384,11 @@ const TasksIndex = ({
                                     </Button>
                                 </div>
                                 <Button
-                                    icon={<ReloadOutlined />}
-                                    onClick={() => router.reload()}
+                                    icon={
+                                        <ReloadOutlined spin={isRefreshing} />
+                                    }
+                                    onClick={refresh}
+                                    disabled={isRefreshing}
                                     type="text"
                                 >
                                     Refresh
