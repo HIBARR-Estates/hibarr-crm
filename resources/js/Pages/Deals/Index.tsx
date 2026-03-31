@@ -353,6 +353,7 @@ const Index = ({
             // For Kanban view, also bust the React Query cache that each
             // KanbanColumn uses via useApiInfiniteQuery.
             if (isKanbanView) {
+                window.location.reload(); // Full reload to ensure all Kanban data is fresh and in sync
                 await queryClient.invalidateQueries({
                     queryKey: [route("deals.kanban_deals")],
                 });
