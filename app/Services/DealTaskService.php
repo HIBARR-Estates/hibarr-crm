@@ -117,15 +117,7 @@ class DealTaskService
         $deal->tasks()->attach($task->id);
 
         // Record CRM event for deal task creation
-        $this->recordCrmEvent('deal_updated', $deal, [
-            'metadata' => [
-                'action' => 'task_added',
-                'task_id' => $task->id,
-                'task_heading' => $task->heading,
-                'task_priority' => $task->priority,
-                'comment' => 'Task added: ' . $task->heading,
-            ],
-        ]);
+        app(DealActivityEventService::class)->recordTaskCreated($deal, $task);
 
         // If deal has an agent (LeadAgent), we might want to assign the task to the corresponding User.
         // LeadAgent model usually links to a User.

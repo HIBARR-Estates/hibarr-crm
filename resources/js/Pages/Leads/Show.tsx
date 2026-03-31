@@ -5,7 +5,8 @@ import { LeadNote } from "@/Types/api/lead-note";
 import DashboardLayout from "@/Components/DashboardLayout";
 import type { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { Card, Tabs, message } from "antd";
+import { Card, Tabs, Button, Tooltip, message } from "antd";
+import { ReloadOutlined } from "@ant-design/icons";
 import { User } from "@/Types";
 import LeadInfoSection from "./Components/LeadInfoSection";
 import LeadNotesTab from "./Components/LeadNotesTab";
@@ -15,6 +16,7 @@ import { Task } from "@/Types/api/tasks";
 import TasksTab from "@/Components/TasksTab";
 import { CrmEventTimeline } from "@/Components/CrmEvents";
 import { usePage } from "@inertiajs/react";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 
 export interface LeadShowProps {
     lead: Lead;
@@ -61,6 +63,11 @@ const Show = ({
 
     const [activeTab, setActiveTab] = useState("profile");
     const [isEditMode, setIsEditMode] = useState(false);
+
+    // ── Page-level refresh ──────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh({
+        canRefresh: () => !isEditMode,
+    });
 
     const handleTabChange = (key: string) => {
         if (isEditMode) {
@@ -174,9 +181,29 @@ const Show = ({
             mainContentClassName=""
         >
             <div>
+                <div className="flex items-center justify-end px-6 py-3 bg-gray-50 border-b border-gray-200">
+                    <Tooltip
+                        title={
+                            isEditMode
+                                ? "Save or cancel changes before refreshing"
+                                : "Refresh"
+                        }
+                    >
+                        <Button
+                            icon={<ReloadOutlined spin={isRefreshing} />}
+                            onClick={refresh}
+                            disabled={isRefreshing || isEditMode}
+                            type="text"
+                        >
+                            Refresh
+                        </Button>
+                    </Tooltip>
+                </div>
                 <Tabs
-                    items={tabItems}                    activeKey={activeTab}
-                    onChange={handleTabChange}                    className="lead-tabs"
+                    items={tabItems}
+                    activeKey={activeTab}
+                    onChange={handleTabChange}
+                    className="lead-tabs"
                     tabBarStyle={{
                         paddingLeft: 24,
                         paddingRight: 24,

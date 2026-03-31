@@ -30,7 +30,6 @@ import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import UserIndicator from "@/Components/UserIndicator";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import DealDetailsTab from "./DealDetailsTab";
-import DealOffersTab from "@/Features/Deals/DealOffersTab";
 import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import { Task } from "@/Types/api/tasks";
 import EditableField from "@/Components/EditableField";
@@ -1017,16 +1016,6 @@ export default function DealInfoSection({
                 </div>
             ),
         })),
-        {
-            key: "offers",
-            label: (
-                <span>
-                    <GiftOutlined className="mr-1" />
-                    Offers
-                </span>
-            ),
-            children: <DealOffersTab deal={currentDeal} />,
-        },
     ];
 
     return (
@@ -1117,6 +1106,9 @@ export default function DealInfoSection({
                         marginBottom: 0,
                         backgroundColor: "#fafafa",
                         borderBottom: "1px solid #f0f0f0",
+                    }}
+                    tabBarExtraContent={{
+                        right: <div style={{ width: 48 }} />,
                     }}
                 />
             </div>
