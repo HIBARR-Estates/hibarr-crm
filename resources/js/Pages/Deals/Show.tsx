@@ -88,14 +88,15 @@ export const Show = ({
                     <div className="max-w-10xl mx-auto">
                         {/* Locked Deal Banner */}
                         {deal.is_locked && (
-                            <Alert
-                                message="This deal is locked and cannot be modified."
-                                type="warning"
-                                showIcon
-                                icon={<LockOutlined />}
-                                className="mb-4"
-                                banner
-                            />
+                            <div className="mb-4">
+                                <Alert
+                                    message="This deal is locked and cannot be modified."
+                                    type="warning"
+                                    showIcon
+                                    icon={<LockOutlined />}
+                                    banner
+                                />
+                            </div>
                         )}
 
                         {/* Page Header */}
