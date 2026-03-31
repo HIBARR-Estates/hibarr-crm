@@ -1115,6 +1115,9 @@ export default function DealInfoSection({
                         backgroundColor: "#fafafa",
                         borderBottom: "1px solid #f0f0f0",
                     }}
+                    tabBarExtraContent={{
+                        right: <div style={{ width: 48 }} />,
+                    }}
                 />
             </div>
         </>
