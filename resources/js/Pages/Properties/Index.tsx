@@ -19,6 +19,7 @@ import {
     SettingOutlined,
     BuildOutlined,
     HomeOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
@@ -392,8 +393,6 @@ const Index = ({
                         <ContextualActiveFilters />
                     ) : undefined
                 }
-                onRefresh={refresh}
-                isRefreshing={isRefreshing}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     {/* Unified Tab Navigation */}
@@ -461,6 +460,18 @@ const Index = ({
                                 </div>
 
                                 <div className="flex items-center gap-3">
+                                    <Button
+                                        icon={
+                                            <ReloadOutlined
+                                                spin={isRefreshing}
+                                            />
+                                        }
+                                        onClick={refresh}
+                                        disabled={isRefreshing}
+                                        type="text"
+                                    >
+                                        Refresh
+                                    </Button>
                                     {/* Advanced Filters Button */}
                                     <Button
                                         icon={<FilterOutlined />}

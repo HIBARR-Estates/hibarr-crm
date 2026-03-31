@@ -56,7 +56,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
     // Fetch all projects for cascading dropdown
     const { data: projectsData } = useApiQuery<{
         status: string;
-        data: { projects: DeveloperProject[] };
+        projects: DeveloperProject[];
     }>({
         path: route("developer-projects.all"),
         options: { enabled: open && !!selectedDeveloperId },
@@ -64,8 +64,8 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
 
     // Filter projects to selected developer
     const developerProjects = useMemo(() => {
-        if (!selectedDeveloperId || !projectsData?.data?.projects) return [];
-        return projectsData.data.projects.filter(
+        if (!selectedDeveloperId || !projectsData?.projects) return [];
+        return projectsData.projects.filter(
             (p) => p.developer_id === selectedDeveloperId,
         );
     }, [selectedDeveloperId, projectsData]);

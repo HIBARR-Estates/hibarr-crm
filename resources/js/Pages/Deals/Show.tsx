@@ -1,8 +1,17 @@
 import { Deal } from "@/Types/api/deals";
 import { useState } from "react";
 
-import { Card, Row, Col, Divider, Typography, Alert } from "antd";
-import { RightOutlined, LockOutlined } from "@ant-design/icons";
+import {
+    Card,
+    Row,
+    Col,
+    Divider,
+    Typography,
+    Alert,
+    Button,
+    Tooltip,
+} from "antd";
+import { RightOutlined, LockOutlined, ReloadOutlined } from "@ant-design/icons";
 import DealInfoSection from "./Components/DealInfoSection";
 import DealTabs from "./Components/DealTabs";
 import ActivitySidebar from "./Components/ActivitySidebar";
@@ -68,7 +77,9 @@ export const Show = ({
     const { props } = usePage<PageProps>();
 
     // ── Page-level refresh ──────────────────────────────────────────
-    const { refresh, isRefreshing } = usePageRefresh();
+    const { refresh, isRefreshing } = usePageRefresh({
+        canRefresh: () => !isDealEditMode,
+    });
 
     const [isDealEditMode, setIsDealEditMode] = useState(false);
 
@@ -81,8 +92,6 @@ export const Show = ({
                     { name: "Deals", url: route("deals.index") },
                     { name: pageTitle },
                 ]}
-                onRefresh={refresh}
-                isRefreshing={isRefreshing}
             >
                 <div className="min-h-screen mx-12">
                     <div className="max-w-10xl mx-auto">
@@ -197,6 +206,28 @@ export const Show = ({
                                     deal={deal}
                                     permissions={permissions}
                                 />
+                                <Tooltip
+                                    title={
+                                        isDealEditMode
+                                            ? "Save or cancel changes before refreshing"
+                                            : "Refresh"
+                                    }
+                                >
+                                    <Button
+                                        icon={
+                                            <ReloadOutlined
+                                                spin={isRefreshing}
+                                            />
+                                        }
+                                        onClick={refresh}
+                                        disabled={
+                                            isRefreshing || isDealEditMode
+                                        }
+                                        type="text"
+                                    >
+                                        Refresh
+                                    </Button>
+                                </Tooltip>
                             </div>
                         </div>
 

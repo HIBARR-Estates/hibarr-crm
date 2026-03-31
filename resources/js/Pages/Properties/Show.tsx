@@ -5,12 +5,14 @@ import { Property } from "@/Types";
 // Import components
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
-import { message } from "antd";
+import { Button, Tooltip, message } from "antd";
+import { ReloadOutlined } from "@ant-design/icons";
 import PropertyView from "@/Features/Properties/PropertyView/PropertyView";
 import { Task } from "@/Types/api/tasks";
 import GenerateExposeModal from "@/Features/Properties/GenerateExposeModal";
 import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyModal";
 import { generatePropertySubtitle } from "@/lib/utils";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 
 interface ShowProps {
     pageTitle: string;
@@ -54,6 +56,9 @@ const Show = ({
     const [showEditModal, setShowEditModal] = useState(false);
     const [currentProperty, setCurrentProperty] = useState<Property>(property);
 
+    // ── Page-level refresh ──────────────────────────────────────────
+    const { refresh, isRefreshing } = usePageRefresh();
+
     const handleEdit = () => {
         setShowEditModal(true);
     };
@@ -94,6 +99,16 @@ const Show = ({
         <>
             <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
                 <div className="max-w-7xl mx-auto">
+                    <div className="flex items-center justify-end mb-4">
+                        <Button
+                            icon={<ReloadOutlined spin={isRefreshing} />}
+                            onClick={refresh}
+                            disabled={isRefreshing}
+                            type="text"
+                        >
+                            Refresh
+                        </Button>
+                    </div>
                     <PropertyView
                         property={currentProperty}
                         hasPendingPublishRequest={hasPendingPublishRequest}

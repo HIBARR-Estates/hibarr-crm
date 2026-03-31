@@ -26,6 +26,7 @@ import {
     DeleteOutlined,
     ImportOutlined,
     FilterOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
 import { Button, MenuProps, Select, Table } from "antd";
@@ -371,8 +372,6 @@ const Index = ({
                     />
                 }
                 filterSection={<ContextualActiveFilters />}
-                onRefresh={refresh}
-                isRefreshing={isRefreshing}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -399,6 +398,14 @@ const Index = ({
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <Button
+                                icon={<ReloadOutlined spin={isRefreshing} />}
+                                onClick={refresh}
+                                disabled={isRefreshing}
+                                type="text"
+                            >
+                                Refresh
+                            </Button>
                             {/* Advanced Filters Button */}
                             <div className="flex items-center gap-x-2">
                                 <Button

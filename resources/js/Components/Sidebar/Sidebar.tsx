@@ -192,12 +192,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                           },
                       ],
         },
-        // {
-        //     key: "offers",
-        //     label: "Offers",
-        //     icon: <GiftOutlined />,
-        //     href: "/account/offers",
-        // },
+        {
+            key: "offers",
+            label: "Offers",
+            icon: <GiftOutlined />,
+            href: "/account/offers",
+        },
         {
             key: "meetings",
             label: t("app.menu.meetings"),
