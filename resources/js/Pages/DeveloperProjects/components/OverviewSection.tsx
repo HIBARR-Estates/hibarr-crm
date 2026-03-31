@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { Link } from "@inertiajs/react";
 import { Card, Table, Tag, Empty } from "antd";
 // Tag kept for property-type table column render
 import type { TableColumnsType } from "antd";
-import { Building2, CheckCircle2, Clock, TrendingDown, MapPin, Landmark } from "lucide-react";
+import { Building2, CheckCircle2, Clock, TrendingDown, MapPin } from "lucide-react";
 import type { ShowProps, PropertyTypeSummary, Statistics, ImageItem } from "../Show";
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
@@ -123,19 +122,6 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                             <MapPin size={14} className="text-gray-400" />
                             {project.location.name}
                         </p>
-                    )}
-
-                    {project.developer && (
-                        <div className="flex items-center gap-2 text-sm">
-                            <Landmark size={14} className="text-[#1a2a6c]" />
-                            <span className="text-gray-500">Developer:</span>
-                            <Link
-                                href={route("developers.show", project.developer.id)}
-                                className="text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                                {project.developer.name}
-                            </Link>
-                        </div>
                     )}
                 </div>
 

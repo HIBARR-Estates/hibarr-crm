@@ -1129,7 +1129,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 title={pageTitle}
                 breadcrumbs={[
                     {
-                        name: "Construction Projects",
+                        name: "Projects",
                         url: route("developer-projects.index"),
                     },
                     { name: "Locations" },
