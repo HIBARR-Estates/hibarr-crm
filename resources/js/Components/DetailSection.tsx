@@ -1,5 +1,6 @@
 import React, { createContext, useState, useCallback } from "react";
-import { EditOutlined } from "@ant-design/icons";
+import { EditOutlined, CopyOutlined, CheckOutlined } from "@ant-design/icons";
+import { Tooltip } from "antd";
 
 // ─── DetailFieldEditContext ────────────────────────────────────────────────────
 // Lets a child EditableField register its startEditing fn so the parent
@@ -7,6 +8,7 @@ import { EditOutlined } from "@ant-design/icons";
 
 interface DetailFieldEditContextValue {
     setEditHandler: (fn: (() => void) | null) => void;
+    setIsEditing: (editing: boolean) => void;
 }
 
 export const DetailFieldEditContext =
@@ -28,7 +30,7 @@ export function DetailSection({
     title,
     children,
     className = "",
-    gridClassName = "grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5",
+    gridClassName = "grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5",
 }: DetailSectionProps) {
     return (
         <div
@@ -41,7 +43,7 @@ export function DetailSection({
                     </h3>
                 </div>
             )}
-            <div className={`px-5 py-4 ${gridClassName}`}>{children}</div>
+            <div className={`px-4 py-3 ${gridClassName}`}>{children}</div>
         </div>
     );
 }
@@ -55,6 +57,8 @@ interface DetailFieldProps {
     /** When 2, the field spans the full row (both columns) */
     span?: 1 | 2;
     className?: string;
+    /** Plain-text value to copy to clipboard on icon click (e.g. email, phone) */
+    copyValue?: string;
 }
 
 export function DetailField({
@@ -62,17 +66,32 @@ export function DetailField({
     children,
     span = 1,
     className = "",
+    copyValue,
 }: DetailFieldProps) {
     // editHandler is registered by a child EditableField via context
     const [editHandler, setEditHandlerState] = useState<(() => void) | null>(null);
+    const [isFieldEditing, setIsFieldEditing] = useState(false);
+    const [copied, setCopied] = useState(false);
 
-    // Stable setter so the child effect doesn't cause re-render loops
+    // Stable setters so child effects don't cause re-render loops
     const setEditHandler = useCallback((fn: (() => void) | null) => {
         setEditHandlerState(() => fn ?? null);
     }, []);
 
+    const setIsEditing = useCallback((editing: boolean) => {
+        setIsFieldEditing(editing);
+    }, []);
+
+    const handleCopy = useCallback(() => {
+        if (!copyValue) return;
+        navigator.clipboard.writeText(copyValue).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        });
+    }, [copyValue]);
+
     return (
-        <DetailFieldEditContext.Provider value={{ setEditHandler }}>
+        <DetailFieldEditContext.Provider value={{ setEditHandler, setIsEditing }}>
             <div
                 className={`group flex flex-col gap-1 min-w-0 ${
                     span === 2 ? "sm:col-span-2" : ""
@@ -80,7 +99,7 @@ export function DetailField({
             >
                 {/* Label row — edit pencil appears here on group hover */}
                 <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 leading-none">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 leading-none">
                         {label}
                     </span>
                     {editHandler && (
@@ -92,8 +111,22 @@ export function DetailField({
                 </div>
 
                 {/* Value area — full width, no truncation */}
-                <div className="text-sm text-gray-800 min-h-[1.5rem]">
-                    {children}
+                <div className="text-[15px] text-gray-900 min-h-[1.5rem] flex items-start gap-1.5">
+                    <div className="min-w-0 flex items-center gap-1">
+                        {children}
+                        {copyValue && !isFieldEditing && (
+                            <Tooltip title={copied ? "Copied!" : "Copy"}>
+                                {copied ? (
+                                    <CheckOutlined className="text-green-500 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                ) : (
+                                    <CopyOutlined
+                                        className="text-gray-400 hover:text-gray-600 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                                        onClick={handleCopy}
+                                    />
+                                )}
+                            </Tooltip>
+                        )}
+                    </div>
                 </div>
             </div>
         </DetailFieldEditContext.Provider>

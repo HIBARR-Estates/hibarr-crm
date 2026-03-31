@@ -10,12 +10,6 @@ import {
 } from "lucide-react";
 import type { MenuProps } from "antd";
 import type { DeveloperProject } from "@/Types/developerProject";
-import { CARD_GRADIENTS } from "../constants/projects";
-
-function getGradient(name: string): string {
-    const letter = (name || "A")[0].toUpperCase();
-    return CARD_GRADIENTS[letter] ?? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
-}
 
 function formatCompletionDate(dateStr: string | null | undefined): string | null {
     if (!dateStr) return null;
@@ -85,22 +79,22 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
             className="group relative bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
         >
             {/* ── Developer logo strip ── */}
-            <div className="px-3 py-2 flex justify-center items-center h-12 border-b border-gray-100">
+            <div className="p-2 flex justify-center items-center h-10 border-b border-gray-100 bg-white">
                 {project.developer?.logo_url ? (
                     <img
                         src={project.developer.logo_url}
                         alt={project.developer.name}
-                        className="max-h-full object-contain max-w-[90%] w-full"
+                        className="max-h-full w-full object-contain"
                     />
                 ) : (
-                    <span className="text-[11px] font-semibold text-gray-400 truncate">
+                    <span className="text-[11px] font-semibold text-gray-400 truncate px-2">
                         {project.developer?.name ?? ""}
                     </span>
                 )}
             </div>
 
             {/* ── Hero image ── */}
-            <div className="relative h-40 overflow-hidden flex items-center justify-center bg-gray-50">
+            <div className="relative h-48 overflow-hidden flex items-center justify-center bg-gray-50">
                 {/* Context menu — only visible on hover */}
                 <div
                     className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
@@ -120,12 +114,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                         className="w-full h-full object-cover"
                     />
                 ) : (
-                    <div
-                        className="w-full h-full flex items-center justify-center"
-                        style={{ background: getGradient(project.name) }}
-                    >
-                        <span className="text-[52px] font-extrabold text-white/30 select-none">
-                            {(project.name || "?")[0].toUpperCase()}
+                    <div className="w-full h-full bg-[#001529] flex items-center justify-center px-4">
+                        <span className="text-white/60 text-sm font-semibold text-center leading-snug select-none">
+                            {project.name}
                         </span>
                     </div>
                 )}
@@ -157,7 +148,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                             <>
                                 <p className="text-[10px] text-gray-400 mb-0.5">Price From</p>
                                 <p className="font-bold text-sm text-slate-900">
-                                    £{project.starting_price.toLocaleString()}
+                                    {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 }).format(Number(project.starting_price))}
                                 </p>
                             </>
                         ) : (

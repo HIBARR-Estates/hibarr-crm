@@ -307,7 +307,7 @@ const Index = ({
         },
         {
             value: "construction_projects",
-            label: "Construction Projects",
+            label: "Projects",
             icon: <BuildOutlined />,
         },
     ];

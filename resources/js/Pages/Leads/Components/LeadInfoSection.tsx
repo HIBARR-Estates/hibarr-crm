@@ -476,7 +476,7 @@ export default function LeadInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Email">
+                        <DetailField label="Email" copyValue={currentLeadState.client_email || undefined}>
                             <div className="flex items-center gap-x-2">
                                 {currentLeadState.client_email && (
                                     <MailOutlined className="text-gray-400 flex-shrink-0" />
@@ -497,7 +497,7 @@ export default function LeadInfoSection({
                             </div>
                         </DetailField>
 
-                        <DetailField label="Mobile">
+                        <DetailField label="Mobile" copyValue={getMobileNumber(currentLeadState.mobile) || currentLeadState.mobile_with_phonecode || undefined}>
                             <div className="flex items-center gap-x-2">
                                 <PhoneOutlined className="text-gray-400 flex-shrink-0" />
                                 <EditableField
@@ -521,7 +521,7 @@ export default function LeadInfoSection({
                             </div>
                         </DetailField>
 
-                        <DetailField label="Office Phone">
+                        <DetailField label="Office Phone" copyValue={currentLeadState.office_phone_formatted || currentLeadState.office || undefined}>
                             <EditableField
                                 value={
                                     currentLeadState.office_phone_formatted ||
@@ -637,6 +637,7 @@ export default function LeadInfoSection({
                                         <UserIndicator
                                             data={currentLeadState.lead_owner}
                                             size="sm"
+                                            maxNameLength={40}
                                         />
                                     ) : (
                                         <span className="text-gray-400">--</span>
@@ -681,15 +682,12 @@ export default function LeadInfoSection({
                                 displayValue={
                                     currentLeadState.leadSource?.type ||
                                     currentLeadState.lead_source?.type ? (
-                                        <Tag
-                                            color="green"
-                                            className="font-medium"
-                                        >
+                                        <span className="text-gray-700">
                                             {currentLeadState.leadSource
                                                 ?.type ||
                                                 currentLeadState.lead_source
                                                     ?.type}
-                                        </Tag>
+                                        </span>
                                     ) : (
                                         <span className="text-gray-400">--</span>
                                     )
@@ -874,6 +872,7 @@ export default function LeadInfoSection({
                             currentLeadState.custom_fields_data || {}
                         }
                         categoryId={category.id}
+                        title={category.name}
                         column={2}
                         onUpdate={(field, value) =>
                             handleFieldUpdate(field, value)

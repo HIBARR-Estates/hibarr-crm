@@ -530,7 +530,7 @@ export default function DealInfoSection({
                 <div className="p-4 space-y-4">
                     {/* Deal Overview */}
                     <DetailSection title="Deal Overview">
-                        <DetailField label="Deal Name" span={2}>
+                        <DetailField label="Deal Name">
                             <EditableField
                                 value={currentDeal.name}
                                 fieldName="name"
@@ -709,9 +709,9 @@ export default function DealInfoSection({
                                 selectorType="categories"
                                 displayValue={
                                     currentDeal.category?.category_name ? (
-                                        <Tag color="blue" className="font-medium">
+                                        <span className="text-gray-700">
                                             {currentDeal.category.category_name}
-                                        </Tag>
+                                        </span>
                                     ) : (
                                         <span className="text-gray-400">--</span>
                                     )
@@ -739,18 +739,17 @@ export default function DealInfoSection({
                                 selectorType="products"
                                 mode="multiple"
                                 displayValue={
-                                    productNames.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {productNames.map(
-                                                (product, index) => (
-                                                    <Tag
-                                                        key={index}
-                                                        color="blue"
-                                                    >
-                                                        {product}
-                                                    </Tag>
-                                                ),
-                                            )}
+                                    currentDeal.products && currentDeal.products.length > 0 ? (
+                                        <div className="flex flex-col gap-1 mt-0.5">
+                                            {currentDeal.products.map((product: any) => (
+                                                <div
+                                                    key={product.id}
+                                                    className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-md px-2.5 py-1.5 text-sm text-gray-800"
+                                                >
+                                                    <span className="text-gray-400 text-xs">&#x2302;</span>
+                                                    <span className="font-medium truncate">{product.name || product.title}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : (
                                         <span className="text-gray-400">--</span>
@@ -782,7 +781,7 @@ export default function DealInfoSection({
 
                     {/* Contact Info */}
                     <DetailSection title="Contact Info">
-                        <DetailField label="Email">
+                        <DetailField label="Email" copyValue={currentDeal.contact?.client_email || undefined}>
                             <div className="flex items-center gap-x-2">
                                 {currentDeal.contact?.client_email && (
                                     <MailOutlined className="text-gray-400 flex-shrink-0" />
@@ -810,7 +809,7 @@ export default function DealInfoSection({
                             </div>
                         </DetailField>
 
-                        <DetailField label="Mobile">
+                        <DetailField label="Mobile" copyValue={getMobileNumber(currentDeal.contact?.mobile) || undefined}>
                             {currentDeal.contact ? (
                                 <div className="flex items-center gap-x-2">
                                     <PhoneOutlined className="text-gray-400 flex-shrink-0" />
@@ -885,51 +884,8 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
-                        <DetailField label="Deal Watchers" span={2}>
-                            <EditableField
-                                value={
-                                    currentDeal.deal_watchers?.map(
-                                        (w: any) => w.id,
-                                    ) || []
-                                }
-                                fieldName="deal_watcher"
-                                selectorType="employees"
-                                mode="multiple"
-                                displayValue={
-                                    currentDeal.deal_watchers &&
-                                        currentDeal.deal_watchers.length > 0 ? (
-                                        <MultiUserIndicator
-                                            users={currentDeal.deal_watchers.map(
-                                                (watcher: any) => ({
-                                                    id: watcher.id,
-                                                    image_url:
-                                                        watcher.image_url ||
-                                                        watcher.image,
-                                                    name: watcher.name,
-                                                }),
-                                            )}
-                                            size="sm"
-                                            maxCount={2}
-                                            showTooltip={true}
-                                        />
-                                    ) : (
-                                        <span className="text-gray-400">--</span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("deal_watcher", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll ||
-                                    isFieldLoading("deal_watcher")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </DetailField>
 
-                        <DetailField label="Deal Participants" span={2}>
+                        <DetailField label="Deal Participants">
                             <EditableField
                                 value={
                                     currentDeal.deal_participants?.map(
@@ -973,7 +929,49 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-
+                        <DetailField label="Deal Watchers" span={2}>
+                            <EditableField
+                                value={
+                                    currentDeal.deal_watchers?.map(
+                                        (w: any) => w.id,
+                                    ) || []
+                                }
+                                fieldName="deal_watcher"
+                                selectorType="employees"
+                                mode="multiple"
+                                displayValue={
+                                    currentDeal.deal_watchers &&
+                                        currentDeal.deal_watchers.length > 0 ? (
+                                        <MultiUserIndicator
+                                            users={currentDeal.deal_watchers.map(
+                                                (watcher: any) => ({
+                                                    id: watcher.id,
+                                                    image_url:
+                                                        watcher.image_url ||
+                                                        watcher.image,
+                                                    name: watcher.name,
+                                                }),
+                                            )}
+                                            size="sm"
+                                            maxCount={2}
+                                            showTooltip={true}
+                                        />
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("deal_watcher", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("deal_watcher")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
                     </DetailSection>
                 </div>
             ),
@@ -1005,6 +1003,7 @@ export default function DealInfoSection({
                         fields={fields}
                         customFieldsData={currentDeal.custom_fields_data || {}}
                         categoryId={category.id}
+                        title={category.name}
                         column={2}
                         onUpdate={(field, value) =>
                             handleFieldUpdate(field, value, "custom_field")
