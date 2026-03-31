@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Deal;
 use App\Models\DealFollowUp;
+use App\Services\DealActivityEventService;
 use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
 
@@ -11,13 +12,16 @@ class DealFollowUpObserver
 {
     protected DealAutomationService $dealAutomation;
     protected DealNotificationService $notificationService;
+    protected DealActivityEventService $dealActivityEventService;
 
     public function __construct(
         DealAutomationService $dealAutomation,
-        DealNotificationService $notificationService
+        DealNotificationService $notificationService,
+        DealActivityEventService $dealActivityEventService
     ) {
         $this->dealAutomation = $dealAutomation;
         $this->notificationService = $notificationService;
+        $this->dealActivityEventService = $dealActivityEventService;
     }
 
     /**
@@ -28,6 +32,7 @@ class DealFollowUpObserver
         //deal automation trigger
         if ($dealFollowUp->deal) {
             $this->dealAutomation->process($dealFollowUp->deal, 'followup_created');
+            $this->dealActivityEventService->recordFollowUpCreated($dealFollowUp->deal, $dealFollowUp);
         }
     }
 

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Grpc\Services\CrmEventGrpcService;
 use App\Grpc\Transformers\CrmEventTransformer;
 use App\Services\CrmEventService;
+use App\Services\DealActivityEventService;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -29,6 +30,12 @@ class CrmEventServiceProvider extends ServiceProvider
         // Register the core service as a singleton
         $this->app->singleton(CrmEventService::class, function ($app) {
             return new CrmEventService();
+        });
+
+        // Register the deal activity event service as request-scoped singleton
+        // All observers/controllers within the same request share the same correlation ID
+        $this->app->scoped(DealActivityEventService::class, function ($app) {
+            return new DealActivityEventService($app->make(CrmEventService::class));
         });
 
         // Register the gRPC transformer as a singleton
@@ -70,6 +77,7 @@ class CrmEventServiceProvider extends ServiceProvider
     {
         return [
             CrmEventService::class,
+            DealActivityEventService::class,
             CrmEventGrpcService::class,
             CrmEventTransformer::class,
         ];

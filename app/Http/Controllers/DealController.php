@@ -854,6 +854,14 @@ class DealController extends AccountBaseController
                 $leadProduct->product_id = $product;
                 $leadProduct->save();
             }
+
+            // Record CRM events for product linking
+            $dealActivityEventService = app(\App\Services\DealActivityEventService::class);
+            $linkedProducts = Product::with('property')->whereIn('id', $products)->get();
+
+            foreach ($linkedProducts as $productModel) {
+                $dealActivityEventService->recordProductLinked($deal, $productModel, $productModel->property);
+            }
         }
 
         // Auto-apply offers based on product properties
@@ -1089,7 +1097,21 @@ class DealController extends AccountBaseController
             $deal->dealParticipants()->sync($request->deal_participant);
         }
 
+        $oldProductIds = $deal->products()->pluck('products.id')->toArray();
+
         $deal->products()->sync($request->product_id);
+
+        // Record CRM events for newly linked products
+        $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
+
+        if (!empty($newProductIds)) {
+            $dealActivityEventService = app(\App\Services\DealActivityEventService::class);
+            $newProducts = Product::with('property')->whereIn('id', $newProductIds)->get();
+
+            foreach ($newProducts as $productModel) {
+                $dealActivityEventService->recordProductLinked($deal, $productModel, $productModel->property);
+            }
+        }
 
         // Auto-apply offers based on product properties
         app(DealOfferService::class)->applyOffersToDeal($deal);

@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\DealNote;
 use App\Models\Deal;
+use App\Services\DealActivityEventService;
 use App\Services\DealNotificationService;
 use App\Traits\DealHistoryTrait;
 
@@ -13,10 +14,12 @@ class DealNoteObserver
     use DealHistoryTrait;
 
     protected DealNotificationService $notificationService;
+    protected DealActivityEventService $dealActivityEventService;
 
-    public function __construct(DealNotificationService $notificationService)
+    public function __construct(DealNotificationService $notificationService, DealActivityEventService $dealActivityEventService)
     {
         $this->notificationService = $notificationService;
+        $this->dealActivityEventService = $dealActivityEventService;
     }
 
     /**
@@ -46,6 +49,8 @@ class DealNoteObserver
                         $dealNote->title ?? 'Untitled Note',
                         $dealNote->id
                     );
+
+                    $this->dealActivityEventService->recordNoteAdded($deal, $dealNote);
                 }
             }
         }
