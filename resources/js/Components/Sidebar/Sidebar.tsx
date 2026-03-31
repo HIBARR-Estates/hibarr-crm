@@ -224,7 +224,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         // },
         {
             key: "developers",
-            label: "Construction Projects",
+            label: "Projects",
             icon: <BankOutlined />,
             href: "/account/developer-projects",
         },

@@ -99,16 +99,24 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
 
             {/* ── Logo ── */}
             <Link href={route("developers.show", developer.id)}>
-                <div className="h-36 flex items-center justify-center px-6">
+                <div className="h-40 relative flex items-center justify-center p-2">
                     {developer.logo_url ? (
                         <img
                             src={developer.logo_url}
                             alt={developer.name}
-                            className="max-h-20 max-w-[90%] object-contain"
+                            className="w-[50%] h-full object-contain"
                         />
                     ) : (
-                        <Landmark size={50} strokeWidth={1.2} className="text-gray-300" />
+                        <div className="w-full h-full flex items-center justify-center">
+                            <Landmark size={50} strokeWidth={1.2} className="text-gray-300" />
+                        </div>
                     )}
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-200 pointer-events-none" />
+                    {/* Developer name on hover */}
+                    <div className="absolute inset-x-0 bottom-0 pb-3 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                        <span className="text-white font-semibold text-sm text-center px-2 drop-shadow">{developer.name}</span>
+                    </div>
                 </div>
             </Link>
         </div>
@@ -179,15 +187,8 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
     return (
         <PageLayout title={pageTitle} breadcrumbs={[{ name: "Developers" }]}>
             <div className="max-w-7xl mx-auto">
-                <Button
-                    type="primary"
-                    icon={<Plus size={14} />}
-                    onClick={handleAdd}
-                >
-                    Add Company
-                </Button>
-                {/* Search */}
-                <div className="mb-6 mt-4 flex justify-between">
+                {/* Search + Add */}
+                <div className="mb-6 flex items-center justify-between gap-4">
                     <Input.Search
                         placeholder="Search developers..."
                         allowClear
@@ -196,6 +197,13 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
                         onSearch={handleSearch}
                         style={{ maxWidth: 400 }}
                     />
+                    <Button
+                        type="primary"
+                        icon={<Plus size={14} />}
+                        onClick={handleAdd}
+                    >
+                        Add Developer
+                    </Button>
                 </div>
 
                 {/* Developer Cards Grid */}

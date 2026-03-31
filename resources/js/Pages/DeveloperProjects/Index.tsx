@@ -176,7 +176,7 @@ const Index = ({ pageTitle, projects: rawProjects, filters: rawFilters }: IndexP
         <>
             <PageLayout
                 title={pageTitle}
-                breadcrumbs={[{ name: "Construction Projects" }]}
+                breadcrumbs={[{ name: "Projects" }]}
             >
                 <div className="-m-6 min-h-screen bg-slate-50">
                     {/* ── Sticky header ── */}
