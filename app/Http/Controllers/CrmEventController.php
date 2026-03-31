@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 /**
  * REST API controller for CRM Event ingestion and querying.
@@ -54,7 +55,7 @@ class CrmEventController extends Controller
 
         $companyId = $this->resolveCompanyId($request);
 
-        $params = array_merge($validator->validated(), [
+        Log::info('[CrmEventController::store] Called.', [
             'company_id' => $companyId,
             'source' => CrmEventSource::API->value,
             'ip_address' => $request->ip(),
@@ -154,6 +155,15 @@ class CrmEventController extends Controller
     {
         $companyId = $this->resolveCompanyId($request);
 
+        Log::info('[CrmEventController::index] Called.', [
+            'company_id' => $companyId,
+            'model_type' => $request->input('model_type'),
+            'model_id' => $request->input('model_id'),
+            'auth_user_id' => \Illuminate\Support\Facades\Auth::id(),
+            'has_company_header' => $request->hasHeader('X-COMPANY-ID'),
+            'company_header' => $request->header('X-COMPANY-ID'),
+        ]);
+
         $filters = array_merge($request->only([
             'event_type_slug',
             'category_slug',
@@ -171,6 +181,12 @@ class CrmEventController extends Controller
             'sort_by',
             'sort_order',
         ]), ['company_id' => $companyId]);
+
+        // Normalize model_type — the Froiden XSS middleware double-escapes
+        // backslashes in FQCN strings (App\\Models\\Deal → App\\\\Models\\\\Deal)
+        if (!empty($filters['model_type'])) {
+            $filters['model_type'] = stripslashes($filters['model_type']);
+        }
 
         $paginated = $this->eventService->query($filters);
 
