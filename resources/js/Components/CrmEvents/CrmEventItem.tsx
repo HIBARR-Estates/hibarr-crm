@@ -153,25 +153,33 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const message = event.metadata?.comment as string | undefined;
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 hover:border-gray-300 transition-colors">
+        <div className="rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200">
             {/* Row 1: Event Type + Origin + Timestamp */}
-            <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                    <span
-                        className={`flex-shrink-0 h-2 w-2 rounded-full ${colors.dot}`}
-                    />
-                    <Text
-                        strong
-                        className="text-[13px] truncate leading-tight text-gray-900"
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                        className={`flex items-center justify-center flex-shrink-0 h-6 w-6 rounded-full ${colors.bg} border border-white shadow-sm ring-1 ring-gray-50`}
                     >
-                        {event.event_type?.name ?? "Unknown Event"}
-                    </Text>
-                    <Tag
-                        className={`${gen.className} border-0 rounded text-[10px] leading-[16px] px-1 ml-0.5`}
-                        icon={gen.icon}
-                    >
-                        {gen.label}
-                    </Tag>
+                        <span
+                            className={`h-2 w-2 rounded-full ${colors.dot}`}
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                            <Text
+                                strong
+                                className="text-[14px] truncate leading-tight text-gray-800"
+                            >
+                                {event.event_type?.name ?? "Unknown Event"}
+                            </Text>
+                            <div
+                                className={`flex items-center gap-1 ${gen.className} px-1.5 py-0.5 rounded-md text-[10px] font-medium`}
+                            >
+                                {gen.icon}
+                                <span>{gen.label}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <Tooltip
@@ -179,60 +187,55 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                         "YYYY-MM-DD HH:mm:ss",
                     )}
                 >
-                    <Text
-                        type="secondary"
-                        className="text-[11px] flex-shrink-0 whitespace-nowrap"
-                    >
-                        <ClockCircleOutlined className="mr-0.5" />
-                        {dayjs(event.occurred_at).fromNow()}
-                    </Text>
+                    <div className="flex items-center gap-1 text-[11px] text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-100 flex-shrink-0">
+                        <ClockCircleOutlined />
+                        <span>{dayjs(event.occurred_at).fromNow()}</span>
+                    </div>
                 </Tooltip>
             </div>
 
             {/* Row 2: Category + Status Badge + Direction Badge */}
-            <div className="flex flex-wrap items-center gap-1 mt-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 mt-2.5 ml-[34px]">
                 {event.event_type?.category && (
-                    <Tag
-                        className={`${colors.bg} ${colors.text} border-0 rounded text-[10px] leading-[16px] px-1.5`}
+                    <div
+                        className={`flex items-center gap-1 ${colors.bg} ${colors.text} px-2 py-0.5 rounded-md text-[10px] font-medium`}
                     >
                         {event.event_type.category.name}
-                    </Tag>
+                    </div>
                 )}
-                <Tag
-                    className={`${statusCfg.className} border-0 rounded text-[10px] leading-[16px] px-1.5`}
-                    icon={statusCfg.icon}
+                <div
+                    className={`flex items-center gap-1 ${statusCfg.className} px-2 py-0.5 rounded-md text-[10px] font-medium`}
                 >
-                    {statusCfg.label}
-                </Tag>
+                    {statusCfg.icon}
+                    <span>{statusCfg.label}</span>
+                </div>
                 {directionCfg && (
-                    <Tag
-                        className="bg-cyan-50 text-cyan-700 border-0 rounded text-[10px] leading-[16px] px-1.5"
-                        icon={directionCfg.icon}
-                    >
-                        {directionCfg.label}
-                    </Tag>
+                    <div className="flex items-center gap-1 bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-md text-[10px] font-medium">
+                        {directionCfg.icon}
+                        <span>{directionCfg.label}</span>
+                    </div>
                 )}
                 {event.source && !compact && (
-                    <Tag
-                        className="bg-gray-100 text-gray-500 border-0 rounded text-[10px] leading-[16px] px-1"
-                        icon={<GlobalOutlined />}
-                    >
-                        {event.source}
-                    </Tag>
+                    <div className="flex items-center gap-1 bg-gray-50 text-gray-600 px-2 py-0.5 rounded-md text-[10px] font-medium">
+                        <GlobalOutlined />
+                        <span>{event.source}</span>
+                    </div>
                 )}
                 {event.user && (
-                    <span className="text-[11px] text-gray-500 ml-auto">
-                        <UserOutlined className="mr-0.5" />
-                        {event.user.name}
-                    </span>
+                    <div className="flex items-center gap-1 text-[11px] text-gray-600 ml-auto bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                        <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
+                            <UserOutlined className="text-[9px]" />
+                        </div>
+                        <span className="font-medium">{event.user.name}</span>
+                    </div>
                 )}
             </div>
 
             {/* Row 3: Message (truncated with expand) */}
             {message && !compact && (
-                <div className="mt-1.5">
+                <div className="mt-2.5 ml-[34px]">
                     <div
-                        className={`text-[12px] text-gray-600 bg-gray-50 rounded px-2 py-1 ${
+                        className={`text-[13px] text-gray-600 bg-gray-50/80 border border-gray-100 rounded-lg px-3 py-2 leading-relaxed ${
                             !expanded ? "line-clamp-2" : ""
                         }`}
                     >
@@ -242,16 +245,17 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                         <button
                             type="button"
                             onClick={() => setExpanded(!expanded)}
-                            className="text-[10px] text-blue-500 hover:text-blue-600 mt-0.5 flex items-center gap-0.5 bg-transparent border-0 cursor-pointer p-0"
+                            className="text-[11px] font-medium text-blue-600 hover:text-blue-700 mt-1.5 flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 transition-colors"
                         >
                             {expanded ? (
                                 <>
-                                    <UpOutlined style={{ fontSize: 8 }} /> Less
+                                    <UpOutlined style={{ fontSize: 9 }} /> Show
+                                    less
                                 </>
                             ) : (
                                 <>
-                                    <DownOutlined style={{ fontSize: 8 }} />{" "}
-                                    More
+                                    <DownOutlined style={{ fontSize: 9 }} />{" "}
+                                    Read more
                                 </>
                             )}
                         </button>
@@ -261,19 +265,21 @@ export default function CrmEventItem({ event, compact = false }: Props) {
 
             {/* Compact message preview */}
             {message && compact && (
-                <div className="mt-1 text-[11px] text-gray-500 truncate">
-                    {message}
+                <div className="mt-2 ml-[34px] text-[12px] text-gray-500 line-clamp-1 italic">
+                    "{message}"
                 </div>
             )}
 
             {/* Correlation link */}
             {event.correlation_id && !compact && (
-                <div className="mt-1">
-                    <Tooltip title={`Correlation: ${event.correlation_id}`}>
-                        <Text type="secondary" className="text-[10px]">
-                            <LinkOutlined className="mr-0.5" />
-                            {event.correlation_id.slice(0, 8)}…
-                        </Text>
+                <div className="mt-2.5 ml-[34px]">
+                    <Tooltip title={`Correlation ID: ${event.correlation_id}`}>
+                        <div className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 cursor-help transition-colors bg-gray-50 px-2 py-0.5 rounded-md">
+                            <LinkOutlined />
+                            <span className="font-mono">
+                                {event.correlation_id.slice(0, 8)}…
+                            </span>
+                        </div>
                     </Tooltip>
                 </div>
             )}
