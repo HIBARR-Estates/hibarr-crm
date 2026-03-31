@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Lead, LeadCategory } from "@/Types/api/leads";
 import { Deal } from "@/Types/api/deals";
 import { LeadNote } from "@/Types/api/lead-note";
 import DashboardLayout from "@/Components/DashboardLayout";
 import type { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { Card, Tabs } from "antd";
+import { Card, Tabs, message } from "antd";
 import { User } from "@/Types";
 import LeadInfoSection from "./Components/LeadInfoSection";
 import LeadNotesTab from "./Components/LeadNotesTab";
@@ -59,6 +59,19 @@ const Show = ({
 }: LeadShowProps) => {
     const { props } = usePage<PageProps>();
 
+    const [activeTab, setActiveTab] = useState("profile");
+    const [isEditMode, setIsEditMode] = useState(false);
+
+    const handleTabChange = (key: string) => {
+        if (isEditMode) {
+            message.warning(
+                "Please save or cancel your changes before switching tabs.",
+            );
+            return;
+        }
+        setActiveTab(key);
+    };
+
     const tabItems = [
         {
             key: "profile",
@@ -75,6 +88,8 @@ const Show = ({
                     taskBoardColumns={taskBoardColumns}
                     employees={employees}
                     projects={projects}
+                    isEditMode={isEditMode}
+                    onEditModeChange={setIsEditMode}
                 />
             ),
         },
@@ -160,8 +175,8 @@ const Show = ({
         >
             <div>
                 <Tabs
-                    items={tabItems}
-                    className="lead-tabs"
+                    items={tabItems}                    activeKey={activeTab}
+                    onChange={handleTabChange}                    className="lead-tabs"
                     tabBarStyle={{
                         paddingLeft: 24,
                         paddingRight: 24,

@@ -2,14 +2,10 @@ import { useState, useEffect } from "react";
 import { Lead } from "@/Types/api/leads";
 import { router, usePage } from "@inertiajs/react";
 import {
-    Descriptions,
     Avatar,
     Tabs,
     Button,
-    Dropdown,
-    MenuProps,
     Tag,
-    Divider,
     Space,
     Tooltip,
     message,
@@ -24,7 +20,6 @@ import {
     GlobalOutlined,
     HomeOutlined,
     CalendarOutlined,
-    MoreOutlined,
     CheckSquareOutlined,
     SaveOutlined,
     CloseOutlined,
@@ -35,11 +30,11 @@ import DeleteLead from "@/Features/Leads/DeleteLead";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import SaveTaskModal from "@/Features/Tasks/SaveTask/SaveTaskModal";
 import dayjs from "dayjs";
-import { icons } from "antd/es/image/PreviewGroup";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import UserIndicator from "@/Components/UserIndicator";
 import axios from "axios";
+import { DetailSection, DetailField } from "@/Components/DetailSection";
 
 interface Props {
     lead: Lead;
@@ -52,6 +47,8 @@ interface Props {
     taskBoardColumns: any[];
     employees: any[];
     projects: any[];
+    isEditMode: boolean;
+    onEditModeChange: (value: boolean) => void;
 }
 
 export default function LeadInfoSection({
@@ -65,6 +62,8 @@ export default function LeadInfoSection({
     taskBoardColumns,
     employees,
     projects,
+    isEditMode,
+    onEditModeChange,
 }: Props) {
     const { props } = usePage();
     const user = props.auth.user;
@@ -79,9 +78,6 @@ export default function LeadInfoSection({
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [currentLeadState, setCurrentLeadState] = useState<Lead>(lead);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
-
-    // Edit mode state - when true, all fields become editable
-    const [isEditMode, setIsEditMode] = useState(false);
 
     // Track pending changes in edit mode
     const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
@@ -142,7 +138,7 @@ export default function LeadInfoSection({
 
     // Toggle edit mode
     const handleToggleEditMode = () => {
-        setIsEditMode(!isEditMode);
+        onEditModeChange(!isEditMode);
         // Clear pending changes when entering edit mode
         if (!isEditMode) {
             setPendingChanges({});
@@ -151,7 +147,7 @@ export default function LeadInfoSection({
 
     // Exit edit mode
     const handleExitEditMode = () => {
-        setIsEditMode(false);
+        onEditModeChange(false);
         setPendingChanges({});
     };
 
@@ -211,7 +207,7 @@ export default function LeadInfoSection({
 
             message.success("All changes saved successfully");
             setPendingChanges({});
-            setIsEditMode(false);
+            onEditModeChange(false);
         } catch (error: any) {
             message.error(error?.message || "Failed to save changes");
         } finally {
@@ -459,47 +455,10 @@ export default function LeadInfoSection({
             key: "overview",
             label: "Overview",
             children: (
-                <div className="p-6">
-                    {/* Header with Avatar and Basic Info */}
-                    {/* <div className="flex items-start gap-x-4 mb-6">
-                        <Avatar
-                            size={80}
-                            src={currentLead?.image_url || lead.image_url}
-                            icon={<UserOutlined />}
-                        />
-                        <div className="flex-1">
-                            <h2 className="text-2xl font-semibold mb-2">
-                                {currentLead?.client_name_salutation ||
-                                    lead.client_name_salutation}
-                            </h2>
-                            <p className="text-gray-600 mb-2">
-                                {currentLead?.client_email || lead.client_email}
-                            </p>
-                            <div className="flex items-center gap-x-4">
-                                {(currentLead?.mobile_with_phonecode ||
-                                    lead.mobile_with_phonecode) !== "--" && (
-                                    <span className="flex items-center">
-                                        <PhoneOutlined className="mr-1" />
-                                        {currentLead?.mobile_with_phonecode ||
-                                            lead.mobile_with_phonecode}
-                                    </span>
-                                )}
-                                {(currentLead?.company_name ||
-                                    lead.company_name) && (
-                                    <span className="text-gray-600">
-                                        {currentLead?.company_name ||
-                                            lead.company_name}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </div> */}
-
-                    {/* <Divider /> */}
-
-                    <Descriptions column={2} bordered size="middle">
-                        {/* Contact Information */}
-                        <Descriptions.Item label="Name">
+                <div className="p-4 space-y-4">
+                    {/* Contact Information */}
+                    <DetailSection title="Contact Information">
+                        <DetailField label="Name">
                             <EditableField
                                 value={
                                     currentLeadState.client_name_salutation ||
@@ -515,31 +474,15 @@ export default function LeadInfoSection({
                                 loading={isFieldLoading("client_name")}
                                 alwaysEditing={isFieldEditable}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Email">
-                            {currentLeadState.client_email ? (
-                                <div className="flex items-center gap-x-2">
-                                    <MailOutlined className="text-gray-400" />
-                                    <EditableField
-                                        value={currentLeadState.client_email}
-                                        fieldName="client_email"
-                                        fieldType="email"
-                                        onSave={(value) =>
-                                            handleFieldUpdate(
-                                                "client_email",
-                                                value,
-                                            )
-                                        }
-                                        onChange={handleFieldChange}
-                                        className="text-blue-600 hover:text-blue-800"
-                                        alwaysEditing={isFieldEditable}
-                                        loading={isFieldLoading("client_email")}
-                                    />
-                                </div>
-                            ) : (
+                        <DetailField label="Email">
+                            <div className="flex items-center gap-x-2">
+                                {currentLeadState.client_email && (
+                                    <MailOutlined className="text-gray-400 flex-shrink-0" />
+                                )}
                                 <EditableField
-                                    value=""
+                                    value={currentLeadState.client_email || ""}
                                     fieldName="client_email"
                                     fieldType="email"
                                     onSave={(value) =>
@@ -547,15 +490,16 @@ export default function LeadInfoSection({
                                     }
                                     onChange={handleFieldChange}
                                     placeholder="Add email"
+                                    className="text-blue-600 hover:text-blue-800"
                                     alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("client_email")}
                                 />
-                            )}
-                        </Descriptions.Item>
+                            </div>
+                        </DetailField>
 
-                        <Descriptions.Item label="Mobile">
+                        <DetailField label="Mobile">
                             <div className="flex items-center gap-x-2">
-                                <PhoneOutlined className="text-gray-400" />
+                                <PhoneOutlined className="text-gray-400 flex-shrink-0" />
                                 <EditableField
                                     value={
                                         getMobileNumber(
@@ -575,9 +519,9 @@ export default function LeadInfoSection({
                                     loading={isFieldLoading("mobile")}
                                 />
                             </div>
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Office Phone">
+                        <DetailField label="Office Phone">
                             <EditableField
                                 value={
                                     currentLeadState.office_phone_formatted ||
@@ -594,9 +538,12 @@ export default function LeadInfoSection({
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("office")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
+                    </DetailSection>
 
-                        <Descriptions.Item label="Gender">
+                    {/* Personal Details */}
+                    <DetailSection title="Personal Details">
+                        <DetailField label="Gender">
                             <EditableField
                                 value={currentLeadState.gender || ""}
                                 fieldName="gender"
@@ -615,17 +562,15 @@ export default function LeadInfoSection({
                                             {currentLeadState.gender}
                                         </span>
                                     ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
+                                        <span className="text-gray-400">--</span>
                                     )
                                 }
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("gender")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Company">
+                        <DetailField label="Company">
                             <EditableField
                                 value={currentLeadState.company_name || ""}
                                 fieldName="company_name"
@@ -638,19 +583,19 @@ export default function LeadInfoSection({
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("company_name")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Website">
-                            {currentLeadState.website ? (
-                                <EditableField
-                                    value={currentLeadState.website}
-                                    fieldName="website"
-                                    fieldType="text"
-                                    onSave={(value) =>
-                                        handleFieldUpdate("website", value)
-                                    }
-                                    onChange={handleFieldChange}
-                                    displayValue={
+                        <DetailField label="Website">
+                            <EditableField
+                                value={currentLeadState.website || ""}
+                                fieldName="website"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("website", value)
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    currentLeadState.website ? (
                                         <a
                                             href={String(
                                                 currentLeadState.website,
@@ -662,28 +607,15 @@ export default function LeadInfoSection({
                                             <GlobalOutlined className="mr-1" />
                                             {currentLeadState.website}
                                         </a>
-                                    }
-                                    alwaysEditing={isFieldEditable}
-                                    loading={isFieldLoading("website")}
-                                />
-                            ) : (
-                                <EditableField
-                                    value=""
-                                    fieldName="website"
-                                    fieldType="text"
-                                    onSave={(value) =>
-                                        handleFieldUpdate("website", value)
-                                    }
-                                    onChange={handleFieldChange}
-                                    placeholder="Add website"
-                                    alwaysEditing={isFieldEditable}
-                                    loading={isFieldLoading("website")}
-                                />
-                            )}
-                        </Descriptions.Item>
+                                    ) : undefined
+                                }
+                                placeholder="Add website"
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("website")}
+                            />
+                        </DetailField>
 
-                        {/* Lead Details */}
-                        <Descriptions.Item label="Lead Owner">
+                        <DetailField label="Lead Owner">
                             <EditableField
                                 value={
                                     currentLeadState.lead_owner &&
@@ -707,17 +639,15 @@ export default function LeadInfoSection({
                                             size="sm"
                                         />
                                     ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
+                                        <span className="text-gray-400">--</span>
                                     )
                                 }
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("lead_owner")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Added By">
+                        <DetailField label="Added By">
                             {currentLeadState.added_by ? (
                                 <div className="flex items-center gap-x-2">
                                     <Avatar
@@ -732,11 +662,14 @@ export default function LeadInfoSection({
                                     </span>
                                 </div>
                             ) : (
-                                <span className="text-gray-500">--</span>
+                                <span className="text-gray-400">--</span>
                             )}
-                        </Descriptions.Item>
+                        </DetailField>
+                    </DetailSection>
 
-                        <Descriptions.Item label="Lead Source">
+                    {/* Classification */}
+                    <DetailSection title="Classification">
+                        <DetailField label="Lead Source">
                             <EditableField
                                 value={currentLeadState.source_id || null}
                                 fieldName="source_id"
@@ -758,17 +691,15 @@ export default function LeadInfoSection({
                                                     ?.type}
                                         </Tag>
                                     ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
+                                        <span className="text-gray-400">--</span>
                                     )
                                 }
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("source_id")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Category">
+                        <DetailField label="Category">
                             <EditableField
                                 value={currentLeadState.category_id || null}
                                 fieldName="category_id"
@@ -778,7 +709,8 @@ export default function LeadInfoSection({
                                 }
                                 onChange={handleFieldChange}
                                 displayValue={
-                                    currentLeadState.category?.category_name ? (
+                                    currentLeadState.category
+                                        ?.category_name ? (
                                         <Tag
                                             color="blue"
                                             className="font-medium"
@@ -789,44 +721,44 @@ export default function LeadInfoSection({
                                             }
                                         </Tag>
                                     ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
+                                        <span className="text-gray-400">--</span>
                                     )
                                 }
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("category_id")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Created At">
+                        <DetailField label="Created At">
                             {currentLeadState.created_at ? (
-                                <span>
-                                    <CalendarOutlined className="mr-1" />
+                                <span className="flex items-center gap-1">
+                                    <CalendarOutlined className="text-gray-400" />
                                     {dayjs(currentLeadState.created_at).format(
                                         "MMM DD, YYYY HH:mm",
                                     )}
                                 </span>
                             ) : (
-                                <span className="text-gray-500">--</span>
+                                <span className="text-gray-400">--</span>
                             )}
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Updated At">
+                        <DetailField label="Updated At">
                             {currentLeadState.updated_at ? (
-                                <span>
-                                    <CalendarOutlined className="mr-1" />
+                                <span className="flex items-center gap-1">
+                                    <CalendarOutlined className="text-gray-400" />
                                     {dayjs(currentLeadState.updated_at).format(
                                         "MMM DD, YYYY HH:mm",
                                     )}
                                 </span>
                             ) : (
-                                <span className="text-gray-500">--</span>
+                                <span className="text-gray-400">--</span>
                             )}
-                        </Descriptions.Item>
+                        </DetailField>
+                    </DetailSection>
 
-                        {/* Address Information */}
-                        <Descriptions.Item label="Country">
+                    {/* Address */}
+                    <DetailSection title="Address">
+                        <DetailField label="Country">
                             <EditableField
                                 value={currentLeadState.country || ""}
                                 fieldName="country"
@@ -839,9 +771,9 @@ export default function LeadInfoSection({
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("country")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="State">
+                        <DetailField label="State">
                             <EditableField
                                 value={currentLeadState.state || ""}
                                 fieldName="state"
@@ -854,9 +786,9 @@ export default function LeadInfoSection({
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("state")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="City">
+                        <DetailField label="City">
                             <EditableField
                                 value={currentLeadState.city || ""}
                                 fieldName="city"
@@ -869,9 +801,9 @@ export default function LeadInfoSection({
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("city")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Postal Code">
+                        <DetailField label="Postal Code">
                             <EditableField
                                 value={currentLeadState.postal_code || ""}
                                 fieldName="postal_code"
@@ -884,9 +816,9 @@ export default function LeadInfoSection({
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("postal_code")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Address" span={2}>
+                        <DetailField label="Address" span={2}>
                             <EditableField
                                 value={currentLeadState.address || ""}
                                 fieldName="address"
@@ -901,20 +833,18 @@ export default function LeadInfoSection({
                                             <HomeOutlined className="mr-1" />
                                             {currentLeadState.address}
                                         </span>
-                                    ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
-                                    )
+                                    ) : undefined
                                 }
                                 placeholder="Add address"
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("address")}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
+                    </DetailSection>
 
-                        {/* Notes */}
-                        <Descriptions.Item label="Notes" span={2}>
+                    {/* Notes */}
+                    <DetailSection title="Notes" gridClassName="grid grid-cols-1">
+                        <DetailField label="Notes" span={2}>
                             <EditableField
                                 value={currentLeadState.note || ""}
                                 fieldName="note"
@@ -927,8 +857,8 @@ export default function LeadInfoSection({
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("note")}
                             />
-                        </Descriptions.Item>
-                    </Descriptions>
+                        </DetailField>
+                    </DetailSection>
                 </div>
             ),
         },
@@ -937,7 +867,7 @@ export default function LeadInfoSection({
             key: `category-${category.id}`,
             label: category.name,
             children: (
-                <div className="p-6">
+                <div className="p-4">
                     <CustomFieldDisplay
                         fields={fields}
                         customFieldsData={
@@ -999,18 +929,19 @@ export default function LeadInfoSection({
 
             <div>
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80">
                     <div className="flex items-center gap-x-2">
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-sm font-semibold text-gray-700">
                             Lead Information
                         </h2>
-                        {isEditMode && <Tag color="blue">Edit Mode</Tag>}
+                        {isEditMode && (
+                            <Tag color="blue" className="text-xs">
+                                Editing
+                            </Tag>
+                        )}
                         {hasUnsavedChanges && (
-                            <Tag color="orange">
-                                {Object.keys(pendingChanges).length} unsaved{" "}
-                                {Object.keys(pendingChanges).length === 1
-                                    ? "change"
-                                    : "changes"}
+                            <Tag color="orange" className="text-xs">
+                                {Object.keys(pendingChanges).length} unsaved
                             </Tag>
                         )}
                     </div>

@@ -38,22 +38,22 @@ class EmployeePasswordResetNotification extends BaseNotification implements Shou
         $build = parent::build($notifiable);
 
         try {
-            $content = __('email.forgetPassword.content')
-                . '<br>' . __('email.forgetPassword.expire')
-                . '<br>' . __('email.forgetPassword.contentPassword');
+            $content = __('email.employeeSetPassword.content')
+                . '<br>' . __('email.employeeSetPassword.expire')
+                . '<br>' . __('email.employeeSetPassword.contentPassword');
 
-            $title = __('email.forgetPassword.subject') . ' ' . config('app.name') . '.';
+            $title = __('email.employeeSetPassword.subject') . ' — ' . config('app.name');
 
             $build
                 ->subject($title)
                 ->view('mail.password-reset-notification', [
                     'url' => $url,
                     'content' => $content,
-                    'actionText' => __('email.forgetPassword.actionButton'),
+                    'actionText' => __('email.employeeSetPassword.actionButton'),
                     'notifiableName' => $notifiable->name ?? '',
                     'title' => $title,
-                    'intro' => __('email.forgetPassword.content'),
-                    'actionDescription' => __('email.forgetPassword.content'),
+                    'intro' => __('email.employeeSetPassword.content'),
+                    'actionDescription' => __('email.employeeSetPassword.content'),
                 ]);
         } finally {
             parent::resetLocale();

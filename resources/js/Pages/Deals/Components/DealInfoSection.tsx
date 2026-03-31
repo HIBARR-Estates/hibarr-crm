@@ -1,7 +1,6 @@
 import { Deal } from "@/Types/api/deals";
 import { Link, router, usePage } from "@inertiajs/react";
 import {
-    Descriptions,
     Tag,
     Avatar,
     Tooltip,
@@ -37,6 +36,7 @@ import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 import axios from "axios";
+import { DetailSection, DetailField } from "@/Components/DetailSection";
 
 interface Props {
     deal: Deal;
@@ -50,6 +50,8 @@ interface Props {
     taskBoardColumns: any[];
     employees: any[];
     projects: any[];
+    isEditMode: boolean;
+    onEditModeChange: (value: boolean) => void;
 }
 
 export default function DealInfoSection({
@@ -64,6 +66,8 @@ export default function DealInfoSection({
     taskBoardColumns,
     employees,
     projects,
+    isEditMode,
+    onEditModeChange,
 }: Props) {
     const { props } = usePage<any>();
     const user = props.auth.user;
@@ -73,9 +77,6 @@ export default function DealInfoSection({
     const { action, handleAction, handleClose } = useGenericEntityAction();
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
-
-    // Edit mode state - when true, all fields become editable
-    const [isEditMode, setIsEditMode] = useState(false);
 
     // Track pending changes in edit mode
     const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
@@ -128,7 +129,7 @@ export default function DealInfoSection({
 
     // Toggle edit mode
     const handleToggleEditMode = () => {
-        setIsEditMode(!isEditMode);
+        onEditModeChange(!isEditMode);
         // Clear pending changes when entering edit mode
         if (!isEditMode) {
             setPendingChanges({});
@@ -137,7 +138,7 @@ export default function DealInfoSection({
 
     // Exit edit mode
     const handleExitEditMode = () => {
-        setIsEditMode(false);
+        onEditModeChange(false);
         setPendingChanges({});
     };
 
@@ -275,7 +276,7 @@ export default function DealInfoSection({
 
             message.success("All changes saved successfully");
             setPendingChanges({});
-            setIsEditMode(false);
+            onEditModeChange(false);
         } catch (error: any) {
             message.error(error?.message || "Failed to save changes");
         } finally {
@@ -464,59 +465,58 @@ export default function DealInfoSection({
         // Toggle edit mode button - only show if user can edit
         ...(canEdit && !isEditMode
             ? [
-                  {
-                      key: "edit",
-                      icon: <EditOutlined />,
-                      tooltip: "Edit Deal",
-                      type: "text" as const,
-                      onClick: handleToggleEditMode,
-                  },
-              ]
+                {
+                    key: "edit",
+                    icon: <EditOutlined />,
+                    tooltip: "Edit Deal",
+                    type: "text" as const,
+                    onClick: handleToggleEditMode,
+                },
+            ]
             : []),
         // Save all button - only show when in edit mode with changes
         ...(isEditMode
             ? [
-                  {
-                      key: "save_all",
-                      icon: <SaveOutlined />,
-                      tooltip: hasUnsavedChanges
-                          ? `Save All Changes (${
-                                Object.keys(pendingChanges).length
-                            })`
-                          : "No changes to save",
-                      type: "primary" as const,
-                      onClick: handleSaveAll,
-                      disabled: !hasUnsavedChanges || isSavingAll,
-                      loading: isSavingAll,
-                  },
-              ]
+                {
+                    key: "save_all",
+                    icon: <SaveOutlined />,
+                    tooltip: hasUnsavedChanges
+                        ? `Save All Changes (${Object.keys(pendingChanges).length
+                        })`
+                        : "No changes to save",
+                    type: "primary" as const,
+                    onClick: handleSaveAll,
+                    disabled: !hasUnsavedChanges || isSavingAll,
+                    loading: isSavingAll,
+                },
+            ]
             : []),
         // Cancel edit mode button - only show when in edit mode
         ...(isEditMode
             ? [
-                  {
-                      key: "cancel_edit",
-                      icon: <CloseOutlined />,
-                      tooltip: "Cancel Edit",
-                      type: "text" as const,
-                      onClick: handleExitEditMode,
-                  },
-              ]
+                {
+                    key: "cancel_edit",
+                    icon: <CloseOutlined />,
+                    tooltip: "Cancel Edit",
+                    type: "text" as const,
+                    onClick: handleExitEditMode,
+                },
+            ]
             : []),
         // Only show delete button if user can delete
         ...(canDelete
             ? [
-                  {
-                      key: "delete",
-                      icon: <DeleteOutlined />,
-                      tooltip: "Delete Deal",
-                      type: "text" as const,
-                      danger: true,
-                      onClick: () => {
-                          handleAction("delete");
-                      },
-                  },
-              ]
+                {
+                    key: "delete",
+                    icon: <DeleteOutlined />,
+                    tooltip: "Delete Deal",
+                    type: "text" as const,
+                    danger: true,
+                    onClick: () => {
+                        handleAction("delete");
+                    },
+                },
+            ]
             : []),
     ];
 
@@ -526,9 +526,10 @@ export default function DealInfoSection({
             key: "overview",
             label: "Overview",
             children: (
-                <div className="p-6">
-                    <Descriptions column={2} bordered size="middle">
-                        <Descriptions.Item label="Deal Name" span={2}>
+                <div className="p-4 space-y-4">
+                    {/* Deal Overview */}
+                    <DetailSection title="Deal Overview">
+                        <DetailField label="Deal Name" span={2}>
                             <EditableField
                                 value={currentDeal.name}
                                 fieldName="name"
@@ -542,339 +543,9 @@ export default function DealInfoSection({
                                 onChange={handleFieldChange}
                                 disabled={!canEdit}
                             />
-                        </Descriptions.Item>
+                        </DetailField>
 
-                        <Descriptions.Item label="Package(s)">
-                            <EditableField
-                                value={
-                                    currentDeal.packages?.map(
-                                        (p: any) => p.id,
-                                    ) || []
-                                }
-                                fieldName="package_id"
-                                selectorType="packages"
-                                mode="multiple"
-                                displayValue={
-                                    currentDeal.packages?.length
-                                        ? currentDeal.packages
-                                              .map(
-                                                  (pkg: any) =>
-                                                      pkg?.name || pkg,
-                                              )
-                                              .join(", ")
-                                        : "--"
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("package_id", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll || isFieldLoading("package_id")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Lead Contact">
-                            <EditableField
-                                value={currentDeal?.lead_id}
-                                fieldName="lead_id"
-                                selectorType="leads"
-                                displayValue={
-                                    currentDeal.contact ? (
-                                        <div className="space-y-1">
-                                            <Link
-                                                href={route(
-                                                    "lead-contact.show",
-                                                    currentDeal.contact.id,
-                                                )}
-                                                className="text-blue-600 hover:text-blue-800 font-medium"
-                                            >
-                                                {currentDeal.contact
-                                                    .client_name_salutation ||
-                                                    currentDeal.contact
-                                                        .client_name}
-                                            </Link>
-                                            {currentDeal.contact.client_id && (
-                                                <Tag
-                                                    color="blue"
-                                                    className="text-xs"
-                                                >
-                                                    Client
-                                                </Tag>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("lead_id", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll || isFieldLoading("lead_id")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Email">
-                            {currentDeal.contact?.client_email ? (
-                                <div className="flex items-center gap-x-2">
-                                    <MailOutlined className="text-gray-400" />
-                                    <EditableField
-                                        value={currentDeal.contact.client_email}
-                                        fieldName="email"
-                                        fieldType="email"
-                                        onSave={(value) =>
-                                            handleFieldUpdate("email", value)
-                                        }
-                                        className="text-blue-600 hover:text-blue-800"
-                                        alwaysEditing={isFieldEditable}
-                                        onChange={handleFieldChange}
-                                        loading={
-                                            isSavingAll ||
-                                            isFieldLoading("email")
-                                        }
-                                        disabled={!canEdit}
-                                    />
-                                </div>
-                            ) : (
-                                <span className="text-gray-500">--</span>
-                            )}
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Mobile">
-                            {currentDeal.contact ? (
-                                <div className="flex items-center gap-x-2">
-                                    <PhoneOutlined className="text-gray-400" />
-                                    <EditableField
-                                        value={getMobileNumber(
-                                            currentDeal.contact.mobile,
-                                        )}
-                                        fieldName="mobile"
-                                        fieldType="phone"
-                                        onSave={(value) =>
-                                            handleFieldUpdate("mobile", value)
-                                        }
-                                        alwaysEditing={isFieldEditable}
-                                        onChange={handleFieldChange}
-                                        loading={
-                                            isSavingAll ||
-                                            isFieldLoading("mobile")
-                                        }
-                                        disabled={!canEdit}
-                                    />
-                                </div>
-                            ) : (
-                                <span className="text-gray-500">--</span>
-                            )}
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Company Name">
-                            <EditableField
-                                value={currentDeal.contact?.company_name}
-                                fieldName="company_name"
-                                fieldType="text"
-                                onSave={(value) =>
-                                    handleFieldUpdate("company_name", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll ||
-                                    isFieldLoading("company_name")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Deal Category">
-                            <EditableField
-                                value={currentDeal.category_id}
-                                fieldName="category_id"
-                                selectorType="categories"
-                                displayValue={
-                                    currentDeal.category?.category_name || (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("category_id", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll || isFieldLoading("category_id")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Deal Agent">
-                            <EditableField
-                                value={currentDeal.agent_id}
-                                fieldName="agent_id"
-                                selectorType="lead-agents"
-                                displayValue={
-                                    currentDeal.lead_agent?.user ? (
-                                        <UserIndicator
-                                            data={currentDeal.lead_agent.user}
-                                            size="sm"
-                                        />
-                                    ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("agent_id", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll || isFieldLoading("agent_id")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Deal Watchers" span={2}>
-                            <EditableField
-                                value={
-                                    currentDeal.deal_watchers?.map(
-                                        (w: any) => w.id,
-                                    ) || []
-                                }
-                                fieldName="deal_watcher"
-                                selectorType="employees"
-                                mode="multiple"
-                                displayValue={
-                                    currentDeal.deal_watchers &&
-                                    currentDeal.deal_watchers.length > 0 ? (
-                                        <MultiUserIndicator
-                                            users={currentDeal.deal_watchers.map(
-                                                (watcher: any) => ({
-                                                    id: watcher.id,
-                                                    image_url:
-                                                        watcher.image_url ||
-                                                        watcher.image, // Handle both structures
-                                                    name: watcher.name,
-                                                }),
-                                            )}
-                                            size="sm"
-                                            maxCount={2}
-                                            showTooltip={true}
-                                        />
-                                    ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("deal_watcher", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll ||
-                                    isFieldLoading("deal_watcher")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Deal Participants" span={2}>
-                            <EditableField
-                                value={
-                                    currentDeal.deal_participants?.map(
-                                        (p: any) => p.id,
-                                    ) || []
-                                }
-                                fieldName="deal_participant"
-                                selectorType="employees"
-                                mode="multiple"
-                                displayValue={
-                                    currentDeal.deal_participants &&
-                                    currentDeal.deal_participants.length > 0 ? (
-                                        <MultiUserIndicator
-                                            users={currentDeal.deal_participants.map(
-                                                (participant: any) => ({
-                                                    id: participant.id,
-                                                    image_url:
-                                                        participant.image_url ||
-                                                        participant.image,
-                                                    name: participant.name,
-                                                }),
-                                            )}
-                                            size="sm"
-                                            maxCount={2}
-                                            showTooltip={true}
-                                        />
-                                    ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("deal_participant", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll ||
-                                    isFieldLoading("deal_participant")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </Descriptions.Item>
-
-                        {currentDeal?.lead_status && (
-                            <Descriptions.Item label="Status">
-                                <Tag
-                                    color={currentDeal.lead_status.label_color}
-                                    className="font-medium"
-                                >
-                                    {currentDeal.lead_status.type}
-                                </Tag>
-                            </Descriptions.Item>
-                        )}
-
-                        <Descriptions.Item label="Close Date">
-                            <EditableField
-                                value={currentDeal.close_date}
-                                fieldName="close_date"
-                                fieldType="date"
-                                onSave={(value) =>
-                                    handleFieldUpdate("close_date", value)
-                                }
-                                formatValue={(value) =>
-                                    value
-                                        ? dayjs(value.toString()).format(
-                                              "MMM DD, YYYY",
-                                          )
-                                        : "--"
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll || isFieldLoading("close_date")
-                                }
-                                disabled={!canEdit}
-                            />
-                        </Descriptions.Item>
-
-                        <Descriptions.Item label="Deal Value">
+                        <DetailField label="Deal Value">
                             <EditableField
                                 value={{
                                     amount: currentDeal.value ?? null,
@@ -915,21 +586,148 @@ export default function DealInfoSection({
                                 loading={isSavingAll || isFieldLoading("value")}
                                 disabled={!canEdit}
                             />
-                        </Descriptions.Item>
-
-                        {currentDeal.total_discount != null &&
-                            currentDeal.total_discount > 0 && (
-                                <Descriptions.Item label="Total Discount">
-                                    <Tag color="green" icon={<GiftOutlined />}>
-                                        -
-                                        {Number(
+                            {currentDeal.total_discount != null &&
+                                currentDeal.total_discount > 0 && (
+                                    <Tag
+                                        color="green"
+                                        icon={<GiftOutlined />}
+                                        className="ml-2"
+                                    >
+                                        -{Number(
                                             currentDeal.total_discount,
                                         ).toLocaleString("en-GB")}
                                     </Tag>
-                                </Descriptions.Item>
-                            )}
+                                )}
+                        </DetailField>
 
-                        <Descriptions.Item label="Properties" span={"filled"}>
+                        <DetailField label="Close Date">
+                            <EditableField
+                                value={currentDeal.close_date}
+                                fieldName="close_date"
+                                fieldType="date"
+                                onSave={(value) =>
+                                    handleFieldUpdate("close_date", value)
+                                }
+                                formatValue={(value) =>
+                                    value
+                                        ? dayjs(value.toString()).format(
+                                            "MMM DD, YYYY",
+                                        )
+                                        : "--"
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("close_date")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+
+                        <DetailField label="Package(s)">
+                            <EditableField
+                                value={
+                                    currentDeal.packages?.map(
+                                        (p: any) => p.id,
+                                    ) || []
+                                }
+                                fieldName="package_id"
+                                selectorType="packages"
+                                mode="multiple"
+                                displayValue={
+                                    currentDeal.packages?.length
+                                        ? currentDeal.packages
+                                            .map(
+                                                (pkg: any) =>
+                                                    pkg?.name || pkg,
+                                            )
+                                            .join(", ")
+                                        : "--"
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("package_id", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("package_id")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+
+                        <DetailField label="Lead Contact">
+                            <EditableField
+                                value={currentDeal?.lead_id}
+                                fieldName="lead_id"
+                                selectorType="leads"
+                                displayValue={
+                                    currentDeal.contact ? (
+                                        <div className="flex items-center gap-2">
+                                            <Link
+                                                href={route(
+                                                    "lead-contact.show",
+                                                    currentDeal.contact.id,
+                                                )}
+                                                className="text-blue-600 hover:text-blue-800 font-medium"
+                                            >
+                                                {currentDeal.contact
+                                                    .client_name_salutation ||
+                                                    currentDeal.contact
+                                                        .client_name}
+                                            </Link>
+                                            {currentDeal.contact.client_id && (
+                                                <Tag
+                                                    color="blue"
+                                                    className="text-xs"
+                                                >
+                                                    Client
+                                                </Tag>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("lead_id", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("lead_id")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+
+                        <DetailField label="Deal Category">
+                            <EditableField
+                                value={currentDeal.category_id}
+                                fieldName="category_id"
+                                selectorType="categories"
+                                displayValue={
+                                    currentDeal.category?.category_name ? (
+                                        <Tag color="blue" className="font-medium">
+                                            {currentDeal.category.category_name}
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("category_id", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("category_id")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+
+                        <DetailField label="Properties" span={2}>
                             <EditableField
                                 value={
                                     currentDeal.products?.map(
@@ -954,9 +752,7 @@ export default function DealInfoSection({
                                             )}
                                         </div>
                                     ) : (
-                                        <span className="text-gray-500">
-                                            --
-                                        </span>
+                                        <span className="text-gray-400">--</span>
                                     )
                                 }
                                 onSave={(value) =>
@@ -969,8 +765,215 @@ export default function DealInfoSection({
                                 }
                                 disabled={!canEdit}
                             />
-                        </Descriptions.Item>
-                    </Descriptions>
+                        </DetailField>
+
+                        {currentDeal?.lead_status && (
+                            <DetailField label="Status">
+                                <Tag
+                                    color={currentDeal.lead_status.label_color}
+                                    className="font-medium"
+                                >
+                                    {currentDeal.lead_status.type}
+                                </Tag>
+                            </DetailField>
+                        )}
+                    </DetailSection>
+
+                    {/* Contact Info */}
+                    <DetailSection title="Contact Info">
+                        <DetailField label="Email">
+                            <div className="flex items-center gap-x-2">
+                                {currentDeal.contact?.client_email && (
+                                    <MailOutlined className="text-gray-400 flex-shrink-0" />
+                                )}
+                                {currentDeal.contact?.client_email ? (
+                                    <EditableField
+                                        value={currentDeal.contact.client_email}
+                                        fieldName="email"
+                                        fieldType="email"
+                                        onSave={(value) =>
+                                            handleFieldUpdate("email", value)
+                                        }
+                                        className="text-blue-600 hover:text-blue-800"
+                                        alwaysEditing={isFieldEditable}
+                                        onChange={handleFieldChange}
+                                        loading={
+                                            isSavingAll ||
+                                            isFieldLoading("email")
+                                        }
+                                        disabled={!canEdit}
+                                    />
+                                ) : (
+                                    <span className="text-gray-400">--</span>
+                                )}
+                            </div>
+                        </DetailField>
+
+                        <DetailField label="Mobile">
+                            {currentDeal.contact ? (
+                                <div className="flex items-center gap-x-2">
+                                    <PhoneOutlined className="text-gray-400 flex-shrink-0" />
+                                    <EditableField
+                                        value={getMobileNumber(
+                                            currentDeal.contact.mobile,
+                                        )}
+                                        fieldName="mobile"
+                                        fieldType="phone"
+                                        onSave={(value) =>
+                                            handleFieldUpdate("mobile", value)
+                                        }
+                                        alwaysEditing={isFieldEditable}
+                                        onChange={handleFieldChange}
+                                        loading={
+                                            isSavingAll ||
+                                            isFieldLoading("mobile")
+                                        }
+                                        disabled={!canEdit}
+                                    />
+                                </div>
+                            ) : (
+                                <span className="text-gray-400">--</span>
+                            )}
+                        </DetailField>
+
+                        <DetailField label="Company Name" span={2}>
+                            <EditableField
+                                value={currentDeal.contact?.company_name}
+                                fieldName="company_name"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("company_name", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("company_name")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+                    </DetailSection>
+
+                    {/* Team */}
+                    <DetailSection title="Team">
+                        <DetailField label="Deal Agent">
+                            <EditableField
+                                value={currentDeal.agent_id}
+                                fieldName="agent_id"
+                                selectorType="lead-agents"
+                                displayValue={
+                                    currentDeal.lead_agent?.user ? (
+                                        <UserIndicator
+                                            data={currentDeal.lead_agent.user}
+                                            size="sm"
+                                            maxNameLength={40}
+                                        />
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("agent_id", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll || isFieldLoading("agent_id")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+                        <DetailField label="Deal Watchers" span={2}>
+                            <EditableField
+                                value={
+                                    currentDeal.deal_watchers?.map(
+                                        (w: any) => w.id,
+                                    ) || []
+                                }
+                                fieldName="deal_watcher"
+                                selectorType="employees"
+                                mode="multiple"
+                                displayValue={
+                                    currentDeal.deal_watchers &&
+                                        currentDeal.deal_watchers.length > 0 ? (
+                                        <MultiUserIndicator
+                                            users={currentDeal.deal_watchers.map(
+                                                (watcher: any) => ({
+                                                    id: watcher.id,
+                                                    image_url:
+                                                        watcher.image_url ||
+                                                        watcher.image,
+                                                    name: watcher.name,
+                                                }),
+                                            )}
+                                            size="sm"
+                                            maxCount={2}
+                                            showTooltip={true}
+                                        />
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("deal_watcher", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("deal_watcher")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+
+                        <DetailField label="Deal Participants" span={2}>
+                            <EditableField
+                                value={
+                                    currentDeal.deal_participants?.map(
+                                        (p: any) => p.id,
+                                    ) || []
+                                }
+                                fieldName="deal_participant"
+                                selectorType="employees"
+                                mode="multiple"
+                                displayValue={
+                                    currentDeal.deal_participants &&
+                                        currentDeal.deal_participants.length > 0 ? (
+                                        <MultiUserIndicator
+                                            users={currentDeal.deal_participants.map(
+                                                (participant: any) => ({
+                                                    id: participant.id,
+                                                    image_url:
+                                                        participant.image_url ||
+                                                        participant.image,
+                                                    name: participant.name,
+                                                }),
+                                            )}
+                                            size="sm"
+                                            maxCount={2}
+                                            showTooltip={true}
+                                        />
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                onSave={(value) =>
+                                    handleFieldUpdate("deal_participant", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("deal_participant")
+                                }
+                                disabled={!canEdit}
+                            />
+                        </DetailField>
+
+
+                    </DetailSection>
                 </div>
             ),
         },
@@ -996,7 +999,7 @@ export default function DealInfoSection({
             key: `category-${category.id}`,
             label: category.name,
             children: (
-                <div className="p-6">
+                <div className="p-4">
                     <CustomFieldDisplay
                         fields={fields}
                         customFieldsData={currentDeal.custom_fields_data || {}}
@@ -1042,12 +1045,13 @@ export default function DealInfoSection({
             <div>
                 {/* Header */}
                 <div
-                    className={`flex items-center justify-between p-6 border-b border-gray-200 ${
-                        isEditMode ? "bg-blue-50" : "bg-white"
-                    }`}
+                    className={`flex items-center justify-between px-5 py-3 border-b ${isEditMode
+                            ? "bg-blue-50 border-blue-100"
+                            : "bg-gray-50/80 border-gray-100"
+                        }`}
                 >
                     <div className="flex items-center gap-3">
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-sm font-semibold text-gray-700">
                             Deal Information
                         </h2>
                         {isLocked && (
