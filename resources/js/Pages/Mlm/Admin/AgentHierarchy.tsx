@@ -15,7 +15,7 @@ import {
     Skeleton,
 } from "antd";
 import { motion } from "framer-motion";
-import { GitBranch, Plus, Unlink, RefreshCw } from "lucide-react";
+import { GitBranch, Plus, Unlink, RefreshCw, Maximize2 } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
@@ -44,6 +44,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
     );
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [fullscreenOpen, setFullscreenOpen] = useState(false);
     const [form] = Form.useForm();
 
     const assignDownline = useAssignDownline(() => {
@@ -103,6 +104,12 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                             }
                             extra={
                                 <Space>
+                                    <Button
+                                        icon={<Maximize2 size={14} />}
+                                        onClick={() => setFullscreenOpen(true)}
+                                    >
+                                        Fullscreen
+                                    </Button>
                                     <Button
                                         icon={<RefreshCw size={14} />}
                                         onClick={() => refetch()}
@@ -242,6 +249,36 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                             </div>
                         )}
                     </Drawer>
+
+                    {/* Fullscreen Tree Modal */}
+                    <Modal
+                        title={
+                            <div className="flex items-center gap-2">
+                                <GitBranch size={18} className="text-indigo-500" />
+                                <span>Organization Tree</span>
+                            </div>
+                        }
+                        open={fullscreenOpen}
+                        onCancel={() => setFullscreenOpen(false)}
+                        footer={null}
+                        width="95vw"
+                        style={{ top: 20 }}
+                        styles={{ body: { padding: 0, height: 'calc(90vh - 55px)', overflow: 'hidden' } }}
+                        destroyOnClose
+                    >
+                        {hierarchy.length > 0 ? (
+                            <AgentTreeView
+                                data={hierarchy}
+                                onNodeClick={handleNodeClick}
+                                orientation="vertical"
+                                height={window.innerHeight * 0.9 - 55}
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-96">
+                                <Empty description="No hierarchy data available" />
+                            </div>
+                        )}
+                    </Modal>
 
                     {/* Assign Downline Modal */}
                     <Modal
