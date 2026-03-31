@@ -277,8 +277,10 @@ export default function EditableField({
         } else {
             detailFieldCtx.setEditHandler(null);
         }
+        detailFieldCtx.setIsEditing(editing);
         return () => {
             detailFieldCtx.setEditHandler(null);
+            detailFieldCtx.setIsEditing(false);
         };
     }, [detailFieldCtx, canStartEditing, editing]);
 

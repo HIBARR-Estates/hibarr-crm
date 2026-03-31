@@ -487,6 +487,7 @@ interface Props {
     customFieldsData?: Record<string, any>;
     categoryId?: string | number;
     column?: number;
+    title?: string; // Optional title shown in the section header
     onUpdate?: (field: string, value: any) => Promise<void>;
     editable?: boolean;
     alwaysEditing?: boolean; // When true, fields are always in edit mode (for bulk editing)
@@ -502,6 +503,7 @@ export default function CustomFieldDisplay({
     customFieldsData,
     categoryId,
     column = 2,
+    title,
     onUpdate,
     editable = false,
     alwaysEditing = false,
@@ -1539,7 +1541,7 @@ export default function CustomFieldDisplay({
     }
 
     return (
-        <DetailSection gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+        <DetailSection title={title} gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
             {filteredFields.map((field) => {
                 const fieldKey = `field_${field.id}`;
                 const value =
