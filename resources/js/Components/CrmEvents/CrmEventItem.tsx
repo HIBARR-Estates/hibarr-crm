@@ -161,17 +161,13 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const message = event.metadata?.comment as string | undefined;
 
     return (
-        <div className="group relative flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-gray-300 hover:shadow-sm">
-            {/* Header: Type + Badge + Time */}
-            <div className="flex items-center justify-between gap-4">
+        <div className="group relative flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 transition-colors duration-200">
+            {/* Header: Type + Badge + Time + Expand Toggle */}
+            <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                     <div
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white shadow-sm ring-1 ring-gray-100 ${colors.bg}`}
-                    >
-                        <div
-                            className={`h-1.5 w-1.5 rounded-full ${colors.dot}`}
-                        />
-                    </div>
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${colors.bg} ring-1 ring-gray-100`}
+                    />
 
                     <div className="flex flex-wrap items-center gap-2 min-w-0">
                         <Text
@@ -189,16 +185,32 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     </div>
                 </div>
 
-                <Tooltip
-                    title={dayjs(event.occurred_at).format(
-                        "MMM D, YYYY • h:mm A",
+                <div className="flex shrink-0 items-center gap-2">
+                    <Tooltip
+                        title={dayjs(event.occurred_at).format(
+                            "MMM D, YYYY • h:mm A",
+                        )}
+                    >
+                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400">
+                            <ClockCircleOutlined className="text-[10px]" />
+                            <span>{dayjs(event.occurred_at).fromNow()}</span>
+                        </div>
+                    </Tooltip>
+
+                    {message && (
+                        <button
+                            type="button"
+                            onClick={() => setExpanded(!expanded)}
+                            className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                        >
+                            {expanded ? (
+                                <UpOutlined className="text-[9px]" />
+                            ) : (
+                                <DownOutlined className="text-[9px]" />
+                            )}
+                        </button>
                     )}
-                >
-                    <div className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-gray-400">
-                        <ClockCircleOutlined className="text-[10px]" />
-                        <span>{dayjs(event.occurred_at).fromNow()}</span>
-                    </div>
-                </Tooltip>
+                </div>
             </div>
 
             {/* Meta Tags Row */}
@@ -208,8 +220,6 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                         {event.event_type.category.name}
                     </span>
                 )}
-                <div className="h-1 w-1 rounded-full bg-gray-300" />{" "}
-                {/* Separator Dot */}
                 <div
                     className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${statusCfg.className}`}
                 >
@@ -243,40 +253,12 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                 )}
             </div>
 
-            {/* Content Section */}
-            {message && (
+            {/* Content Section — toggled via the chevron in the header */}
+            {message && expanded && (
                 <div className="ml-9 mt-1">
-                    <div
-                        className={`relative overflow-hidden rounded-lg border border-gray-100 bg-gray-50/40 px-3 py-2 text-[13px] text-gray-600 transition-all ${
-                            !expanded && !compact
-                                ? "line-clamp-2"
-                                : compact
-                                  ? "line-clamp-1 italic"
-                                  : ""
-                        }`}
-                    >
+                    <div className="rounded-lg border border-gray-100 bg-gray-50/40 px-3 py-2 text-[13px] text-gray-600 whitespace-pre-wrap break-words">
                         {message}
                     </div>
-
-                    {message.length > 120 && !compact && (
-                        <button
-                            type="button"
-                            onClick={() => setExpanded(!expanded)}
-                            className="mt-1 flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors"
-                        >
-                            {expanded ? (
-                                <>
-                                    <UpOutlined className="text-[8px]" /> Show
-                                    Less
-                                </>
-                            ) : (
-                                <>
-                                    <DownOutlined className="text-[8px]" /> Read
-                                    More
-                                </>
-                            )}
-                        </button>
-                    )}
                 </div>
             )}
 
