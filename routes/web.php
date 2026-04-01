@@ -1238,6 +1238,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('agent-hierarchy', [App\Http\Controllers\MlmAdminController::class, 'agentHierarchy'])->name('agent_hierarchy');
         Route::get('commission-ledger', [App\Http\Controllers\MlmAdminController::class, 'commissionLedger'])->name('commission_ledger');
         Route::get('agent-metrics', [App\Http\Controllers\MlmAdminController::class, 'agentMetrics'])->name('agent_metrics');
+        Route::get('agents/{agentId}/dashboard', [App\Http\Controllers\MlmAdminController::class, 'agentDashboard'])->name('agent_dashboard');
         Route::get('level-history', [App\Http\Controllers\MlmAdminController::class, 'levelHistory'])->name('level_history');
         Route::get('cycle-management', [App\Http\Controllers\MlmAdminController::class, 'cycleManagement'])->name('cycle_management');
 
@@ -1268,6 +1269,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
             // Agent Metrics
             Route::get('agent-metrics', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentMetrics'])->name('agent_metrics');
+            Route::get('agents/{agentId}/dashboard-stats', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentDashboardStats'])->name('agent_dashboard_stats');
 
             // Level History
             Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');
