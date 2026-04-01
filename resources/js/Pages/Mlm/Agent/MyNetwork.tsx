@@ -14,6 +14,7 @@ import {
     Form,
     message,
     Divider,
+    Modal,
     Select,
     Tooltip,
 } from "antd";
@@ -22,7 +23,6 @@ import {
     GitBranch,
     RefreshCw,
     Maximize2,
-    Minimize2,
     Mail,
     Send,
     Briefcase,
@@ -552,7 +552,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
         null,
     );
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [fullscreen, setFullscreen] = useState(false);
+    const [fullscreenOpen, setFullscreenOpen] = useState(false);
 
     const handleNodeClick = (node: AgentHierarchyNode) => {
         setSelectedNode(node);
@@ -655,30 +655,20 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                     <Space>
                                                         <Button
                                                             icon={
-                                                                fullscreen ? (
-                                                                    <Minimize2
-                                                                        size={
-                                                                            14
-                                                                        }
-                                                                    />
-                                                                ) : (
-                                                                    <Maximize2
-                                                                        size={
-                                                                            14
-                                                                        }
-                                                                    />
-                                                                )
+                                                                <Maximize2
+                                                                    size={
+                                                                        14
+                                                                    }
+                                                                />
                                                             }
                                                             size="small"
                                                             onClick={() =>
-                                                                setFullscreen(
-                                                                    (f) => !f,
+                                                                setFullscreenOpen(
+                                                                    true,
                                                                 )
                                                             }
                                                         >
-                                                            {fullscreen
-                                                                ? "Exit Fullscreen"
-                                                                : "Fullscreen"}
+                                                            Fullscreen
                                                         </Button>
                                                         <Button
                                                             icon={
@@ -712,9 +702,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                 className="shadow-sm"
                                                 bodyStyle={{
                                                     padding: 0,
-                                                    minHeight: fullscreen
-                                                        ? "80vh"
-                                                        : 500,
+                                                    minHeight: 500,
                                                 }}
                                             >
                                                 {isLoading ? (
@@ -724,9 +712,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                 ) : network ? (
                                                     <div
                                                         style={{
-                                                            height: fullscreen
-                                                                ? "80vh"
-                                                                : 500,
+                                                            height: 500,
                                                         }}
                                                     >
                                                         <AgentTreeView
@@ -770,6 +756,36 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                             },
                         ]}
                     />
+
+                    {/* Fullscreen Tree Modal */}
+                    <Modal
+                        title={
+                            <div className="flex items-center gap-2">
+                                <GitBranch size={18} className="text-indigo-500" />
+                                <span>My Network</span>
+                            </div>
+                        }
+                        open={fullscreenOpen}
+                        onCancel={() => setFullscreenOpen(false)}
+                        footer={null}
+                        width="95vw"
+                        style={{ top: 20 }}
+                        styles={{ body: { padding: 0, height: 'calc(90vh - 55px)', overflow: 'hidden' } }}
+                        destroyOnClose
+                    >
+                        {network ? (
+                            <AgentTreeView
+                                data={[network]}
+                                onNodeClick={handleNodeClick}
+                                orientation="vertical"
+                                height={window.innerHeight * 0.9 - 55}
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-96">
+                                <Empty description="No network data available" />
+                            </div>
+                        )}
+                    </Modal>
 
                     {/* Node Detail Drawer (with Downline Deals) */}
                     <Drawer

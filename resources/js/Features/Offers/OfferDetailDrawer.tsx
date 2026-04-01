@@ -80,7 +80,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
     // Fetch projects belonging to this offer's developer for the attach dropdown
     const { data: projectsData } = useApiQuery<{
         status: string;
-        data: { projects: DeveloperProject[] };
+        projects: DeveloperProject[];
     }>({
         path: route("developer-projects.all"),
         options: {
@@ -92,7 +92,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
     });
 
     // Filter to only the offer's developer's projects
-    const developerProjects = (projectsData?.data?.projects ?? []).filter(
+    const developerProjects = (projectsData?.projects ?? []).filter(
         (p) => p.developer_id === offer?.developer_id,
     );
 
@@ -379,7 +379,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                     </div>
 
                     {/* Attached Unit Types */}
-                    <div>
+                    {/* <div>
                         <Text strong className="block mb-2">
                             Attached Unit Types ({offer.unit_types?.length ?? 0}
                             )
@@ -398,12 +398,12 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                             />
                         )}
-                    </div>
+                    </div> */}
 
                     <Divider />
 
                     {/* Attach from here */}
-                    <div>
+                    {/* <div>
                         <Text strong className="block mb-2">
                             <LinkOutlined className="mr-1" />
                             Attach to Project or Unit Type
@@ -478,7 +478,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                 </Button>
                             )}
                         </div>
-                    </div>
+                    </div> */}
                 </div>
             )}
         </Drawer>

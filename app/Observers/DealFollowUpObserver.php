@@ -7,6 +7,7 @@ use App\Models\DealFollowUp;
 use App\Services\DealActivityEventService;
 use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
+use Illuminate\Support\Facades\Log;
 
 class DealFollowUpObserver
 {
@@ -29,10 +30,28 @@ class DealFollowUpObserver
      */
     public function created(DealFollowUp $dealFollowUp): void
     {
+        Log::info('[DealFollowUpObserver::created] Fired.', [
+            'followup_id' => $dealFollowUp->id,
+            'deal_id' => $dealFollowUp->deal_id,
+            'has_deal_relation' => (bool) $dealFollowUp->deal,
+        ]);
+
         //deal automation trigger
         if ($dealFollowUp->deal) {
             $this->dealAutomation->process($dealFollowUp->deal, 'followup_created');
+
+            Log::info('[DealFollowUpObserver::created] About to call recordFollowUpCreated.', [
+                'deal_id' => $dealFollowUp->deal->id,
+                'followup_id' => $dealFollowUp->id,
+            ]);
+
             $this->dealActivityEventService->recordFollowUpCreated($dealFollowUp->deal, $dealFollowUp);
+
+            Log::info('[DealFollowUpObserver::created] recordFollowUpCreated completed.');
+        } else {
+            Log::warning('[DealFollowUpObserver::created] No deal relation found — skipping CRM event.', [
+                'deal_id' => $dealFollowUp->deal_id,
+            ]);
         }
     }
 

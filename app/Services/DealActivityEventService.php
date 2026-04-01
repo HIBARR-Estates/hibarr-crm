@@ -11,6 +11,7 @@ use App\Models\DealNote;
 use App\Models\Product;
 use App\Models\Property;
 use App\Models\Task;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -45,6 +46,12 @@ class DealActivityEventService
 
     public function recordNoteAdded(Deal $deal, DealNote $note): void
     {
+        Log::info('[DealActivityEventService::recordNoteAdded] Called.', [
+            'deal_id' => $deal->id,
+            'note_id' => $note->id,
+            'company_id' => $deal->company_id,
+        ]);
+
         $this->record('deal_note_added', $deal, [
             'comment' => 'Note added: ' . ($note->title ?? 'Untitled Note'),
             'note_id' => $note->id,
@@ -55,6 +62,12 @@ class DealActivityEventService
 
     public function recordFollowUpCreated(Deal $deal, DealFollowUp $followUp): void
     {
+        Log::info('[DealActivityEventService::recordFollowUpCreated] Called.', [
+            'deal_id' => $deal->id,
+            'followup_id' => $followUp->id,
+            'company_id' => $deal->company_id,
+        ]);
+
         $this->record('deal_followup_created', $deal, [
             'comment' => 'Follow-up scheduled' . ($followUp->next_follow_up_date ? ' for ' . $followUp->next_follow_up_date->format('M d, Y H:i') : ''),
             'followup_id' => $followUp->id,
@@ -100,22 +113,45 @@ class DealActivityEventService
      */
     protected function record(string $eventTypeSlug, Deal $deal, array $metadata): void
     {
-        $event = $this->eventService->record([
-            'event_type_slug' => $eventTypeSlug,
+        Log::info('[DealActivityEventService::record] Dispatching to CrmEventService.', [
+            'slug' => $eventTypeSlug,
+            'deal_id' => $deal->id,
             'company_id' => $deal->company_id,
             'user_id' => auth()->id(),
-            'model_type' => Deal::class,
-            'model_id' => $deal->id,
-            'generation_type' => CrmEventGenerationType::SYSTEM_GENERATED->value,
-            'source' => CrmEventSource::SYSTEM->value,
             'correlation_id' => $this->getCorrelationId(),
-            'causation_id' => $this->rootEventId,
-            'metadata' => $metadata,
         ]);
 
-        // Track the first event as the root for causation chaining
-        if ($event && $this->rootEventId === null) {
-            $this->rootEventId = $event->id;
+        try {
+            $event = $this->eventService->record([
+                'event_type_slug' => $eventTypeSlug,
+                'company_id' => $deal->company_id,
+                'user_id' => auth()->id(),
+                'model_type' => Deal::class,
+                'model_id' => $deal->id,
+                'generation_type' => CrmEventGenerationType::SYSTEM_GENERATED->value,
+                'source' => CrmEventSource::SYSTEM->value,
+                'correlation_id' => $this->getCorrelationId(),
+                'causation_id' => $this->rootEventId,
+                'metadata' => $metadata,
+            ]);
+
+            Log::info('[DealActivityEventService::record] CrmEventService returned.', [
+                'slug' => $eventTypeSlug,
+                'event_id' => $event?->id,
+                'was_async' => $event === null,
+            ]);
+
+            // Track the first event as the root for causation chaining
+            if ($event && $this->rootEventId === null) {
+                $this->rootEventId = $event->id;
+            }
+        } catch (\Throwable $e) {
+            Log::error('[DealActivityEventService::record] Exception thrown.', [
+                'slug' => $eventTypeSlug,
+                'deal_id' => $deal->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
