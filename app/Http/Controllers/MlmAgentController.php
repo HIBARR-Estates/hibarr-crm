@@ -264,7 +264,7 @@ class MlmAgentController extends AccountBaseController
     {
         $agent = $this->getAgent();
 
-        $summary = ['total' => 0, 'pending' => 0, 'paid' => 0];
+        $summary = ['total' => 0, 'pending' => 0, 'paid' => 0, 'total_records' => 0];
 
         if ($agent) {
             $base = MlmCommission::where('agent_id', $agent->id)
@@ -276,6 +276,7 @@ class MlmAgentController extends AccountBaseController
                 ->where('type', '!=', MlmCommissionType::System->value)
                 ->where('status', MlmCommissionStatus::Paid->value)
                 ->sum('amount');
+            $summary['total_records'] = (clone $base)->count();
         }
 
         return Inertia::render('Mlm/Agent/MyCommissions', [

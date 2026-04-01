@@ -44,6 +44,7 @@ import {
     COMMISSION_STATUS_LABELS,
     COMMISSION_TYPE_LABELS,
 } from "@/Features/Mlm/types";
+import { formatNumber } from "@/lib/utils";
 
 const { RangePicker } = DatePicker;
 
@@ -183,10 +184,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             render: (_: any, record: MlmCommission) => (
                 <div className="text-right">
                     <div className="font-semibold text-green-600">
-                        $
-                        {record.amount?.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                        })}
+                        ${formatNumber(record.amount)}
                     </div>
                     <div className="text-xs text-gray-500">
                         {record.percentage}%

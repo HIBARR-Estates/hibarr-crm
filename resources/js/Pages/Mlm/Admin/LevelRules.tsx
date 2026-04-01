@@ -97,12 +97,14 @@ const MlmLevelRules: React.FC<Props> = ({
         message.success("Criterion added");
         refetch();
         closeModal();
+        router.reload();
     });
 
     const updateCriterion = useUpdateLevelCriterion(editing?.id ?? 0, () => {
         message.success("Criterion updated");
         refetch();
         closeModal();
+        router.reload();
     });
 
     const deleteCriterion = useDeleteLevelCriterion(
@@ -111,6 +113,7 @@ const MlmLevelRules: React.FC<Props> = ({
             message.success("Criterion removed");
             setDeletingCriterion(null);
             refetch();
+            router.reload();
         },
     );
 
@@ -492,6 +495,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                         min={0}
                                         className="w-full"
                                         placeholder="e.g. 10"
+                                        style={{ width: "100%" }}
                                     />
                                 </Form.Item>
                             </div>
