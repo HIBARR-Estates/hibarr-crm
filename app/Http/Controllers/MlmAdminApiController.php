@@ -846,6 +846,7 @@ class MlmAdminApiController extends AccountBaseController
             $status = 'completed';
         }
 
+
         $cycle = MlmCycle::create([
             'company_id' => $companyId,
             'cycle_number' => $lastNumber + 1,
@@ -854,6 +855,7 @@ class MlmAdminApiController extends AccountBaseController
             'end_date' => $endDate,
             'status' => $status,
             'max_overflow_multiplier' => $validated['max_overflow_multiplier'] ?? $settings->default_overflow_multiplier,
+            
         ]);
 
         return response()->json([
