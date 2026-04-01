@@ -29,12 +29,19 @@ import {
 
 const { RangePicker } = DatePicker;
 
+interface CommissionSummary {
+    total: number;
+    pending: number;
+    paid: number;
+    total_records: number;
+}
+
 interface Props extends PageProps {
-    commissions: PaginatedResponse<MlmCommission>;
+    summary: CommissionSummary;
 }
 
 const MyCommissions: React.FC<Props> = ({
-    commissions: initialCommissions,
+    summary,
 }) => {
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
@@ -49,17 +56,9 @@ const MyCommissions: React.FC<Props> = ({
     });
 
     const commissions: PaginatedResponse<MlmCommission> =
-        (data as any) ?? initialCommissions;
+        (data as any) ?? null;
 
     const records = commissions?.data ?? [];
-    const totalEarned = records.reduce(
-        (sum, c) =>
-            Number(sum) + (c.status !== "reverted" ? Number(c.amount) : 0),
-        0,
-    );
-    const pendingAmount = records
-        .filter((c) => c.status === "pending")
-        .reduce((sum, c) => Number(sum) + Number(c.amount), 0);
 
     const columns = [
         {
@@ -161,8 +160,8 @@ const MyCommissions: React.FC<Props> = ({
                             >
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
-                                        title="Page Total"
-                                        value={totalEarned}
+                                        title="Total"
+                                        value={summary.total}
                                         prefix="$"
                                         precision={2}
                                         valueStyle={{ color: "#16a34a" }}
@@ -179,7 +178,7 @@ const MyCommissions: React.FC<Props> = ({
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
                                         title="Pending"
-                                        value={pendingAmount}
+                                        value={summary.pending}
                                         prefix="$"
                                         precision={2}
                                         valueStyle={{ color: "#ea580c" }}
@@ -196,7 +195,7 @@ const MyCommissions: React.FC<Props> = ({
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
                                         title="Total Records"
-                                        value={commissions?.total ?? 0}
+                                        value={summary.total_records}
                                     />
                                 </Card>
                             </motion.div>
