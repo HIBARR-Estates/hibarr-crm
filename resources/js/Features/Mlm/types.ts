@@ -107,6 +107,7 @@ export interface MlmLevelCriterion {
     metric: MlmMetric;
     operator: CriteriaOperator;
     threshold: number;
+    description?: string | null;
 }
 
 export interface MlmLevelCriterionFormData {
@@ -115,6 +116,7 @@ export interface MlmLevelCriterionFormData {
     metric: MlmMetric;
     operator: CriteriaOperator;
     threshold: number;
+    description?: string | null;
 }
 
 // ── Commission ───────────────────────────────────────────────────

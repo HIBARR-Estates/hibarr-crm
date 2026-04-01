@@ -265,6 +265,7 @@ class MlmAdminApiController extends AccountBaseController
             'metric' => 'required|string|in:' . implode(',', MlmMetric::toArray()),
             'operator' => 'required|string|in:>=,>,<=,<,=',
             'threshold' => 'required|numeric|min:0',
+            'description' => 'nullable|string|max:500',
         ]);
 
         // Verify the level belongs to this company
@@ -293,6 +294,7 @@ class MlmAdminApiController extends AccountBaseController
             'metric' => 'sometimes|string|in:' . implode(',', MlmMetric::toArray()),
             'operator' => 'sometimes|string|in:>=,>,<=,<,=',
             'threshold' => 'sometimes|numeric|min:0',
+            'description' => 'nullable|string|max:500',
         ]);
 
         $criterion->update($validated);
