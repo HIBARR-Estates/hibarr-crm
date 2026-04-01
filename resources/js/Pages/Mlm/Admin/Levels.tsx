@@ -15,7 +15,14 @@ import {
     Empty,
 } from "antd";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, GripVertical, Settings } from "lucide-react";
+import {
+    Plus,
+    Pencil,
+    Trash2,
+    GripVertical,
+    Settings,
+    LucideAlignVerticalSpaceAround,
+} from "lucide-react";
 import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -115,7 +122,10 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
             title: "",
             width: 40,
             render: () => (
-                <GripVertical size={14} className="text-gray-400 cursor-grab" />
+                <LucideAlignVerticalSpaceAround
+                    size={14}
+                    className="text-gray-400"
+                />
             ),
         },
         {
