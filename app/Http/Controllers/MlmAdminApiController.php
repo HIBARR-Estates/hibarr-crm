@@ -8,6 +8,7 @@ use App\Enums\MlmMetric;
 use App\Enums\CycleDurationType;
 use App\Enums\CycleStatus;
 use App\Models\AgentCycleEnrollment;
+use App\Models\AgentHierarchy;
 use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
 use App\Models\Deal;
@@ -1059,5 +1060,17 @@ class MlmAdminApiController extends AccountBaseController
             'status' => 'success',
             'message' => 'Levels have been re-snapshotted for this cycle. New commissions will use the updated rules.',
         ]);
+    }
+
+    /**
+     * Dashboard stats for a specific agent (admin view).
+     */
+    public function getAgentDashboardStats(int $agentId): JsonResponse
+    {
+        $agent = LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+
+        $adminController = app(MlmAdminController::class);
+
+        return response()->json(['data' => $adminController->buildAgentDashboardStats($agent)]);
     }
 }
