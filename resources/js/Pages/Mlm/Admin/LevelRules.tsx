@@ -492,6 +492,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                         min={0}
                                         className="w-full"
                                         placeholder="e.g. 10"
+                                        style={{ width: "100%" }}
                                     />
                                 </Form.Item>
                             </div>
