@@ -9,6 +9,7 @@ import {
     Empty,
     Skeleton,
     Divider,
+    Avatar,
 } from "antd";
 import { motion } from "framer-motion";
 import { DollarSign, TrendingUp, Users, Award, Clock } from "lucide-react";
@@ -25,7 +26,7 @@ import {
 } from "recharts";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { useMlmAgentDashboard } from "@/Features/Mlm/api";
+import { useAdminAgentDashboard } from "@/Features/Mlm/api";
 import {
     LevelBadge,
     CommissionStatusBadge,
@@ -40,12 +41,23 @@ import type {
 } from "@/Features/Mlm/types";
 import { COMMISSION_TYPE_LABELS } from "@/Features/Mlm/types";
 
+interface AgentInfo {
+    id: number;
+    name: string;
+    email?: string;
+    image?: string | null;
+}
+
 interface Props extends PageProps {
+    agent: AgentInfo;
     stats: MlmAgentDashboardStats;
 }
 
-const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
-    const { data, isLoading } = useMlmAgentDashboard();
+const AdminAgentDashboard: React.FC<Props> = ({
+    agent,
+    stats: initialStats,
+}) => {
+    const { data, isLoading } = useAdminAgentDashboard(agent.id);
     const stats: MlmAgentDashboardStats = (data as any)?.data ?? initialStats;
     const levelData: LevelData = (data as any)?.data;
 
@@ -135,10 +147,53 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="My MLM Dashboard"
-                breadcrumbs={[{ name: "MLM" }, { name: "Dashboard" }]}
+                title={`${agent.name}'s Dashboard`}
+                breadcrumbs={[
+                    { name: "MLM", url: "/account/mlm/dashboard" },
+                    {
+                        name: "Agent Metrics",
+                        url: "/account/mlm/agent-metrics",
+                    },
+                    { name: agent.name },
+                ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Agent Header */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <Card
+                            className="shadow-sm"
+                            bodyStyle={{ padding: "16px 24px" }}
+                        >
+                            <div className="flex items-center gap-4">
+                                <Avatar
+                                    size={48}
+                                    src={
+                                        agent.image
+                                            ? `/img/${agent.image}`
+                                            : undefined
+                                    }
+                                    className="bg-indigo-100 text-indigo-600 font-semibold"
+                                >
+                                    {agent.name?.charAt(0) ?? "?"}
+                                </Avatar>
+                                <div>
+                                    <div className="font-semibold text-lg">
+                                        {agent.name}
+                                    </div>
+                                    {agent.email && (
+                                        <div className="text-sm text-gray-500">
+                                            {agent.email}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </Card>
+                    </motion.div>
+
                     <Skeleton
                         loading={isLoading && !stats}
                         paragraph={{ rows: 6 }}
@@ -283,8 +338,8 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                             <Empty
                                                 description={
                                                     levelData?.current_level
-                                                        ? "You've reached the highest level! Congratulations!"
-                                                        : "Complete criteria to earn your first level."
+                                                        ? "This agent has reached the highest level!"
+                                                        : "No criteria progress yet."
                                                 }
                                             />
                                         )}
@@ -347,7 +402,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                     <Card
                                         title={
                                             <span className="font-semibold text-sm">
-                                                My Commission Trend
+                                                Commission Trend
                                             </span>
                                         }
                                         className="shadow-sm"
@@ -364,7 +419,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                 >
                                                     <defs>
                                                         <linearGradient
-                                                            id="agentCommGrad"
+                                                            id="adminAgentCommGrad"
                                                             x1="0"
                                                             y1="0"
                                                             x2="0"
@@ -408,7 +463,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                         dataKey="amount"
                                                         stroke="#10b981"
                                                         strokeWidth={2}
-                                                        fill="url(#agentCommGrad)"
+                                                        fill="url(#adminAgentCommGrad)"
                                                     />
                                                 </AreaChart>
                                             </ResponsiveContainer>
@@ -503,4 +558,4 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     );
 };
 
-export default AgentDashboard;
+export default AdminAgentDashboard;

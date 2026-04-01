@@ -323,6 +323,13 @@ export const useResnapshot = (
         onSuccess,
     );
 
+/** Admin view of a specific agent's dashboard stats */
+export const useAdminAgentDashboard = (agentId: number) =>
+    useApiQuery<{ data: MlmAgentDashboardStats }>({
+        path: `${ADMIN_API}/agents/${agentId}/dashboard-stats`,
+        options: { enabled: agentId > 0 },
+    });
+
 // ══════════════════════════════════════════════════════════════════
 // AGENT QUERIES (read-only)
 // ══════════════════════════════════════════════════════════════════

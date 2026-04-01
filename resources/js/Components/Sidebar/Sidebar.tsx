@@ -320,12 +320,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 //     icon: null,
                 //     href: "/account/mlm/agent/uplines",
                 // },
-                {
-                    key: "my-mlm-level",
-                    label: "My Level",
-                    icon: null,
-                    href: "/account/mlm/agent/my-level",
-                },
+                // {
+                //     key: "my-mlm-level",
+                //     label: "My Level",
+                //     icon: null,
+                //     href: "/account/mlm/agent/my-level",
+                // },
                 {
                     key: "my-mlm-deals",
                     label: "My Deals",
