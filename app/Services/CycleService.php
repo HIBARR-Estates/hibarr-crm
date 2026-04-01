@@ -147,16 +147,7 @@ class CycleService
     public function enrollAgent(LeadAgent $agent, MlmCycle $cycle, ?Carbon $effectiveStart = null): AgentCycleEnrollment
     {
         $startDate = $effectiveStart ?? $cycle->start_date;
-
-        // For mid-cycle joiners: use same duration from their start date
-        $isMidCycleJoiner = $startDate->gt($cycle->start_date);
-
-        if ($isMidCycleJoiner) {
-            $settings = MlmSetting::forCompany($cycle->company_id);
-            $effectiveEndDate = $settings->calculateDefaultEndDate($startDate);
-        } else {
-            $effectiveEndDate = $cycle->end_date;
-        }
+        $effectiveEndDate = $cycle->end_date;
 
         // Calculate max overflow date using the cycle's own multiplier
         $overflowDays = $cycle->max_overflow_days;
