@@ -16,7 +16,6 @@ import {
     DeleteOutlined,
     CheckSquareOutlined,
     CloseOutlined,
-    CheckOutlined,
     SaveOutlined,
     LockOutlined,
     GiftOutlined,
@@ -37,6 +36,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
+import PropertyCarousel from "./PropertyCarousel";
 
 interface Props {
     deal: Deal;
@@ -739,17 +739,7 @@ export default function DealInfoSection({
                                 mode="multiple"
                                 displayValue={
                                     currentDeal.products && currentDeal.products.length > 0 ? (
-                                        <div className="flex flex-col gap-1 mt-0.5">
-                                            {currentDeal.products.map((product: any) => (
-                                                <div
-                                                    key={product.id}
-                                                    className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-md px-2.5 py-1.5 text-sm text-gray-800"
-                                                >
-                                                    <span className="text-gray-400 text-xs">&#x2302;</span>
-                                                    <span className="font-medium truncate">{product.name || product.title}</span>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <PropertyCarousel products={currentDeal.products} />
                                     ) : (
                                         <span className="text-gray-400">--</span>
                                     )

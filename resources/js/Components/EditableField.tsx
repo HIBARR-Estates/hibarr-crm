@@ -862,7 +862,7 @@ export default function EditableField({
     return (
         <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
             <div
-                className={`w-full px-2 py-1 ${
+                className={`w-full ${
                     isLocked ? "cursor-not-allowed opacity-50" : ""
                 } ${className}`}
                 onDoubleClick={canStartEditing ? startEditing : undefined}
