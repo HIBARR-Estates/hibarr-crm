@@ -89,8 +89,11 @@ class MlmAdminApiController extends AccountBaseController
             ->with(['agent.user:id,name,email,image', 'agent.currentLevelHistory.level'])
             ->get();
 
-        // Recent promotions
+        // Recent promotions (exclude base-level assignments)
+        $baseLevelId = MlmLevel::where('company_id', $companyId)->ordered()->value('id');
+
         $recentPromotions = AgentLevelHistory::where('company_id', $companyId)
+            ->when($baseLevelId, fn ($q) => $q->where('level_id', '!=', $baseLevelId))
             ->orderByDesc('assigned_at')
             ->limit(10)
             ->with(['agent.user:id,name,email,image', 'level'])
@@ -855,7 +858,7 @@ class MlmAdminApiController extends AccountBaseController
             'end_date' => $endDate,
             'status' => $status,
             'max_overflow_multiplier' => $validated['max_overflow_multiplier'] ?? $settings->default_overflow_multiplier,
-            
+
         ]);
 
         return response()->json([
