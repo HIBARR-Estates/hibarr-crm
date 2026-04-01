@@ -1,3 +1,32 @@
+export interface LevelData {
+    current_level: MlmLevel | null;
+    next_level: MlmLevel | null;
+    metrics: { nsa: number; nsd: number; vsa: number; vsd: number };
+    cycle_metrics?: {
+        nsa: number;
+        nsd: number;
+        vsa: number;
+        vsd: number;
+    } | null;
+    enrollment?: {
+        id: number;
+        status: EnrollmentStatus;
+        effective_start_date: string;
+        effective_end_date: string;
+        overflow_start_date?: string | null;
+        max_overflow_date?: string | null;
+        days_remaining: number;
+        is_overflowing: boolean;
+    } | null;
+    active_cycle?: {
+        cycle_number: number;
+        end_date: string;
+        days_remaining: number;
+    } | null;
+    criteria_progress: CriterionProgress[];
+    level_history: AgentLevelHistory[];
+}
+
 // ── MLM Enums ────────────────────────────────────────────────────
 export type MlmMetric = "nsa" | "nsd" | "vsa" | "vsd" | "nsa_nsd" | "vsa_vsd";
 export type MlmCommissionType = "agent" | "upline" | "system";
