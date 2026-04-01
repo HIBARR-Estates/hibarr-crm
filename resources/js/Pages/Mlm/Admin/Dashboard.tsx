@@ -37,6 +37,7 @@ import type {
     MlmAdminDashboardStats,
     ActiveCycleSummary,
 } from "@/Features/Mlm/types";
+import { formatNumber } from "@/lib/utils";
 
 interface Props extends PageProps {
     stats: MlmAdminDashboardStats;
@@ -114,6 +115,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             dataIndex: "deals_count",
             key: "deals_count",
             align: "right" as const,
+            render: (val: number) => <span>{formatNumber(+val)}</span>,
         },
         {
             title: "Total Earned",
@@ -122,10 +124,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             align: "right" as const,
             render: (val: number) => (
                 <span className="font-semibold text-green-600">
-                    $
-                    {val?.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                    })}
+                    ${formatNumber(+val)}
                 </span>
             ),
         },
@@ -204,7 +203,9 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                         {card.prefix}
                                                         {typeof card.value ===
                                                         "number"
-                                                            ? card.value.toLocaleString()
+                                                            ? formatNumber(
+                                                                  card.value,
+                                                              )
                                                             : card.value}
                                                     </div>
                                                 </div>
