@@ -35,6 +35,7 @@ interface FileUploadEnvVars {
 const DEFAULT_FILE_UPLOAD_BASE_URL = "https://staging-api.hibarr.org/v1";
 const DEFAULT_AGENT_INVITATION_BASE_URL = "https://develop-api.hibarr.org/v1";
 const DEFAULT_FILE_UPLOAD_API_KEY = "363769e1290c4d5ea6d351ef8c23dc6e";
+const DEFAULT_AGENT_INVITATION_API_KEY = "7918aed08071453148048890d59a3b85";
 
 // ============================================================================
 // Configuration Getters
@@ -72,6 +73,12 @@ export const getFileUploadBaseUrl = (): string => {
  */
 export const getFileUploadApiKey = (): string => {
     return getEnvVar("VITE_FILE_UPLOAD_API_KEY", DEFAULT_FILE_UPLOAD_API_KEY);
+};
+export const getAgentInvitationApiKey = (): string => {
+    return getEnvVar(
+        "VITE_AGENT_INVITATION_API_KEY",
+        DEFAULT_AGENT_INVITATION_API_KEY,
+    );
 };
 
 /**
