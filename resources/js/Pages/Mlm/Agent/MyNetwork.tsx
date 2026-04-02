@@ -36,18 +36,17 @@ import UserIndicator from "@/Components/UserIndicator";
 import {
     useMyNetwork,
     useDownlineDeals,
-    useSendInvite,
-    useMyInvites,
     useAgentDeals,
     useDownlineList,
 } from "@/Features/Mlm/api";
+import { useAgentInvitation } from "@/Hooks/useAgentInvitation";
 import { AgentTreeView } from "@/Features/Mlm/Components";
 import type {
     AgentHierarchyNode,
     DownlineDealContribution,
-    AgentInvite,
     DownlineListItem,
 } from "@/Features/Mlm/types";
+import type { IInvitation, InvitationStatus } from "@/Types/invitations";
 import type { Deal } from "@/Types/api/deals";
 
 interface Props extends PageProps {
@@ -154,32 +153,37 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
 // ── Invitations Tab ──────────────────────────────────────────────
 const InvitationsTab: React.FC = () => {
     const [form] = Form.useForm();
-    const [invitePage, setInvitePage] = useState(1);
 
     const {
-        data: invitesData,
+        invitations,
+        totalCount,
         isLoading: invitesLoading,
+        isSending: sending,
+        sendInvitation,
         refetch: refetchInvites,
-    } = useMyInvites({ page: invitePage, per_page: 10 });
-
-    const invites: AgentInvite[] = (invitesData as any)?.data ?? [];
-    const invitesTotal = (invitesData as any)?.total ?? 0;
-
-    const { mutate: sendInvite, isPending: sending } = useSendInvite(() => {
-        message.success("Invitation sent successfully");
-        form.resetFields();
-        refetchInvites();
+        page: invitePage,
+        setPage: setInvitePage,
+    } = useAgentInvitation({
+        pageSize: 10,
+        onCreateSuccess: () => {
+            form.resetFields();
+        },
     });
 
     const handleSendInvite = (values: { email: string }) => {
-        sendInvite({ email: values.email });
+        sendInvitation(values.email);
     };
 
     const statusColor: Record<string, string> = {
-        pending: "orange",
-        accepted: "green",
+        pending_registration: "orange",
+        pending_review: "blue",
+        approved: "green",
+        rejected: "red",
         expired: "default",
     };
+
+    const formatStatus = (s: string) =>
+        s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
     const inviteColumns = [
         {
@@ -191,27 +195,35 @@ const InvitationsTab: React.FC = () => {
             ),
         },
         {
+            title: "Name",
+            key: "name",
+            render: (_: any, r: IInvitation) => {
+                const name = [r.firstName, r.lastName]
+                    .filter(Boolean)
+                    .join(" ");
+                return <span className="text-sm">{name || "—"}</span>;
+            },
+        },
+        {
             title: "Status",
             dataIndex: "status",
             key: "status",
-            render: (s: string) => (
-                <Tag color={statusColor[s] ?? "default"}>
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                </Tag>
+            render: (s: InvitationStatus) => (
+                <Tag color={statusColor[s] ?? "default"}>{formatStatus(s)}</Tag>
             ),
         },
         {
-            title: "Sent",
-            dataIndex: "sent_at",
-            key: "sent_at",
-            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+            title: "Expires",
+            dataIndex: "tokenExpiresAt",
+            key: "tokenExpiresAt",
+            render: (d: string | null) =>
+                d ? dayjs(d).format("MMM DD, YYYY") : "—",
         },
         {
-            title: "Accepted",
-            dataIndex: "accepted_at",
-            key: "accepted_at",
-            render: (d: string | null) =>
-                d ? new Date(d).toLocaleDateString() : "—",
+            title: "Sent",
+            dataIndex: "createdAt",
+            key: "createdAt",
+            render: (d: string) => (d ? dayjs(d).format("MMM DD, YYYY") : "—"),
         },
     ];
 
@@ -294,7 +306,7 @@ const InvitationsTab: React.FC = () => {
                     }
                 >
                     <Table
-                        dataSource={invites}
+                        dataSource={invitations}
                         columns={inviteColumns}
                         rowKey="id"
                         size="small"
@@ -306,7 +318,7 @@ const InvitationsTab: React.FC = () => {
                         }}
                         pagination={{
                             current: invitePage,
-                            total: invitesTotal,
+                            total: totalCount,
                             pageSize: 10,
                             size: "small",
                             showSizeChanger: false,
@@ -656,9 +668,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                         <Button
                                                             icon={
                                                                 <Maximize2
-                                                                    size={
-                                                                        14
-                                                                    }
+                                                                    size={14}
                                                                 />
                                                             }
                                                             size="small"
@@ -738,11 +748,10 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                 label: (
                                     <span className="flex items-center gap-1.5">
                                         <Mail size={14} />
-                                        Invitations (Coming Soon)
+                                        Invitations
                                     </span>
                                 ),
                                 children: <InvitationsTab />,
-                                disabled: true,
                             },
                             {
                                 key: "deals",
@@ -761,7 +770,10 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                     <Modal
                         title={
                             <div className="flex items-center gap-2">
-                                <GitBranch size={18} className="text-indigo-500" />
+                                <GitBranch
+                                    size={18}
+                                    className="text-indigo-500"
+                                />
                                 <span>My Network</span>
                             </div>
                         }
@@ -770,7 +782,13 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                         footer={null}
                         width="95vw"
                         style={{ top: 20 }}
-                        styles={{ body: { padding: 0, height: 'calc(90vh - 55px)', overflow: 'hidden' } }}
+                        styles={{
+                            body: {
+                                padding: 0,
+                                height: "calc(90vh - 55px)",
+                                overflow: "hidden",
+                            },
+                        }}
                         destroyOnClose
                     >
                         {network ? (
