@@ -234,7 +234,7 @@ export const Show = ({
                         {/* Main Content */}
                         <Row gutter={[30, 40]} className="">
                             {/* Left Column - Main Content */}
-                            <Col xs={24} lg={16} xl={16}>
+                            <Col xs={24} lg={14} xl={14}>
                                 <div className="flex flex-col gap-y-4 sm:gap-y-6">
                                     {/* Deal Information Card */}
                                     <Card
@@ -290,7 +290,7 @@ export const Show = ({
                             </Col>
 
                             {/* Right Column - Activities Sidebar */}
-                            <Col xs={24} lg={8} xl={8}>
+                            <Col xs={24} lg={10} xl={10}>
                                 <div className="lg:sticky lg:top-8 flex flex-col gap-y-4">
                                     <ActivitySidebar
                                         deal={deal}

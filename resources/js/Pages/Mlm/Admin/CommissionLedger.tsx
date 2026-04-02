@@ -135,11 +135,13 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Agent",
+            title: "Recipient",
             key: "agent",
             render: (_: any, record: MlmCommission) => (
                 <span className="font-medium">
-                    {record.agent?.user?.name ?? "—"}
+                    {record?.type === "system"
+                        ? "Organization"
+                        : (record.agent?.user?.name ?? "—")}
                 </span>
             ),
         },

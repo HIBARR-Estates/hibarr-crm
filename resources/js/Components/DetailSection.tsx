@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback } from "react";
+import React, { createContext, useState, useCallback, useMemo } from "react";
 import { EditOutlined, CopyOutlined, CheckOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 
@@ -84,16 +84,45 @@ export function DetailField({
 
     const handleCopy = useCallback(() => {
         if (!copyValue) return;
-        navigator.clipboard.writeText(copyValue).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-        });
+        if (typeof window !== 'undefined' && navigator?.clipboard) {
+            navigator.clipboard.writeText(copyValue).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+            }).catch(() => {
+                fallbackCopy(copyValue);
+            });
+        } else {
+            fallbackCopy(copyValue);
+        }
     }, [copyValue]);
 
+    const fallbackCopy = (text: string) => {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            // silent fail
+        }
+    };
+
+    const ctx = useMemo(
+        () => ({ setEditHandler, setIsEditing }),
+        [setEditHandler, setIsEditing]
+    );
+
     return (
-        <DetailFieldEditContext.Provider value={{ setEditHandler, setIsEditing }}>
+        <DetailFieldEditContext.Provider value={ctx}>
             <div
-                className={`group flex flex-col gap-1 min-w-0 ${
+                className={`group flex flex-col gap-2 min-w-0 ${
                     span === 2 ? "sm:col-span-2" : ""
                 } ${className}`}
             >
@@ -104,7 +133,7 @@ export function DetailField({
                     </span>
                     {editHandler && (
                         <EditOutlined
-                            className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] cursor-pointer"
+                            className="text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity text-sm cursor-pointer"
                             onClick={() => editHandler()}
                         />
                     )}
@@ -112,7 +141,7 @@ export function DetailField({
 
                 {/* Value area — full width, no truncation */}
                 <div className="text-[15px] text-gray-900 min-h-[1.5rem] flex items-start gap-1.5">
-                    <div className="min-w-0 flex items-center gap-1">
+                    <div className="w-full min-w-0 flex items-center gap-1">
                         {children}
                         {copyValue && !isFieldEditing && (
                             <Tooltip title={copied ? "Copied!" : "Copy"}>

@@ -10,6 +10,11 @@ import {
     DEFAULT_UPLOAD_CONFIG,
     MAX_RETRY_COUNT,
 } from "@/Types/uploads";
+import {
+    IAgentInvitationConfig,
+    DEFAULT_INVITATION_CONFIG,
+    MAX_INVITATION_RETRY_COUNT,
+} from "@/Types/invitations";
 
 // ============================================================================
 // Environment Variable Types
@@ -97,6 +102,42 @@ export const getFileUploadConfig = (
             DEFAULT_UPLOAD_CONFIG.defaultTargetFolder,
     };
 };
+
+// ============================================================================
+// Agent Invitation Configuration
+// ============================================================================
+
+/**
+ * Clamp invitation retry count to valid range (0 to MAX_INVITATION_RETRY_COUNT)
+ */
+export const clampInvitationRetryCount = (retryCount: number): number => {
+    return Math.max(0, Math.min(retryCount, MAX_INVITATION_RETRY_COUNT));
+};
+
+/**
+ * Get the complete agent invitation configuration
+ * Reuses the same base URL and API key as the file upload service
+ * (both communicate with the same external system)
+ *
+ * @param overrides - Optional configuration overrides
+ * @returns Complete agent invitation configuration
+ */
+export const getInvitationConfig = (
+    overrides?: Partial<IAgentInvitationConfig>,
+): Required<IAgentInvitationConfig> => {
+    const retryCount =
+        overrides?.retryCount ?? DEFAULT_INVITATION_CONFIG.retryCount;
+
+    return {
+        baseUrl: overrides?.baseUrl ?? getFileUploadBaseUrl(),
+        apiKey: overrides?.apiKey ?? getFileUploadApiKey(),
+        retryCount: clampInvitationRetryCount(retryCount),
+    };
+};
+
+// ============================================================================
+// Shared Utilities
+// ============================================================================
 
 /**
  * Format file size for display

@@ -418,7 +418,7 @@ export const useDownlineDeals = (
         options: { enabled: downlineId > 0 },
     });
 
-/** Send an agent invitation */
+/** @deprecated Use useAgentInvitation hook from @/Hooks/useAgentInvitation instead */
 export const useSendInvite = (onSuccess?: (res?: any) => void) =>
     useApiMutate<SendInvitePayload, AgentInvite, ApiResponse<AgentInvite>>(
         `${AGENT_API}/invites`,
@@ -426,7 +426,7 @@ export const useSendInvite = (onSuccess?: (res?: any) => void) =>
         onSuccess,
     );
 
-/** List sent invitations */
+/** @deprecated Use useAgentInvitation hook from @/Hooks/useAgentInvitation instead */
 export const useMyInvites = (
     params: Record<string, string | number | boolean> = {},
 ) =>
