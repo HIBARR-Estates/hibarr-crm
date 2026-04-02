@@ -386,7 +386,6 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                     </Button>
                                 </Space>
                             }
-                            className="shadow-sm"
                             bodyStyle={{ padding: 0, minHeight: 500 }}
                             style={{ marginBottom: 0 }}
                         >
