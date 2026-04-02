@@ -144,7 +144,7 @@ export const getInvitationConfig = (
 
     return {
         baseUrl: overrides?.baseUrl ?? getAgentInvitationBaseUrl(),
-        apiKey: overrides?.apiKey ?? getFileUploadApiKey(),
+        apiKey: overrides?.apiKey ?? getAgentInvitationApiKey(),
         retryCount: clampInvitationRetryCount(retryCount),
     };
 };
