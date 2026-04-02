@@ -52,6 +52,7 @@ import type {
     AgentHierarchyNode,
     AgentLevelHistory,
 } from "@/Features/Mlm/types";
+import { OrderedListOutlined, MergeOutlined } from "@ant-design/icons";
 
 // ── Agent Detail Content (shared by drawer) ──────────────────────
 const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
@@ -347,11 +348,11 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                         options={[
                                             {
                                                 value: "list",
-                                                icon: <List size={10} />,
+                                                icon: <OrderedListOutlined />,
                                             },
                                             {
                                                 value: "tree",
-                                                icon: <Network size={10} />,
+                                                icon: <MergeOutlined />,
                                             },
                                         ]}
                                     />

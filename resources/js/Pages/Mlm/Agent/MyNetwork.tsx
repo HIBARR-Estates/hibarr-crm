@@ -59,6 +59,7 @@ import type {
 } from "@/Features/Mlm/types";
 import type { IInvitation, InvitationStatus } from "@/Types/invitations";
 import type { Deal } from "@/Types/api/deals";
+import { OrderedListOutlined, MergeOutlined } from "@ant-design/icons";
 
 interface Props extends PageProps {
     network: AgentHierarchyNode | null;
@@ -870,21 +871,13 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                                 {
                                                                     value: "list",
                                                                     icon: (
-                                                                        <List
-                                                                            size={
-                                                                                10
-                                                                            }
-                                                                        />
+                                                                        <OrderedListOutlined />
                                                                     ),
                                                                 },
                                                                 {
                                                                     value: "tree",
                                                                     icon: (
-                                                                        <Network
-                                                                            size={
-                                                                                10
-                                                                            }
-                                                                        />
+                                                                        <MergeOutlined />
                                                                     ),
                                                                 },
                                                             ]}
