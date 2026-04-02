@@ -526,6 +526,7 @@ export default function EditableField({
                 spinning={saving}
                 indicator={<LoadingOutlined spin />}
                 size="small"
+                wrapperClassName="w-full"
             >
                 <div className="flex items-center gap-2 w-full">
                     {selectorType ? (

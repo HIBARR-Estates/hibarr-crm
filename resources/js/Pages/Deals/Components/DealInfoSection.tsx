@@ -771,7 +771,7 @@ export default function DealInfoSection({
                     {/* Contact Info */}
                     <DetailSection title="Contact Info">
                         <DetailField label="Email" copyValue={currentDeal.contact?.client_email || undefined}>
-                            <div className="flex items-center gap-x-2">
+                            <div className="w-full flex items-center gap-x-2">
                                 {currentDeal.contact?.client_email && (
                                     <MailOutlined className="text-gray-400 flex-shrink-0" />
                                 )}

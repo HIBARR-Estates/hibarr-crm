@@ -122,7 +122,7 @@ export function DetailField({
     return (
         <DetailFieldEditContext.Provider value={ctx}>
             <div
-                className={`group flex flex-col gap-1 min-w-0 ${
+                className={`group flex flex-col gap-2 min-w-0 ${
                     span === 2 ? "sm:col-span-2" : ""
                 } ${className}`}
             >
