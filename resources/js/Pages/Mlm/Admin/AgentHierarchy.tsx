@@ -347,11 +347,11 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                         options={[
                                             {
                                                 value: "list",
-                                                icon: <List />,
+                                                icon: <List size={10} />,
                                             },
                                             {
                                                 value: "tree",
-                                                icon: <Network />,
+                                                icon: <Network size={10} />,
                                             },
                                         ]}
                                     />
