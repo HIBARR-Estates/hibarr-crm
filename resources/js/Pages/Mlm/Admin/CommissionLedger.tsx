@@ -263,7 +263,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                         <Col xs={12} sm={8}>
                             <Card size="small" className="shadow-sm">
                                 <Statistic
-                                    title="Page Total"
+                                    title="Total"
                                     value={totalAmount}
                                     prefix="$"
                                     precision={2}
