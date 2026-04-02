@@ -13,9 +13,18 @@ import {
     message,
     Popconfirm,
     Skeleton,
+    Segmented,
 } from "antd";
 import { motion } from "framer-motion";
-import { GitBranch, Plus, Unlink, RefreshCw, Maximize2 } from "lucide-react";
+import {
+    GitBranch,
+    Plus,
+    Unlink,
+    RefreshCw,
+    Maximize2,
+    List,
+    Network,
+} from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
@@ -23,7 +32,11 @@ import {
     useAssignDownline,
     useRemoveHierarchy,
 } from "@/Features/Mlm/api";
-import { AgentTreeView, LevelBadge } from "@/Features/Mlm/Components";
+import {
+    AgentTreeView,
+    AgentListView,
+    LevelBadge,
+} from "@/Features/Mlm/Components";
 import type { AgentHierarchyNode } from "@/Features/Mlm/types";
 
 interface Props extends PageProps {
@@ -45,6 +58,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [assignModalOpen, setAssignModalOpen] = useState(false);
     const [fullscreenOpen, setFullscreenOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<"tree" | "list">("list");
     const [form] = Form.useForm();
 
     const assignDownline = useAssignDownline(() => {
@@ -104,12 +118,35 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                             }
                             extra={
                                 <Space>
-                                    <Button
-                                        icon={<Maximize2 size={14} />}
-                                        onClick={() => setFullscreenOpen(true)}
-                                    >
-                                        Fullscreen
-                                    </Button>
+                                    <Segmented
+                                        value={viewMode}
+                                        onChange={(val) =>
+                                            setViewMode(val as "tree" | "list")
+                                        }
+                                        options={[
+                                            {
+                                                value: "list",
+                                                icon: <List size={14} />,
+                                                label: "List",
+                                            },
+                                            {
+                                                value: "tree",
+                                                icon: <Network size={14} />,
+                                                label: "Tree",
+                                            },
+                                        ]}
+                                        size="small"
+                                    />
+                                    {viewMode === "tree" && (
+                                        <Button
+                                            icon={<Maximize2 size={14} />}
+                                            onClick={() =>
+                                                setFullscreenOpen(true)
+                                            }
+                                        >
+                                            Fullscreen
+                                        </Button>
+                                    )}
                                     <Button
                                         icon={<RefreshCw size={14} />}
                                         onClick={() => refetch()}
@@ -134,13 +171,21 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                     <Skeleton active paragraph={{ rows: 6 }} />
                                 </div>
                             ) : hierarchy.length > 0 ? (
-                                <div style={{ height: 600 }}>
-                                    <AgentTreeView
+                                viewMode === "tree" ? (
+                                    <div style={{ height: 600 }}>
+                                        <AgentTreeView
+                                            data={hierarchy}
+                                            onNodeClick={handleNodeClick}
+                                            orientation="vertical"
+                                        />
+                                    </div>
+                                ) : (
+                                    <AgentListView
                                         data={hierarchy}
                                         onNodeClick={handleNodeClick}
-                                        orientation="vertical"
+                                        height={600}
                                     />
-                                </div>
+                                )
                             ) : (
                                 <div className="flex items-center justify-center h-96">
                                     <Empty description="No hierarchy data. Assign parent-child relationships to build the tree." />
@@ -205,19 +250,19 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                         size="small"
                                         bordered
                                     >
-                                        <Descriptions.Item label="NSA">
+                                        <Descriptions.Item label="Individual Sales">
                                             {selectedNode.nsa ?? 0}
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="NSD">
+                                        <Descriptions.Item label="Team Sales">
                                             {selectedNode.nsd ?? 0}
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="VSA">
+                                        <Descriptions.Item label="Individual Revenue">
                                             $
                                             {(
                                                 selectedNode.vsa ?? 0
                                             ).toLocaleString()}
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="VSD">
+                                        <Descriptions.Item label="Team Revenue">
                                             $
                                             {(
                                                 selectedNode.vsd ?? 0
