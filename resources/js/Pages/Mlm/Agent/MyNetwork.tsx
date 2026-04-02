@@ -18,6 +18,8 @@ import {
     Select,
     Tooltip,
     Segmented,
+    Timeline,
+    Popconfirm,
 } from "antd";
 import { motion } from "framer-motion";
 import {
@@ -30,6 +32,9 @@ import {
     Search,
     List,
     Network,
+    Users,
+    BarChart3,
+    History,
 } from "lucide-react";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
@@ -41,11 +46,13 @@ import {
     useDownlineDeals,
     useAgentDeals,
     useDownlineList,
+    useLevelHistory,
 } from "@/Features/Mlm/api";
 import { useAgentInvitation } from "@/Hooks/useAgentInvitation";
 import { AgentTreeView, AgentListView } from "@/Features/Mlm/Components";
 import type {
     AgentHierarchyNode,
+    AgentLevelHistory,
     DownlineDealContribution,
     DownlineListItem,
 } from "@/Features/Mlm/types";
@@ -557,6 +564,179 @@ const DealsTab: React.FC = () => {
     );
 };
 
+// ── Agent Level History Section ──────────────────────────────────
+const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
+    agentId,
+}) => {
+    const { data, isLoading } = useLevelHistory({
+        agent_id: agentId,
+        per_page: 10,
+    });
+    const records: AgentLevelHistory[] = (data as any)?.data ?? [];
+
+    if (isLoading) {
+        return <Spin size="small" />;
+    }
+
+    if (records.length === 0) {
+        return (
+            <Empty
+                description="No level history"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+        );
+    }
+
+    return (
+        <Timeline
+            items={records.map((r) => ({
+                color: r.system_assigned ? "blue" : "green",
+                children: (
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <Tag color="blue">
+                                {r.level?.name ?? "Unknown Level"}
+                            </Tag>
+                            {r.system_assigned && (
+                                <Tag color="default" className="text-xs">
+                                    Auto
+                                </Tag>
+                            )}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                            {dayjs(r.assigned_at).format("MMM DD, YYYY h:mm A")}
+                        </div>
+                        {r.trigger_deal && (
+                            <div className="text-xs text-gray-400 mt-0.5">
+                                Triggered by: {r.trigger_deal.name} ($
+                                {r.trigger_deal.value?.toLocaleString()})
+                            </div>
+                        )}
+                        {r.assigned_by_user && (
+                            <div className="text-xs text-gray-400 mt-0.5">
+                                Assigned by: {r.assigned_by_user.name}
+                            </div>
+                        )}
+                    </div>
+                ),
+            }))}
+        />
+    );
+};
+
+// ── Agent Detail Content ─────────────────────────────────────────
+const AgentDetailContent: React.FC<{
+    node: AgentHierarchyNode;
+    extraContent?: React.ReactNode;
+}> = ({ node, extraContent }) => {
+    return (
+        <div className="space-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xl font-bold">
+                    {node.name?.charAt(0) ?? "?"}
+                </div>
+                <div>
+                    <div className="font-semibold text-lg">{node.name}</div>
+                    <div className="text-sm text-gray-500">{node.email}</div>
+                    {node.joined_date && (
+                        <div className="text-xs text-gray-400">
+                            Joined{" "}
+                            {dayjs(node.joined_date).format("MMM DD, YYYY")}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Overview Card */}
+            <Card
+                size="small"
+                title={
+                    <div className="flex items-center gap-2">
+                        <Users size={14} className="text-indigo-500" />
+                        <span>Overview</span>
+                    </div>
+                }
+            >
+                <Descriptions column={2} size="small">
+                    <Descriptions.Item label="Level">
+                        {node.level_name ? (
+                            <Tag color="blue">{node.level_name}</Tag>
+                        ) : (
+                            "Unranked"
+                        )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Direct Downlines">
+                        {node.children?.length ?? 0}
+                    </Descriptions.Item>
+                </Descriptions>
+            </Card>
+
+            {/* Metrics Card */}
+            <Card
+                size="small"
+                title={
+                    <div className="flex items-center gap-2">
+                        <BarChart3 size={14} className="text-indigo-500" />
+                        <span>All-Time Metrics</span>
+                    </div>
+                }
+            >
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 rounded-lg bg-blue-50 border border-blue-100">
+                        <div className="text-2xl font-bold text-blue-700">
+                            {node.nsa ?? 0}
+                        </div>
+                        <div className="text-xs text-blue-600">
+                            Individual Sales
+                        </div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-purple-50 border border-purple-100">
+                        <div className="text-2xl font-bold text-purple-700">
+                            {node.nsd ?? 0}
+                        </div>
+                        <div className="text-xs text-purple-600">
+                            Team Sales
+                        </div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-green-50 border border-green-100">
+                        <div className="text-2xl font-bold text-green-700">
+                            ${(node.vsa ?? 0).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-green-600">
+                            Individual Revenue
+                        </div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-amber-50 border border-amber-100">
+                        <div className="text-2xl font-bold text-amber-700">
+                            ${(node.vsd ?? 0).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-amber-600">
+                            Team Revenue
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            {/* Level History Card */}
+            <Card
+                size="small"
+                title={
+                    <div className="flex items-center gap-2">
+                        <History size={14} className="text-indigo-500" />
+                        <span>Level History</span>
+                    </div>
+                }
+            >
+                <AgentLevelHistorySection agentId={node.id} />
+            </Card>
+
+            {/* Extra content (e.g. downline deals) */}
+            {extraContent}
+        </div>
+    );
+};
+
 // ── Main Page ────────────────────────────────────────────────────
 const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     const { data, isLoading, refetch } = useMyNetwork();
@@ -688,7 +868,6 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                                             }
                                                                         />
                                                                     ),
-                                                                    label: "List",
                                                                 },
                                                                 {
                                                                     value: "tree",
@@ -699,31 +878,25 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                                             }
                                                                         />
                                                                     ),
-                                                                    label: "Tree",
                                                                 },
                                                             ]}
                                                             size="small"
                                                         />
-                                                        {viewMode ===
-                                                            "tree" && (
-                                                            <Button
-                                                                icon={
-                                                                    <Maximize2
-                                                                        size={
-                                                                            14
-                                                                        }
-                                                                    />
-                                                                }
-                                                                size="small"
-                                                                onClick={() =>
-                                                                    setFullscreenOpen(
-                                                                        true,
-                                                                    )
-                                                                }
-                                                            >
-                                                                Fullscreen
-                                                            </Button>
-                                                        )}
+                                                        <Button
+                                                            icon={
+                                                                <Maximize2
+                                                                    size={14}
+                                                                />
+                                                            }
+                                                            size="small"
+                                                            onClick={() =>
+                                                                setFullscreenOpen(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            Fullscreen
+                                                        </Button>
                                                         <Button
                                                             icon={
                                                                 <RefreshCw
@@ -758,6 +931,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                     padding: 0,
                                                     minHeight: 500,
                                                 }}
+                                                style={{ marginBottom: 0 }}
                                             >
                                                 {isLoading ? (
                                                     <div className="flex items-center justify-center h-96">
@@ -767,7 +941,8 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                     viewMode === "tree" ? (
                                                         <div
                                                             style={{
-                                                                height: 500,
+                                                                height: "calc(100vh - 340px)",
+                                                                minHeight: 500,
                                                             }}
                                                         >
                                                             <AgentTreeView
@@ -784,7 +959,11 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                             onNodeClick={
                                                                 handleNodeClick
                                                             }
-                                                            height={500}
+                                                            height={Math.max(
+                                                                500,
+                                                                window.innerHeight -
+                                                                    340,
+                                                            )}
                                                         />
                                                     )
                                                 ) : (
@@ -820,7 +999,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                         ]}
                     />
 
-                    {/* Fullscreen Tree Modal */}
+                    {/* Fullscreen Modal */}
                     <Modal
                         title={
                             <div className="flex items-center gap-2">
@@ -846,12 +1025,20 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                         destroyOnClose
                     >
                         {network ? (
-                            <AgentTreeView
-                                data={[network]}
-                                onNodeClick={handleNodeClick}
-                                orientation="vertical"
-                                height={window.innerHeight * 0.9 - 55}
-                            />
+                            viewMode === "tree" ? (
+                                <AgentTreeView
+                                    data={[network]}
+                                    onNodeClick={handleNodeClick}
+                                    orientation="vertical"
+                                    height={window.innerHeight * 0.9 - 55}
+                                />
+                            ) : (
+                                <AgentListView
+                                    data={[network]}
+                                    onNodeClick={handleNodeClick}
+                                    height={window.innerHeight * 0.9 - 55}
+                                />
+                            )
                         ) : (
                             <div className="flex items-center justify-center h-96">
                                 <Empty description="No network data available" />
@@ -867,91 +1054,32 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                             setDrawerOpen(false);
                             setSelectedNode(null);
                         }}
-                        width={520}
+                        size="large"
                     >
                         {selectedNode && (
-                            <div>
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-lg font-bold">
-                                        {selectedNode.name?.charAt(0) ?? "?"}
-                                    </div>
-                                    <div>
-                                        <div className="font-semibold text-lg">
-                                            {selectedNode.name}
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                            {selectedNode.email}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <Descriptions column={1} size="small" bordered>
-                                    <Descriptions.Item label="Level">
-                                        {selectedNode.level_name ? (
-                                            <Tag color="blue">
-                                                {selectedNode.level_name}
-                                            </Tag>
-                                        ) : (
-                                            "Unranked"
-                                        )}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Direct Downlines">
-                                        {selectedNode.children?.length ?? 0}
-                                    </Descriptions.Item>
-                                </Descriptions>
-
-                                <div className="mt-4 mb-2">
-                                    <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                                        All-Time Metrics
-                                    </div>
-                                    <Descriptions
-                                        column={2}
-                                        size="small"
-                                        bordered
-                                    >
-                                        <Descriptions.Item label="Indiviual Sales">
-                                            {selectedNode.nsa ?? 0}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Team Sales">
-                                            {selectedNode.nsd ?? 0}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Indiviual Revenue">
-                                            $
-                                            {(
-                                                selectedNode.vsa ?? 0
-                                            ).toLocaleString()}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Team Revenue">
-                                            $
-                                            {(
-                                                selectedNode.vsd ?? 0
-                                            ).toLocaleString()}
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                </div>
-
-                                {selectedNode.joined_date && (
-                                    <div className="mt-2 text-xs text-gray-500">
-                                        Joined:{" "}
-                                        {new Date(
-                                            selectedNode.joined_date,
-                                        ).toLocaleDateString()}
-                                    </div>
-                                )}
-
-                                {/* Downline Deals Section */}
-                                {isDownlineNode && (
-                                    <>
-                                        <Divider />
-                                        <div className="text-xs uppercase tracking-wider text-gray-400 mb-3">
-                                            Deals
-                                        </div>
-                                        <DownlineDealsSection
-                                            agentId={selectedNode.id}
-                                        />
-                                    </>
-                                )}
-                            </div>
+                            <AgentDetailContent
+                                node={selectedNode}
+                                extraContent={
+                                    isDownlineNode ? (
+                                        <Card
+                                            size="small"
+                                            title={
+                                                <div className="flex items-center gap-2">
+                                                    <Briefcase
+                                                        size={14}
+                                                        className="text-indigo-500"
+                                                    />
+                                                    <span>Deals</span>
+                                                </div>
+                                            }
+                                        >
+                                            <DownlineDealsSection
+                                                agentId={selectedNode.id}
+                                            />
+                                        </Card>
+                                    ) : undefined
+                                }
+                            />
                         )}
                     </Drawer>
                 </div>
