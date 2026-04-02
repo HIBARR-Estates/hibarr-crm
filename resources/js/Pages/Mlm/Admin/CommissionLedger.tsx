@@ -203,9 +203,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Date",
-            dataIndex: "created_at",
-            key: "created_at",
+            title: "Paid At",
+            dataIndex: "paid_at",
+            key: "paid_at",
             render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
         },
         {
@@ -355,7 +355,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                         }
                                     }}
                                 />
-                                {activeCycle && (
+                                {/* {activeCycle && (
                                     <Button
                                         size="small"
                                         icon={<CalendarDays size={14} />}
@@ -379,7 +379,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                     >
                                         Cycle #{activeCycle.cycle_number}
                                     </Button>
-                                )}
+                                )} */}
                                 <div className="flex-1" />
 
                                 {selectedRows.length > 0 && (
