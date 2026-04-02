@@ -127,12 +127,10 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                             {
                                                 value: "list",
                                                 icon: <List size={14} />,
-                                                label: "List",
                                             },
                                             {
                                                 value: "tree",
                                                 icon: <Network size={14} />,
-                                                label: "Tree",
                                             },
                                         ]}
                                         size="small"

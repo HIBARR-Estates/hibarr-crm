@@ -688,7 +688,6 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                                             }
                                                                         />
                                                                     ),
-                                                                    label: "List",
                                                                 },
                                                                 {
                                                                     value: "tree",
@@ -699,7 +698,6 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                                             }
                                                                         />
                                                                     ),
-                                                                    label: "Tree",
                                                                 },
                                                             ]}
                                                             size="small"
