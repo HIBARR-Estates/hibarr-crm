@@ -870,13 +870,21 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                                 {
                                                                     value: "list",
                                                                     icon: (
-                                                                        <List />
+                                                                        <List
+                                                                            size={
+                                                                                10
+                                                                            }
+                                                                        />
                                                                     ),
                                                                 },
                                                                 {
                                                                     value: "tree",
                                                                     icon: (
-                                                                        <Network />
+                                                                        <Network
+                                                                            size={
+                                                                                10
+                                                                            }
+                                                                        />
                                                                     ),
                                                                 },
                                                             ]}
