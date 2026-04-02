@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card, Table, Tag, Input, Select, Empty, Progress, Space } from "antd";
 import { motion } from "framer-motion";
 import { BarChart3, Search } from "lucide-react";
+import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { useAgentMetrics } from "@/Features/Mlm/api";
@@ -40,9 +41,17 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                         {record.agent?.user?.name?.charAt(0) ?? "?"}
                     </div>
                     <div>
-                        <div className="font-medium text-sm">
+                        <button
+                            type="button"
+                            className="font-medium text-sm text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer bg-transparent border-0 p-0 text-left"
+                            onClick={() =>
+                                router.visit(
+                                    `/account/mlm/agents/${record.agent_id}/dashboard`,
+                                )
+                            }
+                        >
                             {record.agent?.user?.name ?? "Unknown"}
-                        </div>
+                        </button>
                         <div className="text-xs text-gray-500">
                             {record.agent?.user?.email}
                         </div>
