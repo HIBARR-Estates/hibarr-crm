@@ -33,6 +33,7 @@ interface FileUploadEnvVars {
 // ============================================================================
 
 const DEFAULT_FILE_UPLOAD_BASE_URL = "https://staging-api.hibarr.org/v1";
+const DEFAULT_AGENT_INVITATION_BASE_URL = "https://develop-api.hibarr.org/v1";
 const DEFAULT_FILE_UPLOAD_API_KEY = "363769e1290c4d5ea6d351ef8c23dc6e";
 
 // ============================================================================
@@ -56,6 +57,12 @@ const getEnvVar = (key: string, fallback: string): string => {
 /**
  * Get the file upload base URL from environment or default
  */
+export const getAgentInvitationBaseUrl = (): string => {
+    return getEnvVar(
+        "VITE_AGENT_INVITATION_BASE_URL",
+        DEFAULT_AGENT_INVITATION_BASE_URL,
+    );
+};
 export const getFileUploadBaseUrl = (): string => {
     return getEnvVar("VITE_FILE_UPLOAD_BASE_URL", DEFAULT_FILE_UPLOAD_BASE_URL);
 };
@@ -129,7 +136,7 @@ export const getInvitationConfig = (
         overrides?.retryCount ?? DEFAULT_INVITATION_CONFIG.retryCount;
 
     return {
-        baseUrl: overrides?.baseUrl ?? getFileUploadBaseUrl(),
+        baseUrl: overrides?.baseUrl ?? getAgentInvitationBaseUrl(),
         apiKey: overrides?.apiKey ?? getFileUploadApiKey(),
         retryCount: clampInvitationRetryCount(retryCount),
     };

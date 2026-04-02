@@ -17,6 +17,7 @@ import {
     Modal,
     Select,
     Tooltip,
+    Segmented,
 } from "antd";
 import { motion } from "framer-motion";
 import {
@@ -27,6 +28,8 @@ import {
     Send,
     Briefcase,
     Search,
+    List,
+    Network,
 } from "lucide-react";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
@@ -40,7 +43,7 @@ import {
     useDownlineList,
 } from "@/Features/Mlm/api";
 import { useAgentInvitation } from "@/Hooks/useAgentInvitation";
-import { AgentTreeView } from "@/Features/Mlm/Components";
+import { AgentTreeView, AgentListView } from "@/Features/Mlm/Components";
 import type {
     AgentHierarchyNode,
     DownlineDealContribution,
@@ -565,6 +568,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     );
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [fullscreenOpen, setFullscreenOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<"tree" | "list">("list");
 
     const handleNodeClick = (node: AgentHierarchyNode) => {
         setSelectedNode(node);
@@ -665,21 +669,61 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                         )}
                                                     </div>
                                                     <Space>
-                                                        <Button
-                                                            icon={
-                                                                <Maximize2
-                                                                    size={14}
-                                                                />
-                                                            }
-                                                            size="small"
-                                                            onClick={() =>
-                                                                setFullscreenOpen(
-                                                                    true,
+                                                        <Segmented
+                                                            value={viewMode}
+                                                            onChange={(val) =>
+                                                                setViewMode(
+                                                                    val as
+                                                                        | "tree"
+                                                                        | "list",
                                                                 )
                                                             }
-                                                        >
-                                                            Fullscreen
-                                                        </Button>
+                                                            options={[
+                                                                {
+                                                                    value: "list",
+                                                                    icon: (
+                                                                        <List
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                        />
+                                                                    ),
+                                                                    label: "List",
+                                                                },
+                                                                {
+                                                                    value: "tree",
+                                                                    icon: (
+                                                                        <Network
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                        />
+                                                                    ),
+                                                                    label: "Tree",
+                                                                },
+                                                            ]}
+                                                            size="small"
+                                                        />
+                                                        {viewMode ===
+                                                            "tree" && (
+                                                            <Button
+                                                                icon={
+                                                                    <Maximize2
+                                                                        size={
+                                                                            14
+                                                                        }
+                                                                    />
+                                                                }
+                                                                size="small"
+                                                                onClick={() =>
+                                                                    setFullscreenOpen(
+                                                                        true,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Fullscreen
+                                                            </Button>
+                                                        )}
                                                         <Button
                                                             icon={
                                                                 <RefreshCw
@@ -720,19 +764,29 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                         <Spin size="large" />
                                                     </div>
                                                 ) : network ? (
-                                                    <div
-                                                        style={{
-                                                            height: 500,
-                                                        }}
-                                                    >
-                                                        <AgentTreeView
+                                                    viewMode === "tree" ? (
+                                                        <div
+                                                            style={{
+                                                                height: 500,
+                                                            }}
+                                                        >
+                                                            <AgentTreeView
+                                                                data={[network]}
+                                                                onNodeClick={
+                                                                    handleNodeClick
+                                                                }
+                                                                orientation="vertical"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <AgentListView
                                                             data={[network]}
                                                             onNodeClick={
                                                                 handleNodeClick
                                                             }
-                                                            orientation="vertical"
+                                                            height={500}
                                                         />
-                                                    </div>
+                                                    )
                                                 ) : (
                                                     <div className="flex items-center justify-center h-96">
                                                         <Empty description="You don't have any downlines yet." />
