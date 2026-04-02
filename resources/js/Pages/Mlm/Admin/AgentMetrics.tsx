@@ -11,6 +11,7 @@ import type {
     AgentMetricWithProgress,
     PaginatedResponse,
 } from "@/Features/Mlm/types";
+import { formatNumber } from "@/lib/utils";
 
 interface Props extends PageProps {
     metrics: PaginatedResponse<AgentMetricWithProgress>;
@@ -74,28 +75,28 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
             dataIndex: "nsa",
             key: "nsa",
             align: "right" as const,
-            render: (val: number) => val?.toLocaleString() ?? 0,
+            render: (val: number) => formatNumber(val ?? 0),
         },
         {
             title: "Team Sales",
             dataIndex: "nsd",
             key: "nsd",
             align: "right" as const,
-            render: (val: number) => val?.toLocaleString() ?? 0,
+            render: (val: number) => formatNumber(val ?? 0),
         },
         {
             title: "Individual Revenue",
             dataIndex: "vsa",
             key: "vsa",
             align: "right" as const,
-            render: (val: number) => `$${(val ?? 0).toLocaleString()}`,
+            render: (val: number) => `$${formatNumber(val ?? 0)}`,
         },
         {
             title: "Team Revenue",
             dataIndex: "vsd",
             key: "vsd",
             align: "right" as const,
-            render: (val: number) => `$${(val ?? 0).toLocaleString()}`,
+            render: (val: number) => `$${formatNumber(val ?? 0)}`,
         },
         {
             title: "Progress to Next",

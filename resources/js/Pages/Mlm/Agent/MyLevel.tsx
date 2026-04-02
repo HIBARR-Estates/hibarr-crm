@@ -215,14 +215,16 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                                         levelData.next_level
                                                     }
                                                     overallProgress={
-                                                        (levelData.criteria_progress?.filter(
-                                                            (c) => c.met,
-                                                        ).length /
-                                                            (levelData
-                                                                .criteria_progress
-                                                                ?.length ||
-                                                                1)) *
-                                                        100
+                                                        (levelData.criteria_progress?.reduce(
+                                                            (sum, c) =>
+                                                                sum +
+                                                                (c.percentage ??
+                                                                    0),
+                                                            0,
+                                                        ) ?? 0) /
+                                                        (levelData
+                                                            .criteria_progress
+                                                            ?.length || 1)
                                                     }
                                                     criteriaProgress={
                                                         levelData.criteria_progress

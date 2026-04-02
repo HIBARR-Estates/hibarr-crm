@@ -162,13 +162,13 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
 
                         <Row gutter={[16, 16]}>
                             {/* Current Level Card */}
-                            <Col xs={24} lg={10}>
+                            <Col xs={24} lg={12}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.4 }}
                                 >
-                                    <Card className="shadow-sm h-full">
+                                    <Card className="h-full" variant="outlined">
                                         <div className="text-center mb-6">
                                             <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white mb-4">
                                                 <Award size={36} />
@@ -207,7 +207,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                             </Col>
 
                             {/* Progress to Next Level */}
-                            <Col xs={24} lg={14}>
+                            <Col xs={24} lg={12}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -233,7 +233,8 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                 )}
                                             </div>
                                         }
-                                        className="shadow-sm h-full"
+                                        className="h-full"
+                                        variant="outlined"
                                     >
                                         {levelData?.next_level &&
                                         levelData?.criteria_progress?.length ? (
@@ -265,14 +266,16 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                         levelData.next_level
                                                     }
                                                     overallProgress={
-                                                        (levelData.criteria_progress?.filter(
-                                                            (c) => c.met,
-                                                        ).length /
-                                                            (levelData
-                                                                .criteria_progress
-                                                                ?.length ||
-                                                                1)) *
-                                                        100
+                                                        (levelData.criteria_progress?.reduce(
+                                                            (sum, c) =>
+                                                                sum +
+                                                                (c.percentage ??
+                                                                    0),
+                                                            0,
+                                                        ) ?? 0) /
+                                                        (levelData
+                                                            .criteria_progress
+                                                            ?.length || 1)
                                                     }
                                                     criteriaProgress={
                                                         levelData.criteria_progress
@@ -306,7 +309,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                         }}
                                     >
                                         <Card
-                                            className="shadow-sm"
+                                            variant="outlined"
                                             bodyStyle={{ padding: "16px 20px" }}
                                         >
                                             <div className="flex items-center justify-between">
@@ -350,7 +353,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                 My Commission Trend
                                             </span>
                                         }
-                                        className="shadow-sm"
+                                        variant="outlined"
                                     >
                                         {stats.monthly_commissions?.length ? (
                                             <ResponsiveContainer
@@ -431,7 +434,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                 Network Growth
                                             </span>
                                         }
-                                        className="shadow-sm"
+                                        variant="outlined"
                                     >
                                         {stats.network_growth?.length ? (
                                             <ResponsiveContainer
@@ -480,7 +483,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                         Recent Commissions
                                     </span>
                                 }
-                                className="shadow-sm"
+                                variant="outlined"
                             >
                                 <Table
                                     columns={recentCommissionCols}

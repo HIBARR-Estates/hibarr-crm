@@ -31,7 +31,9 @@ import {
     Users,
     BarChart3,
     History,
+    ExternalLink,
 } from "lucide-react";
+import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -119,13 +121,13 @@ const AgentDetailContent: React.FC<{
     extraContent?: React.ReactNode;
 }> = ({ node, onRemove, isRemoving, showRemove, extraContent }) => {
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-y-4">
             {/* Header */}
             <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xl font-bold">
                     {node.name?.charAt(0) ?? "?"}
                 </div>
-                <div>
+                <div className="flex-1">
                     <div className="font-semibold text-lg">{node.name}</div>
                     <div className="text-sm text-gray-500">{node.email}</div>
                     {node.joined_date && (
@@ -135,6 +137,13 @@ const AgentDetailContent: React.FC<{
                         </div>
                     )}
                 </div>
+                <Link
+                    href={`/account/mlm/agents/${node.id}/dashboard`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+                >
+                    <ExternalLink size={14} />
+                    View Dashboard
+                </Link>
             </div>
 
             {/* Overview Card */}
@@ -310,7 +319,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                     { name: "Agent Hierarchy" },
                 ]}
             >
-                <div className="max-w-7xl mx-auto space-y-6">
+                <div className="max-w-7xl mx-auto flex flex-col gap-y-6">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -338,14 +347,13 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                         options={[
                                             {
                                                 value: "list",
-                                                icon: <List size={14} />,
+                                                icon: <List />,
                                             },
                                             {
                                                 value: "tree",
-                                                icon: <Network size={14} />,
+                                                icon: <Network />,
                                             },
                                         ]}
-                                        size="small"
                                     />
                                     <Button
                                         icon={<Maximize2 size={14} />}
