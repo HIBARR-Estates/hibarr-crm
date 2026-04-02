@@ -50,10 +50,16 @@ const { RangePicker } = DatePicker;
 
 interface Props extends PageProps {
     commissions: PaginatedResponse<MlmCommission>;
+    summaryStats: {
+        total_amount: number;
+        pending_amount: number;
+        paid_amount: number;
+    };
 }
 
 const MlmCommissionLedger: React.FC<Props> = ({
     commissions: initialCommissions,
+    summaryStats,
 }) => {
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
@@ -105,17 +111,6 @@ const MlmCommissionLedger: React.FC<Props> = ({
             "_blank",
         );
     };
-
-    // Summary stats
-    const totalAmount =
-        commissions?.data?.reduce(
-            (sum, c) => Number(sum) + (Number(c.amount) ?? 0),
-            0,
-        ) ?? 0;
-    const pendingCount =
-        commissions?.data?.filter((c) => c.status === "pending").length ?? 0;
-    const paidCount =
-        commissions?.data?.filter((c) => c.status === "paid").length ?? 0;
 
     const columns = [
         {
@@ -264,7 +259,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             <Card size="small" className="shadow-sm">
                                 <Statistic
                                     title="Total"
-                                    value={totalAmount}
+                                    value={summaryStats.total_amount}
                                     prefix="$"
                                     precision={2}
                                     valueStyle={{ color: "#16a34a" }}
@@ -275,7 +270,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             <Card size="small" className="shadow-sm">
                                 <Statistic
                                     title="Pending"
-                                    value={pendingCount}
+                                    value={summaryStats.pending_amount}
+                                    prefix="$"
+                                    precision={2}
                                     valueStyle={{ color: "#ea580c" }}
                                 />
                             </Card>
@@ -284,7 +281,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             <Card size="small" className="shadow-sm">
                                 <Statistic
                                     title="Paid"
-                                    value={paidCount}
+                                    value={summaryStats.paid_amount}
+                                    prefix="$"
+                                    precision={2}
                                     valueStyle={{ color: "#16a34a" }}
                                 />
                             </Card>
