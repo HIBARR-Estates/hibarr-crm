@@ -246,10 +246,9 @@ export default function AgentListView({
                     className="max-w-md"
                 />
             </div>
-            <div className="flex-1 overflow-hidden px-2 py-1">
+            <div className="flex-1 overflow-auto px-2 py-1">
                 <Tree
                     treeData={treeData}
-                    height={height - 56}
                     defaultExpandedKeys={defaultExpandedKeys}
                     {...(expandedKeys !== undefined ? { expandedKeys } : {})}
                     showLine={{ showLeafIcon: false }}
