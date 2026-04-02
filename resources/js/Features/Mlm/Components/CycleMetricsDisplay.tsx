@@ -42,20 +42,20 @@ const CycleMetricsDisplay: React.FC<Props> = ({
 
     const items = [
         {
-            title: "Agent Sales (NSA)",
+            title: "Individual Sales",
             value: metrics.nsa,
         },
         {
-            title: "Downline Sales (NSD)",
+            title: "Team Sales",
             value: metrics.nsd,
         },
         {
-            title: "Agent Value (VSA)",
+            title: "Individual Revenue",
             value: metrics.vsa,
             prefix: "$",
         },
         {
-            title: "Downline Value (VSD)",
+            title: "Team Revenue",
             value: metrics.vsd,
             prefix: "$",
         },

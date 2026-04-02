@@ -855,19 +855,19 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                         size="small"
                                         bordered
                                     >
-                                        <Descriptions.Item label="NSA">
+                                        <Descriptions.Item label="Indiviual Sales">
                                             {selectedNode.nsa ?? 0}
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="NSD">
+                                        <Descriptions.Item label="Team Sales">
                                             {selectedNode.nsd ?? 0}
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="VSA">
+                                        <Descriptions.Item label="Indiviual Revenue">
                                             $
                                             {(
                                                 selectedNode.vsa ?? 0
                                             ).toLocaleString()}
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="VSD">
+                                        <Descriptions.Item label="Team Revenue">
                                             $
                                             {(
                                                 selectedNode.vsd ?? 0

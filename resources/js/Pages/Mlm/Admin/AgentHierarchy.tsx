@@ -157,7 +157,6 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                             setDrawerOpen(false);
                             setSelectedNode(null);
                         }}
-                        width={400}
                     >
                         {selectedNode && (
                             <div>
@@ -254,7 +253,10 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                     <Modal
                         title={
                             <div className="flex items-center gap-2">
-                                <GitBranch size={18} className="text-indigo-500" />
+                                <GitBranch
+                                    size={18}
+                                    className="text-indigo-500"
+                                />
                                 <span>Organization Tree</span>
                             </div>
                         }
@@ -263,7 +265,13 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                         footer={null}
                         width="95vw"
                         style={{ top: 20 }}
-                        styles={{ body: { padding: 0, height: 'calc(90vh - 55px)', overflow: 'hidden' } }}
+                        styles={{
+                            body: {
+                                padding: 0,
+                                height: "calc(90vh - 55px)",
+                                overflow: "hidden",
+                            },
+                        }}
                         destroyOnClose
                     >
                         {hierarchy.length > 0 ? (
