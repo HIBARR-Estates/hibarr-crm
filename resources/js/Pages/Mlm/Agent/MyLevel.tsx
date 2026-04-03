@@ -147,7 +147,8 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                                 levelData?.cycle_metrics ?? null
                                             }
                                             allTimeMetrics={
-                                                levelData?.metrics ?? null
+                                                levelData?.all_time_metrics ??
+                                                null
                                             }
                                             showToggle
                                             compact
