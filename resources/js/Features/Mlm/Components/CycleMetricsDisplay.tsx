@@ -71,7 +71,7 @@ const CycleMetricsDisplay: React.FC<Props> = ({
             size="small"
             className="shadow-sm"
             title={
-                showToggle && allTimeMetrics && cycleMetrics ? (
+                showToggle ? (
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <BarChart3 size={16} className="text-indigo-500" />
