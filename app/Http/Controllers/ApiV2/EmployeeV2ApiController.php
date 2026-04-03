@@ -521,6 +521,7 @@ class EmployeeV2ApiController extends Controller
                     ->first();
 
                 return [
+                    'userId' => $user->id,
                     'employeeId' => $employee?->employee_id ?? (string) $user->id,
                     'created' => false,
                 ];
@@ -537,6 +538,7 @@ class EmployeeV2ApiController extends Controller
             $ensured = $this->ensureEmployeeRecordForUser($company, $user, $request, $employeeRole);
 
             return [
+                'userId' => $user->id,
                 'employeeId' => $ensured['employee']->employee_id,
                 'created' => $ensured['created'],
             ];
@@ -550,8 +552,11 @@ class EmployeeV2ApiController extends Controller
                 ->exists();
 
             $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
+            $employeeId = $this->resolveEmployeeIdForFindOrCreate($companyId, $user->id);
 
             return [
+                'userId' => $user->id,
+                'employeeId' => $employeeId,
                 'leadAgentId' => $leadAgent->id,
                 'created' => !$hadLeadAgent,
             ];
@@ -621,10 +626,25 @@ class EmployeeV2ApiController extends Controller
     {
         return match ($userType) {
             'user' => ['userId' => $user->id],
-            'employee' => ['employeeId' => $employee->employee_id],
-            'lead_agent' => ['leadAgentId' => $leadAgent?->id],
+            'employee' => [
+                'userId' => $user->id,
+                'employeeId' => $employee->employee_id,
+            ],
+            'lead_agent' => [
+                'userId' => $user->id,
+                'employeeId' => $employee->employee_id,
+                'leadAgentId' => $leadAgent?->id,
+            ],
             default => ['userId' => $user->id],
         };
+    }
+
+    private function resolveEmployeeIdForFindOrCreate(int $companyId, int $userId): string
+    {
+        return EmployeeDetails::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->value('employee_id') ?? (string) $userId;
     }
 
     private function applyStatus(User $user, Company $company, string $status, ?string $previousStatus = null): void
