@@ -44,6 +44,15 @@ class FindOrCreateEmployeeV2Request extends CoreRequest
             $joiningDate = $payload['joiningDate'];
         }
 
+        if ($this->has('roleid') && !$this->has('roleId')) {
+            $this->merge(['roleId' => $this->input('roleid')]);
+        }
+
+        $roleId = $this->input('roleId');
+        if (is_string($roleId) && is_numeric($roleId)) {
+            $this->merge(['roleId' => (int) $roleId]);
+        }
+
         $this->merge([
             'phone' => $phone,
             'existingUserId' => $existingUserId,
@@ -90,6 +99,19 @@ class FindOrCreateEmployeeV2Request extends CoreRequest
             ],
 
             'joiningDate' => ['required', 'date_format:Y-m-d'],
+
+            'roleId' => [
+                'nullable',
+                'integer',
+                Rule::exists('roles', 'id')->where(function ($q) use ($companyId) {
+                    return $q->where(function ($q2) use ($companyId) {
+                        $q2->where('company_id', $companyId);
+                        if ($companyId > 0) {
+                            $q2->orWhereNull('company_id');
+                        }
+                    })->where('name', '<>', 'client');
+                }),
+            ],
 
             'status' => ['nullable', 'in:active,inactive'],
             'createLeadAgent' => ['nullable', 'boolean'],

@@ -226,7 +226,12 @@ class AppSettingController extends AccountBaseController
     public function deleteSessions(array $usersIds = [])
     {
         if (!empty($usersIds)) {
-            Session::whereIn('user_id', $usersIds)->where('user_id', '<>', user()->id)->delete();
+            $query = Session::whereIn('user_id', $usersIds);
+            $currentId = auth()->id();
+            if ($currentId !== null) {
+                $query->where('user_id', '<>', $currentId);
+            }
+            $query->delete();
 
             return Reply::success(__('messages.deleteSuccess'));
         }
