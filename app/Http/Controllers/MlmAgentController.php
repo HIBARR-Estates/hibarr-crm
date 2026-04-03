@@ -177,6 +177,22 @@ class MlmAgentController extends AccountBaseController
             ->limit(5)
             ->get();
 
+        // Network growth: monthly count of new downline agents over last 12 months
+        $descendantIds = AgentHierarchy::where('ancestor_id', $agent->id)
+            ->pluck('descendant_id');
+
+        $networkGrowth = $descendantIds->isNotEmpty()
+            ? LeadAgent::whereIn('id', $descendantIds)
+                ->where('created_at', '>=', now()->subMonths(12))
+                ->select(
+                    DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month"),
+                    DB::raw('COUNT(*) as count')
+                )
+                ->groupBy('month')
+                ->orderBy('month')
+                ->get()
+            : [];
+
         return [
             'current_level' => $currentLevel,
             'next_level' => $nextLevel,
@@ -195,7 +211,7 @@ class MlmAgentController extends AccountBaseController
                 'vsd' => (float) $allTimeMetrics->vsd,
             ] : null,
             'monthly_commissions' => $monthlyCommissions,
-            'network_growth' => [],
+            'network_growth' => $networkGrowth,
             'recent_commissions' => $recentCommissions,
             // Cycle data
             'enrollment' => $enrollment ? [
