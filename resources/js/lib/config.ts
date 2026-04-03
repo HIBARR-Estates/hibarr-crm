@@ -45,14 +45,6 @@ const DEFAULT_AGENT_INVITATION_API_KEY = "7918aed08071453148048890d59a3b85";
  * Safely get an environment variable with a fallback
  */
 const getEnvVar = (key: string, fallback: string): string => {
-    // Vite: import.meta.env
-    if (typeof import.meta !== "undefined" && import.meta.env) {
-        const value = (import.meta.env as Record<string, string | undefined>)[
-            key
-        ];
-        if (value) return value;
-    }
-
     // Laravel Mix: process.env (webpack DefinePlugin)
     if (typeof process !== "undefined" && process.env) {
         const mixKey = key.replace(/^VITE_/, "MIX_");
@@ -61,8 +53,15 @@ const getEnvVar = (key: string, fallback: string): string => {
         ];
         if (value) return value;
     }
+    // Vite: import.meta.env
+    if (typeof import.meta !== "undefined" && import.meta.env) {
+        const value = (import.meta.env as Record<string, string | undefined>)[
+            key
+        ];
+        if (value) return value;
+    }
 
-    return fallback;
+    return process?.env?.[key] ?? fallback;
 };
 
 /**
@@ -70,23 +69,23 @@ const getEnvVar = (key: string, fallback: string): string => {
  */
 export const getAgentInvitationBaseUrl = (): string => {
     return getEnvVar(
-        "VITE_AGENT_INVITATION_BASE_URL",
+        "MIX_AGENT_INVITATION_BASE_URL",
         DEFAULT_AGENT_INVITATION_BASE_URL,
     );
 };
 export const getFileUploadBaseUrl = (): string => {
-    return getEnvVar("VITE_FILE_UPLOAD_BASE_URL", DEFAULT_FILE_UPLOAD_BASE_URL);
+    return getEnvVar("MIX_FILE_UPLOAD_BASE_URL", DEFAULT_FILE_UPLOAD_BASE_URL);
 };
 
 /**
  * Get the file upload API key from environment or default
  */
 export const getFileUploadApiKey = (): string => {
-    return getEnvVar("VITE_FILE_UPLOAD_API_KEY", DEFAULT_FILE_UPLOAD_API_KEY);
+    return getEnvVar("MIX_FILE_UPLOAD_API_KEY", DEFAULT_FILE_UPLOAD_API_KEY);
 };
 export const getAgentInvitationApiKey = (): string => {
     return getEnvVar(
-        "VITE_AGENT_INVITATION_API_KEY",
+        "MIX_AGENT_INVITATION_API_KEY",
         DEFAULT_AGENT_INVITATION_API_KEY,
     );
 };
