@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "@inertiajs/react";
 import { Card, Table, Tabs, Tag, Empty, Typography } from "antd";
 import type { PriceListItem } from "../Show";
+import { snakeToReadable } from "../../../lib/utils";
 
 const { Text } = Typography;
 
@@ -30,7 +31,7 @@ const PriceListSection: React.FC<{ priceList: PriceListItem[] }> = ({ priceList 
                     key: item.type,
                     label: (
                         <span>
-                            {item.type} <Tag>{item.count}</Tag>
+                            {snakeToReadable(item.type)} <Tag>{item.count}</Tag>
                         </span>
                     ),
                     children: (

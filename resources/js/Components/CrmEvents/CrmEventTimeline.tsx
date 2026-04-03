@@ -145,11 +145,11 @@ export default function CrmEventTimeline({
                         type="button"
                         onClick={() => setFilter(opt.value)}
                         className={`
-                            inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+                            inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium
                             transition-all duration-150 cursor-pointer border
                             ${
                                 isActive
-                                    ? "bg-blue-50 text-blue-700 border-blue-200 shadow-sm"
+                                    ? "bg-gray-800 text-white border-gray-800"
                                     : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700"
                             }
                         `}

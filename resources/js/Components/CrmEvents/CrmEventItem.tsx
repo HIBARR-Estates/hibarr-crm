@@ -14,29 +14,7 @@ import {
     DownOutlined,
     UpOutlined,
     ArrowDownOutlined,
-    ArrowUpOutlined,
-    EditOutlined,
-    MailOutlined,
-    PhoneOutlined,
-    CalendarOutlined,
-    FileTextOutlined,
-    PaperClipOutlined,
-    PlusOutlined,
-    HomeOutlined,
-    EyeOutlined,
-    CheckSquareOutlined,
-    TrophyOutlined,
-    SwapOutlined,
-    SettingOutlined,
-    LoginOutlined,
-    LogoutOutlined,
-    MessageOutlined,
-    DownloadOutlined,
-    UploadOutlined,
-    FormOutlined,
-    UserAddOutlined,
-    TagOutlined,
-    UserDeleteOutlined,
+    ArrowUpOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -185,12 +163,23 @@ export default function CrmEventItem({ event, compact = false }: Props) {
 
     return (
         <div
-            className={`group relative flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-sm hover:border-gray-300 hover:-translate-y-0.5${message ? " cursor-pointer select-none" : ""}`}
+            className={`group relative flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200${message ? " cursor-pointer select-none" : ""}`}
             onClick={() => message && setExpanded((v) => !v)}
         >
-            {/* Header: Type + Badge + Time + Expand Toggle */}
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
+            {/* Expand caret — anchored top-right, independent of date layout */}
+            {message && (
+                <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center text-gray-400 pointer-events-none">
+                    {expanded ? (
+                        <UpOutlined style={{ fontSize: 9 }} />
+                    ) : (
+                        <DownOutlined style={{ fontSize: 9 }} />
+                    )}
+                </span>
+            )}
+
+            {/* Header: Type + Badge + Time */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                     <div
                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${colors.bg} ${colors.text}`}
                     >
@@ -207,7 +196,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             {event.event_type?.name ?? "Unknown Event"}
                         </Text>
                         <span
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${gen.className}`}
+                            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${gen.className}`}
                         >
                             {gen.icon}
                             {gen.label}
@@ -215,7 +204,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2 pr-6">
                     <Tooltip
                         title={dayjs(event.occurred_at).format(
                             "MMM D, YYYY • h:mm A",
@@ -226,26 +215,13 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             <span>{dayjs(event.occurred_at).fromNow()}</span>
                         </div>
                     </Tooltip>
-
-                    {message && (
-                        <button
-                            type="button"
-                            className="pointer-events-none flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors"
-                        >
-                            {expanded ? (
-                                <UpOutlined className="text-[9px]" />
-                            ) : (
-                                <DownOutlined className="text-[9px]" />
-                            )}
-                        </button>
-                    )}
                 </div>
             </div>
 
             {/* Meta Tags Row */}
             <div className="flex flex-wrap items-center gap-2">
                 {event.event_type?.category && (
-                    <span className={`text-[11px] rounded font-medium px-1.5 py-0.5 ${colors.bg} ${colors.text}`}>
+                    <span className={`text-[11px] rounded-sm font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600`}>
                         {event.event_type.category.name}
                     </span>
                 )}
@@ -271,8 +247,8 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     </div>
                 )}
                 {event.user && (
-                    <div className="ml-auto flex items-center gap-1.5 rounded-full bg-gray-50 border border-gray-100 pl-1 pr-2 py-0.5">
-                        <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm">
+                    <div className="ml-auto flex items-center gap-1.5 rounded-md bg-gray-50 border border-gray-100 pl-1 pr-2 py-0.5">
+                        <div className="flex h-4 w-4 items-center justify-center rounded bg-white border border-gray-200">
                             <UserOutlined className="text-[9px] text-gray-500" />
                         </div>
                         <span className="text-[11px] font-semibold text-gray-700">
@@ -285,7 +261,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
             {/* Content Section — toggled via the chevron in the header */}
             {message && expanded && (
                 <div className="">
-                    <div className="border-l border-gray-300 bg-gray-100 px-3 py-1 text-xs text-gray-600 whitespace-pre-wrap break-words rounded-r-md">
+                    <div className="border-l-4 border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600 whitespace-pre-wrap break-words rounded-r-md">
                         {message}
                     </div>
                 </div>

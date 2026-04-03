@@ -6,6 +6,7 @@ import type { PriceListItem } from "../Show";
 import ExposeGenerationModal from "../../../Features/DeveloperProjects/ExposeGenerationModal";
 import GenerateUnitTypeExposeModal from "../../../Features/DeveloperProjects/GenerateUnitTypeExposeModal";
 import GenerateProjectExposeModal from "../../../Features/DeveloperProjects/GenerateProjectExposeModal";
+import { snakeToReadable } from "../../../lib/utils";
 
 const { Paragraph } = Typography;
 
@@ -46,7 +47,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                     title="Project Brochure"
                     extra={
                         <Button
-                            type="primary"
+                            size="small"
                             icon={<FilePdfOutlined />}
                             onClick={() => setProjectExposeModalOpen(true)}
                         >
@@ -77,7 +78,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                                         actions={[
                                             <Button
                                                 key="generate"
-                                                type="primary"
+                                                size="small"
                                                 icon={<FilePdfOutlined />}
                                                 onClick={() => handleGenerateUnitTypeExpose(ut)}
                                             >
@@ -86,7 +87,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                                         ]}
                                     >
                                         <List.Item.Meta
-                                            title={ut.display_label ?? ut.property_type ?? "Unit Type"}
+                                            title={ut.display_label ?? snakeToReadable(ut.property_type) ?? "Unit Type"}
                                             description={[
                                                 ut.formatted_price,
                                                 ut.bedrooms ? `${ut.bedrooms} bed` : null,
@@ -130,7 +131,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                                     ]}
                                 >
                                     <List.Item.Meta
-                                        title={item.type}
+                                        title={snakeToReadable(item.type)}
                                         description={`${item.count} properties`}
                                     />
                                 </List.Item>
