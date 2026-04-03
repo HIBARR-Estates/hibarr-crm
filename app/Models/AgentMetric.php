@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Enums\EnrollmentStatus;
 use Illuminate\Support\Collection;
 
 class AgentMetric extends BaseModel
@@ -68,6 +69,7 @@ class AgentMetric extends BaseModel
 
     /**
      * Overall progress percentage towards the next level (0-100).
+     * Uses the average of individual criterion percentages (matching dashboard).
      */
     public function getProgressPercentageAttribute(): float
     {
@@ -78,16 +80,21 @@ class AgentMetric extends BaseModel
             return 0;
         }
 
-        $total = $nextLevel->criteria->count();
-        $metCount = 0;
+        $metricsSource = $this->metricsSourceOverride ?? $this;
+        $totalPercentage = 0;
+        $count = $nextLevel->criteria->count();
 
         foreach ($nextLevel->criteria as $criterion) {
-            if ($criterion->evaluate($this)) {
-                $metCount++;
-            }
+            $currentValue = $criterion->metric->resolveValue($metricsSource);
+            $targetValue = (float) $criterion->threshold;
+            $met = $criterion->evaluate($metricsSource);
+            $percentage = $targetValue > 0
+                ? min(100, ($currentValue / $targetValue) * 100)
+                : ($met ? 100 : 0);
+            $totalPercentage += $percentage;
         }
 
-        return $total > 0 ? round(($metCount / $total) * 100, 1) : 0;
+        return $count > 0 ? round($totalPercentage / $count, 1) : 0;
     }
 
     /**
@@ -102,12 +109,13 @@ class AgentMetric extends BaseModel
             return [];
         }
 
+        $metricsSource = $this->metricsSourceOverride ?? $this;
         $progress = [];
 
         foreach ($nextLevel->criteria as $criterion) {
-            $currentValue = $criterion->metric->resolveValue($this);
+            $currentValue = $criterion->metric->resolveValue($metricsSource);
             $targetValue  = (float) $criterion->threshold;
-            $met          = $criterion->evaluate($this);
+            $met          = $criterion->evaluate($metricsSource);
 
             $progress[] = [
                 'criterion'     => $criterion->toArray(),
@@ -122,6 +130,12 @@ class AgentMetric extends BaseModel
 
         return $progress;
     }
+
+    /**
+     * Optional override for the metrics source used in progress calculations.
+     * Set externally (e.g. by the controller) to use cycle metrics instead of all-time.
+     */
+    public ?object $metricsSourceOverride = null;
 
     // ── Internal Helpers ─────────────────────────────────────────
 

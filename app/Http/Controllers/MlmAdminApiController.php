@@ -487,9 +487,25 @@ class MlmAdminApiController extends AccountBaseController
 
         $perPage = min($request->input('per_page', 15), 100);
 
-        // The model's $appends automatically includes:
-        // current_level, next_level, progress_percentage, criteria_progress
-        return response()->json($query->paginate($perPage));
+        $paginated = $query->paginate($perPage);
+
+        // Batch-load active cycle metrics for all agents on this page
+        $agentIds = $paginated->pluck('agent_id')->toArray();
+        $cycleMetricsMap = AgentCycleEnrollment::whereIn('agent_id', $agentIds)
+            ->receiving()
+            ->with('metrics')
+            ->get()
+            ->keyBy('agent_id');
+
+        // Inject cycle metrics so the model's appended attributes use them
+        $paginated->getCollection()->each(function (AgentMetric $metric) use ($cycleMetricsMap) {
+            $cycleMetrics = $cycleMetricsMap->get($metric->agent_id)?->metrics;
+            if ($cycleMetrics) {
+                $metric->metricsSourceOverride = $cycleMetrics;
+            }
+        });
+
+        return response()->json($paginated);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -508,6 +524,10 @@ class MlmAdminApiController extends AccountBaseController
 
         if ($request->filled('level_id')) {
             $query->where('level_id', $request->input('level_id'));
+        }
+
+        if ($request->filled('method')) {
+            $query->where('system_assigned', $request->input('method') === 'system');
         }
 
         if ($request->filled('date_from')) {
@@ -970,7 +990,7 @@ class MlmAdminApiController extends AccountBaseController
             ->findOrFail($id);
 
         $enrollments = AgentCycleEnrollment::where('cycle_id', $cycle->id)
-            ->with(['agent.user:id,name,email,image', 'metrics', 'levelAchieved'])
+            ->with(['agent.user:id,name,email,image', 'agent.currentLevelHistory.level', 'metrics', 'levelAchieved'])
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($enrollment) {
@@ -985,7 +1005,7 @@ class MlmAdminApiController extends AccountBaseController
                     'overflow_start_date' => $enrollment->overflow_start_date?->format('Y-m-d'),
                     'max_overflow_date' => $enrollment->max_overflow_date?->format('Y-m-d'),
                     'criteria_met_at' => $enrollment->criteria_met_at?->format('Y-m-d H:i:s'),
-                    'level_achieved' => $enrollment->levelAchieved?->name,
+                    'level_achieved' => $enrollment->levelAchieved?->name ?? $enrollment->agent?->currentLevelHistory?->level?->name,
                     'days_remaining' => $enrollment->daysRemaining(),
                     'is_overflowing' => $enrollment->isOverflowing(),
                     'metrics' => $enrollment->metrics ? [

@@ -17,6 +17,9 @@ import {
     Modal,
     Select,
     Tooltip,
+    Segmented,
+    Timeline,
+    Popconfirm,
 } from "antd";
 import { motion } from "framer-motion";
 import {
@@ -27,6 +30,12 @@ import {
     Send,
     Briefcase,
     Search,
+    List,
+    Network,
+    Users,
+    BarChart3,
+    History,
+    ExternalLink,
 } from "lucide-react";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
@@ -36,19 +45,21 @@ import UserIndicator from "@/Components/UserIndicator";
 import {
     useMyNetwork,
     useDownlineDeals,
-    useSendInvite,
-    useMyInvites,
     useAgentDeals,
     useDownlineList,
+    useLevelHistory,
 } from "@/Features/Mlm/api";
-import { AgentTreeView } from "@/Features/Mlm/Components";
+import { useAgentInvitation } from "@/Hooks/useAgentInvitation";
+import { AgentTreeView, AgentListView } from "@/Features/Mlm/Components";
 import type {
     AgentHierarchyNode,
+    AgentLevelHistory,
     DownlineDealContribution,
-    AgentInvite,
     DownlineListItem,
 } from "@/Features/Mlm/types";
+import type { IInvitation, InvitationStatus } from "@/Types/invitations";
 import type { Deal } from "@/Types/api/deals";
+import { OrderedListOutlined, PartitionOutlined } from "@ant-design/icons";
 
 interface Props extends PageProps {
     network: AgentHierarchyNode | null;
@@ -154,32 +165,37 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
 // ── Invitations Tab ──────────────────────────────────────────────
 const InvitationsTab: React.FC = () => {
     const [form] = Form.useForm();
-    const [invitePage, setInvitePage] = useState(1);
 
     const {
-        data: invitesData,
+        invitations,
+        totalCount,
         isLoading: invitesLoading,
+        isSending: sending,
+        sendInvitation,
         refetch: refetchInvites,
-    } = useMyInvites({ page: invitePage, per_page: 10 });
-
-    const invites: AgentInvite[] = (invitesData as any)?.data ?? [];
-    const invitesTotal = (invitesData as any)?.total ?? 0;
-
-    const { mutate: sendInvite, isPending: sending } = useSendInvite(() => {
-        message.success("Invitation sent successfully");
-        form.resetFields();
-        refetchInvites();
+        page: invitePage,
+        setPage: setInvitePage,
+    } = useAgentInvitation({
+        pageSize: 10,
+        onCreateSuccess: () => {
+            form.resetFields();
+        },
     });
 
     const handleSendInvite = (values: { email: string }) => {
-        sendInvite({ email: values.email });
+        sendInvitation(values.email);
     };
 
     const statusColor: Record<string, string> = {
-        pending: "orange",
-        accepted: "green",
+        pending_registration: "orange",
+        pending_review: "blue",
+        approved: "green",
+        rejected: "red",
         expired: "default",
     };
+
+    const formatStatus = (s: string) =>
+        s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
     const inviteColumns = [
         {
@@ -191,32 +207,40 @@ const InvitationsTab: React.FC = () => {
             ),
         },
         {
+            title: "Name",
+            key: "name",
+            render: (_: any, r: IInvitation) => {
+                const name = [r.firstName, r.lastName]
+                    .filter(Boolean)
+                    .join(" ");
+                return <span className="text-sm">{name || "—"}</span>;
+            },
+        },
+        {
             title: "Status",
             dataIndex: "status",
             key: "status",
-            render: (s: string) => (
-                <Tag color={statusColor[s] ?? "default"}>
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                </Tag>
+            render: (s: InvitationStatus) => (
+                <Tag color={statusColor[s] ?? "default"}>{formatStatus(s)}</Tag>
             ),
         },
         {
-            title: "Sent",
-            dataIndex: "sent_at",
-            key: "sent_at",
-            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+            title: "Expires",
+            dataIndex: "tokenExpiresAt",
+            key: "tokenExpiresAt",
+            render: (d: string | null) =>
+                d ? dayjs(d).format("MMM DD, YYYY") : "—",
         },
         {
-            title: "Accepted",
-            dataIndex: "accepted_at",
-            key: "accepted_at",
-            render: (d: string | null) =>
-                d ? new Date(d).toLocaleDateString() : "—",
+            title: "Sent",
+            dataIndex: "createdAt",
+            key: "createdAt",
+            render: (d: string) => (d ? dayjs(d).format("MMM DD, YYYY") : "—"),
         },
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-y-6">
             {/* Invite Form */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -294,7 +318,7 @@ const InvitationsTab: React.FC = () => {
                     }
                 >
                     <Table
-                        dataSource={invites}
+                        dataSource={invitations}
                         columns={inviteColumns}
                         rowKey="id"
                         size="small"
@@ -306,7 +330,7 @@ const InvitationsTab: React.FC = () => {
                         }}
                         pagination={{
                             current: invitePage,
-                            total: invitesTotal,
+                            total: totalCount,
                             pageSize: 10,
                             size: "small",
                             showSizeChanger: false,
@@ -451,7 +475,7 @@ const DealsTab: React.FC = () => {
     ];
 
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-y-4">
             {/* Filters */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -542,6 +566,186 @@ const DealsTab: React.FC = () => {
     );
 };
 
+// ── Agent Level History Section ──────────────────────────────────
+const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
+    agentId,
+}) => {
+    const { data, isLoading } = useLevelHistory({
+        agent_id: agentId,
+        per_page: 10,
+    });
+    const records: AgentLevelHistory[] = (data as any)?.data ?? [];
+
+    if (isLoading) {
+        return <Spin size="small" />;
+    }
+
+    if (records.length === 0) {
+        return (
+            <Empty
+                description="No level history"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+        );
+    }
+
+    return (
+        <Timeline
+            items={records.map((r) => ({
+                color: r.system_assigned ? "blue" : "green",
+                children: (
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <Tag color="blue">
+                                {r.level?.name ?? "Unknown Level"}
+                            </Tag>
+                            {r.system_assigned && (
+                                <Tag color="default" className="text-xs">
+                                    Auto
+                                </Tag>
+                            )}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                            {dayjs(r.assigned_at).format("MMM DD, YYYY h:mm A")}
+                        </div>
+                        {r.trigger_deal && (
+                            <div className="text-xs text-gray-400 mt-0.5">
+                                Triggered by: {r.trigger_deal.name} ($
+                                {r.trigger_deal.value?.toLocaleString()})
+                            </div>
+                        )}
+                        {r.assigned_by_user && (
+                            <div className="text-xs text-gray-400 mt-0.5">
+                                Assigned by: {r.assigned_by_user.name}
+                            </div>
+                        )}
+                    </div>
+                ),
+            }))}
+        />
+    );
+};
+
+// ── Agent Detail Content ─────────────────────────────────────────
+const AgentDetailContent: React.FC<{
+    node: AgentHierarchyNode;
+    extraContent?: React.ReactNode;
+}> = ({ node, extraContent }) => {
+    return (
+        <div className="flex flex-col gap-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xl font-bold">
+                    {node.name?.charAt(0) ?? "?"}
+                </div>
+                <div className="flex-1">
+                    <div className="font-semibold text-lg">{node.name}</div>
+                    <div className="text-sm text-gray-500">{node.email}</div>
+                    {node.joined_date && (
+                        <div className="text-xs text-gray-400">
+                            Joined{" "}
+                            {dayjs(node.joined_date).format("MMM DD, YYYY")}
+                        </div>
+                    )}
+                </div>
+                <Link
+                    href={`/account/mlm/agents/${node.id}/dashboard`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+                >
+                    <ExternalLink size={14} />
+                    View Dashboard
+                </Link>
+            </div>
+
+            {/* Overview Card */}
+            <Card
+                size="small"
+                title={
+                    <div className="flex items-center gap-2">
+                        <Users size={14} className="text-indigo-500" />
+                        <span>Overview</span>
+                    </div>
+                }
+            >
+                <Descriptions column={2} size="small">
+                    <Descriptions.Item label="Level">
+                        {node.level_name ? (
+                            <Tag color="blue">{node.level_name}</Tag>
+                        ) : (
+                            "Unranked"
+                        )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Direct Downlines">
+                        {node.children?.length ?? 0}
+                    </Descriptions.Item>
+                </Descriptions>
+            </Card>
+
+            {/* Metrics Card */}
+            <Card
+                size="small"
+                title={
+                    <div className="flex items-center gap-2">
+                        <BarChart3 size={14} className="text-indigo-500" />
+                        <span>All-Time Metrics</span>
+                    </div>
+                }
+            >
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 rounded-lg bg-blue-50 border border-blue-100">
+                        <div className="text-2xl font-bold text-blue-700">
+                            {node.nsa ?? 0}
+                        </div>
+                        <div className="text-xs text-blue-600">
+                            Individual Sales
+                        </div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-purple-50 border border-purple-100">
+                        <div className="text-2xl font-bold text-purple-700">
+                            {node.nsd ?? 0}
+                        </div>
+                        <div className="text-xs text-purple-600">
+                            Team Sales
+                        </div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-green-50 border border-green-100">
+                        <div className="text-2xl font-bold text-green-700">
+                            ${(node.vsa ?? 0).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-green-600">
+                            Individual Revenue
+                        </div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-amber-50 border border-amber-100">
+                        <div className="text-2xl font-bold text-amber-700">
+                            ${(node.vsd ?? 0).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-amber-600">
+                            Team Revenue
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            {/* Level History Card */}
+            <Card
+                size="small"
+                title={
+                    <div className="flex items-center gap-2">
+                        <History size={14} className="text-indigo-500" />
+                        <span>Level History</span>
+                    </div>
+                }
+            >
+                <AgentLevelHistorySection agentId={node.id} />
+            </Card>
+
+            {/* Extra content (e.g. downline deals) */}
+            {extraContent}
+        </div>
+    );
+};
+
 // ── Main Page ────────────────────────────────────────────────────
 const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     const { data, isLoading, refetch } = useMyNetwork();
@@ -553,6 +757,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     );
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [fullscreenOpen, setFullscreenOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<"tree" | "list">("list");
 
     const handleNodeClick = (node: AgentHierarchyNode) => {
         setSelectedNode(node);
@@ -616,7 +821,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                     </span>
                                 ),
                                 children: (
-                                    <div className="space-y-6">
+                                    <div className="flex flex-col gap-y-6">
                                         {/* Summary */}
                                         <motion.div
                                             initial={{ opacity: 0, y: 20 }}
@@ -653,12 +858,38 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                         )}
                                                     </div>
                                                     <Space>
+                                                        <Segmented
+                                                            value={viewMode}
+                                                            onChange={(val) =>
+                                                                setViewMode(
+                                                                    val as
+                                                                        | "tree"
+                                                                        | "list",
+                                                                )
+                                                            }
+                                                            options={[
+                                                                {
+                                                                    value: "list",
+                                                                    icon: (
+                                                                        <OrderedListOutlined />
+                                                                    ),
+                                                                },
+                                                                {
+                                                                    value: "tree",
+                                                                    icon: (
+                                                                        <PartitionOutlined
+                                                                            rotate={
+                                                                                90
+                                                                            }
+                                                                        />
+                                                                    ),
+                                                                },
+                                                            ]}
+                                                        />
                                                         <Button
                                                             icon={
                                                                 <Maximize2
-                                                                    size={
-                                                                        14
-                                                                    }
+                                                                    size={14}
                                                                 />
                                                             }
                                                             size="small"
@@ -704,25 +935,41 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                     padding: 0,
                                                     minHeight: 500,
                                                 }}
+                                                style={{ marginBottom: 0 }}
                                             >
                                                 {isLoading ? (
                                                     <div className="flex items-center justify-center h-96">
                                                         <Spin size="large" />
                                                     </div>
                                                 ) : network ? (
-                                                    <div
-                                                        style={{
-                                                            height: 500,
-                                                        }}
-                                                    >
-                                                        <AgentTreeView
+                                                    viewMode === "tree" ? (
+                                                        <div
+                                                            style={{
+                                                                height: "calc(100vh - 340px)",
+                                                                minHeight: 500,
+                                                            }}
+                                                        >
+                                                            <AgentTreeView
+                                                                data={[network]}
+                                                                onNodeClick={
+                                                                    handleNodeClick
+                                                                }
+                                                                orientation="vertical"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <AgentListView
                                                             data={[network]}
                                                             onNodeClick={
                                                                 handleNodeClick
                                                             }
-                                                            orientation="vertical"
+                                                            height={Math.max(
+                                                                500,
+                                                                window.innerHeight -
+                                                                    340,
+                                                            )}
                                                         />
-                                                    </div>
+                                                    )
                                                 ) : (
                                                     <div className="flex items-center justify-center h-96">
                                                         <Empty description="You don't have any downlines yet." />
@@ -738,11 +985,10 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                 label: (
                                     <span className="flex items-center gap-1.5">
                                         <Mail size={14} />
-                                        Invitations (Coming Soon)
+                                        Invitations
                                     </span>
                                 ),
                                 children: <InvitationsTab />,
-                                disabled: true,
                             },
                             {
                                 key: "deals",
@@ -757,11 +1003,14 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                         ]}
                     />
 
-                    {/* Fullscreen Tree Modal */}
+                    {/* Fullscreen Modal */}
                     <Modal
                         title={
                             <div className="flex items-center gap-2">
-                                <GitBranch size={18} className="text-indigo-500" />
+                                <GitBranch
+                                    size={18}
+                                    className="text-indigo-500"
+                                />
                                 <span>My Network</span>
                             </div>
                         }
@@ -770,16 +1019,30 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                         footer={null}
                         width="95vw"
                         style={{ top: 20 }}
-                        styles={{ body: { padding: 0, height: 'calc(90vh - 55px)', overflow: 'hidden' } }}
+                        styles={{
+                            body: {
+                                padding: 0,
+                                height: "calc(90vh - 55px)",
+                                overflow: "hidden",
+                            },
+                        }}
                         destroyOnClose
                     >
                         {network ? (
-                            <AgentTreeView
-                                data={[network]}
-                                onNodeClick={handleNodeClick}
-                                orientation="vertical"
-                                height={window.innerHeight * 0.9 - 55}
-                            />
+                            viewMode === "tree" ? (
+                                <AgentTreeView
+                                    data={[network]}
+                                    onNodeClick={handleNodeClick}
+                                    orientation="vertical"
+                                    height={window.innerHeight * 0.9 - 55}
+                                />
+                            ) : (
+                                <AgentListView
+                                    data={[network]}
+                                    onNodeClick={handleNodeClick}
+                                    height={window.innerHeight * 0.9 - 55}
+                                />
+                            )
                         ) : (
                             <div className="flex items-center justify-center h-96">
                                 <Empty description="No network data available" />
@@ -795,91 +1058,32 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                             setDrawerOpen(false);
                             setSelectedNode(null);
                         }}
-                        width={520}
+                        size="large"
                     >
                         {selectedNode && (
-                            <div>
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-lg font-bold">
-                                        {selectedNode.name?.charAt(0) ?? "?"}
-                                    </div>
-                                    <div>
-                                        <div className="font-semibold text-lg">
-                                            {selectedNode.name}
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                            {selectedNode.email}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <Descriptions column={1} size="small" bordered>
-                                    <Descriptions.Item label="Level">
-                                        {selectedNode.level_name ? (
-                                            <Tag color="blue">
-                                                {selectedNode.level_name}
-                                            </Tag>
-                                        ) : (
-                                            "Unranked"
-                                        )}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Direct Downlines">
-                                        {selectedNode.children?.length ?? 0}
-                                    </Descriptions.Item>
-                                </Descriptions>
-
-                                <div className="mt-4 mb-2">
-                                    <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                                        All-Time Metrics
-                                    </div>
-                                    <Descriptions
-                                        column={2}
-                                        size="small"
-                                        bordered
-                                    >
-                                        <Descriptions.Item label="NSA">
-                                            {selectedNode.nsa ?? 0}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="NSD">
-                                            {selectedNode.nsd ?? 0}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="VSA">
-                                            $
-                                            {(
-                                                selectedNode.vsa ?? 0
-                                            ).toLocaleString()}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="VSD">
-                                            $
-                                            {(
-                                                selectedNode.vsd ?? 0
-                                            ).toLocaleString()}
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                </div>
-
-                                {selectedNode.joined_date && (
-                                    <div className="mt-2 text-xs text-gray-500">
-                                        Joined:{" "}
-                                        {new Date(
-                                            selectedNode.joined_date,
-                                        ).toLocaleDateString()}
-                                    </div>
-                                )}
-
-                                {/* Downline Deals Section */}
-                                {isDownlineNode && (
-                                    <>
-                                        <Divider />
-                                        <div className="text-xs uppercase tracking-wider text-gray-400 mb-3">
-                                            Deals
-                                        </div>
-                                        <DownlineDealsSection
-                                            agentId={selectedNode.id}
-                                        />
-                                    </>
-                                )}
-                            </div>
+                            <AgentDetailContent
+                                node={selectedNode}
+                                extraContent={
+                                    isDownlineNode ? (
+                                        <Card
+                                            size="small"
+                                            title={
+                                                <div className="flex items-center gap-2">
+                                                    <Briefcase
+                                                        size={14}
+                                                        className="text-indigo-500"
+                                                    />
+                                                    <span>Deals</span>
+                                                </div>
+                                            }
+                                        >
+                                            <DownlineDealsSection
+                                                agentId={selectedNode.id}
+                                            />
+                                        </Card>
+                                    ) : undefined
+                                }
+                            />
                         )}
                     </Drawer>
                 </div>

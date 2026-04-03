@@ -76,7 +76,7 @@ class FindOrCreateEmployeeV2Request extends CoreRequest
             'lastName' => 'required|string|max:50',
             'email' => $emailRules,
 
-            'employeeId' => 'required|string|max:100',
+            'employeeId' => 'nullable|string|max:100',
 
             'designationId' => [
                 'required',

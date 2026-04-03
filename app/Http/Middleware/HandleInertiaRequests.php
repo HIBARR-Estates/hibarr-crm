@@ -58,7 +58,7 @@ class HandleInertiaRequests extends Middleware
     {
         return array_merge(parent::share($request), [
             'auth' => fn () => [
-                'user' => auth()->user() ? auth()->user()->load(['roles', 'employeeDetail.designation']) : null,
+                'user' => auth()->user() ? $this->getUserWithLeadAgentId() : null,
                 'permissions' => function_exists('user') ? $this->getAllPermissions() : [],
                 'modules' => function_exists('user_modules') ? user_modules() : [],
             ],
@@ -203,6 +203,20 @@ class HandleInertiaRequests extends Middleware
     {
         // Return unread messages count - implement based on your message system
         return 0; // Placeholder
+    }
+
+    /**
+     * Get the authenticated user with their LeadAgent ID appended.
+     */
+    private function getUserWithLeadAgentId()
+    {
+        $user = auth()->user()->load(['roles', 'employeeDetail.designation']);
+
+        // Append the first lead_agent id for this user (used by invitation feature)
+        $leadAgent = \App\Models\LeadAgent::where('user_id', $user->id)->first();
+        $user->setAttribute('lead_agent_id', $leadAgent?->id);
+
+        return $user;
     }
 
     private function getCustomLinks(): array

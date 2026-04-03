@@ -165,7 +165,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                         transition={{ duration: 0.3 }}
                     >
                         <Card
-                            className="shadow-sm"
+                            variant="outlined"
                             bodyStyle={{ padding: "16px 24px" }}
                         >
                             <div className="flex items-center gap-4">
@@ -217,13 +217,13 @@ const AdminAgentDashboard: React.FC<Props> = ({
 
                         <Row gutter={[16, 16]}>
                             {/* Current Level Card */}
-                            <Col xs={24} lg={10}>
+                            <Col xs={24} lg={12}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.4 }}
                                 >
-                                    <Card className="shadow-sm h-full">
+                                    <Card className="h-full" variant="outlined">
                                         <div className="text-center mb-6">
                                             <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white mb-4">
                                                 <Award size={36} />
@@ -262,7 +262,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                             </Col>
 
                             {/* Progress to Next Level */}
-                            <Col xs={24} lg={14}>
+                            <Col xs={24} lg={12}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -288,7 +288,8 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                 )}
                                             </div>
                                         }
-                                        className="shadow-sm h-full"
+                                        className="h-full"
+                                        variant="outlined"
                                     >
                                         {levelData?.next_level &&
                                         levelData?.criteria_progress?.length ? (
@@ -320,14 +321,16 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                         levelData.next_level
                                                     }
                                                     overallProgress={
-                                                        (levelData.criteria_progress?.filter(
-                                                            (c) => c.met,
-                                                        ).length /
-                                                            (levelData
-                                                                .criteria_progress
-                                                                ?.length ||
-                                                                1)) *
-                                                        100
+                                                        (levelData.criteria_progress?.reduce(
+                                                            (sum, c) =>
+                                                                sum +
+                                                                (c.percentage ??
+                                                                    0),
+                                                            0,
+                                                        ) ?? 0) /
+                                                        (levelData
+                                                            .criteria_progress
+                                                            ?.length || 1)
                                                     }
                                                     criteriaProgress={
                                                         levelData.criteria_progress
@@ -361,7 +364,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                         }}
                                     >
                                         <Card
-                                            className="shadow-sm"
+                                            variant="outlined"
                                             bodyStyle={{ padding: "16px 20px" }}
                                         >
                                             <div className="flex items-center justify-between">
@@ -405,7 +408,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                 Commission Trend
                                             </span>
                                         }
-                                        className="shadow-sm"
+                                        variant="outlined"
                                     >
                                         {stats.monthly_commissions?.length ? (
                                             <ResponsiveContainer
@@ -486,7 +489,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                 Network Growth
                                             </span>
                                         }
-                                        className="shadow-sm"
+                                        variant="outlined"
                                     >
                                         {stats.network_growth?.length ? (
                                             <ResponsiveContainer
@@ -535,7 +538,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                         Recent Commissions
                                     </span>
                                 }
-                                className="shadow-sm"
+                                variant="outlined"
                             >
                                 <Table
                                     columns={recentCommissionCols}

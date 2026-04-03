@@ -237,7 +237,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         },
         {
             key: "mlm",
-            label: "MLM",
+            label: "Partner Network",
             icon: <ApartmentOutlined />,
             children: [
                 {
@@ -293,7 +293,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         },
         {
             key: "my-mlm",
-            label: "My MLM",
+            label: "Affiliate Workspace",
             icon: <TeamOutlined />,
             children: [
                 {
@@ -304,13 +304,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 },
                 {
                     key: "my-mlm-commissions",
-                    label: "My Commissions",
+                    label: "Commissions",
                     icon: null,
                     href: "/account/mlm/agent/commissions",
                 },
                 {
                     key: "my-mlm-network",
-                    label: "My Network",
+                    label: "Network",
                     icon: null,
                     href: "/account/mlm/agent/network",
                 },
@@ -326,12 +326,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 //     icon: null,
                 //     href: "/account/mlm/agent/my-level",
                 // },
-                {
-                    key: "my-mlm-deals",
-                    label: "My Deals",
-                    icon: null,
-                    href: "/account/mlm/agent/deal-contributions",
-                },
+                // {
+                //     key: "my-mlm-deals",
+                //     label: "My Deals",
+                //     icon: null,
+                //     href: "/account/mlm/agent/deal-contributions",
+                // },
             ],
         },
     ];

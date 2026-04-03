@@ -121,12 +121,26 @@ class MlmAdminController extends AccountBaseController
      */
     public function commissionLedger()
     {
+        $companyId = company()->id;
+
+        $summaryStats = MlmCommission::where('company_id', $companyId)
+            ->whereNull('reverted_at')
+            ->selectRaw("COALESCE(SUM(amount), 0) as total_amount")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as paid_amount")
+            ->first();
+
         return Inertia::render('Mlm/Admin/CommissionLedger', [
-            'agents' => LeadAgent::where('company_id', company()->id)
+            'agents' => LeadAgent::where('company_id', $companyId)
                 ->with('user:id,name')
                 ->get()
                 ->map(fn ($a) => ['id' => $a->id, 'name' => $a->user?->name ?? 'Unknown']),
-            'levels' => MlmLevel::where('company_id', company()->id)->ordered()->get(['id', 'name']),
+            'levels' => MlmLevel::where('company_id', $companyId)->ordered()->get(['id', 'name']),
+            'summaryStats' => [
+                'total_amount' => (float) $summaryStats->total_amount,
+                'pending_amount' => (float) $summaryStats->pending_amount,
+                'paid_amount' => (float) $summaryStats->paid_amount,
+            ],
         ]);
     }
 

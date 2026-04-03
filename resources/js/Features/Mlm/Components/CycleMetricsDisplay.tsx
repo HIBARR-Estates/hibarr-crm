@@ -30,33 +30,33 @@ const CycleMetricsDisplay: React.FC<Props> = ({
             ? allTimeMetrics
             : (cycleMetrics ?? allTimeMetrics);
 
-    if (!metrics) {
-        return (
-            <Card size="small" className="shadow-sm">
-                <div className="text-center text-sm text-gray-400 py-4">
-                    No metrics data available
-                </div>
-            </Card>
-        );
-    }
+    // if (!metrics) {
+    //     return (
+    //         <Card size="small" className="shadow-sm">
+    //             <div className="text-center text-sm text-gray-400 py-4">
+    //                 No metrics data available
+    //             </div>
+    //         </Card>
+    //     );
+    // }
 
     const items = [
         {
-            title: "Agent Sales (NSA)",
-            value: metrics.nsa,
+            title: "Individual Sales",
+            value: metrics?.nsa ?? 0,
         },
         {
-            title: "Downline Sales (NSD)",
-            value: metrics.nsd,
+            title: "Team Sales",
+            value: metrics?.nsd ?? 0,
         },
         {
-            title: "Agent Value (VSA)",
-            value: metrics.vsa,
+            title: "Individual Revenue",
+            value: metrics?.vsa ?? 0,
             prefix: "$",
         },
         {
-            title: "Downline Value (VSD)",
-            value: metrics.vsd,
+            title: "Team Revenue",
+            value: metrics?.vsd ?? 0,
             prefix: "$",
         },
     ];

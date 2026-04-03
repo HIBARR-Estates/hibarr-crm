@@ -54,7 +54,7 @@ export default function LevelBadge({
 
     return (
         <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${fontSize} font-semibold ${RANK_BG[level.rank] ?? "bg-gray-50 border-gray-200"}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border whitespace-nowrap ${fontSize} font-semibold ${RANK_BG[level.rank] ?? "bg-gray-50 border-gray-200"}`}
             style={{ color }}
         >
             <span

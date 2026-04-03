@@ -50,10 +50,16 @@ const { RangePicker } = DatePicker;
 
 interface Props extends PageProps {
     commissions: PaginatedResponse<MlmCommission>;
+    summaryStats: {
+        total_amount: number;
+        pending_amount: number;
+        paid_amount: number;
+    };
 }
 
 const MlmCommissionLedger: React.FC<Props> = ({
     commissions: initialCommissions,
+    summaryStats,
 }) => {
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
@@ -106,17 +112,6 @@ const MlmCommissionLedger: React.FC<Props> = ({
         );
     };
 
-    // Summary stats
-    const totalAmount =
-        commissions?.data?.reduce(
-            (sum, c) => Number(sum) + (Number(c.amount) ?? 0),
-            0,
-        ) ?? 0;
-    const pendingCount =
-        commissions?.data?.filter((c) => c.status === "pending").length ?? 0;
-    const paidCount =
-        commissions?.data?.filter((c) => c.status === "paid").length ?? 0;
-
     const columns = [
         {
             title: "Deal",
@@ -135,11 +130,13 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Agent",
+            title: "Recipient",
             key: "agent",
             render: (_: any, record: MlmCommission) => (
                 <span className="font-medium">
-                    {record.agent?.user?.name ?? "—"}
+                    {record?.type === "system"
+                        ? "Organization"
+                        : (record.agent?.user?.name ?? "—")}
                 </span>
             ),
         },
@@ -201,9 +198,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Date",
-            dataIndex: "created_at",
-            key: "created_at",
+            title: "Paid At",
+            dataIndex: "paid_at",
+            key: "paid_at",
             render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
         },
         {
@@ -261,8 +258,8 @@ const MlmCommissionLedger: React.FC<Props> = ({
                         <Col xs={12} sm={8}>
                             <Card size="small" className="shadow-sm">
                                 <Statistic
-                                    title="Page Total"
-                                    value={totalAmount}
+                                    title="Total"
+                                    value={summaryStats.total_amount}
                                     prefix="$"
                                     precision={2}
                                     valueStyle={{ color: "#16a34a" }}
@@ -273,7 +270,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             <Card size="small" className="shadow-sm">
                                 <Statistic
                                     title="Pending"
-                                    value={pendingCount}
+                                    value={summaryStats.pending_amount}
+                                    prefix="$"
+                                    precision={2}
                                     valueStyle={{ color: "#ea580c" }}
                                 />
                             </Card>
@@ -282,7 +281,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             <Card size="small" className="shadow-sm">
                                 <Statistic
                                     title="Paid"
-                                    value={paidCount}
+                                    value={summaryStats.paid_amount}
+                                    prefix="$"
+                                    precision={2}
                                     valueStyle={{ color: "#16a34a" }}
                                 />
                             </Card>
@@ -353,7 +354,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                         }
                                     }}
                                 />
-                                {activeCycle && (
+                                {/* {activeCycle && (
                                     <Button
                                         size="small"
                                         icon={<CalendarDays size={14} />}
@@ -377,7 +378,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                     >
                                         Cycle #{activeCycle.cycle_number}
                                     </Button>
-                                )}
+                                )} */}
                                 <div className="flex-1" />
 
                                 {selectedRows.length > 0 && (

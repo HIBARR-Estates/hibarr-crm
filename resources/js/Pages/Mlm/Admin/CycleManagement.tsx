@@ -289,26 +289,26 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
             render: (v: string) => (v ? new Date(v).toLocaleDateString() : "-"),
         },
         {
-            title: "NSA",
+            title: "Individual Sales",
             key: "nsa",
             align: "right" as const,
             render: (_: any, r: any) => r.metrics?.nsa ?? 0,
         },
         {
-            title: "NSD",
+            title: "Team Sales",
             key: "nsd",
             align: "right" as const,
             render: (_: any, r: any) => r.metrics?.nsd ?? 0,
         },
         {
-            title: "VSA",
+            title: "Individual Revenue",
             key: "vsa",
             align: "right" as const,
             render: (_: any, r: any) =>
                 `$${(r.metrics?.vsa ?? 0).toLocaleString()}`,
         },
         {
-            title: "VSD",
+            title: "Team Revenue",
             key: "vsd",
             align: "right" as const,
             render: (_: any, r: any) =>

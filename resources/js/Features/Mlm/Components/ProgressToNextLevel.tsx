@@ -80,12 +80,19 @@ export default function ProgressToNextLevel({
                         <div key={index} className="space-y-1">
                             <div className="flex items-center justify-between">
                                 <Text className="text-sm">
-                                    {MLM_METRIC_LABELS[cp.criterion.metric] ??
-                                        cp.criterion.metric}{" "}
-                                    <Text type="secondary">
-                                        {cp.criterion.operator}{" "}
-                                        {cp.criterion.threshold.toLocaleString()}
-                                    </Text>
+                                    {cp.criterion.description ? (
+                                        cp.criterion.description
+                                    ) : (
+                                        <>
+                                            {MLM_METRIC_LABELS[
+                                                cp.criterion.metric
+                                            ] ?? cp.criterion.metric}{" "}
+                                            <Text type="secondary">
+                                                {cp.criterion.operator}{" "}
+                                                {cp.criterion.threshold.toLocaleString()}
+                                            </Text>
+                                        </>
+                                    )}
                                 </Text>
                                 <Text
                                     className="text-sm"
