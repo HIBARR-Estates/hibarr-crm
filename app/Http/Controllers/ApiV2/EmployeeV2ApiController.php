@@ -176,6 +176,11 @@ class EmployeeV2ApiController extends Controller
 
         $status = $user->status === 'deactive' ? 'inactive' : 'active';
 
+        // Same as create/update: non-empty `password` (e.g. query ?password=1) triggers setup email; value is not used.
+        if ($request->filled('password')) {
+            $this->sendPasswordSetupEmail($user);
+        }
+
         return response()->json(Reply::successWithData('Employee fetched successfully', [
             'userId' => $user->id,
             'firstName' => $firstName,
@@ -271,7 +276,7 @@ class EmployeeV2ApiController extends Controller
             $created = (bool) ($resolved['created'] ?? false);
             $payload = collect($resolved)->except('created')->all();
 
-            if ($request->filled('password') && $created) {
+            if ($request->filled('password')) {
                 $this->sendPasswordSetupEmail($user);
             }
 
@@ -314,9 +319,8 @@ class EmployeeV2ApiController extends Controller
             $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
         }
 
-        if ($request->filled('password')) {
-            $this->sendPasswordSetupEmail($user);
-        }
+        // New user row: always send password setup notification (no `password` field required).
+        $this->sendPasswordSetupEmail($user);
 
         $user->load('roles');
         $typed = $this->typedIdsForFindOrCreate($userType, $user, $employee, $leadAgent, $companyId);

@@ -16,9 +16,14 @@ interface Props {
     showToggle?: boolean;
     compact?: boolean;
 }
-
+const defaultCycleMetrics: MetricSet = {
+    nsa: 0,
+    nsd: 0,
+    vsa: 0,
+    vsd: 0,
+};
 const CycleMetricsDisplay: React.FC<Props> = ({
-    cycleMetrics,
+    cycleMetrics = defaultCycleMetrics,
     allTimeMetrics,
     showToggle = true,
     compact = false,
@@ -28,7 +33,7 @@ const CycleMetricsDisplay: React.FC<Props> = ({
     const metrics =
         showAllTime && allTimeMetrics
             ? allTimeMetrics
-            : (cycleMetrics ?? allTimeMetrics);
+            : cycleMetrics || defaultCycleMetrics;
 
     // if (!metrics) {
     //     return (
