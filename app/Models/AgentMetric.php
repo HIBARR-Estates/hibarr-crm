@@ -69,7 +69,7 @@ class AgentMetric extends BaseModel
 
     /**
      * Overall progress percentage towards the next level (0-100).
-     * Uses cycle metrics when agent has an active enrollment, otherwise all-time.
+     * Uses the average of individual criterion percentages (matching dashboard).
      */
     public function getProgressPercentageAttribute(): float
     {
@@ -80,23 +80,25 @@ class AgentMetric extends BaseModel
             return 0;
         }
 
-        $metricsSource = $this->resolveMetricsForEvaluation();
-
-        $total = $nextLevel->criteria->count();
-        $metCount = 0;
+        $metricsSource = $this->metricsSourceOverride ?? $this;
+        $totalPercentage = 0;
+        $count = $nextLevel->criteria->count();
 
         foreach ($nextLevel->criteria as $criterion) {
-            if ($criterion->evaluate($metricsSource)) {
-                $metCount++;
-            }
+            $currentValue = $criterion->metric->resolveValue($metricsSource);
+            $targetValue = (float) $criterion->threshold;
+            $met = $criterion->evaluate($metricsSource);
+            $percentage = $targetValue > 0
+                ? min(100, ($currentValue / $targetValue) * 100)
+                : ($met ? 100 : 0);
+            $totalPercentage += $percentage;
         }
 
-        return $total > 0 ? round(($metCount / $total) * 100, 1) : 0;
+        return $count > 0 ? round($totalPercentage / $count, 1) : 0;
     }
 
     /**
      * Per-criterion progress breakdown towards the next level.
-     * Uses cycle metrics when agent has an active enrollment, otherwise all-time.
      */
     public function getCriteriaProgressAttribute(): array
     {
@@ -107,7 +109,7 @@ class AgentMetric extends BaseModel
             return [];
         }
 
-        $metricsSource = $this->resolveMetricsForEvaluation();
+        $metricsSource = $this->metricsSourceOverride ?? $this;
         $progress = [];
 
         foreach ($nextLevel->criteria as $criterion) {
@@ -129,34 +131,13 @@ class AgentMetric extends BaseModel
         return $progress;
     }
 
-    // ── Internal Helpers ─────────────────────────────────────────
-
     /**
-     * Resolve the metrics source for evaluation.
-     * Prefers cycle metrics from the agent's active enrollment, falls back to all-time (this).
+     * Optional override for the metrics source used in progress calculations.
+     * Set externally (e.g. by the controller) to use cycle metrics instead of all-time.
      */
-    protected function resolveMetricsForEvaluation()
-    {
-        static $cycleMetricsCache = [];
+    public ?object $metricsSourceOverride = null;
 
-        $agentId = $this->agent_id;
-
-        if (!isset($cycleMetricsCache[$agentId])) {
-            $cycleMetricsCache[$agentId] = false; // sentinel for "checked but not found"
-
-            $enrollment = AgentCycleEnrollment::where('agent_id', $agentId)
-                ->whereIn('status', [EnrollmentStatus::Active, EnrollmentStatus::Extended])
-                ->with('metrics')
-                ->latest('effective_start_date')
-                ->first();
-
-            if ($enrollment?->metrics) {
-                $cycleMetricsCache[$agentId] = $enrollment->metrics;
-            }
-        }
-
-        return $cycleMetricsCache[$agentId] ?: $this;
-    }
+    // ── Internal Helpers ─────────────────────────────────────────
 
     /**
      * Resolve the next level above the given rank.
