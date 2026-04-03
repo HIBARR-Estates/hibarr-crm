@@ -25,6 +25,15 @@ class CreateEmployeeV2Request extends CoreRequest
             }
         }
 
+        if ($this->has('roleid') && !$this->has('roleId')) {
+            $this->merge(['roleId' => $this->input('roleid')]);
+        }
+
+        $roleId = $this->input('roleId');
+        if (is_string($roleId) && is_numeric($roleId)) {
+            $this->merge(['roleId' => (int) $roleId]);
+        }
+
         // Normalize into camelCase input for v2 controller consistency.
         $this->merge([
             'companyId' => $companyId,
@@ -61,6 +70,21 @@ class CreateEmployeeV2Request extends CoreRequest
             ],
 
             'joiningDate' => 'required|date_format:Y-m-d',
+
+            'roleId' => [
+                'nullable',
+                'integer',
+                Rule::exists('roles', 'id')->where(function ($q) use ($companyId) {
+                    // Match assignable roles: same company, or legacy rows with null company_id.
+                    // Only "client" is blocked (employee API must not assign client role).
+                    return $q->where(function ($q2) use ($companyId) {
+                        $q2->where('company_id', $companyId);
+                        if ($companyId > 0) {
+                            $q2->orWhereNull('company_id');
+                        }
+                    })->where('name', '<>', 'client');
+                }),
+            ],
 
             'status' => 'nullable|in:active,inactive',
             'createLeadAgent' => 'nullable|boolean',
