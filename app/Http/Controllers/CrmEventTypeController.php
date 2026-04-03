@@ -32,11 +32,13 @@ class CrmEventTypeController extends Controller
             : (int) (Auth::user()?->company_id ?? 0);
 
         $query = CrmEventType::withoutGlobalScopes()
-            ->where(function ($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhereNull('company_id');
-            })
-            ->active()
-            ->with(['category', 'businessRule']);
+        ->where('is_system', false) // Exclude system event types from external API
+        ->where(function ($q) use ($companyId) {
+            $q->where('company_id', $companyId)
+            ->orWhereNull('company_id');
+        })
+        ->active()
+        ->with(['category', 'businessRule']);
 
         // Filter by category slug
         if ($request->filled('category_slug')) {

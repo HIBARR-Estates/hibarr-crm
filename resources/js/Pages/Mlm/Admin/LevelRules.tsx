@@ -5,6 +5,7 @@ import {
     Button,
     Modal,
     Form,
+    Input,
     Select,
     InputNumber,
     Space,
@@ -71,6 +72,11 @@ const CriterionSentence: React.FC<{ criterion: MlmLevelCriterion }> = ({
         <span className="font-semibold">
             {criterion.threshold.toLocaleString()}
         </span>
+        {criterion.description && (
+            <span className="text-gray-500 text-xs ml-2 italic">
+                — {criterion.description}
+            </span>
+        )}
     </span>
 );
 
@@ -97,12 +103,14 @@ const MlmLevelRules: React.FC<Props> = ({
         message.success("Criterion added");
         refetch();
         closeModal();
+        router.reload();
     });
 
     const updateCriterion = useUpdateLevelCriterion(editing?.id ?? 0, () => {
         message.success("Criterion updated");
         refetch();
         closeModal();
+        router.reload();
     });
 
     const deleteCriterion = useDeleteLevelCriterion(
@@ -111,6 +119,7 @@ const MlmLevelRules: React.FC<Props> = ({
             message.success("Criterion removed");
             setDeletingCriterion(null);
             refetch();
+            router.reload();
         },
     );
 
@@ -137,6 +146,7 @@ const MlmLevelRules: React.FC<Props> = ({
             metric: c.metric,
             operator: c.operator,
             threshold: c.threshold,
+            description: c.description,
         });
         setModalOpen(true);
     };
@@ -206,6 +216,17 @@ const MlmLevelRules: React.FC<Props> = ({
             render: (val: number) => (
                 <span className="font-semibold">{val.toLocaleString()}</span>
             ),
+        },
+        {
+            title: "Description",
+            dataIndex: "description",
+            key: "description",
+            render: (val: string | null) =>
+                val ? (
+                    <span className="text-gray-500 text-sm">{val}</span>
+                ) : (
+                    <span className="text-gray-300">—</span>
+                ),
         },
         {
             title: "Actions",
@@ -492,6 +513,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                         min={0}
                                         className="w-full"
                                         placeholder="e.g. 10"
+                                        style={{ width: "100%" }}
                                     />
                                 </Form.Item>
                             </div>
@@ -511,6 +533,19 @@ const MlmLevelRules: React.FC<Props> = ({
                                     min={1}
                                     className="w-full"
                                     placeholder="1"
+                                />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Description"
+                                name="description"
+                                tooltip="Optional note explaining what this criterion represents."
+                            >
+                                <Input.TextArea
+                                    rows={2}
+                                    maxLength={500}
+                                    showCount
+                                    placeholder="e.g. Must have at least 10 direct sales to qualify"
                                 />
                             </Form.Item>
 

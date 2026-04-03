@@ -1,13 +1,14 @@
 import { Deal } from "@/Types/api/deals";
 import { Tabs, Button, Alert, Drawer } from "antd";
 import { useState } from "react";
-import { PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined, GiftOutlined } from "@ant-design/icons";
 import NotesTab from "./Tabs/NotesTab";
 import FollowUpTab from "./Tabs/FollowUpTab";
 import FilesTab from "./Tabs/FilesTab";
 import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
 import RecommendationsTab from "./Tabs/RecommendationsTab";
+import DealOffersTab from "@/Features/Deals/DealOffersTab";
 import { Note } from "@/Types/api/note";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { DealFile } from "@/Types/api/file";
@@ -168,6 +169,18 @@ export default function DealTabs({
                 ),
             });
         }
+
+        // Offers Tab
+        items.push({
+            key: "offers",
+            label: (
+                <span>
+                    <GiftOutlined className="mr-1" />
+                    Offers
+                </span>
+            ),
+            children: <DealOffersTab deal={deal} />,
+        });
 
         // History Tab
         items.push({

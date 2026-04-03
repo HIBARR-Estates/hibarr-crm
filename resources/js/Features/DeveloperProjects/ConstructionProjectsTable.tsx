@@ -130,13 +130,8 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
             dataIndex: "name",
             key: "name",
             width: 220,
-            render: (name: string, record) => (
-                <Link
-                    href={route("developer-projects.show", record.id)}
-                    className="text-blue-600 hover:text-blue-800 font-medium"
-                >
-                    {name}
-                </Link>
+            render: (name: string) => (
+                <span className="font-medium text-gray-900">{name}</span>
             ),
         },
         {
@@ -309,9 +304,11 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                 ];
 
                 return (
-                    <Dropdown menu={{ items }} trigger={["click"]}>
-                        <Button type="text" icon={<MoreOutlined />} />
-                    </Dropdown>
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <Dropdown menu={{ items }} trigger={["click"]}>
+                            <Button type="text" icon={<MoreOutlined />} />
+                        </Dropdown>
+                    </div>
                 );
             },
         },
@@ -350,6 +347,14 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                     dataSource={projects?.data ?? []}
                     rowKey="id"
                     loading={loading}
+                    onRow={(record) => ({
+                        onClick: () =>
+                            router.visit(
+                                route("developer-projects.show", record.id),
+                            ),
+                        className:
+                            "cursor-pointer hover:bg-blue-50 transition-colors",
+                    })}
                     pagination={
                         projects
                             ? {

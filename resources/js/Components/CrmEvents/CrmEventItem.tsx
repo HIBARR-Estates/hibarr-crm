@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tag, Tooltip, Typography } from "antd";
+import { Tooltip, Typography } from "antd";
 import {
     UserOutlined,
     ThunderboltOutlined,
@@ -11,10 +11,10 @@ import {
     CloseCircleOutlined,
     ExclamationCircleOutlined,
     MinusCircleOutlined,
-    ArrowDownOutlined,
-    ArrowUpOutlined,
     DownOutlined,
     UpOutlined,
+    ArrowDownOutlined,
+    ArrowUpOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -23,72 +23,81 @@ import type {
     CrmEventStatus,
     CrmEventDirection,
 } from "@/Types/api/crm-event";
+import getEventIcon from "./crmEvent";
 
 dayjs.extend(relativeTime);
 
 const { Text } = Typography;
 
-/** Map of category slugs to Tailwind colours. */
 const CATEGORY_COLORS: Record<
     string,
     { bg: string; text: string; dot: string }
 > = {
-    deal: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
-    lead: { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500" },
+    deal: { bg: "bg-blue-50/50", text: "text-blue-600", dot: "bg-blue-500" },
+    lead: {
+        bg: "bg-indigo-50/50",
+        text: "text-indigo-600",
+        dot: "bg-indigo-500",
+    },
     property: {
-        bg: "bg-emerald-50",
-        text: "text-emerald-700",
+        bg: "bg-emerald-50/50",
+        text: "text-emerald-600",
         dot: "bg-emerald-500",
     },
-    task: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+    task: { bg: "bg-amber-50/50", text: "text-amber-600", dot: "bg-amber-500" },
     contact: {
-        bg: "bg-purple-50",
-        text: "text-purple-700",
+        bg: "bg-purple-50/50",
+        text: "text-purple-600",
         dot: "bg-purple-500",
     },
     communication: {
-        bg: "bg-teal-50",
-        text: "text-teal-700",
+        bg: "bg-teal-50/50",
+        text: "text-teal-600",
         dot: "bg-teal-500",
     },
-    system: { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-500" },
+    system: {
+        bg: "bg-slate-50/50",
+        text: "text-slate-600",
+        dot: "bg-slate-500",
+    },
     external: {
-        bg: "bg-orange-50",
-        text: "text-orange-700",
+        bg: "bg-orange-50/50",
+        text: "text-orange-600",
         dot: "bg-orange-500",
     },
-    user: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-500" },
+    user: { bg: "bg-green-50/50", text: "text-green-600", dot: "bg-green-500" },
 };
 
 const DEFAULT_CAT = {
     bg: "bg-gray-50",
-    text: "text-gray-700",
+    text: "text-gray-600",
     dot: "bg-gray-400",
 };
 
-/** Generation type → display config */
 const GENERATION_CONFIG: Record<
     string,
     { label: string; icon: React.ReactNode; className: string }
 > = {
     user_generated: {
         label: "Agent",
-        icon: <UserOutlined />,
-        className: "bg-green-100 text-green-600",
+        icon: <UserOutlined style={{ fontSize: "10px" }} />,
+        className:
+            "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20",
     },
     system_generated: {
         label: "System",
-        icon: <ThunderboltOutlined />,
-        className: "bg-blue-100 text-blue-600",
+        icon: <ThunderboltOutlined style={{ fontSize: "10px" }} />,
+        className:
+            "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20",
     },
     external: {
         label: "External",
-        icon: <ApiOutlined />,
-        className: "bg-orange-100 text-orange-600",
+        icon: <ApiOutlined style={{ fontSize: "10px" }} />,
+        className:
+            "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-600/20",
     },
 };
 
-/** Status → display config */
 const STATUS_CONFIG: Record<
     CrmEventStatus,
     { label: string; icon: React.ReactNode; className: string }
@@ -96,26 +105,25 @@ const STATUS_CONFIG: Record<
     completed: {
         label: "Completed",
         icon: <CheckCircleOutlined />,
-        className: "bg-green-100 text-green-700",
+        className: "text-green-600 bg-green-50",
     },
     error_occurred: {
         label: "Error",
         icon: <CloseCircleOutlined />,
-        className: "bg-red-100 text-red-700",
+        className: "text-red-600 bg-red-50",
     },
     missed: {
         label: "Missed",
         icon: <ExclamationCircleOutlined />,
-        className: "bg-orange-100 text-orange-700",
+        className: "text-amber-600 bg-amber-50",
     },
     rejected: {
         label: "Rejected",
         icon: <MinusCircleOutlined />,
-        className: "bg-red-50 text-red-600",
+        className: "text-gray-500 bg-gray-100",
     },
 };
 
-/** Direction → display config */
 const DIRECTION_CONFIG: Record<
     CrmEventDirection,
     { label: string; icon: React.ReactNode; className: string }
@@ -123,13 +131,14 @@ const DIRECTION_CONFIG: Record<
     inbound: {
         label: "Inbound",
         icon: <ArrowDownOutlined />,
-        className: "bg-cyan-100 text-cyan-700",
+        className:
+            "bg-cyan-50 text-cyan-700 ring-1 ring-inset ring-cyan-600/20",
     },
     outbound: {
         label: "Outbound",
         icon: <ArrowUpOutlined />,
         className:
-            "bg-geekblue-100 text-geekblue-700 bg-blue-100 text-blue-700",
+            "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-600/20",
     },
 };
 
@@ -153,127 +162,119 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const message = event.metadata?.comment as string | undefined;
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 hover:border-gray-300 transition-colors">
-            {/* Row 1: Event Type + Origin + Timestamp */}
-            <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                    <span
-                        className={`flex-shrink-0 h-2 w-2 rounded-full ${colors.dot}`}
-                    />
-                    <Text
-                        strong
-                        className="text-[13px] truncate leading-tight text-gray-900"
+        <div
+            className={`group relative flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200${message ? " cursor-pointer select-none" : ""}`}
+            onClick={() => message && setExpanded((v) => !v)}
+        >
+            {/* Expand caret — anchored top-right, independent of date layout */}
+            {message && (
+                <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center text-gray-400 pointer-events-none">
+                    {expanded ? (
+                        <UpOutlined style={{ fontSize: 9 }} />
+                    ) : (
+                        <DownOutlined style={{ fontSize: 9 }} />
+                    )}
+                </span>
+            )}
+
+            {/* Header: Type + Badge + Time */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <div
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${colors.bg} ${colors.text}`}
                     >
-                        {event.event_type?.name ?? "Unknown Event"}
-                    </Text>
-                    <Tag
-                        className={`${gen.className} border-0 rounded text-[10px] leading-[16px] px-1 ml-0.5`}
-                        icon={gen.icon}
-                    >
-                        {gen.label}
-                    </Tag>
+                        <span style={{ fontSize: "11px", lineHeight: 1 }}>
+                            {getEventIcon(event.event_type?.slug)}
+                        </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <Text
+                            strong
+                            className="text-[14px] text-gray-900 tracking-tight truncate leading-none"
+                        >
+                            {event.event_type?.name ?? "Unknown Event"}
+                        </Text>
+                        <span
+                            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${gen.className}`}
+                        >
+                            {gen.icon}
+                            {gen.label}
+                        </span>
+                    </div>
                 </div>
 
-                <Tooltip
-                    title={dayjs(event.occurred_at).format(
-                        "YYYY-MM-DD HH:mm:ss",
-                    )}
-                >
-                    <Text
-                        type="secondary"
-                        className="text-[11px] flex-shrink-0 whitespace-nowrap"
+                <div className="flex shrink-0 items-center gap-2 pr-6">
+                    <Tooltip
+                        title={dayjs(event.occurred_at).format(
+                            "MMM D, YYYY • h:mm A",
+                        )}
                     >
-                        <ClockCircleOutlined className="mr-0.5" />
-                        {dayjs(event.occurred_at).fromNow()}
-                    </Text>
-                </Tooltip>
+                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400">
+                            <ClockCircleOutlined className="text-[10px]" />
+                            <span>{dayjs(event.occurred_at).fromNow()}</span>
+                        </div>
+                    </Tooltip>
+                </div>
             </div>
 
-            {/* Row 2: Category + Status Badge + Direction Badge */}
-            <div className="flex flex-wrap items-center gap-1 mt-1.5">
+            {/* Meta Tags Row */}
+            <div className="flex flex-wrap items-center gap-2">
                 {event.event_type?.category && (
-                    <Tag
-                        className={`${colors.bg} ${colors.text} border-0 rounded text-[10px] leading-[16px] px-1.5`}
-                    >
+                    <span className={`text-[11px] rounded-sm font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600`}>
                         {event.event_type.category.name}
-                    </Tag>
-                )}
-                <Tag
-                    className={`${statusCfg.className} border-0 rounded text-[10px] leading-[16px] px-1.5`}
-                    icon={statusCfg.icon}
-                >
-                    {statusCfg.label}
-                </Tag>
-                {directionCfg && (
-                    <Tag
-                        className="bg-cyan-50 text-cyan-700 border-0 rounded text-[10px] leading-[16px] px-1.5"
-                        icon={directionCfg.icon}
-                    >
-                        {directionCfg.label}
-                    </Tag>
-                )}
-                {event.source && !compact && (
-                    <Tag
-                        className="bg-gray-100 text-gray-500 border-0 rounded text-[10px] leading-[16px] px-1"
-                        icon={<GlobalOutlined />}
-                    >
-                        {event.source}
-                    </Tag>
-                )}
-                {event.user && (
-                    <span className="text-[11px] text-gray-500 ml-auto">
-                        <UserOutlined className="mr-0.5" />
-                        {event.user.name}
                     </span>
                 )}
+                <div
+                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${statusCfg.className}`}
+                >
+                    <span className="flex items-center scale-90">
+                        {statusCfg.icon}
+                    </span>
+                    {statusCfg.label}
+                </div>
+                {directionCfg && (
+                    <div
+                        className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-tight ${directionCfg.className}`}
+                    >
+                        {directionCfg.label}
+                    </div>
+                )}
+                {event.source && !compact && (
+                    <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                        <GlobalOutlined className="text-[10px]" />
+                        <span>{event.source}</span>
+                    </div>
+                )}
+                {event.user && (
+                    <div className="ml-auto flex items-center gap-1.5 rounded-md bg-gray-50 border border-gray-100 pl-1 pr-2 py-0.5">
+                        <div className="flex h-4 w-4 items-center justify-center rounded bg-white border border-gray-200">
+                            <UserOutlined className="text-[9px] text-gray-500" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-gray-700">
+                            {event.user.name}
+                        </span>
+                    </div>
+                )}
             </div>
 
-            {/* Row 3: Message (truncated with expand) */}
-            {message && !compact && (
-                <div className="mt-1.5">
-                    <div
-                        className={`text-[12px] text-gray-600 bg-gray-50 rounded px-2 py-1 ${
-                            !expanded ? "line-clamp-2" : ""
-                        }`}
-                    >
+            {/* Content Section — toggled via the chevron in the header */}
+            {message && expanded && (
+                <div className="">
+                    <div className="border-l-4 border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600 whitespace-pre-wrap break-words rounded-r-md">
                         {message}
                     </div>
-                    {message.length > 120 && (
-                        <button
-                            type="button"
-                            onClick={() => setExpanded(!expanded)}
-                            className="text-[10px] text-blue-500 hover:text-blue-600 mt-0.5 flex items-center gap-0.5 bg-transparent border-0 cursor-pointer p-0"
-                        >
-                            {expanded ? (
-                                <>
-                                    <UpOutlined style={{ fontSize: 8 }} /> Less
-                                </>
-                            ) : (
-                                <>
-                                    <DownOutlined style={{ fontSize: 8 }} />{" "}
-                                    More
-                                </>
-                            )}
-                        </button>
-                    )}
                 </div>
             )}
 
-            {/* Compact message preview */}
-            {message && compact && (
-                <div className="mt-1 text-[11px] text-gray-500 truncate">
-                    {message}
-                </div>
-            )}
-
-            {/* Correlation link */}
+            {/* Footer / Correlation */}
             {event.correlation_id && !compact && (
-                <div className="mt-1">
-                    <Tooltip title={`Correlation: ${event.correlation_id}`}>
-                        <Text type="secondary" className="text-[10px]">
-                            <LinkOutlined className="mr-0.5" />
-                            {event.correlation_id.slice(0, 8)}…
-                        </Text>
+                <div className="ml-9 flex items-center gap-2">
+                    <Tooltip title={`ID: ${event.correlation_id}`}>
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-gray-400 hover:text-gray-600">
+                            <LinkOutlined />
+                            <span>{event.correlation_id.slice(0, 8)}</span>
+                        </div>
                     </Tooltip>
                 </div>
             )}

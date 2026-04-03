@@ -1,7 +1,17 @@
 import { Deal } from "@/Types/api/deals";
+import { useState } from "react";
 
-import { Card, Row, Col, Divider, Typography, Alert } from "antd";
-import { RightOutlined, LockOutlined } from "@ant-design/icons";
+import {
+    Card,
+    Row,
+    Col,
+    Divider,
+    Typography,
+    Alert,
+    Button,
+    Tooltip,
+} from "antd";
+import { RightOutlined, LockOutlined, ReloadOutlined } from "@ant-design/icons";
 import DealInfoSection from "./Components/DealInfoSection";
 import DealTabs from "./Components/DealTabs";
 import ActivitySidebar from "./Components/ActivitySidebar";
@@ -67,7 +77,11 @@ export const Show = ({
     const { props } = usePage<PageProps>();
 
     // ── Page-level refresh ──────────────────────────────────────────
-    const { refresh, isRefreshing } = usePageRefresh();
+    const { refresh, isRefreshing } = usePageRefresh({
+        canRefresh: () => !isDealEditMode,
+    });
+
+    const [isDealEditMode, setIsDealEditMode] = useState(false);
 
     return (
         <>
@@ -78,21 +92,20 @@ export const Show = ({
                     { name: "Deals", url: route("deals.index") },
                     { name: pageTitle },
                 ]}
-                onRefresh={refresh}
-                isRefreshing={isRefreshing}
             >
                 <div className="min-h-screen mx-12">
                     <div className="max-w-10xl mx-auto">
                         {/* Locked Deal Banner */}
                         {deal.is_locked && (
-                            <Alert
-                                message="This deal is locked and cannot be modified."
-                                type="warning"
-                                showIcon
-                                icon={<LockOutlined />}
-                                className="mb-4"
-                                banner
-                            />
+                            <div className="mb-4">
+                                <Alert
+                                    message="This deal is locked and cannot be modified."
+                                    type="warning"
+                                    showIcon
+                                    icon={<LockOutlined />}
+                                    banner
+                                />
+                            </div>
                         )}
 
                         {/* Page Header */}
@@ -193,13 +206,35 @@ export const Show = ({
                                     deal={deal}
                                     permissions={permissions}
                                 />
+                                <Tooltip
+                                    title={
+                                        isDealEditMode
+                                            ? "Save or cancel changes before refreshing"
+                                            : "Refresh"
+                                    }
+                                >
+                                    <Button
+                                        icon={
+                                            <ReloadOutlined
+                                                spin={isRefreshing}
+                                            />
+                                        }
+                                        onClick={refresh}
+                                        disabled={
+                                            isRefreshing || isDealEditMode
+                                        }
+                                        type="text"
+                                    >
+                                        Refresh
+                                    </Button>
+                                </Tooltip>
                             </div>
                         </div>
 
                         {/* Main Content */}
                         <Row gutter={[30, 40]} className="">
                             {/* Left Column - Main Content */}
-                            <Col xs={24} lg={16} xl={16}>
+                            <Col xs={24} lg={14} xl={14}>
                                 <div className="flex flex-col gap-y-4 sm:gap-y-6">
                                     {/* Deal Information Card */}
                                     <Card
@@ -221,6 +256,8 @@ export const Show = ({
                                             taskBoardColumns={taskBoardColumns}
                                             employees={employees}
                                             projects={projects}
+                                            isEditMode={isDealEditMode}
+                                            onEditModeChange={setIsDealEditMode}
                                         />
                                     </Card>
 
@@ -253,7 +290,7 @@ export const Show = ({
                             </Col>
 
                             {/* Right Column - Activities Sidebar */}
-                            <Col xs={24} lg={8} xl={8}>
+                            <Col xs={24} lg={10} xl={10}>
                                 <div className="lg:sticky lg:top-8 flex flex-col gap-y-4">
                                     <ActivitySidebar
                                         deal={deal}

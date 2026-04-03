@@ -580,6 +580,7 @@ export interface User {
     name: string;
     email: string;
     image_url: string | undefined;
+    lead_agent_id?: number | null;
     employee_detail?: {
         designation?: {
             name: string;

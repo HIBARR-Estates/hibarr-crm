@@ -8,6 +8,7 @@ use App\Enums\MlmMetric;
 use App\Enums\CycleDurationType;
 use App\Enums\CycleStatus;
 use App\Models\AgentCycleEnrollment;
+use App\Models\AgentHierarchy;
 use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
 use App\Models\Deal;
@@ -89,8 +90,11 @@ class MlmAdminApiController extends AccountBaseController
             ->with(['agent.user:id,name,email,image', 'agent.currentLevelHistory.level'])
             ->get();
 
-        // Recent promotions
+        // Recent promotions (exclude base-level assignments)
+        $baseLevelId = MlmLevel::where('company_id', $companyId)->ordered()->value('id');
+
         $recentPromotions = AgentLevelHistory::where('company_id', $companyId)
+            ->when($baseLevelId, fn ($q) => $q->where('level_id', '!=', $baseLevelId))
             ->orderByDesc('assigned_at')
             ->limit(10)
             ->with(['agent.user:id,name,email,image', 'level'])
@@ -262,6 +266,7 @@ class MlmAdminApiController extends AccountBaseController
             'metric' => 'required|string|in:' . implode(',', MlmMetric::toArray()),
             'operator' => 'required|string|in:>=,>,<=,<,=',
             'threshold' => 'required|numeric|min:0',
+            'description' => 'nullable|string|max:500',
         ]);
 
         // Verify the level belongs to this company
@@ -290,6 +295,7 @@ class MlmAdminApiController extends AccountBaseController
             'metric' => 'sometimes|string|in:' . implode(',', MlmMetric::toArray()),
             'operator' => 'sometimes|string|in:>=,>,<=,<,=',
             'threshold' => 'sometimes|numeric|min:0',
+            'description' => 'nullable|string|max:500',
         ]);
 
         $criterion->update($validated);
@@ -481,9 +487,25 @@ class MlmAdminApiController extends AccountBaseController
 
         $perPage = min($request->input('per_page', 15), 100);
 
-        // The model's $appends automatically includes:
-        // current_level, next_level, progress_percentage, criteria_progress
-        return response()->json($query->paginate($perPage));
+        $paginated = $query->paginate($perPage);
+
+        // Batch-load active cycle metrics for all agents on this page
+        $agentIds = $paginated->pluck('agent_id')->toArray();
+        $cycleMetricsMap = AgentCycleEnrollment::whereIn('agent_id', $agentIds)
+            ->receiving()
+            ->with('metrics')
+            ->get()
+            ->keyBy('agent_id');
+
+        // Inject cycle metrics so the model's appended attributes use them
+        $paginated->getCollection()->each(function (AgentMetric $metric) use ($cycleMetricsMap) {
+            $cycleMetrics = $cycleMetricsMap->get($metric->agent_id)?->metrics;
+            if ($cycleMetrics) {
+                $metric->metricsSourceOverride = $cycleMetrics;
+            }
+        });
+
+        return response()->json($paginated);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -502,6 +524,10 @@ class MlmAdminApiController extends AccountBaseController
 
         if ($request->filled('level_id')) {
             $query->where('level_id', $request->input('level_id'));
+        }
+
+        if ($request->filled('method')) {
+            $query->where('system_assigned', $request->input('method') === 'system');
         }
 
         if ($request->filled('date_from')) {
@@ -846,6 +872,7 @@ class MlmAdminApiController extends AccountBaseController
             $status = 'completed';
         }
 
+
         $cycle = MlmCycle::create([
             'company_id' => $companyId,
             'cycle_number' => $lastNumber + 1,
@@ -854,6 +881,7 @@ class MlmAdminApiController extends AccountBaseController
             'end_date' => $endDate,
             'status' => $status,
             'max_overflow_multiplier' => $validated['max_overflow_multiplier'] ?? $settings->default_overflow_multiplier,
+
         ]);
 
         return response()->json([
@@ -962,7 +990,7 @@ class MlmAdminApiController extends AccountBaseController
             ->findOrFail($id);
 
         $enrollments = AgentCycleEnrollment::where('cycle_id', $cycle->id)
-            ->with(['agent.user:id,name,email,image', 'metrics', 'levelAchieved'])
+            ->with(['agent.user:id,name,email,image', 'agent.currentLevelHistory.level', 'metrics', 'levelAchieved'])
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($enrollment) {
@@ -977,7 +1005,7 @@ class MlmAdminApiController extends AccountBaseController
                     'overflow_start_date' => $enrollment->overflow_start_date?->format('Y-m-d'),
                     'max_overflow_date' => $enrollment->max_overflow_date?->format('Y-m-d'),
                     'criteria_met_at' => $enrollment->criteria_met_at?->format('Y-m-d H:i:s'),
-                    'level_achieved' => $enrollment->levelAchieved?->name,
+                    'level_achieved' => $enrollment->levelAchieved?->name ?? $enrollment->agent?->currentLevelHistory?->level?->name,
                     'days_remaining' => $enrollment->daysRemaining(),
                     'is_overflowing' => $enrollment->isOverflowing(),
                     'metrics' => $enrollment->metrics ? [
@@ -1052,5 +1080,17 @@ class MlmAdminApiController extends AccountBaseController
             'status' => 'success',
             'message' => 'Levels have been re-snapshotted for this cycle. New commissions will use the updated rules.',
         ]);
+    }
+
+    /**
+     * Dashboard stats for a specific agent (admin view).
+     */
+    public function getAgentDashboardStats(int $agentId): JsonResponse
+    {
+        $agent = LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+
+        $adminController = app(MlmAdminController::class);
+
+        return response()->json(['data' => $adminController->buildAgentDashboardStats($agent)]);
     }
 }

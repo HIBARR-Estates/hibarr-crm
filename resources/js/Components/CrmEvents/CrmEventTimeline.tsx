@@ -5,7 +5,6 @@ import {
     Skeleton,
     Drawer,
     Empty,
-    Segmented,
     Typography,
     Tooltip,
 } from "antd";
@@ -124,44 +123,44 @@ export default function CrmEventTimeline({
         </div>
     );
 
-    /* ---- Filter chips ------------------------------------------------------ */
+    /* ---- Filter pills ----------------------------------------------------- */
+    const pillOptions: {
+        label: string;
+        value: FilterMode;
+        icon?: React.ReactNode;
+    }[] = [
+        { label: "All", value: "all" },
+        { label: "Agent", value: "agent", icon: <UserOutlined /> },
+        { label: "System", value: "system", icon: <ThunderboltOutlined /> },
+        { label: "External", value: "external", icon: <ApiOutlined /> },
+    ];
+
     const filterBar = (
-        <div className="mb-4">
-            <Segmented
-                size="small"
-                value={filter}
-                onChange={(v) => setFilter(v as FilterMode)}
-                options={[
-                    { label: "All", value: "all" },
-                    {
-                        label: (
-                            <span>
-                                <UserOutlined className="mr-1" />
-                                Agent
-                            </span>
-                        ),
-                        value: "agent",
-                    },
-                    {
-                        label: (
-                            <span>
-                                <ThunderboltOutlined className="mr-1" />
-                                System
-                            </span>
-                        ),
-                        value: "system",
-                    },
-                    {
-                        label: (
-                            <span>
-                                <ApiOutlined className="mr-1" />
-                                External
-                            </span>
-                        ),
-                        value: "external",
-                    },
-                ]}
-            />
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+            {pillOptions.map((opt) => {
+                const isActive = filter === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFilter(opt.value)}
+                        className={`
+                            inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium
+                            transition-all duration-150 cursor-pointer border
+                            ${
+                                isActive
+                                    ? "bg-gray-800 text-white border-gray-800"
+                                    : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700"
+                            }
+                        `}
+                    >
+                        {opt.icon && (
+                            <span className="text-[11px]">{opt.icon}</span>
+                        )}
+                        {opt.label}
+                    </button>
+                );
+            })}
         </div>
     );
 

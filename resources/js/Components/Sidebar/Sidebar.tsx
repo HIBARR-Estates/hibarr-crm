@@ -28,6 +28,8 @@ import {
 } from "../icons";
 import { PageProps } from "../DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
+import useDealPermissions from "@/Hooks/useDealPermissions";
+import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
 
 interface Pipeline {
     id: number;
@@ -42,6 +44,7 @@ interface NavItem {
     href?: string;
     children?: NavItem[];
     badge?: number;
+    hidden?: boolean;
 }
 
 interface SidebarProps {
@@ -56,6 +59,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const pipelines = (props.pipelines || []) as Pipeline[];
     const defaultPipeline = pipelines.find((p) => p.default === 1);
     const { t, isRtl } = useTranslation();
+    const isSalesManger =
+        props.auth?.permissions?.edit_product === "all" ||
+        props.auth?.permissions?.edit_product === 4;
 
     const STORAGE_KEY = "sidebar_expanded_items";
 
@@ -192,12 +198,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                           },
                       ],
         },
-        // {
-        //     key: "offers",
-        //     label: "Offers",
-        //     icon: <GiftOutlined />,
-        //     href: "/account/offers",
-        // },
+        {
+            key: "offers",
+            label: "Offers",
+            icon: <GiftOutlined />,
+            href: "/account/offers",
+            hidden: !isSalesManger,
+        },
         {
             key: "meetings",
             label: t("app.menu.meetings"),
@@ -224,108 +231,109 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         // },
         {
             key: "developers",
-            label: "Construction Companies",
+            label: "Projects",
             icon: <BankOutlined />,
-            href: "/account/developers",
+            href: "/account/developer-projects",
         },
-        // {
-        //     key: "mlm",
-        //     label: "MLM",
-        //     icon: <ApartmentOutlined />,
-        //     children: [
-        //         {
-        //             key: "mlm-dashboard",
-        //             label: "Dashboard",
-        //             icon: null,
-        //             href: "/account/mlm/dashboard",
-        //         },
-        //         {
-        //             key: "mlm-levels",
-        //             label: "Levels",
-        //             icon: null,
-        //             href: "/account/mlm/levels",
-        //         },
-        //         {
-        //             key: "mlm-commission-settings",
-        //             label: "Commission Settings",
-        //             icon: null,
-        //             href: "/account/mlm/commission-settings",
-        //         },
-        //         {
-        //             key: "mlm-cycle-management",
-        //             label: "Cycle Management",
-        //             icon: null,
-        //             href: "/account/mlm/cycle-management",
-        //         },
-        //         {
-        //             key: "mlm-hierarchy",
-        //             label: "Agent Hierarchy",
-        //             icon: null,
-        //             href: "/account/mlm/agent-hierarchy",
-        //         },
-        //         {
-        //             key: "mlm-ledger",
-        //             label: "Commission Ledger",
-        //             icon: null,
-        //             href: "/account/mlm/commission-ledger",
-        //         },
-        //         {
-        //             key: "mlm-metrics",
-        //             label: "Agent Metrics",
-        //             icon: null,
-        //             href: "/account/mlm/agent-metrics",
-        //         },
-        //         {
-        //             key: "mlm-history",
-        //             label: "Level History",
-        //             icon: null,
-        //             href: "/account/mlm/level-history",
-        //         },
-        //     ],
-        // },
-        // {
-        //     key: "my-mlm",
-        //     label: "My MLM",
-        //     icon: <TeamOutlined />,
-        //     children: [
-        //         {
-        //             key: "my-mlm-dashboard",
-        //             label: "Dashboard",
-        //             icon: null,
-        //             href: "/account/mlm/agent/dashboard",
-        //         },
-        //         {
-        //             key: "my-mlm-commissions",
-        //             label: "My Commissions",
-        //             icon: null,
-        //             href: "/account/mlm/agent/commissions",
-        //         },
-        //         {
-        //             key: "my-mlm-network",
-        //             label: "My Network",
-        //             icon: null,
-        //             href: "/account/mlm/agent/network",
-        //         },
-        //         // {
-        //         //     key: "my-mlm-uplines",
-        //         //     label: "My Uplines",
-        //         //     icon: null,
-        //         //     href: "/account/mlm/agent/uplines",
-        //         // },
-        //         {
-        //             key: "my-mlm-level",
-        //             label: "My Level",
-        //             icon: null,
-        //             href: "/account/mlm/agent/my-level",
-        //         },
-        //         {
-        //             key: "my-mlm-deals",
-        //             label: "My Deals",
-        //             icon: null,
-        //             href: "/account/mlm/agent/deal-contributions",
-        //         },
-        //     ],
-        // },
+        {
+            key: "mlm",
+            label: "Partner Network",
+            icon: <ApartmentOutlined />,
+            children: [
+                {
+                    key: "mlm-dashboard",
+                    label: "Dashboard",
+                    icon: null,
+                    href: "/account/mlm/dashboard",
+                },
+                {
+                    key: "mlm-levels",
+                    label: "Levels",
+                    icon: null,
+                    href: "/account/mlm/levels",
+                },
+                {
+                    key: "mlm-commission-settings",
+                    label: "Commission Settings",
+                    icon: null,
+                    href: "/account/mlm/commission-settings",
+                },
+                {
+                    key: "mlm-cycle-management",
+                    label: "Cycle Management",
+                    icon: null,
+                    href: "/account/mlm/cycle-management",
+                },
+                {
+                    key: "mlm-hierarchy",
+                    label: "Agent Hierarchy",
+                    icon: null,
+                    href: "/account/mlm/agent-hierarchy",
+                },
+                {
+                    key: "mlm-ledger",
+                    label: "Commission Ledger",
+                    icon: null,
+                    href: "/account/mlm/commission-ledger",
+                },
+                {
+                    key: "mlm-metrics",
+                    label: "Agent Metrics",
+                    icon: null,
+                    href: "/account/mlm/agent-metrics",
+                },
+                {
+                    key: "mlm-history",
+                    label: "Level History",
+                    icon: null,
+                    href: "/account/mlm/level-history",
+                },
+            ],
+            hidden: !isSalesManger,
+        },
+        {
+            key: "my-mlm",
+            label: "Affiliate Workspace",
+            icon: <TeamOutlined />,
+            children: [
+                {
+                    key: "my-mlm-dashboard",
+                    label: "Dashboard",
+                    icon: null,
+                    href: "/account/mlm/agent/dashboard",
+                },
+                {
+                    key: "my-mlm-commissions",
+                    label: "Commissions",
+                    icon: null,
+                    href: "/account/mlm/agent/commissions",
+                },
+                {
+                    key: "my-mlm-network",
+                    label: "Network",
+                    icon: null,
+                    href: "/account/mlm/agent/network",
+                },
+                // {
+                //     key: "my-mlm-uplines",
+                //     label: "My Uplines",
+                //     icon: null,
+                //     href: "/account/mlm/agent/uplines",
+                // },
+                // {
+                //     key: "my-mlm-level",
+                //     label: "My Level",
+                //     icon: null,
+                //     href: "/account/mlm/agent/my-level",
+                // },
+                // {
+                //     key: "my-mlm-deals",
+                //     label: "My Deals",
+                //     icon: null,
+                //     href: "/account/mlm/agent/deal-contributions",
+                // },
+            ],
+        },
     ];
 
     // User dropdown menu items
@@ -555,7 +563,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 )} */}
 
                 {/* Nav items */}
-                {navItems.map((item) => renderNavItem(item))}
+                {navItems
+                    .filter((a) => a.hidden !== true)
+                    .map((a) => {
+                        a.children = a.children?.filter(
+                            (a) => a.hidden !== true,
+                        );
+                        return a;
+                    })
+                    .map((item) => renderNavItem(item))}
             </nav>
 
             {/* Footer */}

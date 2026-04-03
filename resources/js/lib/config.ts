@@ -10,6 +10,11 @@ import {
     DEFAULT_UPLOAD_CONFIG,
     MAX_RETRY_COUNT,
 } from "@/Types/uploads";
+import {
+    IAgentInvitationConfig,
+    DEFAULT_INVITATION_CONFIG,
+    MAX_INVITATION_RETRY_COUNT,
+} from "@/Types/invitations";
 
 // ============================================================================
 // Environment Variable Types
@@ -28,7 +33,9 @@ interface FileUploadEnvVars {
 // ============================================================================
 
 const DEFAULT_FILE_UPLOAD_BASE_URL = "https://staging-api.hibarr.org/v1";
+const DEFAULT_AGENT_INVITATION_BASE_URL = "https://develop-api.hibarr.org/v1";
 const DEFAULT_FILE_UPLOAD_API_KEY = "363769e1290c4d5ea6d351ef8c23dc6e";
+const DEFAULT_AGENT_INVITATION_API_KEY = "7918aed08071453148048890d59a3b85";
 
 // ============================================================================
 // Configuration Getters
@@ -38,19 +45,35 @@ const DEFAULT_FILE_UPLOAD_API_KEY = "363769e1290c4d5ea6d351ef8c23dc6e";
  * Safely get an environment variable with a fallback
  */
 const getEnvVar = (key: string, fallback: string): string => {
-    // Access import.meta.env safely
+    // Vite: import.meta.env
     if (typeof import.meta !== "undefined" && import.meta.env) {
         const value = (import.meta.env as Record<string, string | undefined>)[
             key
         ];
-        return value || fallback;
+        if (value) return value;
     }
+
+    // Laravel Mix: process.env (webpack DefinePlugin)
+    if (typeof process !== "undefined" && process.env) {
+        const mixKey = key.replace(/^VITE_/, "MIX_");
+        const value = (process.env as Record<string, string | undefined>)[
+            mixKey
+        ];
+        if (value) return value;
+    }
+
     return fallback;
 };
 
 /**
  * Get the file upload base URL from environment or default
  */
+export const getAgentInvitationBaseUrl = (): string => {
+    return getEnvVar(
+        "VITE_AGENT_INVITATION_BASE_URL",
+        DEFAULT_AGENT_INVITATION_BASE_URL,
+    );
+};
 export const getFileUploadBaseUrl = (): string => {
     return getEnvVar("VITE_FILE_UPLOAD_BASE_URL", DEFAULT_FILE_UPLOAD_BASE_URL);
 };
@@ -60,6 +83,12 @@ export const getFileUploadBaseUrl = (): string => {
  */
 export const getFileUploadApiKey = (): string => {
     return getEnvVar("VITE_FILE_UPLOAD_API_KEY", DEFAULT_FILE_UPLOAD_API_KEY);
+};
+export const getAgentInvitationApiKey = (): string => {
+    return getEnvVar(
+        "VITE_AGENT_INVITATION_API_KEY",
+        DEFAULT_AGENT_INVITATION_API_KEY,
+    );
 };
 
 /**
@@ -97,6 +126,42 @@ export const getFileUploadConfig = (
             DEFAULT_UPLOAD_CONFIG.defaultTargetFolder,
     };
 };
+
+// ============================================================================
+// Agent Invitation Configuration
+// ============================================================================
+
+/**
+ * Clamp invitation retry count to valid range (0 to MAX_INVITATION_RETRY_COUNT)
+ */
+export const clampInvitationRetryCount = (retryCount: number): number => {
+    return Math.max(0, Math.min(retryCount, MAX_INVITATION_RETRY_COUNT));
+};
+
+/**
+ * Get the complete agent invitation configuration
+ * Reuses the same base URL and API key as the file upload service
+ * (both communicate with the same external system)
+ *
+ * @param overrides - Optional configuration overrides
+ * @returns Complete agent invitation configuration
+ */
+export const getInvitationConfig = (
+    overrides?: Partial<IAgentInvitationConfig>,
+): Required<IAgentInvitationConfig> => {
+    const retryCount =
+        overrides?.retryCount ?? DEFAULT_INVITATION_CONFIG.retryCount;
+
+    return {
+        baseUrl: overrides?.baseUrl ?? getAgentInvitationBaseUrl(),
+        apiKey: overrides?.apiKey ?? getAgentInvitationApiKey(),
+        retryCount: clampInvitationRetryCount(retryCount),
+    };
+};
+
+// ============================================================================
+// Shared Utilities
+// ============================================================================
 
 /**
  * Format file size for display

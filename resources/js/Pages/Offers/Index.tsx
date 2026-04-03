@@ -11,6 +11,7 @@ import {
     EditOutlined,
     DeleteOutlined,
     EyeOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import { Button, Table, Tag, Select, Space } from "antd";
@@ -206,8 +207,6 @@ const Index = ({
                         className="w-full"
                     />
                 }
-                onRefresh={refresh}
-                isRefreshing={isRefreshing}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -218,6 +217,14 @@ const Index = ({
                                 onClick={() => handleAction("add")}
                             >
                                 Create Offer
+                            </Button>
+                            <Button
+                                icon={<ReloadOutlined spin={isRefreshing} />}
+                                onClick={refresh}
+                                disabled={isRefreshing}
+                                type="text"
+                            >
+                                Refresh
                             </Button>
                         </div>
 

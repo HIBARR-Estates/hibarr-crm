@@ -3,33 +3,21 @@ import { Link, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import {
-    Card,
     Button,
     Input,
     Empty,
     Row,
     Col,
-    Avatar,
-    Typography,
     Dropdown,
     Popconfirm,
 } from "antd";
 import type { MenuProps } from "antd";
 import type { PageProps } from "../../Components/DashboardLayout";
-import {
-    PlusOutlined,
-    EditOutlined,
-    DeleteOutlined,
-    MoreOutlined,
-    BankOutlined,
-    ProjectOutlined,
-} from "@ant-design/icons";
+import { Plus, Pencil, Trash2, MoreHorizontal, Landmark } from "lucide-react";
 import type { Developer } from "../../Types/developerProject";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
-
-const { Text, Title, Paragraph } = Typography;
 
 // ============================================
 // Types
@@ -72,13 +60,13 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
     const menuItems: MenuProps["items"] = [
         {
             key: "edit",
-            icon: <EditOutlined />,
+            icon: <Pencil size={13} />,
             label: "Edit",
             onClick: () => onEdit(developer),
         },
         {
             key: "delete",
-            icon: <DeleteOutlined />,
+            icon: <Trash2 size={13} />,
             label: (
                 <Popconfirm
                     title="Delete Developer"
@@ -96,46 +84,42 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
     ];
 
     return (
-        <Card
-            className="h-full flex flex-col hover:border-gray-300 transition-border group"
-            actions={[
-                <Dropdown
-                    menu={{ items: menuItems }}
-                    trigger={["click"]}
-                    key="actions"
-                >
-                    <Button type="text" icon={<MoreOutlined />} />
-                </Dropdown>,
-            ]}
-        >
-            <Link href={route("developers.show", developer.id)} className="">
-                <div className="flex flex-col items-center text-center">
-                    <Avatar
-                        size={80}
-                        src={developer.logo_url}
-                        icon={!developer.logo_url && <BankOutlined />}
-                        className="mb-4"
-                    />
-                    <Title level={5} className="mb-1">
-                        {developer.name}
-                    </Title>
-                    {developer.description && (
-                        <Paragraph
-                            ellipsis={{ rows: 2 }}
-                            className="text-gray-500 mb-2"
-                        >
-                            {developer.description}
-                        </Paragraph>
+        <div className="group relative bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-sm transition-shadow duration-200 cursor-pointer">
+            {/* ··· action menu */}
+            <div
+                className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
+                    <button className="w-7 h-7 flex items-center justify-center bg-white/90 rounded-md shadow text-gray-500 hover:bg-white transition-colors cursor-pointer">
+                        <MoreHorizontal size={16} />
+                    </button>
+                </Dropdown>
+            </div>
+
+            {/* ── Logo ── */}
+            <Link href={route("developers.show", developer.id)}>
+                <div className="h-40 relative flex items-center justify-center p-2">
+                    {developer.logo_url ? (
+                        <img
+                            src={developer.logo_url}
+                            alt={developer.name}
+                            className="w-[50%] h-full object-contain"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <Landmark size={50} strokeWidth={1.2} className="text-gray-300" />
+                        </div>
                     )}
-                    <div className="flex items-center gap-1 text-gray-400">
-                        <ProjectOutlined />
-                        <Text type="secondary">
-                            {developer.projects_count || 0} projects
-                        </Text>
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-200 pointer-events-none" />
+                    {/* Developer name on hover */}
+                    <div className="absolute inset-x-0 bottom-0 pb-3 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                        <span className="text-white font-semibold text-sm text-center px-2 drop-shadow">{developer.name}</span>
                     </div>
                 </div>
             </Link>
-        </Card>
+        </div>
     );
 };
 
@@ -203,15 +187,8 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
     return (
         <PageLayout title={pageTitle} breadcrumbs={[{ name: "Developers" }]}>
             <div className="max-w-7xl mx-auto">
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAdd}
-                >
-                    Add Company
-                </Button>
-                {/* Search */}
-                <div className="mb-6 mt-4 flex justify-between">
+                {/* Search + Add */}
+                <div className="mb-6 flex items-center justify-between gap-4">
                     <Input.Search
                         placeholder="Search developers..."
                         allowClear
@@ -220,6 +197,13 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
                         onSearch={handleSearch}
                         style={{ maxWidth: 400 }}
                     />
+                    <Button
+                        type="primary"
+                        icon={<Plus size={14} />}
+                        onClick={handleAdd}
+                    >
+                        Add Developer
+                    </Button>
                 </div>
 
                 {/* Developer Cards Grid */}

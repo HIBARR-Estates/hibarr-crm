@@ -158,28 +158,6 @@ export default function PageLayout({
                         )}
                         <div className="ml-auto flex items-center gap-2 sm:gap-4">
                             {/* <LanguageSwitcher compact /> */}
-                            {onRefresh && (
-                                <Tooltip
-                                    title={
-                                        isRefreshing
-                                            ? "Refreshing…"
-                                            : "Sync latest data"
-                                    }
-                                >
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={
-                                            <ReloadOutlined
-                                                spin={isRefreshing}
-                                            />
-                                        }
-                                        onClick={onRefresh}
-                                        disabled={isRefreshing}
-                                        aria-label="Refresh data"
-                                    />
-                                </Tooltip>
-                            )}
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}

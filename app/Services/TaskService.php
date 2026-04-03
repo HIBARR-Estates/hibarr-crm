@@ -348,17 +348,9 @@ class TaskService
                 if ($entity) {
                     $entity->tasks()->syncWithoutDetaching([$task->id]);
 
-                    // Record CRM event for task linked to deal/lead
+                    // Record CRM event for task linked to deal
                     if ($isNewTask && strtolower($type) === 'deal') {
-                        $this->recordCrmEvent('deal_updated', $entity, [
-                            'metadata' => [
-                                'action' => 'task_added',
-                                'task_id' => $task->id,
-                                'task_heading' => $task->heading,
-                                'task_priority' => $task->priority,
-                                'comment' => 'Task added: ' . $task->heading,
-                            ],
-                        ]);
+                        app(DealActivityEventService::class)->recordTaskCreated($entity, $task);
                     } elseif ($isNewTask && strtolower($type) === 'lead') {
                         $this->recordCrmEvent('lead_updated', $entity, [
                             'metadata' => [

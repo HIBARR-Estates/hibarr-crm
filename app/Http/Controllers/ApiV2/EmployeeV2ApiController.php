@@ -5,17 +5,21 @@ namespace App\Http\Controllers\ApiV2;
 use App\Helper\Reply;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApiV2\Employee\CreateEmployeeV2Request;
+use App\Http\Requests\ApiV2\Employee\FindOrCreateEmployeeV2Request;
 use App\Models\EmployeeDetails;
 use App\Models\Team;
 use App\Models\Designation;
 use App\Models\LeadAgent;
+use App\Http\Controllers\AppSettingController;
 use App\Models\Role;
+use App\Models\RoleUser;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Country;
 use App\Scopes\ActiveScope;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -91,7 +95,7 @@ class EmployeeV2ApiController extends Controller
         $query = User::query()
             ->where('company_id', $companyId)
             ->onlyEmployee()
-            ->with(['employeeDetail.department', 'employeeDetail.designation', 'leadAgent' => function ($q) {
+            ->with(['employeeDetail.department', 'employeeDetail.designation', 'roles', 'leadAgent' => function ($q) {
                 $q->whereNull('lead_category_id');
             }])
             ->orderBy('users.id', 'desc');
@@ -105,7 +109,7 @@ class EmployeeV2ApiController extends Controller
 
         $paginator = $query->paginate($perPage, ['*'], 'page', $page);
 
-        $data = collect($paginator->items())->map(function (User $user) {
+        $data = collect($paginator->items())->map(function (User $user) use ($companyId) {
             $employee = $user->employeeDetail;
             $leadAgent = $user->leadAgent instanceof \Illuminate\Support\Collection
                 ? $user->leadAgent->first()
@@ -129,6 +133,7 @@ class EmployeeV2ApiController extends Controller
                 'joiningDate' => $this->formatYmd($employee?->joining_date),
                 'leadAgentId' => $leadAgent?->id,
                 'uplineId' => $leadAgent?->parent_agent_id,
+                'roleId' => $this->resolveEmployeeV2RoleId($user, $companyId),
             ];
         })->values();
 
@@ -155,7 +160,7 @@ class EmployeeV2ApiController extends Controller
         $user = User::withoutGlobalScope(ActiveScope::class)
             ->where('company_id', $companyId)
             ->onlyEmployee()
-            ->with(['employeeDetail.department', 'employeeDetail.designation', 'leadAgent' => function ($q) {
+            ->with(['employeeDetail.department', 'employeeDetail.designation', 'roles', 'leadAgent' => function ($q) {
                 $q->whereNull('lead_category_id');
             }])
             ->findOrFail($userId);
@@ -171,6 +176,11 @@ class EmployeeV2ApiController extends Controller
 
         $status = $user->status === 'deactive' ? 'inactive' : 'active';
 
+        // Same as create/update: non-empty `password` (e.g. query ?password=1) triggers setup email; value is not used.
+        if ($request->filled('password')) {
+            $this->sendPasswordSetupEmail($user);
+        }
+
         return response()->json(Reply::successWithData('Employee fetched successfully', [
             'userId' => $user->id,
             'firstName' => $firstName,
@@ -185,6 +195,7 @@ class EmployeeV2ApiController extends Controller
             'joiningDate' => $this->formatYmd($employee?->joining_date),
             'leadAgentId' => $leadAgent?->id,
             'uplineId' => $leadAgent?->parent_agent_id,
+            'roleId' => $this->resolveEmployeeV2RoleId($user, $companyId),
         ]));
     }
 
@@ -208,39 +219,19 @@ class EmployeeV2ApiController extends Controller
         $createLeadAgent = $request->boolean('createLeadAgent', false);
         $uplineId = $request->filled('uplineId') ? (int) $request->input('uplineId') : null;
 
-        [$user, $employee, $leadAgent] = DB::transaction(function () use ($request, $companyId, $company, $employeeRole, $createLeadAgent, $uplineId) {
-            $user = new User();
-            $user->company_id = $companyId;
-            $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
-            $user->email = $request->input('email');
-            $this->formatPhone($user, $request->input('phone'));
-            $user->password = bcrypt(Str::random(20)); // ignored later; only used to satisfy DB schema
-            $user->locale = $request->validated('locale') ?? ($company->locale ?? 'en');
+        $permissionRoleId = $request->filled('roleId')
+            ? (int) $request->input('roleId')
+            : (int) $employeeRole->id;
 
-            $this->applyStatus($user, $company, $request->input('status', 'active'));
-            $user->save();
-
-            $employee = new EmployeeDetails();
-            $employee->user_id = $user->id;
-            $employee->company_id = $companyId;
-            // Employee ID must always mirror the User ID in v2 API.
-            $employee->employee_id = (string) $user->id;
-            $employee->department_id = $request->input('departmentId');
-            $employee->designation_id = $request->input('designationId');
-            $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
-            $employee->calendar_view = 'task,events,holiday,tickets,leaves,follow_ups';
-            $employee->save();
-
-            $user->attachRole($employeeRole);
-            $user->assignUserRolePermission($employeeRole->id);
-
-            $leadAgent = null;
-            if ($createLeadAgent) {
-                $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
-            }
-
-            return [$user, $employee, $leadAgent];
-        });
+        [$user, $employee, $leadAgent] = $this->persistNewEmployee(
+            $request,
+            $companyId,
+            $company,
+            $employeeRole,
+            $createLeadAgent,
+            $uplineId,
+            $permissionRoleId
+        );
 
         // Only trigger password setup when `password` is provided with a non-empty value.
         // If `password` is null/empty, do not send the reset email.
@@ -248,13 +239,99 @@ class EmployeeV2ApiController extends Controller
             $this->sendPasswordSetupEmail($user);
         }
 
+        $user->load('roles');
+
         return response()->json(Reply::successWithData('Employee created successfully', [
             'userId' => $user->id,
             'employeeId' => $employee->employee_id,
             'status' => $request->input('status', 'active') === 'inactive' ? 'inactive' : 'active',
             'leadAgentId' => $leadAgent?->id,
             'uplineId' => $leadAgent?->parent_agent_id,
+            'roleId' => $this->resolveEmployeeV2RoleId($user, $companyId),
         ]), 201);
+    }
+
+    public function findOrCreateEmployee(FindOrCreateEmployeeV2Request $request)
+    {
+        $companyId = $request->resolvedCompanyId();
+
+        $company = Company::find($companyId);
+        if (!$company) {
+            return response()->json(Reply::error('Company not found'), 404);
+        }
+
+        $userType = $this->normalizeFindOrCreateUserType((string) $request->input('userType'));
+
+        $existingUserId = $request->input('existingUserId');
+        if ($existingUserId) {
+            $user = User::withoutGlobalScope(ActiveScope::class)
+                ->where('company_id', $companyId)
+                ->findOrFail($existingUserId);
+
+            $resolved = $this->resolveFindOrCreateExistingUser($company, $user, $userType, $request);
+            if ($resolved instanceof \Illuminate\Http\JsonResponse) {
+                return $resolved;
+            }
+
+            $created = (bool) ($resolved['created'] ?? false);
+            $payload = collect($resolved)->except('created')->all();
+
+            if ($request->filled('password')) {
+                $this->sendPasswordSetupEmail($user);
+            }
+
+            if (!array_key_exists('roleId', $payload)) {
+                $user->load('roles');
+                $payload['roleId'] = $this->resolveEmployeeV2RoleId($user, $companyId);
+            }
+
+            return response()->json(Reply::successWithData('Employee resolved successfully', array_merge($payload, [
+                'created' => $created,
+            ])));
+        }
+
+        $employeeRole = Role::where('name', 'employee')
+            ->where('company_id', $companyId)
+            ->first();
+
+        if (!$employeeRole) {
+            return response()->json(Reply::error('Employee role not found for this company'), 422);
+        }
+
+        $createLeadAgent = $request->boolean('createLeadAgent', false) || $userType === 'lead_agent';
+        $uplineId = $request->filled('uplineId') ? (int) $request->input('uplineId') : null;
+
+        $permissionRoleId = $request->filled('roleId')
+            ? (int) $request->input('roleId')
+            : (int) $employeeRole->id;
+
+        [$user, $employee, $leadAgent] = $this->persistNewEmployee(
+            $request,
+            $companyId,
+            $company,
+            $employeeRole,
+            $createLeadAgent,
+            $uplineId,
+            $permissionRoleId
+        );
+
+        if ($userType === 'lead_agent' && $leadAgent === null) {
+            $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
+        }
+
+        // New user row: always send password setup notification (no `password` field required).
+        $this->sendPasswordSetupEmail($user);
+
+        $user->load('roles');
+        $typed = $this->typedIdsForFindOrCreate($userType, $user, $employee, $leadAgent, $companyId);
+
+        return response()->json(Reply::successWithData(
+            'Employee created successfully',
+            array_merge($typed, [
+                'created' => true,
+                'status' => $request->input('status', 'active') === 'inactive' ? 'inactive' : 'active',
+            ])
+        ), 201);
     }
 
     public function updateEmployee(\App\Http\Requests\ApiV2\Employee\UpdateEmployeeV2Request $request, $userId)
@@ -342,6 +419,15 @@ class EmployeeV2ApiController extends Controller
 
         $user->save();
 
+        if ($request->filled('roleId')) {
+            $permissionRoleId = (int) $request->input('roleId');
+            $syncError = $this->syncEmployeeRoleForCompanyUser($companyId, $user, $permissionRoleId);
+            if ($syncError !== null) {
+                return $syncError;
+            }
+            $user->load('roles');
+        }
+
         if ($request->filled('departmentId')) {
             $employee->department_id = $request->input('departmentId');
         }
@@ -378,6 +464,10 @@ class EmployeeV2ApiController extends Controller
                 ->first();
         }
 
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
         return response()->json(Reply::successWithData('Employee updated successfully', [
             'userId' => $user->id,
             'employeeId' => $employee->employee_id,
@@ -385,7 +475,312 @@ class EmployeeV2ApiController extends Controller
             'inactiveDate' => $this->formatYmd($user->inactive_date),
             'leadAgentId' => $leadAgent?->id,
             'uplineId' => $leadAgent?->parent_agent_id,
+            'roleId' => $this->resolveEmployeeV2RoleId($user, $companyId),
         ]));
+    }
+
+    /**
+     * @return array{0: User, 1: EmployeeDetails, 2: LeadAgent|null}
+     */
+    private function persistNewEmployee(
+        FormRequest $request,
+        int $companyId,
+        Company $company,
+        Role $employeeRole,
+        bool $createLeadAgent,
+        ?int $uplineId,
+        int $permissionRoleId
+    ): array {
+        return DB::transaction(function () use ($request, $companyId, $company, $employeeRole, $createLeadAgent, $uplineId, $permissionRoleId) {
+            $user = new User();
+            $user->company_id = $companyId;
+            $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
+            $user->email = $request->input('email');
+            $this->formatPhone($user, $request->input('phone'));
+            $user->password = bcrypt(Str::random(20)); // ignored later; only used to satisfy DB schema
+            $user->locale = $company->locale ?? 'en';
+
+            $this->applyStatus($user, $company, $request->input('status', 'active'));
+            $user->save();
+
+            $employee = new EmployeeDetails();
+            $employee->user_id = $user->id;
+            $employee->company_id = $companyId;
+            $employee->employee_id = (string) $user->id;
+            $employee->department_id = $request->input('departmentId');
+            $employee->designation_id = $request->input('designationId');
+            $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
+            $employee->calendar_view = 'task,events,holiday,tickets,leaves,follow_ups';
+            $employee->save();
+
+            $this->applyEmployeeRoleSync($user, $employeeRole, $permissionRoleId);
+
+            $leadAgent = null;
+            if ($createLeadAgent) {
+                $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
+            }
+
+            return [$user, $employee, $leadAgent];
+        });
+    }
+
+    private function normalizeFindOrCreateUserType(string $raw): string
+    {
+        if ($raw === 'leadAgent' || strtolower($raw) === 'leadagent' || strtolower($raw) === 'lead_agent') {
+            return 'lead_agent';
+        }
+
+        return strtolower(trim($raw));
+    }
+
+    /**
+     * @return array<string, mixed>|\Illuminate\Http\JsonResponse
+     */
+    private function resolveFindOrCreateExistingUser(
+        Company $company,
+        User $user,
+        string $userType,
+        FindOrCreateEmployeeV2Request $request
+    ) {
+        $companyId = (int) $company->id;
+        $uplineId = $request->filled('uplineId') ? (int) $request->input('uplineId') : null;
+
+        if ($userType === 'user') {
+            $user->load('roles');
+
+            return [
+                'userId' => $user->id,
+                'roleId' => $this->resolveEmployeeV2RoleId($user, $companyId),
+                'created' => false,
+            ];
+        }
+
+        if ($userType === 'employee') {
+            $isEmployee = User::withoutGlobalScope(ActiveScope::class)
+                ->where('company_id', $companyId)
+                ->whereKey($user->getKey())
+                ->onlyEmployee()
+                ->exists();
+
+            if ($isEmployee) {
+                if ($request->filled('roleId')) {
+                    $syncError = $this->syncEmployeeRoleForCompanyUser($companyId, $user, (int) $request->input('roleId'));
+                    if ($syncError !== null) {
+                        return $syncError;
+                    }
+                }
+
+                $user->load('roles');
+                $employee = EmployeeDetails::where('company_id', $companyId)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                return [
+                    'userId' => $user->id,
+                    'employeeId' => $employee?->employee_id ?? (string) $user->id,
+                    'roleId' => $this->resolveEmployeeV2RoleId($user, $companyId),
+                    'created' => false,
+                ];
+            }
+
+            $employeeRole = Role::where('name', 'employee')
+                ->where('company_id', $companyId)
+                ->first();
+
+            if (!$employeeRole) {
+                return response()->json(Reply::error('Employee role not found for this company'), 422);
+            }
+
+            $ensured = $this->ensureEmployeeRecordForUser($company, $user, $request, $employeeRole);
+
+            return [
+                'userId' => $user->id,
+                'employeeId' => $ensured['employee']->employee_id,
+                'created' => $ensured['created'],
+            ];
+        }
+
+        if ($userType === 'lead_agent') {
+            $hadLeadAgent = LeadAgent::query()
+                ->where('company_id', $companyId)
+                ->where('user_id', $user->id)
+                ->whereNull('lead_category_id')
+                ->exists();
+
+            $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
+            $employeeId = $this->resolveEmployeeIdForFindOrCreate($companyId, $user->id);
+
+            if ($request->filled('roleId')) {
+                $syncError = $this->syncEmployeeRoleForCompanyUser($companyId, $user, (int) $request->input('roleId'));
+                if ($syncError !== null) {
+                    return $syncError;
+                }
+            }
+
+            $user->load('roles');
+
+            return [
+                'userId' => $user->id,
+                'employeeId' => $employeeId,
+                'leadAgentId' => $leadAgent->id,
+                'roleId' => $this->resolveEmployeeV2RoleId($user, $companyId),
+                'created' => !$hadLeadAgent,
+            ];
+        }
+
+        return response()->json(Reply::error('Invalid userType. Use user, employee, or lead_agent.'), 422);
+    }
+
+    /**
+     * Attach employee role and/or employee_details for an existing user (same fields as create).
+     *
+     * @return array{employee: EmployeeDetails, created: bool}
+     */
+    private function ensureEmployeeRecordForUser(
+        Company $company,
+        User $user,
+        FindOrCreateEmployeeV2Request $request,
+        Role $employeeRole
+    ): array {
+        $companyId = (int) $company->id;
+
+        return DB::transaction(function () use ($company, $companyId, $user, $request, $employeeRole) {
+            $user = User::withoutGlobalScope(ActiveScope::class)
+                ->where('company_id', $companyId)
+                ->whereKey($user->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $employee = EmployeeDetails::firstOrNew([
+                'company_id' => $companyId,
+                'user_id' => $user->id,
+            ]);
+            $detailsWereNew = !$employee->exists;
+
+            $user->name = trim($request->input('firstName') . ' ' . $request->input('lastName'));
+            $this->formatPhone($user, $request->input('phone'));
+            $this->applyStatus($user, $company, $request->input('status', 'active'), $user->status);
+            $user->save();
+
+            $employee->employee_id = (string) $user->id;
+            $employee->department_id = $request->input('departmentId');
+            $employee->designation_id = $request->input('designationId');
+            $employee->joining_date = Carbon::createFromFormat('Y-m-d', $request->input('joiningDate'), $company->timezone)->format('Y-m-d');
+            if (empty($employee->calendar_view)) {
+                $employee->calendar_view = 'task,events,holiday,tickets,leaves,follow_ups';
+            }
+            $employee->save();
+
+            $roleAdded = false;
+            if ($request->filled('roleId')) {
+                $this->applyEmployeeRoleSync($user, $employeeRole, (int) $request->input('roleId'));
+            } elseif (!$user->hasRole('employee')) {
+                $user->attachRole($employeeRole);
+                $user->assignUserRolePermission($employeeRole->id);
+                $roleAdded = true;
+            }
+
+            return [
+                'employee' => $employee,
+                'created' => $detailsWereNew || $roleAdded,
+            ];
+        });
+    }
+
+    /**
+     * @return array<string, int|string|null>
+     */
+    private function typedIdsForFindOrCreate(string $userType, User $user, EmployeeDetails $employee, ?LeadAgent $leadAgent, int $companyId): array
+    {
+        $roleId = $this->resolveEmployeeV2RoleId($user, $companyId);
+
+        return match ($userType) {
+            'user' => ['userId' => $user->id, 'roleId' => $roleId],
+            'employee' => [
+                'userId' => $user->id,
+                'employeeId' => $employee->employee_id,
+                'roleId' => $roleId,
+            ],
+            'lead_agent' => [
+                'userId' => $user->id,
+                'employeeId' => $employee->employee_id,
+                'leadAgentId' => $leadAgent?->id,
+                'roleId' => $roleId,
+            ],
+            default => ['userId' => $user->id, 'roleId' => $roleId],
+        };
+    }
+
+    private function resolveEmployeeV2RoleId(User $user, int $companyId): ?int
+    {
+        $employeeRoleId = Role::query()
+            ->where('company_id', $companyId)
+            ->where('name', 'employee')
+            ->value('id');
+
+        $attachedIds = $user->roles
+            ->where('company_id', $companyId)
+            ->sortBy('id')
+            ->pluck('id')
+            ->values();
+
+        if ($attachedIds->isEmpty()) {
+            return $employeeRoleId !== null ? (int) $employeeRoleId : null;
+        }
+
+        $employeeRoleId = $employeeRoleId !== null ? (int) $employeeRoleId : null;
+        $nonEmployee = $attachedIds->first(fn (int $id) => $employeeRoleId === null || $id !== $employeeRoleId);
+
+        return (int) ($nonEmployee ?? $attachedIds->first());
+    }
+
+    private function applyEmployeeRoleSync(User $user, Role $employeeRole, int $permissionRoleId): void
+    {
+        RoleUser::where('user_id', $user->id)->delete();
+        $user->roles()->attach($employeeRole->id);
+        if ($employeeRole->id !== $permissionRoleId) {
+            $user->roles()->attach($permissionRoleId);
+        }
+        $user->assignUserRolePermission($permissionRoleId);
+        $user->save();
+
+        (new AppSettingController())->deleteSessions([$user->id]);
+        cache()->forget('sidebar_user_perms_' . $user->id);
+    }
+
+    /**
+     * @return \Illuminate\Http\JsonResponse|null
+     */
+    private function syncEmployeeRoleForCompanyUser(int $companyId, User $user, int $permissionRoleId): ?\Illuminate\Http\JsonResponse
+    {
+        $role = Role::query()
+            ->where('company_id', $companyId)
+            ->whereKey($permissionRoleId)
+            ->first();
+
+        if (!$role || $role->name === 'client') {
+            return response()->json(Reply::error('Invalid roleId for this company.'), 422);
+        }
+
+        $employeeRole = Role::where('name', 'employee')
+            ->where('company_id', $companyId)
+            ->first();
+
+        if (!$employeeRole) {
+            return response()->json(Reply::error('Employee role not found for this company'), 422);
+        }
+
+        $this->applyEmployeeRoleSync($user, $employeeRole, $permissionRoleId);
+
+        return null;
+    }
+
+    private function resolveEmployeeIdForFindOrCreate(int $companyId, int $userId): string
+    {
+        return EmployeeDetails::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->value('employee_id') ?? (string) $userId;
     }
 
     private function applyStatus(User $user, Company $company, string $status, ?string $previousStatus = null): void

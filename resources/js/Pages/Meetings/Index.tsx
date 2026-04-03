@@ -29,6 +29,7 @@ import {
     UserOutlined,
     RightOutlined,
     FileTextOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -748,8 +749,6 @@ function MeetingsIndex() {
         <PageLayout
             title={pageTitle || "Meetings"}
             breadcrumbs={[{ name: "Meetings" }]}
-            onRefresh={refresh}
-            isRefreshing={isRefreshing}
         >
             <div className="px-4 sm:px-6 py-6 space-y-8">
                 {/* ── Header ────────────────────────────────────────── */}
@@ -757,16 +756,26 @@ function MeetingsIndex() {
                     <h1 className="text-2xl font-bold text-gray-900 mb-0">
                         My Meetings
                     </h1>
-                    {canAdd && (
+                    <div className="flex items-center gap-3">
                         <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => setScheduleOpen(true)}
-                            className="bg-blue-600 hover:bg-blue-700"
+                            icon={<ReloadOutlined spin={isRefreshing} />}
+                            onClick={refresh}
+                            disabled={isRefreshing}
+                            type="text"
                         >
-                            Schedule Meeting
+                            Refresh
                         </Button>
-                    )}
+                        {canAdd && (
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => setScheduleOpen(true)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                Schedule Meeting
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {/* ── Overview Cards ────────────────────────────────── */}

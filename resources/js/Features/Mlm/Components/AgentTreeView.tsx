@@ -1,12 +1,34 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import Tree from "react-d3-tree";
 import { Avatar, Typography, Spin, Empty } from "antd";
-import { UserOutlined } from "@ant-design/icons";
+import {
+    UserOutlined,
+    TeamOutlined,
+    MinusCircleOutlined,
+} from "@ant-design/icons";
 import type { AgentHierarchyNode } from "../types";
 import LevelBadge from "./LevelBadge";
 import type { MlmLevel } from "../types";
 
 const { Text } = Typography;
+
+const INITIAL_VISIBLE = 4;
+const PAGE_SIZE = 8;
+
+interface ShowMoreRaw {
+    id: number;
+    name: string;
+    _isShowMore: true;
+    _parentId: number;
+    _hiddenCount: number;
+}
+
+interface CollapseRaw {
+    id: number;
+    name: string;
+    _isCollapse: true;
+    _parentId: number;
+}
 
 interface AgentTreeViewProps {
     data: AgentHierarchyNode | AgentHierarchyNode[];
@@ -17,7 +39,54 @@ interface AgentTreeViewProps {
 }
 
 /** Convert our data shape to react-d3-tree's expected format */
-function toTreeData(node: AgentHierarchyNode): any {
+function toTreeData(
+    node: AgentHierarchyNode,
+    visibleCounts: Map<number, number>,
+): any {
+    const children = node.children ?? [];
+    const visibleCount = visibleCounts.get(node.id) ?? INITIAL_VISIBLE;
+
+    let mappedChildren: any[];
+
+    if (children.length <= visibleCount) {
+        // All children fit — render them all
+        mappedChildren = children.map((c) => toTreeData(c, visibleCounts));
+    } else {
+        // Show only the first `visibleCount` + a "show more" pill
+        const visible = children
+            .slice(0, visibleCount)
+            .map((c) => toTreeData(c, visibleCounts));
+        const hiddenCount = children.length - visibleCount;
+        visible.push({
+            name: `+${hiddenCount} more`,
+            attributes: {},
+            __raw: {
+                id: -(node.id * 1000 + 1),
+                name: `+${hiddenCount} more`,
+                _isShowMore: true,
+                _parentId: node.id,
+                _hiddenCount: hiddenCount,
+            } as ShowMoreRaw,
+            children: [],
+        });
+        mappedChildren = visible;
+    }
+
+    // If user has expanded beyond the initial count, allow collapsing back
+    if (visibleCount > INITIAL_VISIBLE && children.length > INITIAL_VISIBLE) {
+        mappedChildren.push({
+            name: "Show less",
+            attributes: {},
+            __raw: {
+                id: -(node.id * 1000 + 2),
+                name: "Show less",
+                _isCollapse: true,
+                _parentId: node.id,
+            } as CollapseRaw,
+            children: [],
+        });
+    }
+
     return {
         name: node.name,
         attributes: {
@@ -25,7 +94,7 @@ function toTreeData(node: AgentHierarchyNode): any {
             sales: node.total_sales ?? 0,
         },
         __raw: node,
-        children: node.children?.map(toTreeData) ?? [],
+        children: mappedChildren,
     };
 }
 
@@ -33,11 +102,60 @@ function toTreeData(node: AgentHierarchyNode): any {
 const renderCustomNode = ({
     nodeDatum,
     onNodeClick,
+    onToggleExpand,
 }: {
     nodeDatum: any;
     onNodeClick?: (node: AgentHierarchyNode) => void;
+    onToggleExpand?: (parentId: number, expand: boolean) => void;
 }) => {
-    const raw: AgentHierarchyNode = nodeDatum.__raw;
+    const raw: any = nodeDatum.__raw;
+
+    // Render "+N more" pill
+    if (raw._isShowMore) {
+        return (
+            <g>
+                <foreignObject
+                    width={160}
+                    height={56}
+                    x={-80}
+                    y={-28}
+                    style={{ overflow: "visible" }}
+                >
+                    <div
+                        className="rounded-full bg-indigo-50 border-2 border-dashed border-indigo-300 text-indigo-700 text-sm font-medium px-4 py-2.5 cursor-pointer hover:bg-indigo-100 hover:border-indigo-400 transition-all duration-200 text-center flex items-center justify-center gap-1.5"
+                        onClick={() => onToggleExpand?.(raw._parentId, true)}
+                    >
+                        <TeamOutlined />
+                        {raw.name}
+                    </div>
+                </foreignObject>
+            </g>
+        );
+    }
+
+    // Render "Show less" pill
+    if (raw._isCollapse) {
+        return (
+            <g>
+                <foreignObject
+                    width={140}
+                    height={48}
+                    x={-70}
+                    y={-24}
+                    style={{ overflow: "visible" }}
+                >
+                    <div
+                        className="rounded-full bg-gray-50 border border-gray-300 text-gray-500 text-xs font-medium px-3 py-2 cursor-pointer hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 text-center flex items-center justify-center gap-1"
+                        onClick={() => onToggleExpand?.(raw._parentId, false)}
+                    >
+                        <MinusCircleOutlined />
+                        Show less
+                    </div>
+                </foreignObject>
+            </g>
+        );
+    }
+
     const levelObj: MlmLevel | null = raw.level_rank
         ? ({
               id: 0,
@@ -116,10 +234,31 @@ export default function AgentTreeView({
     orientation = "vertical",
     height = 600,
 }: AgentTreeViewProps) {
+    const [visibleCounts, setVisibleCounts] = useState<Map<number, number>>(
+        new Map(),
+    );
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const handleToggleExpand = useCallback(
+        (parentId: number, expand: boolean) => {
+            setVisibleCounts((prev) => {
+                const next = new Map(prev);
+                if (expand) {
+                    const current = prev.get(parentId) ?? INITIAL_VISIBLE;
+                    next.set(parentId, current + PAGE_SIZE);
+                } else {
+                    next.delete(parentId);
+                }
+                return next;
+            });
+        },
+        [],
+    );
+
     const treeData = useMemo(() => {
         if (Array.isArray(data)) {
             if (data.length === 0) return null;
-            if (data.length === 1) return toTreeData(data[0]);
+            if (data.length === 1) return toTreeData(data[0], visibleCounts);
             // Wrap multiple roots in a virtual root
             return {
                 name: "Organization",
@@ -129,15 +268,20 @@ export default function AgentTreeView({
                     name: "Organization",
                     children: data,
                 } as AgentHierarchyNode,
-                children: data.map(toTreeData),
+                children: data.map((d) => toTreeData(d, visibleCounts)),
             };
         }
-        return toTreeData(data);
-    }, [data]);
+        return toTreeData(data, visibleCounts);
+    }, [data, visibleCounts]);
 
     const renderNode = useCallback(
-        (rd3tProps: any) => renderCustomNode({ ...rd3tProps, onNodeClick }),
-        [onNodeClick],
+        (rd3tProps: any) =>
+            renderCustomNode({
+                ...rd3tProps,
+                onNodeClick,
+                onToggleExpand: handleToggleExpand,
+            }),
+        [onNodeClick, handleToggleExpand],
     );
 
     if (loading) {
@@ -162,20 +306,26 @@ export default function AgentTreeView({
         );
     }
 
+    const containerWidth = containerRef.current?.clientWidth ?? 800;
+
     return (
         <div
-            className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden"
-            style={{ width: "100%", height }}
+            ref={containerRef}
+            className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden h-full"
+            style={{ width: "100%" }}
         >
             <Tree
                 data={treeData}
                 orientation={orientation}
                 pathFunc="step"
-                translate={{ x: 400, y: 60 }}
-                separation={{ siblings: 1.5, nonSiblings: 2 }}
-                nodeSize={{ x: 240, y: 140 }}
+                translate={{ x: containerWidth / 2, y: 60 }}
+                separation={{ siblings: 1.2, nonSiblings: 1.5 }}
+                nodeSize={{ x: 220, y: 140 }}
+                scaleExtent={{ min: 0.1, max: 2 }}
                 renderCustomNodeElement={renderNode}
-                zoom={0.8}
+                zoom={0.6}
+                zoomable
+                draggable
                 enableLegacyTransitions
                 transitionDuration={300}
             />

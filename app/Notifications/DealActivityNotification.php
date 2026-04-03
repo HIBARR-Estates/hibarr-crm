@@ -88,11 +88,12 @@ class DealActivityNotification extends BaseNotification
 
         $build
             ->subject($subject . ' - ' . config('app.name'))
-            ->markdown('mail.email', [
+            ->view('mail.deal.activity', [
                 'url' => $url,
                 'content' => $content,
-                'themeColor' => $this->company->header_color,
+                'subject' => $subject,
                 'actionText' => $actionText,
+                'introText' => $this->getNotificationText(),
                 'notifiableName' => $notifiable->name,
             ]);
 

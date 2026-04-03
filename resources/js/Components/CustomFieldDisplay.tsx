@@ -1,5 +1,4 @@
 import {
-    Descriptions,
     Tag,
     Upload,
     Button,
@@ -8,6 +7,7 @@ import {
     Tooltip,
     Progress,
 } from "antd";
+import { DetailSection, DetailField } from "@/Components/DetailSection";
 import {
     UploadOutlined,
     DeleteOutlined,
@@ -487,6 +487,7 @@ interface Props {
     customFieldsData?: Record<string, any>;
     categoryId?: string | number;
     column?: number;
+    title?: string; // Optional title shown in the section header
     onUpdate?: (field: string, value: any) => Promise<void>;
     editable?: boolean;
     alwaysEditing?: boolean; // When true, fields are always in edit mode (for bulk editing)
@@ -502,6 +503,7 @@ export default function CustomFieldDisplay({
     customFieldsData,
     categoryId,
     column = 2,
+    title,
     onUpdate,
     editable = false,
     alwaysEditing = false,
@@ -627,84 +629,25 @@ export default function CustomFieldDisplay({
         return visibilityMap[fieldId] !== false;
     });
 
-    // Calculate optimal span based on content length and field type
+    // Calculate span: textarea and repeatable are full-row; everything else is 2-per-row.
+    // Multiselect/checkbox with many selected items also get full row for readability.
     const calculateSpan = (field: Field, value: any): number => {
-        const labelLength = field.label?.length || 0;
-
-        // Get string representation of value for length calculation
-        let valueString = "";
-        if (field.type === "file") {
-            valueString = "Download File"; // Length of the link text
-        } else if (field.type === "url" || field.type === "email") {
-            valueString = String(value || "");
-        } else if (field.type === "multiselect" && Array.isArray(value)) {
-            valueString = value.join(", ");
-        } else if (field.type === "repeatable" && Array.isArray(value)) {
-            valueString = value
-                .map((obj: Record<string, any>) =>
-                    obj && typeof obj === "object"
-                        ? Object.values(obj).filter(Boolean).join(", ")
-                        : "",
-                )
-                .filter(Boolean)
-                .join("; ");
-        } else {
-            valueString = String(value || "");
+        // Always full row
+        if (field.type === "textarea" || field.type === "repeatable") {
+            return column;
         }
 
-        const valueLength = valueString.length;
-        const totalContentLength = labelLength + valueLength;
-
-        // Field types that typically need more space
-        const wideFieldTypes = [
-            "textarea",
-            "file",
-            "text",
-            "url",
-            "multiselect",
-            "repeatable",
-        ];
-
-        // Content length thresholds (adjusted for better UX)
-        const shortContent = 25; // Very short content
-        const mediumContent = 50; // Medium length content
-        const longContent = 80; // Long content needs full width
-
-        // Start with base span based on field type
-        let baseSpan = wideFieldTypes.includes(field.type) ? 2 : 1;
-
-        // Adjust span based on content length
-        if (totalContentLength > longContent) {
-            baseSpan = column; // Full width for very long content
-        } else if (totalContentLength > mediumContent) {
-            baseSpan = Math.min(column, 2); // At least 2 columns for medium content
-        } else if (totalContentLength > shortContent && baseSpan === 1) {
-            baseSpan = Math.min(column, 2); // Expand short content if there's room
-        }
-
-        // Special cases for specific field types
-        if (field.type === "textarea" && valueLength > 100) {
-            baseSpan = column; // Always full width for long text areas
-        }
-
+        // Multiselect/checkbox with more than 3 selected values gets full row
         if (
-            field.type === "multiselect" &&
+            (field.type === "multiselect" || field.type === "checkbox") &&
             Array.isArray(value) &&
             value.length > 3
         ) {
-            baseSpan = column; // Full width for multiple selections
+            return column;
         }
 
-        if (
-            field.type === "repeatable" &&
-            Array.isArray(value) &&
-            value.length > 1
-        ) {
-            baseSpan = column; // Full width for multiple repeatable items
-        }
-
-        // Ensure span doesn't exceed column count and is at least 1
-        return Math.max(1, Math.min(baseSpan, column));
+        // Everything else (text, number, select, date, currency, file, url, boolean, etc.) → 2-per-row
+        return 1;
     };
 
     // Format field value based on type
@@ -1539,7 +1482,7 @@ export default function CustomFieldDisplay({
     }
 
     return (
-        <Descriptions column={column} bordered size="middle">
+        <DetailSection title={title} gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
             {filteredFields.map((field) => {
                 const fieldKey = `field_${field.id}`;
                 const value =
@@ -1548,19 +1491,15 @@ export default function CustomFieldDisplay({
                 const span = calculateSpan(field, value);
 
                 return (
-                    <Descriptions.Item
+                    <DetailField
                         key={field.id}
-                        label={
-                            <div className="max-w-[120px] sm:max-w-[150px] whitespace-normal break-words leading-tight">
-                                {field.label}
-                            </div>
-                        }
-                        span={span}
+                        label={field.label}
+                        span={span === column ? 2 : 1}
                     >
                         {renderEditable(field, value)}
-                    </Descriptions.Item>
+                    </DetailField>
                 );
             })}
-        </Descriptions>
+        </DetailSection>
     );
 }

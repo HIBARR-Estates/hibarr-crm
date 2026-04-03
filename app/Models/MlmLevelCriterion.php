@@ -18,6 +18,7 @@ class MlmLevelCriterion extends BaseModel
         'metric',
         'operator',
         'threshold',
+        'description',
     ];
 
     protected $casts = [

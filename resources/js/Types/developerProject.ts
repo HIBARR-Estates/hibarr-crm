@@ -180,11 +180,13 @@ export interface DeveloperProject {
     expose_config?: DeveloperProjectExposeConfig;
     properties?: Property[];
     unit_types_details?: DeveloperProjectUnitType[];
+    assets?: DeveloperProjectAsset[];
     // Offers
     offers?: import("./api/offers").Offer[];
     offers_count?: number;
     // Computed
     properties_count?: number;
+    sold_properties_count?: number;
 }
 
 export interface PaymentPlan {
