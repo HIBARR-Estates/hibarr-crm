@@ -85,6 +85,7 @@ export interface ShowProps extends PageProps {
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
     unitTypes: DeveloperProjectUnitType[];
+    developerProjects: DeveloperProject[];
 }
 
 export type SectionKey =
@@ -155,6 +156,7 @@ const Show = ({
     imagesByTag,
     priceList,
     unitTypes,
+    developerProjects,
 }: ShowProps) => {
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -175,7 +177,7 @@ const Show = ({
                     />
                 );
             case "developers":
-                return <DevelopersSection developer={project.developer} />;
+                return <DevelopersSection developer={project.developer} developerProjects={developerProjects} />;
             case "unit_types":
                 return (
                     <UnitTypesSection

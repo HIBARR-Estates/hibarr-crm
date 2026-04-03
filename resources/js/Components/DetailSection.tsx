@@ -128,7 +128,7 @@ export function DetailField({
             >
                 {/* Label row — edit pencil appears here on group hover */}
                 <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 leading-none">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 leading-[1.5]">
                         {label}
                     </span>
                     {editHandler && (

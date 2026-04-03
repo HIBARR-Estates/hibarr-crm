@@ -128,6 +128,27 @@ class DeveloperProjectController extends AccountBaseController
         // Get price list by property type
         $priceList = $this->getPriceListByType($project->properties);
 
+        // Load other projects by the same developer (excluding current)
+        $developerProjects = collect();
+        if ($project->developer_id) {
+            $developerProjects = DeveloperProject::with([
+                    'assets' => function ($q) {
+                        $q->where('asset_type', 'image')->orderBy('order')->limit(1);
+                    },
+                    'location',
+                    'developer',
+                ])
+                ->withCount('properties')
+                ->withCount(['properties as sold_properties_count' => function ($q) {
+                    $q->where('status', Property::STATUS_SOLD);
+                }])
+                ->where('company_id', user()->company_id)
+                ->where('developer_id', $project->developer_id)
+                ->where('id', '!=', $project->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
         return Inertia::render('DeveloperProjects/Show', [
             'pageTitle' => $project->name,
             'project' => $project,
@@ -143,6 +164,7 @@ class DeveloperProjectController extends AccountBaseController
             'imagesByTag' => $imagesByTag,
             'priceList' => $priceList,
             'unitTypes' => $project->unitTypes->sortBy('order')->values(),
+            'developerProjects' => $developerProjects,
         ]);
     }
 

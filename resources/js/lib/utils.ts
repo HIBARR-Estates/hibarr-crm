@@ -52,6 +52,16 @@ export const capitalizeFirstLetter = (text: string | null = ""): string => {
     return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+/** Convert snake_case (or kebab-case) to Title Case readable text.
+ *  e.g. "semi_detached_villa" → "Semi Detached Villa"
+ */
+export const snakeToReadable = (str: string | null | undefined): string => {
+    if (!str) return "";
+    return str
+        .replace(/[-_]/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 export const getPropertyTypeColor = (type: string): string => {
     const colors: Record<string, string> = {
         Villa: "purple",

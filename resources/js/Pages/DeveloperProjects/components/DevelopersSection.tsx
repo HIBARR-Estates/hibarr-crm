@@ -1,12 +1,16 @@
 import React from "react";
 import { Link } from "@inertiajs/react";
-import { Card, Image, Avatar, Tag, Divider, Empty, Typography } from "antd";
+import { Card, Image, Avatar, Tag, Empty, Typography } from "antd";
 import { BankOutlined, WhatsAppOutlined } from "@ant-design/icons";
-import type { Developer } from "../../../Types/developerProject";
+import type { Developer, DeveloperProject } from "../../../Types/developerProject";
+import ProjectCard from "./ProjectCard";
 
 const { Title, Paragraph, Text } = Typography;
 
-const DevelopersSection: React.FC<{ developer: Developer | null | undefined }> = ({ developer }) => {
+const DevelopersSection: React.FC<{
+    developer: Developer | null | undefined;
+    developerProjects?: DeveloperProject[];
+}> = ({ developer, developerProjects = [] }) => {
     if (!developer) {
         return (
             <Card>
@@ -67,22 +71,20 @@ const DevelopersSection: React.FC<{ developer: Developer | null | undefined }> =
                     </div>
                 </div>
 
-                {developer.project_list && developer.project_list.length > 0 && (
-                    <>
-                        <Divider />
-                        <div>
-                            <Text strong className="block mb-2">
-                                All projects by this developer:
-                            </Text>
-                            <div className="flex flex-wrap gap-2">
-                                {developer.project_list.map((name) => (
-                                    <Tag key={name}>{name}</Tag>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
             </Card>
+
+            {developerProjects.length > 0 && (
+                <div>
+                    <Text strong className="block mb-3 text-sm text-gray-500">
+                        Other projects by {developer.name}:
+                    </Text>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {developerProjects.map((p) => (
+                            <ProjectCard key={p.id} project={p} />
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
