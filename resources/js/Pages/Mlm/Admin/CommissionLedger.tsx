@@ -10,7 +10,6 @@ import {
     Modal,
     Input,
     message,
-    Popconfirm,
     Row,
     Col,
     Statistic,
@@ -28,12 +27,15 @@ import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
     useMlmCommissions,
-    useMarkCommissionPaid,
     useBulkMarkCommissionsPaid,
     useRevertCommission,
     useActiveCycle,
 } from "@/Features/Mlm/api";
-import { CommissionStatusBadge, LevelBadge } from "@/Features/Mlm/Components";
+import {
+    CommissionStatusBadge,
+    LevelBadge,
+    MarkCommissionPaid,
+} from "@/Features/Mlm/Components";
 import type {
     MlmCommission,
     PaginatedResponse,
@@ -67,6 +69,8 @@ const MlmCommissionLedger: React.FC<Props> = ({
     const [revertModalOpen, setRevertModalOpen] = useState(false);
     const [revertId, setRevertId] = useState<number>(0);
     const [revertReason, setRevertReason] = useState("");
+    const [markPaidCommission, setMarkPaidCommission] =
+        useState<MlmCommission | null>(null);
 
     const queryParams: Record<string, any> = { page, per_page: 20, ...filters };
 
@@ -76,11 +80,6 @@ const MlmCommissionLedger: React.FC<Props> = ({
 
     const { data: activeCycleData } = useActiveCycle();
     const activeCycle = (activeCycleData as any)?.data?.cycle ?? null;
-
-    const markPaid = useMarkCommissionPaid(0, () => {
-        message.success("Commission marked as paid");
-        refetch();
-    });
 
     const bulkMarkPaid = useBulkMarkCommissionsPaid(() => {
         message.success(`${selectedRows.length} commissions marked as paid`);
@@ -210,21 +209,17 @@ const MlmCommissionLedger: React.FC<Props> = ({
             render: (_: any, record: MlmCommission) => (
                 <Space size="small">
                     {record.status === "pending" && (
-                        <Popconfirm
-                            title="Mark as paid?"
-                            onConfirm={() => markPaid.mutate({} as any)}
-                        >
-                            <Button
-                                type="text"
-                                size="small"
-                                icon={
-                                    <CheckCircle
-                                        size={14}
-                                        className="text-green-500"
-                                    />
-                                }
-                            />
-                        </Popconfirm>
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={
+                                <CheckCircle
+                                    size={14}
+                                    className="text-green-500"
+                                />
+                            }
+                            onClick={() => setMarkPaidCommission(record)}
+                        />
                     )}
                     {record.status === "paid" && (
                         <Button
@@ -439,6 +434,17 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             />
                         </Card>
                     </motion.div>
+
+                    {/* Mark Paid Modal */}
+                    <MarkCommissionPaid
+                        open={!!markPaidCommission}
+                        onClose={() => setMarkPaidCommission(null)}
+                        commission={markPaidCommission}
+                        handleSuccessCallback={() => {
+                            message.success("Commission marked as paid");
+                            refetch();
+                        }}
+                    />
 
                     {/* Revert Modal */}
                     <Modal
