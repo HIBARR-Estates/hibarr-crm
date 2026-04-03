@@ -510,6 +510,10 @@ class MlmAdminApiController extends AccountBaseController
             $query->where('level_id', $request->input('level_id'));
         }
 
+        if ($request->filled('method')) {
+            $query->where('system_assigned', $request->input('method') === 'system');
+        }
+
         if ($request->filled('date_from')) {
             $query->where('assigned_at', '>=', $request->input('date_from'));
         }
@@ -970,7 +974,7 @@ class MlmAdminApiController extends AccountBaseController
             ->findOrFail($id);
 
         $enrollments = AgentCycleEnrollment::where('cycle_id', $cycle->id)
-            ->with(['agent.user:id,name,email,image', 'metrics', 'levelAchieved'])
+            ->with(['agent.user:id,name,email,image', 'agent.currentLevelHistory.level', 'metrics', 'levelAchieved'])
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($enrollment) {
@@ -985,7 +989,7 @@ class MlmAdminApiController extends AccountBaseController
                     'overflow_start_date' => $enrollment->overflow_start_date?->format('Y-m-d'),
                     'max_overflow_date' => $enrollment->max_overflow_date?->format('Y-m-d'),
                     'criteria_met_at' => $enrollment->criteria_met_at?->format('Y-m-d H:i:s'),
-                    'level_achieved' => $enrollment->levelAchieved?->name,
+                    'level_achieved' => $enrollment->levelAchieved?->name ?? $enrollment->agent?->currentLevelHistory?->level?->name,
                     'days_remaining' => $enrollment->daysRemaining(),
                     'is_overflowing' => $enrollment->isOverflowing(),
                     'metrics' => $enrollment->metrics ? [
