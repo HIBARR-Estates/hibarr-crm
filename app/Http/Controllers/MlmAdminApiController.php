@@ -487,9 +487,25 @@ class MlmAdminApiController extends AccountBaseController
 
         $perPage = min($request->input('per_page', 15), 100);
 
-        // The model's $appends automatically includes:
-        // current_level, next_level, progress_percentage, criteria_progress
-        return response()->json($query->paginate($perPage));
+        $paginated = $query->paginate($perPage);
+
+        // Batch-load active cycle metrics for all agents on this page
+        $agentIds = $paginated->pluck('agent_id')->toArray();
+        $cycleMetricsMap = AgentCycleEnrollment::whereIn('agent_id', $agentIds)
+            ->receiving()
+            ->with('metrics')
+            ->get()
+            ->keyBy('agent_id');
+
+        // Inject cycle metrics so the model's appended attributes use them
+        $paginated->getCollection()->each(function (AgentMetric $metric) use ($cycleMetricsMap) {
+            $cycleMetrics = $cycleMetricsMap->get($metric->agent_id)?->metrics;
+            if ($cycleMetrics) {
+                $metric->metricsSourceOverride = $cycleMetrics;
+            }
+        });
+
+        return response()->json($paginated);
     }
 
     // ══════════════════════════════════════════════════════════════
