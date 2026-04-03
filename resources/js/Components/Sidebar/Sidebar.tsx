@@ -237,7 +237,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         },
         {
             key: "mlm",
-            label: "MLM",
+            label: "Partner Network",
             icon: <ApartmentOutlined />,
             children: [
                 {
@@ -293,7 +293,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         },
         {
             key: "my-mlm",
-            label: "My MLM",
+            label: "Affiliate Workspace",
             icon: <TeamOutlined />,
             children: [
                 {

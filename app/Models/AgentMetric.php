@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Enums\EnrollmentStatus;
 use Illuminate\Support\Collection;
 
 class AgentMetric extends BaseModel
@@ -68,6 +69,7 @@ class AgentMetric extends BaseModel
 
     /**
      * Overall progress percentage towards the next level (0-100).
+     * Uses cycle metrics when agent has an active enrollment, otherwise all-time.
      */
     public function getProgressPercentageAttribute(): float
     {
@@ -78,11 +80,13 @@ class AgentMetric extends BaseModel
             return 0;
         }
 
+        $metricsSource = $this->resolveMetricsForEvaluation();
+
         $total = $nextLevel->criteria->count();
         $metCount = 0;
 
         foreach ($nextLevel->criteria as $criterion) {
-            if ($criterion->evaluate($this)) {
+            if ($criterion->evaluate($metricsSource)) {
                 $metCount++;
             }
         }
@@ -92,6 +96,7 @@ class AgentMetric extends BaseModel
 
     /**
      * Per-criterion progress breakdown towards the next level.
+     * Uses cycle metrics when agent has an active enrollment, otherwise all-time.
      */
     public function getCriteriaProgressAttribute(): array
     {
@@ -102,12 +107,13 @@ class AgentMetric extends BaseModel
             return [];
         }
 
+        $metricsSource = $this->resolveMetricsForEvaluation();
         $progress = [];
 
         foreach ($nextLevel->criteria as $criterion) {
-            $currentValue = $criterion->metric->resolveValue($this);
+            $currentValue = $criterion->metric->resolveValue($metricsSource);
             $targetValue  = (float) $criterion->threshold;
-            $met          = $criterion->evaluate($this);
+            $met          = $criterion->evaluate($metricsSource);
 
             $progress[] = [
                 'criterion'     => $criterion->toArray(),
@@ -124,6 +130,33 @@ class AgentMetric extends BaseModel
     }
 
     // ── Internal Helpers ─────────────────────────────────────────
+
+    /**
+     * Resolve the metrics source for evaluation.
+     * Prefers cycle metrics from the agent's active enrollment, falls back to all-time (this).
+     */
+    protected function resolveMetricsForEvaluation()
+    {
+        static $cycleMetricsCache = [];
+
+        $agentId = $this->agent_id;
+
+        if (!isset($cycleMetricsCache[$agentId])) {
+            $cycleMetricsCache[$agentId] = false; // sentinel for "checked but not found"
+
+            $enrollment = AgentCycleEnrollment::where('agent_id', $agentId)
+                ->whereIn('status', [EnrollmentStatus::Active, EnrollmentStatus::Extended])
+                ->with('metrics')
+                ->latest('effective_start_date')
+                ->first();
+
+            if ($enrollment?->metrics) {
+                $cycleMetricsCache[$agentId] = $enrollment->metrics;
+            }
+        }
+
+        return $cycleMetricsCache[$agentId] ?: $this;
+    }
 
     /**
      * Resolve the next level above the given rank.

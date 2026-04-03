@@ -233,8 +233,8 @@ export default function AgentListView({
 
     return (
         <div
-            className="rounded-xl border border-gray-200 bg-white overflow-hidden flex flex-col"
-            style={{ width: "100%", height }}
+            className="rounded-xl border border-gray-200 bg-white overflow-hidden flex flex-col h-full"
+            style={{ width: "100%" }}
         >
             <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                 <Input

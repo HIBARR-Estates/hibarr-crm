@@ -311,7 +311,7 @@ export default function AgentTreeView({
     return (
         <div
             ref={containerRef}
-            className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden"
+            className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden h-full"
             style={{ width: "100%" }}
         >
             <Tree
