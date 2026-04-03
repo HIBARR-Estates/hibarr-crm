@@ -17,18 +17,6 @@ import {
 } from "@/Types/invitations";
 
 // ============================================================================
-// Environment Variable Types
-// ============================================================================
-
-/**
- * Expected Vite environment variables for file uploads
- */
-interface FileUploadEnvVars {
-    VITE_FILE_UPLOAD_BASE_URL?: string;
-    VITE_FILE_UPLOAD_API_KEY?: string;
-}
-
-// ============================================================================
 // Default Values
 // ============================================================================
 
@@ -41,53 +29,41 @@ const DEFAULT_AGENT_INVITATION_API_KEY = "7918aed08071453148048890d59a3b85";
 // Configuration Getters
 // ============================================================================
 
+// NOTE: Environment variables must be accessed as static literal strings
+// (e.g. process.env.MIX_*) so that webpack DefinePlugin / Vite can inline
+// them at build time. A dynamic helper like getEnvVar(key) breaks this.
+
 /**
- * Safely get an environment variable with a fallback
+ * Get the agent invitation base URL from environment or default
  */
-const getEnvVar = (key: string, fallback: string): string => {
-    // Vite: import.meta.env
-    if (typeof import.meta !== "undefined" && import.meta.env) {
-        const value = (import.meta.env as Record<string, string | undefined>)[
-            key
-        ];
-        if (value) return value;
-    }
-
-    // Laravel Mix: process.env (webpack DefinePlugin)
-    if (typeof process !== "undefined" && process.env) {
-        const mixKey = key.replace(/^VITE_/, "MIX_");
-        const value = (process.env as Record<string, string | undefined>)[
-            mixKey
-        ];
-        if (value) return value;
-    }
-
-    return fallback;
+export const getAgentInvitationBaseUrl = (): string => {
+    return (
+        process.env.MIX_AGENT_INVITATION_BASE_URL ||
+        DEFAULT_AGENT_INVITATION_BASE_URL
+    );
 };
 
 /**
  * Get the file upload base URL from environment or default
  */
-export const getAgentInvitationBaseUrl = (): string => {
-    return getEnvVar(
-        "VITE_AGENT_INVITATION_BASE_URL",
-        DEFAULT_AGENT_INVITATION_BASE_URL,
-    );
-};
 export const getFileUploadBaseUrl = (): string => {
-    return getEnvVar("VITE_FILE_UPLOAD_BASE_URL", DEFAULT_FILE_UPLOAD_BASE_URL);
+    return process.env.MIX_FILE_UPLOAD_BASE_URL || DEFAULT_FILE_UPLOAD_BASE_URL;
 };
 
 /**
  * Get the file upload API key from environment or default
  */
 export const getFileUploadApiKey = (): string => {
-    return getEnvVar("VITE_FILE_UPLOAD_API_KEY", DEFAULT_FILE_UPLOAD_API_KEY);
+    return process.env.MIX_FILE_UPLOAD_API_KEY || DEFAULT_FILE_UPLOAD_API_KEY;
 };
+
+/**
+ * Get the agent invitation API key from environment or default
+ */
 export const getAgentInvitationApiKey = (): string => {
-    return getEnvVar(
-        "VITE_AGENT_INVITATION_API_KEY",
-        DEFAULT_AGENT_INVITATION_API_KEY,
+    return (
+        process.env.MIX_AGENT_INVITATION_API_KEY ||
+        DEFAULT_AGENT_INVITATION_API_KEY
     );
 };
 
