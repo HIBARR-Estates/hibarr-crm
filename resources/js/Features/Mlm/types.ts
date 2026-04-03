@@ -1,7 +1,7 @@
 export interface LevelData {
     current_level: MlmLevel | null;
     next_level: MlmLevel | null;
-    metrics: { nsa: number; nsd: number; vsa: number; vsd: number };
+    all_time_metrics: { nsa: number; nsd: number; vsa: number; vsd: number };
     cycle_metrics?: {
         nsa: number;
         nsd: number;
