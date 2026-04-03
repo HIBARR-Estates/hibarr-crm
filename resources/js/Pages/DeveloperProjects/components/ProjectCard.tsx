@@ -20,8 +20,8 @@ function formatCompletionDate(dateStr: string | null | undefined): string | null
 
 interface ProjectCardProps {
     project: DeveloperProject;
-    onEdit: (project: DeveloperProject) => void;
-    onDelete: (project: DeveloperProject) => void;
+    onEdit?: (project: DeveloperProject) => void;
+    onDelete?: (project: DeveloperProject) => void;
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) => {
@@ -46,7 +46,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
         {
             key: "edit",
             label: (
-                <span className="flex items-center gap-2" onClick={() => onEdit(project)}>
+                <span className="flex items-center gap-2" onClick={() => onEdit?.(project)}>
                     <Pencil size={13} />
                     Edit
                 </span>
@@ -59,7 +59,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                 <Popconfirm
                     title="Delete Project"
                     description="Are you sure? Properties will be unassigned."
-                    onConfirm={() => onDelete(project)}
+                    onConfirm={() => onDelete?.(project)}
                     okText="Delete"
                     cancelText="Cancel"
                     okButtonProps={{ danger: true }}
@@ -95,7 +95,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
 
             {/* ── Hero image ── */}
             <div className="relative h-48 overflow-hidden flex items-center justify-center bg-gray-50">
-                {/* Context menu — only visible on hover */}
+                {/* Context menu — only visible on hover, only when handlers provided */}
+                {(onEdit != null || onDelete != null) && (
                 <div
                     className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                     onClick={(e) => e.stopPropagation()}
@@ -106,6 +107,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                         </button>
                     </Dropdown>
                 </div>
+                )}
 
                 {firstPhoto ? (
                     <img

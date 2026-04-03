@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { Card, Table, Tag, Empty } from "antd";
-// Tag kept for property-type table column render
+import { Card, Table, Empty } from "antd";
 import type { TableColumnsType } from "antd";
-import { Building2, CheckCircle2, Clock, TrendingDown, MapPin } from "lucide-react";
+import { Building2, CheckCircle2, Clock, MapPin, TrendingUp } from "lucide-react";
 import type { ShowProps, PropertyTypeSummary, Statistics, ImageItem } from "../Show";
+import { snakeToReadable } from "../../../lib/utils";
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
 const StatCard: React.FC<{ icon: React.ReactNode; value: string | number; label: string }> = ({
@@ -72,7 +72,9 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
             title: "Property Type",
             dataIndex: "type",
             key: "type",
-            render: (type: string) => <Tag color="blue">{type}</Tag>,
+            render: (type: string) => (
+                <span className="text-gray-800">{snakeToReadable(type)}</span>
+            ),
         },
         {
             title: "Count",
@@ -130,7 +132,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                     <StatCard icon={<Building2 size={22} />} value={statistics.total_properties} label="Total Properties" />
                     <StatCard icon={<CheckCircle2 size={22} />} value={statistics.available_properties} label="Available" />
                     <StatCard icon={<Clock size={22} />} value={statistics.under_offer_properties} label="Under Offer" />
-                    <StatCard icon={<TrendingDown size={22} />} value={`${statistics.sold_percentage}%`} label="Sold" />
+                    <StatCard icon={<TrendingUp size={22} />} value={`${statistics.sold_percentage}%`} label="Sold" />
                 </div>
 
                 {/* Description with floated hero image */}
