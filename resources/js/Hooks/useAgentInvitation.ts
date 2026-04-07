@@ -8,7 +8,8 @@
 import { useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { message } from "antd";
+import { App } from "antd";
+import axios from "axios";
 import { getAgentInvitationService } from "@/Services/AgentInvitationService";
 import type {
     IGetInvitationsParams,
@@ -17,12 +18,47 @@ import type {
     IInvitation,
     IAgentInvitationConfig,
 } from "@/Types/invitations";
+import { InvitationApiError } from "@/Types/invitations";
 
 // ============================================================================
 // Query Keys
 // ============================================================================
 
 const INVITATION_QUERY_KEY = "agent-invitations";
+
+// ============================================================================
+// Error Extraction Helper
+// ============================================================================
+
+const DEFAULT_INVITATION_ERROR = "Failed to send invitation. Please try again.";
+
+/**
+ * Extract a user-friendly error message from the invitation API error chain.
+ * Checks axios response data (`{ message }`) on the original error, then falls
+ * back to the error's own message, and finally to a generic default.
+ */
+function extractInvitationErrorMessage(error: unknown): string {
+    // Unwrap InvitationApiError → originalError (the axios error)
+    const axiosError =
+        error instanceof InvitationApiError && error.originalError
+            ? error.originalError
+            : error;
+
+    // Axios attaches the response payload on error.response.data
+    if (axios.isAxiosError(axiosError)) {
+        const serverMessage = axiosError.response?.data?.message;
+        if (typeof serverMessage === "string" && serverMessage.length > 0) {
+            return serverMessage;
+        }
+    }
+
+    // Fallback: use the top-level error message (strip retry wrapper noise)
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return DEFAULT_INVITATION_ERROR;
+}
 
 // ============================================================================
 // Hook Options
@@ -44,6 +80,7 @@ export interface UseAgentInvitationOptions {
 // ============================================================================
 
 export const useAgentInvitation = (options: UseAgentInvitationOptions = {}) => {
+    const { message } = App.useApp();
     const {
         pageSize = 10,
         configOverrides,
@@ -113,7 +150,7 @@ export const useAgentInvitation = (options: UseAgentInvitationOptions = {}) => {
             onCreateSuccess?.(response);
         },
         onError: (error) => {
-            message.error(error.message || "Failed to send invitation");
+            message.error(extractInvitationErrorMessage(error));
             onCreateError?.(error);
         },
     });
