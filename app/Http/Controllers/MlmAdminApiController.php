@@ -472,7 +472,8 @@ class MlmAdminApiController extends AccountBaseController
     public function getAgentMetrics(Request $request): JsonResponse
     {
         $query = AgentMetric::where('company_id', company()->id)
-            ->with(['agent.user:id,name,email,image', 'agent.currentLevelHistory.level']);
+            ->with(['agent.user:id,name,email,image', 'agent.currentLevelHistory.level'])
+            ->whereHas('agent.user', fn ($q) => $q->where('users.status', 'active'));
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -551,9 +552,10 @@ class MlmAdminApiController extends AccountBaseController
     {
         $companyId = company()->id;
 
-        // Get root agents (no parent)
+        // Get root agents (no parent) — only those with an active user
         $rootAgents = LeadAgent::where('company_id', $companyId)
             ->whereNull('parent_agent_id')
+            ->whereHas('user', fn ($q) => $q->where('users.status', 'active'))
             ->with(['user:id,name,email,image', 'currentLevelHistory.level', 'metrics'])
             ->get();
 
@@ -587,6 +589,7 @@ class MlmAdminApiController extends AccountBaseController
 
         if ($depth < $maxDepth) {
             $children = LeadAgent::where('parent_agent_id', $agent->id)
+                ->whereHas('user', fn ($q) => $q->where('users.status', 'active'))
                 ->with(['user:id,name,email,image', 'currentLevelHistory.level', 'metrics'])
                 ->get();
 

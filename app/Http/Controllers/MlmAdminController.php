@@ -106,6 +106,7 @@ class MlmAdminController extends AccountBaseController
     {
         return Inertia::render('Mlm/Admin/AgentHierarchy', [
             'agents' => LeadAgent::where('company_id', company()->id)
+                ->whereHas('user', fn ($q) => $q->where('users.status', 'active'))
                 ->with('user:id,name,email,image')
                 ->get()
                 ->map(fn ($a) => [
