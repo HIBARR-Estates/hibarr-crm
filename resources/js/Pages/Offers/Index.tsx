@@ -102,8 +102,20 @@ const Index = ({
                 key: "type",
                 width: 120,
                 render: (type: string) => (
-                    <Tag color={type === "percentage" ? "blue" : "green"}>
-                        {type === "percentage" ? "Percentage" : "Fixed"}
+                    <Tag
+                        color={
+                            type === "percentage"
+                                ? "blue"
+                                : type === "perks"
+                                  ? "purple"
+                                  : "green"
+                        }
+                    >
+                        {type === "percentage"
+                            ? "Percentage"
+                            : type === "perks"
+                              ? "Perks"
+                              : "Fixed"}
                     </Tag>
                 ),
             },
@@ -113,9 +125,11 @@ const Index = ({
                 width: 120,
                 align: "right",
                 render: (_, record) =>
-                    record.type === "percentage"
-                        ? `${record.value}%`
-                        : `${Number(record.value).toLocaleString("en-GB")}`,
+                    record.type === "perks"
+                        ? "—"
+                        : record.type === "percentage"
+                          ? `${record.value}%`
+                          : `${Number(record.value).toLocaleString("en-GB")}`,
             },
             {
                 title: "Max Cap",

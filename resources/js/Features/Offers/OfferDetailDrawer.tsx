@@ -23,6 +23,7 @@ import type {
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
 import dayjs from "dayjs";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 const { Text } = Typography;
 
@@ -102,6 +103,30 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
     );
     const selectableProjects = developerProjects.filter(
         (p) => !attachedProjectIds.has(p.id),
+    );
+
+    // Fetch unit types from the first attached project for the attach dropdown
+    const firstAttachedProjectId = offer?.developer_projects?.[0]?.id;
+    const { data: unitTypesData } = useApiQuery<{
+        status: string;
+        unit_types: DeveloperProjectUnitType[];
+    }>({
+        path: firstAttachedProjectId
+            ? route("developer-projects.unit-types.index", {
+                  projectId: firstAttachedProjectId,
+              })
+            : "",
+        options: {
+            enabled: open && !!firstAttachedProjectId,
+        },
+    });
+
+    // Exclude already-attached unit types
+    const attachedUnitTypeIds = new Set(
+        (offer?.unit_types ?? []).map((ut) => ut.id),
+    );
+    const selectableUnitTypes = (unitTypesData?.unit_types ?? []).filter(
+        (ut) => !attachedUnitTypeIds.has(ut.id),
     );
 
     const handleAttach = async () => {
@@ -308,19 +333,27 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                 color={
                                     offer.type === "percentage"
                                         ? "blue"
-                                        : "green"
+                                        : offer.type === "perks"
+                                          ? "purple"
+                                          : "green"
                                 }
                             >
                                 {offer.type === "percentage"
                                     ? "Percentage"
-                                    : "Fixed"}
+                                    : offer.type === "perks"
+                                      ? "Perks"
+                                      : "Fixed"}
                             </Tag>
                         </Descriptions.Item>
-                        <Descriptions.Item label="Value">
-                            {offer.type === "percentage"
-                                ? `${offer.value}%`
-                                : Number(offer.value).toLocaleString("en-GB")}
-                        </Descriptions.Item>
+                        {offer.type !== "perks" && (
+                            <Descriptions.Item label="Value">
+                                {offer.type === "percentage"
+                                    ? `${offer.value}%`
+                                    : Number(offer.value).toLocaleString(
+                                          "en-GB",
+                                      )}
+                            </Descriptions.Item>
+                        )}
                         {offer.max_discount_amount && (
                             <Descriptions.Item label="Max Cap">
                                 {Number(
@@ -353,6 +386,31 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                         </Descriptions.Item>
                     </Descriptions>
 
+                    {/* Links */}
+                    {offer.links && offer.links.length > 0 && (
+                        <div>
+                            <Text strong className="block mb-2">
+                                <LinkOutlined className="mr-1" />
+                                Links
+                            </Text>
+                            <ul className="list-none p-0 m-0 space-y-1">
+                                {offer.links.map((link, i) => (
+                                    <li key={i}>
+                                        <a
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                        >
+                                            <LinkOutlined />
+                                            {link.label}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
                     <Divider />
 
                     {/* Attached Projects */}
@@ -379,7 +437,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                     </div>
 
                     {/* Attached Unit Types */}
-                    {/* <div>
+                    <div>
                         <Text strong className="block mb-2">
                             Attached Unit Types ({offer.unit_types?.length ?? 0}
                             )
@@ -398,12 +456,11 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                             />
                         )}
-                    </div> */}
+                    </div>
 
                     <Divider />
 
-                    {/* Attach from here */}
-                    {/* <div>
+                    <div>
                         <Text strong className="block mb-2">
                             <LinkOutlined className="mr-1" />
                             Attach to Project or Unit Type
@@ -461,7 +518,12 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                             .toLowerCase()
                                             .includes(input.toLowerCase())
                                     }
-                                    options={[]}
+                                    options={selectableUnitTypes.map(
+                                        (ut: DeveloperProjectUnitType) => ({
+                                            label: generatePropertySubtitle(ut),
+                                            value: ut.id,
+                                        }),
+                                    )}
                                     value={attachId}
                                     onChange={setAttachId}
                                 />
@@ -478,7 +540,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                 </Button>
                             )}
                         </div>
-                    </div> */}
+                    </div>
                 </div>
             )}
         </Drawer>

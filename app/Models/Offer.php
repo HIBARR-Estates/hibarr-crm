@@ -19,6 +19,7 @@ class Offer extends BaseModel
         'developer_id',
         'name',
         'description',
+        'links',
         'type',
         'value',
         'max_discount_amount',
@@ -36,6 +37,7 @@ class Offer extends BaseModel
         'is_active' => 'boolean',
         'starts_at' => 'date',
         'ends_at' => 'date',
+        'links' => 'array',
     ];
 
     // ── Relationships ────────────────────────────────────────────
@@ -94,6 +96,10 @@ class Offer extends BaseModel
      */
     public function computeDiscount(float $originalAmount): float
     {
+        if ($this->type === OfferType::PERKS) {
+            return 0.0;
+        }
+
         if ($this->type === OfferType::PERCENTAGE) {
             $discount = $originalAmount * ($this->value / 100);
 

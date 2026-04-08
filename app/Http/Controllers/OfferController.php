@@ -98,6 +98,11 @@ class OfferController extends AccountBaseController
             $offer->developerProjects()->attach($request->project_ids);
         }
 
+        // Attach to unit types if provided
+        if ($request->filled('unit_type_ids')) {
+            $offer->unitTypes()->attach($request->unit_type_ids);
+        }
+
         return Reply::successWithData('Offer created successfully', [
             'offer' => $offer->load('developer:id,name'),
         ]);

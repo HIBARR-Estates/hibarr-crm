@@ -75,16 +75,20 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
                                             ? "default"
                                             : offer.type === "percentage"
                                               ? "blue"
-                                              : "green"
+                                              : offer.type === "perks"
+                                                ? "purple"
+                                                : "green"
                                     }
                                     icon={<GiftOutlined />}
                                 >
                                     {offer.name} (
-                                    {offer.type === "percentage"
-                                        ? `${offer.value}%`
-                                        : Number(offer.value).toLocaleString(
-                                              "en-GB",
-                                          )}
+                                    {offer.type === "perks"
+                                        ? "Perk"
+                                        : offer.type === "percentage"
+                                          ? `${offer.value}%`
+                                          : Number(offer.value).toLocaleString(
+                                                "en-GB",
+                                            )}
                                     ){!active && " · Disabled"}
                                 </Tag>
                             );
@@ -129,6 +133,19 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
                         rowKey="id"
                         pagination={false}
                         size="small"
+                        expandable={{
+                            expandedRowRender: (record) => (
+                                <OfferAttachSection
+                                    offers={
+                                        (record.offers ??
+                                            []) as OfferWithPivot[]
+                                    }
+                                    offerableType="unit_type"
+                                    offerableId={record.id}
+                                    onRefresh={handleRefresh}
+                                />
+                            ),
+                        }}
                     />
                 ) : (
                     <Empty
