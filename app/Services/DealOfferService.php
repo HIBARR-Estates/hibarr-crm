@@ -60,7 +60,7 @@ class DealOfferService
                 $offer = $entry['offer'];
                 $discountAmount = $offer->computeDiscount($originalAmount);
 
-                if ($discountAmount <= 0) {
+                if ($discountAmount <= 0 && $offer->type !== \App\Enums\OfferType::PERKS) {
                     continue;
                 }
 
@@ -141,7 +141,7 @@ class DealOfferService
                 $offer = $entry['offer'];
                 $discountAmount = $offer->computeDiscount($originalAmount);
 
-                if ($discountAmount <= 0) {
+                if ($discountAmount <= 0 && $offer->type !== \App\Enums\OfferType::PERKS) {
                     continue;
                 }
 

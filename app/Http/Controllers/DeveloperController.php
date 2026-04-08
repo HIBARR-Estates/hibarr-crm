@@ -41,7 +41,7 @@ class DeveloperController extends AccountBaseController
             });
         }
 
-        $developers = $query->orderBy('name')->paginate(12);
+        $developers = $query->orderBy('name')->paginate($request->get('per_page', 40));
 
         return Inertia::render('Developers/Index', [
             'pageTitle' => 'Developers',
