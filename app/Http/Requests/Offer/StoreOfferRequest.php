@@ -20,13 +20,18 @@ class StoreOfferRequest extends FormRequest
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'type' => ['required', new Enum(OfferType::class)],
-            'value' => 'required|numeric|min:0.01',
+            'value' => 'required_unless:type,perks|nullable|numeric|min:0.01',
             'max_discount_amount' => 'nullable|numeric|min:0.01',
             'is_active' => 'boolean',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
             'project_ids' => 'nullable|array',
             'project_ids.*' => 'integer|exists:developer_projects,id',
+            'unit_type_ids' => 'nullable|array',
+            'unit_type_ids.*' => 'integer|exists:developer_project_unit_types,id',
+            'links' => 'nullable|array',
+            'links.*.label' => 'required|string|max:255',
+            'links.*.url' => 'required|url|max:2048',
         ];
     }
 

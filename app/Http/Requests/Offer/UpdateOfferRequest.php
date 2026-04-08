@@ -20,11 +20,14 @@ class UpdateOfferRequest extends FormRequest
             'name' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
             'type' => ['sometimes', 'required', new Enum(OfferType::class)],
-            'value' => 'sometimes|required|numeric|min:0.01',
+            'value' => 'required_unless:type,perks|nullable|numeric|min:0.01',
             'max_discount_amount' => 'nullable|numeric|min:0.01',
             'is_active' => 'boolean',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
+            'links' => 'nullable|array',
+            'links.*.label' => 'required|string|max:255',
+            'links.*.url' => 'required|url|max:2048',
         ];
     }
 

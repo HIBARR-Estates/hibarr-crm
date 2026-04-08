@@ -10,6 +10,7 @@ import {
     DollarSign,
     FileText,
     Pencil,
+    Gift,
 } from "lucide-react";
 import type { SectionKey } from "../Show";
 
@@ -32,7 +33,11 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
     interiorCount,
     siteplanCount,
 }) => {
-    const navItems: { key: SectionKey; icon: React.ReactNode; label: string }[] = [
+    const navItems: {
+        key: SectionKey;
+        icon: React.ReactNode;
+        label: string;
+    }[] = [
         { key: "overview", icon: <LayoutGrid size={16} />, label: "Overview" },
         { key: "developers", icon: <Users size={16} />, label: "Developer" },
         {
@@ -57,13 +62,13 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
             icon: <Image size={16} />,
             label: `Site Plan (${siteplanCount})`,
         },
-        { key: "pricelist", icon: <DollarSign size={16} />, label: "Price List" },
+        {
+            key: "pricelist",
+            icon: <DollarSign size={16} />,
+            label: "Price List",
+        },
         { key: "pdf", icon: <FileText size={16} />, label: "PDF Files" },
-        // {
-        //     key: "offers",
-        //     icon: <GiftOutlined />,
-        //     label: "Offers",
-        // },
+        { key: "offers", icon: <Gift size={16} />, label: "Offers" },
     ];
 
     return (
@@ -73,7 +78,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                 <div
                     key={item.key}
                     onClick={() => onSelect(item.key)}
-                    className={`flex items-center gap-4 p-2 rounded-md border cursor-pointer hover:${activeSection === item.key? 'bg-gray-600': 'bg-gray-50'} transition-colors ${
+                    className={`flex items-center gap-4 p-2 rounded-md border cursor-pointer hover:${activeSection === item.key ? "bg-gray-600" : "bg-gray-50"} transition-colors ${
                         activeSection === item.key
                             ? "bg-[#1a2a6c] text-white border-[#1a2a6c]"
                             : "bg-white border-gray-200 text-gray-700"

@@ -5,7 +5,7 @@ import type {
     DeveloperProjectUnitType,
 } from "../developerProject";
 
-export type OfferType = "percentage" | "fixed";
+export type OfferType = "percentage" | "fixed" | "perks";
 
 export interface OfferablePivot {
     is_active: boolean;
@@ -20,7 +20,7 @@ export interface Offer {
     name: string;
     description: string | null;
     type: OfferType;
-    value: number;
+    value: number | null;
     max_discount_amount: number | null;
     is_active: boolean;
     starts_at: string | null;
@@ -30,6 +30,8 @@ export interface Offer {
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
+    // Links
+    links?: { label: string; url: string }[] | null;
     // Relations (when loaded)
     developer?: Developer;
     developer_projects?: (DeveloperProject & { pivot?: OfferablePivot })[];
@@ -63,12 +65,14 @@ export interface OfferFormValues {
     name: string;
     description?: string | null;
     type: OfferType;
-    value: number;
+    value?: number | null;
     max_discount_amount?: number | null;
     is_active: boolean;
     starts_at?: string | null;
     ends_at?: string | null;
     project_ids?: number[];
+    unit_type_ids?: number[];
+    links?: { label: string; url: string }[] | null;
 }
 
 export interface PaginatedOfferResponse {
