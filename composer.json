@@ -74,6 +74,7 @@
         "saloonphp/xml-wrangler": "^0.2.0",
         "sentry/sentry-laravel": "^4.2",
         "setasign/fpdf": "^1.8",
+        "socialiteproviders/keycloak": "*",
         "spatie/laravel-backup": "8.*",
         "spatie/laravel-pdf": "*",
         "spiral/roadrunner-cli": "*",

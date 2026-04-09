@@ -177,7 +177,12 @@ const Show = ({
                     />
                 );
             case "developers":
-                return <DevelopersSection developer={project.developer} developerProjects={developerProjects} />;
+                return (
+                    <DevelopersSection
+                        developer={project.developer}
+                        developerProjects={developerProjects}
+                    />
+                );
             case "unit_types":
                 return (
                     <UnitTypesSection
@@ -259,21 +264,26 @@ const Show = ({
                             <span>Back</span>
                         </Link>
                         <span className="text-gray-300">|</span>
-                        <h1 className="text-2xl font-bold text-slate-900 leading-tight">{project.name}</h1>
+                        <h1 className="text-2xl font-bold text-slate-900 leading-tight">
+                            {project.name}
+                        </h1>
                     </div>
                     {project.developer && (
-                        <p className="text-sm text-gray-500 ml-[calc(14px+0.25rem+1px+0.75rem+1px+0.75rem)] mb-0.5">
+                        <p className="text-sm text-gray-500 ml-[calc(14px+0.25rem+1px+0.75rem+1px+0.75rem)] mb-0.5 ">
                             by{" "}
                             <Link
-                                href={route("developers.show", project.developer.id)}
-                                className="text-blue-600 hover:text-blue-800 font-medium"
+                                href={route(
+                                    "developers.show",
+                                    project.developer.id,
+                                )}
+                                className="text-blue-600 hover:text-blue-800 font-medium capitalize"
                             >
                                 {project.developer.name}
                             </Link>
                         </p>
                     )}
                     {project.location?.name && (
-                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5">
+                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5 capitalize">
                             <MapPin size={14} className="text-gray-400" />
                             {project.location.name}
                         </p>

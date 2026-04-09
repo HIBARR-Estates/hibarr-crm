@@ -582,6 +582,9 @@ class EventServiceProvider extends ServiceProvider
         SubmitWeeklyTimesheet::class => [SubmitWeeklyTimesheetListener::class],
         WeeklyTimesheetApprovedEvent::class => [WeeklyTimesheetApprovedListener::class],
         WeeklyTimesheetDraftEvent::class => [WeeklyTimesheetDraftListener::class],
+        \SocialiteProviders\Manager\SocialiteWasCalled::class => [
+            \SocialiteProviders\Keycloak\KeycloakExtendSocialite::class . '@handle',
+        ],
     ];
 
     protected $observers = [
