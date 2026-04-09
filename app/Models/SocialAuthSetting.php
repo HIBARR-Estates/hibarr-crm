@@ -47,6 +47,15 @@ class SocialAuthSetting extends BaseModel
     protected $table = 'social_auth_settings';
     protected $guarded = ['id'];
 
+    public function fromEncryptedString($value)
+    {
+        if (is_null($value) || $value === '') {
+            return null;
+        }
+
+        return parent::fromEncryptedString($value);
+    }
+
     protected $appends = ['social_auth_enable', 'social_auth_enable_count'];
 
     protected $casts = [
