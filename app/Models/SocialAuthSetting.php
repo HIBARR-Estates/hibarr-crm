@@ -53,7 +53,11 @@ class SocialAuthSetting extends BaseModel
             return null;
         }
 
-        return parent::fromEncryptedString($value);
+        try {
+            return parent::fromEncryptedString($value);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            return null;
+        }
     }
 
     protected $appends = ['social_auth_enable', 'social_auth_enable_count'];
