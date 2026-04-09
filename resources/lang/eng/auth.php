@@ -24,6 +24,7 @@ return [
     'signInFacebook' => 'Sign in with Facebook',
     'signInLinkedin' => 'Sign in with LinkedIn',
     'signInTwitter' => 'Sign in with Twitter',
+    'signInKeycloak' => 'Sign in with SSO',
     'useEmail' => 'or, use email address',
     'email' => 'Email Address',
     'next' => 'Next',

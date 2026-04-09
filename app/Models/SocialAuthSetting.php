@@ -54,6 +54,7 @@ class SocialAuthSetting extends BaseModel
         'google_secret_id' => 'encrypted',
         'linkedin_secret_id' => 'encrypted',
         'twitter_secret_id' => 'encrypted',
+        'keycloak_secret_id' => 'encrypted',
     ];
 
     public function getSocialAuthEnableAttribute()
@@ -62,7 +63,8 @@ class SocialAuthSetting extends BaseModel
             $this->linkedin_status,
             $this->google_status,
             $this->twitter_status,
-            $this->facebook_status
+            $this->facebook_status,
+            $this->keycloak_status,
         ]);
     }
 
@@ -72,7 +74,8 @@ class SocialAuthSetting extends BaseModel
             $this->linkedin_status,
             $this->google_status,
             $this->twitter_status,
-            $this->facebook_status
+            $this->facebook_status,
+            $this->keycloak_status,
         ];
 
         return count(array_filter($statuses, function ($status) {

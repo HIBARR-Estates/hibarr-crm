@@ -34,6 +34,12 @@ trait SocialAuthSettings
         Config::set('services.linkedin-openid.client_id', ($settings->linkedin_client_id) ?: env('LINKEDIN_CLIENT_ID'));
         Config::set('services.linkedin-openid.client_secret', ($settings->linkedin_secret_id) ?: env('LINKEDIN_CLIENT_SECRET'));
         Config::set('services.linkedin-openid.redirect', $this->updateMainAppUrl(route('social_login_callback', 'linkedin')));
+
+        Config::set('services.keycloak.client_id', ($settings->keycloak_client_id) ?: env('KEYCLOAK_CLIENT_ID'));
+        Config::set('services.keycloak.client_secret', ($settings->keycloak_secret_id) ?: env('KEYCLOAK_CLIENT_SECRET'));
+        Config::set('services.keycloak.redirect', $this->updateMainAppUrl(route('social_login_callback', 'keycloak')));
+        Config::set('services.keycloak.base_url', ($settings->keycloak_base_url) ?: env('KEYCLOAK_BASE_URL'));
+        Config::set('services.keycloak.realms', ($settings->keycloak_realm) ?: env('KEYCLOAK_REALM'));
     }
 
     private function updateMainAppUrl($url)

@@ -30,6 +30,7 @@ class SocialAuthSettingController extends AccountBaseController
             'facebook' => 'social-login-settings.ajax.facebook',
             'twitter' => 'social-login-settings.ajax.twitter',
             'linkedin' => 'social-login-settings.ajax.linkedin',
+            'keycloak' => 'social-login-settings.ajax.keycloak',
             default => 'social-login-settings.ajax.google',
         };
 
@@ -69,6 +70,14 @@ class SocialAuthSettingController extends AccountBaseController
             $socialAuth->google_client_id = $request->google_client_id;
             $socialAuth->google_secret_id  = $request->google_secret_id;
             $socialAuth->google_status = $request->google_status ? 'enable' : 'disable';
+        }
+
+        if($request->tab == 'keycloak') {
+            $socialAuth->keycloak_client_id = $request->keycloak_client_id;
+            $socialAuth->keycloak_secret_id = $request->keycloak_secret_id;
+            $socialAuth->keycloak_base_url  = $request->keycloak_base_url;
+            $socialAuth->keycloak_realm     = $request->keycloak_realm;
+            $socialAuth->keycloak_status = $request->keycloak_status ? 'enable' : 'disable';
         }
 
         $socialAuth->save();
