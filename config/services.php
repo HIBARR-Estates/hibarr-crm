@@ -86,4 +86,12 @@ return [
         'timeout' => env('PROPERTY_RECOMMENDATION_API_TIMEOUT', 30),
         'cache_ttl' => env('PROPERTY_RECOMMENDATION_CACHE_TTL', 900), // 15 minutes
     ],
+
+    'keycloak' => [
+        'client_id'     => env('KEYCLOAK_CLIENT_ID'),
+        'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),
+        'redirect'      => env('KEYCLOAK_REDIRECT_URI'),
+        'base_url'      => env('KEYCLOAK_BASE_URL'),
+        'realms'        => env('KEYCLOAK_REALM'),
+    ],
 ];

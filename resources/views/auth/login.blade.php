@@ -8,6 +8,7 @@
             const google = "{{ route('social_login', 'google') }}";
             const twitter = "{{ route('social_login', 'twitter-oauth-2') }}";
             const linkedin = "{{ route('social_login', 'linkedin-openid') }}";
+            const keycloak = "{{ route('social_login', 'keycloak') }}";
         </script>
 
         @if ($socialAuthSettings->google_status == 'enable')
@@ -31,6 +32,12 @@
             <a class="mb-3 height_50 rounded f-w-500" onclick="window.location.href = linkedin;">
                 <span><img src="{{ asset('img/linkedin.png') }}" alt="Google"/></span>
                 @lang('auth.signInLinkedin')
+            </a>
+        @endif
+        @if ($socialAuthSettings->keycloak_status == 'enable')
+            <a class="mb-3 height_50 rounded f-w-500" onclick="window.location.href = keycloak;">
+                <span><i class="fa fa-shield-alt" style="font-size: 18px;"></i></span>
+                @lang('auth.signInKeycloak')
             </a>
         @endif
 
