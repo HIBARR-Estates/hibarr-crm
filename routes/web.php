@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\DealGatheringController;
+use App\Http\Controllers\DealPropertyController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AwardController;
@@ -629,6 +630,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
+
+    // Deal Properties (attach/detach)
+    Route::group(['prefix' => 'deals', 'as' => 'deals.'], function () {
+        Route::get('properties/search', [DealPropertyController::class, 'searchProperties'])->name('properties.search');
+        Route::get('properties/project-unit-types/{project}', [DealPropertyController::class, 'projectUnitTypes'])->name('properties.unit_types');
+        Route::get('{deal}/properties', [DealPropertyController::class, 'index'])->name('properties.index');
+        Route::post('{deal}/properties', [DealPropertyController::class, 'store'])->name('properties.store');
+        Route::delete('{deal}/properties/{product}', [DealPropertyController::class, 'destroy'])->name('properties.destroy');
+    });
 
     // Property Recommendations
     Route::group(['prefix' => 'deals/{deal}/recommendations', 'as' => 'deals.recommendations.'], function () {

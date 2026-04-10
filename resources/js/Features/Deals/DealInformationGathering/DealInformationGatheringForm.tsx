@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Modal, message, Button, Skeleton, Alert } from "antd";
-import { LockOutlined } from "@ant-design/icons";
+import { LockOutlined, HomeOutlined } from "@ant-design/icons";
 import StepOne from "./StepOne";
 import CustomFieldStep from "./CustomFieldStep";
 import ModernSteps from "./ModernSteps";
@@ -10,6 +10,7 @@ import { isLoading } from "@/lib/utils";
 import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import { ApiResponse } from "@/lib/api/types";
+import AttachPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 
 interface Props {
     open: boolean;
@@ -30,6 +31,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     const [deal, setDeal] = useState<any>(null);
     const [lead, setLead] = useState<any>(null);
     const [autoInitializing, setAutoInitializing] = useState(false);
+    const [propertyModalOpen, setPropertyModalOpen] = useState(false);
 
     const isEditMode = !!editDeal;
     // When a lead is pre-set and we're creating (not editing), skip StepOne entirely
@@ -320,6 +322,28 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                     >
                         {renderContent()}
                     </div>
+
+                    {/* Attach Properties action — available once a deal exists */}
+                    {(deal || editDeal) && (
+                        <>
+                            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+                                <Button
+                                    type="default"
+                                    icon={<HomeOutlined />}
+                                    onClick={() => setPropertyModalOpen(true)}
+                                    size="small"
+                                >
+                                    Attach Properties
+                                </Button>
+                            </div>
+                            <AttachPropertiesModal
+                                open={propertyModalOpen}
+                                onClose={() => setPropertyModalOpen(false)}
+                                deal={deal || editDeal!}
+                                onRefresh={() => {}}
+                            />
+                        </>
+                    )}
                 </div>
             </Skeleton>
         </Modal>
