@@ -11,7 +11,9 @@ import {
 import type { MenuProps } from "antd";
 import type { DeveloperProject } from "@/Types/developerProject";
 
-function formatCompletionDate(dateStr: string | null | undefined): string | null {
+function formatCompletionDate(
+    dateStr: string | null | undefined,
+): string | null {
     if (!dateStr) return null;
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
@@ -24,11 +26,16 @@ interface ProjectCardProps {
     onDelete?: (project: DeveloperProject) => void;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({
+    project,
+    onEdit,
+    onDelete,
+}) => {
     const hasProperties = (project.properties_count ?? 0) > 0;
     const soldCount = project.sold_properties_count ?? 0;
     const totalCount = project.properties_count ?? 0;
-    const soldPct = totalCount > 0 ? Math.round((soldCount / totalCount) * 100) : 0;
+    const soldPct =
+        totalCount > 0 ? Math.round((soldCount / totalCount) * 100) : 0;
 
     // First project photo from assets
     const firstPhoto = project.assets?.[0]?.url ?? null;
@@ -37,7 +44,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
         {
             key: "view",
             label: (
-                <Link href={route("developer-projects.show", project.id)} className="flex items-center gap-2">
+                <Link
+                    href={route("developer-projects.show", project.id)}
+                    className="flex items-center gap-2"
+                >
                     <Eye size={13} />
                     View
                 </Link>
@@ -46,7 +56,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
         {
             key: "edit",
             label: (
-                <span className="flex items-center gap-2" onClick={() => onEdit?.(project)}>
+                <span
+                    className="flex items-center gap-2"
+                    onClick={() => onEdit?.(project)}
+                >
                     <Pencil size={13} />
                     Edit
                 </span>
@@ -75,7 +88,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
 
     return (
         <div
-            onClick={() => router.visit(route("developer-projects.show", project.id))}
+            onClick={() =>
+                router.visit(route("developer-projects.show", project.id))
+            }
             className="group relative bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
         >
             {/* ── Developer logo strip ── */}
@@ -87,7 +102,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                         className="max-h-full w-full object-contain"
                     />
                 ) : (
-                    <span className="text-[11px] font-semibold text-gray-400 truncate px-2">
+                    <span className="text-[11px] font-semibold text-gray-400 truncate px-2 capitalize">
                         {project.developer?.name ?? ""}
                     </span>
                 )}
@@ -97,16 +112,20 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
             <div className="relative h-48 overflow-hidden flex items-center justify-center bg-gray-50">
                 {/* Context menu — only visible on hover, only when handlers provided */}
                 {(onEdit != null || onDelete != null) && (
-                <div
-                    className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
-                        <button className="w-7 h-7 flex items-center justify-center bg-white/90 rounded-md shadow text-gray-600 hover:bg-white transition-colors cursor-pointer">
-                            <MoreHorizontal size={16} />
-                        </button>
-                    </Dropdown>
-                </div>
+                    <div
+                        className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <Dropdown
+                            menu={{ items: menuItems }}
+                            trigger={["click"]}
+                            placement="bottomRight"
+                        >
+                            <button className="w-7 h-7 flex items-center justify-center bg-white/90 rounded-md shadow text-gray-600 hover:bg-white transition-colors cursor-pointer">
+                                <MoreHorizontal size={16} />
+                            </button>
+                        </Dropdown>
+                    </div>
                 )}
 
                 {firstPhoto ? (
@@ -125,8 +144,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
 
                 {/* Percentage sold badge */}
                 <div className="absolute top-2.5 left-2.5 flex flex-col items-center justify-center bg-black/60 rounded px-2 py-1 min-w-[44px]">
-                    <span className="text-[15px] font-extrabold text-white leading-none">{soldPct}%</span>
-                    <span className="text-[9px] font-bold text-white/90 tracking-widest uppercase leading-none mt-0.5">SOLD</span>
+                    <span className="text-[15px] font-extrabold text-white leading-none">
+                        {soldPct}%
+                    </span>
+                    <span className="text-[9px] font-bold text-white/90 tracking-widest uppercase leading-none mt-0.5">
+                        SOLD
+                    </span>
                 </div>
             </div>
 
@@ -141,23 +164,38 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                         <MapPin size={11} className="text-gray-300 shrink-0" />
                         {project.location.name}
                     </p>
-                ) : <p className="text-xs text-gray-400 mb-3">No location</p>}
+                ) : (
+                    <p className="text-xs text-gray-400 mb-3">No location</p>
+                )}
 
                 <div className="grid grid-cols-2 divide-x divide-gray-100 border-t border-gray-100 pt-2.5 gap-0">
                     {/* Left — price or property count */}
                     <div className="pr-3">
                         {project.starting_price ? (
                             <>
-                                <p className="text-[10px] text-gray-400 mb-0.5">Price From</p>
+                                <p className="text-[10px] text-gray-400 mb-0.5">
+                                    Price From
+                                </p>
                                 <p className="font-bold text-sm text-slate-900">
-                                    {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 }).format(Number(project.starting_price))}
+                                    {new Intl.NumberFormat("en-GB", {
+                                        style: "currency",
+                                        currency: "GBP",
+                                        maximumFractionDigits: 0,
+                                    }).format(Number(project.starting_price))}
                                 </p>
                             </>
                         ) : (
                             <>
-                                <p className="text-[10px] text-gray-400 mb-0.5">Properties</p>
-                                <p className={`text-sm font-semibold ${hasProperties ? "text-green-600" : "text-gray-400"}`}>
-                                    <Building2 size={11} className="inline mr-1" />
+                                <p className="text-[10px] text-gray-400 mb-0.5">
+                                    Properties
+                                </p>
+                                <p
+                                    className={`text-sm font-semibold ${hasProperties ? "text-green-600" : "text-gray-400"}`}
+                                >
+                                    <Building2
+                                        size={11}
+                                        className="inline mr-1"
+                                    />
                                     {project.properties_count ?? 0}
                                 </p>
                             </>
@@ -168,9 +206,13 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
                     <div className="pl-3 text-right flex flex-col items-end gap-1">
                         {project.completion_date && (
                             <div>
-                                <p className="text-[10px] text-gray-400 mb-0.5">Completion</p>
+                                <p className="text-[10px] text-gray-400 mb-0.5">
+                                    Completion
+                                </p>
                                 <p className="text-[11px] font-semibold text-gray-600">
-                                    {formatCompletionDate(project.completion_date)}
+                                    {formatCompletionDate(
+                                        project.completion_date,
+                                    )}
                                 </p>
                             </div>
                         )}
@@ -182,4 +224,3 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete }) 
 };
 
 export default ProjectCard;
-
