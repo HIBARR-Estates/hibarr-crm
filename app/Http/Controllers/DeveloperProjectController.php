@@ -112,12 +112,17 @@ class DeveloperProjectController extends AccountBaseController
             ->findOrFail($id);
 
         // Calculate statistics
-        $totalProperties = $project->properties->count();
+        $totalUnits = $project->unitTypes->sum('quantity');
         $soldProperties = $project->properties->where('status', Property::STATUS_SOLD)->count();
-        $soldPercentage = $totalProperties > 0 ? round(($soldProperties / $totalProperties) * 100, 1) : 0;
+        $underOfferProperties = $project->properties->where('status', Property::STATUS_UNDER_OFFER)->count();
 
-        // Get property types summary with stats
-        $propertyTypesSummary = $this->getPropertyTypesSummary($project->properties);
+        // Find lowest starting price across unit types
+        $lowestPriceUnit = $project->unitTypes->whereNotNull('starting_price')->sortBy('starting_price')->first();
+        $startingPrice = $lowestPriceUnit ? (float) $lowestPriceUnit->starting_price : null;
+        $startingPriceFormatted = $lowestPriceUnit ? $lowestPriceUnit->formatted_price : null;
+
+        // Build unit types summary (grouped by property_type)
+        $unitTypesSummary = $this->getUnitTypesSummary($project->unitTypes);
 
         // Get aggregated facilities from properties
         $facilities = $this->getAggregatedFacilities($project);
@@ -153,13 +158,13 @@ class DeveloperProjectController extends AccountBaseController
             'pageTitle' => $project->name,
             'project' => $project,
             'statistics' => [
-                'total_properties' => $totalProperties,
+                'total_units' => $totalUnits,
                 'sold_properties' => $soldProperties,
-                'sold_percentage' => $soldPercentage,
-                'available_properties' => $project->properties->where('status', Property::STATUS_AVAILABLE)->count(),
-                'under_offer_properties' => $project->properties->where('status', Property::STATUS_UNDER_OFFER)->count(),
+                'under_offer_properties' => $underOfferProperties,
+                'starting_price' => $startingPrice,
+                'starting_price_formatted' => $startingPriceFormatted,
             ],
-            'propertyTypesSummary' => $propertyTypesSummary,
+            'unitTypesSummary' => $unitTypesSummary,
             'facilities' => $facilities,
             'imagesByTag' => $imagesByTag,
             'priceList' => $priceList,
@@ -169,24 +174,24 @@ class DeveloperProjectController extends AccountBaseController
     }
 
     /**
-     * Get property types summary with bedroom/bathroom/area/price ranges.
+     * Get unit types summary grouped by property_type with aggregated stats.
      */
-    private function getPropertyTypesSummary($properties)
+    private function getUnitTypesSummary($unitTypes)
     {
-        $grouped = $properties->groupBy('property_type');
+        $grouped = $unitTypes->groupBy('property_type');
         $summary = [];
 
-        foreach ($grouped as $type => $props) {
+        foreach ($grouped as $type => $types) {
             if (empty($type)) continue;
 
-            $bedrooms = $props->pluck('bedrooms')->filter()->map(fn($b) => (int)$b);
-            $bathrooms = $props->pluck('bathrooms')->filter();
-            $areas = $props->pluck('area')->filter()->map(fn($a) => (float)preg_replace('/[^0-9.]/', '', $a));
-            $prices = $props->pluck('price')->filter();
+            $bedrooms = $types->pluck('bedrooms')->filter();
+            $bathrooms = $types->pluck('bathrooms')->filter();
+            $areas = $types->pluck('total_area_sqm')->filter()->map(fn($a) => (float) $a);
+            $prices = $types->pluck('starting_price')->filter()->map(fn($p) => (float) $p);
 
             $summary[] = [
                 'type' => $type,
-                'count' => $props->count(),
+                'quantity' => $types->sum('quantity'),
                 'bedrooms' => [
                     'min' => $bedrooms->min(),
                     'max' => $bedrooms->max(),

@@ -275,6 +275,11 @@ export interface PropertySummary {
     land_size: string | null;
     status: string | null;
     photos: string[] | null;
+    developer_project?: {
+        id: number;
+        name: string;
+        availability_link: string | null;
+    } | null;
 }
 
 export interface Product {

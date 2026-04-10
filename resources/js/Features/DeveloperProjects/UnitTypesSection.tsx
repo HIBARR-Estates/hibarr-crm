@@ -208,6 +208,12 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
             {/* ── Stats row ── */}
             <div className="px-4 py-3 flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    {ut.quantity != null && ut.quantity > 1 && (
+                        <span className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Qty</span>
+                            <span className="font-semibold text-gray-800">{ut.quantity}</span>
+                        </span>
+                    )}
                     {ut.bedrooms != null && (
                         <span className="flex items-center gap-1">
                             <span className="text-[10px] text-gray-400 uppercase tracking-wide">Bed</span>

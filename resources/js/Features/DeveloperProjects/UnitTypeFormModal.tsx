@@ -83,6 +83,7 @@ interface UnitTypeFormValues {
     has_restrictions: boolean;
     restriction_notes: string | null;
     reference_code: string | null;
+    quantity: number | null;
 }
 
 interface UnitTypeFormModalProps {
@@ -122,6 +123,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     const [localUnitType, setLocalUnitType] =
         useState<DeveloperProjectUnitType | null>(null);
     const saveForUploadRef = useRef(false);
+    const isPopulatingRef = useRef(false);
 
     // The effective unit type is the prop (edit mode) or the locally-saved one (save & continue)
     // In duplicate mode, don't use editingItem as the effective unit type — it's a new record
@@ -201,6 +203,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
     useEffect(() => {
         if (open && editingItem) {
+            isPopulatingRef.current = true;
             form.setFieldsValue({
                 primary_category: editingItem.primary_category,
                 property_type: editingItem.property_type,
@@ -242,6 +245,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 reference_code: isDuplicating
                     ? null
                     : editingItem?.reference_code,
+                quantity: editingItem.quantity ?? 1,
             });
         } else if (open) {
             form.resetFields();
@@ -253,6 +257,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 view_types: [],
                 outside_features: [],
                 inside_features: [],
+                quantity: 1,
             });
         }
     }, [open, editingItem, isDuplicating, form]);
@@ -261,6 +266,11 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
     useEffect(() => {
         if (!open) return;
+        // Skip reset on initial form population (edit mode)
+        if (isPopulatingRef.current) {
+            isPopulatingRef.current = false;
+            return;
+        }
         const currentType = form.getFieldValue("property_type");
         const validValues = propertyTypeOptions.map((o) => o.value);
         if (currentType && !validValues.includes(currentType)) {
@@ -428,6 +438,22 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                                     value: o.value,
                                     label: o.label,
                                 }))}
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={16}>
+                    <Col span={12}>
+                        <Form.Item
+                            name="quantity"
+                            label="Quantity"
+                            tooltip="Number of units of this type"
+                        >
+                            <InputNumber
+                                min={1}
+                                placeholder="1"
+                                className="!w-full"
                             />
                         </Form.Item>
                     </Col>

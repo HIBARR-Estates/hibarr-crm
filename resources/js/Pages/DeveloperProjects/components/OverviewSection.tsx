@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type {
     ShowProps,
-    PropertyTypeSummary,
+    UnitTypeSummary,
     Statistics,
     ImageItem,
 } from "../Show";
@@ -39,14 +39,14 @@ const StatCard: React.FC<{
 interface OverviewSectionProps {
     project: ShowProps["project"];
     statistics: Statistics;
-    propertyTypesSummary: PropertyTypeSummary[];
+    unitTypesSummary: UnitTypeSummary[];
     imagesByTag?: Record<string, ImageItem[]>;
 }
 
 const OverviewSection: React.FC<OverviewSectionProps> = ({
     project,
     statistics,
-    propertyTypesSummary,
+    unitTypesSummary,
     imagesByTag,
 }) => {
     const [imgError, setImgError] = useState(false);
@@ -80,7 +80,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
         return `${min} - ${max}`;
     };
 
-    const columns: TableColumnsType<PropertyTypeSummary> = [
+    const columns: TableColumnsType<UnitTypeSummary> = [
         {
             title: "Property Type",
             dataIndex: "type",
@@ -90,9 +90,9 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
             ),
         },
         {
-            title: "Count",
-            dataIndex: "count",
-            key: "count",
+            title: "Quantity",
+            dataIndex: "quantity",
+            key: "quantity",
             align: "center",
         },
         {
@@ -148,13 +148,13 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                 <div className="flex flex-wrap gap-3 mb-9">
                     <StatCard
                         icon={<Building2 size={22} />}
-                        value={statistics.total_properties}
-                        label="Total Properties"
+                        value={statistics.total_units}
+                        label="Total Units"
                     />
                     <StatCard
-                        icon={<CheckCircle2 size={22} />}
-                        value={statistics.available_properties}
-                        label="Available"
+                        icon={<TrendingUp size={22} />}
+                        value={statistics.starting_price_formatted ?? "-"}
+                        label="Starting From"
                     />
                     <StatCard
                         icon={<Clock size={22} />}
@@ -162,8 +162,8 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                         label="Under Offer"
                     />
                     <StatCard
-                        icon={<TrendingUp size={22} />}
-                        value={`${statistics.sold_percentage}%`}
+                        icon={<CheckCircle2 size={22} />}
+                        value={statistics.sold_properties}
                         label="Sold"
                     />
                 </div>
@@ -192,18 +192,18 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                 </div>
             </div>
 
-            {/* ── Property Types Table ──────────────────────────────── */}
-            <Card title="Property Types">
-                {propertyTypesSummary.length > 0 ? (
+            {/* ── Units Table ──────────────────────────────────────────── */}
+            <Card title="Units">
+                {unitTypesSummary.length > 0 ? (
                     <Table
                         columns={columns}
-                        dataSource={propertyTypesSummary}
+                        dataSource={unitTypesSummary}
                         rowKey="type"
                         pagination={false}
                         size="small"
                     />
                 ) : (
-                    <Empty description="No properties assigned to this project" />
+                    <Empty description="No unit types added to this project" />
                 )}
             </Card>
         </div>
