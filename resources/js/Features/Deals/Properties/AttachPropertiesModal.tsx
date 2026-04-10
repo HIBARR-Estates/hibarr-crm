@@ -717,7 +717,7 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                                     ) && (
                                                         <span className="font-semibold text-blue-600">
                                                             {formatPrice(
-                                                                prop.price,
+                                                                prop?.price,
                                                             )}
                                                         </span>
                                                     )}
