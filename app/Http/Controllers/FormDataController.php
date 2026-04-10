@@ -41,7 +41,7 @@ class FormDataController extends Controller
         $allowedTypes = [
             'salutations', 'genders', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries',
-            'lead-agents', 'client-categories', 'languages', 'leads', 'packages', 'developer-projects'
+            'lead-agents', 'client-categories', 'languages', 'leads', 'packages', 'developer-projects', 'developer_projects'
         ];
 
         if (!in_array($type, $allowedTypes)) {
