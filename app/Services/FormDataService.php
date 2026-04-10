@@ -6,6 +6,7 @@ use App\Enums\Salutation;
 use App\Models\ClientCategory;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
+use App\Models\DeveloperProject;
 use App\Models\LanguageSetting;
 use App\Models\Lead;
 use App\Models\LeadAgent;
@@ -59,6 +60,9 @@ class FormDataService
                 return $this->getLeads($request);
             case 'packages':
                 return $this->getPackages($request);
+            case 'developer_projects':
+            case 'developer-projects':
+                return $this->getDeveloperProjects($request);
             default:
                 return collect();
         }
@@ -243,6 +247,19 @@ class FormDataService
     private function getPackages(Request $request) {
         $query = Package::select('id', 'name', 'value')
             ->orderBy('id', 'asc');
+
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->get('search') . '%');
+        }
+
+        return $this->paginateIfRequested($query, $request);
+    }
+
+    private function getDeveloperProjects(Request $request)
+    {
+        $query = DeveloperProject::select('id', 'name', 'developer_id', 'project_location_id', 'availability_link')
+            ->with(['developer:id,name'])
+            ->where('company_id', company()->id);
 
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->get('search') . '%');
