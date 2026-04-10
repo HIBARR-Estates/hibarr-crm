@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Modal, Form, Input, Alert, Select, Typography } from "antd";
+import { Modal, Form, Input, Alert, Select, Typography, InputNumber, Divider, Row, Col } from "antd";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import type {
@@ -8,6 +8,7 @@ import type {
     ConfigTypeSlug,
     ConfigCategoryMeta,
 } from "@/Types/propertyConfig";
+import { DISTANCE_FIELDS } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
 
 const { Text } = Typography;
 
@@ -100,10 +101,20 @@ const ConfigItemModal = ({
                 city_id: editingItem.city_id ?? undefined,
                 category: editingItem.category ?? undefined,
             });
+
+            // Populate default distances for cities
+            if (activeType === "cities" && (editingItem as any).default_distances) {
+                const distances = (editingItem as any).default_distances;
+                DISTANCE_FIELDS.forEach((field) => {
+                    if (distances[field.key] != null) {
+                        form.setFieldValue(["default_distances", field.key], distances[field.key]);
+                    }
+                });
+            }
         } else if (open) {
             form.resetFields();
         }
-    }, [open, editingItem, form]);
+    }, [open, editingItem, form, activeType]);
 
     const handleSubmit = () => {
         form.validateFields().then((values) => {
@@ -127,6 +138,13 @@ const ConfigItemModal = ({
 
             if (activeType === "property-types" && values.category) {
                 payload.category = values.category;
+            }
+
+            if (activeType === "cities") {
+                const distances = (values as any).default_distances;
+                if (distances) {
+                    (payload as any).default_distances = distances;
+                }
             }
 
             if (isEditing) {
@@ -154,7 +172,7 @@ const ConfigItemModal = ({
             okButtonProps={{ loading: isLoading }}
             cancelButtonProps={{ disabled: isLoading }}
             destroyOnClose
-            width={520}
+            width={activeType === "cities" ? 640 : 520}
         >
             <div className="pt-4">
                 <Alert
@@ -256,6 +274,33 @@ const ConfigItemModal = ({
                             placeholder="Optional description..."
                         />
                     </Form.Item>
+
+                    {activeType === "cities" && (
+                        <>
+                            <Divider orientation="left" plain>
+                                Default Distances (km)
+                            </Divider>
+                            <Row gutter={[12, 0]}>
+                                {DISTANCE_FIELDS.map((field) => (
+                                    <Col xs={12} md={8} key={field.key}>
+                                        <Form.Item
+                                            name={["default_distances", field.key]}
+                                            label={field.label}
+                                        >
+                                            <InputNumber
+                                                min={0}
+                                                max={500}
+                                                step={0.1}
+                                                placeholder="0.0"
+                                                style={{ width: "100%" }}
+                                                addonAfter="km"
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                ))}
+                            </Row>
+                        </>
+                    )}
                 </Form>
             </div>
         </Modal>
