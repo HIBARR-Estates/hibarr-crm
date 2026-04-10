@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
     Form,
     Select,
@@ -10,7 +10,7 @@ import {
     Divider,
 } from "antd";
 import type { FormInstance } from "antd/lib/form";
-import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
+import type { CityLookupValue, PrimaryCategory, PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
 
@@ -82,6 +82,31 @@ const LocationSection: React.FC<LocationSectionProps> = ({
     // Clear area when city changes
     useEffect(() => {
         form.setFieldValue("area", undefined);
+    }, [selectedCity]);
+
+    // Auto-fill distance fields from city defaults (only empty fields)
+    const isInitialCity = useRef(true);
+    useEffect(() => {
+        if (isInitialCity.current) {
+            isInitialCity.current = false;
+            return;
+        }
+        if (!selectedCity || !enumValues?.cities) return;
+        const cityObj = enumValues.cities.find(
+            (c: CityLookupValue) => c.name === selectedCity,
+        );
+        const defaults = cityObj?.default_distances;
+        if (!defaults) return;
+
+        DISTANCE_FIELDS.forEach((field) => {
+            const current = form.getFieldValue(["distances", field.key]);
+            if (current == null || current === "") {
+                const defaultVal = defaults[field.key as keyof typeof defaults];
+                if (defaultVal != null) {
+                    form.setFieldValue(["distances", field.key], defaultVal);
+                }
+            }
+        });
     }, [selectedCity]);
 
     return (

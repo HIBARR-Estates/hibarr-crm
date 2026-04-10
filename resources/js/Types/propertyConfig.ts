@@ -2,6 +2,8 @@
  * Types for Property Configuration / Lookup Tables management.
  */
 
+import { DefaultDistances } from ".";
+
 /** A single item from any of the 9 property lookup tables. */
 export interface PropertyConfigItem {
     id: number;
@@ -28,6 +30,7 @@ export interface PropertyConfigPayload {
     parent_type?: string;
     city_id?: number;
     category?: string;
+    default_distances?: DefaultDistances;
 }
 
 /** Summary returned by GET /property-config/types */

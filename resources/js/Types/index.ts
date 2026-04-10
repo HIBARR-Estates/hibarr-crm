@@ -368,13 +368,28 @@ export interface LookupValue {
     label: string;
 }
 
+/** Distance defaults that can be configured per city */
+export interface DefaultDistances {
+    market_km?: number | null;
+    hospital_km?: number | null;
+    airport_km?: number | null;
+    school_km?: number | null;
+    beach_km?: number | null;
+    sea_km?: number | null;
+}
+
+/** City lookup value with optional default distances */
+export interface CityLookupValue extends LookupValue {
+    default_distances?: DefaultDistances | null;
+}
+
 export interface PropertyEnumValues {
     primary_categories: LookupValue[];
     unit_styles: LookupValue[];
     construction_statuses: LookupValue[];
     view_types: LookupValue[];
     occupancy_types: LookupValue[];
-    cities: LookupValue[];
+    cities: CityLookupValue[];
     areas: LookupValue[];
     deed_types: LookupValue[];
     deed_statuses: LookupValue[];
