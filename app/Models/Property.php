@@ -1344,7 +1344,7 @@ class Property extends BaseModel
             'construction_statuses' => self::getLookupValues(PropertyConstructionStatus::class, self::CONSTRUCTION_STATUSES),
             'view_types'            => self::getLookupValues(PropertyViewType::class, self::VIEW_TYPES),
             'occupancy_types'       => self::getLookupValues(PropertyOccupancyType::class, self::OCCUPANCY_TYPES),
-            'cities'                => self::getLookupValues(PropertyCity::class, self::CITIES),
+            'cities'                => self::getCityLookupValues(),
             'deed_types'            => self::getLookupValues(PropertyTitleDeedType::class, self::DEED_TYPES),
             'deed_statuses'         => self::getLookupValues(PropertyDeedStatus::class, self::DEED_STATUSES),
             'land_types'            => self::getLookupValues(PropertyPrimaryCategory::class, self::LAND_TYPES), // kept for backward compat
@@ -1481,6 +1481,34 @@ class Property extends BaseModel
 
         // Return fallback as [{name, label}] format, sorted alphabetically
         $items = array_map(fn($name) => ['name' => $name, 'label' => $name], $fallback);
+        usort($items, fn($a, $b) => strcasecmp($a['label'], $b['label']));
+        return $items;
+    }
+
+    /**
+     * Get city lookup values including default_distances.
+     */
+    private static function getCityLookupValues(): array
+    {
+        try {
+            $values = PropertyCity::select('name', 'label', 'default_distances')
+                ->orderBy('label')
+                ->get()
+                ->map(fn($city) => [
+                    'name'              => $city->name,
+                    'label'             => $city->label,
+                    'default_distances' => $city->default_distances,
+                ])
+                ->toArray();
+
+            if (!empty($values)) {
+                return $values;
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        $items = array_map(fn($name) => ['name' => $name, 'label' => $name, 'default_distances' => null], self::CITIES);
         usort($items, fn($a, $b) => strcasecmp($a['label'], $b['label']));
         return $items;
     }

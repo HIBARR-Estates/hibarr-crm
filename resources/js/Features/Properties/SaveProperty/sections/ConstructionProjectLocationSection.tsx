@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { Form, Select, Input, InputNumber, Row, Col, Alert } from "antd";
 import type { FormInstance } from "antd/lib/form";
-import type { PropertyEnumValues } from "@/Types";
+import type { CityLookupValue, PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
 import { DeveloperProject } from "@/Types/developerProject";
@@ -59,6 +59,24 @@ const ConstructionProjectLocationSection: React.FC<
             "area",
             project?.location?.area ? project?.location?.area : undefined,
         );
+
+        // Auto-fill distance fields from city defaults (only empty fields)
+        if (!selectedCity || !enumValues?.cities) return;
+        const cityObj = enumValues.cities.find(
+            (c: CityLookupValue) => c.name === selectedCity,
+        );
+        const defaults = cityObj?.default_distances;
+        if (!defaults) return;
+
+        DISTANCE_FIELDS.forEach((field) => {
+            const current = form.getFieldValue(["distances", field.key]);
+            if (current == null || current === "") {
+                const defaultVal = defaults[field.key as keyof typeof defaults];
+                if (defaultVal != null) {
+                    form.setFieldValue(["distances", field.key], defaultVal);
+                }
+            }
+        });
     }, [selectedCity]);
 
     return (
