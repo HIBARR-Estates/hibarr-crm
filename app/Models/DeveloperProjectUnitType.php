@@ -170,7 +170,8 @@ class DeveloperProjectUnitType extends BaseModel
         'reference_code',
         'primary_category',
         'property_type',
-        'unit_style',
+        'quantity',
+        'unit_style'
         'view_types',
         'furniture_status',
         'starting_price',
@@ -207,6 +208,7 @@ class DeveloperProjectUnitType extends BaseModel
         'terrace_balcony_sqm' => 'decimal:2',
         'plot_size_sqm' => 'decimal:2',
         'military_base_distance_km' => 'decimal:2',
+        'quantity' => 'integer',
         'bedrooms' => 'integer',
         'bathrooms' => 'integer',
         'floors_in_building' => 'integer',

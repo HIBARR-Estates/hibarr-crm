@@ -30,9 +30,9 @@ import ProjectOffersSection from "../../Features/Offers/ProjectOffersSection";
 // Types
 // ============================================
 
-export interface PropertyTypeSummary {
+export interface UnitTypeSummary {
     type: string;
-    count: number;
+    quantity: number;
     bedrooms: { min: number | null; max: number | null };
     bathrooms: { min: number | null; max: number | null };
     area: { min: number | null; max: number | null };
@@ -40,11 +40,11 @@ export interface PropertyTypeSummary {
 }
 
 export interface Statistics {
-    total_properties: number;
+    total_units: number;
     sold_properties: number;
-    sold_percentage: number;
-    available_properties: number;
     under_offer_properties: number;
+    starting_price: number | null;
+    starting_price_formatted: string | null;
 }
 
 export interface ImageItem {
@@ -80,7 +80,7 @@ export interface ShowProps extends PageProps {
         properties?: Property[];
     };
     statistics: Statistics;
-    propertyTypesSummary: PropertyTypeSummary[];
+    unitTypesSummary: UnitTypeSummary[];
     facilities: string[];
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
@@ -151,7 +151,7 @@ const Show = ({
     pageTitle,
     project,
     statistics,
-    propertyTypesSummary,
+    unitTypesSummary,
     facilities,
     imagesByTag,
     priceList,
@@ -172,7 +172,7 @@ const Show = ({
                     <OverviewSection
                         project={project}
                         statistics={statistics}
-                        propertyTypesSummary={propertyTypesSummary}
+                        unitTypesSummary={unitTypesSummary}
                         imagesByTag={imagesByTag}
                     />
                 );

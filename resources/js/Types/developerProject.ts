@@ -234,6 +234,7 @@ export interface DeveloperProjectUnitType {
     // Category & Type
     primary_category: "residential" | "commercial";
     property_type: string | null;
+    quantity: number | null;
     unit_style: string[] | null;
     view_types: string[] | null;
     furniture_status: string | null;
