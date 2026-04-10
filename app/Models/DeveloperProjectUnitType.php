@@ -171,7 +171,7 @@ class DeveloperProjectUnitType extends BaseModel
         'primary_category',
         'property_type',
         'quantity',
-        'unit_style'
+        'unit_style',
         'view_types',
         'furniture_status',
         'starting_price',
