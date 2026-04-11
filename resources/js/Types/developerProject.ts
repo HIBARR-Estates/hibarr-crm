@@ -181,6 +181,7 @@ export interface DeveloperProject {
     properties?: Property[];
     unit_types_details?: DeveloperProjectUnitType[];
     assets?: DeveloperProjectAsset[];
+    thumbnail?: DeveloperProjectAsset;
     // Offers
     offers?: import("./api/offers").Offer[];
     offers_count?: number;

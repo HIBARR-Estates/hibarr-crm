@@ -42,9 +42,7 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function index(Request $request)
     {
-        $query = DeveloperProject::with(['location', 'exposeConfig', 'developer', 'assets' => function ($q) {
-                $q->orderBy('order')->limit(1);
-            }])
+        $query = DeveloperProject::with(['location', 'exposeConfig', 'developer', 'thumbnail', 'assets'])
             ->withCount('properties')
             ->withCount(['properties as sold_properties_count' => function ($q) {
                 $q->where('status', Property::STATUS_SOLD);
@@ -137,9 +135,8 @@ class DeveloperProjectController extends AccountBaseController
         $developerProjects = collect();
         if ($project->developer_id) {
             $developerProjects = DeveloperProject::with([
-                    'assets' => function ($q) {
-                        $q->orderBy('order')->limit(1);
-                    },
+                    'thumbnail',
+                     'assets',
                     'location',
                     'developer',
                 ])
