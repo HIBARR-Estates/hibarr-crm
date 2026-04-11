@@ -85,8 +85,22 @@ class DealPropertyService
             ->where('company_id', $deal->company_id)
             ->firstOrFail();
 
+        $propertyTitle = $unitType->reference_code
+            ? "{$unitType->property_type} - {$unitType->reference_code}"
+            : $unitType->property_type;
+
+        $propertyPrice = $overrides['price'] ?? $unitType->starting_price;
+
+        // Create Product FIRST so we have a valid product_id for the FK constraint
+        $product = Product::create([
+            'company_id' => $deal->company_id,
+            'name' => $propertyTitle ?? 'Property',
+            'price' => is_array($propertyPrice) ? ($propertyPrice['amount'] ?? 0) : $propertyPrice,
+        ]);
+
         $property = Property::create([
             'company_id' => $deal->company_id,
+            'product_id' => $product->id,
             'developer_project_id' => $unitType->developer_project_id,
             'developer_project_unit_type_id' => $unitType->id,
             'property_type' => $unitType->property_type,
@@ -99,40 +113,20 @@ class DealPropertyService
             'terrace_area_sqm' => $unitType->terrace_balcony_sqm,
             'plot_size_sqm' => $unitType->plot_size_sqm,
             'floors_in_building' => $unitType->floors_in_building,
-            'outside_features' => $unitType->outside_features,
-            'inside_features' => $unitType->inside_features,
+            'outside_features' => $overrides['outside_features'] ?? $unitType->outside_features,
+            'inside_features' => $overrides['inside_features'] ?? $unitType->inside_features,
             'completion_date' => $unitType->completion_date,
             'has_restrictions' => $unitType->has_restrictions,
             'restriction_notes' => $unitType->restriction_notes,
             'description' => $unitType->description,
-            'title' => $unitType->reference_code
-                ? "{$unitType->property_type} - {$unitType->reference_code}"
-                : $unitType->property_type,
+            'title' => $propertyTitle,
             'status' => Property::STATUS_AVAILABLE,
             'added_by' => user()->id,
             'responsible_agent_id' => user()->id,
-            // Apply overrides
-            'price' => $overrides['price'] ?? $unitType->starting_price,
+            'price' => $propertyPrice,
             'floor_number' => $overrides['floor_number'] ?? $unitType->floor,
             'view_types' => $overrides['view_types'] ?? $unitType->view_types,
         ]);
-
-        // Apply feature overrides if provided
-        if (isset($overrides['outside_features'])) {
-            $property->update(['outside_features' => $overrides['outside_features']]);
-        }
-        if (isset($overrides['inside_features'])) {
-            $property->update(['inside_features' => $overrides['inside_features']]);
-        }
-
-        // Create a Product and link
-        $product = Product::create([
-            'company_id' => $deal->company_id,
-            'name' => $property->title ?? 'Property',
-            'price' => is_array($property->price) ? ($property->price['amount'] ?? 0) : $property->price,
-        ]);
-
-        $property->update(['product_id' => $product->id]);
 
         $deal->products()->attach($product->id);
 
