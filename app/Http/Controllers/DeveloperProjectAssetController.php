@@ -104,6 +104,68 @@ class DeveloperProjectAssetController extends AccountBaseController
     }
 
     /**
+     * Bulk update tags on multiple project assets.
+     *
+     * Supports three actions:
+     *  - add:     merge supplied tags into each asset's existing tags
+     *  - remove:  remove supplied tags from each asset's existing tags
+     *  - replace: overwrite each asset's tags with the supplied set
+     */
+    public function bulkUpdateTags(Request $request, $projectId)
+    {
+        DeveloperProject::where('company_id', user()->company_id)
+            ->findOrFail($projectId);
+
+        $request->validate([
+            'asset_ids' => 'required|array|min:1',
+            'asset_ids.*' => 'integer|exists:developer_project_assets,id',
+            'tags' => 'required|array',
+            'tags.*' => 'string|in:hero,facilities,features,area,exterior,interior,floor-plan,site-plan,footer,gallery',
+            'action' => 'required|in:add,replace,remove',
+        ]);
+
+        $assets = DeveloperProjectAsset::where('developer_project_id', $projectId)
+            ->whereIn('id', $request->input('asset_ids'))
+            ->get();
+
+        $tags = $request->input('tags');
+        $action = $request->input('action');
+        $updated = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($assets as $asset) {
+                $current = $asset->tags ?? [];
+
+                switch ($action) {
+                    case 'add':
+                        $newTags = array_values(array_unique(array_merge($current, $tags)));
+                        break;
+                    case 'remove':
+                        $newTags = array_values(array_diff($current, $tags));
+                        break;
+                    case 'replace':
+                    default:
+                        $newTags = $tags;
+                        break;
+                }
+
+                $asset->update(['tags' => $newTags]);
+                $updated++;
+            }
+
+            DB::commit();
+
+            return Reply::successWithData("Tags updated on {$updated} asset(s)", [
+                'updated' => $updated,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return Reply::error($e->getMessage());
+        }
+    }
+
+    /**
      * Delete a single project asset.
      */
     public function destroy($projectId, $assetId)

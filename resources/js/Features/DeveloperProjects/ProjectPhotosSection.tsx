@@ -14,6 +14,8 @@ import {
     Spin,
     App,
     Segmented,
+    Checkbox,
+    Radio,
 } from "antd";
 import {
     UploadOutlined,
@@ -23,6 +25,7 @@ import {
     CloseCircleOutlined,
     AppstoreOutlined,
     TagsOutlined,
+    EditOutlined,
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import type { AssetTag } from "@/Types";
@@ -114,6 +117,19 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
     // Delete confirmation
     const [deleteModal, deleteContextHolder] = Modal.useModal();
 
+    // Bulk selection
+    const [isSelecting, setIsSelecting] = useState(false);
+    const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(
+        new Set(),
+    );
+
+    // Bulk tag modal
+    const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+    const [bulkTags, setBulkTags] = useState<AssetTag[]>([]);
+    const [bulkTagAction, setBulkTagAction] = useState<
+        "add" | "replace" | "remove"
+    >("add");
+
     // ─── Fetch all project assets ───
     const {
         data: assetsResponse,
@@ -202,6 +218,30 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 refetchAssets();
             },
         );
+
+    // Mutation: bulk update tags
+    interface BulkUpdateTagsPayload {
+        asset_ids: number[];
+        tags: string[];
+        action: "add" | "replace" | "remove";
+    }
+
+    const { mutate: bulkUpdateTags, isPending: isBulkUpdating } = useApiMutate<
+        BulkUpdateTagsPayload,
+        { updated: number },
+        ApiSuccessResponse<{ updated: number }>
+    >(
+        route("developer-projects.assets.bulk_update_tags", projectId),
+        "PUT",
+        () => {
+            setIsTagModalOpen(false);
+            setBulkTags([]);
+            setBulkTagAction("add");
+            setSelectedAssetIds(new Set());
+            setIsSelecting(false);
+            refetchAssets();
+        },
+    );
 
     // ─── Upload flow ───
     const handleUpload = useCallback(async () => {
@@ -359,58 +399,122 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
         [projectId, deleteModal, messageApi, refetchAssets],
     );
 
+    // ─── Bulk selection helpers ───
+    const toggleAssetSelection = useCallback((id: number) => {
+        setSelectedAssetIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    }, []);
+
+    const selectAllVisible = useCallback(() => {
+        const ids = filteredAssets.map((a) => a.id);
+        setSelectedAssetIds(new Set(ids));
+    }, [filteredAssets]);
+
+    const deselectAll = useCallback(() => {
+        setSelectedAssetIds(new Set());
+    }, []);
+
+    const exitSelectionMode = useCallback(() => {
+        setIsSelecting(false);
+        setSelectedAssetIds(new Set());
+    }, []);
+
+    const handleBulkTagSubmit = useCallback(() => {
+        if (selectedAssetIds.size === 0 || bulkTags.length === 0) return;
+        bulkUpdateTags({
+            asset_ids: Array.from(selectedAssetIds),
+            tags: bulkTags,
+            action: bulkTagAction,
+        });
+    }, [selectedAssetIds, bulkTags, bulkTagAction, bulkUpdateTags]);
+
     // ─── Photo card renderer ───
-    const renderPhotoCard = (asset: DeveloperProjectAsset) => (
-        <div
-            key={asset.id}
-            className="relative group border border-gray-200 rounded-lg overflow-hidden"
-        >
-            <Image
-                src={asset.url || asset.external_url || ""}
-                alt={asset.name}
-                width="100%"
-                height={160}
-                style={{ objectFit: "cover" }}
-                preview={{ mask: "Preview" }}
-            />
+    const renderPhotoCard = (asset: DeveloperProjectAsset) => {
+        const isSelected = selectedAssetIds.has(asset.id);
 
-            {/* Tags */}
-            {asset.tags && asset.tags.length > 0 && (
-                <div className="absolute top-1 left-1 flex flex-wrap gap-0.5">
-                    {asset.tags.map((tag) => (
-                        <Tag
-                            key={tag}
-                            color={TAG_COLORS[tag] || "default"}
-                            className="text-[10px] leading-tight px-1 py-0"
-                        >
-                            {ASSET_TAGS[tag] || tag}
-                        </Tag>
-                    ))}
-                </div>
-            )}
+        return (
+            <div
+                key={asset.id}
+                className={`relative group border rounded-lg overflow-hidden cursor-pointer ${
+                    isSelecting && isSelected
+                        ? "border-blue-500 ring-2 ring-blue-300"
+                        : "border-gray-200"
+                }`}
+                onClick={
+                    isSelecting
+                        ? () => toggleAssetSelection(asset.id)
+                        : undefined
+                }
+            >
+                {/* Selection checkbox overlay */}
+                {isSelecting && (
+                    <div className="absolute top-1 left-1 z-10">
+                        <Checkbox
+                            checked={isSelected}
+                            onChange={() => toggleAssetSelection(asset.id)}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                )}
 
-            {/* Delete overlay */}
-            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                    type="primary"
-                    danger
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteAsset(asset);
-                    }}
+                <Image
+                    src={asset.url || asset.external_url || ""}
+                    alt={asset.name}
+                    width="100%"
+                    height={160}
+                    style={{ objectFit: "cover" }}
+                    preview={isSelecting ? false : { mask: "Preview" }}
                 />
-            </div>
 
-            {/* Name */}
-            <div className="px-2 py-1 truncate">
-                <Text className="text-xs" ellipsis>
-                    {asset.name}
-                </Text>
+                {/* Tags */}
+                {asset.tags && asset.tags.length > 0 && (
+                    <div
+                        className={`absolute ${isSelecting ? "top-1 left-7" : "top-1 left-1"} flex flex-wrap gap-0.5`}
+                    >
+                        {asset.tags.map((tag) => (
+                            <Tag
+                                key={tag}
+                                color={TAG_COLORS[tag] || "default"}
+                                className="text-[10px] leading-tight px-1 py-0"
+                            >
+                                {ASSET_TAGS[tag] || tag}
+                            </Tag>
+                        ))}
+                    </div>
+                )}
+
+                {/* Delete overlay */}
+                {!isSelecting && (
+                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                            type="primary"
+                            danger
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAsset(asset);
+                            }}
+                        />
+                    </div>
+                )}
+
+                {/* Name */}
+                <div className="px-2 py-1 truncate">
+                    <Text className="text-xs" ellipsis>
+                        {asset.name}
+                    </Text>
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     // ─── Loading state ───
     if (isLoading) {
@@ -569,6 +673,79 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
         );
     }
 
+    function renderBulkTagModal() {
+        return (
+            <Modal
+                title={`Update Tags — ${selectedAssetIds.size} photo${selectedAssetIds.size !== 1 ? "s" : ""} selected`}
+                open={isTagModalOpen}
+                onCancel={() => {
+                    if (!isBulkUpdating) {
+                        setIsTagModalOpen(false);
+                        setBulkTags([]);
+                        setBulkTagAction("add");
+                    }
+                }}
+                width={480}
+                footer={[
+                    <Button
+                        key="cancel"
+                        onClick={() => setIsTagModalOpen(false)}
+                        disabled={isBulkUpdating}
+                    >
+                        Cancel
+                    </Button>,
+                    <Button
+                        key="apply"
+                        type="primary"
+                        onClick={handleBulkTagSubmit}
+                        loading={isBulkUpdating}
+                        disabled={bulkTags.length === 0}
+                    >
+                        Apply Tags
+                    </Button>,
+                ]}
+                maskClosable={!isBulkUpdating}
+            >
+                <div className="mb-4">
+                    <Text className="text-sm block mb-1 font-medium">
+                        Action
+                    </Text>
+                    <Radio.Group
+                        value={bulkTagAction}
+                        onChange={(e) => setBulkTagAction(e.target.value)}
+                    >
+                        <Radio value="add">Add tags</Radio>
+                        <Radio value="remove">Remove tags</Radio>
+                        <Radio value="replace">Replace all tags</Radio>
+                    </Radio.Group>
+                    <div className="mt-1">
+                        <Text type="secondary" className="text-xs">
+                            {bulkTagAction === "add" &&
+                                "Selected tags will be added to existing tags on each photo."}
+                            {bulkTagAction === "remove" &&
+                                "Selected tags will be removed from each photo."}
+                            {bulkTagAction === "replace" &&
+                                "All existing tags will be replaced with the selected tags."}
+                        </Text>
+                    </div>
+                </div>
+
+                <div>
+                    <Text className="text-sm block mb-1 font-medium">Tags</Text>
+                    <Select
+                        mode="multiple"
+                        placeholder="Select tags"
+                        options={TAG_OPTIONS}
+                        value={bulkTags}
+                        onChange={setBulkTags}
+                        style={{ width: "100%" }}
+                        allowClear
+                    />
+                </div>
+            </Modal>
+        );
+    }
+
     // ─── Main render ───
     return (
         <Card
@@ -603,6 +780,36 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                                 ...TAG_OPTIONS,
                             ]}
                         />
+                    )}
+                    {!isSelecting ? (
+                        <Button
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => setIsSelecting(true)}
+                        >
+                            Select
+                        </Button>
+                    ) : (
+                        <>
+                            <Button size="small" onClick={selectAllVisible}>
+                                Select All
+                            </Button>
+                            <Button size="small" onClick={deselectAll}>
+                                Deselect
+                            </Button>
+                            <Button
+                                size="small"
+                                type="primary"
+                                icon={<TagsOutlined />}
+                                disabled={selectedAssetIds.size === 0}
+                                onClick={() => setIsTagModalOpen(true)}
+                            >
+                                Edit Tags ({selectedAssetIds.size})
+                            </Button>
+                            <Button size="small" onClick={exitSelectionMode}>
+                                Cancel
+                            </Button>
+                        </>
                     )}
                     <Button
                         type="primary"
@@ -671,6 +878,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             )}
 
             {renderUploadModal()}
+            {renderBulkTagModal()}
         </Card>
     );
 };
