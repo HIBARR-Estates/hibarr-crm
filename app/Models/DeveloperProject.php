@@ -274,6 +274,14 @@ class DeveloperProject extends BaseModel
     }
 
     /**
+     * Get the first asset (thumbnail) for this project, ordered by the order column.
+     */
+    public function thumbnail(): HasOne
+    {
+        return $this->hasOne(DeveloperProjectAsset::class)->orderBy('order');
+    }
+
+    /**
      * Get all unit types belonging to this project.
      * 
      * Each project can have multiple unit types (e.g., 2+1 Apartment, Studio Villa)

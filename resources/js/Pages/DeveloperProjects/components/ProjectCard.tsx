@@ -38,7 +38,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
         totalCount > 0 ? Math.round((soldCount / totalCount) * 100) : 0;
 
     // First project photo from assets
-    const firstPhoto = project.assets?.[0]?.url ?? null;
+    const firstPhoto =
+        project?.thumbnail?.url ?? project.assets?.[0]?.url ?? null;
 
     const menuItems: MenuProps["items"] = [
         {
