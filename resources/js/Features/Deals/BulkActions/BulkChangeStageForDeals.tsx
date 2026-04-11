@@ -15,8 +15,14 @@ const BulkChangeStageForDeals: React.FC<Props> = ({
     open,
     onClose,
     ids,
-    stages,
+    stages: originalStages,
 }) => {
+    // On the url there is a lead_pipeline_id query param which we can use to filter stages to only those in the current pipeline. If it's not present, show all stages. We have to do this filtering client-side because the bulk action modal is generic and doesn't know about the current pipeline when it fetches the stages list.
+    const urlParams = new URLSearchParams(window.location.search);
+    const leadPipelineId = urlParams.get("lead_pipeline_id");
+    const stages = originalStages.filter(
+        (s) => !leadPipelineId || s.lead_pipeline_id === Number(leadPipelineId),
+    );
     const [bulkChangeStageLoading, setBulkChangeStageLoading] = useState(false);
     const [selectedStageId, setSelectedStageId] = useState<number>();
 
@@ -47,7 +53,7 @@ const BulkChangeStageForDeals: React.FC<Props> = ({
                 onFinish: () => {
                     setBulkChangeStageLoading(false);
                 },
-            }
+            },
         );
     };
 

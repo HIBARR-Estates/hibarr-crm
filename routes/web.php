@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\DealGatheringController;
+use App\Http\Controllers\DealPropertyController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AwardController;
@@ -632,6 +633,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
 
+    // Deal Properties (attach/detach)
+    Route::group(['prefix' => 'deals', 'as' => 'deals.'], function () {
+        Route::get('properties/search', [DealPropertyController::class, 'searchProperties'])->name('properties.search');
+        Route::get('properties/project-unit-types/{project}', [DealPropertyController::class, 'projectUnitTypes'])->name('properties.unit_types');
+        Route::get('{deal}/properties', [DealPropertyController::class, 'index'])->name('properties.index');
+        Route::post('{deal}/properties', [DealPropertyController::class, 'store'])->name('properties.store');
+        Route::delete('{deal}/properties/{product}', [DealPropertyController::class, 'destroy'])->name('properties.destroy');
+    });
+
     // Property Recommendations
     Route::group(['prefix' => 'deals/{deal}/recommendations', 'as' => 'deals.recommendations.'], function () {
         Route::get('/', [PropertyRecommendationController::class, 'getRecommendations'])->name('index');
@@ -1136,6 +1146,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::prefix('/{projectId}/assets')->name('assets.')->group(function () {
             Route::get('/', [App\Http\Controllers\DeveloperProjectAssetController::class, 'index'])->name('index');
             Route::post('/from-urls', [App\Http\Controllers\DeveloperProjectAssetController::class, 'storeFromUrls'])->name('store_from_urls');
+            Route::put('/bulk-update-tags', [App\Http\Controllers\DeveloperProjectAssetController::class, 'bulkUpdateTags'])->name('bulk_update_tags');
             Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectAssetController::class, 'destroy'])->name('destroy');
         });
 

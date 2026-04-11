@@ -181,6 +181,7 @@ export interface DeveloperProject {
     properties?: Property[];
     unit_types_details?: DeveloperProjectUnitType[];
     assets?: DeveloperProjectAsset[];
+    thumbnail?: DeveloperProjectAsset;
     // Offers
     offers?: import("./api/offers").Offer[];
     offers_count?: number;
@@ -234,6 +235,7 @@ export interface DeveloperProjectUnitType {
     // Category & Type
     primary_category: "residential" | "commercial";
     property_type: string | null;
+    quantity: number | null;
     unit_style: string[] | null;
     view_types: string[] | null;
     furniture_status: string | null;

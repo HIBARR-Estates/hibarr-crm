@@ -173,14 +173,15 @@ export default function UnitTypePropertyHeader({
                 )}
 
                 {/* Mark as Sold — always available since unit types support recurring sales */}
-                <Button
+                {/* deprecated */}
+                {/* <Button
                     type="default"
                     icon={<ShoppingCartOutlined />}
                     onClick={onMarkAsSold}
                     className="border-orange-400 text-orange-600 hover:border-orange-500 hover:text-orange-700"
                 >
                     Mark as Sold
-                </Button>
+                </Button> */}
 
                 {/* View Sold Properties */}
                 {soldPropertyIds.map((propId, idx) => (
