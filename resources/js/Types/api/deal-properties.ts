@@ -60,5 +60,6 @@ export interface ProjectUnitTypesResponse {
         id: number;
         name: string;
         availability_link: string | null;
+        google_drive_link: string | null;
     };
 }

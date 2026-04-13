@@ -71,6 +71,28 @@ export interface PriceListItem {
     }>;
 }
 
+export interface UnitTypePriceListItem {
+    type: string;
+    count: number;
+    min_price: number | null;
+    max_price: number | null;
+    currency: string;
+    currency_symbol: string;
+    unit_types: Array<{
+        id: number;
+        reference_code: string | null;
+        starting_price: number | null;
+        formatted_price: string | null;
+        currency: string;
+        currency_symbol: string;
+        bedrooms: number | null;
+        bathrooms: number | null;
+        floor: string | null;
+        total_area_sqm: number | null;
+        quantity: number | null;
+    }>;
+}
+
 export interface ShowProps extends PageProps {
     pageTitle: string;
     project: DeveloperProject & {
@@ -84,6 +106,7 @@ export interface ShowProps extends PageProps {
     facilities: string[];
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
+    unitTypePriceList: UnitTypePriceListItem[];
     unitTypes: DeveloperProjectUnitType[];
     developerProjects: DeveloperProject[];
 }
@@ -155,6 +178,7 @@ const Show = ({
     facilities,
     imagesByTag,
     priceList,
+    unitTypePriceList,
     unitTypes,
     developerProjects,
 }: ShowProps) => {
@@ -219,7 +243,7 @@ const Show = ({
                     />
                 );
             case "pricelist":
-                return <PriceListSection priceList={priceList} />;
+                return <PriceListSection priceList={unitTypePriceList} />;
             case "pdf":
                 return (
                     <PdfFilesSection
