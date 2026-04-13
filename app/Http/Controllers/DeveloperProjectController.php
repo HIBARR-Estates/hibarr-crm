@@ -165,6 +165,7 @@ class DeveloperProjectController extends AccountBaseController
             'facilities' => $facilities,
             'imagesByTag' => $imagesByTag,
             'priceList' => $priceList,
+            'unitTypePriceList' => $this->getUnitTypePriceList($project->unitTypes),
             'unitTypes' => $project->unitTypes->sortBy('order')->values(),
             'developerProjects' => $developerProjects,
         ]);
@@ -281,7 +282,7 @@ class DeveloperProjectController extends AccountBaseController
     }
 
     /**
-     * Get price list organized by property type.
+     * Get price list organized by property type (legacy — used by ExposeGenerationModal).
      */
     private function getPriceListByType($properties)
     {
@@ -305,6 +306,45 @@ class DeveloperProjectController extends AccountBaseController
                     'status' => $p->status,
                     'bedrooms' => $p->bedrooms,
                     'bathrooms' => $p->bathrooms,
+                ])->values()->all(),
+            ];
+        }
+
+        return $priceList;
+    }
+
+    /**
+     * Get price list organized by property type from unit types.
+     */
+    private function getUnitTypePriceList($unitTypes)
+    {
+        $grouped = $unitTypes->groupBy('property_type');
+        $priceList = [];
+
+        foreach ($grouped as $type => $units) {
+            if (empty($type)) continue;
+
+            $prices = $units->pluck('starting_price')->filter();
+
+            $priceList[] = [
+                'type' => $type,
+                'count' => $units->count(),
+                'min_price' => $prices->min() ? (float) $prices->min() : null,
+                'max_price' => $prices->max() ? (float) $prices->max() : null,
+                'currency' => $units->first()->currency ?? 'GBP',
+                'currency_symbol' => $units->first()->currency_symbol ?? '£',
+                'unit_types' => $units->map(fn($ut) => [
+                    'id' => $ut->id,
+                    'reference_code' => $ut->reference_code,
+                    'starting_price' => $ut->starting_price ? (float) $ut->starting_price : null,
+                    'formatted_price' => $ut->formatted_price,
+                    'currency' => $ut->currency,
+                    'currency_symbol' => $ut->currency_symbol,
+                    'bedrooms' => $ut->bedrooms,
+                    'bathrooms' => $ut->bathrooms,
+                    'floor' => $ut->floor,
+                    'total_area_sqm' => $ut->total_area_sqm ? (float) $ut->total_area_sqm : null,
+                    'quantity' => $ut->quantity,
                 ])->values()->all(),
             ];
         }
