@@ -455,7 +455,7 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                             />
 
                                             {/* Availability link */}
-                                            {projectInfo?.availability_link && (
+                                            {projectInfo?.availability_link ? (
                                                 <a
                                                     href={
                                                         projectInfo.availability_link
@@ -467,6 +467,30 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                                     <ExportOutlined />
                                                     Check Availability
                                                 </a>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                                                    <LinkOutlined />
+                                                    No availability info
+                                                </span>
+                                            )}
+                                            {/* Google drive link */}
+                                            {projectInfo?.google_drive_link ? (
+                                                <a
+                                                    href={
+                                                        projectInfo.google_drive_link
+                                                    }
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                >
+                                                    <ExportOutlined />
+                                                    Google Drive Info
+                                                </a>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                                                    <LinkOutlined />
+                                                    No google drive info
+                                                </span>
                                             )}
                                         </div>
 
