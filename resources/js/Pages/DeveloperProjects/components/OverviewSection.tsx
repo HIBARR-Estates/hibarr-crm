@@ -14,7 +14,7 @@ import type {
     Statistics,
     ImageItem,
 } from "../Show";
-import { snakeToReadable } from "../../../lib/utils";
+import { generatePropertySubtitle, snakeToReadable } from "../../../lib/utils";
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
 const StatCard: React.FC<{
@@ -81,6 +81,16 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
     };
 
     const columns: TableColumnsType<UnitTypeSummary> = [
+        {
+            title: "Name",
+            dataIndex: "name",
+            key: "name",
+            render: (_, record) => (
+                <span className="text-gray-800">
+                    {generatePropertySubtitle(record)}
+                </span>
+            ),
+        },
         {
             title: "Property Type",
             dataIndex: "type",
