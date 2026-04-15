@@ -1,8 +1,27 @@
 import React from "react";
 import { Link } from "@inertiajs/react";
-import { Card, Image, Avatar, Tag, Empty, Typography, Space, Button, message } from "antd";
-import { BankOutlined, WhatsAppOutlined, FolderOpenOutlined, LinkOutlined, CopyOutlined } from "@ant-design/icons";
-import type { Developer, DeveloperProject } from "../../../Types/developerProject";
+import {
+    Card,
+    Image,
+    Avatar,
+    Tag,
+    Empty,
+    Typography,
+    Space,
+    Button,
+    message,
+} from "antd";
+import {
+    BankOutlined,
+    WhatsAppOutlined,
+    FolderOpenOutlined,
+    LinkOutlined,
+    CopyOutlined,
+} from "@ant-design/icons";
+import type {
+    Developer,
+    DeveloperProject,
+} from "../../../Types/developerProject";
 import ProjectCard from "./ProjectCard";
 
 const { Title, Paragraph, Text } = Typography;
@@ -12,7 +31,12 @@ const DevelopersSection: React.FC<{
     developerProjects?: DeveloperProject[];
     googleDriveLink?: string | null;
     availabilityLink?: string | null;
-}> = ({ developer, developerProjects = [], googleDriveLink, availabilityLink }) => {
+}> = ({
+    developer,
+    developerProjects = [],
+    googleDriveLink,
+    availabilityLink,
+}) => {
     if (!developer) {
         return (
             <Card>
@@ -76,8 +100,12 @@ const DevelopersSection: React.FC<{
                                         size="small"
                                         icon={<CopyOutlined />}
                                         onClick={() => {
-                                            navigator.clipboard.writeText(developer.whatsapp_group_link!);
-                                            message.success("Link copied to clipboard");
+                                            navigator.clipboard.writeText(
+                                                developer.whatsapp_group_link!,
+                                            );
+                                            message.success(
+                                                "Link copied to clipboard",
+                                            );
                                         }}
                                     />
                                 </Space>
@@ -102,8 +130,12 @@ const DevelopersSection: React.FC<{
                                         size="small"
                                         icon={<CopyOutlined />}
                                         onClick={() => {
-                                            navigator.clipboard.writeText(googleDriveLink);
-                                            message.success("Link copied to clipboard");
+                                            navigator.clipboard.writeText(
+                                                googleDriveLink,
+                                            );
+                                            message.success(
+                                                "Link copied to clipboard",
+                                            );
                                         }}
                                     />
                                 </Space>
@@ -128,8 +160,12 @@ const DevelopersSection: React.FC<{
                                         size="small"
                                         icon={<CopyOutlined />}
                                         onClick={() => {
-                                            navigator.clipboard.writeText(availabilityLink);
-                                            message.success("Link copied to clipboard");
+                                            navigator.clipboard.writeText(
+                                                availabilityLink,
+                                            );
+                                            message.success(
+                                                "Link copied to clipboard",
+                                            );
                                         }}
                                     />
                                 </Space>

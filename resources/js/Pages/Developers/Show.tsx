@@ -143,13 +143,29 @@ const Show = ({
             render: (_, record) => (
                 <Space size="small" wrap>
                     {record.google_drive_link && (
-                        <a href={record.google_drive_link} target="_blank" rel="noopener noreferrer">
-                            <Tag color="blue" icon={<SettingOutlined />} className="cursor-pointer">Drive</Tag>
+                        <a
+                            href={record.google_drive_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Tag
+                                color="blue"
+                                icon={<SettingOutlined />}
+                                className="cursor-pointer"
+                            >
+                                Drive
+                            </Tag>
                         </a>
                     )}
                     {record.availability_link && (
-                        <a href={record.availability_link} target="_blank" rel="noopener noreferrer">
-                            <Tag color="purple" className="cursor-pointer">Availability</Tag>
+                        <a
+                            href={record.availability_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Tag color="purple" className="cursor-pointer">
+                                Availability
+                            </Tag>
                         </a>
                     )}
                     {!record.google_drive_link && !record.availability_link && (
@@ -325,9 +341,7 @@ const Show = ({
                             description="No projects found for this developer"
                         >
                             <Link href={route("developer-projects.index")}>
-                                <Button type="primary">
-                                    Go to Projects
-                                </Button>
+                                <Button type="primary">Go to Projects</Button>
                             </Link>
                         </Empty>
                     ) : (
