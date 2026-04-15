@@ -41,7 +41,7 @@ import {
     INSIDE_FEATURE_OPTIONS,
     FLOOR_OPTIONS,
 } from "./unitTypeConfig";
-import { snakeToReadable } from "@/lib/utils";
+import { generatePropertySubtitle, snakeToReadable } from "@/lib/utils";
 
 const { Text, Paragraph } = Typography;
 
@@ -170,7 +170,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             {ut.primary_category === "residential" ? "Residential" : "Commercial"}
                         </Tag>
                         <span className="text-[13px] font-semibold text-gray-800 leading-tight">
-                            {ut.display_label ?? snakeToReadable(ut.property_type) ?? "Unit Type"}
+                            {generatePropertySubtitle(ut) ?? ut.display_label ??"Unit Type"}
                         </span>
                     </div>
                     {ut.reference_code && (

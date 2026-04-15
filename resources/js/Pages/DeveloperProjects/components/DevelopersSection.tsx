@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "@inertiajs/react";
-import { Card, Image, Avatar, Tag, Empty, Typography } from "antd";
-import { BankOutlined, WhatsAppOutlined } from "@ant-design/icons";
+import { Card, Image, Avatar, Tag, Empty, Typography, Space, Button, message } from "antd";
+import { BankOutlined, WhatsAppOutlined, FolderOpenOutlined, LinkOutlined, CopyOutlined } from "@ant-design/icons";
 import type { Developer, DeveloperProject } from "../../../Types/developerProject";
 import ProjectCard from "./ProjectCard";
 
@@ -10,7 +10,9 @@ const { Title, Paragraph, Text } = Typography;
 const DevelopersSection: React.FC<{
     developer: Developer | null | undefined;
     developerProjects?: DeveloperProject[];
-}> = ({ developer, developerProjects = [] }) => {
+    googleDriveLink?: string | null;
+    availabilityLink?: string | null;
+}> = ({ developer, developerProjects = [], googleDriveLink, availabilityLink }) => {
     if (!developer) {
         return (
             <Card>
@@ -53,24 +55,88 @@ const DevelopersSection: React.FC<{
                                 {developer.description}
                             </Paragraph>
                         )}
-                        {developer.whatsapp_group_link && (
-                            <a
-                                href={developer.whatsapp_group_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <Tag
-                                    color="green"
-                                    icon={<WhatsAppOutlined />}
-                                    className="cursor-pointer"
-                                >
-                                    WhatsApp Group
-                                </Tag>
-                            </a>
-                        )}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {developer.whatsapp_group_link && (
+                                <Space size="small">
+                                    <a
+                                        href={developer.whatsapp_group_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Tag
+                                            color="green"
+                                            icon={<WhatsAppOutlined />}
+                                            className="cursor-pointer"
+                                        >
+                                            WhatsApp Group
+                                        </Tag>
+                                    </a>
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(developer.whatsapp_group_link!);
+                                            message.success("Link copied to clipboard");
+                                        }}
+                                    />
+                                </Space>
+                            )}
+                            {googleDriveLink && (
+                                <Space size="small">
+                                    <a
+                                        href={googleDriveLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Tag
+                                            color="blue"
+                                            icon={<FolderOpenOutlined />}
+                                            className="cursor-pointer"
+                                        >
+                                            Google Drive
+                                        </Tag>
+                                    </a>
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(googleDriveLink);
+                                            message.success("Link copied to clipboard");
+                                        }}
+                                    />
+                                </Space>
+                            )}
+                            {availabilityLink && (
+                                <Space size="small">
+                                    <a
+                                        href={availabilityLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Tag
+                                            color="purple"
+                                            icon={<LinkOutlined />}
+                                            className="cursor-pointer"
+                                        >
+                                            Availability
+                                        </Tag>
+                                    </a>
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(availabilityLink);
+                                            message.success("Link copied to clipboard");
+                                        }}
+                                    />
+                                </Space>
+                            )}
+                        </div>
                     </div>
                 </div>
-
             </Card>
 
             {developerProjects.length > 0 && (

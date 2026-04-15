@@ -205,6 +205,8 @@ const Show = ({
                     <DevelopersSection
                         developer={project.developer}
                         developerProjects={developerProjects}
+                        googleDriveLink={project.google_drive_link}
+                        availabilityLink={project.availability_link}
                     />
                 );
             case "unit_types":
