@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\Property;
+use App\Models\ProjectFacility;
 use App\Models\Lead;
 use App\Helper\Reply;
 use App\Services\PdfExpose\ExposeGeneratorService;
@@ -217,19 +218,34 @@ class DeveloperProjectController extends AccountBaseController
      */
     private function getAggregatedFacilities(DeveloperProject $project)
     {
-        $facilities = collect($project->facilities ?? []);
+        $slugs = collect($project->facilities ?? []);
 
         // Merge unique facilities from properties' exterior and interior features
         foreach ($project->properties as $property) {
             if (!empty($property->exterior_features)) {
-                $facilities = $facilities->merge($property->exterior_features);
+                $slugs = $slugs->merge($property->exterior_features);
             }
             if (!empty($property->interior_features)) {
-                $facilities = $facilities->merge($property->interior_features);
+                $slugs = $slugs->merge($property->interior_features);
             }
         }
 
-        return $facilities->unique()->values()->all();
+        $uniqueSlugs = $slugs->unique()->values();
+
+        // Resolve slugs to enriched objects from project_facilities table
+        $facilityMap = ProjectFacility::where('company_id', user()->company_id)
+            ->whereIn('name', $uniqueSlugs)
+            ->get()
+            ->keyBy('name');
+
+        return $uniqueSlugs->map(function ($slug) use ($facilityMap) {
+            if ($facilityMap->has($slug)) {
+                $f = $facilityMap->get($slug);
+                return ['name' => $f->name, 'label' => $f->label, 'icon' => $f->icon];
+            }
+            // Fallback for slugs not in the DB
+            return ['name' => $slug, 'label' => ucfirst(str_replace('_', ' ', $slug)), 'icon' => null];
+        })->values()->all();
     }
 
     /**
