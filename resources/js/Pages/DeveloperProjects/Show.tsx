@@ -103,7 +103,7 @@ export interface ShowProps extends PageProps {
     };
     statistics: Statistics;
     unitTypesSummary: UnitTypeSummary[];
-    facilities: string[];
+    facilities: { name: string; label: string; icon: string | null }[];
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
     unitTypePriceList: UnitTypePriceListItem[];
@@ -205,6 +205,8 @@ const Show = ({
                     <DevelopersSection
                         developer={project.developer}
                         developerProjects={developerProjects}
+                        googleDriveLink={project.google_drive_link}
+                        availabilityLink={project.availability_link}
                     />
                 );
             case "unit_types":

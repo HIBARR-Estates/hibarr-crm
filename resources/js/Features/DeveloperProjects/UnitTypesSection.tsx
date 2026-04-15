@@ -16,6 +16,7 @@ import {
     Typography,
     Badge,
     Image,
+    App,
 } from "antd";
 import {
     PlusOutlined,
@@ -41,7 +42,7 @@ import {
     INSIDE_FEATURE_OPTIONS,
     FLOOR_OPTIONS,
 } from "./unitTypeConfig";
-import { snakeToReadable } from "@/lib/utils";
+import { generatePropertySubtitle, snakeToReadable } from "@/lib/utils";
 
 const { Text, Paragraph } = Typography;
 
@@ -91,20 +92,27 @@ const categoryColor = (cat: string) =>
 
 // ── Mini helpers ────────────────────────────────────────────────────────────
 
-const SpecRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+const SpecRow: React.FC<{ label: string; value: string }> = ({
+    label,
+    value,
+}) => (
     <div className="flex flex-col gap-0.5">
-        <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-wide">
+            {label}
+        </span>
         <span className="text-xs text-gray-700 font-medium">{value}</span>
     </div>
 );
 
-const FeatureTags: React.FC<{ label: string; items: string[]; color: string }> = ({
-    label,
-    items,
-    color,
-}) => (
+const FeatureTags: React.FC<{
+    label: string;
+    items: string[];
+    color: string;
+}> = ({ label, items, color }) => (
     <div className="flex flex-wrap items-center gap-1">
-        <span className="text-[10px] text-gray-400 uppercase tracking-wide mr-1">{label}:</span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-wide mr-1">
+            {label}:
+        </span>
         {items.map((item) => (
             <Tag key={item} color={color} className="!text-[11px] !m-0">
                 {item}
@@ -134,13 +142,18 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     onDelete,
     onRefresh,
 }) => {
-
     const viewLabels = labelsFor(ut.view_types, VIEW_TYPE_OPTIONS);
     const styleLabels = labelsFor(ut.unit_style, UNIT_STYLE_OPTIONS);
-    const outsideLabels = labelsFor(ut.outside_features, OUTSIDE_FEATURE_OPTIONS);
+    const outsideLabels = labelsFor(
+        ut.outside_features,
+        OUTSIDE_FEATURE_OPTIONS,
+    );
     const insideLabels = labelsFor(ut.inside_features, INSIDE_FEATURE_OPTIONS);
     const floorLabel = labelFor(ut.floor, FLOOR_OPTIONS);
-    const furnitureLabel = labelFor(ut.furniture_status, FURNITURE_STATUS_OPTIONS);
+    const furnitureLabel = labelFor(
+        ut.furniture_status,
+        FURNITURE_STATUS_OPTIONS,
+    );
 
     const hasExpandableContent = !!(
         ut.description ||
@@ -156,28 +169,45 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
         ut.plot_size_sqm ||
         ut.military_base_distance_km
     );
+    const { message } = App.useApp();
 
     return (
         <div className="border border-gray-200 rounded-xl bg-white flex flex-col overflow-hidden">
-            {/* ── Card header: type + ref + actions ── */}
-            <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex flex-col gap-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        <Tag
-                            color={categoryColor(ut.primary_category)}
-                            className="!text-[10px] !m-0 !px-1.5 !py-0"
-                        >
-                            {ut.primary_category === "residential" ? "Residential" : "Commercial"}
-                        </Tag>
-                        <span className="text-[13px] font-semibold text-gray-800 leading-tight">
-                            {ut.display_label ?? snakeToReadable(ut.property_type) ?? "Unit Type"}
-                        </span>
-                    </div>
-                    {ut.reference_code && (
-                        <Text code className="!text-[11px] text-gray-400">
-                            {ut.reference_code}
-                        </Text>
-                    )}
+            {/* ── Ref code bar ── */}
+            {ut.reference_code && (
+                <div className="flex items-center gap-1.5 px-4 pt-3 pb-0">
+                    <Text code className="!text-[11px] text-gray-400">
+                        {ut.reference_code}
+                    </Text>
+                    <Button
+                        type="text"
+                        size="small"
+                        className="!p-0 !h-auto text-gray-400 hover:text-gray-600"
+                        icon={<CopyOutlined style={{ fontSize: 11 }} />}
+                        onClick={() => {
+                            navigator.clipboard.writeText(ut.reference_code!);
+                            message.success("Code copied");
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* ── Card header: title + tag + actions ── */}
+            <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-gray-100">
+                <div className="flex flex-col gap-1.5 min-w-0">
+                    <span className="text-[13px] font-semibold text-gray-800 leading-tight">
+                        {generatePropertySubtitle(ut) ??
+                            ut.display_label ??
+                            "Unit Type"}
+                    </span>
+                    <Tag
+                        color={categoryColor(ut.primary_category)}
+                        className="!text-[10px] !m-0 !px-1.5 !py-0 w-fit"
+                    >
+                        {ut.primary_category === "residential"
+                            ? "Residential"
+                            : "Commercial"}
+                    </Tag>
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">
                     <Button
@@ -200,38 +230,49 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         okText="Delete"
                         okType="danger"
                     >
-                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                        <Button
+                            type="text"
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                        />
                     </Popconfirm>
                 </div>
             </div>
 
             {/* ── Stats row ── */}
             <div className="px-4 py-3 flex flex-col gap-2">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                    {ut.quantity != null && ut.quantity > 1 && (
-                        <span className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Qty</span>
-                            <span className="font-semibold text-gray-800">{ut.quantity}</span>
-                        </span>
-                    )}
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
                     {ut.bedrooms != null && (
-                        <span className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Bed</span>
-                            <span className="font-semibold text-gray-800">{ut.bedrooms}</span>
+                        <span className="text-gray-700">
+                            <span className="font-semibold text-gray-800">
+                                {ut.bedrooms}
+                            </span>{" "}
+                            {ut.bedrooms === 1 ? "Bedroom" : "Bedrooms"}
                         </span>
                     )}
                     {ut.bathrooms != null && (
-                        <span className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Bath</span>
-                            <span className="font-semibold text-gray-800">{ut.bathrooms}</span>
+                        <span className="text-gray-700">
+                            <span className="font-semibold text-gray-800">
+                                {ut.bathrooms}
+                            </span>{" "}
+                            {ut.bathrooms === 1 ? "Bathroom" : "Bathrooms"}
                         </span>
                     )}
                     {ut.total_area_sqm != null && (
-                        <span className="flex items-center gap-1">
-                            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Area</span>
+                        <span className="text-gray-700">
                             <span className="font-semibold text-gray-800">
                                 {Number(ut.total_area_sqm).toLocaleString()} m²
-                            </span>
+                            </span>{" "}
+                            Total Area
+                        </span>
+                    )}
+                    {ut.quantity != null && ut.quantity > 1 && (
+                        <span className="text-gray-700">
+                            <span className="font-semibold text-gray-800">
+                                {ut.quantity}
+                            </span>{" "}
+                            Units
                         </span>
                     )}
                     {ut.starting_price != null && (
@@ -247,13 +288,19 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         {ut.offers!.map((offer: Offer) => (
                             <Tag
                                 key={offer.id}
-                                color={offer.type === "percentage" ? "blue" : "green"}
+                                color={
+                                    offer.type === "percentage"
+                                        ? "blue"
+                                        : "green"
+                                }
                                 icon={<GiftOutlined />}
                                 className="!text-[11px] !m-0"
                             >
                                 {offer.type === "percentage"
                                     ? `${offer.value}%`
-                                    : Number(offer.value).toLocaleString("en-GB")}
+                                    : Number(offer.value).toLocaleString(
+                                          "en-GB",
+                                      )}
                             </Tag>
                         ))}
                     </div>
@@ -290,12 +337,17 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 ut.has_restrictions) && (
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
                                     {ut.floor && (
-                                        <SpecRow label="Floor" value={floorLabel} />
+                                        <SpecRow
+                                            label="Floor"
+                                            value={floorLabel}
+                                        />
                                     )}
                                     {ut.floors_in_building && (
                                         <SpecRow
                                             label="Floors in Building"
-                                            value={String(ut.floors_in_building)}
+                                            value={String(
+                                                ut.floors_in_building,
+                                            )}
                                         />
                                     )}
                                     {ut.living_area_sqm && (
@@ -317,10 +369,16 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         />
                                     )}
                                     {ut.furniture_status && (
-                                        <SpecRow label="Furniture" value={furnitureLabel} />
+                                        <SpecRow
+                                            label="Furniture"
+                                            value={furnitureLabel}
+                                        />
                                     )}
                                     {ut.completion_date && (
-                                        <SpecRow label="Completion" value={ut.completion_date} />
+                                        <SpecRow
+                                            label="Completion"
+                                            value={ut.completion_date}
+                                        />
                                     )}
                                     {ut.military_base_distance_km && (
                                         <SpecRow
@@ -331,7 +389,9 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     {ut.has_restrictions && (
                                         <SpecRow
                                             label="Restrictions"
-                                            value={ut.restriction_notes || "Yes"}
+                                            value={
+                                                ut.restriction_notes || "Yes"
+                                            }
                                         />
                                     )}
                                 </div>
@@ -339,10 +399,18 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
 
                             {/* Feature tags */}
                             {viewLabels.length > 0 && (
-                                <FeatureTags label="Views" items={viewLabels} color="geekblue" />
+                                <FeatureTags
+                                    label="Views"
+                                    items={viewLabels}
+                                    color="geekblue"
+                                />
                             )}
                             {styleLabels.length > 0 && (
-                                <FeatureTags label="Styles" items={styleLabels} color="purple" />
+                                <FeatureTags
+                                    label="Styles"
+                                    items={styleLabels}
+                                    color="purple"
+                                />
                             )}
                             {outsideLabels.length > 0 && (
                                 <FeatureTags
@@ -352,7 +420,11 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 />
                             )}
                             {insideLabels.length > 0 && (
-                                <FeatureTags label="Inside" items={insideLabels} color="cyan" />
+                                <FeatureTags
+                                    label="Inside"
+                                    items={insideLabels}
+                                    color="cyan"
+                                />
                             )}
 
                             {/* Description */}
@@ -370,16 +442,26 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 <div>
                                     <Image.PreviewGroup>
                                         <div className="flex flex-wrap gap-1.5">
-                                            {ut.assets.slice(0, 6).map((asset) => (
-                                                <Image
-                                                    key={asset.id}
-                                                    src={asset.url ?? asset.external_url ?? ""}
-                                                    width={48}
-                                                    height={48}
-                                                    className="object-cover rounded"
-                                                    preview={{ mask: <EyeOutlined /> }}
-                                                />
-                                            ))}
+                                            {ut.assets
+                                                .slice(0, 6)
+                                                .map((asset) => (
+                                                    <Image
+                                                        key={asset.id}
+                                                        src={
+                                                            asset.url ??
+                                                            asset.external_url ??
+                                                            ""
+                                                        }
+                                                        width={48}
+                                                        height={48}
+                                                        className="object-cover rounded"
+                                                        preview={{
+                                                            mask: (
+                                                                <EyeOutlined />
+                                                            ),
+                                                        }}
+                                                    />
+                                                ))}
                                             {ut.assets.length > 6 && (
                                                 <span className="text-xs text-gray-400 self-center">
                                                     +{ut.assets.length - 6} more
@@ -392,7 +474,10 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
 
                             {/* Offer attach */}
                             <div>
-                                <Text type="secondary" className="text-xs block mb-1">
+                                <Text
+                                    type="secondary"
+                                    className="text-xs block mb-1"
+                                >
                                     Offer:
                                 </Text>
                                 <OfferAttachSection
@@ -420,7 +505,8 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     onRefresh,
 }) => {
     const [modalOpen, setModalOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<DeveloperProjectUnitType | null>(null);
+    const [editingItem, setEditingItem] =
+        useState<DeveloperProjectUnitType | null>(null);
     const [isDuplicating, setIsDuplicating] = useState(false);
     const [expandedId, setExpandedId] = useState<number | null>(null);
 
@@ -496,7 +582,11 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                     </Space>
                 }
                 extra={
-                    <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={handleAdd}
+                    >
                         Add Unit Type
                     </Button>
                 }
@@ -518,7 +608,9 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                                 unitType={ut}
                                 expanded={expandedId === ut.id}
                                 onToggle={() =>
-                                    setExpandedId((prev) => (prev === ut.id ? null : ut.id))
+                                    setExpandedId((prev) =>
+                                        prev === ut.id ? null : ut.id,
+                                    )
                                 }
                                 onEdit={handleEdit}
                                 onDuplicate={handleDuplicate}

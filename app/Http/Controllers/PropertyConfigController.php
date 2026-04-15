@@ -22,6 +22,7 @@ use App\Models\PropertyStatus;
 use App\Models\PropertyLocationFeature;
 use App\Models\PropertyAddOn;
 use App\Models\PropertyArea;
+use App\Models\ProjectFacility;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -61,6 +62,7 @@ class PropertyConfigController extends AccountBaseController
         'statuses'              => PropertyStatus::class,
         'location-features'     => PropertyLocationFeature::class,
         'add-ons'               => PropertyAddOn::class,
+        'project-facilities'    => ProjectFacility::class,
     ];
 
     public function __construct()
@@ -108,6 +110,7 @@ class PropertyConfigController extends AccountBaseController
             'parent_type' => 'nullable|string|max:255',
             'category'    => 'nullable|string|max:255',
             'city_id'     => 'nullable|integer|exists:property_cities,id',
+            'icon'        => 'nullable|string|max:100',
         ];
 
         // Cities support default distance values
@@ -167,6 +170,11 @@ class PropertyConfigController extends AccountBaseController
             $fillable['default_distances'] = $validated['default_distances'];
         }
 
+        // Only ProjectFacility has icon
+        if ($type === 'project-facilities' && isset($validated['icon'])) {
+            $fillable['icon'] = $validated['icon'];
+        }
+
         $item = $modelClass::create($fillable);
 
         return Reply::successWithData('Lookup item created', ['data' => $item]);
@@ -197,6 +205,7 @@ class PropertyConfigController extends AccountBaseController
             'parent_type' => 'nullable|string|max:255',
             'category'    => 'nullable|string|max:255',
             'city_id'     => 'nullable|integer|exists:property_cities,id',
+            'icon'        => 'nullable|string|max:100',
         ];
 
         // Cities support default distance values
@@ -226,6 +235,9 @@ class PropertyConfigController extends AccountBaseController
         }
         if ($type !== 'cities') {
             unset($updateData['default_distances']);
+        }
+        if ($type !== 'project-facilities') {
+            unset($updateData['icon']);
         }
 
         $item->update($updateData);
