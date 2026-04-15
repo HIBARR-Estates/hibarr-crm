@@ -103,7 +103,7 @@ export interface ShowProps extends PageProps {
     };
     statistics: Statistics;
     unitTypesSummary: UnitTypeSummary[];
-    facilities: string[];
+    facilities: { name: string; label: string; icon: string | null }[];
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
     unitTypePriceList: UnitTypePriceListItem[];

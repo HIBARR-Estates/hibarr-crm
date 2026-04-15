@@ -76,55 +76,6 @@ export const PROPERTY_CONSTRUCTION_STATUSES = [
 ] as const;
 
 // ================================================================
-// Project Facilities (34 items — checkboxes)
-// ================================================================
-
-export interface FacilityOption {
-    value: string;
-    label: string;
-}
-
-export const PROJECT_FACILITIES: FacilityOption[] = [
-    { value: "gym", label: "Gym" },
-    { value: "hamam", label: "Hamam" },
-    { value: "sauna", label: "Sauna" },
-    { value: "massage_spa", label: "Massage and Spa" },
-    { value: "indoor_pool", label: "Indoor Pool" },
-    { value: "outdoor_pool", label: "Outdoor Pool" },
-    { value: "heated_indoor_pool", label: "Heated Indoor Pool" },
-    { value: "kids_playground", label: "Kids Playground" },
-    { value: "aquapark", label: "Aquapark" },
-    { value: "mini_zoo", label: "Mini Zoo" },
-    { value: "clinics", label: "Clinics" },
-    { value: "restaurant", label: "Restaurant" },
-    { value: "beauty_center", label: "Beauty Center" },
-    { value: "walking_paths", label: "Walking Paths" },
-    { value: "cycling_routes", label: "Cycling Routes" },
-    { value: "hiking_routes", label: "Hiking Routes" },
-    { value: "dentist", label: "Dentist" },
-    { value: "healing_yoga", label: "Healing/Yoga" },
-    { value: "tennis_court", label: "Tennis Court" },
-    { value: "basketball_court", label: "Basketball Court" },
-    { value: "reception", label: "Reception" },
-    { value: "security_24_7", label: "24/7 Security" },
-    { value: "beach", label: "Beach" },
-    { value: "beach_cinema", label: "Beach Cinema" },
-    { value: "cinema", label: "Cinema" },
-    { value: "casino", label: "Casino" },
-    { value: "jacuzzi", label: "Jacuzzi" },
-    { value: "gated_community", label: "Gated Community" },
-    { value: "football_court", label: "Football Court" },
-    { value: "volleyball_court", label: "Volleyball Court" },
-    { value: "supermarket", label: "Supermarket" },
-    { value: "cafe", label: "Cafe" },
-    { value: "bar", label: "Bar" },
-    { value: "car_park", label: "Car Park" },
-    { value: "cleaning_service", label: "Cleaning Service" },
-    { value: "central_generator", label: "Central Generator" },
-    { value: "on_site_management", label: "On-site Management" },
-];
-
-// ================================================================
 // Distance Fields for manual entry
 // ================================================================
 

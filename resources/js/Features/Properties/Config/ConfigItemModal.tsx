@@ -1,5 +1,16 @@
 import { useEffect } from "react";
-import { Modal, Form, Input, Alert, Select, Typography, InputNumber, Divider, Row, Col } from "antd";
+import {
+    Modal,
+    Form,
+    Input,
+    Alert,
+    Select,
+    Typography,
+    InputNumber,
+    Divider,
+    Row,
+    Col,
+} from "antd";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import type {
@@ -9,6 +20,10 @@ import type {
     ConfigCategoryMeta,
 } from "@/Types/propertyConfig";
 import { DISTANCE_FIELDS } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
+import {
+    FACILITY_ICON_OPTIONS,
+    getFacilityIconComponent,
+} from "@/lib/facilityIcons";
 
 const { Text } = Typography;
 
@@ -100,14 +115,21 @@ const ConfigItemModal = ({
                 parent_type: editingItem.parent_type ?? undefined,
                 city_id: editingItem.city_id ?? undefined,
                 category: editingItem.category ?? undefined,
+                icon: editingItem.icon ?? undefined,
             });
 
             // Populate default distances for cities
-            if (activeType === "cities" && (editingItem as any).default_distances) {
+            if (
+                activeType === "cities" &&
+                (editingItem as any).default_distances
+            ) {
                 const distances = (editingItem as any).default_distances;
                 DISTANCE_FIELDS.forEach((field) => {
                     if (distances[field.key] != null) {
-                        form.setFieldValue(["default_distances", field.key], distances[field.key]);
+                        form.setFieldValue(
+                            ["default_distances", field.key],
+                            distances[field.key],
+                        );
                     }
                 });
             }
@@ -147,6 +169,10 @@ const ConfigItemModal = ({
                 }
             }
 
+            if (activeType === "project-facilities") {
+                payload.icon = values.icon || null;
+            }
+
             if (isEditing) {
                 updateMutation.mutate(payload);
             } else {
@@ -172,7 +198,13 @@ const ConfigItemModal = ({
             okButtonProps={{ loading: isLoading }}
             cancelButtonProps={{ disabled: isLoading }}
             destroyOnClose
-            width={activeType === "cities" ? 640 : 520}
+            width={
+                activeType === "cities"
+                    ? 640
+                    : activeType === "project-facilities"
+                      ? 560
+                      : 520
+            }
         >
             <div className="pt-4">
                 <Alert
@@ -284,7 +316,10 @@ const ConfigItemModal = ({
                                 {DISTANCE_FIELDS.map((field) => (
                                     <Col xs={12} md={8} key={field.key}>
                                         <Form.Item
-                                            name={["default_distances", field.key]}
+                                            name={[
+                                                "default_distances",
+                                                field.key,
+                                            ]}
                                             label={field.label}
                                         >
                                             <InputNumber
@@ -300,6 +335,39 @@ const ConfigItemModal = ({
                                 ))}
                             </Row>
                         </>
+                    )}
+
+                    {activeType === "project-facilities" && (
+                        <Form.Item
+                            name="icon"
+                            label="Icon"
+                            tooltip="Select an icon to represent this facility"
+                        >
+                            <Select
+                                placeholder="Select an icon"
+                                allowClear
+                                showSearch
+                                optionFilterProp="label"
+                                options={FACILITY_ICON_OPTIONS.map((opt) => {
+                                    const IconComp = opt.component;
+                                    return {
+                                        value: opt.value,
+                                        label: opt.label,
+                                    };
+                                })}
+                                optionRender={(option) => {
+                                    const IconComp = getFacilityIconComponent(
+                                        option.value as string,
+                                    );
+                                    return (
+                                        <div className="flex items-center gap-2">
+                                            <IconComp size={16} />
+                                            <span>{option.label}</span>
+                                        </div>
+                                    );
+                                }}
+                            />
+                        </Form.Item>
                     )}
                 </Form>
             </div>
