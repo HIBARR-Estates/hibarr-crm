@@ -52,6 +52,11 @@ class LeadNote extends BaseModel
         return $this->belongsTo(User::class, 'lead_id');
     }
 
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class, 'lead_id');
+    }
+
     public function members(): HasMany
     {
         return $this->hasMany(LeadUserNote::class, 'lead_note_id');

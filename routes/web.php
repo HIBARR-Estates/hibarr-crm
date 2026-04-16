@@ -13,6 +13,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ImportController;
+use App\Http\Controllers\AgentReportController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TicketController;
@@ -961,6 +962,17 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
     Route::resource('lead-report', LeadReportController::class);
     Route::resource('sales-report', SalesReportController::class);
+
+    // Agent Reports (Inertia)
+    Route::prefix('agent-reports')->name('agent-reports.')->group(function () {
+        Route::get('/', [AgentReportController::class, 'index'])->name('index');
+        Route::get('/leads', [AgentReportController::class, 'leads'])->name('leads');
+        Route::get('/deals-created', [AgentReportController::class, 'dealsCreated'])->name('deals-created');
+        Route::get('/deals-closed', [AgentReportController::class, 'dealsClosed'])->name('deals-closed');
+        Route::get('/meetings', [AgentReportController::class, 'meetings'])->name('meetings');
+        Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->name('ai-summary');
+        Route::get('/export', [AgentReportController::class, 'export'])->name('export');
+    });
 
     Route::resource('sticky-notes', StickyNoteController::class);
 
