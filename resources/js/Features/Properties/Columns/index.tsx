@@ -126,20 +126,20 @@ export const PROPERTY_TABLE_COLUMNS = (
             );
         },
     },
-    {
-        title: "Project",
-        key: "developer_project",
-        width: 140,
-        render: (_, record: Property) => {
-            const project = record?.developer_project;
-            if (!project) return <span className="text-gray-400">—</span>;
-            return (
-                <span className="text-sm text-gray-800">
-                    {truncateText(project.name, 25)}
-                </span>
-            );
-        },
-    },
+    // {
+    //     title: "Project",
+    //     key: "developer_project",
+    //     width: 140,
+    //     render: (_, record: Property) => {
+    //         const project = record?.developer_project;
+    //         if (!project) return <span className="text-gray-400">—</span>;
+    //         return (
+    //             <span className="text-sm text-gray-800">
+    //                 {truncateText(project.name, 25)}
+    //             </span>
+    //         );
+    //     },
+    // },
     {
         title: "Location",
         key: "location",

@@ -321,6 +321,7 @@ const Show = ({
                         activeSection={activeSection}
                         onSelect={setActiveSection}
                         onEdit={() => setEditModalOpen(true)}
+                        availabilityLink={project.availability_link}
                         unitTypesCount={unitTypes?.length || 0}
                         exteriorCount={imagesByTag.exterior?.length || 0}
                         interiorCount={imagesByTag.interior?.length || 0}
