@@ -57,6 +57,12 @@ export type TFilter = Partial<{
     responsible_agent_id?: number;
     occupancy_type?: string;
 
+    //
+    // start_date: string;
+    // end_date: string;
+    // agent_id: number | null;
+    view_type: "agent" | "department";
+
     // due_date_range?: [string, string];
     [key: string]: string | number | boolean | string[] | undefined;
 }>;
