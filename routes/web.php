@@ -968,6 +968,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('/deals-created', [AgentReportController::class, 'dealsCreated'])->name('deals-created');
         Route::get('/deals-closed', [AgentReportController::class, 'dealsClosed'])->name('deals-closed');
         Route::get('/meetings', [AgentReportController::class, 'meetings'])->name('meetings');
+        Route::get('/deal-notes', [AgentReportController::class, 'dealNotes'])->name('deal-notes');
+        Route::get('/lead-notes', [AgentReportController::class, 'leadNotes'])->name('lead-notes');
         Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->name('ai-summary');
         Route::get('/export', [AgentReportController::class, 'export'])->name('export');
     });

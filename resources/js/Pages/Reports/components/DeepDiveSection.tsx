@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Tabs, Table, Skeleton } from "antd";
+import { Tabs, Table, Skeleton, Segmented } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import axios from "axios";
 import MeetingTypeBadge from "./MeetingTypeBadge";
@@ -34,6 +34,11 @@ const leadColumns: ColumnsType<any> = [
         title: "Source",
         key: "source",
         render: (_, r) => r.lead_source?.type ?? "—",
+    },
+    {
+        title: "Lead Owner",
+        key: "lead_owner",
+        render: (_, r) => r.lead_owner?.name ?? "—",
     },
     {
         title: "Created",
@@ -129,6 +134,64 @@ const meetingsColumns: ColumnsType<any> = [
     },
 ];
 
+const dealNotesColumns: ColumnsType<any> = [
+    { title: "Title", dataIndex: "title", key: "title" },
+    {
+        title: "Details",
+        dataIndex: "details",
+        key: "details",
+        ellipsis: true,
+    },
+    {
+        title: "Lead",
+        key: "lead",
+        render: (_, r) => r.deal?.contact?.client_name ?? "—",
+    },
+    {
+        title: "Deal",
+        key: "deal",
+        render: (_, r) => r.deal?.name ?? "—",
+    },
+    {
+        title: "Agent",
+        key: "agent",
+        render: (_, r) =>
+            r.deal?.lead_agent?.user?.name ?? r.added_by?.name ?? "—",
+    },
+    {
+        title: "Created",
+        dataIndex: "created_at",
+        key: "created_at",
+        render: (v: string) => new Date(v).toLocaleDateString(),
+    },
+];
+
+const leadNotesColumns: ColumnsType<any> = [
+    { title: "Title", dataIndex: "title", key: "title" },
+    {
+        title: "Details",
+        dataIndex: "details",
+        key: "details",
+        ellipsis: true,
+    },
+    {
+        title: "Lead",
+        key: "lead",
+        render: (_, r) => r.lead?.client_name ?? "—",
+    },
+    {
+        title: "Agent",
+        key: "agent",
+        render: (_, r) => r.added_by?.name ?? "—",
+    },
+    {
+        title: "Created",
+        dataIndex: "created_at",
+        key: "created_at",
+        render: (v: string) => new Date(v).toLocaleDateString(),
+    },
+];
+
 // ── Tab Config ──────────────────────────────────────────────────
 
 const TAB_CONFIG: Record<
@@ -157,6 +220,22 @@ const TAB_CONFIG: Record<
     },
 };
 
+const NOTES_SUB_TABS: Record<
+    string,
+    { endpoint: string; columns: ColumnsType<any>; label: string }
+> = {
+    "deal-notes": {
+        endpoint: "/account/agent-reports/deal-notes",
+        columns: dealNotesColumns,
+        label: "Deal Notes",
+    },
+    "lead-notes": {
+        endpoint: "/account/agent-reports/lead-notes",
+        columns: leadNotesColumns,
+        label: "Lead Notes",
+    },
+};
+
 // ── Component ───────────────────────────────────────────────────
 
 const DeepDiveSection: React.FC<DeepDiveSectionProps> = ({
@@ -172,17 +251,50 @@ const DeepDiveSection: React.FC<DeepDiveSectionProps> = ({
                 activeKey={currentTab}
                 onChange={onTabChange}
                 className="px-4 pt-2"
-                items={Object.entries(TAB_CONFIG).map(([key, config]) => ({
-                    key,
-                    label: config.label,
-                    children: (
-                        <TabContent
-                            tabKey={key}
-                            filters={filters}
-                            config={config}
-                        />
-                    ),
-                }))}
+                items={[
+                    ...Object.entries(TAB_CONFIG).map(([key, config]) => ({
+                        key,
+                        label: config.label,
+                        children: (
+                            <TabContent
+                                tabKey={key}
+                                filters={filters}
+                                config={config}
+                            />
+                        ),
+                    })),
+                    {
+                        key: "notes",
+                        label: "Notes",
+                        children: <NotesTabContent filters={filters} />,
+                    },
+                ]}
+            />
+        </div>
+    );
+};
+
+// ── Notes Tab (sub-segmented: Deal Notes / Lead Notes) ──────────
+
+const NotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
+    const [activeSubTab, setActiveSubTab] = useState<string>("deal-notes");
+    const config = NOTES_SUB_TABS[activeSubTab];
+
+    return (
+        <div>
+            <div className="mb-4">
+                <Segmented
+                    options={Object.entries(NOTES_SUB_TABS).map(
+                        ([key, cfg]) => ({ label: cfg.label, value: key }),
+                    )}
+                    value={activeSubTab}
+                    onChange={(val) => setActiveSubTab(val as string)}
+                />
+            </div>
+            <TabContent
+                tabKey={activeSubTab}
+                filters={filters}
+                config={config}
             />
         </div>
     );

@@ -24,8 +24,8 @@ class LeadMetricsService
     {
         return Lead::whereHas('deals', fn ($q) => $q->whereIn('agent_id', $agentIds))
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
-            ->with(['leadSource:id,type'])
-            ->select(['id', 'client_name', 'client_email', 'source_id', 'created_at'])
+            ->with(['leadSource:id,type', 'leadOwner:id,name'])
+            ->select(['id', 'client_name', 'client_email', 'source_id', 'lead_owner', 'created_at'])
             ->orderByDesc('created_at')
             ->paginate($perPage);
     }
