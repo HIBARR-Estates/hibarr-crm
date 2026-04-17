@@ -187,6 +187,40 @@ class AgentReportController extends AccountBaseController
     }
 
     /**
+     * Paginated deal notes list (JSON).
+     */
+    public function dealNotes(ReportFilterRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $agentIds = $this->resolveIds($validated);
+        $start = Carbon::parse($validated['start_date']);
+        $end = Carbon::parse($validated['end_date']);
+
+        $data = $this->reportingService->noteMetrics()->listDealNotes(
+            $agentIds, $start, $end, (int) $request->input('per_page', 15)
+        );
+
+        return response()->json($data);
+    }
+
+    /**
+     * Paginated lead notes list (JSON).
+     */
+    public function leadNotes(ReportFilterRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $agentIds = $this->resolveIds($validated);
+        $start = Carbon::parse($validated['start_date']);
+        $end = Carbon::parse($validated['end_date']);
+
+        $data = $this->reportingService->noteMetrics()->listLeadNotes(
+            $agentIds, $start, $end, (int) $request->input('per_page', 15)
+        );
+
+        return response()->json($data);
+    }
+
+    /**
      * Trigger AI summary generation (manual, cached per session).
      */
     public function aiSummary(ReportFilterRequest $request): JsonResponse

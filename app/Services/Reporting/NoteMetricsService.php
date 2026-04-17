@@ -5,6 +5,7 @@ namespace App\Services\Reporting;
 use App\Models\DealNote;
 use App\Models\LeadNote;
 use Carbon\Carbon;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class NoteMetricsService
 {
@@ -57,5 +58,35 @@ class NoteMetricsService
         }
 
         return $combined;
+    }
+
+    public function listDealNotes(array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
+    {
+        return DealNote::whereHas('deal', fn ($q) => $q->whereIn('agent_id', $agentIds))
+            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
+            ->with([
+                'deal:id,name,lead_id,agent_id',
+                'deal.contact:id,client_name',
+                'deal.leadAgent.user:id,name',
+                'addedBy:id,name',
+            ])
+            ->select(['id', 'title', 'details', 'deal_id', 'added_by', 'created_at'])
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+    }
+
+    public function listLeadNotes(array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
+    {
+        return LeadNote::whereHas('lead', function ($q) use ($agentIds) {
+                $q->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
+            })
+            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
+            ->with([
+                'lead:id,client_name',
+                'addedBy:id,name',
+            ])
+            ->select(['id', 'title', 'details', 'lead_id', 'added_by', 'created_at'])
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
     }
 }
