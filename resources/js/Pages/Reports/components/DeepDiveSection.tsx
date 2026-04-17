@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Tabs, Table, Skeleton, Segmented } from "antd";
+import { Tabs, Table, Skeleton, Drawer, Typography, Space, Avatar } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { Link } from "@inertiajs/react";
+import { UserOutlined, CalendarOutlined } from "@ant-design/icons";
 import axios from "axios";
+import dayjs from "dayjs";
 import MeetingTypeBadge from "./MeetingTypeBadge";
+import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
+import ViewNote from "@/Pages/Deals/Components/Tabs/notes/ViewNote";
+import { ContentRenderer } from "@/Components/ContentRenderer";
 
 interface Filters {
     start_date: string;
@@ -28,7 +34,14 @@ interface DeepDiveSectionProps {
 // ── Column Definitions ──────────────────────────────────────────
 
 const leadColumns: ColumnsType<any> = [
-    { title: "Name", dataIndex: "client_name", key: "client_name" },
+    {
+        title: "Name",
+        dataIndex: "client_name",
+        key: "client_name",
+        render: (v: string, r) => (
+            <Link href={`/account/lead-contact/${r.id}`}>{v}</Link>
+        ),
+    },
     { title: "Email", dataIndex: "client_email", key: "client_email" },
     {
         title: "Source",
@@ -49,11 +62,25 @@ const leadColumns: ColumnsType<any> = [
 ];
 
 const dealsCreatedColumns: ColumnsType<any> = [
-    { title: "Deal Name", dataIndex: "name", key: "name" },
+    {
+        title: "Deal Name",
+        dataIndex: "name",
+        key: "name",
+        render: (v: string, r) => (
+            <Link href={`/account/deals/${r.id}`}>{v}</Link>
+        ),
+    },
     {
         title: "Contact",
         key: "contact",
-        render: (_, r) => r.contact?.client_name ?? "—",
+        render: (_, r) =>
+            r.contact ? (
+                <Link href={`/account/lead-contact/${r.contact.id}`}>
+                    {r.contact.client_name}
+                </Link>
+            ) : (
+                "—"
+            ),
     },
     {
         title: "Stage",
@@ -75,11 +102,25 @@ const dealsCreatedColumns: ColumnsType<any> = [
 ];
 
 const dealsClosedColumns: ColumnsType<any> = [
-    { title: "Deal Name", dataIndex: "name", key: "name" },
+    {
+        title: "Deal Name",
+        dataIndex: "name",
+        key: "name",
+        render: (v: string, r) => (
+            <Link href={`/account/deals/${r.id}`}>{v}</Link>
+        ),
+    },
     {
         title: "Contact",
         key: "contact",
-        render: (_, r) => r.contact?.client_name ?? "—",
+        render: (_, r) =>
+            r.contact ? (
+                <Link href={`/account/lead-contact/${r.contact.id}`}>
+                    {r.contact.client_name}
+                </Link>
+            ) : (
+                "—"
+            ),
     },
     { title: "Value", dataIndex: "value", key: "value" },
     {
@@ -95,17 +136,26 @@ const dealsClosedColumns: ColumnsType<any> = [
     },
 ];
 
-const meetingsColumns: ColumnsType<any> = [
+const getMeetingsColumns = (
+    onView: (record: any) => void,
+): ColumnsType<any> => [
     {
         title: "Deal",
         key: "deal",
-        render: (_, r) => r.deal?.name ?? "—",
+        render: (_, r) =>
+            r.deal ? (
+                <Link href={`/account/deals/${r.deal.id}`}>{r.deal.name}</Link>
+            ) : (
+                "—"
+            ),
     },
     {
         title: "Type",
         key: "meeting_type",
         render: (_, r) => (
-            <MeetingTypeBadge type={r.meeting_type?.name ?? "Unknown"} />
+            <a className="cursor-pointer" onClick={() => onView(r)}>
+                <MeetingTypeBadge type={r.meeting_type?.name ?? "Unknown"} />
+            </a>
         ),
     },
     {
@@ -134,8 +184,22 @@ const meetingsColumns: ColumnsType<any> = [
     },
 ];
 
-const dealNotesColumns: ColumnsType<any> = [
-    { title: "Title", dataIndex: "title", key: "title" },
+const getDealNotesColumns = (
+    onView: (record: any) => void,
+): ColumnsType<any> => [
+    {
+        title: "Title",
+        dataIndex: "title",
+        key: "title",
+        render: (v: string, r) => (
+            <a
+                className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                onClick={() => onView(r)}
+            >
+                {v}
+            </a>
+        ),
+    },
     {
         title: "Details",
         dataIndex: "details",
@@ -145,12 +209,24 @@ const dealNotesColumns: ColumnsType<any> = [
     {
         title: "Lead",
         key: "lead",
-        render: (_, r) => r.deal?.contact?.client_name ?? "—",
+        render: (_, r) =>
+            r.deal?.contact ? (
+                <Link href={`/account/lead-contact/${r.deal.contact.id}`}>
+                    {r.deal.contact.client_name}
+                </Link>
+            ) : (
+                "—"
+            ),
     },
     {
         title: "Deal",
         key: "deal",
-        render: (_, r) => r.deal?.name ?? "—",
+        render: (_, r) =>
+            r.deal ? (
+                <Link href={`/account/deals/${r.deal.id}`}>{r.deal.name}</Link>
+            ) : (
+                "—"
+            ),
     },
     {
         title: "Agent",
@@ -166,8 +242,22 @@ const dealNotesColumns: ColumnsType<any> = [
     },
 ];
 
-const leadNotesColumns: ColumnsType<any> = [
-    { title: "Title", dataIndex: "title", key: "title" },
+const getLeadNotesColumns = (
+    onView: (record: any) => void,
+): ColumnsType<any> => [
+    {
+        title: "Title",
+        dataIndex: "title",
+        key: "title",
+        render: (v: string, r) => (
+            <a
+                className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                onClick={() => onView(r)}
+            >
+                {v}
+            </a>
+        ),
+    },
     {
         title: "Details",
         dataIndex: "details",
@@ -177,7 +267,14 @@ const leadNotesColumns: ColumnsType<any> = [
     {
         title: "Lead",
         key: "lead",
-        render: (_, r) => r.lead?.client_name ?? "—",
+        render: (_, r) =>
+            r.lead ? (
+                <Link href={`/account/lead-contact/${r.lead.id}`}>
+                    {r.lead.client_name}
+                </Link>
+            ) : (
+                "—"
+            ),
     },
     {
         title: "Agent",
@@ -213,27 +310,6 @@ const TAB_CONFIG: Record<
         columns: dealsClosedColumns,
         label: "Deals Closed",
     },
-    meetings: {
-        endpoint: "/account/agent-reports/meetings",
-        columns: meetingsColumns,
-        label: "Meetings",
-    },
-};
-
-const NOTES_SUB_TABS: Record<
-    string,
-    { endpoint: string; columns: ColumnsType<any>; label: string }
-> = {
-    "deal-notes": {
-        endpoint: "/account/agent-reports/deal-notes",
-        columns: dealNotesColumns,
-        label: "Deal Notes",
-    },
-    "lead-notes": {
-        endpoint: "/account/agent-reports/lead-notes",
-        columns: leadNotesColumns,
-        label: "Lead Notes",
-    },
 };
 
 // ── Component ───────────────────────────────────────────────────
@@ -264,9 +340,19 @@ const DeepDiveSection: React.FC<DeepDiveSectionProps> = ({
                         ),
                     })),
                     {
-                        key: "notes",
-                        label: "Notes",
-                        children: <NotesTabContent filters={filters} />,
+                        key: "meetings",
+                        label: "Meetings",
+                        children: <MeetingsTabContent filters={filters} />,
+                    },
+                    {
+                        key: "deal-notes",
+                        label: "Deal Notes",
+                        children: <DealNotesTabContent filters={filters} />,
+                    },
+                    {
+                        key: "lead-notes",
+                        label: "Lead Notes",
+                        children: <LeadNotesTabContent filters={filters} />,
                     },
                 ]}
             />
@@ -274,29 +360,167 @@ const DeepDiveSection: React.FC<DeepDiveSectionProps> = ({
     );
 };
 
-// ── Notes Tab (sub-segmented: Deal Notes / Lead Notes) ──────────
+// ── Meetings Tab (with ViewFollowup drawer) ─────────────────────
 
-const NotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
-    const [activeSubTab, setActiveSubTab] = useState<string>("deal-notes");
-    const config = NOTES_SUB_TABS[activeSubTab];
+const MeetingsTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
+    const [selected, setSelected] = useState<any>(null);
+
+    const columns = getMeetingsColumns((record) => setSelected(record));
 
     return (
-        <div>
-            <div className="mb-4">
-                <Segmented
-                    options={Object.entries(NOTES_SUB_TABS).map(
-                        ([key, cfg]) => ({ label: cfg.label, value: key }),
-                    )}
-                    value={activeSubTab}
-                    onChange={(val) => setActiveSubTab(val as string)}
-                />
-            </div>
+        <>
             <TabContent
-                tabKey={activeSubTab}
+                tabKey="meetings"
                 filters={filters}
-                config={config}
+                config={{
+                    endpoint: "/account/agent-reports/meetings",
+                    columns,
+                }}
             />
-        </div>
+            {selected?.deal && (
+                <ViewFollowup
+                    open={!!selected}
+                    onClose={() => setSelected(null)}
+                    deal={selected.deal}
+                    followup={selected}
+                />
+            )}
+        </>
+    );
+};
+
+// ── Deal Notes Tab (with ViewNote drawer) ───────────────────────
+
+const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
+    const [selected, setSelected] = useState<any>(null);
+
+    const columns = getDealNotesColumns((record) => setSelected(record));
+
+    return (
+        <>
+            <TabContent
+                tabKey="deal-notes"
+                filters={filters}
+                config={{
+                    endpoint: "/account/agent-reports/deal-notes",
+                    columns,
+                }}
+            />
+            {selected?.deal && (
+                <ViewNote
+                    open={!!selected}
+                    onClose={() => setSelected(null)}
+                    deal={selected.deal}
+                    note={selected}
+                />
+            )}
+        </>
+    );
+};
+
+// ── Lead Notes Tab (with drawer viewer) ─────────────────────────
+
+const { Title, Text } = Typography;
+
+const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
+    const [selected, setSelected] = useState<any>(null);
+
+    const columns = getLeadNotesColumns((record) => setSelected(record));
+
+    return (
+        <>
+            <TabContent
+                tabKey="lead-notes"
+                filters={filters}
+                config={{
+                    endpoint: "/account/agent-reports/lead-notes",
+                    columns,
+                }}
+            />
+            <Drawer
+                title={<span className="text-sm">View Note</span>}
+                placement="right"
+                size="large"
+                open={!!selected}
+                onClose={() => setSelected(null)}
+                destroyOnHidden
+            >
+                {selected && (
+                    <div className="space-y-6">
+                        <div>
+                            <Title level={3} className="mb-0">
+                                {selected.title}
+                            </Title>
+                        </div>
+
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <Space
+                                direction="vertical"
+                                size="small"
+                                className="w-full"
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <CalendarOutlined className="text-gray-500" />
+                                    <Text type="secondary">
+                                        Created on{" "}
+                                        {dayjs(selected.created_at).format(
+                                            "MMMM DD, YYYY [at] h:mm A",
+                                        )}
+                                    </Text>
+                                </div>
+                                {selected.added_by && (
+                                    <div className="flex items-center gap-x-2">
+                                        <Avatar
+                                            size="small"
+                                            icon={<UserOutlined />}
+                                            src={selected.added_by?.image_url}
+                                        />
+                                        <Text type="secondary">
+                                            Created by {selected.added_by?.name}
+                                        </Text>
+                                    </div>
+                                )}
+                            </Space>
+                        </div>
+
+                        <div>
+                            <Title level={4} className="mb-3">
+                                Details
+                            </Title>
+                            <div className="bg-white border border-gray-200 rounded-lg p-4 min-h-[200px]">
+                                {selected.details ? (
+                                    <ContentRenderer
+                                        content={selected.details}
+                                        showFullContent={true}
+                                        className="prose prose-sm max-w-none"
+                                    />
+                                ) : (
+                                    <Text type="secondary" italic>
+                                        No details provided
+                                    </Text>
+                                )}
+                            </div>
+                        </div>
+
+                        {selected.lead && (
+                            <div className="bg-blue-50 p-4 rounded-lg">
+                                <Title level={5} className="mb-2 text-blue-800">
+                                    Related Lead
+                                </Title>
+                                <div>
+                                    <Link
+                                        href={`/account/lead-contact/${selected.lead.id}`}
+                                        className="text-blue-600 hover:text-blue-800 font-medium"
+                                    >
+                                        {selected.lead.client_name}
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </Drawer>
+        </>
     );
 };
 

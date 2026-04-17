@@ -41,9 +41,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
     canViewAll,
     onChange,
 }) => {
-    const handleDateChange = (
-        dates: [Dayjs | null, Dayjs | null] | null
-    ) => {
+    const handleDateChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
         if (dates && dates[0] && dates[1]) {
             onChange({
                 start_date: dates[0].format("YYYY-MM-DD"),
@@ -110,9 +108,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                                     dayjs()
                                         .subtract(1, "month")
                                         .startOf("month"),
-                                    dayjs()
-                                        .subtract(1, "month")
-                                        .endOf("month"),
+                                    dayjs().subtract(1, "month").endOf("month"),
                                 ],
                             },
                             {
@@ -183,12 +179,12 @@ const FilterBar: React.FC<FilterBarProps> = ({
                     >
                         Excel
                     </Button>
-                    <Button
+                    {/* <Button
                         icon={<DownloadOutlined />}
                         onClick={() => handleExport("pdf")}
                     >
                         PDF
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
         </div>
