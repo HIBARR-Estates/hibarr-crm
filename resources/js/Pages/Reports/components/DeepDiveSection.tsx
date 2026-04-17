@@ -167,7 +167,7 @@ const DeepDiveSection: React.FC<DeepDiveSectionProps> = ({
     const currentTab = activeTab ?? "leads";
 
     return (
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white rounded-lg border border-gray-200 px-8 py-6 mt-6">
             <Tabs
                 activeKey={currentTab}
                 onChange={onTabChange}

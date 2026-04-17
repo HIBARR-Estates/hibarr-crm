@@ -236,6 +236,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             href: "/account/developer-projects",
         },
         {
+            key: "reports",
+            label: "Reports",
+            icon: <HistoryOutlined />,
+            href: "/account/agent-reports",
+        },
+        {
             key: "mlm",
             label: "Partner Network",
             icon: <ApartmentOutlined />,
