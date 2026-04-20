@@ -398,7 +398,7 @@ class TaskController extends AccountBaseController
             $records = $tasks->map(function (Task $task) {
                 return [
                     'label' => 'Deleted: ' . ($task->heading ?? ('#' . $task->id)),
-                    'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                    'url' => '',
                 ];
             })->values()->all();
 

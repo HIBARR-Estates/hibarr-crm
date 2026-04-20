@@ -1528,7 +1528,7 @@ class DealController extends AccountBaseController
                 $records = $deals->map(function (Deal $deal) {
                     return [
                         'label' => 'Deleted: ' . ($deal->name ?? ('#' . $deal->id)),
-                        'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
+                        'url' => '',
                     ];
                 })->values()->all();
 

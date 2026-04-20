@@ -24,12 +24,33 @@ class MeetingSummaryApiController extends Controller
         $request->validate([
             'meeting_id' => 'required|string',
             'meeting_platform' => 'required|string',
-            'meeting_summary' => 'required|array'
+            // Allow meeting_summary to be either an array (preferred)
+            // or any other type (e.g. stringified JSON) that we will
+            // normalize into an array below.
+            'meeting_summary' => 'required'
         ]);
 
         $meetingId = $request->meeting_id;
         $meetingPlatform = $request->meeting_platform;
-        $meetingSummary = $request->meeting_summary;
+        $meetingSummaryRaw = $request->meeting_summary;
+
+        // Normalize meeting_summary so the rest of the flow can
+        // operate on a consistent array structure.
+        if (is_string($meetingSummaryRaw)) {
+            $decoded = json_decode($meetingSummaryRaw, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $meetingSummary = $decoded;
+            } else {
+                // Treat plain string summaries as a simple structure
+                // while keeping compatibility with existing consumers.
+                $meetingSummary = ['summary' => $meetingSummaryRaw];
+            }
+        } elseif (is_array($meetingSummaryRaw)) {
+            $meetingSummary = $meetingSummaryRaw;
+        } else {
+            throw new \InvalidArgumentException('Invalid meeting_summary format. Expected array or JSON/string.');
+        }
 
         try {
             // Find meeting info - will throw exception if not found

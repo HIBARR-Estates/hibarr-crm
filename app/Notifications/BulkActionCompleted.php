@@ -13,7 +13,7 @@ class BulkActionCompleted extends BaseNotification
     protected int $sampleLimit = 10;
 
     /**
-     * @param array<int, array{label: string, url: string}> $records
+     * @param array<int, array{label: string, url?: string|null}> $records
      */
     public function __construct(string $module, string $actionType, int $count, array $records = [])
     {
@@ -40,14 +40,15 @@ class BulkActionCompleted extends BaseNotification
         $url = route('dashboard');
         $url = getDomainSpecificUrl($url, $this->company);
         $intro = "Your bulk {$actionLabel} action for {$moduleLabel} has completed. Below are the updated records:";
-        $actionDescription = "Click a link to view each updated record.";
         $records = $this->getRenderableRecords();
         $sampleRecords = array_slice($records, 0, $this->sampleLimit);
+        $actionDescription = $this->getActionDescription($records);
 
         $build
             ->subject("{$moduleLabel} bulk {$actionLabel} completed - " . config('app.name'))
             ->view('mail.bulk-action-completed', [
                 'url' => $url,
+                'actionUrl' => $url,
                 'themeColor' => $this->company?->header_color,
                 'actionText' => 'Open Dashboard',
                 'notifiableName' => $notifiable->name,
@@ -86,9 +87,20 @@ class BulkActionCompleted extends BaseNotification
         };
     }
 
-    protected function getActionDescription(string $actionLabel, string $moduleLabel): string
+    /**
+     * @param array<int, array{label: string, url: string}> $records
+     */
+    protected function getActionDescription(array $records): string
     {
-        return "You can review the {$moduleLabel} {$actionLabel} results from your dashboard using the button below:";
+        $hasLinkableRecord = collect($records)->contains(function (array $record): bool {
+            return trim((string) ($record['url'] ?? '')) !== '';
+        });
+
+        if ($hasLinkableRecord) {
+            return 'Click a link to view each updated record.';
+        }
+
+        return 'Review the full bulk action results from your dashboard using the button below.';
     }
 
     /**
@@ -97,10 +109,10 @@ class BulkActionCompleted extends BaseNotification
     protected function getRenderableRecords(): array
     {
         return array_values(array_filter(array_map(function (array $record): ?array {
-            $recordUrl = trim((string) ($record['url'] ?? ''));
             $recordLabel = trim((string) ($record['label'] ?? ''));
+            $recordUrl = trim((string) ($record['url'] ?? ''));
 
-            if ($recordUrl === '' || $recordLabel === '') {
+            if ($recordLabel === '') {
                 return null;
             }
 
