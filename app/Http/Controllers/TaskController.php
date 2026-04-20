@@ -382,17 +382,67 @@ class TaskController extends AccountBaseController
      */
     public function applyQuickAction(Request $request)
     {
+        // Suppress per-task notifications/emails during bulk operations
+        app()->instance('suppress_bulk_notifications', true);
+
+        $ids = $request->filled('row_ids')
+            ? explode(',', $request->row_ids)
+            : [];
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        $targetCount = count($ids);
+        $records = [];
+
         switch ($request->action_type) {
         case 'delete':
+            $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+            $records = $tasks->map(function (Task $task) {
+                return [
+                    'label' => 'Deleted: ' . ($task->heading ?? ('#' . $task->id)),
+                    'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                ];
+            })->values()->all();
+
             $this->deleteRecords($request);
+
+            if (user() && !empty($records)) {
+                user()->notify(new \App\Notifications\BulkActionCompleted('task', 'delete', count($records), $records));
+            }
 
             return Reply::success(__('messages.deleteSuccess'));
         case 'change-status':
+            $column = TaskboardColumn::find($request->status);
+            $columnLabel = $column?->column_name ?? ($column?->slug ?? ('ID ' . $request->status));
+            $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+            $records = $tasks->map(function (Task $task) use ($columnLabel) {
+                return [
+                    'label' => ($task->heading ?? ('#' . $task->id)) . ' (' . $columnLabel . ')',
+                    'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                ];
+            })->values()->all();
+
             $this->changeBulkStatus($request);
+
+            if (user() && !empty($records)) {
+                user()->notify(new \App\Notifications\BulkActionCompleted('task', 'change-status', count($records), $records));
+            }
 
             return Reply::success(__('messages.updateSuccess'));
         case 'milestone':
+            $milestone = ProjectMilestone::find($request->milestone);
+            $milestoneLabel = $milestone?->milestone_title ?? ('ID ' . $request->milestone);
+            $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+            $records = $tasks->map(function (Task $task) use ($milestoneLabel) {
+                return [
+                    'label' => ($task->heading ?? ('#' . $task->id)) . ' (' . $milestoneLabel . ')',
+                    'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                ];
+            })->values()->all();
+
             $this->changeMilestones($request);
+
+            if (user() && !empty($records)) {
+                user()->notify(new \App\Notifications\BulkActionCompleted('task', 'milestone', count($records), $records));
+            }
 
             return Reply::success(__('messages.updateSuccess'));
         default:

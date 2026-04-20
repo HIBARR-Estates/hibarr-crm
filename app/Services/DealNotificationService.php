@@ -43,6 +43,9 @@ class DealNotificationService
         array $additionalData = [],
         ?int $excludeUserId = null
     ): void {
+        $suppressBulkTransactionalEmails = app()->bound('suppress_bulk_notifications')
+            && app('suppress_bulk_notifications') === true;
+
         // Get the user to exclude (the one who made the change)
         $excludeUserId = $excludeUserId ?? (user()?->id);
 
@@ -57,10 +60,13 @@ class DealNotificationService
         $notificationData = $this->buildNotificationData($deal, $activityType, $additionalData, $excludeUserId);
 
         // Send the notification
-        Notification::send(
-            $notifiableUsers,
-            new DealActivityNotification($deal, $activityType, $notificationData)
-        );
+        $notification = new DealActivityNotification($deal, $activityType, $notificationData);
+
+        if ($suppressBulkTransactionalEmails) {
+            $notification->setSuppressBulkTransactionalEmails(true);
+        }
+
+        Notification::send($notifiableUsers, $notification);
     }
 
     /**

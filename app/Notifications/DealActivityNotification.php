@@ -57,6 +57,11 @@ class DealActivityNotification extends BaseNotification
     {
         $via = ['database'];
 
+        // During bulk updates, suppress individual transactional emails.
+        if ($this->suppressBulkTransactionalEmails) {
+            return $via;
+        }
+
         // Check if email notifications are enabled
         if ($this->emailSetting 
             && $this->emailSetting->send_email == 'yes' 

@@ -6,6 +6,7 @@ use App\Events\DealEvent;
 use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\User;
+use App\Notifications\BaseNotification;
 use App\Notifications\DealStageUpdated;
 use App\Notifications\LeadAgentAssigned;
 use Illuminate\Notifications\Notification as NotificationInstance;
@@ -45,6 +46,13 @@ class DealListener
      */
     private function notifyFor($notifyUser, Deal $deal, NotificationInstance $notification): void
     {
+        $suppressBulkTransactionalEmails = app()->bound('suppress_bulk_notifications')
+            && app('suppress_bulk_notifications') === true;
+
+        if ($suppressBulkTransactionalEmails && $notification instanceof BaseNotification) {
+            $notification->setSuppressBulkTransactionalEmails(true);
+        }
+
         if ($notifyUser instanceof LeadAgent) {
             // Notify the lead agent's user
             if ($notifyUser->user) {

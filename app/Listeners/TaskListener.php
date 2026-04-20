@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Events\TaskEvent;
 use App\Models\User;
+use App\Notifications\BaseNotification;
 use App\Notifications\NewTask;
 use App\Notifications\TaskUpdated;
 use App\Notifications\NewClientTask;
@@ -27,33 +28,43 @@ class TaskListener
 
     public function handle(TaskEvent $event)
     {
+        $suppressBulkTransactionalEmails = app()->bound('suppress_bulk_notifications')
+            && app('suppress_bulk_notifications') === true;
+
         if ($event->notificationName) {
+            $prepareNotification = function ($notification) use ($suppressBulkTransactionalEmails) {
+                if ($suppressBulkTransactionalEmails && $notification instanceof BaseNotification) {
+                    $notification->setSuppressBulkTransactionalEmails(true);
+                }
+                return $notification;
+            };
+
             if ($event->notificationName == 'NewClientTask') {
-                Notification::send($event->notifyUser, new NewClientTask($event->task));
+                Notification::send($event->notifyUser, $prepareNotification(new NewClientTask($event->task)));
             }
             elseif ($event->notificationName == 'NewTask') {
-                Notification::send($event->notifyUser, new NewTask($event->task));
+                Notification::send($event->notifyUser, $prepareNotification(new NewTask($event->task)));
             }
             elseif ($event->notificationName == 'TaskUpdated') {
-                Notification::send($event->notifyUser, new TaskUpdated($event->task));
+                Notification::send($event->notifyUser, $prepareNotification(new TaskUpdated($event->task)));
             }
             elseif ($event->notificationName == 'TaskStatusUpdated') {
-                Notification::send($event->notifyUser, new TaskStatusUpdated($event->task, user()));
+                Notification::send($event->notifyUser, $prepareNotification(new TaskStatusUpdated($event->task, user())));
             }
             elseif ($event->notificationName == 'TaskApproval') {
-                Notification::send($event->notifyUser, new TaskApproval($event->task, user()));
+                Notification::send($event->notifyUser, $prepareNotification(new TaskApproval($event->task, user())));
             }
             elseif ($event->notificationName == 'TaskCompleted') {
-                Notification::send($event->notifyUser, new TaskCompleted($event->task, user()));
+                Notification::send($event->notifyUser, $prepareNotification(new TaskCompleted($event->task, user())));
             }
             elseif ($event->notificationName == 'TaskCompletedClient') {
-                Notification::send($event->notifyUser, new TaskCompletedClient($event->task));
+                Notification::send($event->notifyUser, $prepareNotification(new TaskCompletedClient($event->task)));
             }
             elseif ($event->notificationName == 'TaskUpdatedClient') {
-                Notification::send($event->notifyUser, new TaskUpdatedClient($event->task));
+                Notification::send($event->notifyUser, $prepareNotification(new TaskUpdatedClient($event->task)));
             }
             elseif ($event->notificationName == 'TaskMention') {
-                Notification::send($event->notifyUser, new TaskMention($event->task));
+                Notification::send($event->notifyUser, $prepareNotification(new TaskMention($event->task)));
             }
         }
     }

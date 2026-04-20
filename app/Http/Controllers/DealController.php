@@ -1502,35 +1502,85 @@ class DealController extends AccountBaseController
 
     public function applyQuickAction(Request $request)
     {
+        // Suppress per-deal notifications/emails during bulk operations
+        app()->instance('suppress_bulk_notifications', true);
+
+        $rowIds = $request->filled('row_ids')
+            ? explode(',', $request->row_ids)
+            : [];
+        $rowIds = array_values(array_filter(array_map('intval', $rowIds)));
+        $targetCount = count($rowIds);
+        $records = [];
+
         switch ($request->action_type) {
             case 'delete':
+                $lockedIds = Deal::whereIn('id', $rowIds)->where('is_locked', true)->pluck('id')->toArray();
+                $deletableIds = array_values(array_diff($rowIds, $lockedIds));
+                $deals = Deal::whereIn('id', $deletableIds)->get(['id', 'name']);
+                $records = $deals->map(function (Deal $deal) {
+                    return [
+                        'label' => 'Deleted: ' . ($deal->name ?? ('#' . $deal->id)),
+                        'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
+                    ];
+                })->values()->all();
+
                 $this->deleteRecords($request);
 
-                // return Reply::success(__('messages.deleteSuccess'));
+                if (user() && !empty($records)) {
+                    user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'delete', count($records), $records));
+                }
+
                 return back()->with([
                     'status' => 'success',
                     'message' => __('messages.deleteSuccess')
-                ]); 
+                ]);
+
             case 'change-status':
+                $stage = PipelineStage::find($request->status);
+                $stageLabel = $stage?->name ?? ('ID ' . $request->status);
+                $editableIds = Deal::whereIn('id', $rowIds)->where('is_locked', false)->pluck('id')->toArray();
+                $deals = Deal::whereIn('id', $editableIds)->get(['id', 'name']);
+                $records = $deals->map(function (Deal $deal) use ($stageLabel) {
+                    return [
+                        'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $stageLabel . ')',
+                        'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
+                    ];
+                })->values()->all();
+
                 $this->changeBulkStatus($request);
 
-                // return Reply::success(__('messages.updateSuccess'));
+                if (user() && !empty($records)) {
+                    user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-status', count($records), $records));
+                }
+
                 return back()->with([
                     'status' => 'success',
                     'message' => __('messages.updateSuccess')
                 ]);
 
             case 'change-deal-agents':
+                $leadAgent = LeadAgent::with('user')->find($request->agent);
+                $agentLabel = $leadAgent?->user?->name ?? ('ID ' . $request->agent);
+                $deals = Deal::whereIn('id', $rowIds)->get(['id', 'name']);
+                $records = $deals->map(function (Deal $deal) use ($agentLabel) {
+                    return [
+                        'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $agentLabel . ')',
+                        'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
+                    ];
+                })->values()->all();
+
                 $this->changeAgentStatus($request);
 
-                // return Reply::success(__('messages.updateSuccess'));
+                if (user() && !empty($records)) {
+                    user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-deal-agents', count($records), $records));
+                }
+
                 return back()->with([
                     'status' => 'success',
                     'message' => __('messages.updateSuccess')
                 ]);
 
             default:
-                // return Reply::error(__('messages.selectAction'));
                 return back()->with([
                     'status' => 'error',
                     'message' => __('messages.selectAction')

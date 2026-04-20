@@ -33,6 +33,11 @@ class LeadAgentAssigned extends BaseNotification
     {
         $via = array('database');
 
+        // During bulk updates, suppress individual transactional emails.
+        if ($this->suppressBulkTransactionalEmails) {
+            return $via;
+        }
+
         // Check if email setting exists and is enabled
         if ($this->emailSetting && $this->emailSetting->send_email == 'yes' && $notifiable->email_notifications && $notifiable->email != '') {
             array_push($via, 'mail');
