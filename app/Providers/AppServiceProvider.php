@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(
             \App\Contracts\AiSummaryInterface::class,
-            \App\Services\AiSummary\MockAiSummaryService::class,
+            \App\Services\AiSummary\HibarrAiSummaryService::class,
         );
     }
 

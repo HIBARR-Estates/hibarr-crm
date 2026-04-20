@@ -92,7 +92,7 @@ class AgentReportController extends AccountBaseController
         // Current agent context
         $currentAgent = null;
 
-        if ($viewType === 'agent' && !empty($agentIds)) {
+        if ($viewType === 'agent' && $agentIds && !empty($agentIds)) {
             $agent = LeadAgent::with('user:id,name')->find($agentIds[0]);
             $currentAgent = $agent ? ['id' => $agent->id, 'name' => $agent->user?->name] : null;
         }
@@ -232,7 +232,7 @@ class AgentReportController extends AccountBaseController
         $viewType = $validated['view_type'];
 
         // Build a cache key unique to this user + filters
-        $cacheKey = 'ai_summary:' . user()->id . ':' . md5(implode(',', $agentIds) . $start . $end);
+        $cacheKey = 'ai_summary:' . user()->id . ':' . md5(implode(',', $agentIds ?? []) . $start . $end);
 
         $summary = Cache::get($cacheKey);
 
@@ -288,7 +288,7 @@ class AgentReportController extends AccountBaseController
     /**
      * Helper to resolve agent IDs from validated request data.
      */
-    private function resolveIds(array $validated): array
+    private function resolveIds(array $validated): ?array
     {
         return $this->reportingService->resolveAgentIds(
             $validated['agent_id'] ?? null,
@@ -297,7 +297,7 @@ class AgentReportController extends AccountBaseController
         );
     }
 
-    private function resolveAgentName(array $agentIds): ?string
+    private function resolveAgentName(?array $agentIds): ?string
     {
         if (empty($agentIds)) {
             return null;

@@ -13,7 +13,7 @@ class DealsCreatedSheet implements FromCollection, WithHeadings, WithMapping, Wi
 {
     public function __construct(
         private DealMetricsService $service,
-        private array $agentIds,
+        private ?array $agentIds,
         private Carbon $start,
         private Carbon $end,
     ) {}

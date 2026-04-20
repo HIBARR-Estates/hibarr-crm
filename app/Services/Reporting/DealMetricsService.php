@@ -9,16 +9,16 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class DealMetricsService
 {
-    public function countCreated(array $agentIds, Carbon $start, Carbon $end): int
+    public function countCreated(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return Deal::whereIn('agent_id', $agentIds)
+        return Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->count();
     }
 
-    public function listCreated(array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
+    public function listCreated(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return Deal::whereIn('agent_id', $agentIds)
+        return Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->with([
                 'leadAgent.user:id,name',
@@ -30,17 +30,17 @@ class DealMetricsService
             ->paginate($perPage);
     }
 
-    public function countClosed(array $agentIds, Carbon $start, Carbon $end): int
+    public function countClosed(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return Deal::whereIn('agent_id', $agentIds)
+        return Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
             ->where('outcome_status', OutcomeStatus::Won)
             ->whereBetween('won_at', [$start->startOfDay(), $end->endOfDay()])
             ->count();
     }
 
-    public function listClosed(array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
+    public function listClosed(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return Deal::whereIn('agent_id', $agentIds)
+        return Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
             ->where('outcome_status', OutcomeStatus::Won)
             ->whereBetween('won_at', [$start->startOfDay(), $end->endOfDay()])
             ->with([
@@ -52,9 +52,9 @@ class DealMetricsService
             ->paginate($perPage);
     }
 
-    public function totalClosedValue(array $agentIds, Carbon $start, Carbon $end): float
+    public function totalClosedValue(?array $agentIds, Carbon $start, Carbon $end): float
     {
-        return (float) Deal::whereIn('agent_id', $agentIds)
+        return (float) Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
             ->where('outcome_status', OutcomeStatus::Won)
             ->whereBetween('won_at', [$start->startOfDay(), $end->endOfDay()])
             ->sum('value');

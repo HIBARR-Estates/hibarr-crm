@@ -13,16 +13,20 @@ class LeadMetricsService
      * Count leads (contacts) that have at least one deal owned by the given agents,
      * scoped by the lead's created_at date.
      */
-    public function count(array $agentIds, Carbon $start, Carbon $end): int
+    public function count(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return Lead::whereHas('deals', fn ($q) => $q->whereIn('agent_id', $agentIds))
+        return Lead::when($agentIds !== null, fn ($q) =>
+                $q->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
+            )
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->count();
     }
 
-    public function list(array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
+    public function list(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return Lead::whereHas('deals', fn ($q) => $q->whereIn('agent_id', $agentIds))
+        return Lead::when($agentIds !== null, fn ($q) =>
+                $q->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
+            )
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->with(['leadSource:id,type', 'leadOwner:id,name'])
             ->select(['id', 'client_name', 'client_email', 'source_id', 'lead_owner', 'created_at'])
