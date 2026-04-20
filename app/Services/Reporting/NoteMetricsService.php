@@ -9,24 +9,28 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class NoteMetricsService
 {
-    public function count(array $agentIds, Carbon $start, Carbon $end): int
+    public function count(?array $agentIds, Carbon $start, Carbon $end): int
     {
         return $this->dealNotesCount($agentIds, $start, $end)
             + $this->leadNotesCount($agentIds, $start, $end);
     }
 
-    public function dealNotesCount(array $agentIds, Carbon $start, Carbon $end): int
+    public function dealNotesCount(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return DealNote::whereHas('deal', fn ($q) => $q->whereIn('agent_id', $agentIds))
+        return DealNote::when($agentIds !== null, fn ($q) =>
+                $q->whereHas('deal', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
+            )
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->count();
     }
 
-    public function leadNotesCount(array $agentIds, Carbon $start, Carbon $end): int
+    public function leadNotesCount(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return LeadNote::whereHas('lead', function ($q) use ($agentIds) {
-                $q->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
-            })
+        return LeadNote::when($agentIds !== null, fn ($q) =>
+                $q->whereHas('lead', function ($lq) use ($agentIds) {
+                    $lq->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
+                })
+            )
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->count();
     }
@@ -35,17 +39,21 @@ class NoteMetricsService
      * Fetch concatenated note bodies for the AI summary engine.
      * Caps output at $maxChars to avoid extremely large LLM payloads.
      */
-    public function getBodiesForAi(array $agentIds, Carbon $start, Carbon $end, int $maxChars = 100000): string
+    public function getBodiesForAi(?array $agentIds, Carbon $start, Carbon $end, int $maxChars = 100000): string
     {
-        $dealNotes = DealNote::whereHas('deal', fn ($q) => $q->whereIn('agent_id', $agentIds))
+        $dealNotes = DealNote::when($agentIds !== null, fn ($q) =>
+                $q->whereHas('deal', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
+            )
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->pluck('details')
             ->filter()
             ->implode("\n---\n");
 
-        $leadNotes = LeadNote::whereHas('lead', function ($q) use ($agentIds) {
-                $q->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
-            })
+        $leadNotes = LeadNote::when($agentIds !== null, fn ($q) =>
+                $q->whereHas('lead', function ($lq) use ($agentIds) {
+                    $lq->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
+                })
+            )
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->pluck('details')
             ->filter()
@@ -60,9 +68,11 @@ class NoteMetricsService
         return $combined;
     }
 
-    public function listDealNotes(array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
+    public function listDealNotes(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return DealNote::whereHas('deal', fn ($q) => $q->whereIn('agent_id', $agentIds))
+        return DealNote::when($agentIds !== null, fn ($q) =>
+                $q->whereHas('deal', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
+            )
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->with([
                 'deal:id,name,lead_id,agent_id',
@@ -75,11 +85,13 @@ class NoteMetricsService
             ->paginate($perPage);
     }
 
-    public function listLeadNotes(array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
+    public function listLeadNotes(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return LeadNote::whereHas('lead', function ($q) use ($agentIds) {
-                $q->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
-            })
+        return LeadNote::when($agentIds !== null, fn ($q) =>
+                $q->whereHas('lead', function ($lq) use ($agentIds) {
+                    $lq->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
+                })
+            )
             ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
             ->with([
                 'lead:id,client_name',

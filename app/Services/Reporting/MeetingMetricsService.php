@@ -36,30 +36,36 @@ class MeetingMetricsService
         });
     }
 
-    public function count(array $agentIds, Carbon $start, Carbon $end): int
+    public function count(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        $userIds = $this->resolveUserIds($agentIds);
-
-        if (empty($userIds)) {
-            return 0;
-        }
-
         $query = DealFollowUp::whereBetween('next_follow_up_date', [$start->startOfDay(), $end->endOfDay()]);
-        $this->scopeByUser($query, $userIds);
+
+        if ($agentIds !== null) {
+            $userIds = $this->resolveUserIds($agentIds);
+
+            if (empty($userIds)) {
+                return 0;
+            }
+
+            $this->scopeByUser($query, $userIds);
+        }
 
         return $query->count();
     }
 
-    public function list(array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
+    public function list(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        $userIds = $this->resolveUserIds($agentIds);
-
-        if (empty($userIds)) {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
-        }
-
         $query = DealFollowUp::whereBetween('next_follow_up_date', [$start->startOfDay(), $end->endOfDay()]);
-        $this->scopeByUser($query, $userIds);
+
+        if ($agentIds !== null) {
+            $userIds = $this->resolveUserIds($agentIds);
+
+            if (empty($userIds)) {
+                return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+            }
+
+            $this->scopeByUser($query, $userIds);
+        }
 
         return $query->with([
                 'deal:id,name,agent_id,value,currency_id,pipeline_stage_id',
@@ -79,16 +85,19 @@ class MeetingMetricsService
             ->paginate($perPage);
     }
 
-    public function countByType(array $agentIds, Carbon $start, Carbon $end): array
+    public function countByType(?array $agentIds, Carbon $start, Carbon $end): array
     {
-        $userIds = $this->resolveUserIds($agentIds);
-
-        if (empty($userIds)) {
-            return [];
-        }
-
         $query = DealFollowUp::whereBetween('next_follow_up_date', [$start->startOfDay(), $end->endOfDay()]);
-        $this->scopeByUser($query, $userIds);
+
+        if ($agentIds !== null) {
+            $userIds = $this->resolveUserIds($agentIds);
+
+            if (empty($userIds)) {
+                return [];
+            }
+
+            $this->scopeByUser($query, $userIds);
+        }
 
         return $query->join('meeting_types', 'lead_follow_up.meeting_type_id', '=', 'meeting_types.id')
             ->selectRaw('meeting_types.name as meeting_type, count(*) as total')

@@ -10,7 +10,7 @@ class AgentReportExport implements WithMultipleSheets
 {
     public function __construct(
         private ReportingService $reportingService,
-        private array $agentIds,
+        private ?array $agentIds,
         private Carbon $start,
         private Carbon $end,
     ) {}

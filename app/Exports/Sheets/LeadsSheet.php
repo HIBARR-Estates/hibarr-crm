@@ -13,7 +13,7 @@ class LeadsSheet implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
     public function __construct(
         private LeadMetricsService $service,
-        private array $agentIds,
+        private ?array $agentIds,
         private Carbon $start,
         private Carbon $end,
     ) {}

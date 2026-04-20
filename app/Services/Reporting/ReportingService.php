@@ -16,7 +16,7 @@ class ReportingService
         private NoteMetricsService $noteMetrics,
     ) {}
 
-    public function getKpiSummary(Carbon $start, Carbon $end, array $agentIds): array
+    public function getKpiSummary(Carbon $start, Carbon $end, ?array $agentIds): array
     {
         return [
             'leads_count' => $this->leadMetrics->count($agentIds, $start, $end),
@@ -32,39 +32,24 @@ class ReportingService
     /**
      * Resolve which agent IDs to query based on view type and permissions.
      *
-     * @return int[] Array of LeadAgent IDs
+     * @return int[]|null Array of LeadAgent IDs, or null for "all records" (department view)
      */
-    public function resolveAgentIds(?int $agentId, string $viewType, User $user): array
+    public function resolveAgentIds(?int $agentId, string $viewType, User $user): ?array
     {
+        // Department view — show all records (no agent filter)
+        if ($viewType === 'department') {
+            return null;
+        }
+
         // Agent view with explicit agent_id (admin switching)
-        if ($viewType === 'agent' && $agentId) {
+        if ($agentId) {
             return [$agentId];
         }
 
-        // Agent view without agent_id — use the logged-in user's own agent
-        if ($viewType === 'agent') {
-            $ownAgent = LeadAgent::where('user_id', $user->id)->first();
+        // Agent view — use the logged-in user's own agent
+        $ownAgent = LeadAgent::where('user_id', $user->id)->first();
 
-            return $ownAgent ? [$ownAgent->id] : [];
-        }
-
-        // Department view — get all agents in the user's department
-        $departmentId = EmployeeDetails::where('user_id', $user->id)->value('department_id');
-
-        if (!$departmentId) {
-            // Fallback: user has no department, show only own agent
-            $ownAgent = LeadAgent::where('user_id', $user->id)->first();
-
-            return $ownAgent ? [$ownAgent->id] : [];
-        }
-
-        $userIds = EmployeeDetails::where('department_id', $departmentId)
-            ->pluck('user_id')
-            ->toArray();
-
-        return LeadAgent::whereIn('user_id', $userIds)
-            ->pluck('id')
-            ->toArray();
+        return $ownAgent ? [$ownAgent->id] : [];
     }
 
     /**

@@ -13,7 +13,7 @@ class MeetingsSheet implements FromCollection, WithHeadings, WithMapping, WithTi
 {
     public function __construct(
         private MeetingMetricsService $service,
-        private array $agentIds,
+        private ?array $agentIds,
         private Carbon $start,
         private Carbon $end,
     ) {}
