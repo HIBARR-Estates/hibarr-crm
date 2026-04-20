@@ -1,22 +1,35 @@
 import React, { useState, useMemo } from "react";
-import { Card, Table, Tag, Empty } from "antd";
-// Tag kept for property-type table column render
+import { Card, Table, Empty } from "antd";
 import type { TableColumnsType } from "antd";
-import { Building2, CheckCircle2, Clock, TrendingDown, MapPin } from "lucide-react";
-import type { ShowProps, PropertyTypeSummary, Statistics, ImageItem } from "../Show";
+import {
+    Building2,
+    CheckCircle2,
+    Clock,
+    MapPin,
+    TrendingUp,
+} from "lucide-react";
+import type {
+    ShowProps,
+    UnitTypeSummary,
+    Statistics,
+    ImageItem,
+} from "../Show";
+import { generatePropertySubtitle, snakeToReadable } from "../../../lib/utils";
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
-const StatCard: React.FC<{ icon: React.ReactNode; value: string | number; label: string }> = ({
-    icon,
-    value,
-    label,
-}) => (
+const StatCard: React.FC<{
+    icon: React.ReactNode;
+    value: string | number;
+    label: string;
+}> = ({ icon, value, label }) => (
     <div className="flex-1 min-w-[140px] flex flex-col items-center gap-2.5 bg-white border border-gray-200 rounded-xl p-5 text-center">
         <div className="w-12 h-12 rounded-full bg-[#1a2a6c] flex items-center justify-center text-white flex-shrink-0">
             {icon}
         </div>
         <div>
-            <div className="text-[15px] font-bold text-slate-900 leading-tight">{value}</div>
+            <div className="text-[15px] font-bold text-slate-900 leading-tight">
+                {value}
+            </div>
             <div className="text-xs text-gray-400 mt-0.5">{label}</div>
         </div>
     </div>
@@ -26,14 +39,14 @@ const StatCard: React.FC<{ icon: React.ReactNode; value: string | number; label:
 interface OverviewSectionProps {
     project: ShowProps["project"];
     statistics: Statistics;
-    propertyTypesSummary: PropertyTypeSummary[];
+    unitTypesSummary: UnitTypeSummary[];
     imagesByTag?: Record<string, ImageItem[]>;
 }
 
 const OverviewSection: React.FC<OverviewSectionProps> = ({
     project,
     statistics,
-    propertyTypesSummary,
+    unitTypesSummary,
     imagesByTag,
 }) => {
     const [imgError, setImgError] = useState(false);
@@ -67,43 +80,59 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
         return `${min} - ${max}`;
     };
 
-    const columns: TableColumnsType<PropertyTypeSummary> = [
+    const columns: TableColumnsType<UnitTypeSummary> = [
+        {
+            title: "Name",
+            dataIndex: "name",
+            key: "name",
+            render: (_, record) => (
+                <span className="text-gray-800">
+                    {generatePropertySubtitle(record)}
+                </span>
+            ),
+        },
         {
             title: "Property Type",
             dataIndex: "type",
             key: "type",
-            render: (type: string) => <Tag color="blue">{type}</Tag>,
+            render: (type: string) => (
+                <span className="text-gray-800">{snakeToReadable(type)}</span>
+            ),
         },
         {
-            title: "Count",
-            dataIndex: "count",
-            key: "count",
+            title: "Quantity",
+            dataIndex: "quantity",
+            key: "quantity",
             align: "center",
         },
         {
             title: "Bedrooms",
             key: "bedrooms",
             align: "center",
-            render: (_, record) => formatRange(record.bedrooms.min, record.bedrooms.max),
+            render: (_, record) =>
+                formatRange(record.bedrooms.min, record.bedrooms.max),
         },
         {
             title: "Bathrooms",
             key: "bathrooms",
             align: "center",
-            render: (_, record) => formatRange(record.bathrooms.min, record.bathrooms.max),
+            render: (_, record) =>
+                formatRange(record.bathrooms.min, record.bathrooms.max),
         },
         {
             title: "Area (m²)",
             key: "area",
             align: "center",
-            render: (_, record) => formatRange(record.area.min, record.area.max),
+            render: (_, record) =>
+                formatRange(record.area.min, record.area.max),
         },
         {
             title: "Price",
             key: "price",
             render: (_, record) => {
                 if (!record.price.min) return "-";
-                if (record.price.min === record.price.max) return formatPrice(record.price.min);
+                if (record.price.min === record.price.max)
+                    return formatPrice(record.price.min);
                 return `From ${formatPrice(record.price.min)}`;
             },
         },
@@ -114,7 +143,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
             {/* ── Main card ────────────────────────────────────────── */}
             <div className="bg-white border border-gray-200 rounded-2xl p-7">
                 <div className="flex flex-col gap-2 mb-4">
-                    <h1 className="text-[28px] font-bold text-slate-900 leading-tight">
+                    <h1 className="text-[28px] font-bold text-slate-900 leading-tight capitalize">
                         {project.name}
                     </h1>
                     {project.location?.name && (
@@ -127,10 +156,30 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
 
                 {/* Stat Cards */}
                 <div className="flex flex-wrap gap-3 mb-9">
-                    <StatCard icon={<Building2 size={22} />} value={statistics.total_properties} label="Total Properties" />
-                    <StatCard icon={<CheckCircle2 size={22} />} value={statistics.available_properties} label="Available" />
-                    <StatCard icon={<Clock size={22} />} value={statistics.under_offer_properties} label="Under Offer" />
-                    <StatCard icon={<TrendingDown size={22} />} value={`${statistics.sold_percentage}%`} label="Sold" />
+                    <StatCard
+                        icon={<Building2 size={22} />}
+                        value={statistics.total_units}
+                        label="Total Units"
+                    />
+                    <StatCard
+                        icon={<CheckCircle2 size={22} />}
+                        value={statistics.sold_properties}
+                        label="Total Sold"
+                    />
+                    <StatCard
+                        icon={<TrendingUp size={22} />}
+                        value={
+                            statistics.total_units > 0
+                                ? `${Math.round((statistics.sold_properties / statistics.total_units) * 100)}%`
+                                : "0%"
+                        }
+                        label="Sold %"
+                    />
+                    <StatCard
+                        icon={<Clock size={22} />}
+                        value={statistics.starting_price_formatted ?? "-"}
+                        label="Starting Price"
+                    />
                 </div>
 
                 {/* Description with floated hero image */}
@@ -148,25 +197,27 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                     ) : null}
 
                     {project.description ? (
-                        <p className="text-sm leading-7 text-gray-600">{project.description}</p>
+                        <p className="text-sm leading-7 text-gray-600">
+                            {project.description}
+                        </p>
                     ) : null}
 
                     <div className="clear-both" />
                 </div>
             </div>
 
-            {/* ── Property Types Table ──────────────────────────────── */}
-            <Card title="Property Types">
-                {propertyTypesSummary.length > 0 ? (
+            {/* ── Units Table ──────────────────────────────────────────── */}
+            <Card title="Units">
+                {unitTypesSummary.length > 0 ? (
                     <Table
                         columns={columns}
-                        dataSource={propertyTypesSummary}
+                        dataSource={unitTypesSummary}
                         rowKey="type"
                         pagination={false}
                         size="small"
                     />
                 ) : (
-                    <Empty description="No properties assigned to this project" />
+                    <Empty description="No unit types added to this project" />
                 )}
             </Card>
         </div>

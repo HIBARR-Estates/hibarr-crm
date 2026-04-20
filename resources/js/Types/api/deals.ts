@@ -262,11 +262,32 @@ export type DealFormData = Omit<
     | "lead_source"
 >;
 
+export interface PropertySummary {
+    id: number;
+    title: string | null;
+    property_type: string | null;
+    sale_type: string | null;
+    price: number | null;
+    bedrooms: string | null;
+    bathrooms: number | null;
+    city: string | null;
+    area: string | null;
+    land_size: string | null;
+    status: string | null;
+    photos: string[] | null;
+    developer_project?: {
+        id: number;
+        name: string;
+        availability_link: string | null;
+    } | null;
+}
+
 export interface Product {
     id: number;
     name: string;
     price?: number;
     description?: string;
+    property?: PropertySummary;
 }
 
 export interface LeadPipeline {

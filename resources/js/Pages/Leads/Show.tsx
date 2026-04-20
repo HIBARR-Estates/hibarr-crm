@@ -159,7 +159,7 @@ const Show = ({
     ].map((item) => ({
         ...item,
         children: (
-            <div className="max-w-7xl mx-auto mt-8 mb-12">
+            <div className="max-w-4xl mx-auto mt-8 mb-12">
                 <Card
                     variant="outlined"
                     className="border-0 rounded-lg overflow-hidden"

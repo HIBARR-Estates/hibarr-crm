@@ -306,11 +306,11 @@ const Index = ({
             label: "My Drafts",
             icon: <FileTextOutlined />,
         },
-        {
-            value: "construction_projects",
-            label: "Projects",
-            icon: <BuildOutlined />,
-        },
+        // {
+        //     value: "construction_projects",
+        //     label: "Projects",
+        //     icon: <BuildOutlined />,
+        // },
     ];
 
     // Sort handlers

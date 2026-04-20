@@ -28,6 +28,8 @@ import {
 } from "../icons";
 import { PageProps } from "../DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
+import useDealPermissions from "@/Hooks/useDealPermissions";
+import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
 
 interface Pipeline {
     id: number;
@@ -42,6 +44,7 @@ interface NavItem {
     href?: string;
     children?: NavItem[];
     badge?: number;
+    hidden?: boolean;
 }
 
 interface SidebarProps {
@@ -56,6 +59,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const pipelines = (props.pipelines || []) as Pipeline[];
     const defaultPipeline = pipelines.find((p) => p.default === 1);
     const { t, isRtl } = useTranslation();
+    const isSalesManger =
+        props.auth?.permissions?.edit_product === "all" ||
+        props.auth?.permissions?.edit_product === 4;
 
     const STORAGE_KEY = "sidebar_expanded_items";
 
@@ -197,6 +203,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             label: "Offers",
             icon: <GiftOutlined />,
             href: "/account/offers",
+            hidden: !isSalesManger,
         },
         {
             key: "meetings",
@@ -229,8 +236,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             href: "/account/developer-projects",
         },
         {
+            key: "reports",
+            label: "Reports",
+            icon: <HistoryOutlined />,
+            href: "/account/agent-reports",
+        },
+        {
             key: "mlm",
-            label: "MLM",
+            label: "Partner Network",
             icon: <ApartmentOutlined />,
             children: [
                 {
@@ -282,10 +295,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     href: "/account/mlm/level-history",
                 },
             ],
+            hidden: !isSalesManger,
         },
         {
             key: "my-mlm",
-            label: "My MLM",
+            label: "Affiliate Workspace",
             icon: <TeamOutlined />,
             children: [
                 {
@@ -296,13 +310,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 },
                 {
                     key: "my-mlm-commissions",
-                    label: "My Commissions",
+                    label: "Commissions",
                     icon: null,
                     href: "/account/mlm/agent/commissions",
                 },
                 {
                     key: "my-mlm-network",
-                    label: "My Network",
+                    label: "Network",
                     icon: null,
                     href: "/account/mlm/agent/network",
                 },
@@ -312,18 +326,18 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 //     icon: null,
                 //     href: "/account/mlm/agent/uplines",
                 // },
-                {
-                    key: "my-mlm-level",
-                    label: "My Level",
-                    icon: null,
-                    href: "/account/mlm/agent/my-level",
-                },
-                {
-                    key: "my-mlm-deals",
-                    label: "My Deals",
-                    icon: null,
-                    href: "/account/mlm/agent/deal-contributions",
-                },
+                // {
+                //     key: "my-mlm-level",
+                //     label: "My Level",
+                //     icon: null,
+                //     href: "/account/mlm/agent/my-level",
+                // },
+                // {
+                //     key: "my-mlm-deals",
+                //     label: "My Deals",
+                //     icon: null,
+                //     href: "/account/mlm/agent/deal-contributions",
+                // },
             ],
         },
     ];
@@ -555,7 +569,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 )} */}
 
                 {/* Nav items */}
-                {navItems.map((item) => renderNavItem(item))}
+                {navItems
+                    .filter((a) => a.hidden !== true)
+                    .map((a) => {
+                        a.children = a.children?.filter(
+                            (a) => a.hidden !== true,
+                        );
+                        return a;
+                    })
+                    .map((item) => renderNavItem(item))}
             </nav>
 
             {/* Footer */}

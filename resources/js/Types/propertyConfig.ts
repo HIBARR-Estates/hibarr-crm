@@ -2,6 +2,8 @@
  * Types for Property Configuration / Lookup Tables management.
  */
 
+import { DefaultDistances } from ".";
+
 /** A single item from any of the 9 property lookup tables. */
 export interface PropertyConfigItem {
     id: number;
@@ -15,6 +17,8 @@ export interface PropertyConfigItem {
     city_id?: number;
     /** Only present for property-types — the primary category this type belongs to */
     category?: string;
+    /** Only present for project-facilities — Lucide icon identifier */
+    icon?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -28,6 +32,8 @@ export interface PropertyConfigPayload {
     parent_type?: string;
     city_id?: number;
     category?: string;
+    default_distances?: DefaultDistances;
+    icon?: string | null;
 }
 
 /** Summary returned by GET /property-config/types */
@@ -76,7 +82,8 @@ export type ConfigTypeSlug =
     | "sale-types"
     | "statuses"
     | "location-features"
-    | "add-ons";
+    | "add-ons"
+    | "project-facilities";
 
 /** Human-readable labels and descriptions for each config type */
 export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
@@ -181,6 +188,12 @@ export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
             "Optional extras (Furniture Package, Rental Guarantee, etc.)",
         icon: "PlusCircleOutlined",
     },
+    "project-facilities": {
+        label: "Project Facilities",
+        description:
+            "Facilities available in developer projects (Gym, Pool, etc.)",
+        icon: "AppstoreOutlined",
+    },
 };
 
 /** Ordered list of type slugs for consistent rendering */
@@ -204,4 +217,5 @@ export const CONFIG_TYPE_ORDER: ConfigTypeSlug[] = [
     "statuses",
     "location-features",
     "add-ons",
+    "project-facilities",
 ];

@@ -44,6 +44,7 @@ import type {
     ConfigTypeSlug,
 } from "@/Types/propertyConfig";
 import { CONFIG_CATEGORIES, CONFIG_TYPE_ORDER } from "@/Types/propertyConfig";
+import { getFacilityIconComponent } from "@/lib/facilityIcons";
 
 const { Text, Title } = Typography;
 
@@ -258,6 +259,21 @@ const Config = ({ pageTitle }: ConfigProps) => {
                             {cat?.label || val}
                         </Tag>
                     );
+                },
+            });
+        }
+
+        // Show icon column only for project-facilities
+        if (activeType === "project-facilities") {
+            cols.push({
+                title: "Icon",
+                dataIndex: "icon",
+                key: "icon",
+                width: 80,
+                align: "center",
+                render: (val: string | null) => {
+                    const IconComp = getFacilityIconComponent(val);
+                    return <IconComp size={18} className="text-gray-600" />;
                 },
             });
         }

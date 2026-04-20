@@ -22,6 +22,7 @@ use App\Models\PropertyStatus;
 use App\Models\PropertyLocationFeature;
 use App\Models\PropertyAddOn;
 use App\Models\PropertyArea;
+use App\Models\ProjectFacility;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -61,6 +62,7 @@ class PropertyConfigController extends AccountBaseController
         'statuses'              => PropertyStatus::class,
         'location-features'     => PropertyLocationFeature::class,
         'add-ons'               => PropertyAddOn::class,
+        'project-facilities'    => ProjectFacility::class,
     ];
 
     public function __construct()
@@ -97,7 +99,7 @@ class PropertyConfigController extends AccountBaseController
         $modelClass = $this->resolveModel($type);
         $tableName = (new $modelClass)->getTable();
 
-        $validated = $request->validate([
+        $rules = [
             'name'        => [
                 'nullable',
                 'string',
@@ -108,7 +110,21 @@ class PropertyConfigController extends AccountBaseController
             'parent_type' => 'nullable|string|max:255',
             'category'    => 'nullable|string|max:255',
             'city_id'     => 'nullable|integer|exists:property_cities,id',
-        ]);
+            'icon'        => 'nullable|string|max:100',
+        ];
+
+        // Cities support default distance values
+        if ($type === 'cities') {
+            $rules['default_distances']              = 'nullable|array';
+            $rules['default_distances.market_km']    = 'nullable|numeric|min:0';
+            $rules['default_distances.hospital_km']  = 'nullable|numeric|min:0';
+            $rules['default_distances.airport_km']   = 'nullable|numeric|min:0';
+            $rules['default_distances.school_km']    = 'nullable|numeric|min:0';
+            $rules['default_distances.beach_km']     = 'nullable|numeric|min:0';
+            $rules['default_distances.sea_km']       = 'nullable|numeric|min:0';
+        }
+
+        $validated = $request->validate($rules);
 
         // Auto-generate name from label if not provided
         $name = !empty($validated['name'])
@@ -149,6 +165,16 @@ class PropertyConfigController extends AccountBaseController
             $fillable['city_id'] = $validated['city_id'];
         }
 
+        // Only PropertyCity has default_distances
+        if ($type === 'cities' && array_key_exists('default_distances', $validated)) {
+            $fillable['default_distances'] = $validated['default_distances'];
+        }
+
+        // Only ProjectFacility has icon
+        if ($type === 'project-facilities' && isset($validated['icon'])) {
+            $fillable['icon'] = $validated['icon'];
+        }
+
         $item = $modelClass::create($fillable);
 
         return Reply::successWithData('Lookup item created', ['data' => $item]);
@@ -173,13 +199,27 @@ class PropertyConfigController extends AccountBaseController
         $modelClass = $this->resolveModel($type);
         $item = $modelClass::findOrFail($id);
 
-        $validated = $request->validate([
+        $rules = [
             'label'       => 'sometimes|string|max:255',
             'description' => 'nullable|string|max:1000',
             'parent_type' => 'nullable|string|max:255',
             'category'    => 'nullable|string|max:255',
             'city_id'     => 'nullable|integer|exists:property_cities,id',
-        ]);
+            'icon'        => 'nullable|string|max:100',
+        ];
+
+        // Cities support default distance values
+        if ($type === 'cities') {
+            $rules['default_distances']              = 'nullable|array';
+            $rules['default_distances.market_km']    = 'nullable|numeric|min:0';
+            $rules['default_distances.hospital_km']  = 'nullable|numeric|min:0';
+            $rules['default_distances.airport_km']   = 'nullable|numeric|min:0';
+            $rules['default_distances.school_km']    = 'nullable|numeric|min:0';
+            $rules['default_distances.beach_km']     = 'nullable|numeric|min:0';
+            $rules['default_distances.sea_km']       = 'nullable|numeric|min:0';
+        }
+
+        $validated = $request->validate($rules);
 
         // Name is immutable after creation — strip it if sent
         $updateData = $validated;
@@ -192,6 +232,12 @@ class PropertyConfigController extends AccountBaseController
         }
         if ($type !== 'areas') {
             unset($updateData['city_id']);
+        }
+        if ($type !== 'cities') {
+            unset($updateData['default_distances']);
+        }
+        if ($type !== 'project-facilities') {
+            unset($updateData['icon']);
         }
 
         $item->update($updateData);

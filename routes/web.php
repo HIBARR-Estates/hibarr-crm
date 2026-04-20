@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\DealGatheringController;
+use App\Http\Controllers\DealPropertyController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AwardController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ImportController;
+use App\Http\Controllers\AgentReportController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TicketController;
@@ -630,6 +632,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
 
+    // Deal Properties (attach/detach)
+    Route::group(['prefix' => 'deals', 'as' => 'deals.'], function () {
+        Route::get('properties/search', [DealPropertyController::class, 'searchProperties'])->name('properties.search');
+        Route::get('properties/project-unit-types/{project}', [DealPropertyController::class, 'projectUnitTypes'])->name('properties.unit_types');
+        Route::get('{deal}/properties', [DealPropertyController::class, 'index'])->name('properties.index');
+        Route::post('{deal}/properties', [DealPropertyController::class, 'store'])->name('properties.store');
+        Route::delete('{deal}/properties/{product}', [DealPropertyController::class, 'destroy'])->name('properties.destroy');
+    });
+
     // Property Recommendations
     Route::group(['prefix' => 'deals/{deal}/recommendations', 'as' => 'deals.recommendations.'], function () {
         Route::get('/', [PropertyRecommendationController::class, 'getRecommendations'])->name('index');
@@ -950,6 +961,19 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::resource('lead-report', LeadReportController::class);
     Route::resource('sales-report', SalesReportController::class);
 
+    // Agent Reports (Inertia)
+    Route::prefix('agent-reports')->name('agent-reports.')->group(function () {
+        Route::get('/', [AgentReportController::class, 'index'])->name('index');
+        Route::get('/leads', [AgentReportController::class, 'leads'])->name('leads');
+        Route::get('/deals-created', [AgentReportController::class, 'dealsCreated'])->name('deals-created');
+        Route::get('/deals-closed', [AgentReportController::class, 'dealsClosed'])->name('deals-closed');
+        Route::get('/meetings', [AgentReportController::class, 'meetings'])->name('meetings');
+        Route::get('/deal-notes', [AgentReportController::class, 'dealNotes'])->name('deal-notes');
+        Route::get('/lead-notes', [AgentReportController::class, 'leadNotes'])->name('lead-notes');
+        Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->name('ai-summary');
+        Route::get('/export', [AgentReportController::class, 'export'])->name('export');
+    });
+
     Route::resource('sticky-notes', StickyNoteController::class);
 
     Route::post('show-notifications', [NotificationController::class, 'showNotifications'])->name('show_notifications');
@@ -1134,6 +1158,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::prefix('/{projectId}/assets')->name('assets.')->group(function () {
             Route::get('/', [App\Http\Controllers\DeveloperProjectAssetController::class, 'index'])->name('index');
             Route::post('/from-urls', [App\Http\Controllers\DeveloperProjectAssetController::class, 'storeFromUrls'])->name('store_from_urls');
+            Route::put('/bulk-update-tags', [App\Http\Controllers\DeveloperProjectAssetController::class, 'bulkUpdateTags'])->name('bulk_update_tags');
             Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectAssetController::class, 'destroy'])->name('destroy');
         });
 
@@ -1238,6 +1263,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('agent-hierarchy', [App\Http\Controllers\MlmAdminController::class, 'agentHierarchy'])->name('agent_hierarchy');
         Route::get('commission-ledger', [App\Http\Controllers\MlmAdminController::class, 'commissionLedger'])->name('commission_ledger');
         Route::get('agent-metrics', [App\Http\Controllers\MlmAdminController::class, 'agentMetrics'])->name('agent_metrics');
+        Route::get('agents/{agentId}/dashboard', [App\Http\Controllers\MlmAdminController::class, 'agentDashboard'])->name('agent_dashboard');
         Route::get('level-history', [App\Http\Controllers\MlmAdminController::class, 'levelHistory'])->name('level_history');
         Route::get('cycle-management', [App\Http\Controllers\MlmAdminController::class, 'cycleManagement'])->name('cycle_management');
 
@@ -1268,6 +1294,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
             // Agent Metrics
             Route::get('agent-metrics', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentMetrics'])->name('agent_metrics');
+            Route::get('agents/{agentId}/dashboard-stats', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentDashboardStats'])->name('agent_dashboard_stats');
 
             // Level History
             Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');

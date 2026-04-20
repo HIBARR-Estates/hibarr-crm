@@ -504,7 +504,15 @@ class DealController extends AccountBaseController
             'pipeline.customFieldCategories.customFields',
             'leadStage',
             'currency',
-            'products:id,name',
+            'products' => function ($query) {
+                $query->select('products.id', 'products.name')
+                      ->with(['property' => function ($pq) {
+                          $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos');
+                          $pq->with(['developerProject' => function ($dpq) {
+                              $dpq->select('id', 'name', 'availability_link');
+                          }]);
+                      }]);
+            },
             'packages:id,name',
             'communicationActivities',
             'hibarrFields',

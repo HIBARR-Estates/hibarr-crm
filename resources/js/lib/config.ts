@@ -10,56 +10,68 @@ import {
     DEFAULT_UPLOAD_CONFIG,
     MAX_RETRY_COUNT,
 } from "@/Types/uploads";
-
-// ============================================================================
-// Environment Variable Types
-// ============================================================================
-
-/**
- * Expected Vite environment variables for file uploads
- */
-interface FileUploadEnvVars {
-    VITE_FILE_UPLOAD_BASE_URL?: string;
-    VITE_FILE_UPLOAD_API_KEY?: string;
-}
+import {
+    IAgentInvitationConfig,
+    DEFAULT_INVITATION_CONFIG,
+    MAX_INVITATION_RETRY_COUNT,
+} from "@/Types/invitations";
 
 // ============================================================================
 // Default Values
 // ============================================================================
 
-const DEFAULT_FILE_UPLOAD_BASE_URL = "https://staging-api.hibarr.org/v1";
-const DEFAULT_FILE_UPLOAD_API_KEY = "363769e1290c4d5ea6d351ef8c23dc6e";
+const DEFAULT_FILE_UPLOAD_BASE_URL =
+    process?.env?.MIX_FILE_UPLOAD_BASE_URL ||
+    "https://staging-api.hibarr.org/v1";
+const DEFAULT_AGENT_INVITATION_BASE_URL =
+    process?.env?.MIX_AGENT_INVITATION_BASE_URL ||
+    "https://develop-api.hibarr.org/v1";
+const DEFAULT_FILE_UPLOAD_API_KEY =
+    process?.env?.MIX_FILE_UPLOAD_API_KEY || "363769e1290c4d5ea6d351ef8c23dc6e";
+const DEFAULT_AGENT_INVITATION_API_KEY =
+    process?.env?.MIX_AGENT_INVITATION_API_KEY ||
+    "7918aed08071453148048890d59a3b85";
 
 // ============================================================================
 // Configuration Getters
 // ============================================================================
 
+// NOTE: Environment variables must be accessed as static literal strings
+// (e.g. process.env.MIX_*) so that webpack DefinePlugin / Vite can inline
+// them at build time. A dynamic helper like getEnvVar(key) breaks this.
+
 /**
- * Safely get an environment variable with a fallback
+ * Get the agent invitation base URL from environment or default
  */
-const getEnvVar = (key: string, fallback: string): string => {
-    // Access import.meta.env safely
-    if (typeof import.meta !== "undefined" && import.meta.env) {
-        const value = (import.meta.env as Record<string, string | undefined>)[
-            key
-        ];
-        return value || fallback;
-    }
-    return fallback;
+export const getAgentInvitationBaseUrl = (): string => {
+    return (
+        process.env.MIX_AGENT_INVITATION_BASE_URL ||
+        DEFAULT_AGENT_INVITATION_BASE_URL
+    );
 };
 
 /**
  * Get the file upload base URL from environment or default
  */
 export const getFileUploadBaseUrl = (): string => {
-    return getEnvVar("VITE_FILE_UPLOAD_BASE_URL", DEFAULT_FILE_UPLOAD_BASE_URL);
+    return process.env.MIX_FILE_UPLOAD_BASE_URL || DEFAULT_FILE_UPLOAD_BASE_URL;
 };
 
 /**
  * Get the file upload API key from environment or default
  */
 export const getFileUploadApiKey = (): string => {
-    return getEnvVar("VITE_FILE_UPLOAD_API_KEY", DEFAULT_FILE_UPLOAD_API_KEY);
+    return process.env.MIX_FILE_UPLOAD_API_KEY || DEFAULT_FILE_UPLOAD_API_KEY;
+};
+
+/**
+ * Get the agent invitation API key from environment or default
+ */
+export const getAgentInvitationApiKey = (): string => {
+    return (
+        process.env.MIX_AGENT_INVITATION_API_KEY ||
+        DEFAULT_AGENT_INVITATION_API_KEY
+    );
 };
 
 /**
@@ -97,6 +109,42 @@ export const getFileUploadConfig = (
             DEFAULT_UPLOAD_CONFIG.defaultTargetFolder,
     };
 };
+
+// ============================================================================
+// Agent Invitation Configuration
+// ============================================================================
+
+/**
+ * Clamp invitation retry count to valid range (0 to MAX_INVITATION_RETRY_COUNT)
+ */
+export const clampInvitationRetryCount = (retryCount: number): number => {
+    return Math.max(0, Math.min(retryCount, MAX_INVITATION_RETRY_COUNT));
+};
+
+/**
+ * Get the complete agent invitation configuration
+ * Reuses the same base URL and API key as the file upload service
+ * (both communicate with the same external system)
+ *
+ * @param overrides - Optional configuration overrides
+ * @returns Complete agent invitation configuration
+ */
+export const getInvitationConfig = (
+    overrides?: Partial<IAgentInvitationConfig>,
+): Required<IAgentInvitationConfig> => {
+    const retryCount =
+        overrides?.retryCount ?? DEFAULT_INVITATION_CONFIG.retryCount;
+
+    return {
+        baseUrl: overrides?.baseUrl ?? getAgentInvitationBaseUrl(),
+        apiKey: overrides?.apiKey ?? getAgentInvitationApiKey(),
+        retryCount: clampInvitationRetryCount(retryCount),
+    };
+};
+
+// ============================================================================
+// Shared Utilities
+// ============================================================================
 
 /**
  * Format file size for display

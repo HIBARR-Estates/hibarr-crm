@@ -46,6 +46,13 @@
                                    <i class="fa fa-circle f-12 ml-1 {{ $credentials->twitter_status == 'enable' ? 'text-light-green' : 'text-red' }}"></i>
                                 </a>
                             </li>
+                            <li>
+                                <a class="nav-item nav-link f-15 keycloak" data-toggle="tab"
+                                   href="{{ route('social-auth-settings.index') }}?tab=keycloak" role="tab"
+                                   aria-controls="nav-keycloak" aria-selected="false"><i class="fa fa-shield-alt" style="font-size: 15px;"></i> @lang('app.socialAuthSettings.keycloak')
+                                   <i class="fa fa-circle f-12 ml-1 {{ $credentials->keycloak_status == 'enable' ? 'text-light-green' : 'text-red' }}"></i>
+                                </a>
+                            </li>
                         </ul>
                     </nav>
                 </div>
@@ -93,7 +100,7 @@
             });
         });
 
-        $('body').on('click', '#save_google_data, #save_facebook_data, #save_linkedin_data, #save_twitter_data', function(event) {
+        $('body').on('click', '#save_google_data, #save_facebook_data, #save_linkedin_data, #save_twitter_data, #save_keycloak_data', function(event) {
             var url = "{{ route('social-auth-settings.update', $credentials->id) }}";
             $.easyAjax({
                 url: url,

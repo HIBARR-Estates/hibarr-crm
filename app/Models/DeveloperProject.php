@@ -106,60 +106,9 @@ class DeveloperProject extends BaseModel
     ];
 
     // ================================================================
-    // Facility Constants
+    // Facility Constants (deprecated — now stored in project_facilities table)
+    // Keep for backward compatibility with any remaining references.
     // ================================================================
-    const FACILITIES = [
-        'gym', 'hamam', 'sauna', 'massage_spa', 'indoor_pool',
-        'outdoor_pool', 'heated_indoor_pool', 'kids_playground',
-        'aquapark', 'mini_zoo', 'clinics', 'restaurant',
-        'beauty_center', 'walking_paths', 'cycling_routes',
-        'hiking_routes', 'dentist', 'healing_yoga', 'tennis_court',
-        'basketball_court', 'reception', 'security_24_7', 'beach',
-        'beach_cinema', 'cinema', 'casino', 'jacuzzi',
-        'gated_community', 'football_court', 'volleyball_court',
-        'supermarket', 'cafe', 'bar', 'car_park',
-        'cleaning_service', 'central_generator', 'on_site_management',
-    ];
-
-    const FACILITY_LABELS = [
-        'gym' => 'Gym',
-        'hamam' => 'Hamam',
-        'sauna' => 'Sauna',
-        'massage_spa' => 'Massage and Spa',
-        'indoor_pool' => 'Indoor Pool',
-        'outdoor_pool' => 'Outdoor Pool',
-        'heated_indoor_pool' => 'Heated Indoor Pool',
-        'kids_playground' => 'Kids Playground',
-        'aquapark' => 'Aquapark',
-        'mini_zoo' => 'Mini Zoo',
-        'clinics' => 'Clinics',
-        'restaurant' => 'Restaurant',
-        'beauty_center' => 'Beauty Center',
-        'walking_paths' => 'Walking Paths',
-        'cycling_routes' => 'Cycling Routes',
-        'hiking_routes' => 'Hiking Routes',
-        'dentist' => 'Dentist',
-        'healing_yoga' => 'Healing/Yoga',
-        'tennis_court' => 'Tennis Court',
-        'basketball_court' => 'Basketball Court',
-        'reception' => 'Reception',
-        'security_24_7' => '24/7 Security',
-        'beach' => 'Beach',
-        'beach_cinema' => 'Beach Cinema',
-        'cinema' => 'Cinema',
-        'casino' => 'Casino',
-        'jacuzzi' => 'Jacuzzi',
-        'gated_community' => 'Gated Community',
-        'football_court' => 'Football Court',
-        'volleyball_court' => 'Volleyball Court',
-        'supermarket' => 'Supermarket',
-        'cafe' => 'Cafe',
-        'bar' => 'Bar',
-        'car_park' => 'Car Park',
-        'cleaning_service' => 'Cleaning Service',
-        'central_generator' => 'Central Generator',
-        'on_site_management' => 'On-site Management',
-    ];
 
     protected $fillable = [
         'company_id',
@@ -271,6 +220,14 @@ class DeveloperProject extends BaseModel
     public function assets(): HasMany
     {
         return $this->hasMany(DeveloperProjectAsset::class);
+    }
+
+    /**
+     * Get the first asset (thumbnail) for this project, ordered by the order column.
+     */
+    public function thumbnail(): HasOne
+    {
+        return $this->hasOne(DeveloperProjectAsset::class)->orderBy('order');
     }
 
     /**

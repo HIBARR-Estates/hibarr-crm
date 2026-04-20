@@ -1,14 +1,6 @@
 import { Deal } from "@/Types/api/deals";
 import { Link, router, usePage } from "@inertiajs/react";
-import {
-    Tag,
-    Avatar,
-    Tooltip,
-    Tabs,
-    Button,
-    Space,
-    message,
-} from "antd";
+import { Tag, Avatar, Tooltip, Tabs, Button, Space, message } from "antd";
 import {
     MailOutlined,
     PhoneOutlined,
@@ -16,7 +8,6 @@ import {
     DeleteOutlined,
     CheckSquareOutlined,
     CloseOutlined,
-    CheckOutlined,
     SaveOutlined,
     LockOutlined,
     GiftOutlined,
@@ -37,6 +28,8 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
+import PropertyCarousel from "./PropertyCarousel";
+import AttachPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 
 interface Props {
     deal: Deal;
@@ -77,6 +70,7 @@ export default function DealInfoSection({
     const { action, handleAction, handleClose } = useGenericEntityAction();
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
+    const [propertyModalOpen, setPropertyModalOpen] = useState(false);
 
     // Track pending changes in edit mode
     const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
@@ -465,58 +459,59 @@ export default function DealInfoSection({
         // Toggle edit mode button - only show if user can edit
         ...(canEdit && !isEditMode
             ? [
-                {
-                    key: "edit",
-                    icon: <EditOutlined />,
-                    tooltip: "Edit Deal",
-                    type: "text" as const,
-                    onClick: handleToggleEditMode,
-                },
-            ]
+                  {
+                      key: "edit",
+                      icon: <EditOutlined />,
+                      tooltip: "Edit Deal",
+                      type: "text" as const,
+                      onClick: handleToggleEditMode,
+                  },
+              ]
             : []),
         // Save all button - only show when in edit mode with changes
         ...(isEditMode
             ? [
-                {
-                    key: "save_all",
-                    icon: <SaveOutlined />,
-                    tooltip: hasUnsavedChanges
-                        ? `Save All Changes (${Object.keys(pendingChanges).length
-                        })`
-                        : "No changes to save",
-                    type: "primary" as const,
-                    onClick: handleSaveAll,
-                    disabled: !hasUnsavedChanges || isSavingAll,
-                    loading: isSavingAll,
-                },
-            ]
+                  {
+                      key: "save_all",
+                      icon: <SaveOutlined />,
+                      tooltip: hasUnsavedChanges
+                          ? `Save All Changes (${
+                                Object.keys(pendingChanges).length
+                            })`
+                          : "No changes to save",
+                      type: "primary" as const,
+                      onClick: handleSaveAll,
+                      disabled: !hasUnsavedChanges || isSavingAll,
+                      loading: isSavingAll,
+                  },
+              ]
             : []),
         // Cancel edit mode button - only show when in edit mode
         ...(isEditMode
             ? [
-                {
-                    key: "cancel_edit",
-                    icon: <CloseOutlined />,
-                    tooltip: "Cancel Edit",
-                    type: "text" as const,
-                    onClick: handleExitEditMode,
-                },
-            ]
+                  {
+                      key: "cancel_edit",
+                      icon: <CloseOutlined />,
+                      tooltip: "Cancel Edit",
+                      type: "text" as const,
+                      onClick: handleExitEditMode,
+                  },
+              ]
             : []),
         // Only show delete button if user can delete
         ...(canDelete
             ? [
-                {
-                    key: "delete",
-                    icon: <DeleteOutlined />,
-                    tooltip: "Delete Deal",
-                    type: "text" as const,
-                    danger: true,
-                    onClick: () => {
-                        handleAction("delete");
-                    },
-                },
-            ]
+                  {
+                      key: "delete",
+                      icon: <DeleteOutlined />,
+                      tooltip: "Delete Deal",
+                      type: "text" as const,
+                      danger: true,
+                      onClick: () => {
+                          handleAction("delete");
+                      },
+                  },
+              ]
             : []),
     ];
 
@@ -593,7 +588,8 @@ export default function DealInfoSection({
                                         icon={<GiftOutlined />}
                                         className="ml-2"
                                     >
-                                        -{Number(
+                                        -
+                                        {Number(
                                             currentDeal.total_discount,
                                         ).toLocaleString("en-GB")}
                                     </Tag>
@@ -611,8 +607,8 @@ export default function DealInfoSection({
                                 formatValue={(value) =>
                                     value
                                         ? dayjs(value.toString()).format(
-                                            "MMM DD, YYYY",
-                                        )
+                                              "MMM DD, YYYY",
+                                          )
                                         : "--"
                                 }
                                 alwaysEditing={isFieldEditable}
@@ -637,11 +633,11 @@ export default function DealInfoSection({
                                 displayValue={
                                     currentDeal.packages?.length
                                         ? currentDeal.packages
-                                            .map(
-                                                (pkg: any) =>
-                                                    pkg?.name || pkg,
-                                            )
-                                            .join(", ")
+                                              .map(
+                                                  (pkg: any) =>
+                                                      pkg?.name || pkg,
+                                              )
+                                              .join(", ")
                                         : "--"
                                 }
                                 onSave={(value) =>
@@ -686,7 +682,9 @@ export default function DealInfoSection({
                                             )}
                                         </div>
                                     ) : (
-                                        <span className="text-gray-400">--</span>
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
                                     )
                                 }
                                 onSave={(value) =>
@@ -712,7 +710,9 @@ export default function DealInfoSection({
                                             {currentDeal.category.category_name}
                                         </span>
                                     ) : (
-                                        <span className="text-gray-400">--</span>
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
                                     )
                                 }
                                 onSave={(value) =>
@@ -728,41 +728,38 @@ export default function DealInfoSection({
                         </DetailField>
 
                         <DetailField label="Properties" span={2}>
-                            <EditableField
-                                value={
-                                    currentDeal.products?.map(
-                                        (p: any) => p.id,
-                                    ) || []
+                            <div className="w-full">
+                                <div className="flex items-center justify-between mb-1">
+                                    <Button
+                                        type="link"
+                                        size="small"
+                                        icon={<EditOutlined />}
+                                        onClick={() =>
+                                            setPropertyModalOpen(true)
+                                        }
+                                        className="!px-0 !text-xs"
+                                    >
+                                        Manage Properties
+                                    </Button>
+                                </div>
+                                {currentDeal.products &&
+                                currentDeal.products.length > 0 ? (
+                                    <PropertyCarousel
+                                        products={currentDeal.products}
+                                    />
+                                ) : (
+                                    <span className="text-gray-400 text-sm">
+                                        No properties attached
+                                    </span>
+                                )}
+                            </div>
+                            <AttachPropertiesModal
+                                open={propertyModalOpen}
+                                onClose={() => setPropertyModalOpen(false)}
+                                deal={currentDeal}
+                                onRefresh={() =>
+                                    router.reload({ only: ["deal"] })
                                 }
-                                fieldName="product_id"
-                                selectorType="products"
-                                mode="multiple"
-                                displayValue={
-                                    currentDeal.products && currentDeal.products.length > 0 ? (
-                                        <div className="flex flex-col gap-1 mt-0.5">
-                                            {currentDeal.products.map((product: any) => (
-                                                <div
-                                                    key={product.id}
-                                                    className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-md px-2.5 py-1.5 text-sm text-gray-800"
-                                                >
-                                                    <span className="text-gray-400 text-xs">&#x2302;</span>
-                                                    <span className="font-medium truncate">{product.name || product.title}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-400">--</span>
-                                    )
-                                }
-                                onSave={(value) =>
-                                    handleFieldUpdate("product_id", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll || isFieldLoading("product_id")
-                                }
-                                disabled={!canEdit}
                             />
                         </DetailField>
 
@@ -780,8 +777,13 @@ export default function DealInfoSection({
 
                     {/* Contact Info */}
                     <DetailSection title="Contact Info">
-                        <DetailField label="Email" copyValue={currentDeal.contact?.client_email || undefined}>
-                            <div className="flex items-center gap-x-2">
+                        <DetailField
+                            label="Email"
+                            copyValue={
+                                currentDeal.contact?.client_email || undefined
+                            }
+                        >
+                            <div className="w-full flex items-center gap-x-2">
                                 {currentDeal.contact?.client_email && (
                                     <MailOutlined className="text-gray-400 flex-shrink-0" />
                                 )}
@@ -808,7 +810,13 @@ export default function DealInfoSection({
                             </div>
                         </DetailField>
 
-                        <DetailField label="Mobile" copyValue={getMobileNumber(currentDeal.contact?.mobile) || undefined}>
+                        <DetailField
+                            label="Mobile"
+                            copyValue={
+                                getMobileNumber(currentDeal.contact?.mobile) ||
+                                undefined
+                            }
+                        >
                             {currentDeal.contact ? (
                                 <div className="flex items-center gap-x-2">
                                     <PhoneOutlined className="text-gray-400 flex-shrink-0" />
@@ -869,7 +877,9 @@ export default function DealInfoSection({
                                             maxNameLength={40}
                                         />
                                     ) : (
-                                        <span className="text-gray-400">--</span>
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
                                     )
                                 }
                                 onSave={(value) =>
@@ -896,7 +906,7 @@ export default function DealInfoSection({
                                 mode="multiple"
                                 displayValue={
                                     currentDeal.deal_participants &&
-                                        currentDeal.deal_participants.length > 0 ? (
+                                    currentDeal.deal_participants.length > 0 ? (
                                         <MultiUserIndicator
                                             users={currentDeal.deal_participants.map(
                                                 (participant: any) => ({
@@ -912,7 +922,9 @@ export default function DealInfoSection({
                                             showTooltip={true}
                                         />
                                     ) : (
-                                        <span className="text-gray-400">--</span>
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
                                     )
                                 }
                                 onSave={(value) =>
@@ -940,7 +952,7 @@ export default function DealInfoSection({
                                 mode="multiple"
                                 displayValue={
                                     currentDeal.deal_watchers &&
-                                        currentDeal.deal_watchers.length > 0 ? (
+                                    currentDeal.deal_watchers.length > 0 ? (
                                         <MultiUserIndicator
                                             users={currentDeal.deal_watchers.map(
                                                 (watcher: any) => ({
@@ -956,7 +968,9 @@ export default function DealInfoSection({
                                             showTooltip={true}
                                         />
                                     ) : (
-                                        <span className="text-gray-400">--</span>
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
                                     )
                                 }
                                 onSave={(value) =>
@@ -1044,10 +1058,11 @@ export default function DealInfoSection({
             <div>
                 {/* Header */}
                 <div
-                    className={`flex items-center justify-between px-5 py-3 border-b ${isEditMode
+                    className={`flex items-center justify-between px-5 py-3 border-b ${
+                        isEditMode
                             ? "bg-blue-50 border-blue-100"
                             : "bg-gray-50/80 border-gray-100"
-                        }`}
+                    }`}
                 >
                     <div className="flex items-center gap-3">
                         <h2 className="text-sm font-semibold text-gray-700">

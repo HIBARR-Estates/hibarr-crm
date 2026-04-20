@@ -30,9 +30,9 @@ import ProjectOffersSection from "../../Features/Offers/ProjectOffersSection";
 // Types
 // ============================================
 
-export interface PropertyTypeSummary {
+export interface UnitTypeSummary {
     type: string;
-    count: number;
+    quantity: number;
     bedrooms: { min: number | null; max: number | null };
     bathrooms: { min: number | null; max: number | null };
     area: { min: number | null; max: number | null };
@@ -40,11 +40,11 @@ export interface PropertyTypeSummary {
 }
 
 export interface Statistics {
-    total_properties: number;
+    total_units: number;
     sold_properties: number;
-    sold_percentage: number;
-    available_properties: number;
     under_offer_properties: number;
+    starting_price: number | null;
+    starting_price_formatted: string | null;
 }
 
 export interface ImageItem {
@@ -71,6 +71,28 @@ export interface PriceListItem {
     }>;
 }
 
+export interface UnitTypePriceListItem {
+    type: string;
+    count: number;
+    min_price: number | null;
+    max_price: number | null;
+    currency: string;
+    currency_symbol: string;
+    unit_types: Array<{
+        id: number;
+        reference_code: string | null;
+        starting_price: number | null;
+        formatted_price: string | null;
+        currency: string;
+        currency_symbol: string;
+        bedrooms: number | null;
+        bathrooms: number | null;
+        floor: string | null;
+        total_area_sqm: number | null;
+        quantity: number | null;
+    }>;
+}
+
 export interface ShowProps extends PageProps {
     pageTitle: string;
     project: DeveloperProject & {
@@ -80,11 +102,13 @@ export interface ShowProps extends PageProps {
         properties?: Property[];
     };
     statistics: Statistics;
-    propertyTypesSummary: PropertyTypeSummary[];
-    facilities: string[];
+    unitTypesSummary: UnitTypeSummary[];
+    facilities: { name: string; label: string; icon: string | null }[];
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
+    unitTypePriceList: UnitTypePriceListItem[];
     unitTypes: DeveloperProjectUnitType[];
+    developerProjects: DeveloperProject[];
 }
 
 export type SectionKey =
@@ -150,11 +174,13 @@ const Show = ({
     pageTitle,
     project,
     statistics,
-    propertyTypesSummary,
+    unitTypesSummary,
     facilities,
     imagesByTag,
     priceList,
+    unitTypePriceList,
     unitTypes,
+    developerProjects,
 }: ShowProps) => {
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -170,12 +196,19 @@ const Show = ({
                     <OverviewSection
                         project={project}
                         statistics={statistics}
-                        propertyTypesSummary={propertyTypesSummary}
+                        unitTypesSummary={unitTypesSummary}
                         imagesByTag={imagesByTag}
                     />
                 );
             case "developers":
-                return <DevelopersSection developer={project.developer} />;
+                return (
+                    <DevelopersSection
+                        developer={project.developer}
+                        developerProjects={developerProjects}
+                        googleDriveLink={project.google_drive_link}
+                        availabilityLink={project.availability_link}
+                    />
+                );
             case "unit_types":
                 return (
                     <UnitTypesSection
@@ -212,7 +245,7 @@ const Show = ({
                     />
                 );
             case "pricelist":
-                return <PriceListSection priceList={priceList} />;
+                return <PriceListSection priceList={unitTypePriceList} />;
             case "pdf":
                 return (
                     <PdfFilesSection
@@ -257,21 +290,26 @@ const Show = ({
                             <span>Back</span>
                         </Link>
                         <span className="text-gray-300">|</span>
-                        <h1 className="text-2xl font-bold text-slate-900 leading-tight">{project.name}</h1>
+                        <h1 className="text-2xl font-bold text-slate-900 leading-tight">
+                            {project.name}
+                        </h1>
                     </div>
                     {project.developer && (
-                        <p className="text-sm text-gray-500 ml-[calc(14px+0.25rem+1px+0.75rem+1px+0.75rem)] mb-0.5">
+                        <p className="text-sm text-gray-500 ml-[calc(14px+0.25rem+1px+0.75rem+1px+0.75rem)] mb-0.5 ">
                             by{" "}
                             <Link
-                                href={route("developers.show", project.developer.id)}
-                                className="text-blue-600 hover:text-blue-800 font-medium"
+                                href={route(
+                                    "developers.show",
+                                    project.developer.id,
+                                )}
+                                className="text-blue-600 hover:text-blue-800 font-medium capitalize"
                             >
                                 {project.developer.name}
                             </Link>
                         </p>
                     )}
                     {project.location?.name && (
-                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5">
+                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5 capitalize">
                             <MapPin size={14} className="text-gray-400" />
                             {project.location.name}
                         </p>
@@ -283,6 +321,7 @@ const Show = ({
                         activeSection={activeSection}
                         onSelect={setActiveSection}
                         onEdit={() => setEditModalOpen(true)}
+                        availabilityLink={project.availability_link}
                         unitTypesCount={unitTypes?.length || 0}
                         exteriorCount={imagesByTag.exterior?.length || 0}
                         interiorCount={imagesByTag.interior?.length || 0}

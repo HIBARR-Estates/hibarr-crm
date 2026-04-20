@@ -16,9 +16,14 @@ interface Props {
     showToggle?: boolean;
     compact?: boolean;
 }
-
+const defaultCycleMetrics: MetricSet = {
+    nsa: 0,
+    nsd: 0,
+    vsa: 0,
+    vsd: 0,
+};
 const CycleMetricsDisplay: React.FC<Props> = ({
-    cycleMetrics,
+    cycleMetrics = defaultCycleMetrics,
     allTimeMetrics,
     showToggle = true,
     compact = false,
@@ -28,35 +33,35 @@ const CycleMetricsDisplay: React.FC<Props> = ({
     const metrics =
         showAllTime && allTimeMetrics
             ? allTimeMetrics
-            : (cycleMetrics ?? allTimeMetrics);
+            : cycleMetrics || defaultCycleMetrics;
 
-    if (!metrics) {
-        return (
-            <Card size="small" className="shadow-sm">
-                <div className="text-center text-sm text-gray-400 py-4">
-                    No metrics data available
-                </div>
-            </Card>
-        );
-    }
+    // if (!metrics) {
+    //     return (
+    //         <Card size="small" className="shadow-sm">
+    //             <div className="text-center text-sm text-gray-400 py-4">
+    //                 No metrics data available
+    //             </div>
+    //         </Card>
+    //     );
+    // }
 
     const items = [
         {
-            title: "Agent Sales (NSA)",
-            value: metrics.nsa,
+            title: "Individual Sales",
+            value: metrics?.nsa ?? 0,
         },
         {
-            title: "Downline Sales (NSD)",
-            value: metrics.nsd,
+            title: "Team Sales",
+            value: metrics?.nsd ?? 0,
         },
         {
-            title: "Agent Value (VSA)",
-            value: metrics.vsa,
+            title: "Individual Revenue",
+            value: metrics?.vsa ?? 0,
             prefix: "$",
         },
         {
-            title: "Downline Value (VSD)",
-            value: metrics.vsd,
+            title: "Team Revenue",
+            value: metrics?.vsd ?? 0,
             prefix: "$",
         },
     ];
@@ -66,7 +71,7 @@ const CycleMetricsDisplay: React.FC<Props> = ({
             size="small"
             className="shadow-sm"
             title={
-                showToggle && allTimeMetrics && cycleMetrics ? (
+                showToggle ? (
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <BarChart3 size={16} className="text-indigo-500" />

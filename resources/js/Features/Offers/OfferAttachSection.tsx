@@ -100,7 +100,10 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
     };
 
     return (
-        <Card size="small" className="mb-4">
+        <Card
+            size="small"
+            className={`mb-4 ${offers.length === 0 ? "h-24" : ""}`}
+        >
             {offers.length > 0 ? (
                 <List
                     size="small"
@@ -152,15 +155,22 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                                                 color={
                                                     offer.type === "percentage"
                                                         ? "blue"
-                                                        : "green"
+                                                        : offer.type === "perks"
+                                                          ? "purple"
+                                                          : "green"
                                                 }
                                                 className="text-xs"
                                             >
-                                                {offer.type === "percentage"
-                                                    ? `${offer.value}%`
-                                                    : Number(
-                                                          offer.value,
-                                                      ).toLocaleString("en-GB")}
+                                                {offer.type === "perks"
+                                                    ? "Perk"
+                                                    : offer.type ===
+                                                        "percentage"
+                                                      ? `${offer.value}%`
+                                                      : Number(
+                                                            offer.value,
+                                                        ).toLocaleString(
+                                                            "en-GB",
+                                                        )}
                                             </Tag>
                                             {offer.max_discount_amount && (
                                                 <span>
@@ -210,7 +220,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                                 .includes(input.toLowerCase())
                         }
                         options={selectableOffers.map((o) => ({
-                            label: `${o.name} (${o.type === "percentage" ? `${o.value}%` : o.value})`,
+                            label: `${o.name} (${o.type === "perks" ? "Perk" : o.type === "percentage" ? `${o.value}%` : o.value})`,
                             value: o.id,
                         }))}
                         value={selectedOfferId}

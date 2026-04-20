@@ -52,6 +52,14 @@ export const capitalizeFirstLetter = (text: string | null = ""): string => {
     return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+/** Convert snake_case (or kebab-case) to Title Case readable text.
+ *  e.g. "semi_detached_villa" → "Semi Detached Villa"
+ */
+export const snakeToReadable = (str: string | null | undefined): string => {
+    if (!str) return "";
+    return str.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 export const getPropertyTypeColor = (type: string): string => {
     const colors: Record<string, string> = {
         Villa: "purple",
@@ -216,7 +224,8 @@ export const filterProperties = (
  * Both Property and DeveloperProjectUnitType satisfy this.
  */
 export interface SubtitleableRecord {
-    bedrooms?: number | null;
+    bedrooms?: number | null | { min: number | null; max: number | null };
+    area?: string | null | { min: number | null; max: number | null };
     unit_style?: string[] | null;
     property_type?: string | null;
     view_types?: string[] | null;
@@ -224,7 +233,6 @@ export interface SubtitleableRecord {
     primary_category?: string | null;
     construction_status?: string | null;
     city?: string | null;
-    area?: string | null;
     effective_location?: { city?: string | null; area?: string | null } | null;
 }
 
@@ -247,7 +255,26 @@ export interface SubtitleableRecord {
 export const generatePropertySubtitle = (
     record: SubtitleableRecord,
 ): string | null => {
-    const beds = record.bedrooms;
+    let beds: string | number | null = null;
+    let hasBeds = false;
+
+    if (typeof record.bedrooms === "number") {
+        beds = record.bedrooms;
+        hasBeds = beds > 0;
+    } else if (record.bedrooms && typeof record.bedrooms === "object") {
+        const { min, max } = record.bedrooms;
+        if (min !== null && max !== null && min !== max) {
+            beds = `${min}-${max}`;
+            hasBeds = true;
+        } else if (min !== null) {
+            beds = min;
+            hasBeds = min > 0;
+        } else if (max !== null) {
+            beds = max;
+            hasBeds = max > 0;
+        }
+    }
+
     const unitStyle =
         Array.isArray(record.unit_style) && record.unit_style.length > 0
             ? record.unit_style.map(formatEnumLabel).join(" / ")
@@ -259,7 +286,6 @@ export const generatePropertySubtitle = (
     const category = formatEnumLabel(record.primary_category);
     const constructionStatus = formatEnumLabel(record.construction_status);
 
-    const hasBeds = beds !== undefined && beds !== null && beds > 0;
     const hasUnitStyle = !!unitStyle;
     const hasPropertyType = !!propertyType;
     const hasViewType = !!viewType;
@@ -394,6 +420,7 @@ const formatFurniture = (status?: string | null): string | null => {
 const resolveLocation = (record: SubtitleableRecord): string | null => {
     const city = record.effective_location?.city ?? record.city;
     const area = record.effective_location?.area ?? record.area;
+    if (typeof city === "object" || typeof area === "object") return null; // Avoid [object Object]
     if (city && area) return `${area}, ${city}`;
     return city || area || null;
 };

@@ -25,6 +25,11 @@ class PropertyCity extends BaseModel
         'name',
         'label',
         'description',
+        'default_distances',
+    ];
+
+    protected $casts = [
+        'default_distances' => 'array',
     ];
 
     protected $hidden = ['pivot'];

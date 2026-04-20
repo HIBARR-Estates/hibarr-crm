@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
     Alert,
     Card,
@@ -9,13 +9,19 @@ import {
     Input,
     InputNumber,
     Space,
-    Popconfirm,
     message,
     Tag,
     Empty,
 } from "antd";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, GripVertical, Settings } from "lucide-react";
+import {
+    Plus,
+    Pencil,
+    Trash2,
+    GripVertical,
+    Settings,
+    LucideAlignVerticalSpaceAround,
+} from "lucide-react";
 import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -23,10 +29,9 @@ import {
     useMlmLevels,
     useCreateMlmLevel,
     useUpdateMlmLevel,
-    useDeleteMlmLevel,
     useReorderMlmLevels,
 } from "@/Features/Mlm/api";
-import { LevelBadge } from "@/Features/Mlm/Components";
+import { LevelBadge, DeleteLevel } from "@/Features/Mlm/Components";
 import type { MlmLevel, MlmLevelFormData } from "@/Features/Mlm/types";
 
 interface Props extends PageProps {
@@ -42,6 +47,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<MlmLevel | null>(null);
+    const [deleting, setDeleting] = useState<MlmLevel | null>(null);
     const [form] = Form.useForm<MlmLevelFormData>();
 
     // Dynamic mutation hooks
@@ -55,11 +61,6 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
         message.success("Level updated");
         refetch();
         closeModal();
-    });
-
-    const deleteLevel = useDeleteMlmLevel(0, () => {
-        message.success("Level deleted");
-        refetch();
     });
 
     const reorderLevels = useReorderMlmLevels(() => {
@@ -106,16 +107,15 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
         }
     };
 
-    const handleDelete = (id: number) => {
-        deleteLevel.mutate({} as any);
-    };
-
     const columns = [
         {
             title: "",
             width: 40,
             render: () => (
-                <GripVertical size={14} className="text-gray-400 cursor-grab" />
+                <LucideAlignVerticalSpaceAround
+                    size={14}
+                    className="text-gray-400"
+                />
             ),
         },
         {
@@ -175,20 +175,13 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                         size="small"
                         onClick={() => openEdit(record)}
                     />
-                    <Popconfirm
-                        title="Delete this level?"
-                        description="This will also remove associated criteria."
-                        onConfirm={() => handleDelete(record.id)}
-                        okText="Delete"
-                        okType="danger"
-                    >
-                        <Button
-                            type="text"
-                            danger
-                            icon={<Trash2 size={14} />}
-                            size="small"
-                        />
-                    </Popconfirm>
+                    <Button
+                        type="text"
+                        danger
+                        icon={<Trash2 size={14} />}
+                        size="small"
+                        onClick={() => setDeleting(record)}
+                    />
                 </Space>
             ),
         },
@@ -250,6 +243,16 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                             />
                         </Card>
                     </motion.div>
+
+                    <DeleteLevel
+                        level={deleting}
+                        open={!!deleting}
+                        onClose={() => setDeleting(null)}
+                        handleSuccessCallback={() => {
+                            message.success("Level deleted");
+                            refetch();
+                        }}
+                    />
 
                     {/* Create / Edit Modal */}
                     <Modal

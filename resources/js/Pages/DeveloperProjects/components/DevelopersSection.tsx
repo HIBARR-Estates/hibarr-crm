@@ -1,12 +1,42 @@
 import React from "react";
 import { Link } from "@inertiajs/react";
-import { Card, Image, Avatar, Tag, Divider, Empty, Typography } from "antd";
-import { BankOutlined, WhatsAppOutlined } from "@ant-design/icons";
-import type { Developer } from "../../../Types/developerProject";
+import {
+    Card,
+    Image,
+    Avatar,
+    Tag,
+    Empty,
+    Typography,
+    Space,
+    Button,
+    message,
+} from "antd";
+import {
+    BankOutlined,
+    WhatsAppOutlined,
+    FolderOpenOutlined,
+    LinkOutlined,
+    CopyOutlined,
+} from "@ant-design/icons";
+import type {
+    Developer,
+    DeveloperProject,
+} from "../../../Types/developerProject";
+import ProjectCard from "./ProjectCard";
 
 const { Title, Paragraph, Text } = Typography;
 
-const DevelopersSection: React.FC<{ developer: Developer | null | undefined }> = ({ developer }) => {
+const DevelopersSection: React.FC<{
+    developer: Developer | null | undefined;
+    developerProjects?: DeveloperProject[];
+    googleDriveLink?: string | null;
+    availabilityLink?: string | null;
+}> = ({
+    developer,
+    developerProjects = [],
+    googleDriveLink,
+    availabilityLink,
+}) => {
     if (!developer) {
         return (
             <Card>
@@ -49,40 +79,114 @@ const DevelopersSection: React.FC<{ developer: Developer | null | undefined }> =
                                 {developer.description}
                             </Paragraph>
                         )}
-                        {developer.whatsapp_group_link && (
-                            <a
-                                href={developer.whatsapp_group_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <Tag
-                                    color="green"
-                                    icon={<WhatsAppOutlined />}
-                                    className="cursor-pointer"
-                                >
-                                    WhatsApp Group
-                                </Tag>
-                            </a>
-                        )}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {developer.whatsapp_group_link && (
+                                <Space size="small">
+                                    <a
+                                        href={developer.whatsapp_group_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Tag
+                                            color="green"
+                                            icon={<WhatsAppOutlined />}
+                                            className="cursor-pointer"
+                                        >
+                                            WhatsApp Group
+                                        </Tag>
+                                    </a>
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(
+                                                developer.whatsapp_group_link!,
+                                            );
+                                            message.success(
+                                                "Link copied to clipboard",
+                                            );
+                                        }}
+                                    />
+                                </Space>
+                            )}
+                            {googleDriveLink && (
+                                <Space size="small">
+                                    <a
+                                        href={googleDriveLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Tag
+                                            color="blue"
+                                            icon={<FolderOpenOutlined />}
+                                            className="cursor-pointer"
+                                        >
+                                            Google Drive
+                                        </Tag>
+                                    </a>
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(
+                                                googleDriveLink,
+                                            );
+                                            message.success(
+                                                "Link copied to clipboard",
+                                            );
+                                        }}
+                                    />
+                                </Space>
+                            )}
+                            {availabilityLink && (
+                                <Space size="small">
+                                    <a
+                                        href={availabilityLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Tag
+                                            color="purple"
+                                            icon={<LinkOutlined />}
+                                            className="cursor-pointer"
+                                        >
+                                            Availability
+                                        </Tag>
+                                    </a>
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(
+                                                availabilityLink,
+                                            );
+                                            message.success(
+                                                "Link copied to clipboard",
+                                            );
+                                        }}
+                                    />
+                                </Space>
+                            )}
+                        </div>
                     </div>
                 </div>
-
-                {developer.project_list && developer.project_list.length > 0 && (
-                    <>
-                        <Divider />
-                        <div>
-                            <Text strong className="block mb-2">
-                                All projects by this developer:
-                            </Text>
-                            <div className="flex flex-wrap gap-2">
-                                {developer.project_list.map((name) => (
-                                    <Tag key={name}>{name}</Tag>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
             </Card>
+
+            {developerProjects.length > 0 && (
+                <div>
+                    <Text strong className="block mb-3 text-sm text-gray-500">
+                        Other projects by {developer.name}:
+                    </Text>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {developerProjects.map((p) => (
+                            <ProjectCard key={p.id} project={p} />
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

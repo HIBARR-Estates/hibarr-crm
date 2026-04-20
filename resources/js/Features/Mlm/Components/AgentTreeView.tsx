@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import Tree from "react-d3-tree";
 import { Avatar, Typography, Spin, Empty } from "antd";
 import {
@@ -12,7 +12,8 @@ import type { MlmLevel } from "../types";
 
 const { Text } = Typography;
 
-const MAX_VISIBLE_CHILDREN = 4;
+const INITIAL_VISIBLE = 4;
+const PAGE_SIZE = 8;
 
 interface ShowMoreRaw {
     id: number;
@@ -38,17 +39,24 @@ interface AgentTreeViewProps {
 }
 
 /** Convert our data shape to react-d3-tree's expected format */
-function toTreeData(node: AgentHierarchyNode, expandedNodes: Set<number>): any {
+function toTreeData(
+    node: AgentHierarchyNode,
+    visibleCounts: Map<number, number>,
+): any {
     const children = node.children ?? [];
-    const isExpanded = expandedNodes.has(node.id);
+    const visibleCount = visibleCounts.get(node.id) ?? INITIAL_VISIBLE;
 
     let mappedChildren: any[];
 
-    if (children.length > MAX_VISIBLE_CHILDREN && !isExpanded) {
+    if (children.length <= visibleCount) {
+        // All children fit — render them all
+        mappedChildren = children.map((c) => toTreeData(c, visibleCounts));
+    } else {
+        // Show only the first `visibleCount` + a "show more" pill
         const visible = children
-            .slice(0, MAX_VISIBLE_CHILDREN)
-            .map((c) => toTreeData(c, expandedNodes));
-        const hiddenCount = children.length - MAX_VISIBLE_CHILDREN;
+            .slice(0, visibleCount)
+            .map((c) => toTreeData(c, visibleCounts));
+        const hiddenCount = children.length - visibleCount;
         visible.push({
             name: `+${hiddenCount} more`,
             attributes: {},
@@ -62,9 +70,10 @@ function toTreeData(node: AgentHierarchyNode, expandedNodes: Set<number>): any {
             children: [],
         });
         mappedChildren = visible;
-    } else if (children.length > MAX_VISIBLE_CHILDREN && isExpanded) {
-        mappedChildren = children.map((c) => toTreeData(c, expandedNodes));
-        // Add a "collapse" node so users can fold back
+    }
+
+    // If user has expanded beyond the initial count, allow collapsing back
+    if (visibleCount > INITIAL_VISIBLE && children.length > INITIAL_VISIBLE) {
         mappedChildren.push({
             name: "Show less",
             attributes: {},
@@ -76,8 +85,6 @@ function toTreeData(node: AgentHierarchyNode, expandedNodes: Set<number>): any {
             } as CollapseRaw,
             children: [],
         });
-    } else {
-        mappedChildren = children.map((c) => toTreeData(c, expandedNodes));
     }
 
     return {
@@ -227,14 +234,18 @@ export default function AgentTreeView({
     orientation = "vertical",
     height = 600,
 }: AgentTreeViewProps) {
-    const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+    const [visibleCounts, setVisibleCounts] = useState<Map<number, number>>(
+        new Map(),
+    );
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const handleToggleExpand = useCallback(
         (parentId: number, expand: boolean) => {
-            setExpandedNodes((prev) => {
-                const next = new Set(prev);
+            setVisibleCounts((prev) => {
+                const next = new Map(prev);
                 if (expand) {
-                    next.add(parentId);
+                    const current = prev.get(parentId) ?? INITIAL_VISIBLE;
+                    next.set(parentId, current + PAGE_SIZE);
                 } else {
                     next.delete(parentId);
                 }
@@ -247,7 +258,7 @@ export default function AgentTreeView({
     const treeData = useMemo(() => {
         if (Array.isArray(data)) {
             if (data.length === 0) return null;
-            if (data.length === 1) return toTreeData(data[0], expandedNodes);
+            if (data.length === 1) return toTreeData(data[0], visibleCounts);
             // Wrap multiple roots in a virtual root
             return {
                 name: "Organization",
@@ -257,11 +268,11 @@ export default function AgentTreeView({
                     name: "Organization",
                     children: data,
                 } as AgentHierarchyNode,
-                children: data.map((d) => toTreeData(d, expandedNodes)),
+                children: data.map((d) => toTreeData(d, visibleCounts)),
             };
         }
-        return toTreeData(data, expandedNodes);
-    }, [data, expandedNodes]);
+        return toTreeData(data, visibleCounts);
+    }, [data, visibleCounts]);
 
     const renderNode = useCallback(
         (rd3tProps: any) =>
@@ -295,20 +306,26 @@ export default function AgentTreeView({
         );
     }
 
+    const containerWidth = containerRef.current?.clientWidth ?? 800;
+
     return (
         <div
-            className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden"
-            style={{ width: "100%", height }}
+            ref={containerRef}
+            className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden h-full"
+            style={{ width: "100%" }}
         >
             <Tree
                 data={treeData}
                 orientation={orientation}
                 pathFunc="step"
-                translate={{ x: 400, y: 60 }}
-                separation={{ siblings: 1.5, nonSiblings: 2 }}
-                nodeSize={{ x: 240, y: 140 }}
+                translate={{ x: containerWidth / 2, y: 60 }}
+                separation={{ siblings: 1.2, nonSiblings: 1.5 }}
+                nodeSize={{ x: 220, y: 140 }}
+                scaleExtent={{ min: 0.1, max: 2 }}
                 renderCustomNodeElement={renderNode}
-                zoom={0.8}
+                zoom={0.6}
+                zoomable
+                draggable
                 enableLegacyTransitions
                 transitionDuration={300}
             />

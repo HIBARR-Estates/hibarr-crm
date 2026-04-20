@@ -10,7 +10,6 @@ import {
     Modal,
     Input,
     message,
-    Popconfirm,
     Row,
     Col,
     Statistic,
@@ -28,12 +27,15 @@ import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
     useMlmCommissions,
-    useMarkCommissionPaid,
     useBulkMarkCommissionsPaid,
     useRevertCommission,
     useActiveCycle,
 } from "@/Features/Mlm/api";
-import { CommissionStatusBadge, LevelBadge } from "@/Features/Mlm/Components";
+import {
+    CommissionStatusBadge,
+    LevelBadge,
+    MarkCommissionPaid,
+} from "@/Features/Mlm/Components";
 import type {
     MlmCommission,
     PaginatedResponse,
@@ -44,15 +46,22 @@ import {
     COMMISSION_STATUS_LABELS,
     COMMISSION_TYPE_LABELS,
 } from "@/Features/Mlm/types";
+import { formatNumber } from "@/lib/utils";
 
 const { RangePicker } = DatePicker;
 
 interface Props extends PageProps {
     commissions: PaginatedResponse<MlmCommission>;
+    summaryStats: {
+        total_amount: number;
+        pending_amount: number;
+        paid_amount: number;
+    };
 }
 
 const MlmCommissionLedger: React.FC<Props> = ({
     commissions: initialCommissions,
+    summaryStats,
 }) => {
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
@@ -60,6 +69,8 @@ const MlmCommissionLedger: React.FC<Props> = ({
     const [revertModalOpen, setRevertModalOpen] = useState(false);
     const [revertId, setRevertId] = useState<number>(0);
     const [revertReason, setRevertReason] = useState("");
+    const [markPaidCommission, setMarkPaidCommission] =
+        useState<MlmCommission | null>(null);
 
     const queryParams: Record<string, any> = { page, per_page: 20, ...filters };
 
@@ -69,11 +80,6 @@ const MlmCommissionLedger: React.FC<Props> = ({
 
     const { data: activeCycleData } = useActiveCycle();
     const activeCycle = (activeCycleData as any)?.data?.cycle ?? null;
-
-    const markPaid = useMarkCommissionPaid(0, () => {
-        message.success("Commission marked as paid");
-        refetch();
-    });
 
     const bulkMarkPaid = useBulkMarkCommissionsPaid(() => {
         message.success(`${selectedRows.length} commissions marked as paid`);
@@ -105,17 +111,6 @@ const MlmCommissionLedger: React.FC<Props> = ({
         );
     };
 
-    // Summary stats
-    const totalAmount =
-        commissions?.data?.reduce(
-            (sum, c) => Number(sum) + (Number(c.amount) ?? 0),
-            0,
-        ) ?? 0;
-    const pendingCount =
-        commissions?.data?.filter((c) => c.status === "pending").length ?? 0;
-    const paidCount =
-        commissions?.data?.filter((c) => c.status === "paid").length ?? 0;
-
     const columns = [
         {
             title: "Deal",
@@ -134,11 +129,13 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Agent",
+            title: "Recipient",
             key: "agent",
             render: (_: any, record: MlmCommission) => (
                 <span className="font-medium">
-                    {record.agent?.user?.name ?? "—"}
+                    {record?.type === "system"
+                        ? "Organization"
+                        : (record.agent?.user?.name ?? "—")}
                 </span>
             ),
         },
@@ -183,10 +180,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             render: (_: any, record: MlmCommission) => (
                 <div className="text-right">
                     <div className="font-semibold text-green-600">
-                        $
-                        {record.amount?.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                        })}
+                        ${formatNumber(record.amount)}
                     </div>
                     <div className="text-xs text-gray-500">
                         {record.percentage}%
@@ -203,9 +197,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Date",
-            dataIndex: "created_at",
-            key: "created_at",
+            title: "Paid At",
+            dataIndex: "paid_at",
+            key: "paid_at",
             render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
         },
         {
@@ -215,21 +209,17 @@ const MlmCommissionLedger: React.FC<Props> = ({
             render: (_: any, record: MlmCommission) => (
                 <Space size="small">
                     {record.status === "pending" && (
-                        <Popconfirm
-                            title="Mark as paid?"
-                            onConfirm={() => markPaid.mutate({} as any)}
-                        >
-                            <Button
-                                type="text"
-                                size="small"
-                                icon={
-                                    <CheckCircle
-                                        size={14}
-                                        className="text-green-500"
-                                    />
-                                }
-                            />
-                        </Popconfirm>
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={
+                                <CheckCircle
+                                    size={14}
+                                    className="text-green-500"
+                                />
+                            }
+                            onClick={() => setMarkPaidCommission(record)}
+                        />
                     )}
                     {record.status === "paid" && (
                         <Button
@@ -263,8 +253,8 @@ const MlmCommissionLedger: React.FC<Props> = ({
                         <Col xs={12} sm={8}>
                             <Card size="small" className="shadow-sm">
                                 <Statistic
-                                    title="Page Total"
-                                    value={totalAmount}
+                                    title="Total"
+                                    value={summaryStats.total_amount}
                                     prefix="$"
                                     precision={2}
                                     valueStyle={{ color: "#16a34a" }}
@@ -275,7 +265,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             <Card size="small" className="shadow-sm">
                                 <Statistic
                                     title="Pending"
-                                    value={pendingCount}
+                                    value={summaryStats.pending_amount}
+                                    prefix="$"
+                                    precision={2}
                                     valueStyle={{ color: "#ea580c" }}
                                 />
                             </Card>
@@ -284,7 +276,9 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             <Card size="small" className="shadow-sm">
                                 <Statistic
                                     title="Paid"
-                                    value={paidCount}
+                                    value={summaryStats.paid_amount}
+                                    prefix="$"
+                                    precision={2}
                                     valueStyle={{ color: "#16a34a" }}
                                 />
                             </Card>
@@ -355,7 +349,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                         }
                                     }}
                                 />
-                                {activeCycle && (
+                                {/* {activeCycle && (
                                     <Button
                                         size="small"
                                         icon={<CalendarDays size={14} />}
@@ -379,7 +373,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                     >
                                         Cycle #{activeCycle.cycle_number}
                                     </Button>
-                                )}
+                                )} */}
                                 <div className="flex-1" />
 
                                 {selectedRows.length > 0 && (
@@ -440,6 +434,17 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             />
                         </Card>
                     </motion.div>
+
+                    {/* Mark Paid Modal */}
+                    <MarkCommissionPaid
+                        open={!!markPaidCommission}
+                        onClose={() => setMarkPaidCommission(null)}
+                        commission={markPaidCommission}
+                        handleSuccessCallback={() => {
+                            message.success("Commission marked as paid");
+                            refetch();
+                        }}
+                    />
 
                     {/* Revert Modal */}
                     <Modal

@@ -7,18 +7,11 @@ import {
     Tag,
     Statistic,
     Empty,
-    Spin,
     Skeleton,
+    Divider,
 } from "antd";
 import { motion } from "framer-motion";
-import {
-    DollarSign,
-    TrendingUp,
-    Users,
-    Award,
-    ArrowUpRight,
-    Clock,
-} from "lucide-react";
+import { DollarSign, TrendingUp, Users, Award, Clock } from "lucide-react";
 import {
     AreaChart,
     Area,
@@ -41,6 +34,7 @@ import {
     CycleMetricsDisplay,
 } from "@/Features/Mlm/Components";
 import type {
+    LevelData,
     MlmAgentDashboardStats,
     MlmCommission,
 } from "@/Features/Mlm/types";
@@ -53,6 +47,7 @@ interface Props extends PageProps {
 const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     const { data, isLoading } = useMlmAgentDashboard();
     const stats: MlmAgentDashboardStats = (data as any)?.data ?? initialStats;
+    const levelData: LevelData = (data as any)?.data;
 
     const statCards = [
         {
@@ -148,89 +143,156 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                         loading={isLoading && !stats}
                         paragraph={{ rows: 6 }}
                     >
-                        {/* Current Level & Progress */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4 }}
-                            className="mb-6"
-                        >
-                            <Card className="shadow-sm">
-                                <div className="flex flex-col md:flex-row md:items-center gap-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
-                                            <Award size={28} />
-                                        </div>
-                                        <div>
-                                            <div className="text-sm text-gray-500">
+                        {/* Enrollment Status */}
+                        {(levelData?.enrollment || levelData?.active_cycle) && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="mb-4"
+                            >
+                                <EnrollmentStatusCard
+                                    enrollment={levelData?.enrollment ?? null}
+                                    activeCycle={
+                                        levelData?.active_cycle ?? null
+                                    }
+                                />
+                            </motion.div>
+                        )}
+
+                        <Row gutter={[16, 16]}>
+                            {/* Current Level Card */}
+                            <Col xs={24} lg={12}>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4 }}
+                                >
+                                    <Card className="h-full" variant="outlined">
+                                        <div className="text-center mb-6">
+                                            <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white mb-4">
+                                                <Award size={36} />
+                                            </div>
+                                            <div className="text-sm text-gray-500 mb-2">
                                                 Current Level
                                             </div>
-                                            {stats.current_level ? (
+                                            {levelData?.current_level ? (
                                                 <LevelBadge
-                                                    level={stats.current_level}
+                                                    level={
+                                                        levelData.current_level
+                                                    }
                                                     showPercentage
                                                 />
                                             ) : (
-                                                <Tag>Unranked</Tag>
+                                                <Tag className="text-lg">
+                                                    Unranked
+                                                </Tag>
                                             )}
                                         </div>
-                                    </div>
-                                    <div className="flex-1">
-                                        {stats.next_level &&
-                                        stats.criteria_progress ? (
-                                            <ProgressToNextLevel
-                                                currentLevel={
-                                                    stats.current_level
-                                                }
-                                                nextLevel={stats.next_level}
-                                                overallProgress={
-                                                    stats.progress_percentage
-                                                }
-                                                criteriaProgress={
-                                                    stats.criteria_progress
-                                                }
-                                            />
-                                        ) : (
-                                            <div className="text-sm text-gray-500">
-                                                {stats.current_level
-                                                    ? "You've reached the highest level!"
-                                                    : "Complete criteria to earn your first level."}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </Card>
-                        </motion.div>
 
-                        {/* Cycle Enrollment & Metrics */}
-                        <Row gutter={[16, 16]} className="mb-6">
-                            <Col xs={24} lg={10}>
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, delay: 0.05 }}
-                                >
-                                    <EnrollmentStatusCard
-                                        enrollment={stats.enrollment ?? null}
-                                        activeCycle={stats.active_cycle ?? null}
-                                    />
+                                        <Divider />
+
+                                        <CycleMetricsDisplay
+                                            cycleMetrics={
+                                                levelData?.cycle_metrics ?? null
+                                            }
+                                            allTimeMetrics={
+                                                levelData?.all_time_metrics ??
+                                                null
+                                            }
+                                            showToggle
+                                            compact
+                                        />
+                                    </Card>
                                 </motion.div>
                             </Col>
-                            <Col xs={24} lg={14}>
+
+                            {/* Progress to Next Level */}
+                            <Col xs={24} lg={12}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, delay: 0.1 }}
+                                    transition={{ duration: 0.4, delay: 0.1 }}
                                 >
-                                    <CycleMetricsDisplay
-                                        cycleMetrics={
-                                            stats.cycle_metrics ?? null
+                                    <Card
+                                        title={
+                                            <div className="flex items-center gap-2">
+                                                <TrendingUp
+                                                    size={18}
+                                                    className="text-green-500"
+                                                />
+                                                <span className="font-semibold">
+                                                    Progress to Next Level
+                                                </span>
+                                                {levelData?.cycle_metrics && (
+                                                    <Tag
+                                                        color="blue"
+                                                        className="ml-2 text-xs"
+                                                    >
+                                                        Current Cycle
+                                                    </Tag>
+                                                )}
+                                            </div>
                                         }
-                                        allTimeMetrics={
-                                            stats.all_time_metrics ?? null
-                                        }
-                                        showToggle
-                                    />
+                                        className="h-full"
+                                        variant="outlined"
+                                    >
+                                        {levelData?.next_level &&
+                                        levelData?.criteria_progress?.length ? (
+                                            <div>
+                                                <div className="mb-4 flex items-center justify-between">
+                                                    <span className="text-sm text-gray-500">
+                                                        Next:{" "}
+                                                        <strong>
+                                                            {
+                                                                levelData
+                                                                    .next_level
+                                                                    .name
+                                                            }
+                                                        </strong>
+                                                    </span>
+                                                    <Tag color="blue">
+                                                        {
+                                                            levelData.next_level
+                                                                .commission_percentage
+                                                        }
+                                                        % commission
+                                                    </Tag>
+                                                </div>
+                                                <ProgressToNextLevel
+                                                    currentLevel={
+                                                        levelData.current_level
+                                                    }
+                                                    nextLevel={
+                                                        levelData.next_level
+                                                    }
+                                                    overallProgress={
+                                                        (levelData.criteria_progress?.reduce(
+                                                            (sum, c) =>
+                                                                sum +
+                                                                (c.percentage ??
+                                                                    0),
+                                                            0,
+                                                        ) ?? 0) /
+                                                        (levelData
+                                                            .criteria_progress
+                                                            ?.length || 1)
+                                                    }
+                                                    criteriaProgress={
+                                                        levelData.criteria_progress
+                                                    }
+                                                />
+                                            </div>
+                                        ) : (
+                                            <Empty
+                                                description={
+                                                    levelData?.current_level
+                                                        ? "You've reached the highest level! Congratulations!"
+                                                        : "Complete criteria to earn your first level."
+                                                }
+                                            />
+                                        )}
+                                    </Card>
                                 </motion.div>
                             </Col>
                         </Row>
@@ -248,7 +310,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                         }}
                                     >
                                         <Card
-                                            className="shadow-sm"
+                                            variant="outlined"
                                             bodyStyle={{ padding: "16px 20px" }}
                                         >
                                             <div className="flex items-center justify-between">
@@ -292,7 +354,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                 My Commission Trend
                                             </span>
                                         }
-                                        className="shadow-sm"
+                                        variant="outlined"
                                     >
                                         {stats.monthly_commissions?.length ? (
                                             <ResponsiveContainer
@@ -373,7 +435,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                 Network Growth
                                             </span>
                                         }
-                                        className="shadow-sm"
+                                        variant="outlined"
                                     >
                                         {stats.network_growth?.length ? (
                                             <ResponsiveContainer
@@ -422,7 +484,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                         Recent Commissions
                                     </span>
                                 }
-                                className="shadow-sm"
+                                variant="outlined"
                             >
                                 <Table
                                     columns={recentCommissionCols}

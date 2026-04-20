@@ -2,13 +2,17 @@
 
 namespace App\Observers;
 
+use App\Models\AgentMetric;
 use App\Models\LeadAgent;
 use App\Services\LevelService;
+use App\Services\CycleService;
 
 class LeadAgentObserver
 {
-    public function __construct(protected LevelService $levelService)
-    {
+    public function __construct(
+        protected LevelService $levelService,
+        protected CycleService $cycleService,
+    ) {
     }
 
     public function saving(LeadAgent $leadAgent)
@@ -39,10 +43,23 @@ class LeadAgentObserver
     }
 
     /**
-     * After a new agent is created, assign the base MLM level.
+     * After a new agent is created, assign the base MLM level, enroll in the active cycle,
+     * and ensure an AgentMetric row exists.
      */
     public function created(LeadAgent $leadAgent): void
     {
         $this->levelService->assignBaseLevel($leadAgent);
+        $this->cycleService->ensureEnrollment($leadAgent);
+
+        AgentMetric::firstOrCreate(
+            ['agent_id' => $leadAgent->id],
+            [
+                'company_id' => $leadAgent->company_id,
+                'nsa' => 0,
+                'nsd' => 0,
+                'vsa' => 0,
+                'vsd' => 0,
+            ]
+        );
     }
 }

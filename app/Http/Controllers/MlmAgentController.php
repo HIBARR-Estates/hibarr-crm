@@ -177,6 +177,22 @@ class MlmAgentController extends AccountBaseController
             ->limit(5)
             ->get();
 
+        // Network growth: monthly count of new downline agents over last 12 months
+        $descendantIds = AgentHierarchy::where('ancestor_id', $agent->id)
+            ->pluck('descendant_id');
+
+        $networkGrowth = $descendantIds->isNotEmpty()
+            ? LeadAgent::whereIn('id', $descendantIds)
+                ->where('created_at', '>=', now()->subMonths(12))
+                ->select(
+                    DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month"),
+                    DB::raw('COUNT(*) as count')
+                )
+                ->groupBy('month')
+                ->orderBy('month')
+                ->get()
+            : [];
+
         return [
             'current_level' => $currentLevel,
             'next_level' => $nextLevel,
@@ -195,7 +211,7 @@ class MlmAgentController extends AccountBaseController
                 'vsd' => (float) $allTimeMetrics->vsd,
             ] : null,
             'monthly_commissions' => $monthlyCommissions,
-            'network_growth' => [],
+            'network_growth' => $networkGrowth,
             'recent_commissions' => $recentCommissions,
             // Cycle data
             'enrollment' => $enrollment ? [
@@ -264,7 +280,7 @@ class MlmAgentController extends AccountBaseController
     {
         $agent = $this->getAgent();
 
-        $summary = ['total' => 0, 'pending' => 0, 'paid' => 0];
+        $summary = ['total' => 0, 'pending' => 0, 'paid' => 0, 'total_records' => 0];
 
         if ($agent) {
             $base = MlmCommission::where('agent_id', $agent->id)
@@ -276,6 +292,7 @@ class MlmAgentController extends AccountBaseController
                 ->where('type', '!=', MlmCommissionType::System->value)
                 ->where('status', MlmCommissionStatus::Paid->value)
                 ->sum('amount');
+            $summary['total_records'] = (clone $base)->count();
         }
 
         return Inertia::render('Mlm/Agent/MyCommissions', [
@@ -334,6 +351,10 @@ class MlmAgentController extends AccountBaseController
             'image_url' => $agent->user?->image_url ?? null,
             'level_name' => $level?->name,
             'level_rank' => $level?->rank,
+            'nsa' => $metrics?->nsa ?? 0,
+            'nsd' => $metrics?->nsd ?? 0,
+            'vsa' => (float) ($metrics?->vsa ?? 0),
+            'vsd' => (float) ($metrics?->vsd ?? 0),
             'total_sales' => ($metrics?->nsa ?? 0) + ($metrics?->nsd ?? 0),
             'joined_date' => $agent->created_at?->format('Y-m-d'),
             'children' => [],

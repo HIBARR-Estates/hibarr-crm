@@ -1,5 +1,16 @@
 import { useEffect } from "react";
-import { Modal, Form, Input, Alert, Select, Typography } from "antd";
+import {
+    Modal,
+    Form,
+    Input,
+    Alert,
+    Select,
+    Typography,
+    InputNumber,
+    Divider,
+    Row,
+    Col,
+} from "antd";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import type {
@@ -8,6 +19,11 @@ import type {
     ConfigTypeSlug,
     ConfigCategoryMeta,
 } from "@/Types/propertyConfig";
+import { DISTANCE_FIELDS } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
+import {
+    FACILITY_ICON_OPTIONS,
+    getFacilityIconComponent,
+} from "@/lib/facilityIcons";
 
 const { Text } = Typography;
 
@@ -99,11 +115,28 @@ const ConfigItemModal = ({
                 parent_type: editingItem.parent_type ?? undefined,
                 city_id: editingItem.city_id ?? undefined,
                 category: editingItem.category ?? undefined,
+                icon: editingItem.icon ?? undefined,
             });
+
+            // Populate default distances for cities
+            if (
+                activeType === "cities" &&
+                (editingItem as any).default_distances
+            ) {
+                const distances = (editingItem as any).default_distances;
+                DISTANCE_FIELDS.forEach((field) => {
+                    if (distances[field.key] != null) {
+                        form.setFieldValue(
+                            ["default_distances", field.key],
+                            distances[field.key],
+                        );
+                    }
+                });
+            }
         } else if (open) {
             form.resetFields();
         }
-    }, [open, editingItem, form]);
+    }, [open, editingItem, form, activeType]);
 
     const handleSubmit = () => {
         form.validateFields().then((values) => {
@@ -127,6 +160,17 @@ const ConfigItemModal = ({
 
             if (activeType === "property-types" && values.category) {
                 payload.category = values.category;
+            }
+
+            if (activeType === "cities") {
+                const distances = (values as any).default_distances;
+                if (distances) {
+                    (payload as any).default_distances = distances;
+                }
+            }
+
+            if (activeType === "project-facilities") {
+                payload.icon = values.icon || null;
             }
 
             if (isEditing) {
@@ -154,7 +198,13 @@ const ConfigItemModal = ({
             okButtonProps={{ loading: isLoading }}
             cancelButtonProps={{ disabled: isLoading }}
             destroyOnClose
-            width={520}
+            width={
+                activeType === "cities"
+                    ? 640
+                    : activeType === "project-facilities"
+                      ? 560
+                      : 520
+            }
         >
             <div className="pt-4">
                 <Alert
@@ -256,6 +306,69 @@ const ConfigItemModal = ({
                             placeholder="Optional description..."
                         />
                     </Form.Item>
+
+                    {activeType === "cities" && (
+                        <>
+                            <Divider orientation="left" plain>
+                                Default Distances (km)
+                            </Divider>
+                            <Row gutter={[12, 0]}>
+                                {DISTANCE_FIELDS.map((field) => (
+                                    <Col xs={12} md={8} key={field.key}>
+                                        <Form.Item
+                                            name={[
+                                                "default_distances",
+                                                field.key,
+                                            ]}
+                                            label={field.label}
+                                        >
+                                            <InputNumber
+                                                min={0}
+                                                max={500}
+                                                step={0.1}
+                                                placeholder="0.0"
+                                                style={{ width: "100%" }}
+                                                addonAfter="km"
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                ))}
+                            </Row>
+                        </>
+                    )}
+
+                    {activeType === "project-facilities" && (
+                        <Form.Item
+                            name="icon"
+                            label="Icon"
+                            tooltip="Select an icon to represent this facility"
+                        >
+                            <Select
+                                placeholder="Select an icon"
+                                allowClear
+                                showSearch
+                                optionFilterProp="label"
+                                options={FACILITY_ICON_OPTIONS.map((opt) => {
+                                    const IconComp = opt.component;
+                                    return {
+                                        value: opt.value,
+                                        label: opt.label,
+                                    };
+                                })}
+                                optionRender={(option) => {
+                                    const IconComp = getFacilityIconComponent(
+                                        option.value as string,
+                                    );
+                                    return (
+                                        <div className="flex items-center gap-2">
+                                            <IconComp size={16} />
+                                            <span>{option.label}</span>
+                                        </div>
+                                    );
+                                }}
+                            />
+                        </Form.Item>
+                    )}
                 </Form>
             </div>
         </Modal>
