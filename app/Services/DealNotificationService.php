@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\DealActivityType;
 use App\Models\Deal;
 use App\Models\User;
+use App\Notifications\BaseNotification;
 use App\Notifications\DealActivityNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
@@ -43,9 +44,6 @@ class DealNotificationService
         array $additionalData = [],
         ?int $excludeUserId = null
     ): void {
-        $suppressBulkTransactionalEmails = app()->bound('suppress_bulk_notifications')
-            && app('suppress_bulk_notifications') === true;
-
         // Get the user to exclude (the one who made the change)
         $excludeUserId = $excludeUserId ?? (user()?->id);
 
@@ -61,12 +59,7 @@ class DealNotificationService
 
         // Send the notification
         $notification = new DealActivityNotification($deal, $activityType, $notificationData);
-
-        if ($suppressBulkTransactionalEmails) {
-            $notification->setSuppressBulkTransactionalEmails(true);
-        }
-
-        Notification::send($notifiableUsers, $notification);
+        Notification::send($notifiableUsers, BaseNotification::applySuppressionFromContainer($notification));
     }
 
     /**

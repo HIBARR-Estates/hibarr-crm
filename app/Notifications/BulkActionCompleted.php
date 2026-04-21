@@ -37,8 +37,7 @@ class BulkActionCompleted extends BaseNotification
         $this->company = $notifiable->company ?? company();
         $build = parent::build($notifiable);
 
-        $url = route('dashboard');
-        $url = getDomainSpecificUrl($url, $this->company);
+        $url = $this->buildDashboardUrl();
         $intro = "Your bulk {$actionLabel} action for {$moduleLabel} has completed. Below are the updated records:";
         $records = $this->getRenderableRecords();
         $sampleRecords = array_slice($records, 0, $this->sampleLimit);
@@ -97,7 +96,7 @@ class BulkActionCompleted extends BaseNotification
         });
 
         if ($hasLinkableRecord) {
-            return 'Click a link to view each updated record.';
+            return 'Click a link to view any updated records.';
         }
 
         return 'Review the full bulk action results from your dashboard using the button below.';
@@ -130,6 +129,27 @@ class BulkActionCompleted extends BaseNotification
             'task' => 'tasks',
             default => strtolower($this->module) . 's',
         };
+    }
+
+    protected function buildDashboardUrl(): string
+    {
+        $defaultUrl = route('dashboard');
+
+        if (!$this->company || !module_enabled('Subdomain') || empty($this->company->sub_domain)) {
+            return $defaultUrl;
+        }
+
+        $scheme = config('app.redirect_https') ? 'https' : 'http';
+        $path = parse_url($defaultUrl, PHP_URL_PATH) ?: '/dashboard';
+        $query = parse_url($defaultUrl, PHP_URL_QUERY);
+
+        $tenantUrl = $scheme . '://' . $this->company->sub_domain . $path;
+
+        if (!empty($query)) {
+            $tenantUrl .= '?' . $query;
+        }
+
+        return $tenantUrl;
     }
 }
 

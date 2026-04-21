@@ -385,68 +385,73 @@ class TaskController extends AccountBaseController
         // Suppress per-task notifications/emails during bulk operations
         app()->instance('suppress_bulk_notifications', true);
 
-        $ids = $request->filled('row_ids')
-            ? explode(',', $request->row_ids)
-            : [];
-        $ids = array_values(array_filter(array_map('intval', $ids)));
-        $targetCount = count($ids);
-        $records = [];
+        try {
+            $ids = $request->filled('row_ids')
+                ? explode(',', $request->row_ids)
+                : [];
+            $ids = array_values(array_filter(array_map('intval', $ids)));
+            $records = [];
 
-        switch ($request->action_type) {
-        case 'delete':
-            $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
-            $records = $tasks->map(function (Task $task) {
-                return [
-                    'label' => 'Deleted: ' . ($task->heading ?? ('#' . $task->id)),
-                    'url' => '',
-                ];
-            })->values()->all();
+            switch ($request->action_type) {
+            case 'delete':
+                $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+                $records = $tasks->map(function (Task $task) {
+                    return [
+                        'label' => 'Deleted: ' . ($task->heading ?? ('#' . $task->id)),
+                        'url' => '',
+                    ];
+                })->values()->all();
 
-            $this->deleteRecords($request);
+                $this->deleteRecords($request);
 
-            if (user() && !empty($records)) {
-                user()->notify(new \App\Notifications\BulkActionCompleted('task', 'delete', count($records), $records));
+                if (user() && !empty($records)) {
+                    user()->notify(new \App\Notifications\BulkActionCompleted('task', 'delete', count($records), $records));
+                }
+
+                return Reply::success(__('messages.deleteSuccess'));
+            case 'change-status':
+                $this->authorizeBulkTaskStatusChange($ids);
+
+                $column = TaskboardColumn::find($request->status);
+                $columnLabel = $column?->column_name ?? ($column?->slug ?? ('ID ' . $request->status));
+                $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+                $records = $tasks->map(function (Task $task) use ($columnLabel) {
+                    return [
+                        'label' => ($task->heading ?? ('#' . $task->id)) . ' (' . $columnLabel . ')',
+                        'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                    ];
+                })->values()->all();
+
+                $this->changeBulkStatus($request);
+
+                if (user() && !empty($records)) {
+                    user()->notify(new \App\Notifications\BulkActionCompleted('task', 'change-status', count($records), $records));
+                }
+
+                return Reply::success(__('messages.updateSuccess'));
+            case 'milestone':
+                $milestone = ProjectMilestone::find($request->milestone);
+                $milestoneLabel = $milestone?->milestone_title ?? ('ID ' . $request->milestone);
+                $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+                $records = $tasks->map(function (Task $task) use ($milestoneLabel) {
+                    return [
+                        'label' => ($task->heading ?? ('#' . $task->id)) . ' (' . $milestoneLabel . ')',
+                        'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                    ];
+                })->values()->all();
+
+                $this->changeMilestones($request);
+
+                if (user() && !empty($records)) {
+                    user()->notify(new \App\Notifications\BulkActionCompleted('task', 'milestone', count($records), $records));
+                }
+
+                return Reply::success(__('messages.updateSuccess'));
+            default:
+                return Reply::error(__('messages.selectAction'));
             }
-
-            return Reply::success(__('messages.deleteSuccess'));
-        case 'change-status':
-            $column = TaskboardColumn::find($request->status);
-            $columnLabel = $column?->column_name ?? ($column?->slug ?? ('ID ' . $request->status));
-            $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
-            $records = $tasks->map(function (Task $task) use ($columnLabel) {
-                return [
-                    'label' => ($task->heading ?? ('#' . $task->id)) . ' (' . $columnLabel . ')',
-                    'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
-                ];
-            })->values()->all();
-
-            $this->changeBulkStatus($request);
-
-            if (user() && !empty($records)) {
-                user()->notify(new \App\Notifications\BulkActionCompleted('task', 'change-status', count($records), $records));
-            }
-
-            return Reply::success(__('messages.updateSuccess'));
-        case 'milestone':
-            $milestone = ProjectMilestone::find($request->milestone);
-            $milestoneLabel = $milestone?->milestone_title ?? ('ID ' . $request->milestone);
-            $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
-            $records = $tasks->map(function (Task $task) use ($milestoneLabel) {
-                return [
-                    'label' => ($task->heading ?? ('#' . $task->id)) . ' (' . $milestoneLabel . ')',
-                    'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
-                ];
-            })->values()->all();
-
-            $this->changeMilestones($request);
-
-            if (user() && !empty($records)) {
-                user()->notify(new \App\Notifications\BulkActionCompleted('task', 'milestone', count($records), $records));
-            }
-
-            return Reply::success(__('messages.updateSuccess'));
-        default:
-            return Reply::error(__('messages.selectAction'));
+        } finally {
+            app()->forgetInstance('suppress_bulk_notifications');
         }
     }
 
@@ -461,13 +466,12 @@ class TaskController extends AccountBaseController
 
     protected function changeBulkStatus($request)
     {
-        // abort_403(user()->permission('edit_tasks') != 'all');
+        $taskIds = array_values(array_filter(array_map('intval', explode(',', $request->row_ids))));
+        $this->authorizeBulkTaskStatusChange($taskIds);
 
         $taskBoardColumn = TaskboardColumn::findOrFail(request()->status);
 
         // Update tasks based on the requested status
-        $taskIds = explode(',', $request->row_ids);
-
         if ($taskBoardColumn && $taskBoardColumn->slug == 'done') {
             Task::whereIn('id', $taskIds)->update([
                 'status' => 'done',
@@ -479,6 +483,43 @@ class TaskController extends AccountBaseController
             Task::whereIn('id', $taskIds)->update(['board_column_id' => $request->status]);
         }
 
+    }
+
+    /**
+     * @param array<int, int> $taskIds
+     */
+    protected function authorizeBulkTaskStatusChange(array $taskIds): void
+    {
+        if (empty($taskIds)) {
+            abort_403(true);
+        }
+
+        $tasks = Task::withTrashed()
+            ->with(['project:id,project_admin', 'users:id'])
+            ->whereIn('id', $taskIds)
+            ->get();
+
+        if ($tasks->count() !== count($taskIds)) {
+            abort_403(true);
+        }
+
+        $changeStatusPermission = user()->permission('change_status');
+        $currentUserId = (int) user()->id;
+
+        foreach ($tasks as $task) {
+            $taskUsers = $task->users->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+            $isAllowed =
+                $changeStatusPermission == 'all'
+                || ($changeStatusPermission == 'added' && (int) $task->added_by === $currentUserId)
+                || ($changeStatusPermission == 'owned' && in_array($currentUserId, $taskUsers, true))
+                || ($changeStatusPermission == 'both' && (in_array($currentUserId, $taskUsers, true) || (int) $task->added_by === $currentUserId))
+                || ($task->project && (int) $task->project->project_admin === $currentUserId);
+
+            if (!$isAllowed) {
+                abort_403(true);
+            }
+        }
     }
 
     public function changeMilestones($request)

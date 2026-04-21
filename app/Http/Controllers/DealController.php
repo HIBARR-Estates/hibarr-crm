@@ -53,6 +53,7 @@ use App\Traits\DealFormDataTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Services\PermissionService;
@@ -1513,86 +1514,89 @@ class DealController extends AccountBaseController
         // Suppress per-deal notifications/emails during bulk operations
         app()->instance('suppress_bulk_notifications', true);
 
-        $rowIds = $request->filled('row_ids')
-            ? explode(',', $request->row_ids)
-            : [];
-        $rowIds = array_values(array_filter(array_map('intval', $rowIds)));
-        $targetCount = count($rowIds);
-        $records = [];
+        try {
+            $rowIds = $request->filled('row_ids')
+                ? explode(',', $request->row_ids)
+                : [];
+            $rowIds = array_values(array_filter(array_map('intval', $rowIds)));
+            $records = [];
 
-        switch ($request->action_type) {
-            case 'delete':
-                $lockedIds = Deal::whereIn('id', $rowIds)->where('is_locked', true)->pluck('id')->toArray();
-                $deletableIds = array_values(array_diff($rowIds, $lockedIds));
-                $deals = Deal::whereIn('id', $deletableIds)->get(['id', 'name']);
-                $records = $deals->map(function (Deal $deal) {
-                    return [
-                        'label' => 'Deleted: ' . ($deal->name ?? ('#' . $deal->id)),
-                        'url' => '',
-                    ];
-                })->values()->all();
+            switch ($request->action_type) {
+                case 'delete':
+                    $lockedIds = Deal::whereIn('id', $rowIds)->where('is_locked', true)->pluck('id')->toArray();
+                    $deletableIds = array_values(array_diff($rowIds, $lockedIds));
+                    $deals = Deal::whereIn('id', $deletableIds)->get(['id', 'name']);
+                    $records = $deals->map(function (Deal $deal) {
+                        return [
+                            'label' => 'Deleted: ' . ($deal->name ?? ('#' . $deal->id)),
+                            'url' => '',
+                        ];
+                    })->values()->all();
 
-                $this->deleteRecords($request);
+                    $this->deleteRecords($request);
 
-                if (user() && !empty($records)) {
-                    user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'delete', count($records), $records));
-                }
+                    if (user() && !empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'delete', count($records), $records));
+                    }
 
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.deleteSuccess')
-                ]);
+                    return back()->with([
+                        'status' => 'success',
+                        'message' => __('messages.deleteSuccess')
+                    ]);
 
-            case 'change-status':
-                $stage = PipelineStage::find($request->status);
-                $stageLabel = $stage?->name ?? ('ID ' . $request->status);
-                $editableIds = Deal::whereIn('id', $rowIds)->where('is_locked', false)->pluck('id')->toArray();
-                $deals = Deal::whereIn('id', $editableIds)->get(['id', 'name']);
-                $records = $deals->map(function (Deal $deal) use ($stageLabel) {
-                    return [
-                        'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $stageLabel . ')',
-                        'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
-                    ];
-                })->values()->all();
+                case 'change-status':
+                    $stage = PipelineStage::find($request->status);
+                    $stageLabel = $stage?->name ?? ('ID ' . $request->status);
+                    $editableIds = Deal::whereIn('id', $rowIds)->where('is_locked', false)->pluck('id')->toArray();
+                    $deals = Deal::whereIn('id', $editableIds)->get(['id', 'name']);
+                    $records = $deals->map(function (Deal $deal) use ($stageLabel) {
+                        return [
+                            'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $stageLabel . ')',
+                            'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
+                        ];
+                    })->values()->all();
 
-                $this->changeBulkStatus($request);
+                    $this->changeBulkStatus($request);
 
-                if (user() && !empty($records)) {
-                    user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-status', count($records), $records));
-                }
+                    if (user() && !empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-status', count($records), $records));
+                    }
 
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.updateSuccess')
-                ]);
+                    return back()->with([
+                        'status' => 'success',
+                        'message' => __('messages.updateSuccess')
+                    ]);
 
-            case 'change-deal-agents':
-                $leadAgent = LeadAgent::with('user')->find($request->agent);
-                $agentLabel = $leadAgent?->user?->name ?? ('ID ' . $request->agent);
-                $deals = Deal::whereIn('id', $rowIds)->get(['id', 'name']);
-                $records = $deals->map(function (Deal $deal) use ($agentLabel) {
-                    return [
-                        'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $agentLabel . ')',
-                        'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
-                    ];
-                })->values()->all();
+                case 'change-deal-agents':
+                    $leadAgent = LeadAgent::with('user')->find($request->agent);
+                    $agentLabel = $leadAgent?->user?->name ?? ('ID ' . $request->agent);
+                    $eligibleDeals = $this->eligibleDealsForAgentChange($rowIds);
+                    $records = $eligibleDeals->map(function (Deal $deal) use ($agentLabel) {
+                        return [
+                            'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $agentLabel . ')',
+                            'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
+                        ];
+                    })->values()->all();
 
-                $this->changeAgentStatus($request);
+                    $this->changeAgentStatus($request, $eligibleDeals);
 
-                if (user() && !empty($records)) {
-                    user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-deal-agents', count($records), $records));
-                }
+                    if (user() && !empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-deal-agents', count($records), $records));
+                    }
 
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.updateSuccess')
-                ]);
+                    return back()->with([
+                        'status' => 'success',
+                        'message' => __('messages.updateSuccess')
+                    ]);
 
-            default:
-                return back()->with([
-                    'status' => 'error',
-                    'message' => __('messages.selectAction')
-                ]);
+                default:
+                    return back()->with([
+                        'status' => 'error',
+                        'message' => __('messages.selectAction')
+                    ]);
+            }
+        } finally {
+            app()->forgetInstance('suppress_bulk_notifications');
         }
     }
 
@@ -1646,16 +1650,23 @@ class DealController extends AccountBaseController
         Deal::whereIn('id', $editableIds)->update(['pipeline_stage_id' => $newStatus]);
     }
 
-    protected function changeAgentStatus($request)
+    protected function changeAgentStatus($request, ?Collection $eligibleDeals = null)
     {
         abort_403(user()->permission('edit_deals') != 'all');
-        $agent = LeadAgent::find($request->agent);
+        $agent = LeadAgent::findOrFail($request->agent);
         $agentsWithSameUser = LeadAgent::where('user_id', $agent->user_id)->get();
-        $rowIds = explode(',', $request->row_ids);
+        $deals = $eligibleDeals;
 
-        $leads = Deal::with('leadAgent', 'category')->whereIn('id', $rowIds)->get();
+        if (is_null($deals)) {
+            $rowIds = explode(',', $request->row_ids);
+            $deals = $this->eligibleDealsForAgentChange(array_values(array_filter(array_map('intval', $rowIds))));
+        }
 
-        foreach ($leads as $deal) {
+        foreach ($deals as $deal) {
+            if ((bool) $deal->is_locked) {
+                continue;
+            }
+
             // Find an agent from the list with matching category
             $matchingAgent = $agentsWithSameUser->firstWhere('lead_category_id', $deal->category_id);
 
@@ -1665,6 +1676,13 @@ class DealController extends AccountBaseController
                 $deal->save();
             }
         }
+    }
+
+    protected function eligibleDealsForAgentChange(array $rowIds): Collection
+    {
+        return Deal::whereIn('id', $rowIds)
+            ->where('is_locked', false)
+            ->get(['id', 'name', 'category_id', 'agent_id', 'is_locked']);
     }
 
     /**

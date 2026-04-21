@@ -28,15 +28,9 @@ class TaskListener
 
     public function handle(TaskEvent $event)
     {
-        $suppressBulkTransactionalEmails = app()->bound('suppress_bulk_notifications')
-            && app('suppress_bulk_notifications') === true;
-
         if ($event->notificationName) {
-            $prepareNotification = function ($notification) use ($suppressBulkTransactionalEmails) {
-                if ($suppressBulkTransactionalEmails && $notification instanceof BaseNotification) {
-                    $notification->setSuppressBulkTransactionalEmails(true);
-                }
-                return $notification;
+            $prepareNotification = function ($notification) {
+                return BaseNotification::applySuppressionFromContainer($notification);
             };
 
             if ($event->notificationName == 'NewClientTask') {

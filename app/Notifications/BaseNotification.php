@@ -32,6 +32,18 @@ class BaseNotification extends Notification implements ShouldQueue
         return $this;
     }
 
+    public static function applySuppressionFromContainer(Notification $notification): Notification
+    {
+        $shouldSuppress = app()->bound('suppress_bulk_notifications')
+            && app('suppress_bulk_notifications') === true;
+
+        if ($shouldSuppress && $notification instanceof self) {
+            $notification->setSuppressBulkTransactionalEmails(true);
+        }
+
+        return $notification;
+    }
+
     /**
      * Create a new notification instance.
      *
