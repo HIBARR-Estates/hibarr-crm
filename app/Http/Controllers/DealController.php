@@ -1523,9 +1523,10 @@ class DealController extends AccountBaseController
 
             switch ($request->action_type) {
                 case 'delete':
-                    $lockedIds = Deal::whereIn('id', $rowIds)->where('is_locked', true)->pluck('id')->toArray();
-                    $deletableIds = array_values(array_diff($rowIds, $lockedIds));
-                    $deals = Deal::whereIn('id', $deletableIds)->get(['id', 'name']);
+                    $deals = Deal::whereIn('id', $rowIds)
+                        ->where('is_locked', false)
+                        ->get(['id', 'name']);
+                    $deletableIds = $deals->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
                     $records = $deals->map(function (Deal $deal) {
                         return [
                             'label' => 'Deleted: ' . ($deal->name ?? ('#' . $deal->id)),
@@ -1533,7 +1534,7 @@ class DealController extends AccountBaseController
                         ];
                     })->values()->all();
 
-                    $this->deleteRecords($request);
+                    $this->deleteRecords($request, $deletableIds);
 
                     if (user() && !empty($records)) {
                         user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'delete', count($records), $records));
@@ -1547,7 +1548,12 @@ class DealController extends AccountBaseController
                 case 'change-status':
                     $stage = PipelineStage::find($request->status);
                     $stageLabel = $stage?->name ?? ('ID ' . $request->status);
-                    $editableIds = Deal::whereIn('id', $rowIds)->where('is_locked', false)->pluck('id')->toArray();
+                    $editableIds = Deal::whereIn('id', $rowIds)
+                        ->where('is_locked', false)
+                        ->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->values()
+                        ->all();
                     $deals = Deal::whereIn('id', $editableIds)->get(['id', 'name']);
                     $records = $deals->map(function (Deal $deal) use ($stageLabel) {
                         return [
@@ -1556,7 +1562,7 @@ class DealController extends AccountBaseController
                         ];
                     })->values()->all();
 
-                    $this->changeBulkStatus($request);
+                    $this->changeBulkStatus($request, $editableIds);
 
                     if (user() && !empty($records)) {
                         user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-status', count($records), $records));
@@ -1600,15 +1606,19 @@ class DealController extends AccountBaseController
         }
     }
 
-    protected function deleteRecords($request)
+    protected function deleteRecords($request, ?array $deletableIds = null)
     {
         abort_403(user()->permission('delete_deals') != 'all');
 
-        $rowIds = explode(',', $request->row_ids);
-
-        // Exclude locked deals from bulk deletion
-        $lockedIds = Deal::whereIn('id', $rowIds)->where('is_locked', true)->pluck('id')->toArray();
-        $deletableIds = array_diff($rowIds, $lockedIds);
+        if (is_null($deletableIds)) {
+            $rowIds = explode(',', $request->row_ids);
+            $deletableIds = Deal::whereIn('id', $rowIds)
+                ->where('is_locked', false)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
 
         if (empty($deletableIds)) {
             return;
@@ -1624,20 +1634,26 @@ class DealController extends AccountBaseController
         Deal::whereIn('id', $deletableIds)->delete();
     }
 
-    protected function changeBulkStatus($request)
+    protected function changeBulkStatus($request, ?array $editableIds = null)
     {
         $canEditDeals = user()->permission('edit_deals') == 'all';
         $canChangeStages = user()->permission('change_deal_stages') == 'all';
 
         abort_403(!($canEditDeals || $canChangeStages));
 
-        $rowIds = explode(',', $request->row_ids);
         $newStatus = $request->status;
 
         $stage = PipelineStage::find($newStatus);
 
-        // Exclude locked deals from bulk status change
-        $editableIds = Deal::whereIn('id', $rowIds)->where('is_locked', false)->pluck('id')->toArray();
+        if (is_null($editableIds)) {
+            $rowIds = explode(',', $request->row_ids);
+            $editableIds = Deal::whereIn('id', $rowIds)
+                ->where('is_locked', false)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
 
         if (empty($editableIds)) {
             return;
