@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { History, ArrowUpRight, User, Bot } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useLevelHistory } from "@/Features/Mlm/api";
 import { LevelBadge } from "@/Features/Mlm/Components";
 import type {
@@ -18,6 +19,7 @@ interface Props extends PageProps {
 }
 
 const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
+    const { t } = useTranslation();
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
 
@@ -126,10 +128,10 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="Level History"
+                title={t("app.mlm.admin.level_history")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Level History" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    { name: t("app.mlm.admin.level_history") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

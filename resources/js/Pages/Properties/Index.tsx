@@ -39,6 +39,7 @@ import { createPropertyFilterConfig } from "@/configs/propertyFilterConfig";
 import { createPropertySearchConfig } from "@/configs/searchConfigs";
 import usePageSort from "@/Hooks/usePageSort";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 import type {
     DeveloperProjectOption,
@@ -374,16 +375,17 @@ const Index = ({
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
+    const { t } = useTranslation();
 
     return (
         <>
             <PageLayout
                 title={pageTitle}
-                breadcrumbs={[{ name: "Properties" }]}
+                breadcrumbs={[{ name: t("app.menu.properties") }]}
                 searchComp={
                     showPropertiesTable ? (
                         <UniversalSearchBox
-                            placeholder="Search properties by title, area, description..."
+                            placeholder={t("app.properties.search_placeholder")}
                             className="w-full"
                         />
                     ) : undefined
@@ -416,7 +418,7 @@ const Index = ({
                                         icon={<PlusOutlined />}
                                         onClick={() => handleAction("add")}
                                     >
-                                        Add Property
+                                        {t("app.properties.actions.add")}
                                     </Button>
                                     <Button
                                         type="text"
@@ -425,14 +427,16 @@ const Index = ({
                                             handleAction("import");
                                         }}
                                     >
-                                        Import
+                                        {t("app.import")}
                                     </Button>
                                     <Link href="/account/availability-requests">
                                         <Button
                                             type="text"
                                             icon={<SafetyOutlined />}
                                         >
-                                            Availability Requests
+                                            {t(
+                                                "app.properties.actions.availability_requests",
+                                            )}
                                         </Button>
                                     </Link>
                                     {isSalesManager ? (
@@ -441,7 +445,9 @@ const Index = ({
                                                 type="text"
                                                 icon={<GlobalOutlined />}
                                             >
-                                                Publish Requests
+                                                {t(
+                                                    "app.properties.actions.publish_requests",
+                                                )}
                                             </Button>
                                         </Link>
                                     ) : null}
@@ -453,7 +459,9 @@ const Index = ({
                                                 type="text"
                                                 icon={<SettingOutlined />}
                                             >
-                                                Configuration
+                                                {t(
+                                                    "app.properties.actions.configuration",
+                                                )}
                                             </Button>
                                         </Link>
                                     ) : null}
@@ -470,14 +478,14 @@ const Index = ({
                                         disabled={isRefreshing}
                                         type="text"
                                     >
-                                        Refresh
+                                        {t("app.common.actions.refresh")}
                                     </Button>
                                     {/* Advanced Filters Button */}
                                     <Button
                                         icon={<FilterOutlined />}
                                         onClick={openDrawer}
                                     >
-                                        Filters
+                                        {t("app.filter")}
                                     </Button>
 
                                     {/* Bulk Actions - Only show when items are selected */}

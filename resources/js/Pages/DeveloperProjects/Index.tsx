@@ -4,6 +4,7 @@ import { Button, Input, Pagination as AntPagination } from "antd";
 import { Plus, MapPin, Search, Building2, Users } from "lucide-react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import type { PageProps } from "../../Components/DashboardLayout";
 import type {
     DeveloperProject,
@@ -85,6 +86,7 @@ const Index = ({ pageTitle, projects: rawProjects, filters: rawFilters }: IndexP
         to: 0,
     };
 
+    const { t } = useTranslation();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedProject, setSelectedProject] =
         useState<DeveloperProject | null>(null);
@@ -176,7 +178,7 @@ const Index = ({ pageTitle, projects: rawProjects, filters: rawFilters }: IndexP
         <>
             <PageLayout
                 title={pageTitle}
-                breadcrumbs={[{ name: "Projects" }]}
+                breadcrumbs={[{ name: t("app.menu.projects") }]}
             >
                 <div className="-m-6 min-h-screen bg-slate-50">
                     {/* ── Sticky header ── */}
