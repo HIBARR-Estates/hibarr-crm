@@ -14,6 +14,7 @@ import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Activity, CheckCircle, Trophy } from "lucide-react";
 import { Deal } from "@/Types";
+import useTranslation from "@/Hooks/useTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -140,7 +141,7 @@ interface DataQualityStats {
     average_score: number;
 }
 
-interface ComprehensiveDashboardProps extends PageProps {
+interface IndexProps extends PageProps {
     tasks: Task[];
     upcomingMeetings: any[];
     deals: Deal[];
@@ -157,7 +158,7 @@ interface ComprehensiveDashboardProps extends PageProps {
     leadAgents: any[];
 }
 
-const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
+const Index: React.FC<IndexProps> = ({
     tasks,
     upcomingMeetings,
     deals,
@@ -177,6 +178,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     const company = props.company as any;
     const enableDataQualityMonitor = company?.enable_data_quality_monitor === 1; // Check if explicitly enabled (1)
 
+    const { t } = useTranslation();
     const [activeMetric, setActiveMetric] = useState<string | null>(null);
 
     // Handle metric click for filtering
@@ -217,7 +219,7 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                     {
                         preserveState: true,
                         onSuccess: () => {
-                            message.success("Deal stage updated successfully!");
+                            message.success(t("messages.dealUpdateSuccess"));
                         },
                     },
                 );
@@ -231,8 +233,8 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     return (
         <DashboardLayout>
             <PageLayout
-                title="Sales Dashboard"
-                breadcrumbs={[{ name: "Dashboard" }]}
+                title={t("app.menu.dashboard")}
+                breadcrumbs={[{ name: t("app.menu.dashboard") }]}
                 mainContentClassName=""
             >
                 <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-25">
@@ -255,17 +257,17 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                     transition={{ duration: 0.6, delay: 0.2 }}
                                 >
                                     <h1 className="text-4xl font-bold mb-4">
-                                        Good{" "}
                                         {new Date().getHours() < 12
-                                            ? "morning"
+                                            ? t("app.dashboard.good_morning")
                                             : new Date().getHours() < 17
-                                              ? "afternoon"
-                                              : "evening"}
+                                              ? t(
+                                                    "app.dashboard.good_afternoon",
+                                                )
+                                              : t("app.dashboard.good_evening")}
                                         ! 👋
                                     </h1>
                                     <p className="text-xl text-blue-100 max-w-2xl">
-                                        Welcome back to your dashboard. Here's
-                                        what's happening with sales today.
+                                        {t("app.dashboard.subtitle")}
                                     </p>
                                 </motion.div>
 
@@ -283,7 +285,9 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         />
                                         <span>
                                             {stats.completed_tasks?.toLocaleString()}{" "}
-                                            tasks completed
+                                            {t(
+                                                "app.dashboard.stat_text.tasks_completed",
+                                            )}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -293,7 +297,9 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         />
                                         <span>
                                             {stats.total_deals?.toLocaleString()}{" "}
-                                            deals
+                                            {t(
+                                                "app.dashboard.stat_text.active_deals",
+                                            )}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -303,7 +309,9 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
                                         />
                                         <span>
                                             {stats.activities_this_week?.toLocaleString()}{" "}
-                                            activities this week
+                                            {t(
+                                                "app.dashboard.stat_text.activities_this_week",
+                                            )}
                                         </span>
                                     </div>
                                 </motion.div>
@@ -474,4 +482,4 @@ const ComprehensiveDashboard: React.FC<ComprehensiveDashboardProps> = ({
     );
 };
 
-export default ComprehensiveDashboard;
+export default Index;
