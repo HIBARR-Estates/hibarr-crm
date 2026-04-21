@@ -779,34 +779,35 @@ class PropertyApiController extends Controller
                     [$like]
                 )
                 ->orWhereRaw(
-                    "CASE
-                        WHEN JSON_VALID(properties.distances) THEN COALESCE(JSON_UNQUOTE(JSON_EXTRACT(properties.distances, '$.military_base')), CAST(properties.distances AS CHAR))
-                        ELSE CAST(properties.distances AS CHAR)
-                    END LIKE ?",
+                    // Match against the full serialized distances payload so any key/value is searchable.
+                    "CAST(properties.distances AS CHAR) LIKE ?",
                     [$like]
                 )
                 ->orWhereHas('product', function (Builder $productQuery) use ($like) {
-                    $productQuery
-                        ->where('products.name', 'like', $like)
-                        ->orWhere('products.description', 'like', $like);
+                    $productQuery->where(function (Builder $q) use ($like) {
+                        $q->where('products.name', 'like', $like)
+                            ->orWhere('products.description', 'like', $like);
+                    });
                 })
                 ->orWhereHas('developerProject', function (Builder $projectQuery) use ($like) {
-                    $projectQuery
-                        ->where('developer_projects.name', 'like', $like)
-                        ->orWhere('developer_projects.description', 'like', $like);
+                    $projectQuery->where(function (Builder $q) use ($like) {
+                        $q->where('developer_projects.name', 'like', $like)
+                            ->orWhere('developer_projects.description', 'like', $like);
+                    });
                 })
                 ->orWhereHas('projectLocation', function (Builder $locationQuery) use ($like) {
-                    $locationQuery
-                        ->where('project_locations.name', 'like', $like)
-                        ->orWhere('project_locations.city', 'like', $like)
-                        ->orWhere('project_locations.area', 'like', $like)
-                        ->orWhereRaw(
-                            "CASE
-                                WHEN JSON_VALID(project_locations.address) THEN COALESCE(JSON_UNQUOTE(JSON_EXTRACT(project_locations.address, '$.street')), CAST(project_locations.address AS CHAR))
-                                ELSE CAST(project_locations.address AS CHAR)
-                            END LIKE ?",
-                            [$like]
-                        );
+                    $locationQuery->where(function (Builder $q) use ($like) {
+                        $q->where('project_locations.name', 'like', $like)
+                            ->orWhere('project_locations.city', 'like', $like)
+                            ->orWhere('project_locations.area', 'like', $like)
+                            ->orWhereRaw(
+                                "CASE
+                                    WHEN JSON_VALID(project_locations.address) THEN COALESCE(JSON_UNQUOTE(JSON_EXTRACT(project_locations.address, '$.street')), CAST(project_locations.address AS CHAR))
+                                    ELSE CAST(project_locations.address AS CHAR)
+                                END LIKE ?",
+                                [$like]
+                            );
+                    });
                 });
         });
     }
