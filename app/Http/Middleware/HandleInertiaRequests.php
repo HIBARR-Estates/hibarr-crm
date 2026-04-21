@@ -290,10 +290,21 @@ class HandleInertiaRequests extends Middleware
     {
         // Priority: User preference > Session > App default
         if (function_exists('user') && user() && user()->locale) {
-            return user()->locale;
+            $locale = user()->locale;
+            \Log::channel('daily')->debug('[i18n] Locale resolved from user record', [
+                'user_id' => user()->id,
+                'locale'  => $locale,
+            ]);
+            return $locale;
         }
 
-        return session('locale', app()->getLocale());
+        $locale = session('locale', app()->getLocale());
+        \Log::channel('daily')->debug('[i18n] Locale resolved from session/app default', [
+            'session_locale' => session('locale'),
+            'app_locale'     => app()->getLocale(),
+            'resolved'       => $locale,
+        ]);
+        return $locale;
     }
 
     /**
@@ -311,7 +322,14 @@ class HandleInertiaRequests extends Middleware
     {
         $locale = $this->getCurrentLocale();
 
+        \Log::channel('daily')->debug('[i18n] getTranslations called', [
+            'locale'        => $locale,
+            'cache_key'     => "translations_{$locale}",
+            'cache_hit'     => Cache::has("translations_{$locale}"),
+        ]);
+
         return Cache::remember("translations_{$locale}", 3600, function () use ($locale) {
+            \Log::channel('daily')->info('[i18n] Building translations from disk (cache miss)', ['locale' => $locale]);
             $files = ['app', 'modules', 'messages', 'permissions', 'placeholders'];
 
             // Always load English as the base translations
@@ -334,10 +352,22 @@ class HandleInertiaRequests extends Middleware
             $folder = $this->localeToFolder[$locale] ?? 'eng';
             $path = lang_path($folder);
 
+            \Log::channel('daily')->info('[i18n] Loading locale files', [
+                'locale' => $locale,
+                'folder' => $folder,
+                'path'   => $path,
+                'exists' => is_dir($path),
+            ]);
+
             if (is_dir($path)) {
                 foreach ($files as $file) {
                     $filePath = $path . '/' . $file . '.php';
-                    if (file_exists($filePath)) {
+                    $exists   = file_exists($filePath);
+                    \Log::channel('daily')->debug('[i18n] Translation file check', [
+                        'file'   => $filePath,
+                        'exists' => $exists,
+                    ]);
+                    if ($exists) {
                         $localeData = require $filePath;
                         // Deep merge: locale translations override English, missing keys keep English values
                         $baseTranslations[$file] = array_replace_recursive(
@@ -348,7 +378,13 @@ class HandleInertiaRequests extends Middleware
                 }
             }
 
-            return $this->flattenTranslations($baseTranslations);
+            $flat = $this->flattenTranslations($baseTranslations);
+            \Log::channel('daily')->info('[i18n] Translation bundle built', [
+                'locale'     => $locale,
+                'key_count'  => count($flat),
+                'sample_key' => array_key_first($flat) ?? 'none',
+            ]);
+            return $flat;
         });
     }
 
