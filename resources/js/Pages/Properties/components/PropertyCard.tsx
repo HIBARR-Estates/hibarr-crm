@@ -25,20 +25,31 @@ interface PropertyCardProps {
 function formatPrice(
     price: number | string | null | undefined,
     currencyCode?: string,
+    currencySymbol?: string,
 ): string {
     if (!price) return "Price on request";
     const num = typeof price === "string" ? parseFloat(price) : price;
-    if (isNaN(num) || num === 0) return "Price on request";
-    try {
-        return new Intl.NumberFormat("en-GB", {
-            style: "currency",
-            currency: currencyCode ?? "USD",
-            maximumFractionDigits: 0,
-        }).format(num);
-    } catch {
-        return `${num.toLocaleString()}`;
+    if (!Number.isFinite(num) || num === 0) return "Price on request";
+
+    if (currencyCode) {
+        try {
+            return new Intl.NumberFormat("en-GB", {
+                style: "currency",
+                currency: currencyCode,
+                maximumFractionDigits: 0,
+            }).format(num);
+        } catch {
+            // Fall back to the configured symbol below.
+        }
     }
+
+    const formatted = num.toLocaleString("en-GB", {
+        maximumFractionDigits: 0,
+    });
+
+    return currencySymbol ? `${currencySymbol}${formatted}` : formatted;
 }
+
 
 const SALE_TYPE_LABEL: Record<string, string> = {
     sale: "For Sale",
@@ -48,10 +59,10 @@ const SALE_TYPE_LABEL: Record<string, string> = {
 const PropertyCard: React.FC<PropertyCardProps> = ({
     property,
     currencyCode,
+    currencySymbol,
     onEdit,
     onDelete,
 }) => {
-    console.log(property)
     const firstPhoto =
         property.photos?.[0] ?? null;
 
@@ -205,7 +216,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     <div>
                         <p className="text-[10px] text-gray-400 mb-0.5">Price</p>
                         <p className="font-bold text-sm text-slate-900">
-                            {formatPrice(property.price, currencyCode)}
+                            {formatPrice(property.price, currencyCode, currencySymbol)}
                         </p>
                     </div>
                     {property.property_type && (
