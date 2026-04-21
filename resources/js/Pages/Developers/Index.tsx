@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Button,
     Input,
@@ -128,6 +129,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
 // ============================================
 
 const Index = ({ pageTitle, developers, filters }: IndexProps) => {
+    const { t } = useTranslation();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedDeveloper, setSelectedDeveloper] =
         useState<Developer | null>(null);
@@ -185,7 +187,7 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
     }, []);
 
     return (
-        <PageLayout title={pageTitle} breadcrumbs={[{ name: "Developers" }]}>
+        <PageLayout title={pageTitle} breadcrumbs={[{ name: t("app.developers.title") }]}>
             <div className="max-w-7xl mx-auto">
                 {/* Search + Add */}
                 <div className="mb-6 flex items-center justify-between gap-4">

@@ -52,6 +52,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 dayjs.extend(utc);
 
@@ -571,6 +572,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
     onClose,
     userDeals,
 }) => {
+    const { t } = useTranslation();
     const [selectedDealId, setSelectedDealId] = useState<number | null>(null);
     const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
     const [loadingDeal, setLoadingDeal] = useState(false);
@@ -646,7 +648,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
 
     return (
         <Drawer
-            title="Schedule Meeting"
+            title={t("app.meetings.schedule_drawer_title")}
             placement="right"
             size="large"
             open={open}
@@ -657,11 +659,11 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                 {/* Step 1: Select deal */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Deal <span className="text-red-500">*</span>
+                        {t("app.meetings.select_deal_label")} <span className="text-red-500">*</span>
                     </label>
                     <Select
                         showSearch
-                        placeholder="Search and select a deal..."
+                        placeholder={t("app.meetings.select_deal_placeholder")}
                         optionFilterProp="label"
                         className="w-full"
                         value={selectedDealId}
@@ -741,20 +743,19 @@ function MeetingsIndex() {
         permissions.add_lead_follow_up === "added";
 
     // ── Page-level refresh ──────────────────────────────────────────
-    const { refresh, isRefreshing } = usePageRefresh();
-
+    const { refresh, isRefreshing } = usePageRefresh();    const { t } = useTranslation();
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (
         <PageLayout
-            title={pageTitle || "Meetings"}
-            breadcrumbs={[{ name: "Meetings" }]}
+            title={t("app.menu.meetings")}
+            breadcrumbs={[{ name: t("app.menu.meetings") }]}
         >
             <div className="px-4 sm:px-6 py-6 space-y-8">
                 {/* ── Header ────────────────────────────────────────── */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h1 className="text-2xl font-bold text-gray-900 mb-0">
-                        My Meetings
+                        {t("app.meetings.my_meetings")}
                     </h1>
                     <div className="flex items-center gap-3">
                         <Button
@@ -763,7 +764,7 @@ function MeetingsIndex() {
                             disabled={isRefreshing}
                             type="text"
                         >
-                            Refresh
+                            {t("app.common.actions.refresh")}
                         </Button>
                         {canAdd && (
                             <Button
@@ -772,7 +773,7 @@ function MeetingsIndex() {
                                 onClick={() => setScheduleOpen(true)}
                                 className="bg-blue-600 hover:bg-blue-700"
                             >
-                                Schedule Meeting
+                                {t("app.meetings.actions.schedule")}
                             </Button>
                         )}
                     </div>
@@ -784,7 +785,7 @@ function MeetingsIndex() {
                         icon={
                             <CalendarOutlined className="text-xl text-blue-600" />
                         }
-                        label="Upcoming"
+                        label={t("app.meetings.stats.upcoming")}
                         value={overviewStats.upcoming}
                         color="bg-blue-100"
                         bgColor="bg-white border-blue-100"
@@ -793,7 +794,7 @@ function MeetingsIndex() {
                         icon={
                             <ClockCircleOutlined className="text-xl text-indigo-600" />
                         }
-                        label="This Week"
+                        label={t("app.meetings.stats.this_week")}
                         value={overviewStats.this_week}
                         color="bg-indigo-100"
                         bgColor="bg-white border-indigo-100"
@@ -802,7 +803,7 @@ function MeetingsIndex() {
                         icon={
                             <ThunderboltOutlined className="text-xl text-red-600" />
                         }
-                        label="Live Now"
+                        label={t("app.meetings.stats.live_now")}
                         value={overviewStats.live}
                         color="bg-red-100"
                         bgColor="bg-white border-red-100"
@@ -811,7 +812,7 @@ function MeetingsIndex() {
                         icon={
                             <CheckCircleOutlined className="text-xl text-green-600" />
                         }
-                        label="Completed"
+                        label={t("app.meetings.stats.completed")}
                         value={overviewStats.completed}
                         color="bg-green-100"
                         bgColor="bg-white border-green-100"
@@ -820,11 +821,11 @@ function MeetingsIndex() {
 
                 {/* ── Upcoming Section ──────────────────────────────── */}
                 <MeetingSection
-                    title="Upcoming Meetings"
+                    title={t("app.meetings.sections.upcoming")}
                     total={upcomingMeetings.total}
                     data={upcomingMeetings}
                     pageName="upcoming"
-                    emptyMessage="No upcoming meetings scheduled."
+                    emptyMessage={t("app.meetings.empty.upcoming")}
                     permissions={permissions}
                     userId={user?.id}
                     onView={(m) => handleAction("view", m)}
@@ -834,11 +835,11 @@ function MeetingsIndex() {
 
                 {/* ── Past Section ──────────────────────────────────── */}
                 <MeetingSection
-                    title="Past Meetings"
+                    title={t("app.meetings.sections.past")}
                     total={pastMeetings.total}
                     data={pastMeetings}
                     pageName="past"
-                    emptyMessage="No past meetings found."
+                    emptyMessage={t("app.meetings.empty.past")}
                     permissions={permissions}
                     userId={user?.id}
                     onView={(m) => handleAction("view", m)}

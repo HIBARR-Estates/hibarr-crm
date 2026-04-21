@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Link, router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Table,
     Button,
@@ -77,6 +78,7 @@ const Show = ({
     offers,
     filters,
 }: ShowProps) => {
+    const { t } = useTranslation();
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editProject, setEditProject] = useState<DeveloperProject | null>(
         null,
@@ -255,7 +257,7 @@ const Show = ({
         <PageLayout
             title={pageTitle}
             breadcrumbs={[
-                { name: "Developers", url: route("developers.index") },
+                { name: t("app.developers.title"), url: route("developers.index") },
                 { name: developer.name },
             ]}
         >

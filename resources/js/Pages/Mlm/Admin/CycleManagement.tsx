@@ -25,6 +25,7 @@ import {
 import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     useMlmCycles,
     useMlmCycleDetail,
@@ -373,6 +374,7 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 const CycleManagement: React.FC<Props> = () => {
+    const { t } = useTranslation();
     const [page, setPage] = useState(1);
     const { data, isLoading, refetch } = useMlmCycles({
         page,
@@ -504,10 +506,10 @@ const CycleManagement: React.FC<Props> = () => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="Cycle Management"
+                title={t("app.mlm.admin.cycle_management")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Cycle Management" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    { name: t("app.mlm.admin.cycle_management") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto">

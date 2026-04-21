@@ -26,6 +26,7 @@ import {
 } from "recharts";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useAdminAgentDashboard } from "@/Features/Mlm/api";
 import {
     LevelBadge,
@@ -57,6 +58,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
     agent,
     stats: initialStats,
 }) => {
+    const { t } = useTranslation();
     const { data, isLoading } = useAdminAgentDashboard(agent.id);
     const stats: MlmAgentDashboardStats = (data as any)?.data ?? initialStats;
     const levelData: LevelData = (data as any)?.data;
@@ -149,9 +151,9 @@ const AdminAgentDashboard: React.FC<Props> = ({
             <PageLayout
                 title={`${agent.name}'s Dashboard`}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
                     {
-                        name: "Agent Metrics",
+                        name: t("app.mlm.admin.agent_metrics"),
                         url: "/account/mlm/agent-metrics",
                     },
                     { name: agent.name },

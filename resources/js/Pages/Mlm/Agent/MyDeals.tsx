@@ -14,6 +14,7 @@ import { motion } from "framer-motion";
 import { Briefcase, Filter, CalendarDays } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useMyDealContributions, useMyEnrollment } from "@/Features/Mlm/api";
 import type { PaginatedResponse } from "@/Features/Mlm/types";
 
@@ -35,6 +36,7 @@ interface Props extends PageProps {
 }
 
 const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
+    const { t } = useTranslation();
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
 
@@ -142,10 +144,10 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="My Deals"
+                title={t("app.mlm.agent.deals")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/agent/dashboard" },
-                    { name: "My Deals" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/agent/dashboard" },
+                    { name: t("app.mlm.agent.deals") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

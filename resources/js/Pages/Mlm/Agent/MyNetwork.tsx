@@ -41,6 +41,7 @@ import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import UserIndicator from "@/Components/UserIndicator";
 import {
     useMyNetwork,
@@ -748,6 +749,7 @@ const AgentDetailContent: React.FC<{
 
 // ── Main Page ────────────────────────────────────────────────────
 const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
+    const { t } = useTranslation();
     const { data, isLoading, refetch } = useMyNetwork();
     const network: AgentHierarchyNode | null =
         (data as any)?.data ?? initialNetwork;
@@ -802,10 +804,10 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="My Network"
+                title={t("app.mlm.agent.network")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/agent/dashboard" },
-                    { name: "My Network" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/agent/dashboard" },
+                    { name: t("app.mlm.agent.network") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto">

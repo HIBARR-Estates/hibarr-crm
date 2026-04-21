@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowUp, Crown } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useMyUplines } from "@/Features/Mlm/api";
 import type { AgentHierarchyNode } from "@/Features/Mlm/types";
 
@@ -12,6 +13,7 @@ interface Props extends PageProps {
 }
 
 const MyUplines: React.FC<Props> = ({ uplines: initialUplines }) => {
+    const { t } = useTranslation();
     const { data, isLoading } = useMyUplines();
     const uplines: AgentHierarchyNode[] =
         (data as any)?.data ?? initialUplines ?? [];
@@ -19,10 +21,10 @@ const MyUplines: React.FC<Props> = ({ uplines: initialUplines }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="My Uplines"
+                title={t("app.mlm.agent.uplines")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/agent/dashboard" },
-                    { name: "My Uplines" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/agent/dashboard" },
+                    { name: t("app.mlm.agent.uplines") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

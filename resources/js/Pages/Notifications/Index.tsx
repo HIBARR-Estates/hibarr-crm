@@ -51,6 +51,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { useNotifications } from "@/Hooks/useNotifications";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Notification,
     NotificationIcon,
@@ -155,6 +156,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
     onClick,
 }) => {
     const [showActions, setShowActions] = useState(false);
+    const { t } = useTranslation();
 
     const handleClick = useCallback(() => {
         onClick(notification);
@@ -190,14 +192,14 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
             : [
                   {
                       key: "mark-read",
-                      label: "Mark as read",
+                      label: t("app.notifications.actions.mark_read"),
                       icon: <CheckOutlined />,
                       onClick: () => handleMarkRead(),
                   },
               ]),
         {
             key: "delete",
-            label: "Delete",
+            label: t("app.delete"),
             icon: <DeleteOutlined />,
             danger: true,
             onClick: () => handleDelete(),
@@ -291,7 +293,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                                     className="flex items-center gap-1"
                                 >
                                     {!notification.is_read && (
-                                        <Tooltip title="Mark as read">
+                                        <Tooltip title={t("app.notifications.actions.mark_read")}>
                                             <Button
                                                 type="text"
                                                 size="small"
@@ -348,13 +350,14 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     loading,
 }) => {
     const { modal } = App.useApp();
+    const { t } = useTranslation();
 
     const handleDelete = () => {
         modal.confirm({
-            title: "Delete Notifications",
+            title: t("app.notifications.bulk_delete_title"),
             icon: <ExclamationCircleOutlined />,
             content: `Are you sure you want to delete ${selectedCount} notification(s)? This action cannot be undone.`,
-            okText: "Delete",
+            okText: t("app.delete"),
             okButtonProps: { danger: true },
             onOk: onDelete,
         });
@@ -390,7 +393,7 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                             onClick={onMarkRead}
                             loading={loading}
                         >
-                            Mark as read
+                            {t("app.notifications.actions.mark_read")}
                         </Button>
                         <Button
                             size="small"
@@ -399,7 +402,7 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                             onClick={handleDelete}
                             loading={loading}
                         >
-                            Delete
+                            {t("app.delete")}
                         </Button>
                         <Button
                             size="small"
@@ -407,7 +410,7 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                             icon={<ClearOutlined />}
                             onClick={onClearSelection}
                         >
-                            Clear
+                            {t("app.clearFilters")}
                         </Button>
                     </Space>
                 )}
@@ -451,14 +454,14 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
     hasRead,
 }) => {
     const { modal } = App.useApp();
+    const { t } = useTranslation();
 
     const handleDeleteAllRead = () => {
         modal.confirm({
-            title: "Delete Read Notifications",
+            title: t("app.notifications.bulk_delete_read_title"),
             icon: <ExclamationCircleOutlined />,
-            content:
-                "Are you sure you want to delete all read notifications? This action cannot be undone.",
-            okText: "Delete",
+            content: t("app.notifications.bulk_delete_read_content"),
+            okText: t("app.delete"),
             okButtonProps: { danger: true },
             onOk: onDeleteAllRead,
         });
@@ -469,7 +472,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
             ? [
                   {
                       key: "mark-all-read",
-                      label: "Mark all as read",
+                      label: t("app.notifications.actions.mark_all_read"),
                       icon: <CheckCircleOutlined />,
                       onClick: onMarkAllRead,
                   },
@@ -479,7 +482,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
             ? [
                   {
                       key: "delete-all-read",
-                      label: "Delete all read",
+                      label: t("app.notifications.actions.delete_all_read"),
                       icon: <DeleteOutlined />,
                       danger: true,
                       onClick: handleDeleteAllRead,
@@ -498,16 +501,16 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
                         onChange={onStatusChange}
                         style={{ width: 140 }}
                         options={[
-                            { value: "all", label: "All notifications" },
-                            { value: "unread", label: "Unread" },
-                            { value: "read", label: "Read" },
+                            { value: "all", label: t("app.notifications.filters.all") },
+                            { value: "unread", label: t("app.notifications.filters.unread") },
+                            { value: "read", label: t("app.notifications.filters.read") },
                         ]}
                     />
 
                     <Select
                         value={typeFilter || undefined}
                         onChange={onTypeChange}
-                        placeholder="Filter by type"
+                        placeholder={t("app.notifications.filter_by_type")}
                         allowClear
                         style={{ width: 180 }}
                         options={types}
@@ -515,7 +518,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
                     />
 
                     <Search
-                        placeholder="Search notifications..."
+                        placeholder={t("app.notifications.search_placeholder")}
                         allowClear
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
@@ -526,7 +529,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                    <Tooltip title="Refresh">
+                    <Tooltip title={t("app.common.actions.refresh")}>
                         <Button
                             icon={<ReloadOutlined />}
                             onClick={onRefresh}
@@ -539,7 +542,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
                             menu={{ items: moreActions }}
                             trigger={["click"]}
                         >
-                            <Button icon={<MoreOutlined />}>Actions</Button>
+                            <Button icon={<MoreOutlined />}>{t("app.notifications.actions_label")}</Button>
                         </Dropdown>
                     )}
                 </div>
@@ -578,6 +581,7 @@ const NotificationsPage: React.FC = () => {
         refetch,
     } = useNotifications();
 
+    const { t } = useTranslation();
     const [showCheckboxes, setShowCheckboxes] = useState(false);
 
     // Handle notification click
@@ -615,21 +619,21 @@ const NotificationsPage: React.FC = () => {
     }, [showCheckboxes, clearSelection]);
 
     const breadcrumbs = [
-        { name: "Dashboard", href: route("dashboard") },
-        { name: "Notifications" },
+        { name: t("app.menu.dashboard"), href: route("dashboard") },
+        { name: t("app.notifications.title") },
     ];
 
     return (
         <DashboardLayout>
-            <Head title="Notifications" />
-            <PageLayout title="Notifications" breadcrumbs={breadcrumbs}>
+            <Head title={t("app.notifications.title")} />
+            <PageLayout title={t("app.notifications.title")} breadcrumbs={breadcrumbs}>
                 <div className="max-w-7xl mx-auto space-y-6">
                     <Card
                         bodyStyle={{ padding: 0 }}
                         title={
                             <div className="flex items-center gap-3">
                                 <BellOutlined className="text-xl" />
-                                <span>Notifications</span>
+                                <span>{t("app.notifications.title")}</span>
                                 {pagination.total > 0 && (
                                     <Tag>{pagination.total} total</Tag>
                                 )}
@@ -640,7 +644,7 @@ const NotificationsPage: React.FC = () => {
                                 type={showCheckboxes ? "primary" : "default"}
                                 onClick={toggleSelectionMode}
                             >
-                                {showCheckboxes ? "Done" : "Select"}
+                                {showCheckboxes ? t("app.notifications.done") : t("app.notifications.select")}
                             </Button>
                         }
                     >

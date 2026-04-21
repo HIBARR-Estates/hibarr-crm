@@ -43,6 +43,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import PipelineSelector from "@/Features/Deals/PipelineSelector";
 import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -260,7 +261,7 @@ const Index = ({
                 label: (
                     <Link href={route("deals.show", record.id)}>
                         <EyeOutlined className="mr-2" />
-                        View
+                        {t("app.view")}
                     </Link>
                 ),
             },
@@ -272,7 +273,7 @@ const Index = ({
                           label: (
                               <span>
                                   <EditOutlined className="mr-2" />
-                                  Edit
+                                  {t("app.edit")}
                               </span>
                           ),
                           onClick: () => {
@@ -286,7 +287,7 @@ const Index = ({
                 label: (
                     <span>
                         <UserOutlined className="mr-2" />
-                        Schedule Meeting
+                        {t("app.deals.actions.schedule_meeting")}
                     </span>
                 ),
                 onClick: () => {
@@ -304,7 +305,7 @@ const Index = ({
                           label: (
                               <span className="text-red-600">
                                   <DeleteOutlined className="mr-2" />
-                                  Delete
+                                  {t("app.delete")}
                               </span>
                           ),
                           onClick: () => {
@@ -360,15 +361,16 @@ const Index = ({
             }
         },
     });
+    const { t } = useTranslation();
 
     return (
         <>
             <PageLayout
                 title={pageTitle}
-                breadcrumbs={[{ name: "Deals" }]}
+                breadcrumbs={[{ name: t("app.deal") }]}
                 searchComp={
                     <UniversalSearchBox
-                        placeholder="Search deals by title, contact name, email..."
+                        placeholder={t("app.deals.search_placeholder")}
                         className="w-full"
                     />
                 }
@@ -387,14 +389,14 @@ const Index = ({
                                 icon={<PlusOutlined />}
                                 onClick={handleCreateDeal}
                             >
-                                Add Deal
+                                {t("app.deals.actions.add")}
                             </Button>
                             <Button
                                 type="text"
                                 icon={<ImportOutlined />}
                                 onClick={handleImportDeals}
                             >
-                                Import
+                                {t("app.import")}
                             </Button>
                         </div>
 
@@ -405,7 +407,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                Refresh
+                                {t("app.common.actions.refresh")}
                             </Button>
                             {/* Advanced Filters Button */}
                             <div className="flex items-center gap-x-2">
@@ -413,7 +415,7 @@ const Index = ({
                                     icon={<FilterOutlined />}
                                     onClick={openDrawer}
                                 >
-                                    Filters
+                                    {t("app.filter")}
                                 </Button>
                                 <DealsModeSwitcher
                                     view={view}

@@ -15,6 +15,7 @@ import { motion } from "framer-motion";
 import { DollarSign, Filter, CalendarDays } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useMyCommissions, useMyEnrollment } from "@/Features/Mlm/api";
 import { CommissionStatusBadge, LevelBadge } from "@/Features/Mlm/Components";
 import type {
@@ -43,6 +44,7 @@ interface Props extends PageProps {
 const MyCommissions: React.FC<Props> = ({
     summary,
 }) => {
+    const { t } = useTranslation();
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
 
@@ -143,10 +145,10 @@ const MyCommissions: React.FC<Props> = ({
     return (
         <DashboardLayout>
             <PageLayout
-                title="My Commissions"
+                title={t("app.mlm.agent.commissions")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/agent/dashboard" },
-                    { name: "My Commissions" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/agent/dashboard" },
+                    { name: t("app.mlm.agent.commissions") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

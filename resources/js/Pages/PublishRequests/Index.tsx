@@ -2,6 +2,7 @@ import { useState } from "react";
 import { usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Table,
     Tag,
@@ -76,6 +77,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 const Index = () => {
+    const { t } = useTranslation();
     const { props } = usePage<any>();
     const isSalesManager =
         props.auth?.permissions?.edit_product === "all" ||
@@ -290,10 +292,10 @@ const Index = () => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="Publish Requests"
+                title={t("app.properties.actions.publish_requests")}
                 breadcrumbs={[
-                    { name: "Properties", url: route("properties.index") },
-                    { name: "Publish Requests" },
+                    { name: t("app.menu.properties"), url: route("properties.index") },
+                    { name: t("app.properties.actions.publish_requests") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

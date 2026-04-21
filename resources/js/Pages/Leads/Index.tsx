@@ -28,6 +28,7 @@ import { Link, router } from "@inertiajs/react";
 import { Button, MenuProps, Table } from "antd";
 import { useState } from "react";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
+import useTranslation from "@/Hooks/useTranslation";
 import { User, Country, ClientCategory, Language } from "@/Types";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
@@ -128,7 +129,7 @@ const Index = ({
                 label: (
                     <Link href={route("lead-contact.show", record.id)}>
                         <EyeOutlined className="mr-2" />
-                        View
+                        {t("app.view")}
                     </Link>
                 ),
             },
@@ -137,7 +138,7 @@ const Index = ({
                 label: (
                     <span>
                         <EditOutlined className="mr-2" />
-                        Edit
+                        {t("app.edit")}
                     </span>
                 ),
                 onClick: () => {
@@ -149,7 +150,7 @@ const Index = ({
                 label: (
                     <span>
                         <UserOutlined className="mr-2" />
-                        Change to Client
+                        {t("app.leads.actions.change_to_client")}
                     </span>
                 ),
                 onClick: () => {
@@ -164,7 +165,7 @@ const Index = ({
                 label: (
                     <span className="text-red-600">
                         <DeleteOutlined className="mr-2" />
-                        Delete
+                        {t("app.delete")}
                     </span>
                 ),
                 onClick: () => {
@@ -182,15 +183,16 @@ const Index = ({
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
+    const { t } = useTranslation();
 
     return (
         <>
             <PageLayout
-                title={`Leads`}
-                breadcrumbs={[{ name: "Leads" }]}
+                title={t("app.menu.lead")}
+                breadcrumbs={[{ name: t("app.menu.lead") }]}
                 searchComp={
                     <UniversalSearchBox
-                        placeholder="Search leads by lead name, email, company..."
+                        placeholder={t("app.leads.search_placeholder")}
                         className="w-full"
                     />
                 }
@@ -204,14 +206,14 @@ const Index = ({
                                 icon={<PlusOutlined />}
                                 onClick={handleCreateLead}
                             >
-                                Add Lead
+                                {t("app.leads.actions.add")}
                             </Button>
                             <Button
                                 type="text"
                                 icon={<ImportOutlined />}
                                 onClick={handleImportLeads}
                             >
-                                Import
+                                {t("app.import")}
                             </Button>
                         </div>
 
@@ -222,14 +224,14 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                Refresh
+                                {t("app.common.actions.refresh")}
                             </Button>
                             {/* Advanced Filters Button */}
                             <Button
                                 icon={<FilterOutlined />}
                                 onClick={openDrawer}
                             >
-                                Filters
+                                {t("app.filter")}
                             </Button>
 
                             {/* Bulk Actions - Only show when items are selected */}

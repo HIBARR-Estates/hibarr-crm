@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import OfferFormModal from "@/Features/Offers/OfferFormModal";
 import DeleteOffer from "@/Features/Offers/DeleteOffer";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
@@ -53,6 +54,7 @@ const Index = ({
         selected: offer,
     } = useGenericEntityAction<Offer>();
 
+    const { t } = useTranslation();
     const { refresh, isRefreshing } = usePageRefresh();
     const [activeFilter, setActiveFilter] = useState<string | undefined>(
         filters.active_only,
@@ -213,8 +215,8 @@ const Index = ({
     return (
         <>
             <PageLayout
-                title="Offers"
-                breadcrumbs={[{ name: "Offers" }]}
+                title={t("app.offers.title")}
+                breadcrumbs={[{ name: t("app.offers.title") }]}
                 searchComp={
                     <UniversalSearchBox
                         placeholder="Search offers by name..."

@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { Button, Select, DatePicker } from "antd";
 import { PlusOutlined, FilterOutlined } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
@@ -100,6 +101,8 @@ const LeadBoardIndex = ({
         // Empty as requested
     };
 
+    const { t } = useTranslation();
+
     // Memoize configs to prevent unnecessary re-renders and filter resets
     const filterConfig = useMemo(
         () => ({
@@ -196,10 +199,10 @@ const LeadBoardIndex = ({
             />
             <div className="bg-gray-50 min-h-screen">
                 <PageLayout
-                    title={`Deals | Kanban`}
+                    title={`${t("app.deal")} | ${t("app.leadboards.kanban")}`}
                     breadcrumbs={[
-                        { name: "Deals", url: route("deals.index") },
-                        { name: "Kanban" },
+                        { name: t("app.deal"), url: route("deals.index") },
+                        { name: t("app.leadboards.kanban") },
                     ]}
                     searchComp={
                         <UniversalSearchBox

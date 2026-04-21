@@ -72,7 +72,13 @@ return array(
     'status' => 'Status',
     'selectStatus' => 'Select Status',
     'task' => 'Task',
-    'tasks' => 'Tasks',
+    'tasks' => [
+        'search_placeholder' => 'Search by title ...',
+        'manage_subtitle' => 'Manage and track tasks',
+        'actions' => [
+            'create' => 'Create Task',
+        ],
+    ],
     'print' => 'Print',
     'client' => 'Client',
     'property' => 'Property',
@@ -1427,5 +1433,179 @@ return array(
         'conversationStarted' => 'Conversation Started',
         'conversationStartedSuccessfully' => 'Conversation started successfully',
         'messageRequired' => 'Message required',
+    ],
+
+    // ── Phase 3: Page-level i18n keys ──────────────────────────────────────────
+
+    'filter' => 'Filters',
+    'import' => 'Import',
+
+    'views' => [
+        'kanban' => 'Kanban Board',
+        'list' => 'List View',
+    ],
+
+    'common' => [
+        'actions' => [
+            'refresh' => 'Refresh',
+        ],
+        'filters' => [
+            'all' => 'All',
+        ],
+    ],
+
+    'dashboard' => [
+        'good_morning'   => 'Good morning',
+        'good_afternoon' => 'Good afternoon',
+        'good_evening'   => 'Good evening',
+        'subtitle'       => "Welcome back to your dashboard. Here's what's happening with sales today.",
+        'stat_text' => [
+            'tasks_completed'    => 'tasks completed',
+            'active_deals'       => 'deals',
+            'activities_this_week' => 'activities this week',
+        ],
+    ],
+
+    'notifications' => [
+        'title'              => 'Notifications',
+        'search_placeholder' => 'Search notifications...',
+        'filter_by_type'     => 'Filter by type',
+        'done'               => 'Done',
+        'select'             => 'Select',
+        'actions_label'      => 'Actions',
+        'bulk_delete_title'        => 'Delete Notifications',
+        'bulk_delete_read_title'   => 'Delete Read Notifications',
+        'bulk_delete_read_content' => 'Are you sure you want to delete all read notifications? This action cannot be undone.',
+        'filters' => [
+            'all'    => 'All notifications',
+            'unread' => 'Unread',
+            'read'   => 'Read',
+        ],
+        'actions' => [
+            'mark_read'      => 'Mark as read',
+            'mark_all_read'  => 'Mark all as read',
+            'delete_all_read' => 'Delete all read',
+        ],
+    ],
+
+    'leads' => [
+        'search_placeholder' => 'Search leads by lead name, email, company...',
+        'actions' => [
+            'change_to_client' => 'Change to Client',
+            'add'              => 'Add Lead',
+        ],
+    ],
+
+    'meetings' => [
+        'my_meetings'           => 'My Meetings',
+        'select_deal_label'     => 'Select Deal',
+        'select_deal_placeholder' => 'Search and select a deal...',
+        'schedule_drawer_title' => 'Schedule Meeting',
+        'stats' => [
+            'upcoming'  => 'Upcoming',
+            'this_week' => 'This Week',
+            'live_now'  => 'Live Now',
+            'completed' => 'Completed',
+        ],
+        'sections' => [
+            'upcoming' => 'Upcoming Meetings',
+            'past'     => 'Past Meetings',
+        ],
+        'empty' => [
+            'upcoming' => 'No upcoming meetings scheduled.',
+            'past'     => 'No past meetings found.',
+        ],
+        'actions' => [
+            'schedule' => 'Schedule Meeting',
+        ],
+    ],
+
+    'reports' => [
+        'title' => 'Agent Reports',
+    ],
+
+    'agents' => [
+        'title'              => 'Agents',
+        'search_placeholder' => 'Search agents by name or email...',
+        'status' => [
+            'active'   => 'Active',
+            'disabled' => 'Disabled',
+        ],
+        'filters' => [
+            'status'   => 'Status',
+            'category' => 'Category',
+        ],
+        'actions' => [
+            'add'    => 'Add Agent',
+            'import' => 'Import',
+        ],
+    ],
+
+    // ── Phase 4: Deals, Properties, MLM ────────────────────────────────────────
+
+    'deals' => [
+        'search_placeholder' => 'Search deals by title, contact name, email...',
+        'actions' => [
+            'add'              => 'Add Deal',
+            'schedule_meeting' => 'Schedule Meeting',
+        ],
+    ],
+
+    'properties' => [
+        'search_placeholder' => 'Search properties by title, area, description...',
+        'actions' => [
+            'add'                   => 'Add Property',
+            'availability_requests' => 'Availability Requests',
+            'publish_requests'      => 'Publish Requests',
+            'configuration'         => 'Configuration',
+        ],
+    ],
+
+    'mlm' => [
+        'title' => 'MLM',
+        'admin' => [
+            'dashboard'           => 'MLM Dashboard',
+            'levels'              => 'MLM Levels',
+            'levels_short'        => 'Levels',
+            'level_rules'         => 'Level Rules',
+            'commission_settings' => 'Commission Settings',
+            'agent_hierarchy'     => 'Agent Hierarchy',
+            'commission_ledger'   => 'Commission Ledger',
+            'agent_metrics'       => 'Agent Metrics',
+            'level_history'       => 'Level History',
+            'cycle_management'    => 'Cycle Management',
+        ],
+        'agent' => [
+            'dashboard'   => 'My MLM Dashboard',
+            'commissions' => 'My Commissions',
+            'network'     => 'My Network',
+            'level'       => 'My Level',
+            'uplines'     => 'My Uplines',
+            'deals'       => 'My Deals',
+        ],
+    ],
+
+    'crm_events' => [
+        'title' => 'CRM Events',
+    ],
+
+    'developers' => [
+        'title' => 'Developers',
+    ],
+
+    'offers' => [
+        'title' => 'Offers',
+    ],
+
+    'leadboards' => [
+        'kanban' => 'Kanban',
+    ],
+
+    'project_locations' => [
+        'locations' => 'Locations',
+    ],
+
+    'settings' => [
+        'reminder_preferences' => 'Reminder Preferences',
     ],
 );

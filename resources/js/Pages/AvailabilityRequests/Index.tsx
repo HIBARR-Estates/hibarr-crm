@@ -1,6 +1,7 @@
 import { useState } from "react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Table,
     Tag,
@@ -87,6 +88,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 const Index = () => {
+    const { t } = useTranslation();
     const [direction, setDirection] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("");
     const [page, setPage] = useState(1);
@@ -293,10 +295,10 @@ const Index = () => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="Availability Requests"
+                title={t("app.properties.actions.availability_requests")}
                 breadcrumbs={[
-                    { name: "Properties", url: route("properties.index") },
-                    { name: "Availability Requests" },
+                    { name: t("app.menu.properties"), url: route("properties.index") },
+                    { name: t("app.properties.actions.availability_requests") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

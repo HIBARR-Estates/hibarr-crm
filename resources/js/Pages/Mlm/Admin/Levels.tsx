@@ -25,6 +25,7 @@ import {
 import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     useMlmLevels,
     useCreateMlmLevel,
@@ -39,6 +40,7 @@ interface Props extends PageProps {
 }
 
 const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
+    const { t } = useTranslation();
     const { data, isLoading, refetch } = useMlmLevels();
     const levels: MlmLevel[] =
         (data as any)?.data?.data ?? (data as any)?.data ?? initialLevels ?? [];
@@ -190,10 +192,10 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="MLM Levels"
+                title={t("app.mlm.admin.levels")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Levels" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    { name: t("app.mlm.admin.levels_short") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
