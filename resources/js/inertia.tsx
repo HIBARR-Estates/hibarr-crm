@@ -84,8 +84,18 @@ createInertiaApp({
         const translations =
             (sharedProps.translations as Record<string, string>) || {};
         const fallbackTranslations =
-            (sharedProps.fallbackTranslations as Record<string, string> | null) ||
-            null;
+            (sharedProps.fallbackTranslations as Record<
+                string,
+                string
+            > | null) || null;
+
+        console.log("[i18n] Bootstrap props received", {
+            locale,
+            translationKeyCount: Object.keys(translations).length,
+            hasFallback: fallbackTranslations !== null,
+            sampleKey: Object.keys(translations)[0] ?? "none",
+            sampleValue: translations[Object.keys(translations)[0]] ?? "none",
+        });
 
         initI18n(locale, translations, fallbackTranslations);
 
