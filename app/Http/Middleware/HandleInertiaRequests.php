@@ -11,18 +11,17 @@ class HandleInertiaRequests extends Middleware
     /**
      * RTL locales for right-to-left text direction
      */
-    protected array $rtlLocales = ['ar', 'fa', 'he'];
+    // None of the four supported languages (en, de, ru, tr) are RTL
+    protected array $rtlLocales = [];
 
     /**
      * Locale to language folder mapping
      */
     protected array $localeToFolder = [
         'en' => 'eng',
-        'ar' => 'ar',
+        'de' => 'de',
         'ru' => 'ru',
         'tr' => 'tr',
-        'de' => 'de',
-        'fa' => 'fa',
     ];
 
     /**
@@ -444,11 +443,9 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             'en' => ['name' => 'English', 'native' => 'English', 'dir' => 'ltr', 'flag' => 'gb'],
+            'de' => ['name' => 'German', 'native' => 'Deutsch', 'dir' => 'ltr', 'flag' => 'de'],
             'ru' => ['name' => 'Russian', 'native' => 'Русский', 'dir' => 'ltr', 'flag' => 'ru'],
             'tr' => ['name' => 'Turkish', 'native' => 'Türkçe', 'dir' => 'ltr', 'flag' => 'tr'],
-            'de' => ['name' => 'German', 'native' => 'Deutsch', 'dir' => 'ltr', 'flag' => 'de'],
-            'fa' => ['name' => 'Persian', 'native' => 'فارسی', 'dir' => 'rtl', 'flag' => 'ir'],
-            'ar' => ['name' => 'Arabic', 'native' => 'العربية', 'dir' => 'rtl', 'flag' => 'sa'],
         ];
     }
 }
