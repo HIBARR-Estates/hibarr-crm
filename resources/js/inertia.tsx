@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { OuterProviders, InnerProviders } from "./providers";
 import { route } from "ziggy-js";
 import React from "react";
+import { initI18n } from "@/lib/i18n";
 // import { Ziggy } from "./ziggy";
 
 // Declare global route function
@@ -72,6 +73,21 @@ createInertiaApp({
     setup({ App, props, el: og }) {
         // console.log("Setting up Inertia app with element:", og);
         // console.log("App props:", props);
+
+        // Initialize i18n before first render so react-i18next hooks always have an instance.
+        const sharedProps =
+            ((props as { initialPage?: { props?: Record<string, unknown> } })
+                .initialPage?.props as Record<string, unknown> | undefined) ||
+            {};
+
+        const locale = (sharedProps.locale as string) || "en";
+        const translations =
+            (sharedProps.translations as Record<string, string>) || {};
+        const fallbackTranslations =
+            (sharedProps.fallbackTranslations as Record<string, string> | null) ||
+            null;
+
+        initI18n(locale, translations, fallbackTranslations);
 
         // if (!el) {
         //     console.error('No element found with id "app"');
