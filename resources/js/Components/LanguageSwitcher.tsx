@@ -5,14 +5,12 @@ import type { MenuProps } from "antd";
 import { useTranslation } from "@/Hooks/useTranslation";
 import type { SupportedLocale } from "@/lib/i18n";
 
-// Flag emoji mapping for better visual representation
+// Flag emoji mapping for the four supported languages
 const FLAG_EMOJI: Record<string, string> = {
     gb: "🇬🇧",
+    de: "🇩🇪",
     ru: "🇷🇺",
     tr: "🇹🇷",
-    de: "🇩🇪",
-    ir: "🇮🇷",
-    sa: "🇸🇦",
 };
 
 interface LanguageSwitcherProps {

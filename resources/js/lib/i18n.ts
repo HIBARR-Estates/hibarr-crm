@@ -7,11 +7,9 @@ import { initReactI18next } from "react-i18next";
  */
 export const SUPPORTED_LANGUAGES = {
     en: { name: "English", native: "English", dir: "ltr", flag: "gb" },
+    de: { name: "German", native: "Deutsch", dir: "ltr", flag: "de" },
     ru: { name: "Russian", native: "Русский", dir: "ltr", flag: "ru" },
     tr: { name: "Turkish", native: "Türkçe", dir: "ltr", flag: "tr" },
-    de: { name: "German", native: "Deutsch", dir: "ltr", flag: "de" },
-    fa: { name: "Persian", native: "فارسی", dir: "rtl", flag: "ir" },
-    ar: { name: "Arabic", native: "العربية", dir: "rtl", flag: "sa" },
 } as const;
 
 export type SupportedLocale = keyof typeof SUPPORTED_LANGUAGES;
@@ -85,7 +83,8 @@ export const initI18n = (
  * Check if a locale is RTL
  */
 export const isRtlLocale = (locale: string): boolean => {
-    return ["ar", "fa", "he"].includes(locale);
+    // None of the four supported languages (en, de, ru, tr) are RTL
+    return false;
 };
 
 export default i18n;
