@@ -281,39 +281,45 @@ const Show = ({
             >
                 {/* ── Project identity header — always visible across tabs ── */}
                 <div className="mb-5 pb-4 border-b border-gray-200">
-                    <div className="flex items-center gap-3 mb-1">
-                        <Link
-                            href={route("developer-projects.index")}
-                            className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm transition-colors"
-                        >
-                            <ArrowLeft size={14} />
-                            <span>Back</span>
-                        </Link>
-                        <span className="text-gray-300">|</span>
-                        <h1 className="text-2xl font-bold text-slate-900 leading-tight">
-                            {project.name}
-                        </h1>
-                    </div>
-                    {project.developer && (
-                        <p className="text-sm text-gray-500 ml-[calc(14px+0.25rem+1px+0.75rem+1px+0.75rem)] mb-0.5 ">
-                            by{" "}
-                            <Link
-                                href={route(
-                                    "developers.show",
-                                    project.developer.id,
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="flex items-center gap-3 mt-1.5 shrink-0">
+                                <Link
+                                    href={route("developer-projects.index")}
+                                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm transition-colors"
+                                >
+                                    <ArrowLeft size={14} />
+                                    <span>Back</span>
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-slate-900 leading-tight">
+                                    {project.name}
+                                </h1>
+                                {project.developer && (
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        by{" "}
+                                        <Link
+                                            href={route(
+                                                "developers.show",
+                                                project.developer.id,
+                                            )}
+                                            className="text-blue-600 hover:text-blue-800 font-medium capitalize"
+                                        >
+                                            {project.developer.name}
+                                        </Link>
+                                    </p>
                                 )}
-                                className="text-blue-600 hover:text-blue-800 font-medium capitalize"
-                            >
-                                {project.developer.name}
-                            </Link>
-                        </p>
-                    )}
-                    {project.location?.name && (
-                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5 capitalize">
-                            <MapPin size={14} className="text-gray-400" />
-                            {project.location.name}
-                        </p>
-                    )}
+                            </div>
+                        </div>
+                        {project.location?.name && (
+                            <p className="flex items-center gap-1.5 text-sm text-gray-500 capitalize shrink-0 mt-1.5">
+                                <MapPin size={14} className="text-gray-400" />
+                                {project.location.name}
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex gap-6">
