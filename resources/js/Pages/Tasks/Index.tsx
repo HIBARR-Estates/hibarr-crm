@@ -471,7 +471,11 @@ const TasksIndex = ({
                                         }
                                         size="small"
                                         showTotal={(total, range) =>
-                                            `${range[0]}-${range[1]} of ${total} items`
+                                            t("pages.tasks.pagination_total", {
+                                                start: range[0],
+                                                end: range[1],
+                                                total,
+                                            })
                                         }
                                         onChange={(page, pageSize) => {
                                             router.get(
@@ -554,7 +558,7 @@ const TasksIndex = ({
 
                     {/* Task Details Drawer */}
                     <Drawer
-                        title={`Task: ${selectedTask?.heading || ""}`}
+                        title={`${t("pages.tasks.drawer_title_prefix")}: ${selectedTask?.heading || ""}`}
                         placement="right"
                         size="large"
                         open={action === "view"}
