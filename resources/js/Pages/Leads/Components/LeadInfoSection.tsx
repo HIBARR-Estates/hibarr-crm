@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Lead } from "@/Types/api/leads";
 import { router, usePage } from "@inertiajs/react";
 import {
@@ -67,6 +68,7 @@ export default function LeadInfoSection({
 }: Props) {
     const { props } = usePage();
     const user = props.auth.user;
+    const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState("overview");
     const {
         action,
@@ -205,11 +207,11 @@ export default function LeadInfoSection({
 
             await Promise.all(promises);
 
-            message.success("All changes saved successfully");
+            message.success(t("pages.leads.info.save_all_success"));
             setPendingChanges({});
             onEditModeChange(false);
         } catch (error: any) {
-            message.error(error?.message || "Failed to save changes");
+            message.error(error?.message || t("pages.leads.info.save_all_error"));
         } finally {
             setIsSavingAll(false);
         }
@@ -302,7 +304,7 @@ export default function LeadInfoSection({
                         });
                         return updated as Lead;
                     });
-                    message.success("File uploaded successfully");
+                    message.success(t("pages.leads.info.file_upload_success"));
                 }
                 setUpdatingField(null);
                 return;
@@ -365,14 +367,12 @@ export default function LeadInfoSection({
             ? [
                   {
                       key: "save_all",
-                      tooltip: `Save All Changes (${
-                          Object.keys(pendingChanges).length
-                      })`,
+                      tooltip: `${t("pages.leads.info.actions.save_all_tooltip")} (${Object.keys(pendingChanges).length})`,
                       type: "primary" as const,
                       icon: <SaveOutlined />,
                       label: (
                           <span>
-                              Save All ({Object.keys(pendingChanges).length})
+                              {t("pages.leads.info.actions.save_all")} ({Object.keys(pendingChanges).length})
                           </span>
                       ),
                       onClick: handleSaveAll,
@@ -385,10 +385,10 @@ export default function LeadInfoSection({
             ? [
                   {
                       key: "cancel_edit",
-                      tooltip: "Cancel Edit",
+                      tooltip: t("pages.leads.info.actions.cancel_edit"),
                       type: "text" as const,
                       icon: <CloseOutlined />,
-                      label: <span>Cancel Edit</span>,
+                      label: <span>{t("pages.leads.info.actions.cancel_edit")}</span>,
                       onClick: handleExitEditMode,
                   },
               ]
@@ -398,20 +398,20 @@ export default function LeadInfoSection({
             ? [
                   {
                       key: "toggle_edit",
-                      tooltip: "Edit Mode",
+                      tooltip: t("pages.leads.info.actions.edit_mode"),
                       type: "text" as const,
                       icon: <EditOutlined />,
-                      label: <span>Edit Mode</span>,
+                      label: <span>{t("pages.leads.info.actions.edit_mode")}</span>,
                       onClick: handleToggleEditMode,
                   },
               ]
             : []),
         {
             key: "add_task",
-            tooltip: "Add Task",
+            tooltip: t("pages.leads.info.actions.add_task"),
             type: "text" as const,
             icon: <CheckSquareOutlined />,
-            label: <span>Add Task</span>,
+            label: <span>{t("pages.leads.info.actions.add_task")}</span>,
             onClick: () => setIsTaskModalOpen(true),
         },
         // ...(canEdit  //deprecated
@@ -428,21 +428,21 @@ export default function LeadInfoSection({
         //     : []),
         {
             key: "convert",
-            tooltip: "Convert to Client",
+            tooltip: t("pages.leads.info.actions.convert_to_client"),
             type: "text" as const,
             icon: <UserOutlined />,
-            label: <span>Convert to Client</span>,
+            label: <span>{t("pages.leads.info.actions.convert_to_client")}</span>,
             onClick: () => handleAction("change_to_client", lead),
         },
         ...(canDelete
             ? [
                   {
                       key: "delete",
-                      tooltip: "Delete Lead",
+                      tooltip: t("pages.leads.info.actions.delete_lead"),
                       type: "text" as const,
                       icon: <DeleteOutlined />,
                       danger: true,
-                      label: <span className="text-red-600">Delete Lead</span>,
+                      label: <span className="text-red-600">{t("pages.leads.info.actions.delete_lead")}</span>,
                       onClick: () => handleAction("delete", lead),
                   },
               ]
@@ -453,12 +453,12 @@ export default function LeadInfoSection({
     const tabItems = [
         {
             key: "overview",
-            label: "Overview",
+            label: t("pages.leads.info.tab_overview"),
             children: (
                 <div className="p-4 space-y-4">
                     {/* Contact Information */}
-                    <DetailSection title="Contact Information">
-                        <DetailField label="Name">
+                    <DetailSection title={t("pages.leads.info.sections.contact")}>
+                        <DetailField label={t("pages.leads.info.fields.name")}>
                             <EditableField
                                 value={
                                     currentLeadState.client_name_salutation ||
@@ -476,7 +476,7 @@ export default function LeadInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Email" copyValue={currentLeadState.client_email || undefined}>
+                        <DetailField label={t("pages.leads.info.fields.email")} copyValue={currentLeadState.client_email || undefined}>
                             <div className="flex items-center gap-x-2">
                                 {currentLeadState.client_email && (
                                     <MailOutlined className="text-gray-400 flex-shrink-0" />
@@ -489,7 +489,7 @@ export default function LeadInfoSection({
                                         handleFieldUpdate("client_email", value)
                                     }
                                     onChange={handleFieldChange}
-                                    placeholder="Add email"
+                                    placeholder={t("pages.leads.info.placeholders.email")}
                                     className="text-blue-600 hover:text-blue-800"
                                     alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("client_email")}
@@ -497,7 +497,7 @@ export default function LeadInfoSection({
                             </div>
                         </DetailField>
 
-                        <DetailField label="Mobile" copyValue={getMobileNumber(currentLeadState.mobile) || currentLeadState.mobile_with_phonecode || undefined}>
+                        <DetailField label={t("pages.leads.info.fields.mobile")} copyValue={getMobileNumber(currentLeadState.mobile) || currentLeadState.mobile_with_phonecode || undefined}>
                             <div className="flex items-center gap-x-2">
                                 <PhoneOutlined className="text-gray-400 flex-shrink-0" />
                                 <EditableField
@@ -514,14 +514,14 @@ export default function LeadInfoSection({
                                         handleFieldUpdate("mobile", value)
                                     }
                                     onChange={handleFieldChange}
-                                    placeholder="Add mobile"
+                                    placeholder={t("pages.leads.info.placeholders.mobile")}
                                     alwaysEditing={isFieldEditable}
                                     loading={isFieldLoading("mobile")}
                                 />
                             </div>
                         </DetailField>
 
-                        <DetailField label="Office Phone" copyValue={currentLeadState.office_phone_formatted || currentLeadState.office || undefined}>
+                        <DetailField label={t("pages.leads.info.fields.office_phone")} copyValue={currentLeadState.office_phone_formatted || currentLeadState.office || undefined}>
                             <EditableField
                                 value={
                                     currentLeadState.office_phone_formatted ||
@@ -534,7 +534,7 @@ export default function LeadInfoSection({
                                     handleFieldUpdate("office", value)
                                 }
                                 onChange={handleFieldChange}
-                                placeholder="Add office phone"
+                                placeholder={t("pages.leads.info.placeholders.office_phone")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("office")}
                             />
@@ -542,15 +542,15 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Personal Details */}
-                    <DetailSection title="Personal Details">
-                        <DetailField label="Gender">
+                    <DetailSection title={t("pages.leads.info.sections.personal")}>
+                        <DetailField label={t("pages.leads.info.fields.gender")}>
                             <EditableField
                                 value={currentLeadState.gender || ""}
                                 fieldName="gender"
                                 fieldType="select"
                                 options={[
-                                    { label: "Male", value: "male" },
-                                    { label: "Female", value: "female" },
+                                    { label: t("pages.leads.info.fields.gender_male"), value: "male" },
+                                    { label: t("pages.leads.info.fields.gender_female"), value: "female" },
                                 ]}
                                 onSave={(value) =>
                                     handleFieldUpdate("gender", value)
@@ -570,7 +570,7 @@ export default function LeadInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Company">
+                        <DetailField label={t("pages.leads.info.fields.company")}>
                             <EditableField
                                 value={currentLeadState.company_name || ""}
                                 fieldName="company_name"
@@ -579,13 +579,13 @@ export default function LeadInfoSection({
                                     handleFieldUpdate("company_name", value)
                                 }
                                 onChange={handleFieldChange}
-                                placeholder="Add company name"
+                                placeholder={t("pages.leads.info.placeholders.company")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("company_name")}
                             />
                         </DetailField>
 
-                        <DetailField label="Website">
+                        <DetailField label={t("pages.leads.info.fields.website")}>
                             <EditableField
                                 value={currentLeadState.website || ""}
                                 fieldName="website"
@@ -609,13 +609,13 @@ export default function LeadInfoSection({
                                         </a>
                                     ) : undefined
                                 }
-                                placeholder="Add website"
+                                placeholder={t("pages.leads.info.placeholders.website")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("website")}
                             />
                         </DetailField>
 
-                        <DetailField label="Lead Owner">
+                        <DetailField label={t("pages.leads.info.fields.lead_owner")}>
                             <EditableField
                                 value={
                                     currentLeadState.lead_owner &&
@@ -648,7 +648,7 @@ export default function LeadInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Added By">
+                        <DetailField label={t("pages.leads.info.fields.added_by")}>
                             {currentLeadState.added_by ? (
                                 <div className="flex items-center gap-x-2">
                                     <Avatar
@@ -669,8 +669,8 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Classification */}
-                    <DetailSection title="Classification">
-                        <DetailField label="Lead Source">
+                    <DetailSection title={t("pages.leads.info.sections.classification")}>
+                        <DetailField label={t("pages.leads.info.fields.lead_source")}>
                             <EditableField
                                 value={currentLeadState.source_id || null}
                                 fieldName="source_id"
@@ -697,7 +697,7 @@ export default function LeadInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Category">
+                        <DetailField label={t("pages.leads.info.fields.category")}>
                             <EditableField
                                 value={currentLeadState.category_id || null}
                                 fieldName="category_id"
@@ -727,7 +727,7 @@ export default function LeadInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Created At">
+                        <DetailField label={t("pages.leads.info.fields.created_at")}>
                             {currentLeadState.created_at ? (
                                 <span className="flex items-center gap-1">
                                     <CalendarOutlined className="text-gray-400" />
@@ -740,7 +740,7 @@ export default function LeadInfoSection({
                             )}
                         </DetailField>
 
-                        <DetailField label="Updated At">
+                        <DetailField label={t("pages.leads.info.fields.updated_at")}>
                             {currentLeadState.updated_at ? (
                                 <span className="flex items-center gap-1">
                                     <CalendarOutlined className="text-gray-400" />
@@ -755,8 +755,8 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Address */}
-                    <DetailSection title="Address">
-                        <DetailField label="Country">
+                    <DetailSection title={t("pages.leads.info.sections.address")}>
+                        <DetailField label={t("pages.leads.info.fields.country")}>
                             <EditableField
                                 value={currentLeadState.country || ""}
                                 fieldName="country"
@@ -765,13 +765,13 @@ export default function LeadInfoSection({
                                     handleFieldUpdate("country", value)
                                 }
                                 onChange={handleFieldChange}
-                                placeholder="Select country"
+                                placeholder={t("pages.leads.info.placeholders.country")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("country")}
                             />
                         </DetailField>
 
-                        <DetailField label="State">
+                        <DetailField label={t("pages.leads.info.fields.state")}>
                             <EditableField
                                 value={currentLeadState.state || ""}
                                 fieldName="state"
@@ -780,13 +780,13 @@ export default function LeadInfoSection({
                                     handleFieldUpdate("state", value)
                                 }
                                 onChange={handleFieldChange}
-                                placeholder="Add state"
+                                placeholder={t("pages.leads.info.placeholders.state")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("state")}
                             />
                         </DetailField>
 
-                        <DetailField label="City">
+                        <DetailField label={t("pages.leads.info.fields.city")}>
                             <EditableField
                                 value={currentLeadState.city || ""}
                                 fieldName="city"
@@ -795,13 +795,13 @@ export default function LeadInfoSection({
                                     handleFieldUpdate("city", value)
                                 }
                                 onChange={handleFieldChange}
-                                placeholder="Add city"
+                                placeholder={t("pages.leads.info.placeholders.city")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("city")}
                             />
                         </DetailField>
 
-                        <DetailField label="Postal Code">
+                        <DetailField label={t("pages.leads.info.fields.postal_code")}>
                             <EditableField
                                 value={currentLeadState.postal_code || ""}
                                 fieldName="postal_code"
@@ -810,13 +810,13 @@ export default function LeadInfoSection({
                                     handleFieldUpdate("postal_code", value)
                                 }
                                 onChange={handleFieldChange}
-                                placeholder="Add postal code"
+                                placeholder={t("pages.leads.info.placeholders.postal_code")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("postal_code")}
                             />
                         </DetailField>
 
-                        <DetailField label="Address" span={2}>
+                        <DetailField label={t("pages.leads.info.fields.address")} span={2}>
                             <EditableField
                                 value={currentLeadState.address || ""}
                                 fieldName="address"
@@ -833,7 +833,7 @@ export default function LeadInfoSection({
                                         </span>
                                     ) : undefined
                                 }
-                                placeholder="Add address"
+                                placeholder={t("pages.leads.info.placeholders.address")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("address")}
                             />
@@ -841,8 +841,8 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Notes */}
-                    <DetailSection title="Notes" gridClassName="grid grid-cols-1">
-                        <DetailField label="Notes" span={2}>
+                    <DetailSection title={t("pages.leads.info.sections.notes")} gridClassName="grid grid-cols-1">
+                        <DetailField label={t("pages.leads.info.fields.notes")} span={2}>
                             <EditableField
                                 value={currentLeadState.note || ""}
                                 fieldName="note"
@@ -851,7 +851,7 @@ export default function LeadInfoSection({
                                     handleFieldUpdate("note", value)
                                 }
                                 onChange={handleFieldChange}
-                                placeholder="Add notes"
+                                placeholder={t("pages.leads.info.placeholders.notes")}
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("note")}
                             />
@@ -931,11 +931,11 @@ export default function LeadInfoSection({
                 <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80">
                     <div className="flex items-center gap-x-2">
                         <h2 className="text-sm font-semibold text-gray-700">
-                            Lead Information
+                            {t("pages.leads.info.title")}
                         </h2>
                         {isEditMode && (
                             <Tag color="blue" className="text-xs">
-                                Editing
+                                {t("pages.leads.info.editing")}
                             </Tag>
                         )}
                         {hasUnsavedChanges && (

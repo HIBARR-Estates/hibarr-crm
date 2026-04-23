@@ -1,4 +1,5 @@
 import React from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Card, Form, Input, Button, App, Alert } from "antd";
 import { ArrowLeftOutlined, SaveOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client";
@@ -26,6 +27,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
     note,
     onCancel,
 }) => {
+    const { t } = useTranslation();
     const { message } = App.useApp();
     const [form] = Form.useForm();
     const [errors, setErrors] = React.useState<string[]>([]);
@@ -38,7 +40,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
             .trim();
 
         if (!textContent || textContent === "") {
-            return Promise.reject(new Error("Please enter note details"));
+            return Promise.reject(new Error(t("pages.leads.notes.rule_details")));
         }
         return Promise.resolve();
     };
@@ -50,7 +52,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
         ApiResponse<LeadNote>
     >(route("lead-notes.update", note.id), "PUT", (response) => {
         if (response?.status === "success") {
-            message.success("Note updated successfully!");
+            message.success(t("pages.leads.notes.updated_success"));
             setErrors([]);
             router.reload();
             onCancel();
@@ -99,14 +101,14 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                         onClick={handleCancel}
                         className="text-gray-600 hover:text-gray-800 -ml-2"
                     >
-                        Back to Notes
+                        {t("pages.leads.notes.back_to_notes")}
                     </Button>
                 </div>
 
                 {errors.length > 0 && (
                     <Alert
                         type="error"
-                        message="Please fix the following errors:"
+                        message={t("pages.leads.notes.errors_title")}
                         description={
                             <ul className="mt-2">
                                 {errors.map((error, index) => (
@@ -130,17 +132,17 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                 >
                     <Form.Item
                         name="title"
-                        label="Note Title"
+                        label={t("pages.leads.notes.label_title")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter a note title",
+                                message: t("pages.leads.notes.rule_title"),
                             },
                         ]}
                         className="mb-6"
                     >
                         <Input
-                            placeholder="Enter a descriptive title for your note..."
+                            placeholder={t("pages.leads.notes.placeholder_title")}
                             disabled={isLoading({
                                 status: updateNoteMutation.status,
                             })}
@@ -151,7 +153,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
 
                     <Form.Item
                         name="details"
-                        label="Note Content"
+                        label={t("pages.leads.notes.label_content")}
                         rules={[
                             {
                                 required: true,
@@ -161,7 +163,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                         className="mb-6"
                     >
                         <HtmlEditor
-                            placeholder="Edit your note content..."
+                            placeholder={t("pages.leads.notes.placeholder_content_edit")}
                             disabled={isLoading({
                                 status: updateNoteMutation.status,
                             })}
@@ -177,7 +179,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                             })}
                             className="px-8"
                         >
-                            Cancel
+                            {t("pages.leads.notes.btn_cancel")}
                         </Button>
                         <Button
                             type="primary"
@@ -188,7 +190,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                             icon={<SaveOutlined />}
                             className="bg-blue-600 hover:bg-blue-700 px-8"
                         >
-                            Update Note
+                            {t("pages.leads.notes.btn_update")}
                         </Button>
                     </div>
                 </Form>

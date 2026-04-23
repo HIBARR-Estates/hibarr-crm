@@ -329,7 +329,7 @@ class HandleInertiaRequests extends Middleware
 
         return Cache::remember("translations_{$locale}", 3600, function () use ($locale) {
             \Log::channel('daily')->info('[i18n] Building translations from disk (cache miss)', ['locale' => $locale]);
-            $files = ['app', 'modules', 'messages', 'permissions', 'placeholders'];
+            $files = ['app', 'modules', 'messages', 'permissions', 'placeholders', 'pages'];
 
             // Always load English as the base translations
             $englishPath = lang_path('eng');
@@ -402,7 +402,7 @@ class HandleInertiaRequests extends Middleware
 
         return Cache::remember('translations_en', 3600, function () {
             $englishPath = lang_path('eng');
-            $files = ['app', 'modules', 'messages', 'permissions', 'placeholders'];
+            $files = ['app', 'modules', 'messages', 'permissions', 'placeholders', 'pages'];
             $translations = [];
 
             foreach ($files as $file) {

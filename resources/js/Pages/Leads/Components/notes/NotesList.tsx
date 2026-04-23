@@ -1,4 +1,5 @@
 import React from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Card, Input, Empty, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { LeadNote } from "@/Types/api/lead-note";
@@ -30,6 +31,7 @@ export const NotesList: React.FC<NotesListProps> = ({
     onEditNote,
     onDeleteNote,
 }) => {
+    const { t } = useTranslation();
     const canAddNote =
         permissions.add_lead_note === "all" ||
         permissions.add_lead_note === "added" ||
@@ -61,10 +63,10 @@ export const NotesList: React.FC<NotesListProps> = ({
                         level={5}
                         className="text-gray-700 group-hover:text-blue-700 transition-colors mb-2"
                     >
-                        Add New Note
+                        {t("pages.leads.notes.add_new_title")}
                     </Title>
                     <Text className="text-gray-500">
-                        Click to start writing
+                        {t("pages.leads.notes.click_to_write")}
                     </Text>
                 </div>
             </Card>
@@ -77,8 +79,8 @@ export const NotesList: React.FC<NotesListProps> = ({
                 <Empty
                     description={
                         searchTerm
-                            ? `No notes found for "${searchTerm}"`
-                            : "No notes yet"
+                            ? `${t("pages.leads.notes.no_notes_found")} "${searchTerm}"`
+                            : t("pages.leads.notes.no_notes_yet")
                     }
                 />
             </div>
@@ -91,7 +93,7 @@ export const NotesList: React.FC<NotesListProps> = ({
             <div className="flex justify-end">
                 <div className="w-10/12 md:w-1/3 lg:w-4/12">
                     <Search
-                        placeholder="Search notes by title or content..."
+                        placeholder={t("pages.leads.notes.search_placeholder")}
                         value={searchTerm}
                         onChange={(e) => onSearchChange(e.target.value)}
                         allowClear

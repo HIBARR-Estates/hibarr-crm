@@ -49,6 +49,8 @@ const Index = ({
 
     ...props
 }: IndexProps) => {
+    const { t } = useTranslation();
+
     const {
         handleAction,
         handleClose,
@@ -173,17 +175,16 @@ const Index = ({
                 },
             },
         ],
-        [handleEditLead, handleAction],
+        [handleEditLead, handleAction, t],
     );
 
     const columns = useMemo(
-        () => LEAD_TABLE_COLUMNS(getActionItems),
-        [getActionItems],
+        () => LEAD_TABLE_COLUMNS(getActionItems, t),
+        [getActionItems, t],
     );
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
-    const { t } = useTranslation();
 
     return (
         <>

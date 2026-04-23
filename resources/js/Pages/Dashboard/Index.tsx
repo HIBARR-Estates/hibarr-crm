@@ -260,7 +260,9 @@ const Index: React.FC<IndexProps> = ({
                                         {new Date().getHours() < 12
                                             ? t("app.dashboard.good_morning")
                                             : new Date().getHours() < 17
-                                              ? t("app.dashboard.good_afternoon")
+                                              ? t(
+                                                    "app.dashboard.good_afternoon",
+                                                )
                                               : t("app.dashboard.good_evening")}
                                         ! 👋
                                     </h1>
@@ -283,7 +285,9 @@ const Index: React.FC<IndexProps> = ({
                                         />
                                         <span>
                                             {stats.completed_tasks?.toLocaleString()}{" "}
-                                            {t("app.dashboard.stat_text.tasks_completed")}
+                                            {t(
+                                                "app.dashboard.stat_text.tasks_completed",
+                                            )}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -293,7 +297,9 @@ const Index: React.FC<IndexProps> = ({
                                         />
                                         <span>
                                             {stats.total_deals?.toLocaleString()}{" "}
-                                            {t("app.dashboard.stat_text.active_deals")}
+                                            {t(
+                                                "app.dashboard.stat_text.active_deals",
+                                            )}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -303,7 +309,9 @@ const Index: React.FC<IndexProps> = ({
                                         />
                                         <span>
                                             {stats.activities_this_week?.toLocaleString()}{" "}
-                                            {t("app.dashboard.stat_text.activities_this_week")}
+                                            {t(
+                                                "app.dashboard.stat_text.activities_this_week",
+                                            )}
                                         </span>
                                     </div>
                                 </motion.div>
@@ -444,25 +452,41 @@ const Index: React.FC<IndexProps> = ({
                                         <div className="font-semibold text-gray-900">
                                             {stats.total_tasks?.toLocaleString()}
                                         </div>
-                                        <div>Total Tasks</div>
+                                        <div>
+                                            {t(
+                                                "pages.dashboard.stats.total_tasks",
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
                                             {stats.overdue_tasks?.toLocaleString()}
                                         </div>
-                                        <div>Overdue Tasks</div>
+                                        <div>
+                                            {t(
+                                                "pages.dashboard.stats.overdue_tasks",
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
                                             {stats.total_deals?.toLocaleString()}
                                         </div>
-                                        <div>Total Deals</div>
+                                        <div>
+                                            {t(
+                                                "pages.dashboard.stats.total_deals",
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
                                             {stats.activities_this_week?.toLocaleString()}
                                         </div>
-                                        <div>Weekly Activities</div>
+                                        <div>
+                                            {t(
+                                                "pages.dashboard.stats.weekly_activities",
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>

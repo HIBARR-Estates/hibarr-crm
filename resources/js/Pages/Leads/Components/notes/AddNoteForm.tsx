@@ -1,4 +1,5 @@
 import React from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Card, Form, Input, Button, App, Alert } from "antd";
 import { ArrowLeftOutlined, SaveOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client";
@@ -22,6 +23,7 @@ interface AddNoteFormProps {
 }
 
 export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
+    const { t } = useTranslation();
     const { message } = App.useApp();
     const [form] = Form.useForm();
     const [errors, setErrors] = React.useState<string[]>([]);
@@ -34,7 +36,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
             .trim();
 
         if (!textContent || textContent === "") {
-            return Promise.reject(new Error("Please enter note details"));
+            return Promise.reject(new Error(t("pages.leads.notes.rule_details")));
         }
         return Promise.resolve();
     };
@@ -88,14 +90,14 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
                         className="text-gray-600 hover:text-gray-800 -ml-2"
                     />
                     <span className="text-lg font-medium ml-2 text-gray-500">
-                        Add New Note
+                        {t("pages.leads.notes.add_new_title")}
                     </span>
                 </div>
 
                 {errors.length > 0 && (
                     <Alert
                         type="error"
-                        message="Please fix the following errors:"
+                        message={t("pages.leads.notes.errors_title")}
                         description={
                             <ul className="mt-2">
                                 {errors.map((error, index) => (
@@ -119,17 +121,17 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
                 >
                     <Form.Item
                         name="title"
-                        label="Note Title"
+                        label={t("pages.leads.notes.label_title")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter a note title",
+                                message: t("pages.leads.notes.rule_title"),
                             },
                         ]}
                         className="mb-6"
                     >
                         <Input
-                            placeholder="Enter a descriptive title for your note..."
+                            placeholder={t("pages.leads.notes.placeholder_title")}
                             disabled={isLoading({
                                 status: addNoteMutation.status,
                             })}
@@ -140,7 +142,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
 
                     <Form.Item
                         name="details"
-                        label="Note Content"
+                        label={t("pages.leads.notes.label_content")}
                         rules={[
                             {
                                 required: true,
@@ -150,7 +152,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
                         className="mb-6"
                     >
                         <HtmlEditor
-                            placeholder="Write your note content here..."
+                            placeholder={t("pages.leads.notes.placeholder_content_add")}
                             disabled={isLoading({
                                 status: addNoteMutation.status,
                             })}
@@ -165,7 +167,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
                                 status: addNoteMutation.status,
                             })}
                         >
-                            Cancel
+                            {t("pages.leads.notes.btn_cancel")}
                         </Button>
                         <Button
                             type="primary"
@@ -175,7 +177,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
                             })}
                             icon={<SaveOutlined />}
                         >
-                            Save Note
+                            {t("pages.leads.notes.btn_save")}
                         </Button>
                     </div>
                 </Form>
