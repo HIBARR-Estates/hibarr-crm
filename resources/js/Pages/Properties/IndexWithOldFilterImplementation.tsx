@@ -217,14 +217,16 @@ export default function Index({
                                 icon={<FilterOutlined />}
                                 onClick={openFilterDrawer}
                             >
-                                {t("pages.properties.index_old.advanced_filters")}
+                                {t(
+                                    "pages.properties.index_old.advanced_filters",
+                                )}
                             </Button>
 
                             {/* Bulk Actions - Only show when items are selected */}
                             {selectedEntities.length > 0 && (
                                 <BulkActionSelector
                                     selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id
+                                        ({ id }) => id,
                                     )}
                                     clearSelected={clearSelected}
                                 />
@@ -238,7 +240,7 @@ export default function Index({
                             columns={columns}
                             dataSource={filterProperties(
                                 properties.data,
-                                filters
+                                filters,
                             )}
                             rowKey="id"
                             rowSelection={rowSelection}
@@ -261,7 +263,7 @@ export default function Index({
                                         {
                                             preserveState: true,
                                             preserveScroll: true,
-                                        }
+                                        },
                                     );
                                 },
                             }}
@@ -296,7 +298,9 @@ export default function Index({
             <FilterDrawer
                 open={drawerOpen}
                 onClose={closeFilterDrawer}
-                title={t("pages.properties.index_old.advanced_property_filters")}
+                title={t(
+                    "pages.properties.index_old.advanced_property_filters",
+                )}
                 filters={filters}
                 onApplyFilters={handleFilterSubmit}
                 onResetFilters={handleResetFilters}

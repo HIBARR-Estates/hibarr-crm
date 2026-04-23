@@ -111,7 +111,10 @@ const getPlatformIcon = (location: string) => {
     }
 };
 
-const getLocationLabel = (location: string, t: (k: string) => string): string => {
+const getLocationLabel = (
+    location: string,
+    t: (k: string) => string,
+): string => {
     const labels: Record<string, string> = {
         zoho: t("pages.meetings.platforms.video_meeting"),
         zoom: t("pages.meetings.platforms.zoom"),
@@ -287,7 +290,11 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
         }
 
         if (!isSafeUrl(meeting.meeting_link)) {
-            return <span className="text-xs text-gray-400">{t("pages.meetings.card.invalid_link")}</span>;
+            return (
+                <span className="text-xs text-gray-400">
+                    {t("pages.meetings.card.invalid_link")}
+                </span>
+            );
         }
 
         return (
@@ -299,7 +306,9 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                 onClick={(e) => e.stopPropagation()}
             >
                 {getPlatformIcon(meeting.location)}
-                <span className="underline">{t("pages.meetings.card.actions.join_meeting")}</span>
+                <span className="underline">
+                    {t("pages.meetings.card.actions.join_meeting")}
+                </span>
             </a>
         );
     };
@@ -394,7 +403,9 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         {meeting.deal.name}
                     </p>
                 ) : (
-                    <p className="text-gray-400 text-sm mb-0">{t("pages.meetings.card.no_deal")}</p>
+                    <p className="text-gray-400 text-sm mb-0">
+                        {t("pages.meetings.card.no_deal")}
+                    </p>
                 )}
             </div>
 
@@ -451,14 +462,16 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         </div>
                     ) : (
                         <span className="text-xs text-gray-400 flex items-center gap-1">
-                            <UserOutlined /> {t("pages.meetings.card.no_participants")}
+                            <UserOutlined />{" "}
+                            {t("pages.meetings.card.no_participants")}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {meeting.added_by && (
                         <span className="text-xs text-gray-400 truncate max-w-[100px]">
-                            {t("pages.meetings.card.added_by")} {meeting.added_by.name}
+                            {t("pages.meetings.card.added_by")}{" "}
+                            {meeting.added_by.name}
                         </span>
                     )}
                 </div>
@@ -660,7 +673,8 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                 {/* Step 1: Select deal */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t("app.meetings.select_deal_label")} <span className="text-red-500">*</span>
+                        {t("app.meetings.select_deal_label")}{" "}
+                        <span className="text-red-500">*</span>
                     </label>
                     <Select
                         showSearch
@@ -744,7 +758,8 @@ function MeetingsIndex() {
         permissions.add_lead_follow_up === "added";
 
     // ── Page-level refresh ──────────────────────────────────────────
-    const { refresh, isRefreshing } = usePageRefresh();    const { t } = useTranslation();
+    const { refresh, isRefreshing } = usePageRefresh();
+    const { t } = useTranslation();
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (

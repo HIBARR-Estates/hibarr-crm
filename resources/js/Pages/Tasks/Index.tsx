@@ -471,7 +471,11 @@ const TasksIndex = ({
                                         }
                                         size="small"
                                         showTotal={(total, range) =>
-                                            t("pages.tasks.pagination_total", { start: range[0], end: range[1], total })
+                                            t("pages.tasks.pagination_total", {
+                                                start: range[0],
+                                                end: range[1],
+                                                total,
+                                            })
                                         }
                                         onChange={(page, pageSize) => {
                                             router.get(
