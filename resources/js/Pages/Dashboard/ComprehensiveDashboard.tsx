@@ -452,25 +452,41 @@ const Index: React.FC<IndexProps> = ({
                                         <div className="font-semibold text-gray-900">
                                             {stats.total_tasks?.toLocaleString()}
                                         </div>
-                                        <div>Total Tasks</div>
+                                        <div>
+                                            {t(
+                                                "pages.dashboard.stats.total_tasks",
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
                                             {stats.overdue_tasks?.toLocaleString()}
                                         </div>
-                                        <div>Overdue Tasks</div>
+                                        <div>
+                                            {t(
+                                                "pages.dashboard.stats.overdue_tasks",
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
                                             {stats.total_deals?.toLocaleString()}
                                         </div>
-                                        <div>Total Deals</div>
+                                        <div>
+                                            {t(
+                                                "pages.dashboard.stats.total_deals",
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="font-semibold text-gray-900">
                                             {stats.activities_this_week?.toLocaleString()}
                                         </div>
-                                        <div>Weekly Activities</div>
+                                        <div>
+                                            {t(
+                                                "pages.dashboard.stats.weekly_activities",
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>

@@ -30,6 +30,7 @@ import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 import PropertyCarousel from "./PropertyCarousel";
 import AttachPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface Props {
     deal: Deal;
@@ -63,6 +64,7 @@ export default function DealInfoSection({
     onEditModeChange,
 }: Props) {
     const { props } = usePage<any>();
+    const { t } = useTranslation();
     const user = props.auth.user;
     const currencies = props.currencies || [];
     const defaultCurrencyCode = props.default_currency_code || "TRY";
@@ -268,11 +270,13 @@ export default function DealInfoSection({
 
             await Promise.all(promises);
 
-            message.success("All changes saved successfully");
+            message.success(t("pages.deals.info.save_all_success"));
             setPendingChanges({});
             onEditModeChange(false);
         } catch (error: any) {
-            message.error(error?.message || "Failed to save changes");
+            message.error(
+                error?.message || t("pages.deals.info.save_all_error"),
+            );
         } finally {
             setIsSavingAll(false);
         }
@@ -358,7 +362,7 @@ export default function DealInfoSection({
                     response.data?.data
                 ) {
                     setCurrentDeal(response.data.data);
-                    message.success("File uploaded successfully");
+                    message.success(t("pages.deals.info.file_upload_success"));
                 }
 
                 // Clear loading state for this field (we bypass useApiMutate here)
@@ -450,10 +454,10 @@ export default function DealInfoSection({
     const actionItems = [
         {
             key: "add_task",
-            tooltip: "Add Task",
+            tooltip: t("pages.deals.actions.add_task"),
             type: "text" as const,
             icon: <CheckSquareOutlined />,
-            label: <span>Add Task</span>,
+            label: <span>{t("pages.deals.actions.add_task")}</span>,
             onClick: () => handleAction("add_task"),
         },
         // Toggle edit mode button - only show if user can edit
@@ -462,7 +466,7 @@ export default function DealInfoSection({
                   {
                       key: "edit",
                       icon: <EditOutlined />,
-                      tooltip: "Edit Deal",
+                      tooltip: t("pages.deals.info.actions.edit"),
                       type: "text" as const,
                       onClick: handleToggleEditMode,
                   },
@@ -475,10 +479,8 @@ export default function DealInfoSection({
                       key: "save_all",
                       icon: <SaveOutlined />,
                       tooltip: hasUnsavedChanges
-                          ? `Save All Changes (${
-                                Object.keys(pendingChanges).length
-                            })`
-                          : "No changes to save",
+                          ? `${t("pages.deals.info.actions.save_all_tooltip")} (${Object.keys(pendingChanges).length})`
+                          : t("pages.deals.info.actions.no_changes"),
                       type: "primary" as const,
                       onClick: handleSaveAll,
                       disabled: !hasUnsavedChanges || isSavingAll,
@@ -492,7 +494,7 @@ export default function DealInfoSection({
                   {
                       key: "cancel_edit",
                       icon: <CloseOutlined />,
-                      tooltip: "Cancel Edit",
+                      tooltip: t("pages.deals.info.actions.cancel_edit"),
                       type: "text" as const,
                       onClick: handleExitEditMode,
                   },
@@ -504,7 +506,7 @@ export default function DealInfoSection({
                   {
                       key: "delete",
                       icon: <DeleteOutlined />,
-                      tooltip: "Delete Deal",
+                      tooltip: t("pages.deals.info.actions.delete"),
                       type: "text" as const,
                       danger: true,
                       onClick: () => {
@@ -519,12 +521,16 @@ export default function DealInfoSection({
     const tabItems = [
         {
             key: "overview",
-            label: "Overview",
+            label: t("pages.deals.info.tab_overview"),
             children: (
                 <div className="p-4 space-y-4">
                     {/* Deal Overview */}
-                    <DetailSection title="Deal Overview">
-                        <DetailField label="Deal Name">
+                    <DetailSection
+                        title={t("pages.deals.info.sections.overview")}
+                    >
+                        <DetailField
+                            label={t("pages.deals.info.fields.deal_name")}
+                        >
                             <EditableField
                                 value={currentDeal.name}
                                 fieldName="name"
@@ -540,7 +546,9 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Deal Value">
+                        <DetailField
+                            label={t("pages.deals.info.fields.deal_value")}
+                        >
                             <EditableField
                                 value={{
                                     amount: currentDeal.value ?? null,
@@ -596,7 +604,9 @@ export default function DealInfoSection({
                                 )}
                         </DetailField>
 
-                        <DetailField label="Close Date">
+                        <DetailField
+                            label={t("pages.deals.info.fields.close_date")}
+                        >
                             <EditableField
                                 value={currentDeal.close_date}
                                 fieldName="close_date"
@@ -620,7 +630,9 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Package(s)">
+                        <DetailField
+                            label={t("pages.deals.info.fields.packages")}
+                        >
                             <EditableField
                                 value={
                                     currentDeal.packages?.map(
@@ -652,7 +664,9 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Lead Contact">
+                        <DetailField
+                            label={t("pages.deals.info.fields.lead_contact")}
+                        >
                             <EditableField
                                 value={currentDeal?.lead_id}
                                 fieldName="lead_id"
@@ -677,7 +691,9 @@ export default function DealInfoSection({
                                                     color="blue"
                                                     className="text-xs"
                                                 >
-                                                    Client
+                                                    {t(
+                                                        "pages.deals.info.client_tag",
+                                                    )}
                                                 </Tag>
                                             )}
                                         </div>
@@ -699,7 +715,9 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Deal Category">
+                        <DetailField
+                            label={t("pages.deals.info.fields.deal_category")}
+                        >
                             <EditableField
                                 value={currentDeal.category_id}
                                 fieldName="category_id"
@@ -727,7 +745,10 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Properties" span={2}>
+                        <DetailField
+                            label={t("pages.deals.info.fields.properties")}
+                            span={2}
+                        >
                             <div className="w-full">
                                 <div className="flex items-center justify-between mb-1">
                                     <Button
@@ -739,7 +760,9 @@ export default function DealInfoSection({
                                         }
                                         className="!px-0 !text-xs"
                                     >
-                                        Manage Properties
+                                        {t(
+                                            "pages.deals.info.actions.manage_properties",
+                                        )}
                                     </Button>
                                 </div>
                                 {currentDeal.products &&
@@ -749,7 +772,7 @@ export default function DealInfoSection({
                                     />
                                 ) : (
                                     <span className="text-gray-400 text-sm">
-                                        No properties attached
+                                        {t("pages.deals.info.no_properties")}
                                     </span>
                                 )}
                             </div>
@@ -764,7 +787,9 @@ export default function DealInfoSection({
                         </DetailField>
 
                         {currentDeal?.lead_status && (
-                            <DetailField label="Status">
+                            <DetailField
+                                label={t("pages.deals.info.fields.status")}
+                            >
                                 <Tag
                                     color={currentDeal.lead_status.label_color}
                                     className="font-medium"
@@ -776,9 +801,11 @@ export default function DealInfoSection({
                     </DetailSection>
 
                     {/* Contact Info */}
-                    <DetailSection title="Contact Info">
+                    <DetailSection
+                        title={t("pages.deals.info.sections.contact_info")}
+                    >
                         <DetailField
-                            label="Email"
+                            label={t("pages.deals.info.fields.email")}
                             copyValue={
                                 currentDeal.contact?.client_email || undefined
                             }
@@ -811,7 +838,7 @@ export default function DealInfoSection({
                         </DetailField>
 
                         <DetailField
-                            label="Mobile"
+                            label={t("pages.deals.info.fields.mobile")}
                             copyValue={
                                 getMobileNumber(currentDeal.contact?.mobile) ||
                                 undefined
@@ -843,7 +870,10 @@ export default function DealInfoSection({
                             )}
                         </DetailField>
 
-                        <DetailField label="Company Name" span={2}>
+                        <DetailField
+                            label={t("pages.deals.info.fields.company_name")}
+                            span={2}
+                        >
                             <EditableField
                                 value={currentDeal.contact?.company_name}
                                 fieldName="company_name"
@@ -863,8 +893,10 @@ export default function DealInfoSection({
                     </DetailSection>
 
                     {/* Team */}
-                    <DetailSection title="Team">
-                        <DetailField label="Deal Agent">
+                    <DetailSection title={t("pages.deals.info.sections.team")}>
+                        <DetailField
+                            label={t("pages.deals.info.fields.deal_agent")}
+                        >
                             <EditableField
                                 value={currentDeal.agent_id}
                                 fieldName="agent_id"
@@ -894,7 +926,11 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Deal Participants">
+                        <DetailField
+                            label={t(
+                                "pages.deals.info.fields.deal_participants",
+                            )}
+                        >
                             <EditableField
                                 value={
                                     currentDeal.deal_participants?.map(
@@ -940,7 +976,10 @@ export default function DealInfoSection({
                             />
                         </DetailField>
 
-                        <DetailField label="Deal Watchers" span={2}>
+                        <DetailField
+                            label={t("pages.deals.info.fields.deal_watchers")}
+                            span={2}
+                        >
                             <EditableField
                                 value={
                                     currentDeal.deal_watchers?.map(
@@ -991,7 +1030,7 @@ export default function DealInfoSection({
         },
         {
             key: "details",
-            label: "Details",
+            label: t("pages.deals.info.tab_details"),
             children: (
                 <DealDetailsTab
                     deal={currentDeal}
@@ -1066,7 +1105,7 @@ export default function DealInfoSection({
                 >
                     <div className="flex items-center gap-3">
                         <h2 className="text-sm font-semibold text-gray-700">
-                            Deal Information
+                            {t("pages.deals.info.title")}
                         </h2>
                         {isLocked && (
                             <Tag
@@ -1074,12 +1113,12 @@ export default function DealInfoSection({
                                 icon={<LockOutlined />}
                                 className="text-xs"
                             >
-                                Locked
+                                {t("pages.deals.info.locked")}
                             </Tag>
                         )}
                         {isEditMode && (
                             <Tag color="blue" className="text-xs">
-                                Edit Mode
+                                {t("pages.deals.info.edit_mode")}
                             </Tag>
                         )}
                         {isEditMode && hasUnsavedChanges && (

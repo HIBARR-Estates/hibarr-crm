@@ -14,6 +14,7 @@ import type { MenuProps, SegmentedProps } from "antd";
 import { useState } from "react";
 import StartConversationDrawer from "./modals/StartConversationDrawer";
 import AddFollowup from "../Tabs/followups/AddFollowup";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface Props {
     deal: Deal;
@@ -22,6 +23,7 @@ interface Props {
 
 export default function QuickActions({ deal, permissions }: Props) {
     const { message: messageApi } = App.useApp();
+    const { t } = useTranslation();
     const [conversationModalOpen, setConversationModalOpen] = useState(false);
     const [meetingModalOpen, setMeetingModalOpen] = useState(false);
     const [selectedChannelType, setSelectedChannelType] = useState<string>("");
@@ -36,13 +38,15 @@ export default function QuickActions({ deal, permissions }: Props) {
                 if (contact.client_email) {
                     setSelectedChannelType("email");
                     setConversationModalOpen(true);
-                } else messageApi.warning("Contact has no email address");
+                } else
+                    messageApi.warning(t("pages.deals.quick_actions.no_email"));
                 break;
             case "whatsapp":
                 if (contact.mobile) {
                     setSelectedChannelType("whatsapp");
                     setConversationModalOpen(true);
-                } else messageApi.warning("Contact has no phone number");
+                } else
+                    messageApi.warning(t("pages.deals.quick_actions.no_phone"));
                 break;
             case "phone":
                 if (contact.mobile) {
@@ -58,21 +62,28 @@ export default function QuickActions({ deal, permissions }: Props) {
                     }
                     window.open(
                         `tel:${mobile.replace(/[^\d+]/g, "")}`,
-                        "_blank"
+                        "_blank",
                     );
-                } else messageApi.warning("Contact has no phone number");
+                } else
+                    messageApi.warning(t("pages.deals.quick_actions.no_phone"));
                 break;
             case "telegram":
                 if (contact.client_telegram) {
                     setSelectedChannelType("telegram");
                     setConversationModalOpen(true);
-                } else messageApi.warning("Contact has no Telegram username");
+                } else
+                    messageApi.warning(
+                        t("pages.deals.quick_actions.no_telegram"),
+                    );
                 break;
             case "instagram":
                 if (contact.client_instagram) {
                     setSelectedChannelType("instagram");
                     setConversationModalOpen(true);
-                } else messageApi.warning("Contact has no Instagram username");
+                } else
+                    messageApi.warning(
+                        t("pages.deals.quick_actions.no_instagram"),
+                    );
                 break;
             case "conversation":
                 setSelectedChannelType("");
@@ -88,7 +99,7 @@ export default function QuickActions({ deal, permissions }: Props) {
         {
             value: "email",
             icon: <MailOutlined style={{ color: "#aaa" }} />,
-            label: "Email",
+            label: t("pages.deals.quick_actions.email_label"),
         },
         {
             value: "whatsapp",
@@ -98,7 +109,7 @@ export default function QuickActions({ deal, permissions }: Props) {
         {
             value: "phone",
             icon: <PhoneOutlined style={{ color: "#52c41a" }} />,
-            label: "Call",
+            label: t("pages.deals.quick_actions.call_label"),
         },
         {
             value: "telegram",
@@ -117,7 +128,7 @@ export default function QuickActions({ deal, permissions }: Props) {
             value: action.value,
             icon: action.icon,
             title: action.label,
-        })
+        }),
     );
 
     const handleSegmentChange = (value: string | number) => {
@@ -130,13 +141,13 @@ export default function QuickActions({ deal, permissions }: Props) {
     const secondaryActions: MenuProps["items"] = [
         {
             key: "conversation",
-            label: "New Conversation",
+            label: t("pages.deals.quick_actions.new_conversation"),
             icon: <PlusOutlined />,
             onClick: () => handleQuickAction("conversation"),
         },
         {
             key: "meeting",
-            label: "Schedule Meeting",
+            label: t("app.deals.actions.schedule_meeting"),
             icon: <CalendarOutlined />,
             onClick: () => handleQuickAction("meeting"),
         },
